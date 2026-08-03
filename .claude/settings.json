@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "//": "TEAM-SHARED, COMMITTED settings for Dr. Je-Sais-Tout. Personal overrides go in",
+  "//2": ".claude/settings.local.json (gitignored).",
+  "//3": "An OPTIONAL permissions allowlist (to stop being prompted for routine build/test commands)",
+  "//4": "can be added here later — left out on purpose so this file never silently widens what the",
+  "//5": "agent can auto-run.",
+
+  "//mcp": "Auto-approve the angular-cli MCP server declared in .mcp.json so it loads without a",
+  "//mcp2": "trust prompt.",
+  "enableAllProjectMcpServers": false,
+  "enabledMcpjsonServers": ["angular-cli"],
+
+  "//hooks": "Deterministic automation — fires regardless of what the model remembers to do.",
+  "//hooks2": "SessionStart injects the operating rules + lessons-learned into every session/subagent context.",
+  "//hooks3": "PostToolUse reminds, after each edit, which rule/skill/verification applies to that layer.",
+  "//hooks4": "NOTE: keys inside 'hooks' must be valid event names — do not put '//'-comment keys there.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/inject-context.mjs\""
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit-guardrail.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
