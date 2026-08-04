@@ -64,6 +64,16 @@
 // Version appliquée sur `:focus-visible`, pour un composant qui n'a rien de
 // particulier à faire de plus. Le sélecteur reste `:focus-visible` (et non
 // `:focus`) pour ne pas cerner d'un anneau chaque clic à la souris.
+//
+// SonarCloud signale ici un BUG `css:S8776` (« Nesting selectors should have a
+// scoping root ») sur le `&` ci-dessous : FAUX POSITIF. Son analyseur lit le
+// fichier avec la sémantique de l'imbrication CSS native, où un `&` sans racine
+// de portée est effectivement une faute — mais en SCSS, le `&` d'un `@mixin` se
+// résout au SITE D'APPEL. Vérifié en compilant, plutôt que supposé :
+// `.bouton { @include m.focus-visible; }` produit bien `.bouton:focus-visible`,
+// media query de contraste forcé comprise. Ne pas « corriger » ce mixin ; le
+// constat se clôt dans l'interface SonarCloud (`.sonarcloud.properties` ne sait
+// pas taire une issue — voir l'en-tête de ce fichier-là).
 @mixin focus-visible {
   &:focus-visible {
     @include focus-visible-dessine;
