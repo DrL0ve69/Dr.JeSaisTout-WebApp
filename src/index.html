@@ -5,6 +5,13 @@
     <title>Dr. Je-Sais-Tout</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      Déclare que le site rend les deux thèmes. Le navigateur en tire la couleur du
+      canevas AVANT la première peinture du CSS : sans cette balise, une page ouverte
+      en thème sombre affiche un flash blanc. Doublé par `color-scheme: light dark`
+      sur `:root` (src/styles.scss) pour les contrôles de formulaire et l'ascenseur.
+    -->
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="Cours public et gratuit sur la sécurité des applications web — 13 modules, en préparation."

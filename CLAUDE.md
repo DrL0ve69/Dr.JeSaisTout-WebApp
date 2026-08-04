@@ -11,29 +11,35 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 > ## ⏭️ REPRISE — état au 2026-08-04, fin de session
 >
-> **E0 EST CLOS — ST1, ST2, ST3, ST4 ✅. Le site est en ligne, la chaîne est verte, rien n'est
-> resté ouvert.**
+> **E0 EST CLOS — ST1, ST2, ST3, ST4 ✅. Le site est en ligne, la chaîne est verte.** **E1-ST1 🟦
+> en cours — ST1-A (fondations SCSS + gate de contraste) livrée et revue.**
 >
 > **<https://salmon-sky-0a730780f.7.azurestaticapps.net>** — HTTP 200, cinq en-têtes servis,
 > **CSP à hachage `sha256-` résolu**, `lang="fr-CA"`, **aucune violation CSP en console**
 > (constaté par le propriétaire le 2026-08-04 : c'est ce silence qui prouve que le hachage
 > `style-src` colle au flux servi et que `ng-state` n'est pas bloqué — l'hydratation en dépend).
 >
-> **Le geste suivant : commencer E1-ST1** (jetons SCSS). Ses critères ont été chiffrés le
-> 2026-08-04 — lire [`docs/revue-plan-kb-2026-08-04.md`](docs/revue-plan-kb-2026-08-04.md)
-> **avant** de toucher au code, puis la section E1-ST1 de
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md).
+> **Le geste suivant : E1-ST1 · ST1-B** — polices auto-hébergées **Fraunces + Inter** (décision
+> du propriétaire), OFL, fichiers au **nom versionné** (servis en `immutable`), `unicode-range`
+> **du fournisseur recopié tel quel**, sans sous-ensemble maison — doit couvrir œŒ, guillemets
+> « », l'apostrophe U+2019 et l'espace fine insécable U+202F. Le plan v2 complet des cinq
+> sous-tâches (ST1-A à ST1-E) est résumé dans
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1.
 >
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
-> commit `fb86461` · ressources Azure créées (*Azure for Students*, palier **Free**) · secret
+> ressources Azure créées (*Azure for Students*, palier **Free**) · secret
 > `AZURE_STATIC_WEB_APPS_API_TOKEN` posé · workflows `Déploiement` **et** `Infra` **verts, zéro
-> annotation** · gates locaux verts · aucun `tfstate` versionné.
+> annotation** · ST1-A : design system 3 couches (73 primitives → 58 jetons sémantiques → 0 jeton
+> composant), gate `verifier-contrastes.mjs` câblé dans `ci.yml`/`deploy.yml` (33 paires, 66
+> mesures, plus bas 3,24:1/3,39:1) · gates locaux verts · aucun `tfstate` versionné.
 >
-> **Deux pièges déjà payés, à ne pas repayer.** (1) Une vérification post-déploiement doit attendre
+> **Pièges déjà payés, à ne pas repayer.** (1) Une vérification post-déploiement doit attendre
 > l'**effet**, pas le code de retour : SWA répond 200 pendant ~30-60 s *avant* d'appliquer
 > `staticwebapp.config.json`, et `curl --retry` ne rattrape rien puisque la réponse est un succès
-> (lesson **L-004**). (2) Un run « vert » ne prouve pas qu'une vérification a *tourné* — l'étape
-> s'auto-ignore si l'URL arrive vide ; c'est le **journal** qui fait foi, et il a été relu.
+> (lesson **L-004**). (2) Un run « vert » ne prouve pas qu'une vérification a *tourné* — c'est le
+> **journal** qui fait foi. (3) `public/**` est copié sans empreinte de contenu alors que les
+> `.js` sont servis `immutable` un an — d'où le choix ST1-C d'un script inline haché plutôt qu'un
+> fichier externe pour l'anti-flash de thème.
 >
 > Spikes tranchés : addendums §9 de
 > [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md).

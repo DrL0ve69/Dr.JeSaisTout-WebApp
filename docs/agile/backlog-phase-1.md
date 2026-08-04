@@ -143,7 +143,7 @@
 
 | ID | Objectif | Statut |
 |---|---|---|
-| E1-ST1 | Jetons SCSS + thèmes clair/sombre | ⬜ |
+| E1-ST1 | Jetons SCSS + thèmes clair/sombre | 🟦 |
 | E1-ST2 | Layout, navigation, pied de page | ⬜ |
 | E1-ST3 | Home « carnet de laboratoire » | ⬜ |
 
@@ -168,6 +168,26 @@
     Tant que ce lot n'est pas fait, l'écart à **G3** de la page « bientôt » (pile système) subsiste.
 - **Gates** : G-lint, G-build ; **table des ratios de contraste** produite pour chaque paire
   texte/fond des deux thèmes (AA minimum, AAA visé sur le corps) ; G-test sur le service de thème.
+
+**2026-08-04 — plan v2 en cinq sous-tâches (architecte, après passe d'avocat du diable).**
+- **ST1-A (fondations SCSS + gate de contraste) est livrée et revue** : 73 primitives Sass
+  (inatteignables depuis un composant — G7 verrouillé structurellement) → 58 jetons sémantiques en
+  custom properties (24 couleurs par thème) → 0 jeton composant, couche vide et voulue. Thèmes clair
+  et sombre tous deux dessinés, accents recalibrés (jamais inversés — G9). Aucune opacité sur un
+  jeton de texte. Gate `tools/design/verifier-contrastes.mjs` : 33 paires déclarées, 66 mesures,
+  seuils 4.5:1 texte / 3:1 grand texte / 3:1 non-texte (WCAG 1.4.11) ; plus bas mesuré 3,24:1 (clair)
+  et 3,39:1 (sombre) ; corps de texte à 14,15:1 / 13,95:1 (AAA). Échoue sur l'inconnu (jamais de skip
+  silencieux). Câblé dans `ci.yml` et `deploy.yml` en mode `--check`, sortie déterministe. Corrections
+  de revue : cascade `@media print` (thème sombre battait le print par spécificité), `$taille-xs`
+  hors échelle des 25 %, mixin `marque-pedagogique` avec second canal non coloré pour le mode
+  contraste élevé Windows (WCAG 1.4.1). Leçons L-007, L-008, L-009 consignées.
+- **Restent** : **ST1-B** (polices auto-hébergées Fraunces + Inter) · **ST1-C** (script inline
+  `<script id="init-theme">` unique, haché depuis l'artéfact, revu par `security-reviewer`) ·
+  **ST1-D** (script anti-flash + `ThemeService` tri-état clair/sombre/système) · **ST1-E**
+  (vérification jetable + clôture).
+- **Écart de dépendance documenté** : `sass` promue de transitive à devDependency explicite (déjà
+  dans l'arbre via `@angular/build`, 0 octet téléchargé, 0 surface en production) pour tester les
+  mixins sur le CSS émis.
 
 ### E1-ST2 — Layout & navigation
 - **Objectif** : shell applicatif (header avec logotype typographique, nav, bascule de thème, footer), squelette de routes (`/`, `/cours/securite-web`, `/cours/securite-web/:slug`), page 404, skip-link, landmarks ARIA.

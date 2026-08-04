@@ -1,45 +1,24 @@
-/*
- * Styles de la page « bientôt » (E0-ST4) — PROVISOIRES et volontairement locaux.
- *
- * Ces valeurs ne sont PAS le design system : celui-ci est E1-ST1 (jetons sémantiques
- * primitives → sémantiques → composants, dans src/styles/). Les nommer ici en custom
- * properties locales évite de figer un jeton global qu'E1 devra ensuite défaire.
- *
- * Écart assumé au garde-fou G3 (docs/design/direction-visuelle.md) : la pile de polices est
- * celle du système. Aucune police à caractère n'est encore auto-hébergée, et la CSP interdit
- * tout hôte externe (pas de Google Fonts) — un choix typographique se prend en E1-ST1, pas
- * par défaut ici. Le reste tient : pas de dégradé violet (G1), pas de glassmorphism (G2),
- * pas d'emoji d'interface (G4), deux thèmes dessinés (G5), aucune animation (G6),
- * contraste AA et focus visible (G8), sombre en ardoise encrée et non en noir criard (G9).
- */
+// Page « bientôt » (E0-ST4) — PROVISOIRE. La vraie home est E1-ST3.
+//
+// Ce qui a changé en E1-ST1-A : les custom properties locales et les valeurs
+// littérales ont disparu. Ce fichier ne contient plus AUCUNE couleur, taille ou
+// distance en dur (garde-fou G7) — uniquement des jetons sémantiques et des
+// mixins. C'est aussi le premier consommateur réel du design system, donc sa
+// première vérification en situation.
+//
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée, il
+// dupliquerait tous les jetons dans son propre CSS.
+//
+// Écart assumé restant : G3 (typographie). Les piles sont système jusqu'à
+// E1-ST1-B, qui auto-hébergera Fraunces + Inter derrière --police-titres /
+// --police-corps sans qu'une ligne d'ici ne bouge.
+
+@use '../styles/mixins' as m;
 
 :host {
-  /* Thème clair — papier ivoire. */
-  --papier: #f7f4ec;
-  --papier-creux: #efe9db;
-  --encre: #1c2433;
-  --encre-attenuee: #4b5567;
-  --encre-rouge: #9b2c2c;
-  --reglure: #d8cfbb;
-
   display: block;
   min-height: 100dvh;
-  background-color: var(--papier);
-  color: var(--encre);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
-}
-
-@media (prefers-color-scheme: dark) {
-  :host {
-    /* Thème sombre — ardoise encrée. Recalibré, pas inversé (G9). */
-    --papier: #191d26;
-    --papier-creux: #212734;
-    --encre: #e8e4d9;
-    --encre-attenuee: #a8b0bf;
-    --encre-rouge: #e08585;
-    --reglure: #333b4a;
-  }
 }
 
 .page {
@@ -47,64 +26,50 @@
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  padding: 2rem 1.5rem;
+  padding: var(--espace-4) var(--espace-3);
 }
 
 .carnet {
-  /* Règlure de carnet : discrète, dans la gamme encre/papier (G1). */
-  max-width: 34rem;
-  padding: 2.5rem 2rem;
-  background-color: var(--papier-creux);
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 1.95rem,
-    var(--reglure) 1.95rem,
-    var(--reglure) calc(1.95rem + 1px)
-  );
-  border: 1px solid var(--reglure);
-  border-left: 3px solid var(--encre-rouge); /* marge de carnet */
+  @include m.reglure;
+
+  // Marge NEUTRE (défaut `--couleur-filet-fort`) : cette page ne parle de rien de
+  // vulnérable, et l'encre rouge est réservée à la signature sémantique du site.
+  @include m.marge-carnet;
+
+  max-width: var(--largeur-lecture);
+  padding: var(--espace-4) var(--espace-3);
+  background-color: var(--couleur-surface-creuse);
+
+  // Le contour de l'encart est porté par --couleur-filet (mesuré à 3:1), jamais
+  // par la seule différence de teinte des deux fonds : deux surfaces voisines ne
+  // suffisent pas à délimiter un bloc, et disparaissent en contraste forcé.
+  border: var(--filet-fin) solid var(--couleur-filet);
 }
 
 .tampon {
-  margin: 0 0 1.25rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+  margin-block-end: var(--espace-2);
+  color: var(--couleur-danger-vuln);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
   text-transform: uppercase;
-  color: var(--encre-rouge);
 }
 
 .titre {
-  margin: 0 0 1rem;
-  font-size: clamp(2rem, 6vw, 2.75rem);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  margin-block-end: var(--espace-2);
 }
 
 .accroche {
-  margin: 0;
-  font-size: 1.0625rem;
-  color: var(--encre);
+  font-size: var(--taille-m);
 }
 
+// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`) :
+// il n'y a ici que le rythme vertical.
 .reglure {
-  height: 1px;
-  margin: 1.75rem 0;
-  border: 0;
-  background-color: var(--reglure);
+  margin-block: var(--espace-4);
 }
 
 .note {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--encre-attenuee);
-}
-
-/* G8 — focus dessiné, jamais supprimé. Aucun élément focusable ici pour l'instant ;
-   la règle est posée pour ne pas l'oublier au premier lien ajouté. */
-:focus-visible {
-  outline: 2px solid var(--encre-rouge);
-  outline-offset: 3px;
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
 }

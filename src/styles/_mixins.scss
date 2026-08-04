@@ -1,0 +1,184 @@
+// =============================================================================
+// OUTILLAGE — mixins transverses
+// -----------------------------------------------------------------------------
+// Ce fichier n'émet AUCUN CSS tant qu'aucun mixin n'est appelé : il est donc sûr
+// de l'`@use` depuis un style de composant (contrairement à `_themes.scss`).
+//
+// Il ne définit ni couleur ni taille : tout passe par les jetons sémantiques
+// (garde-fou G7). Il encapsule les media queries qu'on oublie autrement —
+// et un `prefers-reduced-motion` oublié est une violation de G6, pas un détail.
+// =============================================================================
+
+@use 'sass:map';
+@use 'primitives' as prim;
+
+// -----------------------------------------------------------------------------
+// G6 · Mouvement réduit
+// -----------------------------------------------------------------------------
+// Enveloppe `prefers-reduced-motion: reduce`. À utiliser pour NEUTRALISER une
+// animation, jamais pour en ajouter une.
+//
+//   .carte {
+//     transition: transform var(--duree-breve) var(--courbe-nette);
+//     @include m.mouvement-reduit { transition-duration: 0.01ms; }
+//   }
+//
+// Rappel de la direction visuelle : une simulation pas-à-pas doit rester
+// pilotable sans animation — le mouvement illustre, il ne porte jamais l'info.
+@mixin mouvement-reduit {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Contraste forcé (mode contraste élevé de Windows, WCAG 1.4.11 / 1.4.12)
+// -----------------------------------------------------------------------------
+// En `forced-colors: active`, le système remplace nos couleurs par sa propre
+// palette : tout ce qui portait du SENS par la couleur seule (bordure de
+// « bloc vulnérable », aplat de statut, règlure) disparaît. On y rétablit le
+// sens par une propriété non recolorée (bordure, `outline`) ou par les
+// mots-clés système (`CanvasText`, `Highlight`, `LinkText`).
+@mixin contraste-force {
+  @media (forced-colors: active) {
+    @content;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// G8 · Focus visible DESSINÉ
+// -----------------------------------------------------------------------------
+// WCAG 2.2 : 2.4.7 (focus visible), 2.4.11 (focus non masqué), 1.4.11 (≥ 3:1
+// pour un indicateur non textuel — mesuré par le gate de contraste).
+// L'`outline` n'est jamais supprimé ; il est REDESSINÉ, décalé pour rester
+// lisible même quand l'élément a lui-même un fond coloré.
+@mixin focus-visible-dessine {
+  outline: var(--filet-focus) solid var(--couleur-focus);
+  outline-offset: var(--decalage-focus);
+
+  @include contraste-force {
+    outline-color: Highlight;
+  }
+}
+
+// Version appliquée sur `:focus-visible`, pour un composant qui n'a rien de
+// particulier à faire de plus. Le sélecteur reste `:focus-visible` (et non
+// `:focus`) pour ne pas cerner d'un anneau chaque clic à la souris.
+@mixin focus-visible {
+  &:focus-visible {
+    @include focus-visible-dessine;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Décor de carnet — règlure et marge
+// -----------------------------------------------------------------------------
+// La règlure est du DÉCOR PUR : elle ne porte aucune information et n'est donc
+// pas soumise à 1.4.11 (elle est exemptée explicitement dans le gate de
+// contraste). C'est aussi le seul endroit où une opacité serait tolérable —
+// ici elle n'est même pas nécessaire, le jeton `--couleur-reglure` suffit.
+// Elle disparaît en contraste forcé : le système ne saurait pas la recolorer.
+//
+// $pas — hauteur d'une ligne de carnet. Par défaut, exactement la hauteur d'une
+// ligne de corps de texte : une règlure qui ne tombe pas sur les lignes se voit
+// immédiatement, et l'ancrer sur l'échelle d'espacement (24 px) plutôt que sur
+// l'interligne réel (16 × 1.6 = 25.6 px) produirait précisément ce décalage.
+@mixin reglure($pas: calc(var(--taille-s) * var(--interligne-corps))) {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(#{$pas} - var(--filet-fin)),
+    var(--couleur-reglure) calc(#{$pas} - var(--filet-fin)),
+    var(--couleur-reglure) #{$pas}
+  );
+
+  @include contraste-force {
+    background-image: none;
+  }
+}
+
+// Marge d'un feuillet de carnet — DÉCOR. Son défaut est `--couleur-filet-fort`
+// (trait neutre, mesuré ≥ 3:1), volontairement PAS `--couleur-danger-vuln` :
+// l'encre rouge est la signature sémantique « vulnérable » du site, et l'employer
+// en décor la dilue avant même le premier module. Un bloc qui veut dire quelque
+// chose n'utilise pas ce mixin, il utilise `marque-pedagogique` ci-dessous.
+//
+// En contraste forcé le système ne recolore pas les bordures d'après notre
+// palette : on les rebranche explicitement sur `CanvasText` pour que la marge ne
+// disparaisse pas (les autres décors, eux, sont retirés — cf. `reglure`).
+@mixin marge-carnet($couleur: var(--couleur-filet-fort)) {
+  border-inline-start: var(--filet-marge) solid #{$couleur};
+
+  @include contraste-force {
+    border-inline-start-color: CanvasText;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Marque pédagogique — WCAG 1.4.1 (l'information jamais par la seule couleur)
+// -----------------------------------------------------------------------------
+// LE contrat que consommeront les composants de leçon des 13 modules : la
+// distinction « vulnérable / corrigé / attention » ne repose JAMAIS sur la seule
+// couleur. En `forced-colors: active`, Windows écrase nos trois couleurs par un
+// unique `CanvasText` — un bloc vulnérable et sa correction deviendraient alors
+// rigoureusement identiques. On pose donc DEUX canaux :
+//
+//   1. la couleur sémantique (mesurée par le gate de contraste) ;
+//   2. le STYLE du trait, que `forced-colors` ne touche pas :
+//        vulnerable → `dashed` (trait rompu = quelque chose ne tient pas)
+//        corrige    → `solid`  (trait continu = c'est réparé)
+//        attention  → `dotted` (pointillé = mise en garde, pas un verdict)
+//
+// Troisième canal, hors CSS et non négociable : le bloc porte AUSSI une étiquette
+// textuelle visible (« Vulnérable », « Corrigé »…). Ce mixin ne peut pas la poser
+// à la place de l'auteur du gabarit — deux canaux ici, le troisième au balisage.
+$_marques: (
+  'vulnerable': (
+    couleur: var(--couleur-danger-vuln),
+    fond: var(--couleur-danger-vuln-surface),
+    style: dashed,
+  ),
+  'corrige': (
+    couleur: var(--couleur-ok-corrige),
+    fond: var(--couleur-ok-corrige-surface),
+    style: solid,
+  ),
+  'attention': (
+    couleur: var(--couleur-attention),
+    fond: var(--couleur-attention-surface),
+    style: dotted,
+  ),
+);
+
+@mixin marque-pedagogique($type) {
+  @if not map.has-key($_marques, $type) {
+    @error 'marque-pedagogique : type inconnu « #{$type} ». Attendu : ' +
+      '#{map.keys($_marques)}.';
+  }
+
+  $marque: map.get($_marques, $type);
+
+  border-inline-start: var(--filet-marge) map.get($marque, style)
+    map.get($marque, couleur);
+  background-color: map.get($marque, fond);
+
+  @include contraste-force {
+    // La couleur tombe (tout devient `CanvasText`), le style de trait survit :
+    // c'est lui qui porte seul la distinction à ce moment-là.
+    border-inline-start-color: CanvasText;
+    background-color: Canvas;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Filet horizontal — séparateur dans la gamme encre/papier (G1 : pas de dégradé)
+// -----------------------------------------------------------------------------
+@mixin filet-horizontal {
+  height: prim.$filet-fin;
+  border: 0;
+  background-color: var(--couleur-filet);
+
+  @include contraste-force {
+    background-color: CanvasText;
+  }
+}

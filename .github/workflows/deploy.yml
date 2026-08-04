@@ -40,6 +40,12 @@ jobs:
       - name: G-lint
         run: npm run lint
 
+      # Même gate que dans ci.yml, au même rang : les deux workflows doivent rester alignés,
+      # sinon ce qui part en ligne est moins vérifié que ce qui passe en PR. Voir la note de
+      # `ci.yml` pour le détail de ce que G-contraste mesure.
+      - name: G-contraste
+        run: npm run design:contrastes:check
+
       - name: G-test
         run: npm test
 

@@ -1,1 +1,186 @@
-/* You can add global styles to this file, and also import other style files */
+// =============================================================================
+// FEUILLE GLOBALE — Dr. Je-Sais-Tout
+// -----------------------------------------------------------------------------
+// Le SEUL fichier qui `@use` `styles/themes` : c'est lui qui matérialise le
+// bloc `:root` des jetons. Un style de composant ne doit `@use` que
+// `styles/mixins` (et jamais `styles/primitives` — garde-fou G7).
+//
+// Contenu, dans l'ordre : jetons → reset léger → base typographique → focus →
+// impression. Aucune règle de composant ici.
+// =============================================================================
+
+@use 'styles/themes' as themes;
+@use 'styles/mixins' as m;
+
+// -----------------------------------------------------------------------------
+// 1 · Reset léger — on corrige, on ne rase pas
+// -----------------------------------------------------------------------------
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// `color-scheme` déclare au navigateur que le site SAIT rendre les deux modes :
+// il en tire les couleurs par défaut des contrôles de formulaire, des barres de
+// défilement et du fond avant même le premier octet de CSS peint. Les valeurs
+// épinglées (`light` seul / `dark` seul) sont posées par les sélecteurs
+// `[data-theme]` de `_themes.scss`.
+:root {
+  color-scheme: light dark;
+
+  // Empêche le regrossissement automatique du texte d'iOS/Safari en paysage,
+  // qui casse l'échelle typographique fixe.
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--couleur-surface);
+  color: var(--couleur-encre);
+  font-family: var(--police-corps);
+  font-size: var(--taille-s);
+  font-weight: var(--graisse-corps);
+  line-height: var(--interligne-corps);
+}
+
+// -----------------------------------------------------------------------------
+// 2 · Base typographique
+// -----------------------------------------------------------------------------
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--police-titres);
+  font-weight: var(--graisse-titre);
+  line-height: var(--interligne-titre);
+  letter-spacing: var(--chasse-titre);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--taille-xxl);
+}
+
+h2 {
+  font-size: var(--taille-xl);
+}
+
+h3 {
+  font-size: var(--taille-l);
+}
+
+h4 {
+  font-size: var(--taille-m);
+}
+
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--police-code);
+  font-size: var(--taille-xs);
+}
+
+a {
+  color: var(--couleur-accent);
+  text-decoration-thickness: var(--filet-fin);
+  text-underline-offset: var(--espace-0-5);
+}
+
+a:hover {
+  color: var(--couleur-accent-survol);
+}
+
+hr {
+  @include m.filet-horizontal;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+::selection {
+  background-color: var(--couleur-selection-fond);
+  color: var(--couleur-selection-encre);
+}
+
+// -----------------------------------------------------------------------------
+// 3 · Focus — dessiné partout, supprimé nulle part (G8, WCAG 2.4.7 / 2.4.11)
+// -----------------------------------------------------------------------------
+:focus-visible {
+  @include m.focus-visible-dessine;
+}
+
+// Le défilement fluide n'est activé QUE si personne n'a demandé moins de
+// mouvement — l'inverse de la pratique courante, qui l'active puis l'annule.
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+// Ceinture et bretelles : si un composant introduit un jour une animation sans
+// variante réduite, elle est neutralisée globalement plutôt que subie.
+@include m.mouvement-reduit {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// 4 · Impression — le carnet se photocopie en clair
+// -----------------------------------------------------------------------------
+// Une page imprimée depuis le thème sombre gaspille l'encre et sort illisible.
+// On force donc les jetons du thème CLAIR dans les DEUX cas — épinglé ou non —
+// et la liste de sélecteurs ci-dessous n'est pas redondante :
+//
+//   · `:root[data-theme]` (0,2,0) neutralise `:root[data-theme='sombre']` (0,2,0),
+//     à égalité de spécificité, gagné par l'ordre source (le CSS d'un module
+//     `@use` est émis en TÊTE de fichier, ce bloc vient donc après) ;
+//   · `:root:not([data-theme])` (0,2,0) neutralise le bloc
+//     `prefers-color-scheme: dark` de `_themes.scss`, dont le sélecteur a lui
+//     aussi 0,2,0 — le simple `:root` (0,1,0) PERDAIT contre lui. Firefox et
+//     Safari évaluent encore `prefers-color-scheme` à l'impression : sans cette
+//     ligne, un visiteur non épinglé sur un OS en sombre imprimait de l'encre
+//     claire sur papier blanc (~1.1:1). `_themes.scss` porte la ceinture
+//     (`@media screen and …`), celle-ci est la bretelle.
+@media print {
+  :root,
+  :root:not([data-theme]),
+  :root[data-theme] {
+    color-scheme: light;
+
+    @include themes.jetons-theme-clair;
+  }
+
+  body {
+    background-color: transparent;
+  }
+
+  // Les URL des liens sont perdues au papier : on les rend explicites.
+  a[href^='http']::after {
+    content: ' (' attr(href) ')';
+    font-size: var(--taille-xs);
+    word-break: break-all;
+  }
+}

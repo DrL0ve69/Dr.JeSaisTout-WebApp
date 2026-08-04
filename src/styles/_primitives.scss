@@ -1,0 +1,193 @@
+// =============================================================================
+// COUCHE 1/3 — PRIMITIVES
+// -----------------------------------------------------------------------------
+// Valeurs brutes du design system « Carnet de laboratoire »
+// (docs/design/direction-visuelle.md §2). Rien ici ne porte de sens d'usage :
+// `$papier-50` ne dit pas « fond de page », il dit « la 50e nuance de papier ».
+// Le sens est donné par la couche 2 (`_themes.scss`).
+//
+// ⚠️ VOLONTAIREMENT DES VARIABLES SASS, PAS DES CUSTOM PROPERTIES.
+// Une primitive exposée en `var(--papier-50)` serait consommable depuis un
+// composant, ce qui court-circuiterait la couche sémantique et casserait le
+// thème (garde-fou G7). En restant des variables Sass, les primitives
+// disparaissent à la compilation : un composant ne PEUT pas les atteindre.
+// Corollaire Sass : une custom property n'évalue pas son expression, il faut
+// donc écrire `--couleur-x: #{prim.$papier-50};` avec interpolation — sans
+// elle, la chaîne littérale « prim.$papier-50 » atterrit dans le CSS.
+//
+// Aucune valeur de ce fichier n'est choisie « à l'œil » : les couleurs de texte
+// et de bordure sont mesurées par `tools/design/verifier-contrastes.mjs` et
+// consignées dans `docs/design/contrastes-jetons.md`.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// 1 · Palette « papier ivoire » — thème clair
+// -----------------------------------------------------------------------------
+$papier-0: #fffdf7; // feuillet posé au-dessus de la page (surface élevée)
+$papier-50: #f7f4ec; // le papier lui-même
+$papier-100: #eee8da; // encart, bloc de code, creux dans la page
+$papier-200: #cbbfa2; // règlure de carnet — DÉCOR PUR, hors champ de 1.4.11
+$papier-400: #877f6e; // filet porteur de sens — mesuré ≥ 3:1 (WCAG 1.4.11)
+$papier-500: #6f6858; // filet appuyé (bordure de champ, trait de tableau)
+
+// -----------------------------------------------------------------------------
+// 2 · Palette « encre bleu-noir » — texte du thème clair
+// -----------------------------------------------------------------------------
+// Chaque niveau d'emphase est une COULEUR PLEINE. Pas de hiérarchie par opacité
+// (Material 87 %/60 %) : baisser l'opacité fait chuter le contraste sous 4.5:1
+// de façon mécanique et invisible en revue (fiche KB
+// web/frontend/principes-design-visuel.md §5, note d'accessibilité).
+$encre-900: #141a24; // filigrane sombre / aplats
+$encre-800: #1c2433; // texte principal
+$encre-700: #39435a; // texte secondaire
+$encre-600: #4e586e; // texte tertiaire (légendes, méta)
+$encre-500: #6d778c; // filigrane clair (grand texte décoratif ≥ 31 px)
+
+// -----------------------------------------------------------------------------
+// 3 · Palette « ardoise encrée » — thème sombre
+// -----------------------------------------------------------------------------
+// G9 : le sombre est DESSINÉ. L'ardoise est bleutée et mate, jamais un #000 ;
+// les accents sont recalibrés (§5), pas les mêmes hex que le clair.
+// ⚠️ Un filet lisible sur ardoise est nettement plus CLAIR que son homologue
+// sur papier n'est foncé : le seuil de 3:1 ne se satisfait pas d'une inversion.
+// C'est G9 en pratique — les deux thèmes sont calibrés séparément.
+$ardoise-900: #11151c; // creux le plus profond
+$ardoise-800: #171c25; // l'ardoise elle-même
+$ardoise-700: #1f2531; // encart, bloc de code
+$ardoise-600: #262e3c; // feuillet posé au-dessus
+$ardoise-500: #333d4e; // règlure de carnet — DÉCOR PUR, hors champ de 1.4.11
+$ardoise-300: #6a778d; // filet porteur de sens — mesuré ≥ 3:1 (WCAG 1.4.11)
+$ardoise-200: #8d97a8; // filet appuyé (bordure de champ, trait de tableau)
+
+// -----------------------------------------------------------------------------
+// 4 · Palette « craie » — texte du thème sombre
+// -----------------------------------------------------------------------------
+$craie-100: #ece8dd; // texte principal
+$craie-200: #c3cad7; // texte secondaire
+$craie-300: #a3abbb; // texte tertiaire
+$craie-400: #7b8598; // filigrane (grand texte décoratif)
+
+// -----------------------------------------------------------------------------
+// 5 · Accents sémantiques bruts — deux calibrages par teinte
+// -----------------------------------------------------------------------------
+// La signature chromatique du site : encre rouge de correction = vulnérable,
+// vert d'annotation = corrigé (docs/design/direction-visuelle.md §2).
+// Suffixe `-c` = calibré pour un fond clair, `-s` = pour un fond sombre.
+$bleu-encre-c: #10508f; // couleur d'action (liens, focus) sur papier
+$bleu-encre-survol-c: #0a3c6d;
+$bleu-encre-s: #94bdf0; // idem sur ardoise
+$bleu-encre-survol-s: #b9d5f7;
+
+$rouge-correction-c: #a02020; // « vulnérable »
+$rouge-correction-lavis-c: #fbeeeb; // aplat derrière un bloc vulnérable
+$rouge-correction-s: #f19a92;
+$rouge-correction-lavis-s: #3a2020;
+
+$vert-annotation-c: #1a6444; // « corrigé »
+$vert-annotation-lavis-c: #e8f2ea;
+$vert-annotation-s: #74c69a;
+$vert-annotation-lavis-s: #17301f;
+
+$ocre-c: #7d5203; // « attention / cours vs état de l'art »
+$ocre-lavis-c: #f7efdb;
+$ocre-s: #dcb063;
+$ocre-lavis-s: #33280f;
+
+// Surlignage : fond de sélection de texte.
+$surligneur-c: #f6e08a;
+$surligneur-s: #4a4324;
+
+// -----------------------------------------------------------------------------
+// 6 · Échelle typographique — jeu FIXE, ratio 1.25 (tierce majeure)
+// -----------------------------------------------------------------------------
+// Chaque palier est espacé d'au moins ~25 % du précédent (Refactoring UI,
+// Wathan & Schoger 2018) pour que chaque saut soit perceptible et volontaire.
+// Aucune taille hors de cette échelle n'est admise dans un composant.
+// px de référence (base 16) : 12.8 · 16 · 20 · 25 · 31.25 · 39.06
+//
+// ⚠️ `xs` VALAIT 0.8333rem (13.33 px), soit un ratio de 1.20 vers `s` : l'échelle
+// violait sa propre règle des ~25 %, et le commentaire annonçait 13.33 px là où
+// 16 / 1.25 = 12.8. Corrigé le 2026-08-04. Le ratio de CHAQUE palier consécutif
+// est désormais MESURÉ par `tools/design/verifier-contrastes.mjs` (§ échelles),
+// qui sort en code 1 sous 1.25 — la règle n'est plus une simple intention écrite.
+$taille-xs: 0.8rem;
+$taille-s: 1rem;
+$taille-m: 1.25rem;
+$taille-l: 1.5625rem;
+$taille-xl: 1.9531rem;
+$taille-xxl: 2.4414rem;
+
+$interligne-corps: 1.6;
+$interligne-titre: 1.15;
+$chasse-titre: -0.02em;
+$chasse-tampon: 0.18em;
+
+// Graisses — le dernier axe typographique qui restait en dur dans les composants.
+// Deux graisses appuyées de MÊME valeur aujourd'hui mais d'axes distincts : les
+// titres (serif d'affichage) et les tampons/étiquettes (sans-serif de labeur) ne
+// se règlent pas ensemble. Elles divergeront dès E1-ST1-B (Fraunces / Inter), et
+// c'est précisément pour que cette divergence n'exige aucune retouche de
+// composant qu'elles sont séparées maintenant.
+$graisse-corps: 400;
+$graisse-titre: 700;
+$graisse-tampon: 700;
+
+// -----------------------------------------------------------------------------
+// 7 · Échelle d'espacement 8pt (sous-grille en multiples de 4)
+// -----------------------------------------------------------------------------
+// px : 4 · 8 · 16 · 24 · 32 · 48 · 64
+$espace-0-5: 0.25rem;
+$espace-1: 0.5rem;
+$espace-2: 1rem;
+$espace-3: 1.5rem;
+$espace-4: 2rem;
+$espace-6: 3rem;
+$espace-8: 4rem;
+
+// -----------------------------------------------------------------------------
+// 8 · Rayons et épaisseurs de filets
+// -----------------------------------------------------------------------------
+// Un carnet a des angles nets : les rayons restent minuscules. Des cartes très
+// arrondies et interchangeables sont exactement le tic « AI-slop » que la
+// direction visuelle proscrit (G1/G2).
+$rayon-net: 0;
+$rayon-doux: 2px;
+$rayon-carte: 4px;
+$rayon-pastille: 999px; // pastilles/tampons uniquement
+
+$filet-fin: 1px;
+$filet-moyen: 2px;
+$filet-marge: 3px; // marge rouge du carnet
+$filet-focus: 3px;
+$decalage-focus: 2px;
+
+// -----------------------------------------------------------------------------
+// 9 · Mouvement — bref et physique, jamais flottant (direction §2, point 4)
+// -----------------------------------------------------------------------------
+$duree-breve: 120ms;
+$duree-moyenne: 200ms;
+$courbe-nette: cubic-bezier(0.2, 0, 0, 1);
+
+// -----------------------------------------------------------------------------
+// 10 · Piles de polices
+// -----------------------------------------------------------------------------
+// ⚠️ ÉCART ASSUMÉ À G3, levé par E1-ST1-B : les polices de caractère
+// (Fraunces / Inter) seront auto-hébergées et branchées sur ces mêmes jetons.
+// La CSP est `font-src 'self'` : aucun hôte externe, jamais de Google Fonts.
+// D'ici là, piles système — aucun octet téléchargé, aucun jeton à renommer.
+$pile-titres: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+$pile-corps:
+  system-ui,
+  -apple-system,
+  'Segoe UI',
+  Roboto,
+  'Helvetica Neue',
+  Arial,
+  sans-serif;
+$pile-code: ui-monospace, SFMono-Regular, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
+
+// -----------------------------------------------------------------------------
+// 11 · Mesures de lecture
+// -----------------------------------------------------------------------------
+$largeur-lecture: 68ch; // longueur de ligne confortable pour un cours
+$largeur-page: 72rem;

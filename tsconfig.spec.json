@@ -3,7 +3,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["vitest/globals"]
+    // `node` s'ajoute à `vitest/globals` pour les specs qui compilent réellement
+    // le SCSS (`design-system.spec.ts` : `node:path`, `process.cwd()`, `sass`).
+    // Portée limitée aux TESTS : le tsconfig de l'application ne l'inclut pas,
+    // donc aucune API Node n'est accidentellement atteignable depuis un composant
+    // — ce qui casserait le prerender.
+    "types": ["vitest/globals", "node"]
   },
   "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
 }
