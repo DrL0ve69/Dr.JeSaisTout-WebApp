@@ -6,8 +6,13 @@
 > infantilisant. Le public est cégep/universitaire : on vise la complicité intelligente, pas le
 > gimmick enfantin.
 >
-> Ce document fixe la direction et les garde-fous. La **maquette de la home passera par le skill
-> `frontend-design` lors de l'implémentation** (E1) ; ce document en est le brief.
+> Ce document fixe la direction et les garde-fous ; il sert de brief à l'implémentation (E1).
+>
+> ⚠️ **Corrigé le 2026-08-04** — les versions précédentes renvoyaient la maquette à un skill
+> `frontend-design` qui **n'existe pas** (constat C1, `docs/revue-plan-kb-2026-08-04.md`). La
+> méthode d'exploration retenue à sa place est décrite dans le backlog, sous-tâche **E1-ST3**, et
+> s'appuie sur les fiches KB `web/frontend/principes-design-visuel.md` et
+> `ai/agents/claude-code/design-ui.md`.
 
 ---
 
@@ -66,7 +71,7 @@ Pourquoi elle gagne :
 - **Deux thèmes naturels** : papier ivoire (clair) / ardoise encrée (sombre) — aucun des deux n'est
   un « mode inversé » de l'autre.
 
-Éléments d'identité à décliner (E1, avec le skill `frontend-design`) :
+Éléments d'identité à décliner (E1, selon la méthode d'exploration d'E1-ST3) :
 
 1. Logotype « Dr. Je-Sais-Tout » typographique (serif + tampon), pas de mascotte cartoon.
 2. En-têtes de module façon page de garde de carnet : numéro tamponné, titre serif, question-clé de
@@ -94,7 +99,15 @@ Pourquoi elle gagne :
 
 - Les jetons vivent dans le design system SCSS (E1-ST1 du backlog) : couches `primitives →
   sémantiques → composants`, exposés en custom properties CSS pour le theming clair/sombre.
-- La home (E1) est la première application complète de la direction : elle passe par le skill
-  `frontend-design` avant implémentation, et sert de référence visuelle aux pages de leçon (E2).
+- La home (E1) est la première application complète de la direction : elle passe par l'exploration
+  visuelle décrite en E1-ST3 avant implémentation, et sert de référence visuelle aux pages de
+  leçon (E2).
+- **G2 est fondé, pas seulement affaire de goût** : `web/frontend/principes-design-visuel.md`
+  recommande la « depth » (texture, glassmorphism subtil) — mais tranche dans le même sens que nous
+  sur le cas qui nous occupe, en excluant ces effets des produits « où la clarté et la vitesse de
+  scan priment ». Un site de cours est un produit de lecture.
+- **Polices auto-hébergées obligatoirement** (CSP `font-src 'self'`, aucun hôte externe) : c'est un
+  livrable d'E1-ST1, avec vérification du sous-ensemble de glyphes sur du français réel (accents,
+  **œ**, guillemets **« »**). Tant qu'il n'est pas fait, G3 reste en écart assumé.
 - Toute dérive détectée en revue (`code-reviewer`) se juge contre les garde-fous G1–G9 de ce
   document, qui prévaut sur les goûts du moment.

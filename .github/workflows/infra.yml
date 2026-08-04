@@ -1,0 +1,44 @@
+name: Infra (Terraform)
+
+# Workflow distinct de ci.yml pour pouvoir filtrer par chemin : inutile de faire tourner
+# Terraform sur une PR qui ne touche qu'une leçon. Le filtre `paths` est natif à GitHub —
+# préféré à une action tierce de détection de changements (surface de dépendance en moins).
+on:
+  pull_request:
+    branches: [main]
+    paths: ['infra/**', '.github/workflows/infra.yml']
+  push:
+    branches: [main]
+    paths: ['infra/**', '.github/workflows/infra.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: infra-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  valider:
+    name: format · validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.15.6'
+
+      - name: Format
+        run: terraform fmt -check -recursive
+        working-directory: infra
+
+      # `init -backend=false` : valide la syntaxe et le schéma du provider sans jamais toucher à
+      # Azure ni lire d'état. Aucun identifiant cloud n'est nécessaire — ni présent — en CI.
+      # Le provisionnement reste un geste manuel du propriétaire (voir infra/README.md).
+      - name: Validation
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+        working-directory: infra

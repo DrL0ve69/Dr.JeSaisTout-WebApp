@@ -1,0 +1,54 @@
+name: CI
+
+# Gates de la phase 1 sur chaque PR. Aucun déploiement ici — voir deploy.yml.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Une PR qui reçoit trois commits ne fait tourner que le dernier.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Deny-by-default : le workflow ne lit que le code, il n'écrit rien.
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: lint · test · build · audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24' # Angular 22 exige ≥ 24.15
+          cache: npm
+
+      - name: Installer (verrouillé)
+        run: npm ci
+
+      - name: G-lint
+        run: npm run lint
+
+      - name: G-test
+        run: npm test
+
+      # `npm run build` = ng build + génération de la config SWA. Le générateur sort en code 1
+      # si la sortie prerendue casse la CSP (gestionnaire inline, script inline, attribut style) :
+      # ce gate protège donc aussi la CSP, pas seulement la compilation.
+      - name: G-build (+ config SWA à hachages)
+        run: npm run build
+
+      # Surface de PRODUCTION uniquement, et tolérance zéro : `--omit=dev` doit rester à 0.
+      # Le audit complet remonte 3 « moderate » dev-only via le SDK MCP d'@angular/cli, dont le
+      # correctif downgraderait la CLI en v21 — refusé (voir CLAUDE.md §Commandes).
+      - name: G-audit
+        run: npm audit --omit=dev
+
+      # G-axe arrive en E1, avec les premières pages réelles. Ne pas ajouter d'étape verte
+      # factice d'ici là : un gate qui ne teste rien est pire qu'un gate absent.
+      #
+      # Les gates Terraform vivent dans infra.yml, déclenché par un filtre `paths` natif.

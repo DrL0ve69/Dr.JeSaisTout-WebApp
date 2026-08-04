@@ -1,0 +1,98 @@
+name: Déploiement (main → SWA Free)
+
+# Les mêmes gates que la CI, puis publication. Rien ne part en ligne sans être passé au vert.
+#
+# ⚠️ Ce workflow ne provisionne RIEN : la ressource Azure est créée par Terraform depuis le poste
+# du propriétaire (voir infra/README.md). La CI ne détient donc aucun identifiant Azure à haut
+# privilège — seulement le jeton de déploiement de la Static Web App, dont la portée se limite à
+# téléverser du contenu statique dans cette ressource.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Jamais deux déploiements concurrents ; et on ne coupe pas un déploiement en cours.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deployer:
+    name: gates · déploiement · vérification des en-têtes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Installer (verrouillé)
+        run: npm ci
+
+      - name: G-lint
+        run: npm run lint
+
+      - name: G-test
+        run: npm test
+
+      - name: G-build (+ config SWA à hachages)
+        run: npm run build
+
+      - name: G-audit
+        run: npm audit --omit=dev
+
+      # `skip_app_build: true` : l'artéfact est déjà construit par l'étape G-build ci-dessus, avec
+      # la config SWA générée dedans. Laisser l'action rebuilder produirait un dossier SANS
+      # staticwebapp.config.json résolu — donc sans CSP.
+      - name: Déployer sur Azure Static Web Apps
+        id: deploiement
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: dist/dr-je-sais-tout/browser
+          api_location: ''
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+
+      # Constat en ligne de ce qui n'a pu être vérifié en local (voir docs/deployment.md) :
+      # les en-têtes sont-ils réellement servis, et la CSP porte-t-elle un hachage résolu ?
+      # Ne remplace pas le constat navigateur (violations CSP à l'exécution) : celui-là se fait
+      # à l'œil sur l'URL, console ouverte.
+      - name: Vérifier les en-têtes servis
+        env:
+          URL: ${{ steps.deploiement.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${URL:-}" ]; then
+            echo "::warning::URL non fournie par l'action — vérification ignorée. Confirmer le nom de la sortie au premier run."
+            exit 0
+          fi
+          echo "Cible : $URL"
+          entetes=$(curl -sS -D - -o /dev/null --retry 5 --retry-delay 5 --retry-all-errors "$URL")
+          echo "$entetes"
+
+          manquants=0
+          for attendu in "content-security-policy" "strict-transport-security" "x-content-type-options" "referrer-policy" "permissions-policy"; do
+            if ! grep -qi "^$attendu:" <<<"$entetes"; then
+              echo "::error::En-tête absent : $attendu"
+              manquants=1
+            fi
+          done
+
+          if grep -qi "__HACHAGES_STYLE__" <<<"$entetes"; then
+            echo "::error::CSP non résolue — le jeton __HACHAGES_STYLE__ est servi tel quel. Le site s'affichera SANS STYLES."
+            manquants=1
+          fi
+          if ! grep -i "^content-security-policy:" <<<"$entetes" | grep -q "sha256-"; then
+            echo "::error::CSP sans hachage sha256- : le bloc <style> d'Angular sera bloqué."
+            manquants=1
+          fi
+
+          exit $manquants

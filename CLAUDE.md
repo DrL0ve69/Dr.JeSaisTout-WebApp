@@ -9,29 +9,77 @@ Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code c
 comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutorat) :
 [`docs/vision.md`](docs/vision.md).
 
-> ⚠️ **État actuel : aucun code — planification terminée, implémentation non commencée.**
-> Tout démarre par le backlog : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
-> (E0 → E5, statuts ⬜). Premier geste : les spikes S-01/S-02/S-03 puis le scaffold E0
-> (CLI officiels `ng new` / `dotnet new` uniquement — jamais de scaffold généré à la main).
+> **État actuel (2026-08-04) : E0-ST1, ST2, ST3 ✅ · E0-ST4 🟦.** Spikes tranchés (addendums §9 de
+> [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md)),
+> workspace Angular 22 en place, en-têtes + CSP stricte constatés servis
+> ([`docs/deployment.md`](docs/deployment.md)). E0-ST4 : les trois workflows, le provisionnement
+> Terraform (`infra/`) et la page « bientôt » sont écrits et **verts en local** — mais **rien n'est
+> en ligne** : le dépôt n'a aucun remote et la ressource Azure n'existe pas. Actions du
+> propriétaire dans [`infra/README.md`](infra/README.md).
+> Le plan fait foi : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md).
+> Scaffold par CLI officiels (`ng new` / `dotnet new`) uniquement — jamais à la main.
 
 ## Stack (décidée — ADR complets dans `docs/architecture/stack-et-architecture.md`)
 
-- **Frontend** : Angular 21+ (vérifier la dernière stable au scaffold ; zoneless par défaut dès
-  Angular 22) — standalone, signaux, OnPush, **SCSS** jetons sémantiques, SSR + **prerender** de
-  toutes les routes de contenu → site 100 % statique.
+- **Frontend** : **Angular 22.1** (installé) — **zoneless** (défaut v22, aucun `zone.js`), standalone,
+  signaux, OnPush, **SCSS** jetons sémantiques, `outputMode: "static"` → **toutes** les routes sont
+  prerendues, site 100 % statique (pas de serveur Express : `src/server.ts` a été retiré).
+  ⚠️ `optimization.styles.inlineCritical: false` est **obligatoire** — le défaut d'Angular émet un
+  gestionnaire `onload` inline que la CSP stricte bloque, ce qui afficherait le site sans styles.
 - **Contenu-as-code** : leçons Markdown + quiz/simulations JSON dans `content/`, validés et
   compilés au build (gabarits : [`docs/contenu/pipeline-contenu.md`](docs/contenu/pipeline-contenu.md)).
-  Source de théorie : `C:\Users\phili\ProjetsPortfolio\KnowledgeBase\` (263 fiches ; cours phase 1 =
-  `web/securite/`, 13 fiches + carte). KB en lecture seule, sauf correction d'erreur avérée.
+  Source de théorie : la **KnowledgeBase** (voir §KnowledgeBase ci-dessous). KB en lecture seule,
+  sauf correction d'erreur avérée.
 - **Backend** : .NET 10 / C# Clean Architecture allégée — **phase 2** (squelette optionnel E5,
   conventions du projet frère `2026/Templates/AbrisAutoOutaouais-WebApp`).
 - **Hébergement** : Azure Static Web Apps **Free** ; headers/CSP via `staticwebapp.config.json`.
+  Provisionnement en **Terraform** (`infra/`, palier Free en dur) — exécuté **manuellement par le
+  propriétaire, jamais en CI** : la CI ne détient que le jeton de déploiement SWA, pas d'identifiant
+  Azure à haut privilège. Voir [`infra/README.md`](infra/README.md).
+
+## KnowledgeBase — comment y entrer (règle de méthode)
+
+`C:\Users\phili\ProjetsPortfolio\KnowledgeBase\` — **263 fiches, 10 domaines de premier niveau**
+(`web/`, `cs/`, `ai/`, `devops/`, `outils/`, `divers/`, `mobile/`, `gamedev/`, `desktop/`, plus
+`_archiviste/` qui est technique). Elle ne se limite **pas** à `web/securite/`.
+
+**Ordre obligatoire, du moins cher au plus cher :**
+
+1. [`docs/kb-map.md`](docs/kb-map.md) — table de routage **tâche → fiches**, ~3 000 tokens. Couvre
+   contenu, pédagogie, Angular/CSS/a11y, sécurité, CI-CD, architecture, phase 2 .NET, harnais
+   d'agents, et la liste des **trous** (ce que la KB ne couvre pas : SWA, WCAG au critère, Vitest,
+   Mermaid, Angular 22). **Toujours commencer ici.**
+2. `npm run kb -- <termes>` — recherche par frontmatter/tags/description (`--full` pour le corps,
+   `--any` pour un OU). Gratuit, sans clé, sans index à maintenir.
+3. `KnowledgeBase/<domaine>/carte.md` — la carte du domaine donne l'ordre de lecture et les trous.
+4. `KnowledgeBase/INDEX.md` — exhaustif mais **~26 000 tokens** : en dernier recours seulement.
+
+**Si `kb-map.md` ne couvre pas le sujet traité : chercher, puis le compléter.** Un plan bâti sur le
+seul dossier au nom évident est une faute constatée sur ce projet (2026-08-04) — voir la note
+d'ouverture de `docs/kb-map.md`.
+
+Ce que cette faute avait coûté, et les correctifs appliqués au plan :
+[`docs/revue-plan-kb-2026-08-04.md`](docs/revue-plan-kb-2026-08-04.md). **Constats C6 (axe ≠ WCAG),
+C7 (moment mémorable ; 4 modules sur 13 sans support mémorable) et C8 (prérequis réseau) restent
+ouverts** — ils touchent `.claude/rules/contenu-pedagogique.md` et la définition des gates a11y.
 
 ## Commandes
 
-À remplir à l'issue de E0 (workspace inexistant). Gates prévus : `npm run lint` · `npm run build`
-(typecheck + validation du contenu) · `npm test` (vitest + axe) ; `dotnet build`/`dotnet test` dès
-la phase 2.
+**Prérequis : Node ≥ 24.15** (Angular 22 le refuse en deçà ; poste en 24.18.1 LTS).
+
+| Commande | Rôle | Gate |
+|---|---|---|
+| `npm run lint` | ESLint + angular-eslint | G-lint |
+| `npm test` | Vitest (runner par défaut d'Angular 22) | G-test |
+| `npm run build` | `ng build` + **génération de la config SWA** (CSP à hachages) → `dist/dr-je-sais-tout/browser` | G-build |
+| `npm run config:swa` | régénère seul `staticwebapp.config.json` dans l'artéfact ; **code 1** si la sortie casse la CSP | G-build |
+| `npm start` | serveur de dev | — |
+| `npm run kb -- <termes>` | recherche dans la KnowledgeBase (`--full`, `--any`, `--n N`) | — |
+| `npm audit --omit=dev` | surface de production (doit rester à **0**) | G-audit |
+
+`npm audit` complet remonte 3 vulnérabilités **moderate dev-only** (SDK MCP tiré par `@angular/cli`) ;
+leur « correctif » downgraderait la CLI en v21 — refusé. C'est `--omit=dev` qui fait foi.
+Reste à venir : `content:build` (compilation de `content/`, **E2**), axe (**E1**), `dotnet build`/`dotnet test` (**phase 2**).
 
 ## Règles dures (rappelées automatiquement par les hooks)
 

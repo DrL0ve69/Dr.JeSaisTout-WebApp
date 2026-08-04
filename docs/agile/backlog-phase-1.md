@@ -20,9 +20,9 @@
 | ID | Objectif | Statut |
 |---|---|---|
 | E0-ST1 | Trancher les spikes S-01 / S-02 / S-03 | ✅ |
-| E0-ST2 | Workspace Angular 21 + SCSS + eslint + Vitest | ⬜ |
-| E0-ST3 | `staticwebapp.config.json` : en-têtes + CSP | ⬜ |
-| E0-ST4 | CI GitHub Actions + premier déploiement SWA Free | ⬜ |
+| E0-ST2 | Workspace Angular 22 + SCSS + eslint + Vitest | ✅ |
+| E0-ST3 | `staticwebapp.config.json` : en-têtes + CSP | ✅ |
+| E0-ST4 | CI GitHub Actions + premier déploiement SWA Free | 🟦 |
 
 ### E0-ST1 — Spikes d'architecture (solution-architect)
 - **Objectif** : trancher S-01 (pipeline Markdown→HTML au build : marked/Shiki vs autre + intégration prerender), S-02 (CSP stricte sur SWA avec prerender Angular), S-03 (zoneless vs zone.js) ; consigner chaque conclusion en addendum d'ADR.
@@ -41,16 +41,77 @@
 - **Objectif** : `ng new` Angular 21 standalone, SCSS, eslint (angular-eslint), Vitest, prettier ; config zoneless selon S-03 ; structure `src/app/{core,features,shared}` ; `content/` vide avec `.gitkeep` et README d'un paragraphe.
 - **Fichiers** : racine du repo (`angular.json`, `package.json`, `eslint.config.*`, `vitest.config.*`, `src/`), `content/`.
 - **Gates** : G-lint, G-test (1 test témoin), G-build, G-audit. Respect `.claude/rules/angular-best-practices.md`.
+- **Clos le 2026-08-03** — scaffold `ng new dr-je-sais-tout --directory . --ssr --style=scss --ai-config=none`
+  sur **Angular 22.1.0** (dernière stable ; la v21 est passée en LTS), puis `ng add angular-eslint`.
+  Gates : G-lint ✅ · G-test ✅ (Vitest 4.1.10, 2 tests) · G-build ✅ (prerender) ·
+  G-audit ✅ (**0 vulnérabilité en production** ; 3 « moderate » dev-only via le SDK MCP d'`@angular/cli`,
+  dont le correctif imposerait un downgrade en CLI 21 — refusé).
+- **Écarts assumés par rapport à l'énoncé initial** :
+  - *Angular 22 et non 21* — décidé au scaffold, conformément à ADR-001 (« vérifier la dernière stable »).
+    Effet de bord favorable : **zoneless et Vitest sont les défauts**, donc rien à configurer (S-03).
+  - *`outputMode: "static"` + suppression de `src/server.ts`* — le site est intégralement prerendu ;
+    `express` et `@types/express` ont donc été retirés (surface inutile sur un hébergement statique).
+  - *`optimization.styles.inlineCritical: false`* — **non négociable** : le défaut d'Angular émet un
+    `<link … onload="this.media='all'">`, gestionnaire inline que la CSP stricte bloque, ce qui afficherait
+    le site **sans styles**. Voir addendum S-02, mesure 3.
+  - *Pipeline de contenu non câblé* — `content/` créé avec son README d'orientation, mais la compilation
+    (script `content:build`) appartient à **E2** : aucun script pointant vers un fichier inexistant.
+- **Vérifié sur la sortie prerendue** : 0 gestionnaire d'événement inline, 0 attribut `style` inline,
+  `<link rel="stylesheet">` simple, un seul bloc `<style ng-app-id>` (4 062 o) à couvrir par hachage en E0-ST3.
 
 ### E0-ST3 — Config SWA : en-têtes et CSP
 - **Objectif** : `staticwebapp.config.json` avec CSP stricte (selon S-02), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`, routes de fallback prerender ; documentation courte des choix dans le fichier même (commentaires impossibles en JSON → section dans `docs/deployment.md`).
 - **Fichiers** : `staticwebapp.config.json`, `docs/deployment.md` (nouveau, court).
 - **Gates** : G-build ; en-têtes vérifiés localement via `swa start` ; conformité `.claude/rules/security.md`.
+- **Clos le 2026-08-03** — documentation : `docs/deployment.md`. G-build ✅ ; en-têtes **constatés servis**
+  par `swa start` (HSTS, nosniff, Referrer-Policy, Permissions-Policy, X-Frame-Options, COOP/CORP) et CSP
+  **résolue avec le hachage réel**, sans `unsafe-inline` ni hôte externe.
+- **Écart de nommage assumé** : la source est `config/staticwebapp.config.source.json`, **pas**
+  `staticwebapp.config.json` à la racine. Motif constaté en local : `swa start` résout ce nom depuis le
+  **répertoire courant**, pas depuis le dossier servi — un fichier ainsi nommé à la racine serait servi
+  avec le jeton `__HACHAGES_STYLE__` non résolu, donnant un `style-src` invalide et un **site sans styles**,
+  sans la moindre erreur de build. Le fichier déployable est généré dans `dist/dr-je-sais-tout/browser/`.
+- **Garde-fou ajouté** (`tools/deploiement/generer-config-swa.mjs`) : le build **échoue en code 1** si la
+  sortie prerendue contient un gestionnaire d'événement inline, un script inline exécutable ou un attribut
+  `style` inline. Vérifié en reproduisant la régression `inlineCritical: true` — le garde-fou l'attrape et
+  nomme la cause.
+- **Reste ouvert** : le **constat navigateur** (aucune violation CSP sur `ng-state`, page stylée) n'a pas pu
+  être fait — l'onglet Chrome piloté n'atteint pas `localhost`. Les en-têtes sont vérifiés, le comportement
+  du navigateur ne l'est pas. À lever en E0-ST4 sur l'URL `*.azurestaticapps.net`.
 
 ### E0-ST4 — CI/CD GitHub Actions
 - **Objectif** : workflow PR (lint → test → build → axe → npm audit) + workflow `main` (idem + déploiement SWA Free) ; page « bientôt » minimaliste en ligne (placeholder sobre, pas la vraie home).
 - **Fichiers** : `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, secret `AZURE_STATIC_WEB_APPS_API_TOKEN` (manuel, propriétaire).
 - **Gates** : les deux workflows verts ; URL `*.azurestaticapps.net` répond avec les en-têtes E0-ST3. Zéro dépense (`.claude/rules/budget-free-tier.md`).
+
+- **Écrit et vérifié en local le 2026-08-04** (🟦 — rien n'est encore en ligne) :
+  - `.github/workflows/ci.yml` (PR) · `deploy.yml` (push `main`, + **vérification des en-têtes
+    réellement servis** après publication) · `infra.yml` (Terraform `fmt`/`validate`, filtre `paths`).
+    `permissions: contents: read` partout, actions épinglées par version majeure.
+  - **Page « bientôt »** : `src/app/app.{html,scss,ts}` — gabarit Angular remplacé, `index.html`
+    passé de `lang="en"` à **`lang="fr-CA"`** (violation WCAG 2.2 **3.1.1** corrigée au passage),
+    thèmes clair/sombre dessinés, aucune animation, focus visible.
+  - Gates : **G-lint ✅ · G-test ✅ (3 tests) · G-build ✅** (CSP régénérée, hachage résolu, aucun
+    `__HACHAGES_STYLE__` résiduel ; sortie prerendue vérifiée sans trace du gabarit Angular).
+- **Écart assumé — provisionnement en Terraform** (non prévu à l'énoncé) : `infra/` décrit le groupe
+  de ressources et la Static Web App **Free** (`sku_tier`/`sku_size` en dur, pas en variable : le
+  palier devient un garde-fou budgétaire visible en diff). Motifs : outil habituel du propriétaire,
+  et la phase 2 (Container Apps + SQL S0) sera multi-ressources. `terraform validate` passe contre
+  le provider `azurerm ~> 4.0`. **Terraform ne tourne jamais en CI** — la fiche KB
+  `devops/infrastructure-as-code-limites.md` rappelle qu'un système qui applique de l'infra détient
+  des identifiants à haut privilège ; la CI ne connaît que le jeton de déploiement SWA. État local,
+  gitignoré (**il contient le jeton en clair**). Marche à suivre : `infra/README.md`.
+- **G-axe volontairement absent** des workflows : aucune page réelle à tester avant E1. Un gate vert
+  qui ne teste rien est pire qu'un gate absent.
+- **Bloqué sur des actions du propriétaire** : le dépôt n'a **aucun remote** et la branche locale est
+  `master` alors que les workflows écoutent `main`. Restent à faire, dans l'ordre : `git branch -m
+  master main` + `gh repo create --public` (public = minutes Actions illimitées ; un dépôt privé a un
+  quota **facturable au dépassement**, exclu par la règle budget) → `terraform apply` → `gh secret
+  set AZURE_STATIC_WEB_APPS_API_TOKEN` → `git push`.
+- **Reste à lever après la mise en ligne** : le **constat navigateur** hérité d'E0-ST3 (aucune
+  violation CSP sur `<script id="ng-state">`, page stylée) — à faire à l'œil sur l'URL Azure ; et la
+  confirmation du nom de sortie `static_web_app_url` de l'action Azure (l'étape de vérification
+  avertit au lieu d'échouer si elle arrive vide).
 
 ---
 
@@ -65,8 +126,24 @@
 ### E1-ST1 — Jetons sémantiques SCSS
 - **Objectif** : design system 3 couches (primitives → sémantiques → composants) en SCSS + custom properties ; thèmes clair (papier ivoire) et sombre (ardoise encrée) tous deux dessinés ; échelles typo/espacement ; couleurs sémantiques dont `danger-vuln` / `ok-fixed` ; service de bascule de thème (persisté, `prefers-color-scheme` par défaut) ; `prefers-reduced-motion` outillé (mixin).
 - **Fichiers** : `src/styles/` (`_tokens.scss`, `_themes.scss`, `_mixins.scss`…), `src/app/core/theme/`.
-- **Référence** : `docs/design/direction-visuelle.md` (garde-fous G1–G9 bloquants).
-- **Gates** : G-lint, G-build ; contrastes AA vérifiés sur les paires de jetons ; G-test sur le service de thème.
+- **Référence** : `docs/design/direction-visuelle.md` (garde-fous G1–G9 bloquants) ;
+  **fiches KB** `web/frontend/principes-design-visuel.md` et `web/css/selecteurs-cascade-specificite.md`.
+- **Chiffré le 2026-08-04** (revue `docs/revue-plan-kb-2026-08-04.md`, constats C2/C3/C4) — les
+  échelles étaient nommées sans être définies, donc invérifiables :
+  - **Échelle typographique** : jeu **fixe** de tailles, chaque palier espacé d'au moins **~25 %**
+    du précédent (*Refactoring UI*). Pas d'ajustement au jugé hors de l'échelle.
+  - **Espacement 8pt** : tout multiple de **8** (8/16/24/32/48/64), sous-grille en multiples de 4.
+  - **Aucune opacité sur un jeton de texte.** Chaque niveau d'emphase est une **couleur pleine**
+    avec son ratio de contraste mesuré et consigné. La hiérarchie par opacité (Material 87/60 %)
+    fait mécaniquement chuter le contraste sous 4.5:1 — collision directe avec G8. L'opacité reste
+    permise sur les décors (règlure, filets), jamais sur du texte.
+  - **Polices auto-hébergées, obligatoire** : la CSP est `font-src 'self'`, aucun hôte externe
+    (pas de Google Fonts). Livrer les `woff2`, le `@font-face` et une stratégie `font-display`.
+    ⚠️ **Vérifier le sous-ensemble de glyphes sur du texte français réel** : accents, ligature
+    **œ**, et **guillemets « »** — un sous-ensemble latin trop agressif les casse en silence.
+    Tant que ce lot n'est pas fait, l'écart à **G3** de la page « bientôt » (pile système) subsiste.
+- **Gates** : G-lint, G-build ; **table des ratios de contraste** produite pour chaque paire
+  texte/fond des deux thèmes (AA minimum, AAA visé sur le corps) ; G-test sur le service de thème.
 
 ### E1-ST2 — Layout & navigation
 - **Objectif** : shell applicatif (header avec logotype typographique, nav, bascule de thème, footer), squelette de routes (`/`, `/cours/securite-web`, `/cours/securite-web/:slug`), page 404, skip-link, landmarks ARIA.
@@ -74,7 +151,15 @@
 - **Gates** : G-lint, G-test, G-build, G-axe (navigation clavier complète).
 
 ### E1-ST3 — Home
-- **Objectif** : page d'accueil appliquant la direction « carnet de laboratoire » : présentation du Dr. Je-Sais-Tout, carte du cours sécurité web avec lien, un seul CTA. **Maquette via le skill `frontend-design` d'abord**, implémentation ensuite.
+- **Objectif** : page d'accueil appliquant la direction « carnet de laboratoire » : présentation du Dr. Je-Sais-Tout, carte du cours sécurité web avec lien, un seul CTA. **Exploration visuelle avant implémentation** (voir méthode ci-dessous).
+- **Méthode d'exploration** *(corrigée le 2026-08-04 — constat C1 : le skill `frontend-design`
+  invoqué ici n'existe pas et n'a jamais existé ; il n'est installé ni au projet ni à l'utilisateur)* :
+  lire `web/frontend/principes-design-visuel.md` (anchor font sur le **titre** et non le corps,
+  « star of the show » reliée au produit et non décorative, visual rhyming) et
+  `ai/agents/claude-code/design-ui.md` (boucle génération/critique, bibliothèque de goût injectée
+  en contexte) — puis **produire plusieurs directions franchement différentes avant de converger**,
+  pas des variantes de la première. La fiche signale que sa version retenue était la 12ᵉ ;
+  n'en affiner qu'une plafonne le résultat.
 - **Fichiers** : `src/app/features/home/`.
 - **Gates** : G-lint, G-test, G-build, G-axe ; revue contre `docs/design/direction-visuelle.md` §3 ; page prerendue.
 
@@ -109,7 +194,15 @@
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.
 - **Fichiers** : `src/app/features/cours/code-compare/`, schéma JSON associé.
-- **Gates** : G-lint, G-test, G-build, G-axe (annotations accessibles, pas de sens porté par la couleur seule).
+- **⚠️ Les onglets sont un sous-projet d'accessibilité, pas une option d'affichage** *(constat C5 du
+  2026-08-04)*. Le HTML n'a pas de balise `tabs` native : c'est un des rares cas où ARIA est
+  légitime, mais mal posé il **dégrade** l'accessibilité (WebAIM : les pages avec ARIA affichent en
+  moyenne plus d'erreurs que celles sans). Patron à suivre : **`web/css/composant-tabs.md`**
+  (`tablist`/`tab`/`tabpanel`, **roving tabindex**), cadrage ARIA :
+  `web/html/html-semantique-accessibilite.md`. Évaluer d'abord si `details`/`name` suffit.
+- **Gates** : G-lint, G-test, G-build, G-axe (annotations accessibles, pas de sens porté par la couleur seule)
+  **+ vérification clavier manuelle** : flèches gauche/droite entre onglets, Home/End, un seul
+  `tabindex="0"` dans le `tablist`, focus visible à chaque étape. `G-axe` ne teste rien de tout ça.
 
 ### E2-ST5 — SimulationComponent
 - **Objectif** : simulation pas-à-pas visuelle pilotée par un JSON d'étapes (acteurs : navigateur/attaquant/serveur ; états ; flèches/messages) ; contrôles précédent/suivant/réinitialiser ; variante `prefers-reduced-motion` sans animation.

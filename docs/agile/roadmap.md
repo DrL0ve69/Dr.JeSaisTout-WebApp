@@ -43,7 +43,7 @@ gantt
 | Jalon | Échéance | Livrable vérifiable |
 |---|---|---|
 | **J1 — Socle en ligne** | ~15 août | Workspace Angular 21 + SCSS + eslint + Vitest ; CI GitHub Actions verte ; page « bientôt » déployée sur SWA Free avec en-têtes/CSP de base (`staticwebapp.config.json`) ; spikes S-01/S-02/S-03 tranchés |
-| **J2 — Identité visible** | ~24 août | Jetons SCSS, layout/nav, home « carnet de laboratoire » (via skill `frontend-design`), thèmes clair/sombre, zéro violation AXE |
+| **J2 — Identité visible** | ~24 août | Jetons SCSS (échelle typo ≥ 25 %, espacement 8pt, polices auto-hébergées), layout/nav, home « carnet de laboratoire », thèmes clair/sombre, zéro violation AXE **+ passe clavier manuelle** |
 | **J3 — Moteur de contenu** | ~7 sept. | Pipeline `content/` → pages prerendues ; routage des leçons ; `QuizComponent`, `CodeCompareComponent`, `SimulationComponent` ; page sommaire du cours ; une leçon-témoin de bout en bout |
 | **J4 — Premier bloc en ligne** | **mi-septembre** | Modules 1–7 publiés (fondamentaux, CVSS, injection, XSS, CSRF, contrôle d'accès, inclusion/SSRF) — couvre le début du cours de l'auteur (août-septembre) |
 | **J5 — Deuxième bloc** | ~12 oct. | Modules 8–12 publiés (crypto, mots de passe, authentification, sessions, JWT) |

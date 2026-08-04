@@ -16,6 +16,34 @@ Projet: "C:\Users\phili\ProjetsPortfolio\2026\Dr.JeSaisTout-WebApp"
 
 6. La priorité est sur mon cours de sécurité des applications web que je dois reprendre de aout à octobre (laisse les autres sujets de côté, sauf si tu consultes comme sources théoriques). Donc, le but serait en priorité le contenu en lien avec la sécurié des applications web tout construisant l'app de manière à ce que celle-ci respectent les divers normes et principes de l'industrie web. Une fois le plan system design + frontend design sont en place, une simple page home avec un lien vers le contenu du premier sujet (sécurité des applications web).
 
+
+Reprise :
+  Le garde-fou, testé plutôt que supposé
+
+  Il casse le build (code 1) si la sortie prerendue contient un gestionnaire inline, un script inline exécutable ou un
+  attribut style. J'ai d'abord cru l'avoir validé, à tort : mon premier test réactivait inlineCritical alors que
+  styles.scss était quasi vide — il n'y avait donc rien à inliner et le garde-fou ne pouvait pas se déclencher. En
+  reproduisant avec du CSS global réel, il attrape le onload sur les deux pages et nomme la cause.
+
+  Le point que je n'ai pas pu clore
+
+  Le constat navigateur reste non fait : Chrome n'atteint pas localhost depuis l'onglet piloté — trois tentatives, deux
+  ports. Ce qui reste non vérifié est précis : qu'aucune violation CSP ne frappe <script id="ng-state"
+  type="application/json">, dont dépend l'hydratation. Les en-têtes sont vérifiés ; le comportement du navigateur ne
+  l'est pas. C'est consigné comme tel dans le backlog et docs/deployment.md, à lever en E0-ST4 sur l'URL Azure.
+
+  Si tu veux le lever tout de suite : relance l'émulateur avec npm run build && npx swa start
+  dist/dr-je-sais-tout/browser --swa-config-location dist/dr-je-sais-tout/browser, ouvre http://localhost:4280/ toi-même
+  et regarde la console — une violation CSP y serait explicite.
+
+  État git
+
+  Toujours rien de commité depuis l'initial commit du scaffold ; nouveaux dossiers config/, content/, tools/, plus
+  docs/deployment.md et eslint.config.js.
+
+  Reste E0-ST4 : les deux workflows GitHub Actions et le premier déploiement. Il te faudra créer la ressource SWA Free
+  et le secret AZURE_STATIC_WEB_APPS_API_TOKEN — je peux écrire les workflows en attendant. Je continue ?
+
   
 
 

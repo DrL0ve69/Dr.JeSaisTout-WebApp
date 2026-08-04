@@ -39,6 +39,17 @@ testem.log
 /typings
 __screenshots__/
 
+# Terraform (infra/)
+# ⚠️ terraform.tfstate contient le jeton de déploiement SWA EN CLAIR — ne jamais le versionner.
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+# .terraform.lock.hcl est au contraire VERSIONNÉ (verrouillage des versions de providers).
+
 # System files
 .DS_Store
 Thumbs.db
