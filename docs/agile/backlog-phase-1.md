@@ -22,7 +22,7 @@
 | E0-ST1 | Trancher les spikes S-01 / S-02 / S-03 | ✅ |
 | E0-ST2 | Workspace Angular 22 + SCSS + eslint + Vitest | ✅ |
 | E0-ST3 | `staticwebapp.config.json` : en-têtes + CSP | ✅ |
-| E0-ST4 | CI GitHub Actions + premier déploiement SWA Free | 🟦 |
+| E0-ST4 | CI GitHub Actions + premier déploiement SWA Free | ✅ |
 
 ### E0-ST1 — Spikes d'architecture (solution-architect)
 - **Objectif** : trancher S-01 (pipeline Markdown→HTML au build : marked/Shiki vs autre + intégration prerender), S-02 (CSP stricte sur SWA avec prerender Angular), S-03 (zoneless vs zone.js) ; consigner chaque conclusion en addendum d'ADR.
@@ -132,6 +132,10 @@
   - `skip_api_build: true` : **cette entrée n'existe pas** dans `Azure/static-web-apps-deploy@v1`
     (l'action listait ses entrées valides dans l'avertissement). Elle était ignorée en silence.
     Retirée ; `api_location: ''` suffit — sans API, il n'y a rien à construire.
+- **✅ Clos le 2026-08-04**, commit `fb86461` : `Déploiement` (run `30924715006`) et `Infra`
+  (run `30924711444`) **verts, zéro annotation**, en-têtes reconstatés servis avec la CSP à hachage
+  résolu. Plus rien d'ouvert sur E0 : **prochaine étape E1-ST1** (jetons SCSS), dont les critères ont
+  été chiffrés le 2026-08-04 — lire `docs/revue-plan-kb-2026-08-04.md` avant de commencer.
 
 ---
 

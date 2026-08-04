@@ -91,4 +91,45 @@ transitoire se présente comme un succès. Corollaire : « 200 » ne veut pas di
 
 ---
 
+## L-005 · Un run **vert** ne prouve pas qu'une vérification a **tourné**
+
+**Symptôme.** L'étape « Vérifier les en-têtes servis » de `deploy.yml` commence par un garde-fou :
+si `steps.deploiement.outputs.static_web_app_url` arrive vide, elle émet un `::warning::` et
+`exit 0`. Prudent au premier run — le nom exact de la sortie de l'action Azure n'était pas
+confirmé — mais ça crée un **vert qui ne vérifie rien**. Le 2026-08-04, le run `30921738380` est
+passé vert : impossible de savoir, du seul statut, si les cinq en-têtes avaient été contrôlés ou si
+l'étape s'était auto-ignorée. Il a fallu ouvrir le journal pour lire « Cible : https://… » et voir
+que la vérification avait bien eu lieu.
+
+**Règle.** Quand un gate contient une **porte de sortie silencieuse** (`exit 0` sur donnée
+manquante, `continue-on-error`, `if:` qui peut être faux), le vert est ambigu : il faut lire le
+**journal** pour clore le constat, ou faire échouer l'étape une fois la condition confirmée. Ne
+jamais écrire dans un doc de suivi « workflow vert donc en-têtes vérifiés » sans avoir vu la sortie
+de l'étape. Corollaire du même esprit que L-004 : on constate l'**effet**, pas le symbole.
+
+**Réfs.** `.github/workflows/deploy.yml` étape « Vérifier les en-têtes servis » (branche
+`URL non fournie`) ; `docs/agile/backlog-phase-1.md` §E0-ST4.
+
+---
+
+## L-006 · Les annotations jaunes d'un run se traitent, elles ne se tolèrent pas
+
+**Symptôme.** Le premier déploiement vert portait deux annotations : `checkout@v4`/`setup-node@v4`
+ciblent **Node 20, déprécié** (les runners les forçaient en Node 24 — un forçage temporaire), et
+`skip_api_build` **n'existe pas** dans `Azure/static-web-apps-deploy@v1`, donc l'entrée était
+**ignorée en silence**. Aucune des deux ne cassait quoi que ce soit *ce jour-là* : la première est
+une panne datée d'avance, la seconde une intention qui ne faisait rien.
+
+**Règle.** Une annotation jaune est un **échec différé** ou une **illusion de configuration** :
+la traiter dans la foulée du run, jamais « plus tard ». Deux gestes concrets sur ce dépôt :
+(a) épingler les actions sur une majeure qui tourne en **Node 24** (`checkout@v7`, `setup-node@v7`,
+`setup-terraform@v4`) et relire les notes de version avant de monter — pas de bond à l'aveugle ;
+(b) toute entrée passée à une action tierce doit figurer dans les entrées valides qu'elle déclare,
+sinon elle ne fait rien tout en donnant l'impression du contraire.
+
+**Réfs.** commit `fb86461` ; `.github/workflows/{ci,deploy,infra}.yml` ;
+`docs/agile/backlog-phase-1.md` §E0-ST4 « Annotations du premier run ».
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

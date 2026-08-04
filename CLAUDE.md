@@ -11,36 +11,29 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 > ## ⏭️ REPRISE — état au 2026-08-04, fin de session
 >
-> **E0-ST1, ST2, ST3 ✅ · E0-ST4 🟦 — LE SITE EST EN LIGNE.**
+> **E0 EST CLOS — ST1, ST2, ST3, ST4 ✅. Le site est en ligne, la chaîne est verte, rien n'est
+> resté ouvert.**
 >
-> **<https://salmon-sky-0a730780f.7.azurestaticapps.net>** — vérifié le 2026-08-04 : HTTP 200, les
-> cinq en-têtes servis, **CSP à hachage `sha256-` résolu**, `lang="fr-CA"`.
+> **<https://salmon-sky-0a730780f.7.azurestaticapps.net>** — HTTP 200, cinq en-têtes servis,
+> **CSP à hachage `sha256-` résolu**, `lang="fr-CA"`, **aucune violation CSP en console**
+> (constaté par le propriétaire le 2026-08-04 : c'est ce silence qui prouve que le hachage
+> `style-src` colle au flux servi et que `ng-state` n'est pas bloqué — l'hydratation en dépend).
 >
-> **Le geste suivant, littéralement** (des correctifs sont en attente, non commités) :
-> ```powershell
-> git add -A
-> git commit -m "fix(ci): attendre la propagation de la config SWA avant de verifier les en-tetes"
-> git push
-> gh run watch
-> ```
->
-> **Pourquoi ce correctif.** Le premier `deploy.yml` est **rouge alors que le déploiement a
-> réussi** : SWA renvoie 200 *avant* d'avoir appliqué `staticwebapp.config.json` (~30-60 s), et mon
-> étape de vérification a lu une réponse sans en-têtes. `curl --retry` ne rattrapait pas ce cas — la
-> réponse était un succès. Remplacé par une attente active sur la présence de la CSP. Le run doit
-> passer au vert ; sinon `gh run view --log-failed`.
->
-> **Puis le seul constat encore ouvert d'E0-ST3** : ouvrir l'URL **console développeur ouverte** —
-> aucune violation CSP sur `<script id="ng-state" type="application/json">` (l'hydratation en
-> dépend), page **stylée**. Seul le propriétaire peut le faire : Claude in Chrome est banni ici.
+> **Le geste suivant : commencer E1-ST1** (jetons SCSS). Ses critères ont été chiffrés le
+> 2026-08-04 — lire [`docs/revue-plan-kb-2026-08-04.md`](docs/revue-plan-kb-2026-08-04.md)
+> **avant** de toucher au code, puis la section E1-ST1 de
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md).
 >
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
-> commit `ddb9ba9` poussé · ressources Azure créées (*Azure for Students*, palier **Free**) ·
-> secret `AZURE_STATIC_WEB_APPS_API_TOKEN` posé · workflow `Infra (Terraform)` **vert** ·
-> gates locaux verts · aucun `tfstate` versionné.
+> commit `fb86461` · ressources Azure créées (*Azure for Students*, palier **Free**) · secret
+> `AZURE_STATIC_WEB_APPS_API_TOKEN` posé · workflows `Déploiement` **et** `Infra` **verts, zéro
+> annotation** · gates locaux verts · aucun `tfstate` versionné.
 >
-> **Ensuite : E1-ST1** (jetons SCSS), dont les critères ont été chiffrés le 2026-08-04 — lire
-> [`docs/revue-plan-kb-2026-08-04.md`](docs/revue-plan-kb-2026-08-04.md) **avant** de commencer.
+> **Deux pièges déjà payés, à ne pas repayer.** (1) Une vérification post-déploiement doit attendre
+> l'**effet**, pas le code de retour : SWA répond 200 pendant ~30-60 s *avant* d'appliquer
+> `staticwebapp.config.json`, et `curl --retry` ne rattrape rien puisque la réponse est un succès
+> (lesson **L-004**). (2) Un run « vert » ne prouve pas qu'une vérification a *tourné* — l'étape
+> s'auto-ignore si l'URL arrive vide ; c'est le **journal** qui fait foi, et il a été relu.
 >
 > Spikes tranchés : addendums §9 de
 > [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md).
