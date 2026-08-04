@@ -320,6 +320,15 @@ function lireDeclarations(scss) {
 // Exécution
 // =============================================================================
 
+/**
+ * Comparateur de tri.  sans argument compare les unités UTF-16 :
+ * « é » y passerait APRÈS « z », et l'ordre des constats dépendrait de
+ * l'accentuation. Or ce script promet une sortie déterministe et triée — sur
+ * des libellés français. La locale est explicite pour que deux machines
+ * rendent le même ordre.
+ */
+const parOrdreFrancais = (a, b) => a.localeCompare(b, 'fr');
+
 const scss = readFileSync(FICHIER_SCSS, 'utf8');
 const blocs = lireDeclarations(scss);
 if (blocs.length === 0) {
@@ -327,22 +336,22 @@ if (blocs.length === 0) {
   process.exit(1);
 }
 
-const familles = [...new Set(blocs.map((b) => b.famille))].sort();
+const familles = [...new Set(blocs.map((b) => b.famille))].sort(parOrdreFrancais);
 const problemes = [];
 
 // Tout fichier livré doit être déclaré, et réciproquement : un woff2 orphelin
 // est un octet servi pour rien, une déclaration orpheline est un 404.
 const surDisque = new Set(readdirSync(DOSSIER_POLICES).filter((f) => f.endsWith('.woff2')));
 const declares = new Set(blocs.map((b) => b.fichier));
-for (const f of [...surDisque].sort()) {
+for (const f of [...surDisque].sort(parOrdreFrancais)) {
   if (!declares.has(f)) problemes.push(`${f} : présent dans public/polices/ mais déclaré nulle part.`);
 }
-for (const f of [...declares].sort()) {
+for (const f of [...declares].sort(parOrdreFrancais)) {
   if (!surDisque.has(f)) problemes.push(`${f} : déclaré dans _polices.scss mais absent du disque.`);
 }
 
 const chercheurs = new Map();
-for (const f of [...declares].sort()) {
+for (const f of [...declares].sort(parOrdreFrancais)) {
   if (!surDisque.has(f)) continue;
   chercheurs.set(f, chercheurDeGlyphe(path.join(DOSSIER_POLICES, f)));
 }
@@ -412,7 +421,7 @@ console.log(`  Poids livré : ${(total / 1024).toFixed(1)} Kio sur ${surDisque.s
 
 if (problemes.length > 0) {
   console.error(`\n✖ ${problemes.length} problème(s) :`);
-  for (const p of problemes.sort()) console.error(`  · ${p}`);
+  for (const p of problemes.sort(parOrdreFrancais)) console.error(`  · ${p}`);
   console.error('');
   process.exit(1);
 }
