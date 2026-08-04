@@ -51,6 +51,32 @@ propre revue.
 > que le développeur ne commence — une passe, puis l'architecte ou le propriétaire tranche. `git-ops`
 > (plomberie), la **boucle sécurité** (§6b) et la **boucle contenu** (§6c) sont les autres greffons.
 
+#### À quelle échelle convoquer l'architecte et l'avocat du diable
+
+**Règle du propriétaire (2026-08-04).** `solution-architect` et — plus encore — `devils-advocate`
+se convoquent **au début d'un epic, ou sur une grosse tâche** : celle qui demande de la recherche,
+couvre une large surface, ou porte des **enjeux importants** (sécurité, accessibilité, contrat
+partagé, coût, décision difficile à défaire). **Toute sous-tâche ne les mérite pas** — appeler un
+architecte pour un lot dont le plan tient déjà dans le backlog ne produit qu'un tour de chauffe
+payant.
+
+| Ampleur | Architecte | Avocat du diable |
+|---|---|---|
+| Ouverture d'epic, direction technique, nouveau contrat partagé | oui | oui |
+| Grosse sous-tâche : recherche à faire, plusieurs couches, décision peu réversible | oui | si la décision est structurante |
+| Sous-tâche déjà spécifiée par le backlog (le plan **est** le brief) | non | non |
+| Correctif de revue, gate à écrire, plomberie | non | non |
+
+Le test pratique : **le backlog répond-il déjà à « quoi, où, avec quels gates » ?** Si oui, le plan
+existe — passer directement à l'implémentation. Sinon, c'est qu'il y a une décision à prendre, et
+c'est là que l'architecte gagne son coût.
+
+Corollaire, dans l'autre sens : ne pas déléguer à un sous-agent ce que le fil principal fait sans
+se saturer. Un sous-agent repart d'un **cache froid** (§budget de contexte) et son rapport doit
+ensuite être revérifié — pour un lot court, c'est plus cher *et* moins bon. Ce qui vaut toujours la
+délégation : le **volumineux** (suite e2e complète, audit large) et le **regard neuf indépendant**
+(`code-reviewer`, `security-reviewer` sur un diff).
+
 ### Pourquoi une boucle et pas un gros agent ?
 
 Chaque agent tourne dans **sa propre fenêtre de contexte** et ne rend qu'un résumé. La conversation
