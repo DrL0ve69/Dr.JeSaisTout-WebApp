@@ -58,6 +58,25 @@ répertoire courant (voir l'avertissement plus haut). Vérifier que `style-src` 
 
 État au 2026-08-03 : en-têtes constatés servis par l'émulateur, CSP résolue avec le hachage réel.
 
+## Ressources en place (2026-08-04)
+
+| | |
+|---|---|
+| Dépôt | <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> — **public** (Actions illimité), branche `main` |
+| Abonnement Azure | *Azure for Students* — locataire **Cégep de l'Outaouais** |
+| Groupe de ressources | `rg-dr-je-sais-tout` (`canadacentral`) |
+| Static Web App | `swa-dr-je-sais-tout` (`eastus2`, **Free**) |
+| **URL du site** | **<https://salmon-sky-0a730780f.7.azurestaticapps.net>** |
+| Secret Actions | `AZURE_STATIC_WEB_APPS_API_TOKEN` — posé et confirmé par `gh secret list` |
+
+Créées par `terraform apply` : **2 ajoutées, 0 modifiée, 0 détruite**, `sku_tier`/`sku_size` = `Free`
+comme prévu. Coût : **0 $**.
+
+> ⚠️ **Le jeton d'`az login` expire (AADSTS50173).** Un `terraform plan` peut échouer sur
+> « could not acquire access token » alors que rien n'a changé dans le code : le jeton Azure CLI a
+> simplement été révoqué (changement de mot de passe, politique du locataire). Correctif :
+> `az login`, puis relancer. Ce n'est pas un défaut de la configuration Terraform.
+
 ## Chaîne CI/CD et provisionnement (E0-ST4)
 
 | Fichier | Déclencheur | Rôle |
@@ -77,9 +96,16 @@ dossier sans `staticwebapp.config.json` résolu — donc sans CSP.
 
 ## Reste à faire
 
-- **E0-ST4, actions du propriétaire** : créer le dépôt GitHub (aucun remote aujourd'hui, et branche
-  locale `master` alors que les workflows écoutent `main`), lancer `terraform apply`, poser le
-  secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. Les commandes sont dans `infra/README.md`.
+- **E0-ST4 — le site est en ligne** (première mise en ligne le 2026-08-04, commit `ddb9ba9`).
+  Constaté depuis l'extérieur : HTTP 200, les cinq en-têtes servis, CSP à hachage `sha256-` résolu,
+  `lang="fr-CA"`. Workflow `Infra (Terraform)` vert.
+- **`deploy.yml` rouge au premier run, correctif poussé ensuite** : SWA renvoie **200 avant**
+  d'avoir appliqué `staticwebapp.config.json` (~30-60 s de propagation) ; l'étape de vérification a
+  lu une réponse ne portant que `content-type` et `date`. `curl --retry` ne rattrape pas ce cas —
+  la réponse est un *succès*, donc curl ne réessaie jamais. Remplacé par une **attente active** sur
+  la présence effective de la CSP (12 tentatives × 10 s). À reconfirmer vert au run suivant.
+- La sortie `static_web_app_url` de l'action Azure est **confirmée correcte** (elle a bien fourni
+  l'URL au premier run) — l'incertitude notée à l'écriture du workflow est levée.
 - **Sortie `static_web_app_url` à confirmer** : l'étape de vérification des en-têtes de `deploy.yml`
   lit cette sortie de l'action Azure. Si elle arrive vide au premier run, l'étape émet un
   avertissement au lieu d'échouer — ajuster le nom à ce moment-là plutôt que de le supposer juste.

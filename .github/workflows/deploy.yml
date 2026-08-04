@@ -75,7 +75,23 @@ jobs:
             exit 0
           fi
           echo "Cible : $URL"
-          entetes=$(curl -sS -D - -o /dev/null --retry 5 --retry-delay 5 --retry-all-errors "$URL")
+
+          # SWA renvoie 200 AVANT d'avoir appliqué staticwebapp.config.json : la page est servie,
+          # mais sans en-têtes, pendant ~30-60 s après le téléversement. `curl --retry` ne rattrape
+          # PAS ce cas — la réponse est un succès, donc curl ne réessaie jamais (constaté au premier
+          # déploiement, 2026-08-04 : 200 avec seulement content-type et date). D'où l'attente
+          # active sur la présence effective de la CSP.
+          entetes=""
+          for essai in $(seq 1 12); do
+            entetes=$(curl -sS -D - -o /dev/null "$URL" || true)
+            if grep -qi "^content-security-policy:" <<<"$entetes"; then
+              echo "En-têtes appliqués (tentative ${essai})."
+              break
+            fi
+            echo "Config pas encore propagée (${essai}/12) — attente 10 s…"
+            sleep 10
+          done
+
           echo "$entetes"
 
           manquants=0

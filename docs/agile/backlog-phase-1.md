@@ -103,11 +103,16 @@
   gitignoré (**il contient le jeton en clair**). Marche à suivre : `infra/README.md`.
 - **G-axe volontairement absent** des workflows : aucune page réelle à tester avant E1. Un gate vert
   qui ne teste rien est pire qu'un gate absent.
-- **Bloqué sur des actions du propriétaire** : le dépôt n'a **aucun remote** et la branche locale est
-  `master` alors que les workflows écoutent `main`. Restent à faire, dans l'ordre : `git branch -m
-  master main` + `gh repo create --public` (public = minutes Actions illimitées ; un dépôt privé a un
-  quota **facturable au dépassement**, exclu par la règle budget) → `terraform apply` → `gh secret
-  set AZURE_STATIC_WEB_APPS_API_TOKEN` → `git push`.
+- **Provisionné le 2026-08-04 par le propriétaire** ✅ : dépôt public
+  <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> sur `main` · `terraform apply` → **2 ajoutées,
+  0 modifiée, 0 détruite**, palier **Free** confirmé dans le plan · site
+  <https://salmon-sky-0a730780f.7.azurestaticapps.net> · secret `AZURE_STATIC_WEB_APPS_API_TOKEN`
+  posé et vérifié · commit `ddb9ba9`. Détail : `docs/deployment.md` §Ressources en place.
+- **Mise en ligne faite le 2026-08-04** : <https://salmon-sky-0a730780f.7.azurestaticapps.net> —
+  HTTP 200, cinq en-têtes servis, CSP à hachage résolu, `lang="fr-CA"`. Workflow `Infra` vert.
+- **⏭️ Reste à clore E0-ST4** : (1) pousser le correctif de `deploy.yml` (le premier run était rouge
+  — vérification des en-têtes lancée avant la propagation de la config SWA, voir `docs/deployment.md`)
+  et le voir **vert** ; (2) le **constat navigateur** hérité d'E0-ST3, à faire à l'œil sur l'URL.
 - **Reste à lever après la mise en ligne** : le **constat navigateur** hérité d'E0-ST3 (aucune
   violation CSP sur `<script id="ng-state">`, page stylée) — à faire à l'œil sur l'URL Azure ; et la
   confirmation du nom de sortie `static_web_app_url` de l'action Azure (l'étape de vérification
@@ -308,3 +313,18 @@ injection → XSS d'abord).
 - **Objectif** : workflow GitHub Actions build+test de `api/`, déclenché sur les chemins `api/**` seulement ; pas de déploiement.
 - **Fichiers** : `.github/workflows/api-ci.yml`.
 - **Gates** : workflow vert ; zéro impact sur le pipeline frontend.
+
+---
+
+## Dette de plan — constats ouverts de la revue KB du 2026-08-04
+
+Issus de [`docs/revue-plan-kb-2026-08-04.md`](../revue-plan-kb-2026-08-04.md). **C1 à C5 sont
+appliqués** (E1-ST1, E1-ST3, E2-ST4, `direction-visuelle.md`, `roadmap.md`). Les trois ci-dessous
+touchent des **règles** et non le plan : ils attendent une décision du propriétaire, pas une édition
+d'office. Chacun est un lot autonome, dimensionné pour un agent frais.
+
+| ID | Constat | À trancher | Statut |
+|---|---|---|---|
+| **D-C6** | « Zéro violation AXE » est traité comme équivalent à « WCAG 2.2 AA ». Un outil automatisé ne décide ni de l'ordre de tabulation, ni du piège du focus, ni de la justesse d'un rôle ARIA : un `role` valide mais sémantiquement faux passe axe. Les gates E1-ST2 et E2-ST3/4/5 se réduisent pourtant à `G-axe`. | Ajouter un gate **`G-clavier`** (checklist manuelle : parcours au clavier seul, focus visible, ordre logique, passe lecteur d'écran) sur tout composant interactif ; ajuster la formulation de la barre dure dans CLAUDE.md. | ⬜ |
+| **D-C7** | `.claude/rules/contenu-pedagogique.md` §2 décrit une **structure** (théorie + 2 exemples + analogie + visuel) mais pas un **ancrage**. La fiche `divers/pedagogie/enseigner-informatique-ere-ia.md` (Malan/CS50) apporte le « moment mémorable » : au moins un par cours, plutôt en début ou milieu qu'à la fin. Le mécanisme existe déjà ici — c'est la simulation — mais **4 modules sur 13 n'en ont aucune** : E3-ST1 (`01-fondamentaux`), E3-ST2 (`02-evaluation-cvss`), E3-ST8 (`08-cryptographie`), E3-ST13 (`13-durcissement`). Ce sont les plus abstraits du cours. | Ajouter le « moment mémorable » à la règle pédagogique ; faire **nommer** le sien à chaque module, y compris sans simulation. *(Le 13 a déjà le bon : « les en-têtes réels de CE site comme étude de cas ».)* | ⬜ |
+| **D-C8** | Les 13 modules présupposent HTTP, TLS, cookies et DNS sans adosser ces prérequis à quoi que ce soit — alors que la règle pédagogique exige des « prérequis explicites ». Le plan ne connaissait que `web/securite/`. | Câbler `cs/reseaux/parcours-requete-web.md`, `cs/reseaux/https-tls.md` et `web/backend/cors.md` comme fiches de prérequis. Modules concernés : **01**, **05** (CSRF ≠ CORS ≠ SOP), **11**, **13**. | ⬜ |

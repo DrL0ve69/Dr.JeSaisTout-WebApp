@@ -9,13 +9,41 @@ Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code c
 comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutorat) :
 [`docs/vision.md`](docs/vision.md).
 
-> **État actuel (2026-08-04) : E0-ST1, ST2, ST3 ✅ · E0-ST4 🟦.** Spikes tranchés (addendums §9 de
-> [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md)),
-> workspace Angular 22 en place, en-têtes + CSP stricte constatés servis
-> ([`docs/deployment.md`](docs/deployment.md)). E0-ST4 : les trois workflows, le provisionnement
-> Terraform (`infra/`) et la page « bientôt » sont écrits et **verts en local** — mais **rien n'est
-> en ligne** : le dépôt n'a aucun remote et la ressource Azure n'existe pas. Actions du
-> propriétaire dans [`infra/README.md`](infra/README.md).
+> ## ⏭️ REPRISE — état au 2026-08-04, fin de session
+>
+> **E0-ST1, ST2, ST3 ✅ · E0-ST4 🟦 — LE SITE EST EN LIGNE.**
+>
+> **<https://salmon-sky-0a730780f.7.azurestaticapps.net>** — vérifié le 2026-08-04 : HTTP 200, les
+> cinq en-têtes servis, **CSP à hachage `sha256-` résolu**, `lang="fr-CA"`.
+>
+> **Le geste suivant, littéralement** (des correctifs sont en attente, non commités) :
+> ```powershell
+> git add -A
+> git commit -m "fix(ci): attendre la propagation de la config SWA avant de verifier les en-tetes"
+> git push
+> gh run watch
+> ```
+>
+> **Pourquoi ce correctif.** Le premier `deploy.yml` est **rouge alors que le déploiement a
+> réussi** : SWA renvoie 200 *avant* d'avoir appliqué `staticwebapp.config.json` (~30-60 s), et mon
+> étape de vérification a lu une réponse sans en-têtes. `curl --retry` ne rattrapait pas ce cas — la
+> réponse était un succès. Remplacé par une attente active sur la présence de la CSP. Le run doit
+> passer au vert ; sinon `gh run view --log-failed`.
+>
+> **Puis le seul constat encore ouvert d'E0-ST3** : ouvrir l'URL **console développeur ouverte** —
+> aucune violation CSP sur `<script id="ng-state" type="application/json">` (l'hydratation en
+> dépend), page **stylée**. Seul le propriétaire peut le faire : Claude in Chrome est banni ici.
+>
+> **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
+> commit `ddb9ba9` poussé · ressources Azure créées (*Azure for Students*, palier **Free**) ·
+> secret `AZURE_STATIC_WEB_APPS_API_TOKEN` posé · workflow `Infra (Terraform)` **vert** ·
+> gates locaux verts · aucun `tfstate` versionné.
+>
+> **Ensuite : E1-ST1** (jetons SCSS), dont les critères ont été chiffrés le 2026-08-04 — lire
+> [`docs/revue-plan-kb-2026-08-04.md`](docs/revue-plan-kb-2026-08-04.md) **avant** de commencer.
+>
+> Spikes tranchés : addendums §9 de
+> [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md).
 > Le plan fait foi : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md).
 > Scaffold par CLI officiels (`ng new` / `dotnet new`) uniquement — jamais à la main.
 
