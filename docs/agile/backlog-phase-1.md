@@ -75,9 +75,14 @@
   sortie prerendue contient un gestionnaire d'événement inline, un script inline exécutable ou un attribut
   `style` inline. Vérifié en reproduisant la régression `inlineCritical: true` — le garde-fou l'attrape et
   nomme la cause.
-- **Reste ouvert** : le **constat navigateur** (aucune violation CSP sur `ng-state`, page stylée) n'a pas pu
-  être fait — l'onglet Chrome piloté n'atteint pas `localhost`. Les en-têtes sont vérifiés, le comportement
-  du navigateur ne l'est pas. À lever en E0-ST4 sur l'URL `*.azurestaticapps.net`.
+- **Constat navigateur — levé le 2026-08-04** par le propriétaire sur
+  <https://salmon-sky-0a730780f.7.azurestaticapps.net>, console ouverte : **aucune violation CSP**.
+  Il avait été reporté ici faute d'accès (l'onglet Chrome piloté n'atteint pas `localhost` ; Claude in
+  Chrome est banni du projet — seul le propriétaire peut faire ce constat). Ce qu'il établit, au-delà de
+  l'absence de message : une CSP qui aurait bloqué le bloc `<style ng-app-id>` ou le
+  `<script id="ng-state" type="application/json">` **l'aurait dit dans la console**. Silence = hachage
+  `style-src` conforme au flux réellement servi, et `ng-state` non traité comme un script exécutable —
+  l'hydratation en dépend. **E0-ST3 est clos sans reste.**
 
 ### E0-ST4 — CI/CD GitHub Actions
 - **Objectif** : workflow PR (lint → test → build → axe → npm audit) + workflow `main` (idem + déploiement SWA Free) ; page « bientôt » minimaliste en ligne (placeholder sobre, pas la vraie home).
@@ -110,13 +115,23 @@
   posé et vérifié · commit `ddb9ba9`. Détail : `docs/deployment.md` §Ressources en place.
 - **Mise en ligne faite le 2026-08-04** : <https://salmon-sky-0a730780f.7.azurestaticapps.net> —
   HTTP 200, cinq en-têtes servis, CSP à hachage résolu, `lang="fr-CA"`. Workflow `Infra` vert.
-- **⏭️ Reste à clore E0-ST4** : (1) pousser le correctif de `deploy.yml` (le premier run était rouge
-  — vérification des en-têtes lancée avant la propagation de la config SWA, voir `docs/deployment.md`)
-  et le voir **vert** ; (2) le **constat navigateur** hérité d'E0-ST3, à faire à l'œil sur l'URL.
-- **Reste à lever après la mise en ligne** : le **constat navigateur** hérité d'E0-ST3 (aucune
-  violation CSP sur `<script id="ng-state">`, page stylée) — à faire à l'œil sur l'URL Azure ; et la
-  confirmation du nom de sortie `static_web_app_url` de l'action Azure (l'étape de vérification
-  avertit au lieu d'échouer si elle arrive vide).
+- **Déploiement vert le 2026-08-04** (run `30921738380`, commit `9d00d7e`) : l'attente active sur la
+  propagation de la config SWA règle le rouge du premier run. Le journal de l'étape établit trois choses
+  que le seul « vert » ne prouvait pas : la sortie **`static_web_app_url` porte bien ce nom** (« Cible :
+  https://salmon-sky-0a730780f.7.azurestaticapps.net » — l'étape ne s'est donc pas auto-ignorée), les
+  **cinq en-têtes** attendus sont servis, et la CSP porte
+  `style-src 'self' 'sha256-CdQGNV4BbviTctFmbjMF/2Z8eHTF6jpnV9H4mKkTEmY='` — **résolue**, sans
+  `unsafe-inline` ni hôte externe. Constat navigateur levé : voir E0-ST3.
+- **Annotations du premier run, corrigées le 2026-08-04** (avertissements, jamais des échecs) :
+  - `actions/checkout@v4` et `actions/setup-node@v4` ciblent **Node 20, déprécié** ; les runners les
+    forçaient en Node 24 avec un avertissement, et ce forçage cessera. Montées aux majeures qui
+    tournent nativement en Node 24 : **`checkout@v7`, `setup-node@v7`**, et **`setup-terraform@v4`**
+    dans `infra.yml` (même cause, pas encore signalée faute de run récent). Notes de version relues :
+    aucune rupture qui touche ces workflows — la seule de `setup-node` v5/v6 est un cache npm
+    automatique, sans effet ici puisque `cache: npm` est déclaré explicitement.
+  - `skip_api_build: true` : **cette entrée n'existe pas** dans `Azure/static-web-apps-deploy@v1`
+    (l'action listait ses entrées valides dans l'avertissement). Elle était ignorée en silence.
+    Retirée ; `api_location: ''` suffit — sans API, il n'y a rien à construire.
 
 ---
 

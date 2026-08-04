@@ -24,9 +24,12 @@ jobs:
     name: gates · déploiement · vérification des en-têtes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Majeures épinglées sur des actions qui tournent en Node 24 (checkout ≥ v5, setup-node ≥ v5).
+      # En v4 elles ciblaient Node 20, déprécié : les runners les forçaient déjà en 24 avec un
+      # avertissement, et ce forçage finira par disparaître.
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -49,6 +52,8 @@ jobs:
       # `skip_app_build: true` : l'artéfact est déjà construit par l'étape G-build ci-dessus, avec
       # la config SWA générée dedans. Laisser l'action rebuilder produirait un dossier SANS
       # staticwebapp.config.json résolu — donc sans CSP.
+      # Pas de `skip_api_build` : cette entrée N'EXISTE PAS dans l'action (elle l'annonçait en
+      # avertissement). `api_location: ''` suffit — sans API, il n'y a rien à construire.
       - name: Déployer sur Azure Static Web Apps
         id: deploiement
         uses: Azure/static-web-apps-deploy@v1
@@ -59,7 +64,6 @@ jobs:
           api_location: ''
           output_location: ''
           skip_app_build: true
-          skip_api_build: true
 
       # Constat en ligne de ce qui n'a pu être vérifié en local (voir docs/deployment.md) :
       # les en-têtes sont-ils réellement servis, et la CSP porte-t-elle un hachage résolu ?

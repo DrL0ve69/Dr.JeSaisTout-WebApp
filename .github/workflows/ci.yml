@@ -20,9 +20,12 @@ jobs:
     name: lint · test · build · audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Majeures épinglées sur des actions qui tournent en Node 24 (checkout ≥ v5, setup-node ≥ v5).
+      # En v4 elles ciblaient Node 20, déprécié : les runners les forçaient déjà en 24 avec un
+      # avertissement, et ce forçage finira par disparaître.
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24' # Angular 22 exige ≥ 24.15
           cache: npm

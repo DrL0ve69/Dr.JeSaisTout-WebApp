@@ -24,9 +24,11 @@ jobs:
     name: format · validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Même raison que dans ci.yml : majeures qui tournent en Node 24 (setup-terraform v4 =
+      # portage Node 24, aucune autre rupture).
+      - uses: actions/checkout@v7
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.15.6'
 
