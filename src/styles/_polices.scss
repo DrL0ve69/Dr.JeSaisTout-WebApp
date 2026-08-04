@@ -1,0 +1,106 @@
+// =============================================================================
+// POLICES AUTO-HÉBERGÉES — Fraunces (titres) + Inter (corps)
+// -----------------------------------------------------------------------------
+// ⚠️ Ce fichier ÉMET du CSS (`@font-face`). Il ne s'`@use` qu'UNE fois, depuis
+// `styles.scss`, jamais depuis un style de composant — sinon les déclarations
+// sont dupliquées dans chaque bundle. Même précaution que `_themes.scss`.
+//
+// POURQUOI AUTO-HÉBERGÉ, ET PAS GOOGLE FONTS. La CSP du site est
+// `font-src 'self'` (`config/staticwebapp.config.source.json`) : aucun hôte
+// externe n'est joignable, par construction. Ce n'est pas une contrainte subie,
+// c'est ce que le site enseigne — un cours de sécurité web qui appellerait un
+// CDN tiers pour ses polices se contredirait à la première page. Aucune requête
+// vers Google au chargement, donc aucune adresse IP de lecteur transmise à un
+// tiers non plus.
+//
+// PROVENANCE ET LICENCE. Fichiers pris une fois chez le fournisseur puis versés
+// au dépôt ; les deux familles sont sous SIL Open Font License 1.1, qui autorise
+// l'auto-hébergement. Le détail (URL exacte, empreintes, procédure de mise à
+// jour) vit dans `public/polices/PROVENANCE.md`, les licences dans
+// `public/polices/LICENCE-*.txt`.
+//
+// NOM VERSIONNÉ, ET C'EST OBLIGATOIRE. `public/**` est copié SANS empreinte de
+// contenu, alors que `staticwebapp.config.source.json` sert les `.woff2` en
+// `immutable` pendant un an. Un fichier remplacé sous le même nom resterait donc
+// en cache chez les lecteurs jusqu'en 2027. La version du fournisseur (`v20`,
+// `v38`) est portée par le NOM : la changer, c'est changer l'URL.
+//
+// `unicode-range` : RECOPIÉ VERBATIM du fournisseur, jamais retaillé à la main.
+// Un sous-ensemble maison casse « œ », « » et ’ en silence, au milieu d'un mot.
+// Le gate `tools/design/verifier-glyphes.mjs` ouvre les .woff2 et vérifie les
+// deux moitiés : le caractère est dans un `unicode-range` déclaré ET le fichier
+// contient vraiment son glyphe.
+//
+// `font-display: swap` : le texte est lisible IMMÉDIATEMENT dans la police de
+// repli, puis permuté. Jamais `block` (texte invisible = contenu inaccessible le
+// temps du téléchargement), jamais `optional` (qui priverait de la police une
+// première visite, c'est-à-dire l'écart à G3 qu'on est en train de refermer).
+// La fenêtre de permutation est réduite par les `<link rel="preload">` posés sur
+// les deux fichiers `latin` dans `src/index.html`.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Fraunces — serif de caractère, réservée aux TITRES
+// -----------------------------------------------------------------------------
+// Graisse 700 fixe : c'est la seule que le design system déclare
+// (`$graisse-titre`). L'axe `opsz` (9→144) reste variable dans le fichier, donc
+// le dessin s'adapte encore à la taille de rendu. Livrer la graisse variable
+// 100→900 coûterait +32 Ko sur le seul sous-ensemble latin pour des graisses
+// qu'aucun jeton n'utilise — mesuré, pas supposé. Le jour où une graisse plus
+// légère est voulue : reprendre la procédure de `PROVENANCE.md` avec
+// `wght@100..900`, et le nom de fichier change.
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/polices/fraunces-700-latin-v38.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/polices/fraunces-700-latin-ext-v38.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+// -----------------------------------------------------------------------------
+// Inter — sans-serif de lecture, CORPS de texte et interface
+// -----------------------------------------------------------------------------
+// UN SEUL fichier par sous-ensemble, et c'est un constat de mesure : demander
+// `wght@400` et `wght@700` au fournisseur renvoie deux URL différentes mais des
+// octets RIGOUREUSEMENT identiques (même SHA-256, même taille) — Inter est servie
+// en police variable. Livrer les deux graisses aurait donc pesé 133 Ko de doublon
+// pur. D'où `font-weight: 100 900` : c'est l'INTERVALLE porté par le fichier,
+// pas un souhait. Le navigateur y interpole `$graisse-corps` (400) et
+// `$graisse-titre` (700) sans télécharger quoi que ce soit de plus.
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/polices/inter-latin-v20.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/polices/inter-latin-ext-v20.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}

@@ -5,10 +5,16 @@
 // bloc `:root` des jetons. Un style de composant ne doit `@use` que
 // `styles/mixins` (et jamais `styles/primitives` — garde-fou G7).
 //
-// Contenu, dans l'ordre : jetons → reset léger → base typographique → focus →
-// impression. Aucune règle de composant ici.
+// Contenu, dans l'ordre : polices → jetons → reset léger → base typographique →
+// focus → impression. Aucune règle de composant ici.
+//
+// `styles/polices` vient EN PREMIER : les `@font-face` doivent être connus du
+// navigateur avant les règles qui s'en servent. C'est aussi, avec
+// `styles/themes`, l'un des deux seuls modules qui ÉMETTENT du CSS — donc l'un
+// des deux qu'un style de composant ne doit jamais `@use`.
 // =============================================================================
 
+@use 'styles/polices';
 @use 'styles/themes' as themes;
 @use 'styles/mixins' as m;
 

@@ -11,6 +11,7 @@
     "config:swa": "node tools/deploiement/generer-config-swa.mjs",
     "design:contrastes": "node tools/design/verifier-contrastes.mjs",
     "design:contrastes:check": "node tools/design/verifier-contrastes.mjs --check",
+    "design:glyphes": "node tools/design/verifier-glyphes.mjs",
     "kb": "node tools/kb-search.mjs"
   },
   "private": true,

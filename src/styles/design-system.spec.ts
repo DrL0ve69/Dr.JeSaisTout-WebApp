@@ -75,9 +75,42 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
   });
 
   it('n’émet plus aucune graisse en dur — l’axe passe par les jetons', () => {
-    expect(css).not.toMatch(/font-weight:\s*\d/);
+    // Les blocs `@font-face` sont retirés AVANT la mesure, et ce n'est pas un
+    // assouplissement du contrôle : dans un `@font-face`, `font-weight` est un
+    // DESCRIPTEUR — il déclare la graisse que le fichier contient (700 pour
+    // Fraunces, l'intervalle 100 900 pour la variable Inter). Il ne style aucun
+    // élément et ne peut donc pas court-circuiter un jeton. La règle visée par
+    // ce test — aucune graisse en dur sur une RÈGLE de style — reste vérifiée
+    // partout ailleurs, sur tout le reste de la feuille.
+    const horsFontFace = css.replaceAll(/@font-face\s*\{[^}]*\}/g, '');
+    expect(horsFontFace).not.toMatch(/font-weight:\s*\d/);
     expect(css).toContain('font-weight: var(--graisse-titre)');
     expect(css).toContain('--graisse-titre: 700');
+  });
+
+  it('déclare les polices auto-hébergées, et aucun hôte externe (CSP font-src \'self\')', () => {
+    // G3 : la pile de titres commence par Fraunces, celle du corps par Inter.
+    // Sass retire les guillemets en interpolant la pile dans une custom
+    // property : la valeur émise est `Fraunces, Iowan Old Style, …`, pas
+    // `"Fraunces", …`. On assied donc le test sur le CSS RÉEL. Ce qui compte
+    // est le rang : la police auto-hébergée passe AVANT les replis système.
+    expect(css).toMatch(/--police-titres:\s*Fraunces,/);
+    expect(css).toMatch(/--police-corps:\s*Inter,/);
+
+    // Le contrat de sécurité, mesuré sur le CSS émis plutôt que supposé : la CSP
+    // du site est `font-src 'self'`. Une seule `src:` pointant un hôte externe
+    // (un Google Fonts réintroduit par distraction) et la police ne chargerait
+    // pas du tout en production, sans que rien n'échoue au build.
+    const sources = [...css.matchAll(/src:\s*url\(["']?([^"')]+)["']?\)/g)].map((m) => m[1]);
+    expect(sources.length).toBeGreaterThan(0);
+    for (const s of sources) expect(s).toMatch(/^\/polices\//);
+
+    // `swap` : le texte reste lisible pendant le téléchargement. Jamais `block`
+    // (texte invisible = contenu inaccessible), jamais `optional` (première
+    // visite privée de la police, soit l'écart à G3 qu'on vient de refermer).
+    const affichages = [...css.matchAll(/font-display:\s*([\w-]+)/g)].map((m) => m[1]);
+    expect(affichages.length).toBe(sources.length);
+    for (const a of affichages) expect(a).toBe('swap');
   });
 });
 

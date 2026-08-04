@@ -1,0 +1,17 @@
+# Fichiers binaires — JAMAIS de conversion de fins de ligne.
+#
+# Git détecte le binaire tout seul dans l'immense majorité des cas, et il l'a
+# fait correctement pour les .woff2 versés en E1-ST1-B. Cette déclaration est là
+# pour que ça ne dépende pas d'une heuristique : une conversion CRLF appliquée à
+# une police la corrompt SILENCIEUSEMENT — le fichier reste présent, il pèse
+# presque le même poids, et il ne se décode plus. Le gate `verifier-glyphes.mjs`
+# l'attraperait (il ouvre vraiment les fichiers), mais mieux vaut que ça
+# n'arrive pas.
+*.woff2 binary
+*.woff  binary
+*.ico   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.avif  binary
