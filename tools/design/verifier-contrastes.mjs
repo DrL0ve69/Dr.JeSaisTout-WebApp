@@ -84,6 +84,12 @@ const CIBLE_AAA = 7;
 // [jeton de premier plan, jeton de fond, usage, seuil]
 // `aaa: true` marque les paires de corps de texte pour lesquelles on VISE AAA
 // (l'écart à AAA est signalé, il ne fait pas échouer le gate).
+//
+// Le type est déclaré : sans lui, une analyse statique infère de ce tableau
+// hétérogène le type « chaîne OU objet » pour CHAQUE position, et croit donc
+// voir un objet interpolé (« [object Object] ») partout où un message d'erreur
+// cite `texte`, `fond` ou `usage`. Le tuple dit ce qu'il en est réellement.
+/** @type {[string, string, string, keyof typeof SEUILS, ({ aaa?: boolean })?][]} */
 const PAIRES = [
   // --- Texte principal sur les trois surfaces -------------------------------
   [
@@ -349,10 +355,22 @@ function lire(chemin) {
   }
 }
 
-/** Extrait `$nom: valeur;` de la couche primitives. */
+/**
+ * Extrait `$nom: valeur;` de la couche primitives.
+ *
+ * L'espace autour du `:` est HORIZONTAL (`[ \t]`) et non `\s` : sous le drapeau
+ * `m`, un `\s*` collé à `^` peut réavaler les fins de ligne que `^` vient de
+ * franchir, ce qui multiplie les chemins de retour arrière (backtracking
+ * super-linéaire, signalé par l'analyse statique). Les captures sont
+ * strictement inchangées — l'espace déplacé d'un côté à l'autre du `:` tombe de
+ * toute façon dans le `.trim()`. La VALEUR reste `[^;]+`, autorisée à courir sur
+ * plusieurs lignes (`$pile-corps` est une pile de polices multiligne) : la
+ * borner ferait disparaître cette primitive de la table sans que rien ne le
+ * signale, exactement le saut silencieux que ce gate refuse.
+ */
 function lirePrimitives(source) {
   const table = new Map();
-  for (const m of source.matchAll(/^\s*\$([\w-]+)\s*:\s*([^;]+);/gm)) {
+  for (const m of source.matchAll(/^[ \t]*\$([\w-]+)[ \t]*:[ \t]*([^;]+);/gm)) {
     table.set(m[1], m[2].trim());
   }
   return table;
@@ -378,10 +396,17 @@ function corpsDuMixin(source, nom) {
   return null;
 }
 
-/** Extrait les `--jeton: valeur;` d'un corps de mixin. */
+/**
+ * Extrait les `--jeton: valeur;` d'un corps de mixin.
+ * Même durcissement horizontal que `lirePrimitives`, et pour la même raison.
+ * Volontairement NON ancrée sur `^` : deux déclarations posées sur une même
+ * ligne doivent rester vues. Un jeton sauté ici échapperait aux contrôles de
+ * couverture (§6a/6b) sans un mot — un vert mensonger coûte plus cher qu'un
+ * avertissement d'analyse statique sur une entrée qui est notre propre SCSS.
+ */
 function lireJetons(corps) {
   const table = new Map();
-  for (const m of corps.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+  for (const m of corps.matchAll(/(--[\w-]+)[ \t]*:[ \t]*([^;]+);/g)) {
     table.set(m[1], m[2].trim());
   }
   return table;
@@ -429,7 +454,7 @@ function resoudreCouleur(valeur, primitives, chemin = []) {
 
   return {
     hex: `#${plein.toLowerCase()}`,
-    rvb: [0, 2, 4].map((i) => parseInt(plein.slice(i, i + 2), 16)),
+    rvb: [0, 2, 4].map((i) => Number.parseInt(plein.slice(i, i + 2), 16)),
   };
 }
 
@@ -683,43 +708,45 @@ for (const theme of THEMES_ATTENDUS) {
 // lendemain. La date de dernière mise à jour est celle du commit — git la tient
 // mieux que nous.
 const md = [];
-md.push('# Table des contrastes des jetons sémantiques');
-md.push('');
-md.push('> **Fichier généré — ne pas modifier à la main.**');
-md.push('> Produit par `tools/design/verifier-contrastes.mjs` (`npm run design:contrastes`).');
-md.push('> Toute modification manuelle est écrasée à la prochaine passe, et');
-md.push('> `npm run design:contrastes:check` (gate **G-contraste** en CI) échoue si la version');
-md.push('> commitée diverge de ce que le script régénère. La date de dernière mise à jour est');
-md.push('> celle du commit : la sortie est **déterministe**, sans horodatage.');
-md.push('>');
-md.push('> Le contraste est une propriété de **paires**, pas de jetons : la table des paires');
-md.push('> autorisées vit en tête du script et fait foi. Une paire absente de cette table est une');
 md.push(
+  '# Table des contrastes des jetons sémantiques',
+  '',
+  '> **Fichier généré — ne pas modifier à la main.**',
+  '> Produit par `tools/design/verifier-contrastes.mjs` (`npm run design:contrastes`).',
+  '> Toute modification manuelle est écrasée à la prochaine passe, et',
+  '> `npm run design:contrastes:check` (gate **G-contraste** en CI) échoue si la version',
+  '> commitée diverge de ce que le script régénère. La date de dernière mise à jour est',
+  '> celle du commit : la sortie est **déterministe**, sans horodatage.',
+  '>',
+  '> Le contraste est une propriété de **paires**, pas de jetons : la table des paires',
+  '> autorisées vit en tête du script et fait foi. Une paire absente de cette table est une',
   '> combinaison **non autorisée** — l’ajouter au script avant de l’employer dans un composant.',
+  '>',
+  '> Méthode : luminance relative **WCAG 2** (pas d’APCA — non normatif). Ratios arrondis',
+  '> **vers le bas** au centième, pour qu’un 4,4999 ne s’affiche jamais « 4,50 ».',
+  '',
+  '## Seuils appliqués',
+  '',
+  '| Seuil | Minimum | Critère |',
+  '|---|---|---|',
 );
-md.push('>');
-md.push('> Méthode : luminance relative **WCAG 2** (pas d’APCA — non normatif). Ratios arrondis');
-md.push('> **vers le bas** au centième, pour qu’un 4,4999 ne s’affiche jamais « 4,50 ».');
-md.push('');
-md.push('## Seuils appliqués');
-md.push('');
-md.push('| Seuil | Minimum | Critère |');
-md.push('|---|---|---|');
 for (const [cle, s] of Object.entries(SEUILS)) {
   md.push(`| \`${cle}\` | ${s.min}:1 | ${s.critere} |`);
 }
-md.push('');
 md.push(
+  '',
   `Cible haute informative : **${CIBLE_AAA}:1 (AAA)** sur le corps de texte — signalée, non bloquante.`,
+  '',
 );
-md.push('');
 
 for (const theme of THEMES_ATTENDUS) {
   const lignes = resultats.get(theme.cle) ?? [];
-  md.push(`## Thème ${theme.libelle}`);
-  md.push('');
-  md.push('| Premier plan | Fond | Usage | Seuil | Ratio | Verdict |');
-  md.push('|---|---|---|---|---|---|');
+  md.push(
+    `## Thème ${theme.libelle}`,
+    '',
+    '| Premier plan | Fond | Usage | Seuil | Ratio | Verdict |',
+    '|---|---|---|---|---|---|',
+  );
   for (const l of lignes) {
     const verdict = !l.conforme
       ? `❌ **${l.min}:1 requis**`
@@ -739,62 +766,58 @@ for (const theme of THEMES_ATTENDUS) {
     md.push(
       `Ratio le plus bas du thème : **${bas.ratio.toFixed(2)}:1** ` +
         `(\`${bas.texte}\` sur \`${bas.fond}\`).`,
+      '',
     );
-    md.push('');
   }
 }
 
-md.push('## Jetons exemptés de mesure');
-md.push('');
-md.push('| Jeton | Justification |');
-md.push('|---|---|');
+md.push('## Jetons exemptés de mesure', '', '| Jeton | Justification |', '|---|---|');
 for (const [nom, raison] of Object.entries(EXEMPTIONS)) {
   md.push(`| \`${nom}\` | ${raison} |`);
 }
-md.push('');
 md.push(
+  '',
   'Un jeton listé ici ne doit apparaître dans **aucune** paire ci-dessus : le gate refuse une',
+  'exemption redondante autant qu’une exemption obsolète.',
+  '',
+  '## Échelles — typographie et espacement',
+  '',
+  'Le contraste n’est pas la seule règle chiffrée du design system : ces deux échelles sont',
+  'mesurées par le même gate, et un palier hors règle le fait sortir en code 1.',
+  '',
+  `### Typographie — ratio minimal exigé : **${RATIO_TYPO_MIN}** entre paliers consécutifs`,
+  '',
+  '| Palier | Valeur | px (base 16) | Ratio vs palier précédent |',
+  '|---|---|---|---|',
 );
-md.push('exemption redondante autant qu’une exemption obsolète.');
-md.push('');
-
-md.push('## Échelles — typographie et espacement');
-md.push('');
-md.push('Le contraste n’est pas la seule règle chiffrée du design system : ces deux échelles sont');
-md.push('mesurées par le même gate, et un palier hors règle le fait sortir en code 1.');
-md.push('');
-md.push(`### Typographie — ratio minimal exigé : **${RATIO_TYPO_MIN}** entre paliers consécutifs`);
-md.push('');
-md.push('| Palier | Valeur | px (base 16) | Ratio vs palier précédent |');
-md.push('|---|---|---|---|');
 for (const [i, t] of taillesPx.entries()) {
   const ratio = i === 0 ? '—' : (t.px / taillesPx[i - 1].px).toFixed(4);
   md.push(`| \`$${t.nom}\` | \`${t.brut}\` | ${t.px} | ${ratio} |`);
 }
-md.push('');
-md.push(`### Espacement — tout palier est un multiple de **${PAS_ESPACEMENT_PX} px** (grille 8pt)`);
-md.push('');
-md.push('| Palier | Valeur | px (base 16) |');
-md.push('|---|---|---|');
+md.push(
+  '',
+  `### Espacement — tout palier est un multiple de **${PAS_ESPACEMENT_PX} px** (grille 8pt)`,
+  '',
+  '| Palier | Valeur | px (base 16) |',
+  '|---|---|---|',
+);
 for (const nom of ECHELLE_ESPACEMENT) {
   const brut = primitives.get(nom) ?? '—';
   const px = enPixels(brut);
   md.push(`| \`$${nom}\` | \`${brut}\` | ${px ?? '—'} |`);
 }
-md.push('');
-md.push('## Ce que ce gate ne couvre pas');
-md.push('');
-md.push('- Le contraste **réellement rendu** : un composant qui empilerait une opacité, une ombre');
 md.push(
+  '',
+  '## Ce que ce gate ne couvre pas',
+  '',
+  '- Le contraste **réellement rendu** : un composant qui empilerait une opacité, une ombre',
   '  ou un fond intermédiaire sortirait de cette mesure. C’est le rôle de **G-axe** (E1-ST2),',
-);
-md.push('  qui teste les pages ; les deux gates sont complémentaires, aucun ne remplace l’autre.');
-md.push('- Les images et diagrammes (Mermaid, SVG de leçon) — hors jetons.');
-md.push(
+  '  qui teste les pages ; les deux gates sont complémentaires, aucun ne remplace l’autre.',
+  '- Les images et diagrammes (Mermaid, SVG de leçon) — hors jetons.',
   '- Le critère **1.4.12** (espacement du texte) et **1.4.4** (zoom 200 %), qui relèvent des',
+  '  échelles typographiques, pas des couleurs.',
+  '',
 );
-md.push('  échelles typographiques, pas des couleurs.');
-md.push('');
 
 // Saut de ligne final : un éditeur ou un formateur qui « corrige » l'absence de
 // newline terminale ferait échouer `--check` pour une raison sans rapport avec le

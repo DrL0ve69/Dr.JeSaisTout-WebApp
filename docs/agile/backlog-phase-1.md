@@ -189,6 +189,31 @@
   dans l'arbre via `@angular/build`, 0 octet téléchargé, 0 surface en production) pour tester les
   mixins sur le CSS émis.
 
+**2026-08-04 — SonarCloud sur la PR #1 : la « duplication » est la TABLE DES PAIRES, pas les thèmes.**
+- **Ce que Sonar mesure** : `new_duplicated_lines = 76` sur `new_lines = 1890`, soit **4,02 %**,
+  au-dessus de la condition « ≤ 3 % de duplication sur le code neuf » de la porte qualité.
+- **Où** : les **76 lignes sont toutes dans `tools/design/verifier-contrastes.mjs`**. L'hypothèse de
+  départ — les deux blocs de thème de `src/styles/_themes.scss` — est **fausse** : l'API mesure
+  `duplicated_lines = 0` sur ce fichier, comme sur tout le reste du dépôt. `api/duplications/show`
+  ne rend **qu'un** doublon, deux blocs du même fichier qui se chevauchent à six lignes d'écart :
+  c'est la table `PAIRES`, ses ~33 entrées écrites chacune sur six lignes
+  (`[`, premier plan, fond, usage, seuil, `],`).
+- **Pourquoi c'est intentionnel et structurel** : le détecteur de copier-coller **normalise les
+  littéraux** — deux entrées qui ne partagent aucune chaîne lui présentent malgré tout la même suite
+  de jetons. Il ne voit donc pas de la logique dupliquée, il voit **les lignes d'un tableau de
+  données**. Or cette table *est* le livrable du gate : elle sert à la fois de jeu de tests et de
+  documentation des combinaisons autorisées (une paire absente est une paire interdite). La
+  « factoriser » signifierait engendrer les paires par un programme — soit exactement supprimer
+  l'explicitité sur laquelle le gate repose, et rendre invérifiable à l'œil ce qu'un relecteur doit
+  pouvoir compter. Même nature que la duplication des deux thèmes, que **G9** interdit de factoriser
+  (`docs/design/direction-visuelle.md`) : le sombre est dessiné, jamais dérivé du clair.
+- **Décision** : ne rien factoriser. La levée appartient au **propriétaire, dans l'interface
+  SonarCloud** — le dépôt n'a pas de `sonar-project.properties` (analyse automatique), donc rien
+  n'est réglable côté code. Deux voies : *Analysis Scope* → `sonar.cpd.exclusions` =
+  `tools/design/verifier-contrastes.mjs` (cible le seul fichier concerné), ou ajuster la condition de
+  duplication de la porte qualité. Tant que ce n'est pas fait, la PR #1 reste rouge sur ce seul
+  critère.
+
 ### E1-ST2 — Layout & navigation
 - **Objectif** : shell applicatif (header avec logotype typographique, nav, bascule de thème, footer), squelette de routes (`/`, `/cours/securite-web`, `/cours/securite-web/:slug`), page 404, skip-link, landmarks ARIA.
 - **Fichiers** : `src/app/core/layout/`, `src/app/app.routes.ts`.
