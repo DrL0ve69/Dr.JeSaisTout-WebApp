@@ -207,12 +207,27 @@
   l'explicitité sur laquelle le gate repose, et rendre invérifiable à l'œil ce qu'un relecteur doit
   pouvoir compter. Même nature que la duplication des deux thèmes, que **G9** interdit de factoriser
   (`docs/design/direction-visuelle.md`) : le sombre est dessiné, jamais dérivé du clair.
-- **Décision** : ne rien factoriser. La levée appartient au **propriétaire, dans l'interface
-  SonarCloud** — le dépôt n'a pas de `sonar-project.properties` (analyse automatique), donc rien
-  n'est réglable côté code. Deux voies : *Analysis Scope* → `sonar.cpd.exclusions` =
-  `tools/design/verifier-contrastes.mjs` (cible le seul fichier concerné), ou ajuster la condition de
-  duplication de la porte qualité. Tant que ce n'est pas fait, la PR #1 reste rouge sur ce seul
-  critère.
+- **Décision** : ne rien factoriser.
+- **Réglé le 2026-08-04 (commit `307e843`) — et une conclusion de ce paragraphe était fausse.**
+  Il était écrit que « rien n'est réglable côté code » parce que le dépôt n'a pas de
+  `sonar-project.properties`. C'est le mauvais fichier : l'analyse automatique lit
+  **`.sonarcloud.properties`** à la racine, et c'est justement `sonar-project.properties` qu'elle
+  **ignore**. `sonar.cpd.exclusions=tools/design/verifier-contrastes.mjs` (nominatif — les motifs
+  génériques y sont interdits) a fait tomber la duplication du code neuf de **4,0 % à 0,0 %**,
+  **dès l'analyse de la PR** : contrairement à ce qu'indique la doc, le réglage n'a pas attendu
+  d'être sur la branche par défaut. Aucune intervention du propriétaire n'aura été nécessaire.
+- **Constat que la passe précédente n'avait pas vu : la porte tombait sur DEUX conditions**, pas
+  une. `new_reliability_rating = 3` (note C) vient d'**un BUG** `css:S8776` « Nesting selectors
+  should have a scoping root », sur le `&` de `@mixin focus-visible` (`src/styles/_mixins.scss`).
+  **Faux positif, vérifié en compilant plutôt que supposé** : l'analyseur applique la sémantique de
+  l'imbrication CSS native, où un `&` sans racine de portée est une faute ; en SCSS le `&` d'un
+  `@mixin` se résout au **site d'appel** — `.bouton { @include m.focus-visible; }` rend bien
+  `.bouton:focus-visible`, media query de contraste forcé comprise.
+  **Reste à la charge du propriétaire**, et c'est le seul reliquat : `.sonarcloud.properties`
+  n'admet pas `sonar.issue.ignore.multicriteria`, donc une issue ne peut pas être tue par fichier.
+  Marquer le constat **False Positive** dans l'interface SonarCloud. Tant que ce n'est pas fait,
+  `main` reste rouge sur ce seul critère. Le mixin porte un commentaire qui interdit de le
+  « corriger » — le faux positif ne doit pas piloter la conception.
 
 ### E1-ST2 — Layout & navigation
 - **Objectif** : shell applicatif (header avec logotype typographique, nav, bascule de thème, footer), squelette de routes (`/`, `/cours/securite-web`, `/cours/securite-web/:slug`), page 404, skip-link, landmarks ARIA.
