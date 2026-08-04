@@ -17,6 +17,37 @@
       content="Cours public et gratuit sur la sécurité des applications web — 13 modules, en préparation."
     />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
+
+    <!--
+      Préchargement des deux sous-ensembles `latin` — les seuls qu'une page
+      française touche à coup sûr. Découverts autrement au moment où le CSS est
+      analysé, donc tard, ce qui allonge la permutation de `font-display: swap`.
+      Les sous-ensembles `latin-ext` ne sont PAS préchargés : ils ne servent qu'à
+      des caractères rares, les précharger serait 114 Kio payés pour rien.
+
+      `crossorigin` est OBLIGATOIRE, même en même origine : une police est
+      toujours récupérée en mode CORS. Sans cet attribut, le préchargement ne
+      correspond pas à la requête de la police et le fichier est téléchargé DEUX
+      fois — le contraire de l'effet recherché.
+
+      Noms versionnés (`v20`, `v38`) : `public/**` est copié sans empreinte de
+      contenu alors que les `.woff2` sont servis `immutable` un an. Ces trois
+      chemins doivent donc changer en même temps que ceux de `_polices.scss`.
+    -->
+    <link
+      rel="preload"
+      href="/polices/inter-latin-v20.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/polices/fraunces-700-latin-v38.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
   </head>
   <body>
     <app-root></app-root>

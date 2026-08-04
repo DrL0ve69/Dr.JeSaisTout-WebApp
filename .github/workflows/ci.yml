@@ -43,6 +43,13 @@ jobs:
       - name: G-contraste
         run: npm run design:contrastes:check
 
+      # Gate des polices auto-hébergées : ouvre chaque .woff2 livré, décompresse son flux et lit sa
+      # table cmap. Vérifie les DEUX moitiés — le caractère est dans un unicode-range déclaré ET le
+      # fichier porte vraiment son glyphe. Un sous-ensemble trop agressif casse « œ », « » et ’ en
+      # silence, au milieu d’un mot : sans ce gate, rien ne le signalerait avant la mise en ligne.
+      - name: G-glyphes
+        run: npm run design:glyphes
+
       - name: G-test
         run: npm test
 

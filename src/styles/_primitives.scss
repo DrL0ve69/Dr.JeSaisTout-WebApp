@@ -171,12 +171,26 @@ $courbe-nette: cubic-bezier(0.2, 0, 0, 1);
 // -----------------------------------------------------------------------------
 // 10 · Piles de polices
 // -----------------------------------------------------------------------------
-// ⚠️ ÉCART ASSUMÉ À G3, levé par E1-ST1-B : les polices de caractère
-// (Fraunces / Inter) seront auto-hébergées et branchées sur ces mêmes jetons.
+// ✅ ÉCART À G3 LEVÉ par E1-ST1-B : Fraunces (titres) et Inter (corps) sont
+// auto-hébergées, déclarées dans `_polices.scss`, servies depuis `/polices/`.
 // La CSP est `font-src 'self'` : aucun hôte externe, jamais de Google Fonts.
-// D'ici là, piles système — aucun octet téléchargé, aucun jeton à renommer.
-$pile-titres: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+//
+// Les piles système restent DERRIÈRE, et ce n'est pas décoratif : avec
+// `font-display: swap`, ce sont elles qui rendent le texte pendant le
+// téléchargement, et elles qui prennent le relais pour les caractères hors
+// couverture (cf. écarts assumés du gate `verifier-glyphes.mjs`). Elles sont
+// donc choisies pour ressembler à la police servie, pas au hasard : un serif de
+// même couleur d'œil derrière Fraunces, la pile système derrière Inter.
+$pile-titres:
+  'Fraunces',
+  'Iowan Old Style',
+  'Palatino Linotype',
+  Palatino,
+  Georgia,
+  'Times New Roman',
+  serif;
 $pile-corps:
+  'Inter',
   system-ui,
   -apple-system,
   'Segoe UI',
