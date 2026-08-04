@@ -7,8 +7,10 @@
     "build": "ng build && npm run config:swa",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "lint": "ng lint",
+    "lint": "ng lint && eslint tools",
     "config:swa": "node tools/deploiement/generer-config-swa.mjs",
+    "design:contrastes": "node tools/design/verifier-contrastes.mjs",
+    "design:contrastes:check": "node tools/design/verifier-contrastes.mjs --check",
     "kb": "node tools/kb-search.mjs"
   },
   "private": true,
@@ -36,6 +38,7 @@
     "eslint": "^10.6.0",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
+    "sass": "^1.101.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "8.62.1",
     "vitest": "^4.0.8"

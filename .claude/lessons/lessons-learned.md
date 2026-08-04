@@ -132,4 +132,56 @@ sinon elle ne fait rien tout en donnant l'impression du contraire.
 
 ---
 
+## L-007 · Un gate livré n'est pas un gate câblé — il lui faut son étape CI, dans le même diff, dans tous les workflows
+
+**Symptôme.** `tools/design/verifier-contrastes.mjs` (branche `feat/e1-st1-jetons-scss`) écrit,
+passant, produisant un rapport — et appelé par **rien** : ni `ci.yml`, ni `deploy.yml`, ni
+`npm run build`. Il n'aurait jamais tourné sur une PR. `ci.yml` porte pourtant déjà en commentaire
+« un gate vert qui ne teste rien est pire qu'un gate absent ».
+
+**Règle.** Tout nouveau gate arrive avec son étape CI dans le **même diff** que le script, et dans
+**tous** les workflows qui rejouent les gates (`ci.yml` *et* `deploy.yml` ici) — un gate câblé dans
+l'un et pas l'autre laisse partir en ligne du code moins vérifié que ce qui passe en PR. Déclinaison
+de [[L-005]] (« un vert n'est ambigu que si on lit le journal ») et de [[L-004]] (constater l'effet,
+pas le symbole) : ici le symptôme est encore plus en amont — la vérification n'est même pas
+*branchée* au workflow.
+
+**Réfs.** `tools/design/verifier-contrastes.mjs` ; `.github/workflows/{ci,deploy}.yml` ;
+branche `feat/e1-st1-jetons-scss`.
+
+---
+
+## L-008 · Une contrepartie de conception qui n'existe que dans un commentaire de code ne protège rien
+
+**Symptôme.** L'implémenteur a retiré, à raison, `--couleur-surface-creuse`/`--couleur-surface` du
+seuil 3:1 de WCAG 1.4.11 (deux fonds voisins ne sont ni composant ni objet graphique). Mais la
+contrepartie qui rend ce retrait sûr (« un encart est **toujours** borné par `--couleur-filet` »)
+n'était écrite que dans un commentaire de `verifier-contrastes.mjs`, que zéro auteur de composant
+n'ouvrira. Les deux fonds mesurent **1,11:1** : sans bordure garantie, un encart devient
+indistinguable.
+
+**Règle.** Quand on **exempte** quelque chose d'un gate, la contrepartie qui justifie l'exemption
+s'inscrit là où le futur auteur la lira (ici `docs/design/direction-visuelle.md`, garde-fous G),
+jamais seulement dans l'outil qui exempte.
+
+**Réfs.** `tools/design/verifier-contrastes.mjs` ; `docs/design/direction-visuelle.md` §G7-a/G7-b ;
+`docs/design/contrastes-jetons.md`.
+
+---
+
+## L-009 · Un artéfact généré et commité doit être reproductible octet pour octet, avec un mode `--check`
+
+**Symptôme.** `verifier-contrastes.mjs` horodatait son rapport avec `new Date()` : diff parasite à
+chaque exécution, et aucun moyen de vérifier en CI qu'un rapport commité était à jour — un rapport
+périmé ne faisait échouer personne.
+
+**Règle.** Un artéfact généré et commité doit produire la **même sortie** à deux exécutions
+identiques (pas d'horodatage, pas d'aléatoire) ; le script qui le génère expose un mode `--check`
+qui régénère en mémoire, compare, et sort en 1 sur divergence — c'est ce mode qui rend l'artéfact
+réellement vérifiable en CI, pas sa seule présence dans le dépôt.
+
+**Réfs.** `tools/design/verifier-contrastes.mjs` (option `--check`) ; `docs/design/contrastes-jetons.md`.
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

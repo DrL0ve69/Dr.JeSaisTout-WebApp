@@ -36,6 +36,13 @@ jobs:
       - name: G-lint
         run: npm run lint
 
+      # Gate du design system : ratios de contraste WCAG de chaque paire de jetons dans les DEUX
+      # thèmes, plus la cohérence des échelles typo (ratio ≥ 1.25) et d'espacement (multiples de 4).
+      # Mode `--check` : le script n'écrit rien, il compare le rapport régénéré à celui du dépôt et
+      # sort en 1 s'il diverge — sans ça, un rapport commité périmé ne ferait échouer personne.
+      - name: G-contraste
+        run: npm run design:contrastes:check
+
       - name: G-test
         run: npm test
 
@@ -51,7 +58,12 @@ jobs:
       - name: G-audit
         run: npm audit --omit=dev
 
-      # G-axe arrive en E1, avec les premières pages réelles. Ne pas ajouter d'étape verte
+      # G-axe arrive en E1-ST2, avec les premières pages réelles. Ne pas ajouter d'étape verte
       # factice d'ici là : un gate qui ne teste rien est pire qu'un gate absent.
+      # G-contraste (ci-dessus) en est la moitié AMONT — il mesure les jetons, pas les pages
+      # rendues ; aucun des deux ne remplace l'autre.
+      #
+      # ⚠️ Cette liste de gates doit rester ALIGNÉE avec celle de deploy.yml, qui les rejoue avant
+      # publication. Un gate ajouté ici et pas là-bas ne protège pas ce qui part en ligne.
       #
       # Les gates Terraform vivent dans infra.yml, déclenché par un filtre `paths` natif.

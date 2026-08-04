@@ -1,0 +1,220 @@
+// =============================================================================
+// COUCHE 2/3 — JETONS SÉMANTIQUES
+// -----------------------------------------------------------------------------
+// RÈGLE D'EN-TÊTE, NON NÉGOCIABLE :
+//
+//   ⛔ LE THÈME NE SE REDÉFINIT QU'ICI, À LA COUCHE SÉMANTIQUE.
+//   Aucun jeton de composant, aucune couleur, aucune règle ne doit jamais être
+//   redéfinie sous `[data-theme='sombre']` ailleurs que dans ce fichier.
+//
+// Pourquoi. Dès qu'un composant se met à corriger sa propre couleur « juste
+// pour le sombre », le contraste de ce composant sort du champ du gate
+// `tools/design/verifier-contrastes.mjs` : il n'est plus mesuré, il est espéré.
+// C'est exactement là que naissent les dérives de contraste. Un composant qui
+// « a besoin » d'une valeur différente en sombre a en réalité besoin d'un jeton
+// sémantique manquant — on l'ajoute ici, mesuré, plutôt qu'on ne le rustine.
+//
+// -----------------------------------------------------------------------------
+// Deux autres règles du même esprit :
+//
+// 1. AUCUNE OPACITÉ SUR UN JETON DE TEXTE. Chaque niveau d'emphase est une
+//    couleur PLEINE (hex 6 chiffres) avec son ratio mesuré. La hiérarchie par
+//    opacité façon Material (87 %/60 %) fait chuter le contraste sous 4.5:1 de
+//    façon mécanique. L'opacité reste permise sur les DÉCORS (règlure, filets),
+//    jamais sur du texte. Le gate refuse un hex à canal alpha sur un jeton texte.
+//
+// 2. G9 — LE SOMBRE EST DESSINÉ, PAS INVERSÉ. Les accents (dont danger-vuln et
+//    ok-corrige) sont recalibrés pour un fond d'ardoise : ce ne sont pas les
+//    mêmes hex que le clair, et la lisibilité de chaque paire est mesurée dans
+//    les deux thèmes indépendamment.
+//
+// -----------------------------------------------------------------------------
+// ⚠️ CE FICHIER ÉMET DU CSS. Il n'est `@use`é QUE par `src/styles.scss`.
+// L'importer depuis un style de composant dupliquerait tout le bloc `:root`
+// dans chaque composant (les styles de composants sont des unités de
+// compilation séparées). Un composant `@use` `_mixins.scss`, jamais ce fichier.
+//
+// Couche 3/3 (jetons de composants) : VOLONTAIREMENT VIDE à ce stade. Un jeton
+// de composant ne naît que s'il a ≥ 2 consommateurs ou ≥ 2 valeurs distinctes.
+// Aucun composant réel n'existe encore : la couche naît vide, et c'est correct.
+// =============================================================================
+
+@use 'primitives' as prim;
+
+// -----------------------------------------------------------------------------
+// Jetons invariants — identiques dans les deux thèmes
+// -----------------------------------------------------------------------------
+@mixin jetons-invariants {
+  // Typographie
+  --police-titres: #{prim.$pile-titres};
+  --police-corps: #{prim.$pile-corps};
+  --police-code: #{prim.$pile-code};
+
+  --taille-xs: #{prim.$taille-xs};
+  --taille-s: #{prim.$taille-s};
+  --taille-m: #{prim.$taille-m};
+  --taille-l: #{prim.$taille-l};
+  --taille-xl: #{prim.$taille-xl};
+  --taille-xxl: #{prim.$taille-xxl};
+
+  --interligne-corps: #{prim.$interligne-corps};
+  --interligne-titre: #{prim.$interligne-titre};
+  --chasse-titre: #{prim.$chasse-titre};
+  --chasse-tampon: #{prim.$chasse-tampon};
+
+  --graisse-corps: #{prim.$graisse-corps};
+  --graisse-titre: #{prim.$graisse-titre};
+  --graisse-tampon: #{prim.$graisse-tampon};
+
+  // Espacement 8pt
+  --espace-0-5: #{prim.$espace-0-5};
+  --espace-1: #{prim.$espace-1};
+  --espace-2: #{prim.$espace-2};
+  --espace-3: #{prim.$espace-3};
+  --espace-4: #{prim.$espace-4};
+  --espace-6: #{prim.$espace-6};
+  --espace-8: #{prim.$espace-8};
+
+  // Rayons et filets
+  --rayon-net: #{prim.$rayon-net};
+  --rayon-doux: #{prim.$rayon-doux};
+  --rayon-carte: #{prim.$rayon-carte};
+  --rayon-pastille: #{prim.$rayon-pastille};
+
+  --filet-fin: #{prim.$filet-fin};
+  --filet-moyen: #{prim.$filet-moyen};
+  --filet-marge: #{prim.$filet-marge};
+  --filet-focus: #{prim.$filet-focus};
+  --decalage-focus: #{prim.$decalage-focus};
+
+  // Mouvement
+  --duree-breve: #{prim.$duree-breve};
+  --duree-moyenne: #{prim.$duree-moyenne};
+  --courbe-nette: #{prim.$courbe-nette};
+
+  // Mesures
+  --largeur-lecture: #{prim.$largeur-lecture};
+  --largeur-page: #{prim.$largeur-page};
+}
+
+// -----------------------------------------------------------------------------
+// Thème CLAIR — « papier ivoire »
+// -----------------------------------------------------------------------------
+@mixin jetons-theme-clair {
+  // Surfaces
+  --couleur-surface: #{prim.$papier-50};
+  --couleur-surface-creuse: #{prim.$papier-100};
+  --couleur-surface-elevee: #{prim.$papier-0};
+
+  // Encres (texte) — couleurs pleines, jamais d'opacité
+  --couleur-encre: #{prim.$encre-800};
+  --couleur-encre-secondaire: #{prim.$encre-700};
+  --couleur-encre-tertiaire: #{prim.$encre-600};
+  --couleur-encre-filigrane: #{prim.$encre-500};
+
+  // Action
+  --couleur-accent: #{prim.$bleu-encre-c};
+  --couleur-accent-survol: #{prim.$bleu-encre-survol-c};
+  --couleur-sur-accent: #{prim.$papier-0};
+
+  // Signature pédagogique
+  --couleur-danger-vuln: #{prim.$rouge-correction-c};
+  --couleur-danger-vuln-surface: #{prim.$rouge-correction-lavis-c};
+  --couleur-ok-corrige: #{prim.$vert-annotation-c};
+  --couleur-ok-corrige-surface: #{prim.$vert-annotation-lavis-c};
+  --couleur-attention: #{prim.$ocre-c};
+  --couleur-attention-surface: #{prim.$ocre-lavis-c};
+
+  // Traits
+  --couleur-filet: #{prim.$papier-400};
+  --couleur-filet-fort: #{prim.$papier-500};
+  --couleur-reglure: #{prim.$papier-200};
+  --couleur-focus: #{prim.$bleu-encre-c};
+
+  // Sélection de texte et code
+  --couleur-selection-fond: #{prim.$surligneur-c};
+  --couleur-selection-encre: #{prim.$encre-900};
+  --couleur-code-surface: #{prim.$papier-100};
+  --couleur-code-encre: #{prim.$encre-800};
+}
+
+// -----------------------------------------------------------------------------
+// Thème SOMBRE — « ardoise encrée » (dessiné, pas inversé — G9)
+// -----------------------------------------------------------------------------
+@mixin jetons-theme-sombre {
+  // Surfaces
+  --couleur-surface: #{prim.$ardoise-800};
+  --couleur-surface-creuse: #{prim.$ardoise-700};
+  --couleur-surface-elevee: #{prim.$ardoise-600};
+
+  // Encres (texte)
+  --couleur-encre: #{prim.$craie-100};
+  --couleur-encre-secondaire: #{prim.$craie-200};
+  --couleur-encre-tertiaire: #{prim.$craie-300};
+  --couleur-encre-filigrane: #{prim.$craie-400};
+
+  // Action
+  --couleur-accent: #{prim.$bleu-encre-s};
+  --couleur-accent-survol: #{prim.$bleu-encre-survol-s};
+  --couleur-sur-accent: #{prim.$ardoise-900};
+
+  // Signature pédagogique
+  --couleur-danger-vuln: #{prim.$rouge-correction-s};
+  --couleur-danger-vuln-surface: #{prim.$rouge-correction-lavis-s};
+  --couleur-ok-corrige: #{prim.$vert-annotation-s};
+  --couleur-ok-corrige-surface: #{prim.$vert-annotation-lavis-s};
+  --couleur-attention: #{prim.$ocre-s};
+  --couleur-attention-surface: #{prim.$ocre-lavis-s};
+
+  // Traits
+  --couleur-filet: #{prim.$ardoise-300};
+  --couleur-filet-fort: #{prim.$ardoise-200};
+  --couleur-reglure: #{prim.$ardoise-500};
+  --couleur-focus: #{prim.$bleu-encre-s};
+
+  // Sélection de texte et code
+  --couleur-selection-fond: #{prim.$surligneur-s};
+  --couleur-selection-encre: #{prim.$craie-100};
+  --couleur-code-surface: #{prim.$ardoise-900};
+  --couleur-code-encre: #{prim.$craie-100};
+}
+
+// -----------------------------------------------------------------------------
+// Application — l'ordre compte
+// -----------------------------------------------------------------------------
+// 1. `:root` porte le clair par défaut (et le rendu sans JS, sans préférence).
+// 2. La préférence système bascule le sombre — UNIQUEMENT si l'utilisateur n'a
+//    pas épinglé un thème (`:not([data-theme])`). Le service de bascule
+//    (E1-ST1-D) posera `data-theme` sur `<html>` ; sans lui, le site respecte
+//    déjà `prefers-color-scheme`, JS ou pas.
+// 3. Les sélecteurs `[data-theme]` explicites viennent en dernier et gagnent :
+//    un choix manuel prime toujours sur la préférence système.
+:root {
+  @include jetons-invariants;
+  @include jetons-theme-clair;
+}
+
+// ⚠️ `screen and` n'est PAS décoratif. Firefox et Safari continuent d'évaluer
+// `prefers-color-scheme: dark` pendant l'impression ; sans restriction de type
+// de média, ce bloc (spécificité 0,2,0) battait le `:root` du bloc `@media print`
+// (0,1,0) et un visiteur NON épinglé sur un OS en sombre imprimait de l'encre
+// claire sur papier blanc — mesuré à ~1.1:1, illisible. Le type de média règle la
+// cause ; la liste de sélecteurs du bloc print (`src/styles.scss` §4) tient la
+// ceinture.
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    @include jetons-theme-sombre;
+  }
+}
+
+:root[data-theme='clair'] {
+  color-scheme: light;
+
+  @include jetons-theme-clair;
+}
+
+:root[data-theme='sombre'] {
+  color-scheme: dark;
+
+  @include jetons-theme-sombre;
+}

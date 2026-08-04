@@ -91,7 +91,7 @@ Pourquoi elle gagne :
 | G4 | **Illustrations et diagrammes cohérents** : un seul langage graphique (traits de carnet) ; pas d'icônes dépareillées, **pas d'emojis** en guise d'iconographie UI |
 | G5 | **Thème clair + sombre** dès E1, tous deux dessinés (pas d'inversion automatique) ; respect de `prefers-color-scheme` avec bascule manuelle persistée |
 | G6 | **`prefers-reduced-motion` respecté** : toute animation a une variante réduite ; les simulations pas-à-pas restent pilotables sans animation |
-| G7 | **Jetons sémantiques SCSS** obligatoires (`--color-surface`, `--color-ink`, `--color-danger-vuln`, `--color-ok-fixed`, échelles espacement/typo) ; aucune couleur ou taille en dur dans les composants |
+| G7 | **Jetons sémantiques SCSS** obligatoires (`--color-surface`, `--color-ink`, `--color-danger-vuln`, `--color-ok-fixed`, échelles espacement/typo) ; aucune couleur ou taille en dur dans les composants. **Un bloc se délimite par un trait, jamais par sa seule teinte de fond** — voir §4 |
 | G8 | Contraste et focus : AA minimum partout (viser AAA pour le corps de texte), focus visible dessiné (pas l'outline supprimé) — cohérent avec la barre WCAG 2.2 AA / zéro violation AXE |
 | G9 | Le sombre n'est pas « noir + couleurs criardes » : ardoise encrée, accents désaturés recalibrés |
 
@@ -111,3 +111,26 @@ Pourquoi elle gagne :
   **œ**, guillemets **« »**). Tant qu'il n'est pas fait, G3 reste en écart assumé.
 - Toute dérive détectée en revue (`code-reviewer`) se juge contre les garde-fous G1–G9 de ce
   document, qui prévaut sur les goûts du moment.
+
+### Deux règles de conception que le gate de contraste ne peut PAS tester
+
+Ces deux-là sont la **contrepartie** d'exemptions accordées dans
+`tools/design/verifier-contrastes.mjs`. Elles ne vivaient jusqu'ici que dans un commentaire de
+script — c'est-à-dire nulle part, du point de vue de qui écrit un composant. Elles sont
+**bloquantes en revue** au même titre que G1–G9.
+
+- **G7-a · Un encart est toujours borné par un trait.** `--couleur-surface-creuse` et
+  `--couleur-surface` sont volontairement proches — **1,11:1**, très en dessous de tout seuil —
+  parce que deux fonds voisins ne sont ni un composant d'interface ni un objet graphique au sens de
+  1.4.11 : les opposer imposerait un encart criard. La contrepartie est **obligatoire** : tout bloc
+  (encart, carte, bloc de code, encadré) porte une **bordure `--couleur-filet`** (mesurée ≥ 3:1).
+  Sans elle, l'encart est indistinguable de la page — et il l'est de toute façon en
+  `forced-colors: active`, où les deux fonds deviennent identiques.
+- **G7-b · L'information ne passe jamais par la seule couleur** (WCAG **1.4.1**). « Vulnérable » et
+  « corrigé » sont la signature chromatique du site — mais en mode contraste élevé de Windows, nos
+  trois accents deviennent un unique `CanvasText` et les deux blocs deviennent identiques. Un bloc
+  sémantique se pose donc par le mixin **`marque-pedagogique($type)`**
+  (`src/styles/_mixins.scss`), qui ajoute un **style de trait** distinct (`dashed` / `solid` /
+  `dotted`) survivant à `forced-colors` — et le gabarit y ajoute une **étiquette textuelle**
+  visible. Corollaire : `marge-carnet` est du **décor** (trait neutre) ; l'encre rouge ne sert
+  jamais d'ornement, sous peine de diluer sa valeur de signal avant le premier module.
