@@ -181,7 +181,27 @@
   de revue : cascade `@media print` (thème sombre battait le print par spécificité), `$taille-xs`
   hors échelle des 25 %, mixin `marque-pedagogique` avec second canal non coloré pour le mode
   contraste élevé Windows (WCAG 1.4.1). Leçons L-007, L-008, L-009 consignées.
-- **Restent** : **ST1-B** (polices auto-hébergées Fraunces + Inter) · **ST1-C** (script inline
+- **ST1-B (polices auto-hébergées) est livrée** — l'**écart à G3 est levé**. 4 fichiers `.woff2`
+  sous OFL 1.1 dans `public/polices/` (196,4 Kio livrés, **83 Kio réellement chargés** par une page
+  française : les `latin-ext` n'arrivent que si un caractère les appelle), noms **versionnés**,
+  `unicode-range` recopiés verbatim, `font-display: swap`, `preload` des deux `latin`.
+  Deux choix **mesurés** : Inter est une police **variable** — `wght@400` et `wght@700` renvoient
+  des octets identiques (même SHA-256), donc **un seul fichier** par sous-ensemble et
+  `font-weight: 100 900`, 133 Kio de doublon évités ; Fraunces reste en **700 fixe** (l'axe `opsz`
+  demeure variable) car la graisse variable coûte **+32 Ko** pour des graisses qu'aucun jeton
+  n'utilise. Gate `tools/design/verifier-glyphes.mjs` (lecture réelle de la table `cmap`, 80
+  vérifications), câblé dans `ci.yml` **et** `deploy.yml`. Provenance, empreintes et procédure de
+  mise à jour : [`docs/design/polices.md`](../design/polices.md).
+- **⚠️ Constat de ST1-B contraire au plan, qui engage la RÉDACTION du contenu (E2).**
+  **U+202F (espace fine insécable) est absente de Fraunces comme d'Inter**, alors que le plan
+  l'exigeait explicitement. Elle est irrécupérable chez ce fournisseur : la seule voie serait un
+  sous-ensemble maison, précisément ce que ST1-B interdit (c'est lui qui casse `œ`, `« »` et `’`
+  en silence). **Consigne : le contenu emploie U+00A0**, seule blanche insécable couverte par les
+  deux familles. U+2009 n'est pas une issue — Inter la porte, Fraunces non, titres et corps ne
+  s'espaceraient donc pas pareil. Le gate imprime cet écart à chaque exécution et **échoue** si le
+  caractère devenait couvert, pour que la consigne ne survive pas à sa propre péremption.
+  À reporter dans `.claude/rules/contenu-pedagogique.md` §3 au moment d'écrire la première leçon.
+- **Restent** : **ST1-C** (script inline
   `<script id="init-theme">` unique, haché depuis l'artéfact, revu par `security-reviewer`) ·
   **ST1-D** (script anti-flash + `ThemeService` tri-état clair/sombre/système) · **ST1-E**
   (vérification jetable + clôture).
