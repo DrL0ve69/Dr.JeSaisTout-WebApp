@@ -201,6 +201,19 @@
   s'espaceraient donc pas pareil. Le gate imprime cet écart à chaque exécution et **échoue** si le
   caractère devenait couvert, pour que la consigne ne survive pas à sa propre péremption.
   À reporter dans `.claude/rules/contenu-pedagogique.md` §3 au moment d'écrire la première leçon.
+- **🔴 DÉFAUT TROUVÉ EN VÉRIFIANT ST1-B EN LIGNE — antérieur à ce lot, à planifier (E0/déploiement).**
+  `trailingSlash: "always"` (`config/staticwebapp.config.source.json`) s'applique **aussi aux
+  fichiers avec extension** : SWA répond **301** sur `/polices/*.woff2`, sur le bundle `main-*.js`,
+  sur `styles-*.css` et sur `favicon.ico`, puis sert le fichier en 200 à l'URL suffixée d'un `/`.
+  Constaté en GET avec en-têtes de navigateur, pas seulement en `HEAD`/`curl` — donc réel :
+  `curl -sI …/styles-BZVQZPIQ.css` → `301`, `Location: …/styles-BZVQZPIQ.css/`.
+  **Coût** : un aller-retour de plus sur *chaque* asset, dont le CSS bloquant le rendu. **Et un
+  effet propre à ST1-B** : un `<link rel="preload">` qui traverse une redirection n'est
+  couramment **pas réutilisé** par le navigateur — les deux préchargements de polices risquent
+  donc d'être payés deux fois au lieu d'accélérer quoi que ce soit.
+  **Piste** : `trailingSlash: "auto"`, ou une règle de route qui exempte les extensions. **Décision
+  à prendre par le propriétaire** : le réglage porte la canonicalisation des URL de pages (effet
+  SEO), il déborde du périmètre de ST1-B et ne se change pas en passant.
 - **Restent** : **ST1-C** (script inline
   `<script id="init-theme">` unique, haché depuis l'artéfact, revu par `security-reviewer`) ·
   **ST1-D** (script anti-flash + `ThemeService` tri-état clair/sombre/système) · **ST1-E**
