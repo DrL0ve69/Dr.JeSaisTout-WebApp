@@ -101,11 +101,11 @@ function installerPreferenceSysteme(sombreAuDepart: boolean) {
  */
 function corpsDuScriptInitTheme(): string {
   const html = readFileSync(join(process.cwd(), 'src', 'index.html'), 'utf8');
-  const trouve = /<script[^>]*\bid\s*=\s*"init-theme"[^>]*>([\s\S]*?)<\/script>/.exec(html);
-  if (!trouve) {
+  const corps = /<script[^>]*\bid\s*=\s*"init-theme"[^>]*>([\s\S]*?)<\/script>/.exec(html)?.[1];
+  if (corps === undefined) {
     throw new Error('Aucun <script id="init-theme"> dans src/index.html.');
   }
-  return trouve[1];
+  return corps;
 }
 
 /** Le CSS réellement produit par la feuille de styles du site. */

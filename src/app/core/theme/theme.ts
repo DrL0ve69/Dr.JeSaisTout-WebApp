@@ -128,12 +128,15 @@ export class ThemeService {
    * n'existe pas côté serveur.
    */
   definir(theme: Theme): void {
-    // Liste blanche à l'EXÉCUTION, pas seulement à la compilation : ce dépôt
-    // n'active pas `strict`, la garantie de type est donc plus faible qu'elle
-    // n'en a l'air (un `undefined` d'appelant traverse le compilateur). Ce
-    // n'est pas un vecteur XSS — `setAttribute('data-theme', …)` n'exécute
-    // rien — mais un état inconnu épinglerait un sélecteur que `_themes.scss`
-    // ne connaît pas et gèlerait la page en clair, sans message.
+    // Liste blanche à l'EXÉCUTION, pas seulement à la compilation. Le dépôt
+    // active bien `strict` (tsconfig.json, tenu par
+    // `src/configuration-typescript.spec.ts`),
+    // mais un type ne survit pas au passage de la frontière : la bascule
+    // d'E1-ST2 câblera cette méthode sur un événement du DOM, et un jour un
+    // état viendra d'un `localStorage` réécrit à la main ou d'un appelant non
+    // typé. Ce n'est pas un vecteur XSS — `setAttribute('data-theme', …)`
+    // n'exécute rien — mais un état inconnu épinglerait un sélecteur que
+    // `_themes.scss` ne connaît pas et gèlerait la page en clair, sans message.
     if (!estTheme(theme)) {
       return;
     }
