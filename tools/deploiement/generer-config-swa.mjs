@@ -129,6 +129,12 @@ function hacher(contenu) {
   return `'sha256-${createHash('sha256').update(normalise, 'utf8').digest('base64')}'`;
 }
 
+/** Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de la plateforme. */
+function comparerOctets(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
 /**
  * Remplace un jeton par sa liste de hachages dans la directive CSP.
  *
@@ -138,7 +144,13 @@ function hacher(contenu) {
 function injecter(texte, jeton, hachages) {
   // Tri : `readdirSync` n'ordonne pas les pages de la même façon sous Windows et sur le runner
   // Linux. Sans lui, la même entrée produirait deux CSP différentes selon la machine (L-009).
-  const liste = [...hachages].sort().join(' ');
+  //
+  // Comparateur EXPLICITE, et surtout PAS `localeCompare` : celui-ci ordonne selon la locale de la
+  // machine, ce qui réintroduirait exactement la divergence Windows/Linux que ce tri existe pour
+  // supprimer. La comparaison par `<`/`>` porte sur les unités de code UTF-16 — même ordre partout,
+  // quelle que soit la locale. (Le `.sort()` nu donnait le même résultat sur des chaînes, mais par
+  // conversion implicite : intention non lisible, et signalée CRITICAL par SonarCloud — S2871.)
+  const liste = [...hachages].sort(comparerOctets).join(' ');
   return texte.replaceAll(` ${jeton}`, liste ? ` ${liste}` : '').replaceAll(jeton, liste);
 }
 
