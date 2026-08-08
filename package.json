@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint && eslint tools",
+    "typecheck:tools": "tsc -p tsconfig.tools.json",
     "config:swa": "node tools/deploiement/generer-config-swa.mjs",
     "design:contrastes": "node tools/design/verifier-contrastes.mjs",
     "design:contrastes:check": "node tools/design/verifier-contrastes.mjs --check",

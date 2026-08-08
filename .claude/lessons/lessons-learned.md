@@ -273,6 +273,56 @@ déclarer explicitement et la tenir par un test, pas par la config.
 
 **Réfs.** branche `chore/tsconfig-strict` ; `tsconfig.json`, `tsconfig.app.json`.
 
+**Addendum (2026-08-08).** Même famille de piège retrouvée sur `chore/tsconfig-strict` §L-008 : la
+promesse « ces deux listes ne peuvent pas diverger » vivait en commentaire dans
+`tsconfig.tools.json` pour **six** options, mais `src/configuration-typescript.spec.ts` n'en
+assertait que **deux** — quatre pouvaient disparaître sans rougir un test, dans le lot même où
+L-008 aurait dû prévenir le geste. Corrigé en étendant l'assertion, pas en rabotant le commentaire.
+Rappel : une promesse de synchronisation qui grandit (2 → 6 éléments) doit faire grandir son test
+**dans le même diff**, jamais après coup.
+
+---
+
+## L-014 · Un gate de typage peut sortir vert en n'ayant vérifié **aucun** fichier
+
+**Symptôme.** `tsconfig.tools.json` (nouveau, `chore/tsconfig-strict`) combinait `allowJs` +
+`checkJs` + `strict`, un script `typecheck:tools` présent, câblé dans `ci.yml` **et** `deploy.yml` —
+tout vert. Mais rien n'assertait la liste de fichiers réellement couverte : vider ou repointer le
+`include` du tsconfig laisse `tsc` sortir en code 0 en n'ayant typé **zéro fichier**, y compris
+`tools/deploiement/generer-config-swa.mjs` qui génère la CSP du site. Trouvé par une revue à
+contexte frais, pas par le gate lui-même.
+
+**Règle.** Un gate de typage/lint neuf doit s'accompagner d'une assertion sur ses `rootNames`
+réels (ex. `readConfiguration(...).fileNames` de `typescript`), épinglant nommément le(s) fichier(s)
+qui motivent le gate — pas seulement un code de sortie 0. Prolongement de [[L-005]] (un run vert ne
+prouve pas qu'une vérification a tourné) sur un axe neuf : ici la vérification **tournait bel et
+bien**, elle n'avait simplement rien à mordre.
+
+**Réfs.** `tsconfig.tools.json` ; `tools/deploiement/generer-config-swa.mjs` ;
+`src/configuration-typescript.spec.ts` ; branche `chore/tsconfig-strict`.
+
+---
+
+## L-015 · Sur ce poste, `.yml`/`.json` sont en CRLF — ça casse une mutation en écriture ET une regex ancrée en lecture
+
+**Symptôme.** Sur ce poste Windows, `ci.yml` mesure 84 CRLF / 0 LF, alors que d'autres fichiers du
+dépôt sont en LF — incohérence déjà repayée une fois côté hachage CSP (`index.csr.html` livré en
+CRLF, `index.html` en LF, cf. [[L-010]]). Deux nouvelles variantes rencontrées dans le même lot :
+(1) *en écriture* — un test de mutation faisait un `String.replace()` avec un littéral `\n` sur un
+fichier en CRLF : le remplacement ne matchait rien, la mutation n'avait jamais lieu, et le gate
+semblait à tort ne pas mordre (rattrapé par le garde-fou de [[L-010]] qui vérifie que la mutation a
+frappé sa cible) ; (2) *en lecture* — une regex ancrée `$` en mode multiligne s'ancre **avant** le
+`\r`, pas après, et échouait à matcher une fin de ligne réelle du fichier.
+
+**Règle.** Sur tout script qui écrit dans ou lit une fin de ligne d'un `.yml`/`.json`/`.html` de ce
+dépôt : ne jamais supposer LF. Muter/matcher avec `\r?\n` ou `\r?$`, ou normaliser
+(`.replace(/\r\n/g, '\n')`) avant comparaison — et vérifier le résultat après coup (cf. [[L-010]]).
+Rentable large : touche tout futur test de mutation, tout gate qui apparie un fichier de
+configuration, et tout générateur qui hache du contenu texte.
+
+**Réfs.** `.github/workflows/ci.yml` ; `tools/deploiement/generer-config-swa.mjs` ;
+`src/init-theme.spec.ts` ; branche `chore/tsconfig-strict`.
+
 ---
 
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

@@ -55,3 +55,27 @@ s'auto-valider. Normaliser les fins de ligne avant tout calcul de hachage sur du
 esprit que [[L-009]] (artéfact généré reproductible, mode `--check`).
 **Réfs.** `tools/deploiement/generer-config-swa.mjs`, `config/staticwebapp.config.source.json`,
 `.claude/rules/security.md` §1, `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
+
+## S-003 · Un garde-fou fail-closed doit prouver qu'il a TOUT vu, pas seulement bien refuser ce qu'il voit (A05 · WSTG-CONF)
+
+**Symptôme.** `MOTIF_SCRIPT` dans `generer-config-swa.mjs` peut ne pas apparier une balise `<script>`
+du tout : un guillemet orphelin dans le bloc d'attributs (`<script data-x=a"b">alert(1)</script>`)
+fait échouer le groupe de capture — la balise devient invisible au motif, ni hachée ni signalée,
+build **vert**. Or un navigateur, lui, ferme la balise au `>` et exécute le corps. Différent de
+[[S-001]]/[[S-002]] (mauvaise autorisation d'un jeton *vu*) : ici le fail-closed en aval (§S-001) ne
+sert à rien parce que le motif en amont n'a **rien détecté à refuser**. Preuve empirique : 7
+contournements tentés sur copie jetable, 6 refusés en code 1 avec cause nommée, le 7ᵉ (guillemet
+orphelin) passe en 0. Impact borné en pratique ici — aucun hachage n'étant délivré, la CSP servie
+bloque quand même l'exécution — mais la couche de **détection** que ce script existe pour garantir
+est perdue en silence. Défaut préexistant, non introduit par le lot en cours ; inscrit au backlog
+comme lot autonome.
+**Règle.** Tout garde-fou qui analyse une entrée non fiable par motif/regex doit s'accompagner d'un
+**contrôle de conservation** : compter les occurrences brutes de la structure ciblée
+(`html.match(/<script/gi)`) et exiger l'égalité stricte avec le nombre de correspondances produites
+par le motif d'analyse — tout écart est une infraction fail-closed, même quand chaque correspondance
+individuelle est par ailleurs correctement traitée. L'inconnu doit être **compté**, pas seulement
+analysé : « je refuse tout ce que je vois » ne protège rien si voir peut échouer en silence.
+S'applique au-delà de ce script — candidat direct : tout futur validateur du pipeline
+Markdown/JSON de `content/` (E2), qui analysera lui aussi une entrée non fiable par motif.
+**Réfs.** `tools/deploiement/generer-config-swa.mjs`, `.claude/rules/security.md` §1,
+`docs/agile/backlog-phase-1.md` (lot autonome à inscrire).

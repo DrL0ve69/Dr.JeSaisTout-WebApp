@@ -77,18 +77,27 @@ const TYPES_INERTES = new Set(['application/json', 'application/ld+json']);
  * n'existe. Le corps arbitraire était alors haché et autorisé. Deux revues indépendantes l'ont
  * reproduit sur l'artéfact (2026-08-08). Une liste blanche qui délivre un droit doit apparier des
  * jetons, jamais des sous-chaînes.
+ *
+ * @param {string} chaine bloc d'attributs brut, tel que capturé entre `<script` et `>`
+ * @returns {Map<string, string>} nom d'attribut en minuscules → valeur déguillemetée
  */
 function attributs(chaine) {
+  /** @type {Map<string, string>} */
   const paires = new Map();
   const motif = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
   for (const m of chaine.matchAll(motif)) {
+    // Le groupe 1 n'est pas optionnel dans le motif : une correspondance sans lui n'existe pas.
+    // `noUncheckedIndexedAccess` ne le sait pas, et on ne l'affirme pas par une assertion — on le
+    // vérifie. C'est la règle de ce fichier : l'inconnu est écarté, jamais supposé inoffensif.
+    const nom = m[1]?.toLowerCase();
+    if (nom === undefined) continue;
     const brut = m[2] ?? '';
     const valeur = /^["']/.test(brut) ? brut.slice(1, -1) : brut;
     // PREMIER GAGNANT, comme l'analyseur HTML : sur un attribut répété, il retient la première
     // occurrence et ignore les suivantes. Garder la dernière laissait
     // `<script type="text/javascript" type="application/json">` passer pour inerte alors que le
     // navigateur l'exécute.
-    if (!paires.has(m[1].toLowerCase())) paires.set(m[1].toLowerCase(), valeur.trim());
+    if (!paires.has(nom)) paires.set(nom, valeur.trim());
   }
   return paires;
 }
@@ -123,13 +132,22 @@ const MOTIF_SCRIPT = /<script((?:"[^"]*"|'[^']*'|[^>"'])*)>([\s\S]*?)<\/script\s
  * que la CSP calcule son hachage. Un artéfact construit sous Windows avec des CRLF produirait donc
  * un hachage qui ne correspond à rien de ce que le navigateur mesure — et la CSP bloquerait le
  * script en silence. Sans effet quand les fins de ligne sont déjà des LF.
+ *
+ * @param {string} contenu corps textuel de l'élément, tel qu'il figure dans l'artéfact
+ * @returns {string} source CSP prête à l'emploi, apostrophes comprises : `'sha256-…'`
  */
 function hacher(contenu) {
   const normalise = contenu.replace(/\r\n?/g, '\n');
   return `'sha256-${createHash('sha256').update(normalise, 'utf8').digest('base64')}'`;
 }
 
-/** Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de la plateforme. */
+/**
+ * Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de la plateforme.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number} négatif, nul ou positif, au contrat de `Array.prototype.sort`
+ */
 function comparerOctets(a, b) {
   if (a < b) return -1;
   return a > b ? 1 : 0;
@@ -140,6 +158,11 @@ function comparerOctets(a, b) {
  *
  * On absorbe l'espace qui PRÉCÈDE le jeton pour qu'une liste vide ne laisse pas
  * `script-src 'self' ;` — une directive que SWA sert telle quelle et que le navigateur rejette.
+ *
+ * @param {string} texte configuration SWA sérialisée, jetons non encore résolus
+ * @param {string} jeton marqueur à remplacer (`__HACHAGES_STYLE__` ou `__HACHAGES_SCRIPT__`)
+ * @param {ReadonlySet<string>} hachages sources CSP à injecter, dans un ordre quelconque
+ * @returns {string} le même texte, jeton résolu
  */
 function injecter(texte, jeton, hachages) {
   // Tri : `readdirSync` n'ordonne pas les pages de la même façon sous Windows et sur le runner
@@ -154,8 +177,15 @@ function injecter(texte, jeton, hachages) {
   return texte.replaceAll(` ${jeton}`, liste ? ` ${liste}` : '').replaceAll(jeton, liste);
 }
 
-/** Liste récursivement les fichiers `.html` de l'artéfact. */
+/**
+ * Liste récursivement les fichiers `.html` de l'artéfact.
+ *
+ * @param {string} dossier racine du parcours
+ * @returns {string[]} chemins absolus — annotation OBLIGATOIRE : la fonction est récursive, et sans
+ *   elle TypeScript ne sait pas inférer le type de retour (TS7023).
+ */
 function fichiersHtml(dossier) {
+  /** @type {string[]} */
   const sortie = [];
   for (const entree of readdirSync(dossier)) {
     const chemin = join(dossier, entree);
@@ -165,6 +195,18 @@ function fichiersHtml(dossier) {
   return sortie;
 }
 
+/**
+ * Interrompt la génération sur un constat bloquant.
+ *
+ * `@returns {never}` n'est pas décoratif : c'est lui qui apprend au compilateur que le flot ne
+ * revient jamais d'ici. Les `catch { echec(…) }` ci-dessous en dépendent — sans cette annotation,
+ * `source` et `pages` resteraient `string | undefined` après leur `try`, et il faudrait les tester
+ * une seconde fois pour une branche qui n'existe pas.
+ *
+ * @param {string} message
+ * @param {readonly string[]} [details] lignes de contexte, affichées en puces
+ * @returns {never}
+ */
 function echec(message, details = []) {
   console.error(`\n✖ generer-config-swa : ${message}`);
   for (const d of details) console.error(`   · ${d}`);
@@ -179,10 +221,15 @@ try {
 } catch {
   echec(`source introuvable : ${relative(RACINE, SOURCE)}`);
 }
-for (const [jeton, directive] of [
+// Typée en TUPLES et non laissée à l'inférence : un littéral `[[a, b], …]` s'infère en `string[][]`,
+// donc `jeton` sortirait `string | undefined` de la déstructuration et ne pourrait plus être passé
+// à `includes()`. Le tuple dit ce que la donnée est réellement — deux champs, tous deux présents.
+/** @type {ReadonlyArray<readonly [jeton: string, directive: string]>} */
+const JETONS_REQUIS = [
   [JETON_STYLE, 'style-src'],
   [JETON_SCRIPT, 'script-src'],
-]) {
+];
+for (const [jeton, directive] of JETONS_REQUIS) {
   if (!source.includes(jeton)) {
     echec(`le jeton ${jeton} est absent de la source`, [
       `La directive ${directive} doit contenir ce jeton pour que les hachages y soient injectés.`,
@@ -199,8 +246,11 @@ try {
 if (pages.length === 0) echec('aucune page HTML dans l’artéfact — le prerender a-t-il tourné ?');
 
 // --- 2. Garde-fou + hachages, en une seule lecture de chaque page --------------
+/** @type {string[]} */
 const infractions = [];
+/** @type {Set<string>} */
 const hachagesStyle = new Set();
+/** @type {Set<string>} */
 const hachagesScript = new Set();
 
 for (const page of pages) {
@@ -213,12 +263,20 @@ for (const page of pages) {
 
   let scriptsAutorises = 0;
   for (const m of html.matchAll(MOTIF_SCRIPT)) {
+    // Les deux groupes du motif sont obligatoires : une correspondance qui n'en porterait pas est
+    // impossible. On l'écarte quand même plutôt que de l'affirmer par une assertion — même règle
+    // que `attributs()` : ce qui n'est pas compris est refusé, jamais supposé inoffensif.
+    const attributsBruts = m[1];
     const corps = m[2];
-    if (!MOTIF_ATTRIBUTS_BIEN_FORMES.test(m[1])) {
+    if (attributsBruts === undefined || corps === undefined) {
+      infractions.push(`${nom} : balise <script> illisible — refusée par principe`);
+      continue;
+    }
+    if (!MOTIF_ATTRIBUTS_BIEN_FORMES.test(attributsBruts)) {
       infractions.push(`${nom} : balise <script> aux attributs non analysables — refusée par principe`);
       continue;
     }
-    const attrs = attributs(m[1]);
+    const attrs = attributs(attributsBruts);
     const type = (attrs.get('type') ?? '').toLowerCase();
     if (!corps.trim() || attrs.has('src') || TYPES_INERTES.has(type)) continue;
 
@@ -251,7 +309,16 @@ for (const page of pages) {
   }
 
   for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
-    hachagesStyle.add(hacher(m[1]));
+    // Un bloc vide donne `''`, jamais `undefined` : le groupe est obligatoire, ce cas est
+    // inatteignable. On le signale quand même plutôt que de sauter en silence — même geste que
+    // la branche <script> ci-dessus, et même règle affichée : ce qui n'est pas compris est
+    // REFUSÉ, jamais ignoré. Un `continue` muet ici serait le seul saut silencieux du fichier.
+    const corpsStyle = m[1];
+    if (corpsStyle === undefined) {
+      infractions.push(`${nom} : bloc <style> illisible — refusé par principe`);
+      continue;
+    }
+    hachagesStyle.add(hacher(corpsStyle));
   }
 }
 
