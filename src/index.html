@@ -12,6 +12,36 @@
       sur `:root` (src/styles.scss) pour les contrôles de formulaire et l'ascenseur.
     -->
     <meta name="color-scheme" content="light dark" />
+
+    <!--
+      ⚠️ LE SEUL SCRIPT INLINE DU SITE — ne pas en ajouter un deuxième.
+      `tools/deploiement/generer-config-swa.mjs` le hache depuis l'artéfact vers
+      `script-src` et ÉCHOUE sur tout autre script inline ; ce fichier et lui se
+      lisent ensemble. Inline plutôt que `public/init-theme.js` parce que
+      `public/**` est copié sans empreinte de contenu et servi `immutable` un an.
+      Synchrone dans le `<head>` : il doit poser l'attribut avant la première
+      peinture, sinon un thème épinglé « sombre » flashe en clair au chargement.
+
+      CONTRAT avec le `ThemeService` (E1-ST1-D), qui écrira cette même clé :
+      `drjst-theme` vaut « clair » ou « sombre » pour un thème ÉPINGLÉ ; toute
+      autre valeur (absente, « systeme », inconnue) ne pose AUCUN attribut et
+      laisse `prefers-color-scheme` décider dans `_themes.scss` — l'absence
+      d'attribut EST l'état système. Liste blanche obligatoire : `localStorage`
+      est modifiable par le visiteur. Comportement vérifié par `init-theme.spec.ts`.
+    -->
+    <script id="init-theme">
+      (function () {
+        try {
+          var theme = localStorage.getItem('drjst-theme');
+          if (theme === 'clair' || theme === 'sombre') {
+            document.documentElement.setAttribute('data-theme', theme);
+          }
+        } catch (e) {
+          /* stockage inaccessible : on reste sur le thème système */
+        }
+      })();
+    </script>
+
     <meta
       name="description"
       content="Cours public et gratuit sur la sécurité des applications web — 13 modules, en préparation."

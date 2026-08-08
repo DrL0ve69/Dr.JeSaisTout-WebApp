@@ -214,10 +214,37 @@
   **Piste** : `trailingSlash: "auto"`, ou une règle de route qui exempte les extensions. **Décision
   à prendre par le propriétaire** : le réglage porte la canonicalisation des URL de pages (effet
   SEO), il déborde du périmètre de ST1-B et ne se change pas en passant.
-- **Restent** : **ST1-C** (script inline
-  `<script id="init-theme">` unique, haché depuis l'artéfact, revu par `security-reviewer`) ·
-  **ST1-D** (script anti-flash + `ThemeService` tri-état clair/sombre/système) · **ST1-E**
-  (vérification jetable + clôture).
+- **ST1-C (script inline d'initialisation du thème) est livrée.** Un `<script id="init-theme">`
+  unique dans `src/index.html` pose `data-theme` sur `<html>` **avant la première peinture** : il
+  lit `localStorage['drjst-theme']` et n'épingle que sur `clair` ou `sombre` ; toute autre valeur
+  (absente, `systeme`, inconnue) ne pose **aucun** attribut et laisse `prefers-color-scheme`
+  décider — l'absence d'attribut EST l'état système. Script en **lecture seule**, liste blanche
+  fermée, `try/catch` pour le stockage inaccessible. Inline et non `public/init-theme.js` :
+  `public/**` est copié sans empreinte de contenu et servi `immutable` un an.
+  `tools/deploiement/generer-config-swa.mjs` le hache **depuis l'artéfact** vers `script-src` ;
+  CSP émise : `script-src 'self' 'sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M='`.
+  **Contrat pour ST1-D** : le `ThemeService` écrira cette même clé avec ces mêmes trois états.
+- **Le garde-fou a été durci après deux revues indépendantes**, qui ont **reproduit sur l'artéfact**
+  des contournements de la première version : elle appariait des **sous-chaînes**
+  (`<script data-x=" id=init-theme">…` obtenait le droit CSP) et **dérivait** l'autorisation de
+  l'`id` au lieu de la comparer à un contenu revu. Désormais : découpage réel des attributs (premier
+  gagnant, comme l'analyseur HTML), **refus fail-closed** de tout bloc d'attributs non intégralement
+  analysable, casse mixte et `</script >` couverts, `importmap`/`speculationrules` traités comme
+  exécutables, hachages triés (reproductibilité Windows/Linux), et surtout **hachage épinglé**
+  (`HACHAGE_SCRIPT_ATTENDU`) : modifier le script fait **échouer la construction** avec pour consigne
+  de repasser par `security-reviewer` avant de mettre la constante à jour. Leçons **L-010, L-011,
+  S-001, S-002**.
+- **Note technique qui a coûté du temps** : le hachage CSP porte sur le contenu **après
+  normalisation des fins de ligne** par l'analyseur HTML. `index.csr.html` est livré en **CRLF** et
+  `index.html` en **LF** ; sans normalisation, une même source donne deux hachages et la CSP bloque
+  en silence.
+- **⚠️ RESTE OUVERT, et ST1-C ne se clôt pas sans lui — vérification LIVE.** Tout ce qui précède est
+  vérifié **hors ligne** (artéfact). Conformément à `.claude/rules/security.md` §1
+  (« enabler ≠ enforcement ») et à **L-004**, il faut, après déploiement : l'en-tête CSP réellement
+  servi portant ce `sha256-`, **zéro violation CSP en console**, et un thème épinglé « sombre »
+  qui s'affiche **sans flash**. À faire en **ST1-E** ou par le propriétaire.
+- **Restent** : **ST1-D** (script anti-flash + `ThemeService` tri-état clair/sombre/système) ·
+  **ST1-E** (vérification jetable + clôture, vérification live comprise).
 - **Écart de dépendance documenté** : `sass` promue de transitive à devDependency explicite (déjà
   dans l'arbre via `@angular/build`, 0 octet téléchargé, 0 surface en production) pour tester les
   mixins sur le CSS émis.
