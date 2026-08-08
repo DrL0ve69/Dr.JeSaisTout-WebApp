@@ -3,7 +3,13 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "types": ["node"]
+    // Liste VIDE, et non absente : `[]` coupe le chargement automatique de tout
+    // `@types/*` présent dans `node_modules`. Sans elle, `@types/node` — tiré
+    // comme dépendance transitive de l'outillage — redeviendrait ambiant ici et
+    // un composant pourrait appeler `process.cwd()` en passant le typage, pour
+    // casser au navigateur. C'est `tsconfig.spec.json` qui rouvre `node`, pour
+    // les seuls tests. Tenu par `src/configuration-typescript.spec.ts`.
+    "types": []
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.spec.ts"]

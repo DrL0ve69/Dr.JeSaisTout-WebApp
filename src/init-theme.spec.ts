@@ -32,12 +32,32 @@ const CLE = 'drjst-theme';
 /** Tous les `<script>` inline exécutables de `src/index.html`, avec leurs attributs. */
 function scriptsInline(): { attrs: string; corps: string }[] {
   const html = readFileSync(INDEX, 'utf8');
+  // `?? ''` : les deux groupes sont obligatoires dans le motif, ils participent
+  // donc toujours à une correspondance. Le repli ne masque rien — il satisfait
+  // `noUncheckedIndexedAccess`, qui ne sait pas lire cette garantie du motif.
   return [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)]
-    .map((m) => ({ attrs: m[1], corps: m[2] }))
+    .map((m) => ({ attrs: m[1] ?? '', corps: m[2] ?? '' }))
     .filter(({ attrs, corps }) => corps.trim() !== '' && !/\bsrc\s*=/.test(attrs));
 }
 
-const CODE = scriptsInline()[0]?.corps ?? '';
+/**
+ * Le script inline UNIQUE. Lève si `src/index.html` n'en contient pas exactement
+ * un : un repli silencieux (chaîne vide) rendrait vertes les assertions
+ * `not.toMatch` ci-dessous alors même qu'il n'y aurait plus rien à vérifier.
+ */
+function scriptInlineUnique(): { attrs: string; corps: string } {
+  const inlines = scriptsInline();
+  const [unique] = inlines;
+  if (inlines.length !== 1 || !unique) {
+    throw new Error(`Attendu 1 <script> inline dans src/index.html, trouvé ${inlines.length}.`);
+  }
+  return unique;
+}
+
+// `scriptInlineUnique()` et non un repli sur la chaîne vide : avec `CODE = ''`,
+// `executer()` n'exécuterait rien et l'assertion `not.toContain('</script')`
+// ci-dessous passerait à vide, sur un script absent.
+const CODE = scriptInlineUnique().corps;
 
 interface Execution {
   /** Valeur posée sur `data-theme`, ou `null` si l'attribut n'a pas été touché. */
@@ -87,7 +107,7 @@ describe('index.html — un seul script inline, celui qui est haché', () => {
     // échouer la suite AVANT la construction, là où le message est plus clair.
     const inlines = scriptsInline();
     expect(inlines).toHaveLength(1);
-    expect(inlines[0].attrs).toMatch(/(?:^|\s)id\s*=\s*"init-theme"/);
+    expect(inlines[0]?.attrs).toMatch(/(?:^|\s)id\s*=\s*"init-theme"/);
   });
 
   it('s’exécute de façon synchrone — pas de `type="module"`, pas de `src`', () => {
@@ -95,7 +115,7 @@ describe('index.html — un seul script inline, celui qui est haché', () => {
     // suffirait à annuler tout l'anti-flash sans qu'aucun autre gate ne bronche.
     // (`defer` et `async`, eux, sont ignorés sur un script inline — ce ne sont
     // pas eux le risque, et ce test ne prétend donc pas les couvrir.)
-    const { attrs } = scriptsInline()[0];
+    const { attrs } = scriptInlineUnique();
     expect(attrs).not.toMatch(/(?:^|\s)type\s*=/);
     expect(attrs).not.toMatch(/(?:^|\s)src\s*=/);
   });

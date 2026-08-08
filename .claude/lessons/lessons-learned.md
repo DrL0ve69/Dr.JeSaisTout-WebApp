@@ -30,6 +30,14 @@ lignes 40-58 »), jamais le document entier. Un agent = un livrable vérifiable,
 
 **Réfs.** `.claude/rules/agent-context-budget.md` §2.
 
+**Addendum (2026-08-08).** Le même piège existe en sens inverse : mesurer le code avant de coder un
+défaut déjà consigné ne remplace pas **ouvrir son entrée de backlog**. Sur `chore/tsconfig-strict`,
+mesurer `tsconfig.json` a bien trouvé le volet `strict`, mais a manqué le second volet du même
+ticket (`tsconfig.app.json` portait `"types": ["node"]` en contradiction avec le commentaire de
+`tsconfig.spec.json`) — rattrapé seulement par le `code-reviewer`. Un ticket porte souvent **plus
+d'un volet** ; le plan est le pointeur, pas la mesure du code. Cousin de [[L-008]] : un volet
+non fermé laisse un commentaire voisin menteur, que la revue suivante croira.
+
 ---
 
 ## L-002 · Toute commande destinée au propriétaire s'écrit en **PowerShell**, jamais en bash
@@ -242,6 +250,28 @@ testé.
 
 **Réfs.** `src/app/core/theme/theme.spec.ts` (avant correctif) ; `src/init-theme.spec.ts` lignes
 33-40 et 149-162 ; `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-D).
+
+---
+
+## L-013 · Une option de configuration absente du fichier n'est pas prouvée inactive — seule une sonde bidirectionnelle fait foi
+
+**Symptôme.** Un constat de revue affirmait que `tsconfig.json` n'activait ni `strict`, ni
+`strictNullChecks`, ni `noImplicitAny` — faux à moitié : `strict` est actif par **défaut** de
+TypeScript 6.0, `strictTemplates` par défaut d'Angular 22 ; seules `noUncheckedIndexedAccess`,
+`typeCheckHostBindings` et `strictStandalone` étaient réellement inactives. Piège inverse rencontré
+dans le même run : le `.d.ts` d'Angular annonce `strictTemplates` « Defaults to `true` », et une
+première sonde (`[hidden]="'texte'"`, une propriété DOM native qu'Angular ne type-vérifie pas)
+semblait prouver le contraire — la sonde visait à côté.
+
+**Règle.** Ni l'absence d'une option dans un fichier de config, ni sa présence documentée dans un
+`.d.ts`, ne prouve son état réel : seule une **sonde bidirectionnelle** fait foi — une violation
+volontaire qui échoue **avec** l'option et passe **sans elle**. Vérifier d'abord que la sonde frappe
+sa cible (prolongement direct de [[L-010]]), sinon on mesure l'inertie de l'outil, pas le réglage.
+Corollaire : une garantie qui ne tient qu'à un **défaut d'outil** (version du compilateur/framework)
+est invisible à la lecture et peut changer sans prévenir à la montée de version majeure — la
+déclarer explicitement et la tenir par un test, pas par la config.
+
+**Réfs.** branche `chore/tsconfig-strict` ; `tsconfig.json`, `tsconfig.app.json`.
 
 ---
 

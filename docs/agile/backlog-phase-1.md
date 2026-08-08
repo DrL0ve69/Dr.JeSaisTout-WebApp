@@ -275,20 +275,33 @@
   élagué du bundle (**L-005**) ; les tests `PLATFORM_ID: 'server'` vérifient donc l'**absence
   d'appel** à `localStorage` et `matchMedia`, sans quoi ils passeraient gardes retirées.
   Cinq mutations de contrôle, chacune rouge sur sa cible (**L-010**).
-- **🔴 DÉFAUT TROUVÉ EN REVUE DE ST1-D — antérieur au lot, touche tout le dépôt, à planifier.**
-  **`tsconfig.json` n'active ni `strict`, ni `strictNullChecks`, ni `noImplicitAny`** (il ne porte
-  que `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noImplicitReturns`,
-  `noFallthroughCasesInSwitch`), alors que `.claude/rules/angular-best-practices.md` prescrit
-  « Use strict type checking ». Aucun des deux tsconfig enfants ne le rétablit. **Le dépôt se croit
-  strict et ne l'est pas** : les `?.` qui rendent `ThemeService` sûr au prerender ne sont imposés
-  par aucun compilateur. Ce n'est pas un vecteur XSS, c'est une garantie absente.
-  **Second écart, même famille que L-008** : `tsconfig.spec.json` affirme en commentaire que
-  « le tsconfig de l'application ne l'inclut pas, donc aucune API Node n'est accidentellement
-  atteignable depuis un composant — ce qui casserait le prerender » — or `tsconfig.app.json` porte
-  bel et bien `"types": ["node"]`. La protection décrite est **contredite par le fichier voisin** :
-  un composant peut appeler `process.cwd()`, passer le typage et casser au navigateur.
-  **Lot séparé** (activer `strict` fera surgir des erreurs sur tout le code existant) ; ne pas le
-  traiter en passant dans une sous-tâche de design system.
+- **✅ 2026-08-08 — DÉFAUT DE REVUE DE ST1-D CLOS** (`chore(tsconfig): rendre la rigueur du
+  compilateur explicite et la tenir par un test`). **Le constat d'origine était à moitié faux** :
+  sondes bidirectionnelles à l'appui, `strict` et `strictTemplates` étaient déjà **actifs par
+  défaut** (TypeScript 6.0, Angular 22) — mais une garantie qui ne tient qu'à un défaut d'outil est
+  invisible à la lecture et disparaîtrait silencieusement à une montée de version majeure. Rendus
+  **explicites** dans `tsconfig.json`. Réellement inactives, et activées par ce lot :
+  `noUncheckedIndexedAccess`, `typeCheckHostBindings`, `strictStandalone` ; les diagnostics étendus
+  passent de `warning` à `error` (**L-006**). **Second volet fermé** : `tsconfig.app.json` passe de
+  `"types": ["node"]` à `"types": []` — prouvé bidirectionnellement, un composant appelant
+  `process.cwd()` compilait avant, il échoue désormais en `TS2591`. Retombées : 6 erreurs
+  `noUncheckedIndexedAccess`, toutes dans les specs, corrigées sans affaiblir une assertion.
+  **Garde-fou neuf** : `src/configuration-typescript.spec.ts` — résout la configuration
+  **effective** via `readConfiguration` de `@angular/compiler-cli` pour les deux programmes,
+  vérifie la frontière Node, et vérifie qu'`angular.json` ne compile aucun programme échappant au
+  test. Monte sur le gate G-test déjà câblé dans `ci.yml` et `deploy.yml` (**L-007**). 5 mutations
+  de contrôle, chacune rouge sur sa cible (**L-010**). Gates : `npm run lint` exit 0 · `npm test`
+  **68/68** exit 0 · `npm run build` exit 0 · `npm audit --omit=dev` 0 vulnérabilité.
+  **Trois constats ouverts issus de la revue, en dette à planifier (non traités dans ce lot)** :
+  (1) `tools/**/*.mjs` n'est dans aucun tsconfig — donc jamais type-vérifié, alors que
+  `tools/deploiement/generer-config-swa.mjs` **génère la CSP**, et `eslint.config.js` n'est couvert
+  ni par `ng lint` (`src/**`) ni par `eslint tools`. Piste : `tsconfig.tools.json` (`allowJs` +
+  `checkJs` + `strict`), script `typecheck:tools`, câblé dans `ci.yml` **et** `deploy.yml` dans le
+  même diff (L-007), et le nouveau programme ajouté à `PROGRAMMES` du spec de configuration.
+  (2) `typescript-eslint` tourne sans information de types (`recommended`, pas de
+  `projectService`) : promesses flottantes et flux `any` restent invisibles malgré `strict` ; coût
+  de run à mesurer avant d'activer. (3) `exactOptionalPropertyTypes` volontairement écartée pour
+  l'instant — à revoir à **E2**, quand le frontmatter des leçons introduira des champs optionnels.
 - **Reste** : **ST1-E** (vérification jetable + clôture ; volet console/anti-flash au propriétaire).
 - **Écart de dépendance documenté** : `sass` promue de transitive à devDependency explicite (déjà
   dans l'arbre via `@angular/build`, 0 octet téléchargé, 0 surface en production) pour tester les
