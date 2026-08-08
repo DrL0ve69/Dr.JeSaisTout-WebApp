@@ -184,4 +184,41 @@ réellement vérifiable en CI, pas sa seule présence dans le dépôt.
 
 ---
 
+## L-010 · Un test de mutation doit vérifier que la mutation a frappé sa cible
+
+**Symptôme.** Pour prouver qu'un gate mordait, une mutation a remplacé la chaîne `drjst-theme` dans
+`dist/.../index.html` via `String.replace`. Le gate est resté vert et le premier réflexe a été de
+soupçonner un trou dans le gate. En réalité `replace` avait frappé la **première** occurrence, dans
+un **commentaire HTML**, jamais dans le script visé : la mutation n'avait jamais eu lieu, et le gate
+était correct depuis le début.
+
+**Règle.** Un test de mutation vérifie **d'abord** qu'il a bien modifié ce qu'il croit modifier
+(comparer avant/après sur la zone visée, ou muter une chaîne qui n'existe QUE là) avant de juger le
+gate. « Le gate n'a pas mordu » est d'abord une hypothèse sur le **test**, pas sur le gate — cousine
+symétrique de [[L-005]] (« un run vert ne prouve pas qu'une vérification a tourné ») : ici un run
+rouge ou vert ne dit rien tant que l'entrée du test n'est pas vérifiée.
+
+**Réfs.** `src/init-theme.spec.ts` ; `tools/deploiement/generer-config-swa.mjs` ;
+`docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
+
+---
+
+## L-011 · Les commentaires de `src/index.html` sont servis à chaque visiteur
+
+**Symptôme.** La construction d'Angular **ne dépouille pas** les commentaires HTML d'`index.html`
+(mesuré dans l'artéfact le 2026-08-08). Un commentaire d'explication de 1 985 octets ajouté à
+`index.html` partait donc sur **chaque page** du site, ~900 o même après compression brotli — alors
+qu'un commentaire équivalent dans un `.ts`, un `.scss` ou un `.mjs` ne coûte rien au visiteur (retiré
+au build ou jamais livré). Après condensation : page de 7 091 → 6 179 o (brotli 2 752 → 2 332 o).
+
+**Règle.** Dans `src/index.html`, garder le commentaire court et pointer vers le fichier non livré
+qui porte le raisonnement long (ici `tools/deploiement/generer-config-swa.mjs` et
+`src/init-theme.spec.ts`). Le dépôt aime les commentaires nourris — vrai partout **sauf** dans les
+fichiers livrés tels quels au navigateur.
+
+**Réfs.** `src/index.html` ; `tools/deploiement/generer-config-swa.mjs` ;
+`docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
