@@ -61,6 +61,17 @@ Et la leçon dans son ensemble :
       architecture est expliqué (`sequenceDiagram` pour un échange, `flowchart` pour une
       décision/architecture). Un paragraphe qui décrit un aller-retour en prose seule est
       incomplet.
+- [ ] **Blanches insécables : U+00A0 et rien d'autre.** Le contenu n'emploie **jamais** U+202F
+      (espace fine insécable) ni U+2009 (espace fine). Contrainte matérielle née d'E1-ST1-B, pas une
+      préférence de style : **U+202F est absente de Fraunces comme d'Inter**, et U+2009 n'est portée
+      que par Inter — titres et corps ne s'espaceraient donc pas pareil. Le sous-ensemble maison qui
+      les récupérerait est précisément ce qui casse `œ`, `« »` et `’` en silence : il est interdit.
+- [ ] **La flèche « → » (U+2192) est rendue par la police de repli** — écart assumé, pas une
+      erreur : le gate `tools/design/verifier-glyphes.mjs` l'imprime à chaque exécution. À savoir
+      avant de bâtir une notation sur elle (`client → serveur`) : elle ne portera pas l'œil
+      typographique du reste de la page. Un diagramme Mermaid, lui, n'est pas concerné.
+      Les deux gates **échouent** si l'un de ces caractères devenait couvert, pour que ces consignes
+      ne survivent pas à leur propre péremption. Détail : [`docs/design/polices.md`](../../docs/design/polices.md).
 
 ## 4 · Code d'exemple — vulnérable sans être dangereux
 

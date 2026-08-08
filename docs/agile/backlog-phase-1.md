@@ -143,7 +143,7 @@
 
 | ID | Objectif | Statut |
 |---|---|---|
-| E1-ST1 | Jetons SCSS + thèmes clair/sombre | 🟦 |
+| E1-ST1 | Jetons SCSS + thèmes clair/sombre | ✅ |
 | E1-ST2 | Layout, navigation, pied de page | ⬜ |
 | E1-ST3 | Home « carnet de laboratoire » | ⬜ |
 
@@ -200,7 +200,7 @@
   deux familles. U+2009 n'est pas une issue — Inter la porte, Fraunces non, titres et corps ne
   s'espaceraient donc pas pareil. Le gate imprime cet écart à chaque exécution et **échoue** si le
   caractère devenait couvert, pour que la consigne ne survive pas à sa propre péremption.
-  À reporter dans `.claude/rules/contenu-pedagogique.md` §3 au moment d'écrire la première leçon.
+  **Reporté le 2026-08-08** dans `.claude/rules/contenu-pedagogique.md` §3 — sans attendre la première leçon : une consigne qui n'existe que sous forme de « à reporter » ne protège rien (**L-008**).
 - **🔴 DÉFAUT TROUVÉ EN VÉRIFIANT ST1-B EN LIGNE — antérieur à ce lot, à planifier (E0/déploiement).**
   `trailingSlash: "always"` (`config/staticwebapp.config.source.json`) s'applique **aussi aux
   fichiers avec extension** : SWA répond **301** sur `/polices/*.woff2`, sur le bundle `main-*.js`,
@@ -302,7 +302,34 @@
   `projectService`) : promesses flottantes et flux `any` restent invisibles malgré `strict` ; coût
   de run à mesurer avant d'activer. (3) `exactOptionalPropertyTypes` volontairement écartée pour
   l'instant — à revoir à **E2**, quand le frontmatter des leçons introduira des champs optionnels.
-- **Reste** : **ST1-E** (vérification jetable + clôture ; volet console/anti-flash au propriétaire).
+- **✅ 2026-08-08 — ST1-E EST CLOSE, ET E1-ST1 AVEC ELLE.** Vérification jetable de bout en bout sur
+  l'artéfact réellement bâti, chiffres tirés du journal et non du seul code de retour (**L-005**) :
+  `lint` exit 0 · `test` **68/68** (5 fichiers de specs) · `build` exit 0 (1 route prérendue, 2 pages
+  inspectées, 1 hachage de style + 1 de script émis) · `audit --omit=dev` **0 vulnérabilité** ·
+  `design:contrastes:check` **33 paires × 2 thèmes = 66 mesures** (plus bas 3,24:1 clair, 3,39:1
+  sombre) · `design:glyphes` **80 vérifications** (40 caractères × 2 familles).
+- **Câblage reconstaté, aucun écart (L-007)** : `ci.yml` et `deploy.yml` portent les six mêmes gates
+  dans le même ordre — G-lint, G-contraste, G-glyphes, G-test, G-build (+`config:swa`), G-audit.
+  `deploy.yml` n'y ajoute que le déploiement SWA et la vérification live des en-têtes.
+- **Chaîne CSP prouvée une seconde fois, par un contexte qui ne l'avait pas écrite** : la constante
+  épinglée `HACHAGE_SCRIPT_ATTENDU`, le `script-src` du `staticwebapp.config.json` généré dans
+  l'artéfact, et un recalcul indépendant (normalisé LF) donnent la **même** valeur
+  `sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M=` — sur `index.html` **et** `index.csr.html`,
+  malgré leur différence CRLF/LF.
+- **Contrat ST1-C ↔ ST1-D reconstaté** : clé littérale `drjst-theme` identique dans `theme.ts` et
+  dans le script inline de `src/index.html` ; attribut `data-theme` posé par le script et lu par
+  `_themes.scss`. Le lien est déjà tenu par `src/init-theme.spec.ts`, qui extrait les littéraux du
+  script et les compare aux sélecteurs du **CSS compilé** par Sass — pas à une constante réimportée
+  (**L-012**).
+- **⚠️ Deux constats restent au propriétaire, et ce ne sont pas des formalités** : (1) **zéro
+  violation CSP en console** sur le site déployé ; (2) **thème sombre épinglé sans flash**
+  (`localStorage.setItem('drjst-theme','sombre')` puis rechargement). Aucun agent ne peut les
+  produire — l'outil navigateur est banni sur ce projet. E1-ST1 est close côté chaîne outillée ;
+  ces deux-là sont l'œil humain qu'aucun gate ne remplace.
+- **Second écart de glyphe, trouvé à la clôture et absent du plan de ST1-B** : **U+2192 (« → »)** est
+  elle aussi rendue par la **police de repli**, exactement comme U+202F. Le gate l'imprime en « écart
+  assumé » et ne casse pas — mais une flèche dans une leçon ne sera dessinée ni par Fraunces ni par
+  Inter. Consigné avec U+00A0 dans `.claude/rules/contenu-pedagogique.md` §3.
 - **Écart de dépendance documenté** : `sass` promue de transitive à devDependency explicite (déjà
   dans l'arbre via `@angular/build`, 0 octet téléchargé, 0 surface en production) pour tester les
   mixins sur le CSS émis.
