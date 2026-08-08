@@ -221,4 +221,28 @@ fichiers livrés tels quels au navigateur.
 
 ---
 
+## L-012 · Un test qui importe la constante qu'il vérifie ne vérifie rien du contrat
+
+**Symptôme.** `src/app/core/theme/theme.spec.ts` importait `CLE_THEME` et `ATTRIBUT_THEME` **depuis
+le `ThemeService` qu'il teste**. Le 2026-08-08, renommer `CLE_THEME` en `'drjst-theme-v2'` (ou
+`ATTRIBUT_THEME` en `'data-thème'`) laissait les **38 tests au vert**, pendant que le service écrivait
+une clé que le script inline de `src/index.html` ne lit pas, et un attribut qu'aucun sélecteur de
+`src/styles/_themes.scss` ne rend. La page serait restée en thème clair, sans erreur, sans test rouge.
+
+**Règle.** Quand une valeur est un **contrat entre deux fichiers qui ne se compilent pas ensemble**
+(ici : `localStorage['drjst-theme']` lie `index.html` au `ThemeService` ; `data-theme` lie le
+`ThemeService` au SCSS, invisible du typage TS), le test doit comparer à **l'autre extrémité, lue
+depuis sa source** (le fichier au disque, le CSS compilé) — jamais à l'import de sa propre
+définition. Importer la constante ne teste que la cohérence du fichier avec lui-même : une
+tautologie. Bon exemple dans ce dépôt : `src/init-theme.spec.ts` compile réellement `_themes.scss`
+via `sass.compile` et compare le résultat. Chaînon entre [[L-008]] (une contrepartie qui n'existe
+que dans un commentaire ne protège rien) et [[L-010]] (un test de mutation doit vérifier qu'il a
+frappé sa cible) : ici, c'est la **source de vérité du test lui-même** qui doit sortir du fichier
+testé.
+
+**Réfs.** `src/app/core/theme/theme.spec.ts` (avant correctif) ; `src/init-theme.spec.ts` lignes
+33-40 et 149-162 ; `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-D).
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

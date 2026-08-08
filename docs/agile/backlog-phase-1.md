@@ -238,13 +238,58 @@
   normalisation des fins de ligne** par l'analyseur HTML. `index.csr.html` est livré en **CRLF** et
   `index.html` en **LF** ; sans normalisation, une même source donne deux hachages et la CSP bloque
   en silence.
-- **⚠️ RESTE OUVERT, et ST1-C ne se clôt pas sans lui — vérification LIVE.** Tout ce qui précède est
-  vérifié **hors ligne** (artéfact). Conformément à `.claude/rules/security.md` §1
-  (« enabler ≠ enforcement ») et à **L-004**, il faut, après déploiement : l'en-tête CSP réellement
-  servi portant ce `sha256-`, **zéro violation CSP en console**, et un thème épinglé « sombre »
-  qui s'affiche **sans flash**. À faire en **ST1-E** ou par le propriétaire.
-- **Restent** : **ST1-D** (script anti-flash + `ThemeService` tri-état clair/sombre/système) ·
-  **ST1-E** (vérification jetable + clôture, vérification live comprise).
+- **Vérification LIVE de ST1-C — faite le 2026-08-08, et plus forte qu'un simple constat d'en-tête.**
+  Après fusion de la PR #3 et déploiement (`main → SWA Free`, 1 m 22 s), la CSP servie a été sondée
+  **jusqu'à l'effet** et non jusqu'au code de retour (**L-004**) : présente dès la première sonde.
+  Le point qui compte : le `<script id="init-theme">` a été extrait du **HTML réellement servi** et
+  re-haché — `sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M=`, **identique** au
+  `HACHAGE_SCRIPT_ATTENDU` épinglé et à ce que la CSP autorise. La chaîne est donc prouvée de bout
+  en bout, pas seulement « un `sha256-` est présent ». Deux scripts inline servis : `init-theme`
+  (haché) et `ng-state` en `type="application/json"` — données non exécutables, sans hachage requis,
+  ce qui confirme que l'hydratation n'est pas bloquée. Cinq en-têtes servis
+  (HSTS `max-age=63072000; includeSubDomains; preload`, `X-Content-Type-Options`,
+  `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`) ; ni `Server` ni `X-Powered-By`.
+- **⚠️ Reste au propriétaire, et ST1-C ne se clôt pas sans lui** : **zéro violation CSP en console**
+  et **thème « sombre » épinglé sans flash** (`localStorage.setItem('drjst-theme','sombre')` puis
+  rechargement). Ces deux constats demandent un œil dans le navigateur — l'outil Chrome est banni
+  sur ce projet, aucun agent ne peut les produire.
+- **ST1-D (`ThemeService` tri-état) est livrée et revue.** `src/app/core/theme/theme.ts` : signal
+  `choix`, `computed` `themeEffectif` (`'clair' | 'sombre'`, qui résout `'systeme'` via
+  `prefers-color-scheme` et suit l'OS à chaud), `definir()`, et les constantes `THEMES` /
+  `CLE_THEME` / `ATTRIBUT_THEME` / `REQUETE_SOMBRE` exportées **pour E1-ST2**. Décorateur
+  **`@Service()`** — forme Angular 22 auto-fournie à la racine et élagable, vérifiée dans les
+  typages (`@angular/core/types/core.d.ts` l.1268-1322, `autoProvided: true` par défaut), pas
+  `@Injectable({providedIn:'root'})`. `isPlatformBrowser` plutôt qu'`afterNextRender` : l'état doit
+  être juste **dès l'injection**, la bascule d'E1-ST2 s'étiquette avec. 47 tests (4 fichiers).
+  **La bascule visible n'est PAS dans ce lot** — c'est E1-ST2, volontairement.
+- **Ce que la revue a changé, et c'est le vrai enseignement du lot (→ L-012).** Le comportement
+  était juste ; c'est la **preuve** qui manquait. `theme.spec.ts` importait `CLE_THEME` et
+  `ATTRIBUT_THEME` **depuis le service qu'il teste** : renommer `CLE_THEME` en `'drjst-theme-v2'`
+  laissait **38 tests sur 38 au vert** pendant que le service aurait écrit une clé que
+  `src/index.html` ne lit pas. Or cette valeur est un contrat entre deux fichiers qu'aucun
+  compilateur ne relie (HTML d'un côté, SCSS de l'autre). Corrigé : la clé est cherchée dans le
+  **corps extrait** du script inline (pas dans tout `index.html`, où le commentaire cite la même
+  chaîne), et l'attribut comme l'ensemble des états épinglables sont comparés au **CSS compilé**
+  par `sass.compile`. Second manque comblé : le chemin prerender n'avait aucune couverture et
+  `npm run build` **ne pouvait pas** en tenir lieu — le service n'étant injecté nulle part, il est
+  élagué du bundle (**L-005**) ; les tests `PLATFORM_ID: 'server'` vérifient donc l'**absence
+  d'appel** à `localStorage` et `matchMedia`, sans quoi ils passeraient gardes retirées.
+  Cinq mutations de contrôle, chacune rouge sur sa cible (**L-010**).
+- **🔴 DÉFAUT TROUVÉ EN REVUE DE ST1-D — antérieur au lot, touche tout le dépôt, à planifier.**
+  **`tsconfig.json` n'active ni `strict`, ni `strictNullChecks`, ni `noImplicitAny`** (il ne porte
+  que `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noImplicitReturns`,
+  `noFallthroughCasesInSwitch`), alors que `.claude/rules/angular-best-practices.md` prescrit
+  « Use strict type checking ». Aucun des deux tsconfig enfants ne le rétablit. **Le dépôt se croit
+  strict et ne l'est pas** : les `?.` qui rendent `ThemeService` sûr au prerender ne sont imposés
+  par aucun compilateur. Ce n'est pas un vecteur XSS, c'est une garantie absente.
+  **Second écart, même famille que L-008** : `tsconfig.spec.json` affirme en commentaire que
+  « le tsconfig de l'application ne l'inclut pas, donc aucune API Node n'est accidentellement
+  atteignable depuis un composant — ce qui casserait le prerender » — or `tsconfig.app.json` porte
+  bel et bien `"types": ["node"]`. La protection décrite est **contredite par le fichier voisin** :
+  un composant peut appeler `process.cwd()`, passer le typage et casser au navigateur.
+  **Lot séparé** (activer `strict` fera surgir des erreurs sur tout le code existant) ; ne pas le
+  traiter en passant dans une sous-tâche de design system.
+- **Reste** : **ST1-E** (vérification jetable + clôture ; volet console/anti-flash au propriétaire).
 - **Écart de dépendance documenté** : `sass` promue de transitive à devDependency explicite (déjà
   dans l'arbre via `@angular/build`, 0 octet téléchargé, 0 surface en production) pour tester les
   mixins sur le CSS émis.
