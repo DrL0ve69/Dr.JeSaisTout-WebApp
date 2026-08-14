@@ -201,6 +201,27 @@
   s'espaceraient donc pas pareil. Le gate imprime cet écart à chaque exécution et **échoue** si le
   caractère devenait couvert, pour que la consigne ne survive pas à sa propre péremption.
   **Reporté le 2026-08-08** dans `.claude/rules/contenu-pedagogique.md` §3 — sans attendre la première leçon : une consigne qui n'existe que sous forme de « à reporter » ne protège rien (**L-008**).
+- **🔴 S-003 — LE GARDE-FOU DE CSP NE PROUVE PAS QU'IL A *TOUT VU*. Préexistant, lot autonome.**
+  Trouvé le 2026-08-08 par la revue sécurité du lot de typage, et **reproduit à l'identique sur la
+  branche de base** : le typage ne l'a pas introduit.
+  **Le défaut** : `tools/deploiement/generer-config-swa.mjs` (~l. 125) — `MOTIF_SCRIPT` peut **ne pas
+  apparier une balise `<script>` du tout**. Un guillemet orphelin dans le bloc d'attributs
+  (`<script data-x=a"b">alert(1)</script>`) fait échouer le groupe de capture : la balise devient
+  **invisible** — ni hachée, ni signalée, **build vert**. L'analyseur HTML d'un navigateur, lui,
+  accepte cette valeur non citée, ferme la balise au `>` et **exécute le corps**.
+  **Ce qui le distingue de S-001 et S-002** : ceux-là couvraient « mal autoriser ce qu'on voit »,
+  celui-ci couvre « ne pas voir du tout ». Le refus fail-closed est **en aval** d'un motif qui peut
+  silencieusement ne rien apparier.
+  **Impact borné, à ne pas surjouer** : aucun hachage n'étant délivré pour cette balise, la CSP
+  servie la **bloque quand même** à l'exécution. Ce qui est perdu, c'est la couche de **détection** —
+  précisément la panne silencieuse que ce script existe pour empêcher.
+  **Parade** : contrôle de conservation avant la boucle — comparer le compte brut
+  (`html.match(/<script/gi)`) au nombre de correspondances du motif, tout écart devenant une
+  infraction. *L'inconnu doit être compté, pas seulement analysé.*
+  **Déjà prouvé** : 7 contournements rejoués sur copie jetable de l'artéfact, **6 refusés en code 1**
+  avec cause nommée, le 7ᵉ passe en **0**. Le harnais est à refaire dans le lot.
+  **Gates du lot** : G-lint, G-test (mutation de contrôle par contournement), G-build ; passe
+  **`security-reviewer` obligatoire** — ce fichier a déjà été contourné deux fois.
 - **🔴 DÉFAUT TROUVÉ EN VÉRIFIANT ST1-B EN LIGNE — antérieur à ce lot, à planifier (E0/déploiement).**
   `trailingSlash: "always"` (`config/staticwebapp.config.source.json`) s'applique **aussi aux
   fichiers avec extension** : SWA répond **301** sur `/polices/*.woff2`, sur le bundle `main-*.js`,
@@ -302,6 +323,53 @@
   `projectService`) : promesses flottantes et flux `any` restent invisibles malgré `strict` ; coût
   de run à mesurer avant d'activer. (3) `exactOptionalPropertyTypes` volontairement écartée pour
   l'instant — à revoir à **E2**, quand le frontmatter des leçons introduira des champs optionnels.
+- **✅ 2026-08-08 — CONSTAT (1) FERMÉ POUR SA PART CRITIQUE : le générateur de CSP est
+  type-vérifié.** Troisième programme `tsconfig.tools.json` (`allowJs` + `checkJs` + `strict` +
+  `noUncheckedIndexedAccess`, `module`/`moduleResolution: nodenext`, `lib: ["ES2023"]` **sans DOM**,
+  `types: ["node"]` — frontière symétrique de celle que `tsconfig.app.json` pose dans l'autre sens),
+  script `typecheck:tools`, étape **`G-typage-outils` câblée au même rang dans `ci.yml` ET
+  `deploy.yml`** (**L-007**). `eslint.config.js` portait déjà un `// @ts-check` que **rien
+  n'exécutait** (**L-008**) : il est maintenant dans le programme, et propre — 0 erreur.
+- **Le chantier a été CHIFFRÉ avant d'être promis, et c'est ce qui l'a sauvé.** Activer `checkJs`
+  sur tout `tools/` révèle **95 erreurs**, pas la vingtaine supposée : 57 d'annotations absentes
+  (TS7xxx), 38 nées de `noUncheckedIndexedAccess`/`noPropertyAccessFromIndexSignature`. L'agent
+  s'est **arrêté au seuil de mesure** plutôt que de livrer un gate rouge à moitié câblé. Découpe :
+  **lot (a) livré** — `generer-config-swa.mjs` (16) + `kb-search.mjs` (10) + `eslint.config.js` (0),
+  `include` **nominatif** et commenté comme tel ; lots (b) et (c) en dette, ci-dessous.
+- **Ce que les deux revues ont changé — et c'est encore la PREUVE qui manquait, pas le
+  comportement.** Le typage n'avait converti aucun refus en silence (vérifié ligne à ligne, puis
+  empiriquement : 7 contournements rejoués sur copie jetable de l'artéfact). Mais **(i) le gate
+  pouvait devenir vide en silence** — vider ou repointer l'`include` laissait `tsc` sortir en **0 sur
+  zéro fichier**, script npm intact et workflows verts ; refermé par une assertion sur les
+  **`rootNames`** réels, qui épingle nommément `generer-config-swa.mjs` (**L-014**). **(ii)** Le
+  commentaire de `tsconfig.tools.json` promettait que le spec tenait **six** options quand il n'en
+  assertait que **deux** : `OPTIONS_TYPESCRIPT` a été étendue aux six, plutôt que le commentaire
+  raboté (addendum **L-008** — la faute s'est reproduite dans le lot qui invoquait L-008). Trois
+  mineurs traités : `PROGRAMMES_ANGULAR` pour la garde `angular.json`, assertion de **paire** (nom
+  d'étape + ligne `run:`) au lieu d'une sous-chaîne qui passerait sur un commentaire YAML, et la
+  branche `<style>` de `generer-config-swa.mjs` alignée sur la branche `<script>` — elle écartait en
+  silence, seul saut muet du fichier.
+- **Gates** : `typecheck:tools` **0 erreur** · `lint` exit 0 · `test` **88/88** (68 en début de
+  session) · `build` exit 0 · `audit --omit=dev` **0 vulnérabilité**. **Six** mutations de contrôle
+  sur le lot, chacune rouge **sur sa cible** (**L-010**). Preuve de non-régression : la sortie
+  `staticwebapp.config.json` du générateur est **identique octet pour octet** avant/après typage.
+- **Piège de poste consigné (L-015)** : `.yml` et `.json` sont en **CRLF** ici, et ça frappe dans
+  **les deux sens** — un `replace()` sur un littéral multi-ligne en `\n` ne mute rien (faux « le gate
+  ne mord pas », rattrapé par le garde-fou de L-010), et une regex ancrée `$` en mode multiligne
+  s'ancre **après** le `\r`. `\r?\n` / `\r?$` partout où l'on apparie un fichier de configuration.
+
+**Dette de typage restante — chiffrée, pas devinée.**
+- **(b) `tools/design/verifier-contrastes.mjs` — 34 erreurs.** Élargir l'`include` de
+  `tsconfig.tools.json` **dans le même diff** que les corrections : la CI ne doit jamais passer par
+  un rouge intermédiaire.
+- **(c) `tools/design/verifier-glyphes.mjs` — 35 erreurs.** Même méthode, `include` élargi à
+  `tools/**/*.mjs` en fin de lot. Point déjà élucidé, à ne pas re-débattre : `REPLI_DOCUMENTE`
+  (l. 106) est un tableau littéral mixte inféré `(number|string)[][]`, d'où deux TS2365 l. 404.
+  **Ce n'est pas un défaut d'exécution** — les bornes `plages` sortent toutes de `parseInt` — c'est
+  une annotation absente ; un `@type` sur la constante vaut mieux que deux corrections au point
+  d'usage.
+- **Constats (2) et (3) inchangés** : `typescript-eslint` sans information de types, et
+  `exactOptionalPropertyTypes` à revoir en **E2**.
 - **✅ 2026-08-08 — ST1-E EST CLOSE, ET E1-ST1 AVEC ELLE.** Vérification jetable de bout en bout sur
   l'artéfact réellement bâti, chiffres tirés du journal et non du seul code de retour (**L-005**) :
   `lint` exit 0 · `test` **68/68** (5 fichiers de specs) · `build` exit 0 (1 route prérendue, 2 pages

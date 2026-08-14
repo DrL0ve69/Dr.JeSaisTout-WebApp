@@ -9,22 +9,30 @@ Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code c
 comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutorat) :
 [`docs/vision.md`](docs/vision.md).
 
-> ## ⏭️ REPRISE — état au 2026-08-04, fin de session
+> ## ⏭️ REPRISE — état au 2026-08-08, fin de session
 >
-> **E0 EST CLOS — ST1, ST2, ST3, ST4 ✅. Le site est en ligne, la chaîne est verte.** **E1-ST1 🟦
-> en cours — ST1-A (fondations SCSS + gate de contraste) ET ST1-B (polices auto-hébergées) livrées,
-> fusionnées, déployées. L'écart à G3 est levé.**
+> **E0 EST CLOS. E1-ST1 EST CLOSE — ST1-A à ST1-E ✅.** Design system 3 couches, polices
+> auto-hébergées, script d'anti-flash haché, `ThemeService` tri-état : livrés, revus, déployés.
+> La chaîne est verte, **88 tests**.
 >
-> **<https://salmon-sky-0a730780f.7.azurestaticapps.net>** — HTTP 200, cinq en-têtes servis,
-> **CSP à hachage `sha256-` résolu**, `lang="fr-CA"`, **aucune violation CSP en console**
-> (constaté par le propriétaire le 2026-08-04 : c'est ce silence qui prouve que le hachage
-> `style-src` colle au flux servi et que `ng-state` n'est pas bloqué — l'hydratation en dépend).
+> **Deux PR attendent ta fusion, dans cet ordre** (la seconde est empilée sur la première) :
+> **#6** `docs(e1)` — clôture d'E1-ST1 · **#7** `chore(outils)` — typage du générateur de CSP.
 >
-> **Le geste suivant : E1-ST1 · ST1-C** — un `<script id="init-theme">` inline **unique**, haché
-> depuis l'artéfact, passé au `security-reviewer`. Inline et non fichier externe : `public/**` est
-> copié sans empreinte de contenu alors que les `.js` sont servis `immutable` un an. Puis **ST1-D**
-> (anti-flash + `ThemeService` tri-état clair/sombre/système) et **ST1-E** (vérification jetable +
-> clôture). Plan complet : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1.
+> **⚠️ DEUX CONSTATS N'ATTENDENT QUE TOI, et personne d'autre ne peut les produire** (l'outil
+> navigateur est banni sur ce projet). Sur <https://salmon-sky-0a730780f.7.azurestaticapps.net> :
+> (1) **zéro violation CSP en console** ; (2) **thème sombre épinglé sans flash**
+> (`localStorage.setItem('drjst-theme','sombre')` puis rechargement).
+>
+> **Le geste suivant : E1-ST2** — layout, navigation, **bascule de thème visible**, 404, skip-link,
+> landmarks ARIA. C'est un **début de gros lot** : `solution-architect` puis `devils-advocate` s'y
+> justifient (barème `.claude/README.md` §6a). Le `ThemeService` de ST1-D exporte déjà `THEMES` /
+> `CLE_THEME` / `ATTRIBUT_THEME` / `REQUETE_SOMBRE` **pour cette sous-tâche** — la bascule visible en
+> est le premier client, et elle a été volontairement laissée hors de ST1-D.
+>
+> **Dette à ne pas perdre** : typage (b) **34** et (c) **35** erreurs sur les deux gates de design ;
+> et surtout **🔴 S-003** — le garde-fou de CSP ne prouve pas qu'il a *tout vu* (un guillemet
+> orphelin rend une balise `<script>` invisible à son motif ; **préexistant**, impact borné, parade
+> connue). Détail et parade : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1.
 >
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
 > ressources Azure créées (*Azure for Students*, palier **Free**) · secret
@@ -57,7 +65,9 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > fichier externe pour l'anti-flash de thème, et d'où les **noms de polices versionnés** de ST1-B.
 > (4) Un outil d'analyse a raison **et** tort dans le même run : sur la PR #1, la duplication et le
 > « bug » étaient deux faux positifs ; sur la PR #2, les cinq bugs signalés étaient réels. On
-> vérifie chaque constat, on n'accepte ni ne rejette le lot en bloc.
+> vérifie chaque constat, on n'accepte ni ne rejette le lot en bloc. (5) `.yml`/`.json` sont en
+> **CRLF** sur ce poste : un `replace()` sur un littéral multi-ligne en `\n` ne mute rien, et une
+> regex ancrée `$` en multiligne s'ancre **après** le `\r` (**L-015**).
 >
 > Spikes tranchés : addendums §9 de
 > [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md).
@@ -118,6 +128,7 @@ ouverts** — ils touchent `.claude/rules/contenu-pedagogique.md` et la définit
 | `npm test` | Vitest (runner par défaut d'Angular 22) | G-test |
 | `npm run build` | `ng build` + **génération de la config SWA** (CSP à hachages) → `dist/dr-je-sais-tout/browser` | G-build |
 | `npm run config:swa` | régénère seul `staticwebapp.config.json` dans l'artéfact ; **code 1** si la sortie casse la CSP | G-build |
+| `npm run typecheck:tools` | vérifie les types de `tools/**/*.mjs` + `eslint.config.js` (`checkJs`) | G-typage-outils |
 | `npm start` | serveur de dev | — |
 | `npm run kb -- <termes>` | recherche dans la KnowledgeBase (`--full`, `--any`, `--n N`) | — |
 | `npm audit --omit=dev` | surface de production (doit rester à **0**) | G-audit |

@@ -32,24 +32,53 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
- * Les deux programmes réellement compilés : l'application (par `ng build`) et
- * les tests (par `ng test`). Une rigueur qui s'arrêterait aux specs laisserait
- * passer du code de production, et l'inverse laisserait pourrir les tests.
+ * Les deux programmes ANGULAR, réellement compilés : l'application (par
+ * `ng build`) et les tests (par `ng test`). Une rigueur qui s'arrêterait aux
+ * specs laisserait passer du code de production, et l'inverse laisserait pourrir
+ * les tests.
  */
-const PROGRAMMES = ['tsconfig.app.json', 'tsconfig.spec.json'] as const;
+const PROGRAMMES_ANGULAR = ['tsconfig.app.json', 'tsconfig.spec.json'] as const;
 
 /**
- * Options TypeScript exigées. `strict` est le PARAPLUIE : ses sous-options
- * (`strictNullChecks`, `noImplicitAny`…) ne sont jamais matérialisées dans la
- * configuration résolue, les affirmer une par une échouerait à tort.
- * `noUncheckedIndexedAccess` n'est PAS couverte par `strict` — c'est un ajout
- * délibéré, et le pipeline de contenu d'E2 indexera beaucoup.
+ * Le programme NODE : l'outillage de build (`tools/`), lancé par des scripts npm
+ * et par personne d'autre. Il ne voit ni Angular ni le DOM — lui exiger des
+ * options du compilateur Angular ferait rougir des assertions sans qu'aucun
+ * défaut n'existe. D'où la séparation ci-dessous : la rigueur TypeScript vaut
+ * pour TOUT le dépôt, la rigueur Angular seulement là où Angular compile.
  */
-const OPTIONS_TYPESCRIPT = ['strict', 'noUncheckedIndexedAccess'] as const;
+const PROGRAMMES_NODE = ['tsconfig.tools.json'] as const;
+
+const PROGRAMMES = [...PROGRAMMES_ANGULAR, ...PROGRAMMES_NODE] as const;
 
 /**
- * Options du compilateur Angular exigées. Aucune n'est couverte par `strict` :
- * elles vivent dans `angularCompilerOptions` et se règlent séparément.
+ * Options TypeScript exigées — de TOUS les programmes. `strict` est le
+ * PARAPLUIE : ses sous-options (`strictNullChecks`, `noImplicitAny`…) ne sont
+ * jamais matérialisées dans la configuration résolue, les affirmer une par une
+ * échouerait à tort. Les CINQ suivantes ne sont PAS couvertes par `strict` —
+ * ce sont des ajouts délibérés, chacun activé explicitement dans `tsconfig.json`
+ * ET redéclaré dans `tsconfig.tools.json` (qui n'étend pas la base : voir
+ * l'en-tête de ce fichier-là). La liste est donc exhaustive à dessein : une
+ * option redéclarée mais non listée ici pourrait disparaître d'un des deux
+ * endroits sans qu'aucun test ne rougisse — et c'est très exactement la faute
+ * L-008 (« un commentaire ne protège rien ») que ce fichier prétend fermer.
+ * `noUncheckedIndexedAccess` compte double : le pipeline de contenu d'E2
+ * indexera beaucoup.
+ */
+const OPTIONS_TYPESCRIPT = [
+  'strict',
+  'noUncheckedIndexedAccess',
+  'noImplicitOverride',
+  'noPropertyAccessFromIndexSignature',
+  'noImplicitReturns',
+  'noFallthroughCasesInSwitch',
+] as const;
+
+/**
+ * Options du compilateur Angular exigées — des seuls programmes Angular. Aucune
+ * n'est couverte par `strict` : elles vivent dans `angularCompilerOptions` et se
+ * règlent séparément. C'est aussi pour cette raison que l'assertion sur
+ * `extendedDiagnostics` reste avec elles : hors Angular, l'option n'existe pas
+ * et vaudrait `undefined`.
  */
 const OPTIONS_ANGULAR = [
   'strictTemplates',
@@ -63,6 +92,7 @@ describe('rigueur du compilateur', () => {
   for (const programme of PROGRAMMES) {
     describe(programme, () => {
       const { options, errors } = readConfiguration(join(process.cwd(), programme));
+      const estAngular: boolean = (PROGRAMMES_ANGULAR as readonly string[]).includes(programme);
 
       it('se résout sans erreur de configuration', () => {
         // Attrape les incohérences que le compilateur refuse — par exemple
@@ -72,17 +102,25 @@ describe('rigueur du compilateur', () => {
         expect(errors.map((erreur) => erreur.messageText)).toEqual([]);
       });
 
-      for (const option of [...OPTIONS_TYPESCRIPT, ...OPTIONS_ANGULAR]) {
+      for (const option of OPTIONS_TYPESCRIPT) {
         it(`active ${option}`, () => {
           expect(options[option]).toBe(true);
         });
       }
 
-      it('traite les diagnostics étendus comme des erreurs', () => {
-        // Leur défaut est `warning`. Un avertissement ne casse pas un build :
-        // il se noie dans un run vert, et on finit par le tolérer (L-006).
-        expect(options.extendedDiagnostics?.defaultCategory).toBe('error');
-      });
+      if (estAngular) {
+        for (const option of OPTIONS_ANGULAR) {
+          it(`active ${option}`, () => {
+            expect(options[option]).toBe(true);
+          });
+        }
+
+        it('traite les diagnostics étendus comme des erreurs', () => {
+          // Leur défaut est `warning`. Un avertissement ne casse pas un build :
+          // il se noie dans un run vert, et on finit par le tolérer (L-006).
+          expect(options.extendedDiagnostics?.defaultCategory).toBe('error');
+        });
+      }
     });
   }
 
@@ -125,8 +163,90 @@ describe('rigueur du compilateur', () => {
       .map((cible) => cible.options?.tsConfig)
       .filter((chemin): chemin is string => chemin !== undefined);
 
-    const verifies: readonly string[] = PROGRAMMES;
+    // `PROGRAMMES_ANGULAR`, et non `PROGRAMMES` : `tsconfig.tools.json` n'est PAS
+    // soumis aux options du compilateur Angular (il n'en a aucune). L'accepter ici
+    // laisserait `angular.json` pointer une cible `ng` dessus en restant vert —
+    // c'est-à-dire compiler l'application sans `strictTemplates`.
+    const verifies: readonly string[] = PROGRAMMES_ANGULAR;
     expect(declares.length).toBeGreaterThan(0);
     expect(declares.filter((chemin) => !verifies.includes(chemin))).toEqual([]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Le programme outillage est le seul que `angular.json` ne connaît pas
+  // ---------------------------------------------------------------------------
+  // Le test ci-dessus ferme la porte pour `ng build` et `ng test`, parce que leur
+  // cible est DÉCLARÉE dans `angular.json`. `tsconfig.tools.json` n'y figure pas
+  // et n'y figurera jamais : il est lancé par un script npm, appelé par la CI.
+  // Sans les cinq assertions qui suivent, il pourrait exister, être parfait, et
+  // ne jamais tourner — un gate livré mais non câblé (L-007), donc un vert qui ne
+  // prouve rien (L-005). Le maillon vérifié va bout en bout : le tsconfig est
+  // rigoureux ET vérifie bien du JS, il contient BIEN le fichier qui motive tout
+  // le lot, le script npm vise bien CE tsconfig, et les DEUX workflows appellent
+  // bien CE script.
+  //
+  // Tout se lit AU DISQUE, jamais par import (L-012) : un test qui importerait la
+  // valeur qu'il contrôle ne prouverait que la cohérence d'un fichier avec
+  // lui-même. `package.json` et les `.yml` sont précisément les fichiers qui ne se
+  // compilent pas avec ce spec — c'est là que le contrat peut se rompre en silence.
+  describe('câblage du programme outillage', () => {
+    const PROGRAMME_OUTILS = 'tsconfig.tools.json';
+    const SCRIPT_NPM = 'typecheck:tools';
+    const WORKFLOWS = ['ci.yml', 'deploy.yml'] as const;
+    const NOM_ETAPE = 'G-typage-outils';
+    const FICHIER_EPINGLE = 'tools/deploiement/generer-config-swa.mjs';
+
+    it('vérifie réellement le JavaScript, et pas seulement le TypeScript', () => {
+      // `allowJs` fait ENTRER les `.mjs` dans le programme, `checkJs` les fait
+      // VÉRIFIER. Sans le second, `tsc` parcourt les fichiers, n'en dit rien et
+      // sort en 0 : le gate le plus vert du dépôt, et le plus vide.
+      const { options } = readConfiguration(join(process.cwd(), PROGRAMME_OUTILS));
+      expect(options.allowJs).toBe(true);
+      expect(options.checkJs).toBe(true);
+    });
+
+    it(`compile réellement ${FICHIER_EPINGLE}`, () => {
+      // L'assertion précédente ne dit RIEN du périmètre : vider l'`include` de
+      // `tsconfig.tools.json`, ou le repointer ailleurs, laisse `allowJs` et
+      // `checkJs` à true, le script npm intact, les deux workflows verts — et
+      // `tsc` sort en 0 sur ZÉRO fichier. Le gate le plus vide, déplacé d'un cran
+      // (L-005). On épingle donc le fichier qui motive tout le lot : celui qui
+      // génère la CSP du site. Les `rootNames` sont la liste que `tsc` compile
+      // vraiment, `include`/`exclude`/`files` déjà résolus — pas le texte de la
+      // configuration relu par lui-même (L-012).
+      const { rootNames } = readConfiguration(join(process.cwd(), PROGRAMME_OUTILS));
+      const normalises = rootNames.map((chemin) => chemin.replace(/\\/g, '/'));
+      expect(normalises.filter((chemin) => chemin.endsWith(`/${FICHIER_EPINGLE}`))).toHaveLength(1);
+    });
+
+    it(`expose un script npm « ${SCRIPT_NPM} » qui vise ce programme`, () => {
+      const manifeste: { scripts?: Record<string, string> } = JSON.parse(
+        readFileSync(join(process.cwd(), 'package.json'), 'utf8'),
+      );
+      expect(manifeste.scripts?.[SCRIPT_NPM] ?? '').toContain(PROGRAMME_OUTILS);
+    });
+
+    for (const workflow of WORKFLOWS) {
+      it(`est appelé par ${workflow}`, () => {
+        // Les deux workflows rejouent les mêmes gates : un gate câblé dans l'un
+        // et pas l'autre laisse partir en ligne du code moins vérifié que ce qui
+        // passe en PR (L-007). D'où une assertion par workflow, et non une seule
+        // qui se contenterait du premier trouvé.
+        // Et on asserte la PAIRE — le nom de l'étape ET la ligne `run:` réelle.
+        // Un simple `toContain` passerait sur une étape mise en commentaire
+        // (« # run: npm run typecheck:tools »), c'est-à-dire sur un gate
+        // désactivé : exactement la panne (L-007) que cette assertion existe
+        // pour attraper. L'ancrage `^\s+run:` exige une directive YAML vivante.
+        const contenu = readFileSync(
+          join(process.cwd(), '.github', 'workflows', workflow),
+          'utf8',
+        );
+        // `\r?$` et non `$` : les `.yml` du dépôt sont en CRLF, et `$` en mode
+        // multiligne s'ancre avant le `\n`, donc APRÈS le `\r`. Sans le `\r?`,
+        // l'assertion échouerait ici sur un fichier pourtant correct.
+        expect(contenu).toContain(`- name: ${NOM_ETAPE}`);
+        expect(contenu).toMatch(new RegExp(`^[ \\t]+run: npm run ${SCRIPT_NPM}\\r?$`, 'm'));
+      });
+    }
   });
 });

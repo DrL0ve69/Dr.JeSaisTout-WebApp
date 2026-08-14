@@ -36,6 +36,14 @@ jobs:
       - name: G-lint
         run: npm run lint
 
+      # L'outillage Node n'appartenait à AUCUN tsconfig : `generer-config-swa.mjs`, qui écrit la CSP
+      # du site et épingle le hachage de son unique script inline, était le seul code du dépôt sans
+      # vérification de types. ESLint ne comble pas ce trou — il ne connaît pas les types. Un gate
+      # séparé parce que ces scripts ne sont ni compilés par `ng build` ni exécutés par `ng test` :
+      # rien d'autre ne les regarderait.
+      - name: G-typage-outils
+        run: npm run typecheck:tools
+
       # Gate du design system : ratios de contraste WCAG de chaque paire de jetons dans les DEUX
       # thèmes, plus la cohérence des échelles typo (ratio ≥ 1.25) et d'espacement (multiples de 4).
       # Mode `--check` : le script n'écrit rien, il compare le rapport régénéré à celui du dépôt et

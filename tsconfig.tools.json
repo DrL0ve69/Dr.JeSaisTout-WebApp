@@ -1,0 +1,89 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+{
+  // ===========================================================================
+  // Le TROISIÈME programme : l'outillage Node, jusqu'ici type-vérifié par RIEN
+  // ---------------------------------------------------------------------------
+  // POURQUOI CE FICHIER EXISTE.
+  // `tools/deploiement/generer-config-swa.mjs` GÉNÈRE la CSP du site et calcule
+  // ses hachages `sha256-`. `tools/design/verifier-{contrastes,glyphes}.mjs` SONT
+  // deux gates. Aucun des quatre scripts n'appartenait à un `tsconfig` : ni
+  // `tsconfig.app.json` (`include: src/**/*.ts`) ni `tsconfig.spec.json`. Le code
+  // qui décide de la politique de sécurité du site était donc le SEUL code du
+  // dépôt sans vérification de types. `eslint.config.js` portait même un
+  // `// @ts-check` en première ligne — une intention que rien n'exécutait (L-008).
+  //
+  // POURQUOI IL N'ÉTEND PAS `tsconfig.json`.
+  // La base est celle d'une application Angular pour navigateur : `module:
+  // "preserve"`, `importHelpers` (donc tslib), `experimentalDecorators`, et un
+  // bloc `angularCompilerOptions` entier. Rien de tout ça n'a de sens pour des
+  // scripts Node autonomes, et `module` devrait de toute façon être écrasé. La
+  // rigueur est donc redéclarée ici, en clair — et c'est
+  // `src/configuration-typescript.spec.ts` qui interdit à ces deux listes de
+  // diverger, exactement comme il le fait déjà entre `app` et `spec` : sa
+  // constante `OPTIONS_TYPESCRIPT` énumère les SIX options ci-dessous et les
+  // exige de TOUS les programmes, celui-ci compris. En retirer une d'ici fait
+  // rougir le test. Ce commentaire n'est donc pas une promesse — il décrit une
+  // garantie exécutable (L-008).
+  //
+  // POURQUOI `nodenext`.
+  // C'est le seul mode où TypeScript détermine le format de chaque fichier comme
+  // Node le fait RÉELLEMENT : `package.json` n'a pas de champ `"type"`, donc les
+  // `.mjs` de `tools/` sont de l'ESM et `eslint.config.js` est du CommonJS. Un
+  // seul programme couvre les deux, et ses `require()` restent valides. Sous
+  // `module: "preserve"` on validerait un mélange que Node refuserait.
+  // ===========================================================================
+  "compilerOptions": {
+    // Aucun artéfact : ce programme ne sert qu'à vérifier. Node exécute les .mjs
+    // tels quels — rien ne doit être compilé, et surtout rien écrit à côté.
+    "noEmit": true,
+
+    // Le couple qui fait tout le travail : `allowJs` fait entrer les fichiers
+    // dans le programme, `checkJs` les fait VÉRIFIER. Sans le second, ils
+    // seraient parsés et ignorés — un tsconfig vert qui ne prouve rien (L-005).
+    "allowJs": true,
+    "checkJs": true,
+
+    // Même politique que `tsconfig.json`, redéclarée (voir plus haut). Les six
+    // options de RIGUEUR qui suivent sont celles de `OPTIONS_TYPESCRIPT` dans
+    // `src/configuration-typescript.spec.ts`, exigées de tous les programmes :
+    // en retirer une d'ici fait rougir le test. `skipLibCheck` n'en fait pas
+    // partie — c'est un réglage de vitesse, pas une garantie.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    // Node 24 (exigé par Angular 22) couvre largement ES2023. `lib` est fixée à
+    // la seule bibliothèque ES : sans elle, TypeScript ajoute le DOM par défaut
+    // et un script Node pourrait référencer `document` en passant le typage,
+    // pour planter à l'exécution — la symétrie exacte de la frontière que
+    // `tsconfig.app.json` pose dans l'autre sens.
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"]
+  },
+  // PORTÉE VOLONTAIREMENT RESTREINTE — ce n'est pas un oubli.
+  // Activer `checkJs` sur tout `tools/` révèle d'un coup 95 erreurs préexistantes,
+  // bien au-delà de ce qu'un lot relisable peut porter. La liste est donc nominative
+  // et grandit par lots, en commençant par le fichier qui écrit la politique de
+  // sécurité du site. Restent à faire entrer, et c'est LE livrable de chacun des
+  // deux lots suivants : `tools/design/verifier-contrastes.mjs` (34 erreurs) puis
+  // `tools/design/verifier-glyphes.mjs` (35). Un glob `tools/**/*.mjs` remis ici
+  // avant ces deux lots casse la construction — il ne les corrige pas.
+  //
+  // La liste peut GRANDIR librement ; elle ne peut pas RÉTRÉCIR jusqu'à perdre
+  // `generer-config-swa.mjs`. Ce fichier-là est épinglé par le spec de
+  // configuration, qui lit les `rootNames` résolus : la vider laisserait
+  // `allowJs`/`checkJs` à true et `tsc` sortirait en 0 sur zéro fichier (L-005).
+  "include": [
+    "tools/deploiement/generer-config-swa.mjs",
+    "tools/kb-search.mjs",
+    "eslint.config.js"
+  ]
+}
