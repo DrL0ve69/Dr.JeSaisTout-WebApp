@@ -2,14 +2,14 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { ActivatedRoute } from '@angular/router';
 
 /**
- * Page « à venir » — le placeholder générique des deux routes publiques
- * (`/`, `/cours/securite-web`) jusqu'à ce qu'E1-ST3 livre la vraie accueil et E2
- * le moteur de contenu.
+ * Page « à venir » — le placeholder générique des routes publiques dont le
+ * contenu n'existe pas encore. E1-ST3 lui a repris `/` (c'est `Accueil`, dans
+ * `features/home/`) ; il ne lui reste que `/cours/securite-web`, jusqu'à ce qu'E2
+ * livre le moteur de contenu et le vrai sommaire.
  *
- * Pourquoi UN composant pour deux routes, et pas `features/home/` tout de suite :
- * créer l'arborescence de fonctionnalité maintenant présumerait de la structure
- * qu'E1-ST3 doit explorer librement — un faux départ à défaire. `features/**`
- * reste vierge.
+ * Il reste GÉNÉRIQUE (titre et chapô lus dans la route) et non spécialisé en
+ * « page du sommaire » : c'est ce qui lui permettra de couvrir la prochaine route
+ * annoncée avant d'exister, sans qu'on écrive un composant de plus.
  *
  * POURQUOI ON LIT LA ROUTE À LA MAIN, sans `withComponentInputBinding()` : le
  * raisonnement complet (et vérifié dans le source du routeur) est en tête
@@ -19,9 +19,9 @@ import { ActivatedRoute } from '@angular/router';
  * `input.required()`, donc un `data.titre` oublié rendrait un `<h1>` vide en
  * silence. La garde de `titre` ci-dessous rétablit l'échec bruyant.
  *
- * `snapshot` suffit : les deux routes sont des chemins littéraux distincts, le
- * composant est donc détruit et recréé à chaque navigation — aucun cas où la même
- * instance survivrait à un changement de `data`.
+ * `snapshot` suffit : les routes qu'il sert sont des chemins littéraux distincts,
+ * le composant est donc détruit et recréé à chaque navigation — aucun cas où la
+ * même instance survivrait à un changement de `data`.
  */
 @Component({
   selector: 'app-page-a-venir',

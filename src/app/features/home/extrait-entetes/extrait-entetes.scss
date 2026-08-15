@@ -1,0 +1,101 @@
+// =============================================================================
+// ExtraitEntetes — la pièce à conviction, en type et filets seulement
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+//
+// CONFINEMENT DES CONTRASTES (plan d'E1-ST3, décision 2) : deux fonds seulement,
+// `--couleur-surface-creuse` pour le feuillet et `--couleur-surface` pour le bloc
+// posé dessus, dont toutes les paires avec les encres employées ici sont déjà
+// mesurées. `--couleur-code-surface` a été ÉCARTÉ malgré son nom : en thème
+// sombre il vaut l'ardoise la plus profonde, et sa paire avec `--couleur-filet`
+// (la bordure du bloc) ne figure dans aucune mesure. Le bloc de code garde donc la
+// police de code sans emprunter une surface non mesurée.
+//
+// ⚠️ `overflow-x` NE DOIT APPARAÎTRE QUE SUR `.extrait` (décision 3 du plan) :
+// posé sur un ancêtre, c'est la page entière qui déborderait à 360 px au lieu du
+// seul bloc (WCAG 1.4.10). `extrait-entetes.spec.ts` compile CETTE feuille et
+// vérifie que la seule règle portant un `overflow` s'applique au `<pre>` rendu et
+// à aucun de ses ancêtres — la promesse est tenue par un test, pas par ce
+// commentaire.
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+// La figure est le feuillet de carnet : bornée par un filet (G7-a).
+//
+// ⚠️ PAS DE `m.reglure` ICI, ET C'EST UN CONSTAT DE CAPTURE, PAS UN GOÛT (Lot C
+// d'E1-ST3). La règlure a un pas unique, calé sur l'interligne du CORPS
+// (`--taille-s` × 1,6 = 25,6 px) — c'est ce qui la fait tomber juste sur
+// `page-a-venir` et `page-introuvable`, dont le texte est du corps. Or ce feuillet
+// ne porte QUE du `--taille-xs`, interligne réel 20,48 px : deux rythmes
+// irréductibles, et les traits traversaient les lettres. Sur `home-clair.png` et
+// `home-sombre.png`, la dernière ligne de la marginalia et celle du cartel se
+// lisaient BARRÉES — le pire contresens possible sur une page dont le propos est
+// « ces en-têtes sont vrais, vérifiez ». À 360 px la marginalia passe à sept
+// lignes et le défaut se multiplie.
+// Aucun pas ne rattrape ça : même accordé au 20,48 px du xs, la PHASE dépendrait
+// de la hauteur du `<pre>`, qui varie avec son contenu — et la caler demanderait
+// un décalage littéral, interdit par G7. La règlure est donc retirée plutôt que
+// bricolée, ce qui rejoint le plan arrêté : cette pièce est dessinée « en type et
+// filets seulement ». Le vocabulaire de carnet reste porté par le filet de bord,
+// la marge de `.marginalia` et le trait du cartel.
+.piece {
+  display: grid;
+  gap: var(--espace-3);
+
+  // `<figure>` porte une marge par défaut de 1em 40px dans tous les navigateurs.
+  margin: 0;
+  padding: var(--espace-3);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  background-color: var(--couleur-surface-creuse);
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+// Le bloc de preuve, posé sur le feuillet. `overflow-x: auto` est ICI et nulle
+// part ailleurs : le texte défile dans son propre cadre, la page ne bouge pas.
+.extrait {
+  overflow-x: auto;
+  margin: 0;
+  padding: var(--espace-2);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  background-color: var(--couleur-surface);
+  color: var(--couleur-encre);
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+// L'annotation en marge — le geste du carnet : un trait dans la marge, une note
+// plus petite que le corps. Trait NEUTRE : l'encre rouge reste la signature
+// « vulnérable » du site et ne sert jamais d'ornement.
+.marginalia {
+  @include m.marge-carnet;
+
+  padding-inline-start: var(--espace-2);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+}
+
+// Le cartel, au sens muséal : ce qu'on lit en sortant, la main déjà sur les
+// outils de développement. Un filet le sépare de la pièce.
+.cartel {
+  padding-block-start: var(--espace-2);
+  border-block-start: var(--filet-fin) solid var(--couleur-filet);
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-xs);
+
+  @include m.contraste-force {
+    border-block-start-color: CanvasText;
+  }
+}

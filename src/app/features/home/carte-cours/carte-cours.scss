@@ -1,0 +1,102 @@
+// =============================================================================
+// CarteCours — encart de carnet, direction « Carnet de laboratoire »
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+//
+// CONFINEMENT DES CONTRASTES (plan d'E1-ST3, décision 2). Cette carte ne se pose
+// que sur `--couleur-surface-creuse`, et n'y emploie QUE des encres dont la paire
+// avec ce fond est déjà mesurée par `tools/design/verifier-contrastes.mjs`
+// (`encre`, `encre-tertiaire`, `accent`, `filet`, `filet-fort`, `focus`).
+// `--couleur-surface-elevee` est écarté : il n'est mesuré que sur quatre paires,
+// dont aucune avec un filet ou un accent. Zéro paire nouvelle introduite ici.
+//
+// SEULE NUANCE, et elle est bornée : le survol d'un lien vient de la règle
+// globale `a:hover` (`src/styles.scss`), donc `--couleur-accent-survol` sur
+// `--couleur-surface-creuse` — combinaison absente de la table de mesure, mais
+// déjà servie aujourd'hui par le lien de retour de la page 404. Elle est sûre par
+// construction dans les deux thèmes : en clair le survol est PLUS SOMBRE que
+// l'accent sur un fond clair, en sombre il est PLUS CLAIR sur un fond sombre —
+// dans les deux cas le contraste ne peut que monter par rapport à la paire
+// mesurée. Ce n'est pas une mesure, c'est une borne ; à faire entrer dans la
+// table le jour où l'accent survolé sert de couleur au repos quelque part.
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+.carte {
+  // G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
+  // (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien, et
+  // deviennent rigoureusement identiques en contraste forcé.
+  border: var(--filet-fin) solid var(--couleur-filet);
+
+  // Marge NEUTRE (défaut `--couleur-filet-fort`) : l'encre rouge est la signature
+  // sémantique « vulnérable » du site, elle ne sert jamais d'ornement.
+  @include m.marge-carnet;
+
+  padding: var(--espace-4) var(--espace-3);
+  background-color: var(--couleur-surface-creuse);
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+// Le tampon « chantier ». WCAG 1.4.1 : l'avertissement ne passe PAS par la
+// couleur — il est porté par les mots eux-mêmes, la casse et la chasse. La
+// couleur reste une encre neutre, précisément pour ne pas emprunter à la gamme
+// sémantique (rouge = vulnérable) une charge qui n'a rien à voir.
+.chantier {
+  margin-block-end: var(--espace-2);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+.titre {
+  margin-block-end: var(--espace-2);
+}
+
+.description {
+  margin-block-end: var(--espace-3);
+  color: var(--couleur-encre);
+}
+
+// L'appel à l'action — le SEUL élément focalisable neuf de l'accueil.
+// Dessiné comme un tampon encadré plutôt que comme un aplat de couleur : c'est
+// le vocabulaire du carnet, et ça évite le bouton plein interchangeable que les
+// garde-fous G1/G2 proscrivent.
+.cta {
+  display: inline-flex;
+  align-items: center;
+
+  // Cible confortable (WCAG 2.2 · 2.5.8 exige 24 px ; la barre du projet est
+  // 44 px) : `--espace-6` vaut 3rem = 48 px, comme les liens de l'en-tête.
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-3);
+  border: var(--filet-moyen) solid var(--couleur-accent);
+  color: var(--couleur-accent);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-decoration: none;
+  text-transform: uppercase;
+
+  @include m.focus-visible;
+
+  &:hover {
+    border-color: currentcolor;
+  }
+
+  @include m.contraste-force {
+    border-color: LinkText;
+  }
+}

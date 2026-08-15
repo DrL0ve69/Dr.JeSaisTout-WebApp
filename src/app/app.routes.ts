@@ -1,9 +1,18 @@
 // =============================================================================
-// Les routes publiques du site — E1-ST2
+// Les routes publiques du site — E1-ST2, mises à jour par E1-ST3
 // -----------------------------------------------------------------------------
-// Quatre routes, toutes servies par deux composants de coquille (`PageAVenir`,
-// `PageIntrouvable`) : E1-ST2 livre la STRUCTURE, pas le contenu. La vraie
-// accueil est E1-ST3, le moteur de contenu est E2.
+// Quatre routes. `/` est désormais la VRAIE page d'accueil (`Accueil`, E1-ST3) ;
+// `PageAVenir` ne sert plus qu'au sommaire du cours, en attendant le moteur de
+// contenu (E2), et `PageIntrouvable` sert les deux entrées de la 404.
+//
+// POURQUOI `Accueil` EST IMPORTÉE DIRECTEMENT, sans `loadComponent`. Le site est
+// entièrement prerendu (`outputMode: "static"`) : le HTML de `/` est déjà écrit
+// dans le fichier servi, et le seul rôle du JavaScript y est l'hydratation. Rendre
+// paresseuse la route d'ENTRÉE ajouterait un aller-retour réseau supplémentaire
+// avant cette hydratation, sur la page la plus visitée du site, pour n'économiser
+// aucun octet à personne — le fragment serait demandé dans la foulée du bundle
+// principal, toujours. Le découpage paresseux redeviendra le bon geste en E2, où
+// les routes de leçon sont nombreuses et rarement toutes visitées.
 //
 // AUCUNE ROUTE PARAMÉTRÉE EN E1 : `cours/securite-web/:slug` a été retirée de ce
 // lot — elle ne pouvait qu'être servie par `404/index.html` (statut 404) puis
@@ -20,7 +29,11 @@
 // rappel dans l'en-tête de `PageAVenir`) : ces routes alimentent le composant par
 // `data`, qu'il lit lui-même sur `ActivatedRoute.snapshot`.
 //
-// LES `data.titre` NE SONT PAS FACULTATIFS. `PageAVenir.titre()` LÈVE une
+// LES `data.titre` NE SONT PAS FACULTATIFS — POUR LES ROUTES DE `PageAVenir`.
+// `Accueil`, elle, écrit son `<h1>` dans son propre gabarit : le bloc `data` de la
+// route `/` a été RETIRÉ avec E1-ST3 plutôt que laissé à ne servir personne (du
+// code mort silencieux, que la revue suivante prendrait pour un contrat).
+// `PageAVenir.titre()` LÈVE une
 // exception si `data.titre` manque, est vide, ou n'est pas une chaîne — donc le
 // prerender de la route fautive fait échouer `npm run build` au lieu de livrer un
 // `<h1>` vide en silence. `app.routes.spec.ts` tient la même promesse côté tests,
@@ -51,18 +64,13 @@ import { Routes } from '@angular/router';
 
 import { PageAVenir } from './core/layout/page-a-venir/page-a-venir';
 import { PageIntrouvable } from './core/layout/page-introuvable/page-introuvable';
+import { Accueil } from './features/home/accueil';
 
 export const routes: Routes = [
   {
     path: '',
-    component: PageAVenir,
+    component: Accueil,
     title: 'Dr. Je-Sais-Tout — cours public de sécurité des applications web',
-    data: {
-      titre: 'Dr. Je-Sais-Tout',
-      description:
-        'Un cours public et gratuit sur la sécurité des applications web — treize modules, ' +
-        'de l’injection à la gestion des sessions.',
-    },
   },
   {
     path: 'cours/securite-web',
