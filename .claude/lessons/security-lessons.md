@@ -79,3 +79,94 @@ S'applique au-delà de ce script — candidat direct : tout futur validateur du 
 Markdown/JSON de `content/` (E2), qui analysera lui aussi une entrée non fiable par motif.
 **Réfs.** `tools/deploiement/generer-config-swa.mjs`, `.claude/rules/security.md` §1,
 `docs/agile/backlog-phase-1.md` (lot autonome à inscrire).
+
+## S-004 · Une config de déploiement qui NOMME un chemin doit prouver qu'il existe dans l'artéfact (A05 · fail-open)
+
+**Symptôme.** `config/staticwebapp.config.source.json` pointait `responseOverrides.404` vers
+`/404/index.html` sans que rien ne vérifie la présence de ce fichier dans l'artéfact bâti —
+`generer-config-swa.mjs` se contentait d'un `JSON.parse`. La route `404` d'`app.routes.ts` paraît
+redondante à côté du fallback `**`, donc un « nettoyage » plausible aurait fait pointer la config
+dans le vide **sans qu'aucun gate ne rougisse** : Azure SWA serait retombé, en silence, sur sa page
+d'erreur de marque.
+**Règle.** Traiter toute cible de `rewrite`/`redirect`/`responseOverrides` d'une config de
+déploiement comme une **assertion à valider au build**, jamais comme une donnée : vérifier
+l'existence du fichier référencé dans l'artéfact produit, code 1 sinon. Un défaut de cette classe
+est un **fail-open** — une config qui échoue en silence vers le comportement de repli du
+fournisseur plutôt que de casser le build.
+**Réfs.** `tools/deploiement/generer-config-swa.mjs`, `config/staticwebapp.config.source.json`,
+`docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-005 · Un défaut de framework peut injecter des scripts inline sous une CSP stricte, et seulement quand la page devient interactive (A05 · fail-open de portée)
+
+**Symptôme.** Le build est sorti rouge sur E1-ST2 : la sortie prerendue portait trois scripts inline
+au lieu d'un attendu. `provideClientHydration()` d'Angular 22 active **par défaut**
+`withIncrementalHydration()`, qui embarque `withEventReplay()` — lequel injecte
+`ng-event-dispatch-contract` et `window.__jsaction_bootstrap(…)`, mais **seulement une fois que la
+page porte de vrais écouteurs** (`click`/`change` — la bascule de thème d'E1-ST2). E1-ST1 avait
+validé une CSP « propre » sur un site sans le moindre élément interactif : la vérification était
+juste, son **périmètre** ne l'était pas.
+**Règle.** Une CSP validée sur une page non interactive ne prouve rien sur une page qui le devient —
+revalider dès qu'un lot ajoute le premier écouteur d'événement. Face à un défaut de framework qui
+injecte des scripts inline, préférer **désactiver le mécanisme** (`withNoIncrementalHydration()`,
+seule API publique ici) plutôt qu'apprendre au garde-fou à hacher automatiquement N scripts inline :
+une liste blanche **dérivée de l'artéfact** cesse d'être une liste **nominative et revue** — elle
+autoriserait alors tout script qu'une future version du framework y injecterait, sans regard humain.
+À rapprocher de [[S-003]] (garde-fou qui doit prouver avoir tout vu).
+**Réfs.** `src/app/app.config.ts`, `docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-006 · Tout fichier présent dans l'artéfact est servable, qu'un plan de routage le mentionne ou non (A05 · exclusion d'audit sur motif faux)
+
+**Symptôme.** `dist/dr-je-sais-tout/browser/index.csr.html` (coquille de rendu client vide, ni
+`<main>` ni `<h1>`) répondait 200 en production et avait été écarté de l'audit d'accessibilité au
+motif que `navigationFallback` le couvrirait — motif **faux** : `navigationFallback` ne se déclenche
+que sur un fichier **absent**, jamais sur un fichier qui existe et répond déjà. Cette exclusion a
+survécu à une revue précédente parce qu'elle citait un mécanisme réel, mal appliqué. Conséquence
+associée découverte en corrigeant : avant retrait de `navigationFallback`, **toute** URL inconnue
+sous le domaine renvoyait 200 avec la page d'accueil légitime — support de hameçonnage clé en main
+(`https://<site>/facture-impayee/`), jamais identifié comme exposition avant ce lot.
+**Règle.** La présence d'un fichier dans l'artéfact bâti, seule, décide s'il est servable — un plan
+de routage applicatif (`app.routes.ts`) ne le couvre pas. Toute exclusion d'audit doit nommer le
+**mécanisme exact** qui la justifie et être vérifiée contre son comportement réel (fichier absent vs
+présent), pas seulement contre son nom. Fermé ici par redirection 301 sur `index.csr.html` et retrait
+de `navigationFallback`.
+**Réfs.** `config/staticwebapp.config.source.json`, `docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-007 · Isoler un secret protège le jeton, pas l'artéfact — ce sont deux mesures distinctes (A08 · chaîne d'approvisionnement CI/CD)
+
+**Symptôme.** `deploy.yml` faisait tourner tous les gates **et** la publication dans un seul job.
+Le gate d'accessibilité (`playwright install --with-deps chromium`) exécute un binaire téléchargé
+d'un CDN, hors du contrôle d'intégrité de `package-lock.json`, avec les droits root du runner —
+donc du code non épinglé s'exécutait sur la machine détenant
+`AZURE_STATIC_WEB_APPS_API_TOKEN`. Scinder le workflow en deux jobs (`gates` sans secret →
+`publication` qui téléverse) n'a fermé que la **moitié** du problème : dans `gates`, ce même code
+téléchargé s'exécute toujours entre le build de `dist/` et son envoi au job suivant, et peut le
+réécrire — y compris `staticwebapp.config.json`, qui porte la CSP.
+**Règle.** Traiter « ne pas exposer le jeton » et « ne pas laisser un binaire tiers modifier
+l'artéfact » comme **deux propriétés indépendantes, chacune avec sa propre mesure** : (1) un gate
+qui exécute du code téléchargé ne partage jamais le job qui détient un jeton de publication ; (2)
+sceller l'artéfact par empreintes `sha256` juste après le build et revérifier juste avant le
+téléversement, indépendamment de qui détient le jeton. Généralise au-delà de Playwright : tout
+outil de gate qui télécharge un binaire dans une chaîne de publication.
+**Réfs.** `.github/workflows/deploy.yml`, `.claude/rules/security.md` §1/§3,
+`docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-008 · Un `exit 0` sur chemin d'erreur rend une vérification verte sans qu'elle ait tourné (A05 · fail-open assumé dans le code)
+
+**Symptôme.** Les étapes de vérification en ligne de `deploy.yml` (en-têtes servis, routage
+404/301) commençaient par : si l'URL du site déployé n'est pas fournie par l'action de
+déploiement, émettre `::warning::` puis **`exit 0`**. Un simple renommage de sortie côté action
+tierce suffisait à rendre les deux vérifications vertes **sans rien vérifier**, juste après un
+déploiement réel — alors qu'elles sont le seul filet constatant la CSP et le routage sur le site
+publié. Corrigé en `::error::` + `exit 1`. Correctif connexe dans le même lot : la vérification
+n'exigeait que la **présence** des en-têtes, jamais la valeur des directives (une CSP servie mais
+permissive passait) ; elle exige désormais `object-src 'none'`, `base-uri 'self'`,
+`frame-ancestors 'none'`, `upgrade-insecure-requests`, un `max-age` HSTS, et refuse
+`unsafe-inline`/`unsafe-eval`/`strict-dynamic`.
+**Règle.** Distinct de [[S-003]]/[[S-004]] (le garde-fou ne voit pas tout) : ici le garde-fou peut
+ne **pas tourner du tout**, par un `exit 0` écrit exprès sur un chemin d'erreur. Toute
+vérification post-déploiement dont une précondition peut manquer doit échouer fail-closed
+(`exit 1`) sur cette précondition, jamais réussir silencieusement — un input absent n'est jamais
+une preuve d'absence de faille. Et une vérification de sécurité qui contrôle la présence d'un
+header sans contrôler la valeur de ses directives ne vérifie rien de mordant.
+**Réfs.** `.github/workflows/deploy.yml`, `.claude/rules/security.md` §1,
+`docs/agile/backlog-phase-1.md` §E1-ST2.

@@ -40,13 +40,19 @@ import { join } from 'node:path';
 const PROGRAMMES_ANGULAR = ['tsconfig.app.json', 'tsconfig.spec.json'] as const;
 
 /**
- * Le programme NODE : l'outillage de build (`tools/`), lancé par des scripts npm
- * et par personne d'autre. Il ne voit ni Angular ni le DOM — lui exiger des
- * options du compilateur Angular ferait rougir des assertions sans qu'aucun
- * défaut n'existe. D'où la séparation ci-dessous : la rigueur TypeScript vaut
- * pour TOUT le dépôt, la rigueur Angular seulement là où Angular compile.
+ * Les programmes NODE : l'outillage de build (`tools/`, lancé par des scripts npm
+ * et par personne d'autre) et les tests de bout en bout (`e2e/`, lancés par
+ * Playwright). Ni l'un ni l'autre ne voit Angular — leur exiger des options du
+ * compilateur Angular ferait rougir des assertions sans qu'aucun défaut n'existe.
+ * D'où la séparation ci-dessous : la rigueur TypeScript vaut pour TOUT le dépôt,
+ * la rigueur Angular seulement là où Angular compile.
+ *
+ * `tsconfig.e2e.json` est arrivé ici APRÈS COUP, et c'est le fait notable : il
+ * était câblé dans les deux workflows sans qu'aucune assertion ne le couvre —
+ * L-014 rejouée à l'identique, un cran plus loin. Ses six options de rigueur ne
+ * tenaient qu'à leur présence dans le fichier, et son périmètre à rien du tout.
  */
-const PROGRAMMES_NODE = ['tsconfig.tools.json'] as const;
+const PROGRAMMES_NODE = ['tsconfig.tools.json', 'tsconfig.e2e.json'] as const;
 
 const PROGRAMMES = [...PROGRAMMES_ANGULAR, ...PROGRAMMES_NODE] as const;
 
@@ -246,6 +252,94 @@ describe('rigueur du compilateur', () => {
         // l'assertion échouerait ici sur un fichier pourtant correct.
         expect(contenu).toContain(`- name: ${NOM_ETAPE}`);
         expect(contenu).toMatch(new RegExp(`^[ \\t]+run: npm run ${SCRIPT_NPM}\\r?$`, 'm'));
+      });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Le programme de bout en bout — L-014, exactement la même panne, un cran plus loin
+  // ---------------------------------------------------------------------------
+  // `tsconfig.e2e.json` reproduisait trait pour trait la situation qui a produit
+  // L-014 : un tsconfig rigoureux, un script npm, les DEUX workflows qui
+  // l'appellent — et rien, nulle part, qui asserte ce qu'il vérifie RÉELLEMENT.
+  // Vider ou repointer son `include` laisse `tsc -p tsconfig.e2e.json` sortir en 0
+  // sur ZÉRO fichier : les cinq specs qui portent tout le clavier, tout le focus et
+  // la seule mesure de CSP à l'exécution du dépôt cesseraient d'être typés sans
+  // qu'aucun run ne rougisse. Le bloc ci-dessous est calqué sur celui du programme
+  // outillage, pour la même raison et avec la même exigence de bout en bout : le
+  // périmètre est épinglé NOMMÉMENT, le script npm vise bien ce tsconfig, et les
+  // deux workflows appellent bien ce script.
+  //
+  // Tout se lit AU DISQUE (L-012) : `package.json` et les `.yml` sont précisément
+  // les fichiers qu'aucune compilation de ce spec ne touche.
+  describe('câblage du programme de bout en bout', () => {
+    const PROGRAMME_E2E = 'tsconfig.e2e.json';
+    const SCRIPT_TYPAGE = 'typecheck:e2e';
+    const SCRIPT_SUITE = 'e2e';
+    const WORKFLOWS = ['ci.yml', 'deploy.yml'] as const;
+    const NOM_ETAPE = 'G-e2e';
+
+    /**
+     * Le périmètre attendu, à l'unité près. `playwright.config.ts` en fait partie :
+     * il vit à la racine, donc hors de `src/` et de `tools/` — sans ce programme,
+     * le fichier qui décide QUEL SERVEUR sert l'artéfact ne serait vérifié par
+     * personne (L-008).
+     *
+     * Le compte est épinglé lui aussi : un sixième spec ajouté demain fait rougir
+     * cette ligne, et c'est voulu. Inscrire un spec ici coûte une ligne ; ne pas
+     * l'inscrire coûterait la découverte, dans six mois, qu'un fichier entier
+     * échappait au typage.
+     */
+    const FICHIERS_EPINGLES = [
+      'e2e/bascule-theme.spec.ts',
+      'e2e/cibles-pointeur.spec.ts',
+      'e2e/focus-visible.spec.ts',
+      'e2e/navigation-clavier.spec.ts',
+      'e2e/skip-link.spec.ts',
+      'playwright.config.ts',
+    ] as const;
+
+    const { rootNames } = readConfiguration(join(process.cwd(), PROGRAMME_E2E));
+    const normalises = rootNames.map((chemin) => chemin.replace(/\\/g, '/'));
+
+    for (const fichier of FICHIERS_EPINGLES) {
+      it(`compile réellement ${fichier}`, () => {
+        expect(normalises.filter((chemin) => chemin.endsWith(`/${fichier}`))).toHaveLength(1);
+      });
+    }
+
+    it('ne compile RIEN d’autre que ces fichiers', () => {
+      // L'assertion miroir des précédentes : elles interdisent qu'un fichier
+      // épinglé disparaisse du programme, celle-ci interdit qu'un fichier y entre
+      // sans être épinglé — donc sans que personne ait constaté qu'il est typé.
+      expect(normalises).toHaveLength(FICHIERS_EPINGLES.length);
+    });
+
+    it(`expose un script npm « ${SCRIPT_TYPAGE} » qui vise ce programme`, () => {
+      const manifeste: { scripts?: Record<string, string> } = JSON.parse(
+        readFileSync(join(process.cwd(), 'package.json'), 'utf8'),
+      );
+      expect(manifeste.scripts?.[SCRIPT_TYPAGE] ?? '').toContain(PROGRAMME_E2E);
+    });
+
+    it(`le script « ${SCRIPT_SUITE} » type les specs AVANT de les exécuter`, () => {
+      // Playwright transpile sans vérifier : lancer `playwright test` seul ferait
+      // du typage un gate facultatif, que personne n'exécuterait jamais. C'est
+      // l'enchaînement qui le rend obligatoire, et c'est donc lui qu'on épingle.
+      const manifeste: { scripts?: Record<string, string> } = JSON.parse(
+        readFileSync(join(process.cwd(), 'package.json'), 'utf8'),
+      );
+      expect(manifeste.scripts?.[SCRIPT_SUITE] ?? '').toContain(`npm run ${SCRIPT_TYPAGE}`);
+    });
+
+    for (const workflow of WORKFLOWS) {
+      it(`est appelé par ${workflow}`, () => {
+        const contenu = readFileSync(join(process.cwd(), '.github', 'workflows', workflow), 'utf8');
+        // La commande vit dans un bloc `run: |` multiligne (l'étape installe
+        // d'abord chromium) : on ancre donc la LIGNE, pas la directive `run:`.
+        // `\r?$` parce que les `.yml` du dépôt sont en CRLF (L-015).
+        expect(contenu).toContain(`- name: ${NOM_ETAPE}`);
+        expect(contenu).toMatch(new RegExp(`^[ \\t]+npm run ${SCRIPT_SUITE}\\r?$`, 'm'));
       });
     }
   });

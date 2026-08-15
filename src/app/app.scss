@@ -1,75 +1,105 @@
-// Page « bientôt » (E0-ST4) — PROVISOIRE. La vraie home est E1-ST3.
-//
-// Ce qui a changé en E1-ST1-A : les custom properties locales et les valeurs
-// littérales ont disparu. Ce fichier ne contient plus AUCUNE couleur, taille ou
-// distance en dur (garde-fou G7) — uniquement des jetons sémantiques et des
-// mixins. C'est aussi le premier consommateur réel du design system, donc sa
-// première vérification en situation.
+// =============================================================================
+// Coquille applicative — layout seulement (E1-ST2)
+// -----------------------------------------------------------------------------
+// Ce fichier portait la page « chantier » d'E0-ST4. Tout son vocabulaire visuel
+// (tampon, encart réglé, filet) a migré dans `core/layout/page-a-venir/
+// page-a-venir.scss`, où il appartient : la coquille ne rend aucun contenu, elle
+// place l'en-tête, le contenu et le pied.
 //
 // ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
 // `:root`) : un style de composant est une unité de compilation séparée, il
 // dupliquerait tous les jetons dans son propre CSS.
 //
-// Écart assumé restant : G3 (typographie). Les piles sont système jusqu'à
-// E1-ST1-B, qui auto-hébergera Fraunces + Inter derrière --police-titres /
-// --police-corps sans qu'une ligne d'ici ne bouge.
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+// =============================================================================
 
 @use '../styles/mixins' as m;
 
+// La grille de coquille. `1fr` sur la rangée du milieu + `100dvh` de hauteur
+// minimale = le pied de page reste EN BAS DE L'ÉCRAN sur une page courte (la 404,
+// notamment) sans jamais être poussé hors de vue sur une page longue. C'est aussi
+// la raison pour laquelle `page-a-venir.scss` a délibérément abandonné le
+// `min-height: 100dvh` de l'ancienne page : deux plein-écrans empilés
+// repousseraient le pied sous la ligne de flottaison à chaque route.
+//
+// Le lien d'évitement est `position: fixed`, donc hors flux : il ne crée aucune
+// rangée et les trois rangées correspondent bien à en-tête / contenu / pied.
 :host {
-  display: block;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   min-height: 100dvh;
 }
 
-.page {
-  display: flex;
+// -----------------------------------------------------------------------------
+// Lien d'évitement (WCAG 2.4.1 · 2.4.7 · 2.4.11 · 2.5.8)
+// -----------------------------------------------------------------------------
+// LA TECHNIQUE DE MASQUAGE EST LE POINT DÉLICAT. `display: none` et
+// `visibility: hidden` retireraient le lien de l'ordre de tabulation : il ne
+// pourrait plus jamais recevoir le focus, donc plus jamais se montrer — un lien
+// d'évitement qui n'évite rien. `clip-path: inset(50%)` le rend invisible tout en
+// le laissant focalisable, et il n'occupe aucune place grâce à `position: fixed`.
+//
+// `fixed` plutôt qu'`absolute` : le lien réapparaît alors au coin de la FENÊTRE,
+// pas à celui du document. Un visiteur qui remonte au premier élément focalisable
+// depuis le bas d'une longue page le verrait, là où un `absolute` l'aurait
+// affiché tout en haut du document, hors écran (2.4.11, focus non masqué).
+//
+// Révélé sur `:focus` et non sur `:focus-visible` : au clavier les deux
+// coïncident, mais un focus reçu autrement (script, clic) doit AUSSI se voir —
+// un lien focalisé et invisible est pire que pas de lien. L'anneau est dessiné
+// dans le même état, sans quoi le lien apparaîtrait sans indicateur de focus.
+.lien-evitement {
+  position: fixed;
+  // Pas de jeton d'empilement dans le design system (il n'y avait aucun
+  // composant superposé jusqu'ici) : `1` suffit à passer devant l'en-tête, seul
+  // élément qu'il puisse recouvrir. À remplacer par un jeton le jour où une
+  // deuxième couche apparaît (menu, modale).
+  z-index: 1;
+  inset-block-start: var(--espace-2);
+  inset-inline-start: var(--espace-2);
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 100dvh;
-  padding: var(--espace-4) var(--espace-3);
-}
 
-.carnet {
-  @include m.reglure;
-
-  // Marge NEUTRE (défaut `--couleur-filet-fort`) : cette page ne parle de rien de
-  // vulnérable, et l'encre rouge est réservée à la signature sémantique du site.
-  @include m.marge-carnet;
-
-  max-width: var(--largeur-lecture);
-  padding: var(--espace-4) var(--espace-3);
-  background-color: var(--couleur-surface-creuse);
-
-  // Le contour de l'encart est porté par --couleur-filet (mesuré à 3:1), jamais
-  // par la seule différence de teinte des deux fonds : deux surfaces voisines ne
-  // suffisent pas à délimiter un bloc, et disparaissent en contraste forcé.
-  border: var(--filet-fin) solid var(--couleur-filet);
-}
-
-.tampon {
-  margin-block-end: var(--espace-2);
-  color: var(--couleur-danger-vuln);
+  // Cible confortable (WCAG 2.2 · 2.5.8 exige 24 px ; la barre du projet est
+  // 44 px) : `--espace-6` vaut 3rem = 48 px, comme les liens de l'en-tête.
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-3);
+  border: var(--filet-moyen) solid var(--couleur-encre);
+  border-radius: var(--rayon-net);
+  background-color: var(--couleur-surface-elevee);
+  color: var(--couleur-encre);
   font-size: var(--taille-xs);
   font-weight: var(--graisse-tampon);
   letter-spacing: var(--chasse-tampon);
+  text-decoration: none;
   text-transform: uppercase;
+
+  // Invisible au repos, mais toujours dans l'ordre de tabulation.
+  clip-path: inset(50%);
+
+  &:focus {
+    clip-path: none;
+
+    @include m.focus-visible-dessine;
+  }
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
 }
 
-.titre {
-  margin-block-end: var(--espace-2);
-}
-
-.accroche {
-  font-size: var(--taille-m);
-}
-
-// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`) :
-// il n'y a ici que le rythme vertical.
-.reglure {
-  margin-block: var(--espace-4);
-}
-
-.note {
-  color: var(--couleur-encre-tertiaire);
-  font-size: var(--taille-xs);
+// -----------------------------------------------------------------------------
+// Contenu
+// -----------------------------------------------------------------------------
+// Le `<main>` ne fixe NI largeur NI rembourrage : chaque page décide de sa mesure
+// (`page-a-venir.scss` se borne à `--largeur-lecture` et se centre lui-même).
+// Imposer ici une largeur obligerait une future page pleine largeur — un schéma
+// de leçon, une simulation — à la défaire.
+//
+// `min-inline-size: 0` : un élément de grille a `min-width: auto` par défaut, ce
+// qui l'empêche de descendre sous la largeur de son contenu. Un bloc de code long
+// ou un tableau de leçon ferait alors déborder la PAGE entière à l'horizontale au
+// lieu de défiler dans son propre cadre (WCAG 1.4.10, redistribution).
+main {
+  min-inline-size: 0;
 }

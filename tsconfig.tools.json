@@ -81,7 +81,14 @@
   // `generer-config-swa.mjs`. Ce fichier-là est épinglé par le spec de
   // configuration, qui lit les `rootNames` résolus : la vider laisserait
   // `allowJs`/`checkJs` à true et `tsc` sortirait en 0 sur zéro fichier (L-005).
+  //
+  // `tools/a11y/verifier-axe.mjs` entre ici DANS LE MÊME DIFF que sa création : un
+  // outil neuf non listé serait hors de toute vérification de types, et c'est
+  // exactement le trou que ce programme a été créé pour fermer. Il manipule un DOM
+  // jsdom sans que `lib: DOM` soit ajoutée — la frontière tient, sa surface jsdom
+  // est déclarée en JSDoc à l'endroit où il l'obtient.
   "include": [
+    "tools/a11y/verifier-axe.mjs",
     "tools/deploiement/generer-config-swa.mjs",
     "tools/kb-search.mjs",
     "eslint.config.js"

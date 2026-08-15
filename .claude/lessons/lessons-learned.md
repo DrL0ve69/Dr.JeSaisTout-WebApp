@@ -209,6 +209,13 @@ rouge ou vert ne dit rien tant que l'entrée du test n'est pas vérifiée.
 **Réfs.** `src/init-theme.spec.ts` ; `tools/deploiement/generer-config-swa.mjs` ;
 `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
 
+**Addendum (E1-ST2).** Même piège sur un fichier aux en-têtes nourris (norme de ce dépôt) : une
+mutation ciblant `skip(1)` a frappé son occurrence dans le **commentaire d'en-tête** du fichier
+(cité deux fois avant la ligne de code) plutôt que le code lui-même — le gate semblait ne pas
+mordre alors qu'il n'avait rien à mordre. Sur ce dépôt en particulier, une mutation par regex doit
+ancrer l'indentation ou une position de ligne de code, jamais la seule chaîne, précisément parce que
+les en-têtes de commentaire répètent souvent les identifiants du code qui suit.
+
 ---
 
 ## L-011 · Les commentaires de `src/index.html` sont servis à chaque visiteur
@@ -322,6 +329,173 @@ configuration, et tout générateur qui hache du contenu texte.
 
 **Réfs.** `.github/workflows/ci.yml` ; `tools/deploiement/generer-config-swa.mjs` ;
 `src/init-theme.spec.ts` ; branche `chore/tsconfig-strict`.
+
+---
+
+## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
+
+**Symptôme.** Sur E1-ST2 (layout & navigation), le même motif est apparu **cinq fois dans un seul
+diff** : `gestion-focus-route.ts` invoquait « `gestion-focus-route.spec.ts` vérifie l'absence
+d'appel côté serveur … sans cette assertion les tests resteraient verts gardes retirées (L-005) »
+— le spec **n'existait pas**, et le service (cœur WCAG 2.4.3 du lot) n'avait aucun test ;
+`app.routes.ts`/`app.spec.ts` renvoyaient à `app.routes.spec.ts`, **inexistant** ; `app.routes.server.ts`
+renvoyait à `docs/deployment.md` §« La 404 est un vrai fichier », **section inexistante** ; le gate
+axe se déchargeait ×4 sur « la checklist manuelle d'E1-ST2 », **inexistante**, et ×4 sur « Playwright,
+inscrit en dette », **inscrit nulle part**. Chaque citation empruntait la crédibilité d'un vrai
+mécanisme (jusqu'à citer L-005 elle-même) sans le fournir.
+
+**Règle.** Tout chemin de fichier, section de doc, ou nom de test cité dans un commentaire **doit
+exister au moment du commit** — vérifier avant d'écrire la phrase, pas après. C'est la généralisation
+de [[L-008]] (une contrepartie qui n'existe qu'en commentaire ne protège rien) : ici la contrepartie
+se fait passer pour vérifiable en nommant une cible précise, ce qui la rend *plus* dangereuse, pas
+moins. Signal pour `.claude/rules/` : ce geste est mécanisable (grep des chemins cités dans les
+commentaires vs présence au disque) et mériterait un hook ou un gate dédié plutôt que de rester une
+vigilance de revue.
+
+**Réfs.** `src/app/core/layout/gestion-focus-route.ts` ; `src/app/app.routes.ts` ; `src/app/app.spec.ts` ;
+`src/app/app.routes.server.ts` ; `tools/a11y/verifier-axe.mjs` ; branche `feat/e1-st2-layout-navigation`.
+
+---
+
+## L-017 · Un octet NUL dans un fichier source le rend « binaire » pour grep/ripgrep, qui le sautent EN SILENCE
+
+**Symptôme.** `tools/a11y/verifier-axe.mjs` (757 lignes, exécuté en CI **et** au déploiement)
+contenait deux U+0000 bruts dans une clé de tri. Conséquence : le fichier sortait du balayage
+textuel exigé par `.claude/rules/security.md` §2 (recherche de secrets, gitleaks) — et le symptôme
+était trompeur, `grep`/ripgrep répondant « binary file … matches » au lieu d'afficher la ligne
+cherchée, ce qui invite à conclure « rien trouvé » plutôt que « fichier ignoré ». Git le voyait
+encore comme du texte (le NUL était au-delà de sa fenêtre de détection de 8 000 octets), donc les
+diffs de PR restaient lisibles et ne signalaient rien.
+
+**Règle.** Un « binary file matches » ou l'absence totale de correspondance sur un fichier `.mjs`/`.ts`
+qu'on sait volumineux mérite un second regard (`Select-String -Encoding` explicite, ou inspection
+hexadécimale) avant de conclure à une absence de secret. Cousine de [[L-005]] sur un axe matériel :
+la vérification tournait, elle ne *voyait* simplement pas le fichier — un octet NUL est aussi
+invisible à `grep` qu'une porte de sortie silencieuse l'est à un statut de CI.
+
+**Réfs.** `tools/a11y/verifier-axe.mjs` ; `.claude/rules/security.md` §2 ; branche `feat/e1-st2-layout-navigation`.
+
+---
+
+## L-018 · Une assertion de « non-lecture » (ex. aucun paramètre d'URL lu) ne prouve que ce que le gabarit rend, pas ce que le code lit
+
+**Symptôme.** `page-a-venir.spec.ts` affirmait « le composant ne lit AUCUN paramètre d'URL ». Une
+mutation ajoutant un `computed()` qui lisait `paramMap` **sans l'afficher** dans le gabarit laissait
+le test **vert** ; il n'est devenu rouge qu'une fois la valeur effectivement rendue à l'écran. Le
+périmètre réel de l'assertion était donc « la valeur atteint le rendu », pas « le fichier ne
+référence pas `paramMap` » — la lenteur du signal vient de la **paresse d'Angular** (un `computed()`
+non consommé n'est jamais évalué), pas d'un test complaisant.
+
+**Règle.** Nommer ce type d'assertion pour ce qu'il vérifie réellement (« rien de dérivé de l'URL
+n'apparaît dans le rendu »), pas pour une propriété plus large qu'il ne couvre pas. Si l'intention
+est vraiment « aucune lecture de `paramMap` dans le code », c'est une recherche statique
+(grep/AST), pas un test de rendu. Prolonge [[L-012]] (le test doit lire le contrat à sa vraie
+source) sur un piège inverse : ici la source existe bien dans le composant, mais un signal Angular
+non consommé ne se propage jamais jusqu'au point que le test observe.
+
+**Réfs.** `src/app/**/page-a-venir.spec.ts` ; branche `feat/e1-st2-layout-navigation`.
+
+---
+
+## L-019 · Une sonde qui COLLECTE des événements a besoin d'un contrôle POSITIF, pas seulement d'un tableau vide
+
+**Symptôme.** Le spec censé prouver « zéro violation CSP » accumulait les événements
+`securitypolicyviolation` dans un tableau et exigeait qu'il soit vide. Si l'abonnement à
+l'événement n'était jamais posé (mauvais objet, mauvaise page, écouteur retiré trop tôt), le
+tableau restait vide **pour la mauvaise raison**, et le test passait vert en ne mesurant rien.
+Trouvé indépendamment par la revue de code et la revue de sécurité.
+
+**Règle.** Toute assertion de type « aucun événement reçu » doit être accompagnée d'un cas qui
+**provoque volontairement** l'événement et exige qu'il soit vu — sinon le test ne prouve que
+l'absence de crash, pas l'absence du symptôme. Même famille que [[L-010]] (un test de mutation
+doit vérifier qu'il a frappé sa cible) : ici la cible n'est pas une mutation de fichier mais un
+écouteur d'événement, mais le principe est identique — un contrôle négatif seul ne prouve rien
+tant qu'on n'a pas vu le contrôle positif correspondant réussir.
+
+**Réfs.** `e2e/*.spec.ts` (sonde CSP) ; branche `feat/e1-st2-layout-navigation`.
+
+---
+
+## L-020 · L-014 s'applique à **chaque nouveau programme TypeScript**, pas qu'à celui qui l'a fait naître
+
+**Symptôme.** `tsconfig.e2e.json`, quatrième `tsconfig` du dépôt, a été ajouté et câblé dans
+`ci.yml` **et** `deploy.yml` — mais sans assertion sur ses `rootNames` réels. Vider son `include`
+l'aurait laissé sortir vert en ayant typé zéro fichier e2e, exactement le défaut que [[L-014]]
+décrit pour `tsconfig.tools.json`.
+
+**Règle.** [[L-014]] est renforcée, pas dupliquée : toute introduction d'un **nouveau** programme
+TypeScript (nouveau `tsconfig*.json` + script de vérification) répète le même geste — une
+assertion sur les fichiers réellement couverts, épinglant nommément au moins un fichier qui motive
+le gate. À signaler pour `.claude/rules/` : la checklist devrait rappeler ce geste dès qu'un
+`tsconfig*.json` apparaît, pas seulement au moment de l'écrire une première fois.
+
+**Réfs.** `tsconfig.e2e.json` ; `.github/workflows/{ci,deploy}.yml` ; [[L-014]].
+
+---
+
+## L-021 · `prefers-reduced-motion` + `transition-duration: 0.01ms !important` sur `*` transforme tout changement de style en micro-transition — lire un `getComputedStyle` sec ment
+
+**Symptôme.** `transition-property` vaut `all` par défaut : sous émulation `reducedMotion`, un
+`getComputedStyle` lu immédiatement après un changement de propriété peut encore rendre la valeur
+**de départ**, pas la nouvelle, tant que les 0,01 ms n'ont pas achevé. Un test a viré au rouge en
+activant `reducedMotion` — la flakiness était déjà latente, l'émulation l'a seulement rendue
+visible.
+
+**Règle.** Toute lecture de style calculé consécutive à un changement de propriété se *poll*e
+(`expect.poll(...)`), elle ne se lit jamais sèche juste après le déclencheur — d'autant plus sous
+`prefers-reduced-motion`, où la transition existe encore, juste très courte.
+
+**Réfs.** `e2e/bascule-theme.spec.ts` ; `playwright.config.ts`.
+
+---
+
+## L-022 · Une option d'outil déplacée d'une version à l'autre ne produit AUCUN avertissement à l'exécution — seule la vérification de types l'attrape
+
+**Symptôme.** `reducedMotion` est passé de `use` à `contextOptions` en Playwright 1.62 : posée au
+mauvais endroit, l'option est simplement **ignorée en silence**, aucun test ne devient rouge pour
+cette seule raison. C'est `tsc` (TS2769 sur la signature de configuration) qui l'a attrapée, pas un
+run de la suite.
+
+**Règle.** Un changement de version d'un outil de test/build mérite une passe de vérification de
+**types** sur son fichier de configuration avant de faire confiance à un run vert — une option mal
+placée ne casse rien à l'exécution, elle disparaît. Illustration directe de la valeur du 4ᵉ
+programme TypeScript de ce dépôt (cf. [[L-020]]).
+
+**Réfs.** `playwright.config.ts` ; `tsconfig.e2e.json`.
+
+---
+
+## L-023 · Un backtique dans un commentaire HTML à l'intérieur d'un gabarit *inline* Angular ferme le littéral de gabarit
+
+**Symptôme.** `en-tete.ts` utilisait un commentaire HTML contenant des backtiques (norme de
+commentaire de ce dépôt) à l'intérieur d'un `template:` en template-literal — le backtique du
+commentaire a fermé prématurément le littéral, produisant `Parsing error: ',' expected`. Attrapé
+gratuitement par `npm run lint`.
+
+**Règle.** Dans un gabarit Angular **inline** (template-literal en `.ts`), un commentaire HTML ne
+peut pas contenir de backtique — reformuler sans backtique, ou déplacer le gabarit dans un fichier
+`.html` externe si le commentaire nourri est nécessaire. Collision structurelle sur ce dépôt, dont
+le registre de commentaire emploie massivement les backtiques ([[L-011]] sur un axe voisin : le
+contenu d'`index.html` est livré tel quel, ici c'est un `.ts` qui casse à la compilation).
+
+**Réfs.** `src/app/core/layout/en-tete/en-tete.ts`.
+
+---
+
+## L-024 · Le nom accessible d'éléments inline adjacents ne porte pas l'espace visuel qui vient du `gap` CSS
+
+**Symptôme.** Le logotype rendait `<span>Dr.</span><span>Je-Sais-Tout</span>` : `preserveWhitespaces:
+false` (défaut d'Angular) retire le nœud de texte blanc entre les deux `<span>`, donc le nom
+accessible calculé valait `Dr.Je-Sais-Tout` en un seul mot — l'espace visible à l'écran ne venait
+que du `gap` CSS entre les deux éléments, qu'aucune API d'accessibilité ne lit.
+
+**Règle.** Ne jamais épingler dans un `getByRole({ name })` une espace qui dépend à la fois de
+l'aplatissement du nom accessible ET du traitement des blancs par le compilateur — poser un
+`aria-label` reprenant exactement le texte visible (WCAG 2.5.3, nom-dans-le-nom) plutôt que
+compter sur le rendu DOM. C'est la parade retenue ici ; les autres pistes envisagées déplaçaient le
+rendu plutôt que de le corriger.
+
+**Réfs.** `src/app/core/layout/en-tete/en-tete.ts` lignes 24-62.
 
 ---
 

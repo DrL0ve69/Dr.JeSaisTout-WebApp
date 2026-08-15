@@ -7,6 +7,13 @@ const angular = require('angular-eslint');
 module.exports = defineConfig([
   {
     files: ['**/*.ts'],
+    // Les tests de bout en bout et la config Playwright sont du TypeScript, mais
+    // pas de l'Angular : aucun composant, aucun gabarit, aucun décorateur. Leur
+    // appliquer `angular.configs.tsRecommended` ferait tourner des règles qui
+    // n'ont rien à inspecter — et surtout `processInlineTemplates`, qui cherche
+    // des gabarits inline dans des fichiers qui n'en contiennent jamais. Ils ont
+    // leur propre bloc plus bas.
+    ignores: ['e2e/**/*.ts', 'playwright.config.ts'],
     extends: [
       eslint.configs.recommended,
       tseslint.configs.recommended,
@@ -68,6 +75,26 @@ module.exports = defineConfig([
       // (`let ratioMin` jamais réaffecté) : on la fait détecter, pas juste corriger.
       'prefer-const': 'error',
       'no-var': 'error',
+    },
+  },
+  // Tests de bout en bout (`e2e/`) et harnais Playwright. Même motif que le bloc
+  // `tools/` juste au-dessus : `lintFilePatterns` d'`angular.json` s'arrête à
+  // `src/`, donc ces fichiers n'étaient lintés par PERSONNE. `npm run lint`
+  // enchaîne désormais `ng lint`, `eslint tools` et `eslint e2e
+  // playwright.config.ts`.
+  //
+  // Règles JS + TypeScript recommandées, sans le volet Angular (voir l'`ignores`
+  // du premier bloc). `stylistic` est volontairement écarté : ses règles visent la
+  // cohérence d'un code applicatif, pas celle de specs qui se lisent comme des
+  // scénarios.
+  {
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    extends: [eslint.configs.recommended, tseslint.configs.recommended],
+    languageOptions: {
+      // `process.env.CI` dans la config Playwright — elle s'exécute côté Node.
+      // Les specs, eux, ne touchent au DOM que dans des rappels transmis au
+      // navigateur : aucun global de navigateur n'est légitime à ce niveau.
+      globals: { process: 'readonly' },
     },
   },
 ]);

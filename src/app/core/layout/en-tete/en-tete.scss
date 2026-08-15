@@ -1,0 +1,108 @@
+// =============================================================================
+// EnTete — bande de tête, direction « Carnet de laboratoire »
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+.en-tete {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2) var(--espace-3);
+  align-items: center;
+  justify-content: space-between;
+  max-inline-size: var(--largeur-page);
+  margin-inline: auto;
+  padding: var(--espace-2) var(--espace-3);
+
+  // G7-a : la bande se termine par un TRAIT, pas par une simple différence de
+  // fond. Deux surfaces voisines ne délimitent rien en contraste forcé.
+  border-block-end: var(--filet-fin) solid var(--couleur-filet);
+
+  @include m.contraste-force {
+    border-block-end-color: CanvasText;
+  }
+}
+
+// Logotype typographique (direction visuelle §identité : serif + tampon, aucune
+// mascotte). C'est un LIEN, pas un titre : voir l'en-tête d'`en-tete.ts`.
+.logotype {
+  display: inline-flex;
+  gap: var(--espace-0-5);
+  align-items: baseline;
+
+  // Cible confortable au doigt (WCAG 2.2 · 2.5.5, barre haute) : 3rem = 48 px.
+  min-block-size: var(--espace-6);
+  color: var(--couleur-encre);
+  font-family: var(--police-titres);
+  font-size: var(--taille-m);
+  font-weight: var(--graisse-titre);
+  letter-spacing: var(--chasse-titre);
+  text-decoration: none;
+
+  @include m.focus-visible;
+}
+
+.titre-court {
+  color: var(--couleur-danger-vuln);
+}
+
+.navigation {
+  // La navigation prend la place disponible entre logotype et bascule, mais ne
+  // pousse rien hors de la bande sur un écran étroit.
+  flex: 1 1 auto;
+}
+
+.liens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1) var(--espace-3);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: var(--espace-6);
+    color: var(--couleur-encre-secondaire);
+    font-size: var(--taille-xs);
+    font-weight: var(--graisse-tampon);
+    letter-spacing: var(--chasse-tampon);
+    text-decoration: none;
+    text-transform: uppercase;
+
+    // Le soulignement de la page courante est réservé, en transparent, sur TOUS
+    // les liens : l'état actif ne doit pas décaler la ligne de navigation quand
+    // on change de page.
+    border-block-end: var(--filet-moyen) solid transparent;
+
+    @include m.focus-visible;
+
+    &:hover {
+      color: var(--couleur-accent-survol);
+      border-block-end-color: currentcolor;
+    }
+  }
+
+  // WCAG 1.4.1 : la page courante ne se signale pas par la seule couleur — elle
+  // porte un TRAIT (et, pour la technologie d'assistance, `aria-current="page"`,
+  // posé dans le gabarit).
+  .est-actif {
+    color: var(--couleur-encre);
+    border-block-end-color: var(--couleur-accent);
+
+    @include m.contraste-force {
+      border-block-end-color: Highlight;
+    }
+  }
+}

@@ -1,0 +1,70 @@
+// Page « à venir » — feuillet de carnet.
+//
+// Le vocabulaire visuel (tampon, encart réglé, filet) est REPRIS de l'ancienne
+// page « chantier » (`src/app/app.scss`, E0-ST4), adapté à des données de route :
+// le texte n'est plus figé dans le gabarit, donc le bloc doit tenir sur une ligne
+// de titre comme sur cinq.
+//
+// UN écart assumé par rapport à l'original : plus de `min-height: 100dvh` ni de
+// centrage vertical. C'était juste quand la page était SEULE à l'écran ; sous une
+// coquille qui porte un en-tête et un pied, un bloc d'un plein écran de haut
+// pousserait le pied hors de vue à chaque route.
+//
+// ⚠️ On n'`@use` QUE `mixins` (qui n'émet aucun CSS tant qu'aucun mixin n'est
+// appelé). `themes` émettrait le bloc `:root` et dupliquerait tous les jetons
+// dans le CSS de ce composant.
+//
+// Aucune valeur littérale de couleur, taille ou distance (garde-fou G7).
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+  padding: var(--espace-6) var(--espace-3);
+}
+
+.carnet {
+  @include m.reglure;
+
+  // Marge NEUTRE (défaut `--couleur-filet-fort`) : cette page ne parle de rien
+  // de vulnérable, et l'encre rouge reste la signature sémantique du site.
+  @include m.marge-carnet;
+
+  max-width: var(--largeur-lecture);
+  margin-inline: auto;
+  padding: var(--espace-4) var(--espace-3);
+  background-color: var(--couleur-surface-creuse);
+
+  // Le contour est porté par `--couleur-filet` (mesuré à 3:1), jamais par la
+  // seule différence de teinte des deux fonds : deux surfaces voisines ne
+  // suffisent pas à délimiter un bloc, et disparaissent en contraste forcé.
+  border: var(--filet-fin) solid var(--couleur-filet);
+}
+
+.tampon {
+  margin-block-end: var(--espace-2);
+  color: var(--couleur-danger-vuln);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+.titre {
+  margin-block-end: var(--espace-2);
+}
+
+.accroche {
+  font-size: var(--taille-m);
+}
+
+// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`) :
+// il n'y a ici que le rythme vertical.
+.reglure {
+  margin-block: var(--espace-4);
+}
+
+.note {
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+}

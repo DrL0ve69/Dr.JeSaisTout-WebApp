@@ -1,0 +1,106 @@
+// =============================================================================
+// BasculeTheme — un radio natif habillé en tampon de carnet
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet AUCUN CSS tant qu'aucun mixin n'est appelé) et
+// JAMAIS `themes` : un style de composant est une unité de compilation séparée, il
+// dupliquerait tout le bloc `:root` des jetons dans son propre fichier.
+//
+// G7 : aucune couleur, taille ni distance littérale ici — uniquement des jetons
+// sémantiques. Les seules valeurs nues sont des `0` de remise à plat et des
+// mots-clés (`none`, `transparent`, couleurs système du mode contraste forcé).
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+// Le `<fieldset>` arrive avec la bordure et le padding de l'UA : on remet à plat.
+// Il reste un fieldset — c'est lui qui groupe les radios et porte le `<legend>`.
+.bascule-theme {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.intitule {
+  // Même traitement que le tampon d'`app.scss` : petite capitale espacée, encre
+  // secondaire. Le `<legend>` est le NOM ACCESSIBLE du groupe, pas une décoration.
+  padding: 0;
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1);
+  align-items: center;
+}
+
+.option {
+  display: inline-flex;
+  gap: var(--espace-1);
+  align-items: center;
+
+  // WCAG 2.2 · 2.5.8 « Taille de cible (minimum) » exige 24 × 24 px ; 2.5.5 (AAA)
+  // exige 44 × 44. On tient la barre HAUTE : `--espace-6` vaut 3rem, soit 48 px,
+  // et le padding en ligne garantit la largeur même pour le libellé le plus court
+  // (« Clair »). C'est la seule règle de cette sous-tâche qu'aucun gate ne peut
+  // attraper — jsdom ne fait pas de mise en page : elle tient ici ou nulle part.
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-1);
+  cursor: pointer;
+}
+
+.tampon {
+  // `appearance: none` retire le rond natif : c'est ce qui permet le carré à
+  // l'encre du carnet. Tout ce qui compte pour la technologie d'assistance (rôle,
+  // état coché, position « 2 sur 3 ») vient de l'élément, pas de son apparence —
+  // rien n'est perdu ici.
+  appearance: none;
+  flex: none;
+  inline-size: var(--espace-3);
+  block-size: var(--espace-3);
+  margin: 0;
+  border: var(--filet-moyen) solid var(--couleur-filet-fort);
+  border-radius: var(--rayon-doux);
+  background-color: var(--couleur-surface);
+
+  // Le focus reste DESSINÉ, jamais supprimé (G8 / WCAG 2.4.7). Il est porté par
+  // l'input lui-même : pas de `:has()` sur le label, donc aucune dépendance à un
+  // sélecteur récent pour que le clavier reste utilisable.
+  @include m.focus-visible;
+
+  &:checked {
+    // Deux canaux, pas un (G7-b / WCAG 1.4.1) : la couleur ET le remplissage.
+    // Un carré PLEIN contre un carré VIDE reste distinguable sans percevoir la
+    // teinte — c'est la forme qui porte l'état, la couleur ne fait que l'appuyer.
+    border-color: var(--couleur-accent);
+    background-color: var(--couleur-accent);
+    // Liseré intérieur à la couleur du papier : le tampon lit comme un carré
+    // encré plutôt que comme un aplat. `--couleur-sur-accent` sur
+    // `--couleur-accent` est une paire MESURÉE par le gate de contraste.
+    box-shadow: inset 0 0 0 var(--filet-fin) var(--couleur-sur-accent);
+  }
+
+  // Mode contraste forcé : le système impose sa palette et EFFACE les ombres.
+  // Sans ce bloc, les trois tampons deviendraient identiques — l'état coché
+  // disparaîtrait purement et simplement. On repasse donc par les mots-clés
+  // système, que `forced-colors` respecte (même technique que `_mixins.scss`).
+  @include m.contraste-force {
+    border-color: CanvasText;
+    background-color: Canvas;
+
+    &:checked {
+      border-color: Highlight;
+      background-color: Highlight;
+      box-shadow: none;
+    }
+  }
+}
+
+.libelle {
+  color: var(--couleur-encre);
+  font-size: var(--taille-xs);
+}

@@ -30,7 +30,7 @@
  */
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, relative } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 
 const RACINE = process.cwd();
 const SOURCE = join(RACINE, 'config', 'staticwebapp.config.source.json');
@@ -196,6 +196,79 @@ function fichiersHtml(dossier) {
 }
 
 /**
+ * @typedef {{ cible: string, origine: string, genre: 'rewrite' | 'redirect' }} CibleInterne
+ */
+
+/**
+ * Une cible de `redirect` désigne-t-elle un FICHIER de l'artéfact ?
+ *
+ * Un `rewrite` sert toujours un fichier : sa cible se vérifie sans condition. Un
+ * `redirect`, lui, renvoie le navigateur sur une URL — le plus souvent une route
+ * du site (`/`, `/cours/`), qui n'a aucun fichier à ce chemin puisque SWA y sert
+ * `index.html`. Exiger un fichier là fabriquerait un faux positif permanent. On
+ * ne contrôle donc que ce qui se présente comme un chemin de fichier : dernier
+ * segment porteur d'une extension, et cible interne (pas d'URL absolue).
+ *
+ * @param {string} cible
+ * @returns {boolean}
+ */
+function estCheminDeFichier(cible) {
+  if (!cible.startsWith('/')) return false;
+  const sansQuery = cible.split('?')[0]?.split('#')[0] ?? '';
+  const dernier = sansQuery.split('/').pop() ?? '';
+  return /\.[a-z0-9]+$/i.test(dernier);
+}
+
+/**
+ * Récolte les cibles internes déclarées par la configuration résolue —
+ * `responseOverrides` ET `routes`.
+ *
+ * Lue en `unknown` et narrowée champ par champ à dessein : la source est un JSON
+ * édité à la main, et ce script est la dernière chose qui la regarde avant Azure.
+ * Une forme inattendue ne doit ni planter ni être supposée correcte — elle est
+ * simplement ignorée pour la RÉCOLTE, la validité JSON restant garantie en amont.
+ *
+ * @param {unknown} config
+ * @returns {CibleInterne[]}
+ */
+function ciblesInternes(config) {
+  /** @type {CibleInterne[]} */
+  const cibles = [];
+  if (typeof config !== 'object' || config === null) return cibles;
+  const racine = /** @type {Record<string, unknown>} */ (config);
+
+  /** @param {unknown} entree @param {string} origine */
+  const lire = (entree, origine) => {
+    if (typeof entree !== 'object' || entree === null) return;
+    const champs = /** @type {Record<string, unknown>} */ (entree);
+    const rewrite = champs['rewrite'];
+    if (typeof rewrite === 'string') cibles.push({ cible: rewrite, origine, genre: 'rewrite' });
+    const redirect = champs['redirect'];
+    if (typeof redirect === 'string' && estCheminDeFichier(redirect)) {
+      cibles.push({ cible: redirect, origine, genre: 'redirect' });
+    }
+  };
+
+  const overrides = racine['responseOverrides'];
+  if (typeof overrides === 'object' && overrides !== null) {
+    for (const [code, entree] of Object.entries(overrides)) {
+      lire(entree, `responseOverrides.${code}`);
+    }
+  }
+  const routes = racine['routes'];
+  if (Array.isArray(routes)) {
+    routes.forEach((entree, i) => {
+      const route =
+        typeof entree === 'object' && entree !== null
+          ? /** @type {Record<string, unknown>} */ (entree)['route']
+          : undefined;
+      lire(entree, `routes[${i}]${typeof route === 'string' ? ` (${route})` : ''}`);
+    });
+  }
+  return cibles;
+}
+
+/**
  * Interrompt la génération sur un constat bloquant.
  *
  * `@returns {never}` n'est pas décoratif : c'est lui qui apprend au compilateur que le flot ne
@@ -349,10 +422,50 @@ if (hachagesScript.size !== 1) {
 // --- 3. Écriture de l'artéfact -------------------------------------------------
 let resolu = injecter(source, JETON_STYLE, hachagesStyle);
 resolu = injecter(resolu, JETON_SCRIPT, hachagesScript);
-JSON.parse(resolu); // garde-fou : la substitution doit laisser un JSON valide
+const config = /** @type {unknown} */ (JSON.parse(resolu)); // garde-fou : la substitution doit laisser un JSON valide
+
+// --- 3 bis. Les cibles internes existent-elles vraiment ? -----------------------
+// FAIL-OPEN CORRIGÉ : jusqu'ici, `responseOverrides.404` pouvait pointer vers un
+// fichier absent de l'artéfact sans qu'aucun gate ne rougisse. SWA aurait alors
+// servi SA page d'erreur de marque à la place de la nôtre — un changement visible
+// en production, invisible en CI. La route `404` d'`app.routes.ts` paraît redondante
+// à côté du `**` : la retirer aurait suffi à casser la 404 du site en silence.
+// Ce contrôle transforme ce silence en code 1, nommant la cible manquante.
+const cibles = ciblesInternes(config);
+/** @type {string[]} */
+const ciblesCassees = [];
+for (const { cible, origine, genre } of cibles) {
+  const relatif = (cible.split('?')[0]?.split('#')[0] ?? '').replace(/^\/+/, '');
+  const chemin = resolve(ARTEFACT, relatif);
+  // La cible doit rester DANS l'artéfact : un `../` qui sortirait du dossier servi
+  // n'est pas seulement introuvable pour SWA, c'est une cible à refuser en soi.
+  const dedans = chemin === ARTEFACT || chemin.startsWith(ARTEFACT + sep);
+  let estFichier = false;
+  if (dedans) {
+    try {
+      estFichier = statSync(chemin).isFile();
+    } catch {
+      estFichier = false;
+    }
+  }
+  if (!estFichier) {
+    ciblesCassees.push(
+      `${origine} : ${genre} « ${cible} » → aucun fichier ${relative(RACINE, chemin)} dans l’artéfact`,
+    );
+  }
+}
+if (ciblesCassees.length) {
+  echec('une cible de la configuration SWA ne correspond à aucun fichier de l’artéfact', [
+    ...ciblesCassees,
+    'SWA servirait sa propre page à la place de la nôtre, sans qu’aucun gate ne rougisse.',
+    'Vérifier que la route qui produit ce fichier est bien prerendue (app.routes.server.ts).',
+  ]);
+}
+
 writeFileSync(join(ARTEFACT, 'staticwebapp.config.json'), resolu);
 
 console.log(`✔ staticwebapp.config.json généré dans ${relative(RACINE, ARTEFACT)}`);
 console.log(`  ${pages.length} page(s) inspectée(s)`);
+console.log(`  ${cibles.length} cible(s) interne(s) vérifiée(s) présente(s) dans l’artéfact`);
 console.log(`  ${hachagesStyle.size} hachage(s) de style distinct(s), ${hachagesScript.size} de script`);
 if (hachagesStyle.size === 0) console.log('  (aucun bloc <style> inline — style-src reste à \'self\')');

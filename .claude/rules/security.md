@@ -38,6 +38,13 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
 - [ ] **Enabler ≠ enforcement.** Fermer un constat en-têtes/CSP exige que la **directive effective
       soit en ligne et vérifiée live** (build prerender + inspection des headers réellement servis par
       SWA), pas seulement qu'elle soit écrite dans le fichier de config.
+- [ ] **Une CSP validée sur une page INERTE ne vaut que pour une page inerte.** Revalider dès qu'un
+      lot introduit le **premier écouteur d'événement** de la page : le framework injecte alors des
+      scripts inline qu'il n'émettait pas avant (Angular, rejeu d'événements — constaté en E1-ST2,
+      build rouge, deux scripts apparus avec la première bascule interactive). Et si la parade passe
+      par un hachage : **la liste blanche reste NOMINATIVE**, jamais dérivée de l'artéfact — une
+      liste dérivée autorise tout ce qu'une future version du framework y injectera, sans qu'aucun
+      humain l'ait vu. Détail : `.claude/lessons/security-lessons.md` **S-005**.
 - [ ] **Retirer** tout header `Server`/`X-Powered-By` exposant la stack.
 
 ### 2 · Aucun secret côté client (A02/A04)

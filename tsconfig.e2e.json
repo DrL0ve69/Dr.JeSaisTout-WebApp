@@ -1,0 +1,60 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+{
+  // ===========================================================================
+  // Le QUATRIÈME programme : les tests de bout en bout
+  // ---------------------------------------------------------------------------
+  // POURQUOI UN PROGRAMME À PART.
+  // Playwright transpile le TypeScript qu'il exécute, mais il ne le VÉRIFIE pas :
+  // une faute de type dans un spec passerait inaperçue jusqu'à l'échec — ou pire,
+  // ne se verrait jamais si la ligne fautive n'est pas atteinte. Aucun des trois
+  // programmes existants ne peut l'accueillir : `tsconfig.app.json` s'arrête à
+  // `src/` (et interdit tout type ambiant), `tsconfig.spec.json` ne prend que
+  // `src/**/*.spec.ts`, et `tsconfig.tools.json` INTERDIT le DOM.
+  //
+  // POURQUOI `lib` REOUVRE LE DOM, à rebours de `tsconfig.tools.json`.
+  // Là-bas, le DOM est une frontière : un script Node qui référencerait `document`
+  // passerait le typage pour planter à l'exécution. Ici, le DOM réel EST le sujet
+  // testé — un spec évalue des expressions DANS la page (`page.evaluate`), où
+  // `document` et `HTMLElement` existent vraiment. Les deux réglages disent la
+  // même chose : le typage doit refléter la surface d'exécution réelle, et elle
+  // n'est pas la même des deux côtés.
+  //
+  // POURQUOI `playwright.config.ts` EST DEDANS.
+  // Il vit à la racine, donc hors de `src/` et hors de `tools/` : sans cette
+  // ligne il ne serait vérifié par aucun programme. C'est pourtant lui qui décide
+  // quel serveur sert l'artéfact — le fichier dont une faute silencieuse coûte le
+  // plus cher ici (cf. `.claude/lessons/lessons-learned.md`, L-008 : un fichier
+  // hors de tout programme est un fichier non vérifié).
+  // ===========================================================================
+  "compilerOptions": {
+    // Ce programme ne sert qu'à vérifier : Playwright transpile lui-même ce qu'il
+    // exécute, rien ne doit être écrit à côté des specs.
+    "noEmit": true,
+
+    // Les six options de RIGUEUR du dépôt, redéclarées comme dans
+    // `tsconfig.tools.json` (ce fichier n'étend pas la base Angular : ni
+    // `experimentalDecorators`, ni `importHelpers`, ni `angularCompilerOptions`
+    // n'ont de sens pour un runner Node).
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+
+    // Playwright s'exécute sous Node ; `nodenext` fait déterminer le format de
+    // chaque fichier comme Node le fait réellement, `package.json` n'ayant pas de
+    // champ `"type"`.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    "target": "ES2022",
+    // Le DOM en plus des lib ES — voir l'en-tête. `es2022` s'aligne sur `target`.
+    "lib": ["dom", "es2022"],
+    // `process.env` dans `playwright.config.ts` : la config tourne côté Node,
+    // seuls les specs franchissent la frontière du navigateur.
+    "types": ["node"]
+  },
+  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+}

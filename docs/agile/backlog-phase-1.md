@@ -144,7 +144,7 @@
 | ID | Objectif | Statut |
 |---|---|---|
 | E1-ST1 | Jetons SCSS + thèmes clair/sombre | ✅ |
-| E1-ST2 | Layout, navigation, pied de page | ⬜ |
+| E1-ST2 | Layout, navigation, pied de page | ✅ |
 | E1-ST3 | Home « carnet de laboratoire » | ⬜ |
 
 ### E1-ST1 — Jetons sémantiques SCSS
@@ -270,10 +270,16 @@
   ce qui confirme que l'hydratation n'est pas bloquée. Cinq en-têtes servis
   (HSTS `max-age=63072000; includeSubDomains; preload`, `X-Content-Type-Options`,
   `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`) ; ni `Server` ni `X-Powered-By`.
-- **⚠️ Reste au propriétaire, et ST1-C ne se clôt pas sans lui** : **zéro violation CSP en console**
-  et **thème « sombre » épinglé sans flash** (`localStorage.setItem('drjst-theme','sombre')` puis
-  rechargement). Ces deux constats demandent un œil dans le navigateur — l'outil Chrome est banni
-  sur ce projet, aucun agent ne peut les produire.
+- **✅ 2026-08-14 — LES DEUX CONSTATS NAVIGATEUR SONT FAITS, PAR LE PROPRIÉTAIRE.** Sur
+  <https://salmon-sky-0a730780f.7.azurestaticapps.net> : (1) **console ouverte, aucun message** —
+  donc zéro violation CSP, et l'hydratation n'est pas bloquée sur `<script id="ng-state">` ;
+  (2) **aucun clignotement perçu** à la bascule de thème. Ces deux constats demandaient un œil dans
+  le navigateur — l'outil Chrome est banni sur ce projet, aucun agent ne pouvait les produire.
+  **ST1-C est donc close sans réserve**, et la chaîne CSP-à-hachages est prouvée de bout en bout :
+  en-têtes servis (mesurés), hachage recalculé sur le HTML réellement livré (mesuré), et exécution
+  réelle sans violation (constatée). **Nuance de portée, à ne pas surinterpréter** : « aucun
+  clignotement perçu » est un constat à l'œil nu, pas une mesure de peinture ; il vaut pour ce que
+  l'anti-flash devait garantir (pas de flash *perceptible*), et c'était exactement la barre visée.
 - **ST1-D (`ThemeService` tri-état) est livrée et revue.** `src/app/core/theme/theme.ts` : signal
   `choix`, `computed` `themeEffectif` (`'clair' | 'sombre'`, qui résout `'systeme'` via
   `prefers-color-scheme` et suit l'OS à chaud), `definir()`, et les constantes `THEMES` /
@@ -389,11 +395,11 @@
   `_themes.scss`. Le lien est déjà tenu par `src/init-theme.spec.ts`, qui extrait les littéraux du
   script et les compare aux sélecteurs du **CSS compilé** par Sass — pas à une constante réimportée
   (**L-012**).
-- **⚠️ Deux constats restent au propriétaire, et ce ne sont pas des formalités** : (1) **zéro
-  violation CSP en console** sur le site déployé ; (2) **thème sombre épinglé sans flash**
-  (`localStorage.setItem('drjst-theme','sombre')` puis rechargement). Aucun agent ne peut les
-  produire — l'outil navigateur est banni sur ce projet. E1-ST1 est close côté chaîne outillée ;
-  ces deux-là sont l'œil humain qu'aucun gate ne remplace.
+- **✅ 2026-08-14 — les deux constats de l'œil humain sont FAITS** (détail en §E1-ST1-C ci-dessus) :
+  console sans aucun message (donc zéro violation CSP) et aucun clignotement perçu à la bascule de
+  thème, sur le site déployé. Aucun agent ne pouvait les produire — l'outil navigateur est banni sur
+  ce projet. **E1-ST1 est désormais close des deux côtés** : la chaîne outillée *et* l'œil humain
+  qu'aucun gate ne remplace.
 - **Second écart de glyphe, trouvé à la clôture et absent du plan de ST1-B** : **U+2192 (« → »)** est
   elle aussi rendue par la **police de repli**, exactement comme U+202F. Le gate l'imprime en « écart
   assumé » et ne casse pas — mais une flèche dans une leçon ne sera dessinée ni par Fraunces ni par
@@ -446,6 +452,117 @@
 - **Objectif** : shell applicatif (header avec logotype typographique, nav, bascule de thème, footer), squelette de routes (`/`, `/cours/securite-web`, `/cours/securite-web/:slug`), page 404, skip-link, landmarks ARIA.
 - **Fichiers** : `src/app/core/layout/`, `src/app/app.routes.ts`.
 - **Gates** : G-lint, G-test, G-build, G-axe (navigation clavier complète).
+
+#### 🟡 Point d'étape — 2026-08-14
+
+**Reste 🟡 en cours, volontairement.** Le plan exigeait G-axe avec « navigation clavier
+complète » ; le gate livré (`tools/a11y/verifier-axe.mjs`, `axe-core` sur jsdom) **ne peut
+structurellement pas** couvrir le clavier — jsdom ne calcule ni boîtes ni cascade, et le script
+l'imprime lui-même à chaque exécution. Le propriétaire a tranché : **Playwright sera câblé
+maintenant, en lot séparé, dans cette même branche**, et c'est ce lot qui fermera E1-ST2.
+
+**Livré et vert** : coquille du site (lien d'évitement premier focalisable, `<app-en-tete>`,
+`<main id="contenu-principal" tabindex="-1">` unique, `<app-pied-de-page>`) ; routes `/` et
+`/cours/securite-web` prerendues, route `404` réelle + `**` ; `PageAVenir`, `PageIntrouvable`,
+`BasculeTheme` (radios natifs dans un `<fieldset>`, premier client du `ThemeService` de ST1-D),
+`GestionFocusRoute` ; gate **G-axe** (`tools/a11y/verifier-axe.mjs`, `axe-core` en devDep,
+~85 règles, auto-test qui prouve qu'il mord, câblé dans `ci.yml` **et** `deploy.yml`).
+
+**Gates mesurés** : lint 0 · `typecheck:tools` 0 · **151 tests / 12 fichiers** (88 en début
+d'epic) · build 3 routes prerendues, 1 cible interne vérifiée, 1 hachage de script · axe
+3 pages / 258 vérifications / **0 violation** · `npm audit --omit=dev` 0.
+
+**Trois décisions consignées** :
+1. **`withNoIncrementalHydration()`** dans `app.config.ts` — le build sortait ROUGE :
+   `provideClientHydration()` d'Angular 22 active par défaut l'hydratation incrémentale, qui
+   embarque le rejeu d'événements et injecte **deux scripts inline** refusés par la CSP à
+   hachages. Ces scripts n'apparaissaient **qu'avec le premier élément interactif** du site.
+   Coût assumé : rejeu d'événements perdu, `@defer (hydrate …)` inerte (piège pour E2). Voir
+   **S-005**.
+2. **Route `cours/securite-web/:slug` RETIRÉE d'E1** (des deux côtés : `app.routes.ts` et
+   `app.routes.server.ts`) — décision du propriétaire. Elle servait un **404 HTTP** titré
+   « Leçon à venir » plus une erreur d'hydratation NG0500 en console. **E2-ST1 doit la
+   réintroduire en `RenderMode.Prerender` avec un `getPrerenderParams()` alimenté par la
+   compilation de `content/`** — sans quoi aucune leçon ne sera prerendue. La règle « un slug
+   ne se réaffiche jamais tel quel » est conservée dans l'en-tête d'`app.routes.server.ts`.
+3. **`navigationFallback` retiré** — correction de sécurité non planifiée : toute URL inconnue
+   renvoyait **200 avec la page d'accueil légitime**. `/index.csr.html` fermée par 301.
+
+**Dette ouverte, à ne pas perdre** :
+(a) **clavier / focus visible / `target-size` ne sont couverts par AUCUN gate** — c'est le lot
+Playwright qui suit, et c'est ce qui tient E1-ST2 ouverte ;
+(b) le motif SWA `/404/*` n'a pas été confirmé comme couvrant `/404/` lui-même — à constater au
+premier déploiement ;
+(c) **S-003 reste ouvert** (inchangé par ce lot, mais son correctif est devenu moins cher :
+`verifier-axe.mjs` démontre le patron « analyseur réel plutôt que regex » avec jsdom déjà
+présent) ;
+(d) la dette de typage (b) 34 / (c) 35 erreurs sur les deux gates de design est inchangée.
+
+**Constat D-C6 confirmé par ce lot** (`docs/agile/backlog-phase-1.md:626` — « zéro violation
+AXE » traité à tort comme équivalent à WCAG 2.2 AA) : Playwright est sa réponse.
+
+#### ✅ Clôture — 2026-08-15 (lot Playwright)
+
+**La dette (a) est remboursée, E1-ST2 est close.** Harnais Playwright (`playwright.config.ts`,
+`tsconfig.e2e.json` = 4ᵉ programme de typage, bloc ESLint dédié) servant `dist/` par `npx swa start`
+— donc **sous la CSP à hachages réellement générée**, et non sur un serveur statique nu qui
+l'ignorerait. **5 specs / 11 tests** : ordre de tabulation réel et absence de piège du focus,
+indicateur de focus calculé et non recouvert (2.4.7 / 2.4.11), taille de cible (2.5.8), bascule de
+thème exercée au clavier avec zéro violation CSP en console. Gate **G-e2e** câblé dans `ci.yml`
+**et** `deploy.yml` (L-007).
+
+**Gates mesurés** : lint 0 · `typecheck:tools` 0 · `typecheck:e2e` 0 · **170 tests / 12 fichiers**
+(151 en début de lot) · build 3 routes prerendues, 6 hachages de style + 1 de script · axe
+258 vérifications / 0 violation · **e2e 11 tests**, verts aussi en `CI=true` · `npm audit --omit=dev` 0.
+
+**Quatre décisions consignées** :
+1. **Barre `target-size` = 24 × 24 px CSS (WCAG 2.2 · 2.5.8, niveau AA)** — arbitrage du
+   propriétaire. Le dépôt annonçait « ≥ 44 px » dans `ci.yml`, `playwright.config.ts` et ici :
+   c'est le critère **2.5.5, niveau AAA**, hors barre du projet. Corrigé aux trois endroits. Ce qui
+   mesure entre 24 et 44 est **imprimé au journal** sans faire rougir. La cible mesurée est la zone
+   cliquable (le `<label>`, pas l'`<input>` nu) ; l'exception « lien en ligne » est détectée
+   étroitement (`display` calculé + texte voisin non-cible).
+2. **`deploy.yml` scindé en deux jobs** — `gates` (aucun secret, exécute tout) → `publication`
+   (`needs: gates`, détient le jeton, ne fait que téléverser puis constater en ligne). Motif :
+   `playwright install --with-deps` télécharge un binaire **hors du contrôle d'intégrité de
+   `package-lock.json`**, en root, et tournait dans le job détenant `AZURE_STATIC_WEB_APPS_API_TOKEN`.
+   ⚠️ **La coupe protège le jeton, pas l'artéfact** : d'où le **sceau d'empreintes `sha256`** posé
+   après `G-build` et revérifié avant le téléversement. Deux mesures distinctes — voir **S-007**.
+3. **Vérifications en ligne rendues fail-closed** : `URL` absente donnait `::warning::` + `exit 0`,
+   donc deux étapes **vertes sans avoir rien vérifié** juste après un déploiement réel. Passées en
+   `exit 1`. Et elles contrôlent désormais les **directives** (`object-src 'none'`, `base-uri 'self'`,
+   `frame-ancestors 'none'`, `upgrade-insecure-requests`, `max-age` HSTS, refus de
+   `unsafe-inline`/`unsafe-eval`/`strict-dynamic`), plus seulement la présence des en-têtes — une CSP
+   servie mais permissive passait. Voir **S-008**.
+4. **`aria-label` sur le logotype** : `preserveWhitespaces: false` retirant le nœud blanc entre les
+   deux `<span>`, le nom accessible calculé valait `Dr.Je-Sais-Tout` **en un seul mot** (l'espace
+   visible ne vient que du `gap` CSS, qu'aucune API d'accessibilité ne lit). Les deux autres parades
+   déplaçaient le rendu. Contrat verrouillé par `en-tete.spec.ts`. Voir **L-024**.
+
+**Preuves de morsure** (aucun gate n'est déclaré vert sans avoir été vu rougir) : CSP retirée de
+l'artéfact → le gate e2e rougit ; sonde de violations neutralisée → le contrôle positif rougit ;
+`include` de `tsconfig.e2e.json` amputé → 6 tests rouges ; un octet ajouté à
+`staticwebapp.config.json` → le sceau rougit ; quatre mutations de directives CSP → chacune
+attrapée par le contrôle qui la vise.
+
+**Dette ouverte, reportée sciemment** :
+(a) **La CSP servie n'est vérifiée que par motifs, pas structurellement.** Une CSP permissive d'une
+autre façon que les trois formes refusées passerait encore. Parade connue : comparaison directive
+par directive avec `config/staticwebapp.config.source.json`, jetons `__HACHAGES_*__` normalisés.
+C'est le constat le plus proche de ce que le site enseigne — à traiter avant la première leçon
+publiée ;
+(b) **`Azure/static-web-apps-deploy@v1` est un tag mutable**, exécuté dans le job qui détient le
+jeton. Conforme à `.claude/rules/security.md` §3 (« `@vX` épinglé »), mais l'épinglage au SHA serait
+le plancher supérieur ;
+(c) **`.claude/rules/security.md` n'a pas encore intégré S-007/S-008** : §1 devrait exiger qu'une
+vérification post-déploiement soit fail-closed sur ses préconditions, §3 la séparation
+gate-avec-binaire-tiers / job-détenant-le-jeton **plus** le scellement d'artéfact ;
+(d) **S-003 reste ouvert** (inchangé par ce lot) ; (e) la dette de typage (b) 34 / (c) 35 erreurs sur
+les deux gates de design est inchangée.
+
+**Constat D-C6 : fermé.** « Zéro violation AXE » n'est plus traité comme équivalent à WCAG 2.2 AA —
+G-e2e couvre nommément ce qu'axe ne peut pas voir, et `playwright.config.ts` dit **exactement** ce
+que le harnais ne garantit pas (réponses 200, HTTP local, un seul document HTTP).
 
 ### E1-ST3 — Home
 - **Objectif** : page d'accueil appliquant la direction « carnet de laboratoire » : présentation du Dr. Je-Sais-Tout, carte du cours sécurité web avec lien, un seul CTA. **Exploration visuelle avant implémentation** (voir méthode ci-dessous).

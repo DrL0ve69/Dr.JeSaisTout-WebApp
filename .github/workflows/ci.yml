@@ -67,16 +67,66 @@ jobs:
       - name: G-build (+ config SWA à hachages)
         run: npm run build
 
+      # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de
+      # `dist/dr-je-sais-tout/browser`. Il vient donc APRÈS G-build, qui produit l'artéfact.
+      # Pas de Playwright : le site est 100 % prerendu, et `jsdom` était déjà là — `axe-core` est la
+      # seule dépendance ajoutée (devDep, 0 octet en production).
+      #
+      # DEUX commandes, dans cet ordre. L'auto-test prouve d'abord que le gate MORD : une fixture par
+      # famille de règle (code 1 attendu et règle nommée), une page conforme (code 0), un dossier
+      # absent puis un dossier sans page (code 1 — L-014, un gate ne peut pas être vert en n'ayant
+      # rien vérifié). Ensuite seulement, l'audit des vraies pages. Sans l'auto-test, une montée
+      # d'axe ou de jsdom pourrait rendre ce gate muet sans que rien ne l'annonce.
+      #
+      # CE QU'IL COUVRE : repères (landmarks) ARIA, hiérarchie des titres, mécanisme d'évitement,
+      # noms accessibles (boutons, liens, images), langue du document, étiquettes de formulaire,
+      # attributs ARIA — ~85 règles, dont 34 nommément promises et confrontées à `axe.getRules()`.
+      # CE QU'IL NE COUVRE PAS : l'interaction et l'ordre de tabulation au CLAVIER, le focus visible
+      # ou masqué, la taille de cible et le contraste — jsdom ne calcule ni boîtes ni cascade. Le
+      # contraste est mesuré en amont par G-contraste ; tout le reste est désormais couvert par
+      # G-e2e ci-dessous (c'était la dette (a) d'E1-ST2, elle est remboursée). Le script IMPRIME
+      # cette liste et ses règles désactivées à chaque exécution : le journal fait foi (L-005).
+      - name: G-axe
+        run: |
+          npm run a11y:axe:auto-test
+          npm run a11y:axe
+
+      # Gate d'accessibilité COMPORTEMENTALE — la moitié qu'axe ne peut structurellement pas voir.
+      # Playwright pilote un vrai Chromium qui presse de vraies touches : ordre de tabulation réel,
+      # absence de piège du focus, indicateur de focus effectivement calculé et non recouvert
+      # (WCAG 2.4.7 et 2.4.11), taille de cible mesurée à la mise en page (2.5.8, niveau AA —
+      # 24 × 24 px CSS ; le 44 × 44 relève de 2.5.5, niveau AAA, hors de la barre du projet, et
+      # n'est qu'imprimé au journal). Vient APRÈS G-build, dont il sert l'artéfact.
+      #
+      # ⚠️ LE SERVEUR EST `swa start`, ET C'EST LE POINT. Il émule le runtime d'Azure Static Web
+      # Apps, donc il APPLIQUE le `staticwebapp.config.json` généré dans l'artéfact : la page est
+      # exercée sous la CSP stricte à hachages réellement servie en production. Un serveur statique
+      # nu livrerait les mêmes octets en ignorant la CSP — et tout ce qu'elle bloque en ligne
+      # passerait vert ici. C'est exactement le point aveugle de la leçon S-005 : la CSP avait été
+      # validée sur une page INERTE, et le premier écouteur d'événement a fait injecter par Angular
+      # des scripts inline que personne n'avait vus.
+      #
+      # `--with-deps` installe les bibliothèques système du runner en plus du binaire ; seul
+      # chromium est téléchargé (voir l'en-tête de `playwright.config.ts` : un second moteur
+      # doublerait la durée du gate pour une couverture quasi nulle). `npm run e2e` enchaîne le
+      # typage des specs (`tsconfig.e2e.json`, 4ᵉ programme du dépôt) puis la suite elle-même.
+      # `CI=true` est posé par GitHub Actions : `forbidOnly` mord, et aucun serveur préexistant
+      # n'est réutilisé.
+      - name: G-e2e (accessibilité au clavier, sous CSP réelle)
+        run: |
+          npm run e2e:install
+          npm run e2e
+
       # Surface de PRODUCTION uniquement, et tolérance zéro : `--omit=dev` doit rester à 0.
       # Le audit complet remonte 3 « moderate » dev-only via le SDK MCP d'@angular/cli, dont le
       # correctif downgraderait la CLI en v21 — refusé (voir CLAUDE.md §Commandes).
       - name: G-audit
         run: npm audit --omit=dev
 
-      # G-axe arrive en E1-ST2, avec les premières pages réelles. Ne pas ajouter d'étape verte
-      # factice d'ici là : un gate qui ne teste rien est pire qu'un gate absent.
-      # G-contraste (ci-dessus) en est la moitié AMONT — il mesure les jetons, pas les pages
-      # rendues ; aucun des deux ne remplace l'autre.
+      # TROIS gates d'accessibilité, et aucun ne remplace les autres — c'est voulu. G-contraste est
+      # la moitié AMONT (il mesure les jetons, pas les pages rendues) ; G-axe est la passe
+      # STRUCTURELLE sur le HTML prerendu ; G-e2e est la passe COMPORTEMENTALE dans un vrai
+      # navigateur. Retirer l'un d'eux rouvre un angle mort que les deux autres ne voient pas.
       #
       # ⚠️ Cette liste de gates doit rester ALIGNÉE avec celle de deploy.yml, qui les rejoue avant
       # publication. Un gate ajouté ici et pas là-bas ne protège pas ce qui part en ligne.
