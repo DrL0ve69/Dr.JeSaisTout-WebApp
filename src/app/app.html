@@ -1,27 +1,24 @@
 <!--
-  Page « bientôt » d'E0-ST4 — placeholder assumé, PAS la home.
-  La vraie home est E1-ST3 et passe par la direction « Carnet de laboratoire »
-  (docs/design/direction-visuelle.md). Ici : le strict minimum pour que le premier
-  déploiement publie quelque chose de sobre, en français et accessible.
+  Coquille du site (E1-ST2). L'ORDRE DES QUATRE ÉLÉMENTS EST NORMATIF :
+
+  1. le lien d'évitement DOIT être le premier élément focalisable de la page —
+     c'est toute sa raison d'être (WCAG 2.4.1). Il est caché par `clip-path` au
+     repos et redevient visible au focus ; jamais `display:none` ni
+     `visibility:hidden`, qui le retireraient de l'ordre de tabulation ;
+  2. `<app-en-tete>` émet DÉJÀ son propre `<header>` (et compose la bascule de
+     thème) — l'envelopper dans un second `<header>` produirait deux repères
+     `banner` imbriqués ;
+  3. l'unique `<main>` de tout le site. `tabindex="-1"` le rend focalisable PAR
+     SCRIPT (`GestionFocusRoute`, et le saut du lien d'évitement) sans l'ajouter à
+     l'ordre de tabulation naturel. Son `id` est la cible des deux ;
+  4. `<app-pied-de-page>` émet DÉJÀ son `<footer role="contentinfo">`.
 -->
-<main class="page">
-  <div class="carnet">
-    <p class="tampon">Chantier</p>
+<a class="lien-evitement" href="#contenu-principal">Aller au contenu principal</a>
 
-    <h1 class="titre">Dr. Je-Sais-Tout</h1>
+<app-en-tete />
 
-    <p class="accroche">
-      Un cours public et gratuit sur la <strong>sécurité des applications web</strong> —
-      treize modules, de l&rsquo;injection à la gestion des sessions.
-    </p>
-
-    <hr class="reglure" />
-
-    <p class="note">
-      Le site est en construction. Rien à lire pour l&rsquo;instant&nbsp;: cette page confirme
-      seulement que la chaîne de déploiement fonctionne de bout en bout.
-    </p>
-  </div>
+<main id="contenu-principal" tabindex="-1">
+  <router-outlet />
 </main>
 
-<router-outlet />
+<app-pied-de-page />

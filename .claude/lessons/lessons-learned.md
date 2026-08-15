@@ -209,6 +209,13 @@ rouge ou vert ne dit rien tant que l'entrée du test n'est pas vérifiée.
 **Réfs.** `src/init-theme.spec.ts` ; `tools/deploiement/generer-config-swa.mjs` ;
 `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
 
+**Addendum (E1-ST2).** Même piège sur un fichier aux en-têtes nourris (norme de ce dépôt) : une
+mutation ciblant `skip(1)` a frappé son occurrence dans le **commentaire d'en-tête** du fichier
+(cité deux fois avant la ligne de code) plutôt que le code lui-même — le gate semblait ne pas
+mordre alors qu'il n'avait rien à mordre. Sur ce dépôt en particulier, une mutation par regex doit
+ancrer l'indentation ou une position de ligne de code, jamais la seule chaîne, précisément parce que
+les en-têtes de commentaire répètent souvent les identifiants du code qui suit.
+
 ---
 
 ## L-011 · Les commentaires de `src/index.html` sont servis à chaque visiteur
@@ -322,6 +329,71 @@ configuration, et tout générateur qui hache du contenu texte.
 
 **Réfs.** `.github/workflows/ci.yml` ; `tools/deploiement/generer-config-swa.mjs` ;
 `src/init-theme.spec.ts` ; branche `chore/tsconfig-strict`.
+
+---
+
+## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
+
+**Symptôme.** Sur E1-ST2 (layout & navigation), le même motif est apparu **cinq fois dans un seul
+diff** : `gestion-focus-route.ts` invoquait « `gestion-focus-route.spec.ts` vérifie l'absence
+d'appel côté serveur … sans cette assertion les tests resteraient verts gardes retirées (L-005) »
+— le spec **n'existait pas**, et le service (cœur WCAG 2.4.3 du lot) n'avait aucun test ;
+`app.routes.ts`/`app.spec.ts` renvoyaient à `app.routes.spec.ts`, **inexistant** ; `app.routes.server.ts`
+renvoyait à `docs/deployment.md` §« La 404 est un vrai fichier », **section inexistante** ; le gate
+axe se déchargeait ×4 sur « la checklist manuelle d'E1-ST2 », **inexistante**, et ×4 sur « Playwright,
+inscrit en dette », **inscrit nulle part**. Chaque citation empruntait la crédibilité d'un vrai
+mécanisme (jusqu'à citer L-005 elle-même) sans le fournir.
+
+**Règle.** Tout chemin de fichier, section de doc, ou nom de test cité dans un commentaire **doit
+exister au moment du commit** — vérifier avant d'écrire la phrase, pas après. C'est la généralisation
+de [[L-008]] (une contrepartie qui n'existe qu'en commentaire ne protège rien) : ici la contrepartie
+se fait passer pour vérifiable en nommant une cible précise, ce qui la rend *plus* dangereuse, pas
+moins. Signal pour `.claude/rules/` : ce geste est mécanisable (grep des chemins cités dans les
+commentaires vs présence au disque) et mériterait un hook ou un gate dédié plutôt que de rester une
+vigilance de revue.
+
+**Réfs.** `src/app/core/layout/gestion-focus-route.ts` ; `src/app/app.routes.ts` ; `src/app/app.spec.ts` ;
+`src/app/app.routes.server.ts` ; `tools/a11y/verifier-axe.mjs` ; branche `feat/e1-st2-layout-navigation`.
+
+---
+
+## L-017 · Un octet NUL dans un fichier source le rend « binaire » pour grep/ripgrep, qui le sautent EN SILENCE
+
+**Symptôme.** `tools/a11y/verifier-axe.mjs` (757 lignes, exécuté en CI **et** au déploiement)
+contenait deux U+0000 bruts dans une clé de tri. Conséquence : le fichier sortait du balayage
+textuel exigé par `.claude/rules/security.md` §2 (recherche de secrets, gitleaks) — et le symptôme
+était trompeur, `grep`/ripgrep répondant « binary file … matches » au lieu d'afficher la ligne
+cherchée, ce qui invite à conclure « rien trouvé » plutôt que « fichier ignoré ». Git le voyait
+encore comme du texte (le NUL était au-delà de sa fenêtre de détection de 8 000 octets), donc les
+diffs de PR restaient lisibles et ne signalaient rien.
+
+**Règle.** Un « binary file matches » ou l'absence totale de correspondance sur un fichier `.mjs`/`.ts`
+qu'on sait volumineux mérite un second regard (`Select-String -Encoding` explicite, ou inspection
+hexadécimale) avant de conclure à une absence de secret. Cousine de [[L-005]] sur un axe matériel :
+la vérification tournait, elle ne *voyait* simplement pas le fichier — un octet NUL est aussi
+invisible à `grep` qu'une porte de sortie silencieuse l'est à un statut de CI.
+
+**Réfs.** `tools/a11y/verifier-axe.mjs` ; `.claude/rules/security.md` §2 ; branche `feat/e1-st2-layout-navigation`.
+
+---
+
+## L-018 · Une assertion de « non-lecture » (ex. aucun paramètre d'URL lu) ne prouve que ce que le gabarit rend, pas ce que le code lit
+
+**Symptôme.** `page-a-venir.spec.ts` affirmait « le composant ne lit AUCUN paramètre d'URL ». Une
+mutation ajoutant un `computed()` qui lisait `paramMap` **sans l'afficher** dans le gabarit laissait
+le test **vert** ; il n'est devenu rouge qu'une fois la valeur effectivement rendue à l'écran. Le
+périmètre réel de l'assertion était donc « la valeur atteint le rendu », pas « le fichier ne
+référence pas `paramMap` » — la lenteur du signal vient de la **paresse d'Angular** (un `computed()`
+non consommé n'est jamais évalué), pas d'un test complaisant.
+
+**Règle.** Nommer ce type d'assertion pour ce qu'il vérifie réellement (« rien de dérivé de l'URL
+n'apparaît dans le rendu »), pas pour une propriété plus large qu'il ne couvre pas. Si l'intention
+est vraiment « aucune lecture de `paramMap` dans le code », c'est une recherche statique
+(grep/AST), pas un test de rendu. Prolonge [[L-012]] (le test doit lire le contrat à sa vraie
+source) sur un piège inverse : ici la source existe bien dans le composant, mais un signal Angular
+non consommé ne se propage jamais jusqu'au point que le test observe.
+
+**Réfs.** `src/app/**/page-a-venir.spec.ts` ; branche `feat/e1-st2-layout-navigation`.
 
 ---
 

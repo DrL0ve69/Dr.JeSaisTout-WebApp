@@ -109,11 +109,27 @@ dossier sans `staticwebapp.config.json` résolu — donc sans CSP.
 - **Sortie `static_web_app_url` à confirmer** : l'étape de vérification des en-têtes de `deploy.yml`
   lit cette sortie de l'action Azure. Si elle arrive vide au premier run, l'étape émet un
   avertissement au lieu d'échouer — ajuster le nom à ce moment-là plutôt que de le supposer juste.
-- **Constat navigateur non fait** : qu'aucune violation CSP ne frappe
-  `<script id="ng-state" type="application/json">` (l'hydratation en dépend) et que la page
-  s'affiche stylée. Les en-têtes sont vérifiés par machine ; le **comportement du navigateur ne
-  l'est pas**. À faire à l'œil sur l'URL Azure — `infra/README.md` §5.
-- **G-axe** : volontairement absent des workflows tant qu'il n'existe pas de page réelle à tester.
-  Un gate vert qui ne teste rien est pire qu'un gate absent. Arrive en E1.
-- **E1** : une vraie page 404 ; aujourd'hui `responseOverrides` réécrit vers `/index.html` avec le
-  statut 404.
+- **✅ Constat navigateur FAIT le 2026-08-14, par le propriétaire** : console ouverte sur l'URL
+  Azure, **aucun message** — donc aucune violation CSP, y compris sur
+  `<script id="ng-state" type="application/json">` dont l'hydratation dépend ; page stylée ; aucun
+  clignotement perçu à la bascule de thème. Les en-têtes étaient vérifiés par machine, le
+  **comportement du navigateur ne l'était pas** : il l'est désormais. ⚠️ **Portée exacte, à ne pas
+  surinterpréter** : ce constat date d'AVANT E1-ST2, sur un site qui ne portait **aucun élément
+  interactif**. C'est précisément ce qui a masqué le défaut décrit ci-dessous (voir S-005).
+- **✅ G-axe est en ligne depuis E1-ST2**, au même rang dans `ci.yml` **et** `deploy.yml` (juste
+  après G-build, dont il consomme l'artéfact) : `axe-core` exécuté dans jsdom sur chaque page
+  prerendue, précédé de son **auto-test** qui prouve qu'il mord. Ce qu'il ne couvre pas est imprimé
+  à chaque exécution : clavier, focus visible, `target-size`, contraste rendu — le contraste est
+  tenu en amont par G-contraste, le clavier attend son gate Playwright (E1-ST2, en cours).
+- **✅ La 404 est un vrai fichier depuis E1-ST2.** `responseOverrides` réécrit vers
+  **`/404/index.html`** (route `404` prerendue, composant `PageIntrouvable`), plus vers
+  `/index.html`. Et **`navigationFallback` a été RETIRÉ** : c'est un changement de sécurité, pas de
+  confort — tant qu'il était là, **toute URL inconnue renvoyait 200 avec la page d'accueil
+  légitime**, ce qui faisait de `https://<site>/facture-impayee/` un support de hameçonnage clé en
+  main sous le domaine du site. Une URL inconnue renvoie désormais un **404 réel**.
+  `/index.csr.html` — coquille de rendu client émise par `ng build`, servable parce que **présente
+  dans l'artéfact** — est fermée par une redirection **301** vers `/` (voir S-006).
+- **Vérifié au build depuis E1-ST2** : chaque cible interne de `rewrite`/`redirect` de la config SWA
+  doit correspondre à un fichier réellement présent dans l'artéfact, sinon `npm run build` sort en
+  **code 1**. Sans ce contrôle, supprimer la route `404` — qui *paraît* redondante à côté du `**` —
+  aurait fait servir à Azure sa page d'erreur de marque, sans qu'aucun gate ne rougisse (S-004).

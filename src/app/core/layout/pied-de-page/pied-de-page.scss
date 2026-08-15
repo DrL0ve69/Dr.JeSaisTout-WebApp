@@ -1,0 +1,37 @@
+// Pied de page — fin du feuillet.
+//
+// ⚠️ On n'`@use` QUE `mixins` (qui n'émet aucun CSS tant qu'aucun mixin n'est
+// appelé). `themes` émettrait le bloc `:root` : un style de composant est une
+// unité de compilation séparée, il dupliquerait tous les jetons dans son CSS.
+//
+// Aucune valeur littérale de couleur, taille ou distance (garde-fou G7).
+
+:host {
+  display: block;
+}
+
+.pied {
+  // Le pied s'aligne sur la largeur de PAGE (pas sur la largeur de lecture) :
+  // c'est un élément de coquille, pas du texte courant.
+  max-width: var(--largeur-page);
+  margin-inline: auto;
+  padding: var(--espace-4) var(--espace-3) var(--espace-6);
+}
+
+// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`) :
+// il n'y a ici que le rythme vertical.
+.filet {
+  margin-block-end: var(--espace-3);
+}
+
+.depot {
+  margin-block-start: var(--espace-1);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+
+  // WCAG 2.5.8 (cible ≥ 24 px) et la barre maison de 44 px visent les cibles
+  // ISOLÉES ; un lien à l'intérieur d'une phrase relève de l'exception « inline »
+  // du critère, et lui donner du rembourrage vertical décollerait les lignes du
+  // paragraphe. Le focus, lui, est bien dessiné : il vient de `:focus-visible`
+  // dans la feuille globale.
+}

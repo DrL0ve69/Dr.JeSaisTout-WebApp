@@ -1,0 +1,71 @@
+// Page 404 — même famille visuelle que la page « à venir », fichier DISTINCT.
+//
+// Oui, une partie de ces règles ressemble à `page-a-venir.scss`. C'est assumé :
+// ce sont deux composants, et un mixin « feuillet de carnet » extrait à partir de
+// deux exemplaires serait une abstraction prématurée — elle figerait la 404 et la
+// page d'attente ensemble alors que la première survit à E2 et la seconde non.
+// La règle du dépôt : un peu de SCSS qui se ressemble vaut mieux qu'un contrat
+// commun inventé trop tôt.
+//
+// ⚠️ On n'`@use` QUE `mixins` (qui n'émet aucun CSS tant qu'aucun mixin n'est
+// appelé). `themes` émettrait le bloc `:root` et dupliquerait tous les jetons
+// dans le CSS de ce composant.
+//
+// Aucune valeur littérale de couleur, taille ou distance (garde-fou G7).
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+  padding: var(--espace-6) var(--espace-3);
+}
+
+.carnet {
+  @include m.reglure;
+
+  // Marge NEUTRE : une adresse erronée n'est pas une faille de sécurité, et
+  // l'encre rouge est réservée à la signature sémantique « vulnérable ».
+  @include m.marge-carnet;
+
+  max-width: var(--largeur-lecture);
+  margin-inline: auto;
+  padding: var(--espace-4) var(--espace-3);
+  background-color: var(--couleur-surface-creuse);
+  border: var(--filet-fin) solid var(--couleur-filet);
+}
+
+.tampon {
+  margin-block-end: var(--espace-2);
+  color: var(--couleur-danger-vuln);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+.titre {
+  margin-block-end: var(--espace-2);
+}
+
+.accroche {
+  font-size: var(--taille-m);
+}
+
+// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`).
+.reglure {
+  margin-block: var(--espace-4);
+}
+
+// Le lien de retour est la seule action de la page : contrairement au lien
+// « inline » du pied de page, c'est une cible ISOLÉE, donc pleinement soumise à
+// WCAG 2.5.8 (et à la barre maison de 44 px). Sa hauteur est atteinte par le
+// rembourrage seul, sans `min-height` : la boîte de ligne du corps de texte fait
+// `--taille-s` × `--interligne-corps` (1 rem × 1.6 = 25.6 px) et les deux
+// `--espace-2` ajoutent 2 × 16 px, soit ~57 px de cible. Aucun jeton de « cible
+// tactile » n'existe encore dans le design system — la valeur n'est donc pas en
+// dur ici (G7), elle est DÉDUITE de jetons existants ; le jour où ce jeton
+// arrive, cette règle devient une ligne.
+.retour a {
+  display: inline-block;
+  padding-block: var(--espace-2);
+}

@@ -67,16 +67,38 @@ jobs:
       - name: G-build (+ config SWA à hachages)
         run: npm run build
 
+      # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de
+      # `dist/dr-je-sais-tout/browser`. Il vient donc APRÈS G-build, qui produit l'artéfact.
+      # Pas de Playwright : le site est 100 % prerendu, et `jsdom` était déjà là — `axe-core` est la
+      # seule dépendance ajoutée (devDep, 0 octet en production).
+      #
+      # DEUX commandes, dans cet ordre. L'auto-test prouve d'abord que le gate MORD : une fixture par
+      # famille de règle (code 1 attendu et règle nommée), une page conforme (code 0), un dossier
+      # absent puis un dossier sans page (code 1 — L-014, un gate ne peut pas être vert en n'ayant
+      # rien vérifié). Ensuite seulement, l'audit des vraies pages. Sans l'auto-test, une montée
+      # d'axe ou de jsdom pourrait rendre ce gate muet sans que rien ne l'annonce.
+      #
+      # CE QU'IL COUVRE : repères (landmarks) ARIA, hiérarchie des titres, mécanisme d'évitement,
+      # noms accessibles (boutons, liens, images), langue du document, étiquettes de formulaire,
+      # attributs ARIA — ~85 règles, dont 34 nommément promises et confrontées à `axe.getRules()`.
+      # CE QU'IL NE COUVRE PAS : l'interaction et l'ordre de tabulation au CLAVIER, le focus visible
+      # ou masqué, `target-size` (cibles ≥ 44 px) et le contraste — jsdom ne calcule ni boîtes ni
+      # cascade. Le contraste est mesuré en amont par G-contraste ; le reste appartient à la
+      # checklist manuelle d'E1-ST2 et à Playwright, inscrit en dette pour le clavier. Le script
+      # IMPRIME cette liste et ses règles désactivées à chaque exécution : le journal fait foi (L-005).
+      - name: G-axe
+        run: |
+          npm run a11y:axe:auto-test
+          npm run a11y:axe
+
       # Surface de PRODUCTION uniquement, et tolérance zéro : `--omit=dev` doit rester à 0.
       # Le audit complet remonte 3 « moderate » dev-only via le SDK MCP d'@angular/cli, dont le
       # correctif downgraderait la CLI en v21 — refusé (voir CLAUDE.md §Commandes).
       - name: G-audit
         run: npm audit --omit=dev
 
-      # G-axe arrive en E1-ST2, avec les premières pages réelles. Ne pas ajouter d'étape verte
-      # factice d'ici là : un gate qui ne teste rien est pire qu'un gate absent.
-      # G-contraste (ci-dessus) en est la moitié AMONT — il mesure les jetons, pas les pages
-      # rendues ; aucun des deux ne remplace l'autre.
+      # G-axe est en ligne depuis E1-ST2 (voir son étape ci-dessus). G-contraste en est la moitié
+      # AMONT — il mesure les jetons, pas les pages rendues ; aucun des deux ne remplace l'autre.
       #
       # ⚠️ Cette liste de gates doit rester ALIGNÉE avec celle de deploy.yml, qui les rejoue avant
       # publication. Un gate ajouté ici et pas là-bas ne protège pas ce qui part en ligne.

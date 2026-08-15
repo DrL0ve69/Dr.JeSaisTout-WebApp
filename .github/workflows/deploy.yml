@@ -65,6 +65,16 @@ jobs:
       - name: G-build (+ config SWA à hachages)
         run: npm run build
 
+      # Même gate que dans ci.yml, au même rang — juste après G-build, dont il consomme l'artéfact.
+      # Il compte doublement ici : ce sont EXACTEMENT les pages téléversées à l'étape de déploiement
+      # ci-dessous qu'il audite. Première commande : l'auto-test du gate (preuve qu'il mord) ;
+      # seconde : l'audit des pages. Voir la note de `ci.yml` pour ce qu'il couvre et ce qu'il ne
+      # couvre pas (clavier, focus, target-size → checklist manuelle et Playwright en dette).
+      - name: G-axe
+        run: |
+          npm run a11y:axe:auto-test
+          npm run a11y:axe
+
       - name: G-audit
         run: npm audit --omit=dev
 
@@ -135,3 +145,73 @@ jobs:
           fi
 
           exit $manquants
+
+      # Le routage de production change dans E1-ST2 : `navigationFallback` est retiré et
+      # `responseOverrides.404` pointe désormais sur la page 404 réellement prerendue. Ces deux
+      # choses ne s'observent qu'EN LIGNE — rien en local ne dit ce que SWA fait d'une URL inconnue.
+      # Comme à l'étape précédente, on attend l'EFFET et jamais le seul code de retour (L-004) :
+      # pendant les ~30-60 s où staticwebapp.config.json n'est pas encore appliqué, une URL inconnue
+      # répond 200 avec la coquille du site. C'est un SUCCÈS pour curl, donc `--retry` ne rattrape
+      # rien — d'où l'attente active sur le statut 404 réellement rendu.
+      - name: Vérifier le routage servi (404 et coquille de rendu client)
+        env:
+          URL: ${{ steps.deploiement.outputs.static_web_app_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${URL:-}" ]; then
+            echo "::warning::URL non fournie par l'action — vérification du routage ignorée."
+            exit 0
+          fi
+          base="${URL%/}"
+          entetes="${RUNNER_TEMP:-/tmp}/entetes-404.txt"
+          echo "Cible : $base"
+
+          # (a) Une URL inconnue doit rendre NOTRE page 404 : statut 404, corps « Page introuvable »,
+          #     et en-têtes de sécurité présents (une page d'erreur reste une page servie).
+          statut=""
+          corps=""
+          for essai in $(seq 1 12); do
+            : > "$entetes"
+            corps=$(curl -sS -D "$entetes" "$base/chemin-inexistant-verification-ci/" || true)
+            statut=$(head -n 1 "$entetes" | tr -d '\r' | awk '{print $2}')
+            if [ "$statut" = "404" ]; then
+              echo "Routage 404 appliqué (tentative ${essai})."
+              break
+            fi
+            echo "URL inconnue servie en ${statut:-aucun} — config pas encore propagée (${essai}/12), attente 10 s…"
+            sleep 10
+          done
+
+          echecs=0
+          if [ "$statut" != "404" ]; then
+            echo "::error::URL inconnue servie en ${statut:-aucun} au lieu de 404 — soft-404 indexable."
+            echecs=1
+          fi
+          if ! grep -qi "^content-security-policy:" "$entetes"; then
+            echo "::error::La page 404 est servie SANS en-tête Content-Security-Policy."
+            echecs=1
+          fi
+          if ! grep -q "Page introuvable" <<<"$corps"; then
+            echo "::error::La page servie sur une URL inconnue n'est pas la nôtre — « Page introuvable » absent du corps."
+            echecs=1
+          fi
+
+          # (b) /index.csr.html est un artéfact de `ng build` (coquille vide, ni repère ni titre),
+          #     pas une page du site : l'URL doit être fermée par une redirection 301 vers /.
+          #     curl ne suit pas les redirections par défaut : le code lu est bien celui de SWA.
+          statut_csr=""
+          for essai in $(seq 1 12); do
+            statut_csr=$(curl -sS -o /dev/null -w '%{http_code}' "$base/index.csr.html" || true)
+            if [ "$statut_csr" = "301" ]; then
+              echo "Redirection de /index.csr.html appliquée (tentative ${essai})."
+              break
+            fi
+            echo "/index.csr.html servi en ${statut_csr:-aucun} — config pas encore propagée (${essai}/12), attente 10 s…"
+            sleep 10
+          done
+          if [ "$statut_csr" != "301" ]; then
+            echo "::error::/index.csr.html servi en ${statut_csr:-aucun} au lieu de 301 — la coquille de rendu client est publiquement servie."
+            echecs=1
+          fi
+
+          exit $echecs

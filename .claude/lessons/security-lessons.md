@@ -79,3 +79,54 @@ S'applique au-delà de ce script — candidat direct : tout futur validateur du 
 Markdown/JSON de `content/` (E2), qui analysera lui aussi une entrée non fiable par motif.
 **Réfs.** `tools/deploiement/generer-config-swa.mjs`, `.claude/rules/security.md` §1,
 `docs/agile/backlog-phase-1.md` (lot autonome à inscrire).
+
+## S-004 · Une config de déploiement qui NOMME un chemin doit prouver qu'il existe dans l'artéfact (A05 · fail-open)
+
+**Symptôme.** `config/staticwebapp.config.source.json` pointait `responseOverrides.404` vers
+`/404/index.html` sans que rien ne vérifie la présence de ce fichier dans l'artéfact bâti —
+`generer-config-swa.mjs` se contentait d'un `JSON.parse`. La route `404` d'`app.routes.ts` paraît
+redondante à côté du fallback `**`, donc un « nettoyage » plausible aurait fait pointer la config
+dans le vide **sans qu'aucun gate ne rougisse** : Azure SWA serait retombé, en silence, sur sa page
+d'erreur de marque.
+**Règle.** Traiter toute cible de `rewrite`/`redirect`/`responseOverrides` d'une config de
+déploiement comme une **assertion à valider au build**, jamais comme une donnée : vérifier
+l'existence du fichier référencé dans l'artéfact produit, code 1 sinon. Un défaut de cette classe
+est un **fail-open** — une config qui échoue en silence vers le comportement de repli du
+fournisseur plutôt que de casser le build.
+**Réfs.** `tools/deploiement/generer-config-swa.mjs`, `config/staticwebapp.config.source.json`,
+`docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-005 · Un défaut de framework peut injecter des scripts inline sous une CSP stricte, et seulement quand la page devient interactive (A05 · fail-open de portée)
+
+**Symptôme.** Le build est sorti rouge sur E1-ST2 : la sortie prerendue portait trois scripts inline
+au lieu d'un attendu. `provideClientHydration()` d'Angular 22 active **par défaut**
+`withIncrementalHydration()`, qui embarque `withEventReplay()` — lequel injecte
+`ng-event-dispatch-contract` et `window.__jsaction_bootstrap(…)`, mais **seulement une fois que la
+page porte de vrais écouteurs** (`click`/`change` — la bascule de thème d'E1-ST2). E1-ST1 avait
+validé une CSP « propre » sur un site sans le moindre élément interactif : la vérification était
+juste, son **périmètre** ne l'était pas.
+**Règle.** Une CSP validée sur une page non interactive ne prouve rien sur une page qui le devient —
+revalider dès qu'un lot ajoute le premier écouteur d'événement. Face à un défaut de framework qui
+injecte des scripts inline, préférer **désactiver le mécanisme** (`withNoIncrementalHydration()`,
+seule API publique ici) plutôt qu'apprendre au garde-fou à hacher automatiquement N scripts inline :
+une liste blanche **dérivée de l'artéfact** cesse d'être une liste **nominative et revue** — elle
+autoriserait alors tout script qu'une future version du framework y injecterait, sans regard humain.
+À rapprocher de [[S-003]] (garde-fou qui doit prouver avoir tout vu).
+**Réfs.** `src/app/app.config.ts`, `docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-006 · Tout fichier présent dans l'artéfact est servable, qu'un plan de routage le mentionne ou non (A05 · exclusion d'audit sur motif faux)
+
+**Symptôme.** `dist/dr-je-sais-tout/browser/index.csr.html` (coquille de rendu client vide, ni
+`<main>` ni `<h1>`) répondait 200 en production et avait été écarté de l'audit d'accessibilité au
+motif que `navigationFallback` le couvrirait — motif **faux** : `navigationFallback` ne se déclenche
+que sur un fichier **absent**, jamais sur un fichier qui existe et répond déjà. Cette exclusion a
+survécu à une revue précédente parce qu'elle citait un mécanisme réel, mal appliqué. Conséquence
+associée découverte en corrigeant : avant retrait de `navigationFallback`, **toute** URL inconnue
+sous le domaine renvoyait 200 avec la page d'accueil légitime — support de hameçonnage clé en main
+(`https://<site>/facture-impayee/`), jamais identifié comme exposition avant ce lot.
+**Règle.** La présence d'un fichier dans l'artéfact bâti, seule, décide s'il est servable — un plan
+de routage applicatif (`app.routes.ts`) ne le couvre pas. Toute exclusion d'audit doit nommer le
+**mécanisme exact** qui la justifie et être vérifiée contre son comportement réel (fichier absent vs
+présent), pas seulement contre son nom. Fermé ici par redirection 301 sur `index.csr.html` et retrait
+de `navigationFallback`.
+**Réfs.** `config/staticwebapp.config.source.json`, `docs/agile/backlog-phase-1.md` §E1-ST2.
