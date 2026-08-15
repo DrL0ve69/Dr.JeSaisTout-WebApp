@@ -9,30 +9,44 @@ Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code c
 comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutorat) :
 [`docs/vision.md`](docs/vision.md).
 
-> ## ⏭️ REPRISE — état au 2026-08-08, fin de session
+> ## ⏭️ REPRISE — état au 2026-08-15, fin de session
 >
-> **E0 EST CLOS. E1-ST1 EST CLOSE — ST1-A à ST1-E ✅.** Design system 3 couches, polices
-> auto-hébergées, script d'anti-flash haché, `ThemeService` tri-état : livrés, revus, déployés.
-> La chaîne est verte, **88 tests**.
+> **E0 CLOS. E1-ST1 CLOSE (ST1-A à ST1-E ✅). E1-ST2 CLOSE** — coquille du site, en-tête,
+> **bascule de thème visible**, pied de page, 404 réelle, lien d'évitement, landmarks, gestion du
+> focus au changement de route ; **plus deux gates neufs** : G-axe (`tools/a11y/verifier-axe.mjs`)
+> et **G-e2e** (Playwright servant `dist/` par `npx swa start`, donc **sous la CSP à hachages
+> réellement générée**). **170 tests / 12 fichiers · 11 tests e2e · axe 258 vérifications,
+> 0 violation.** Les PR **#6** et **#7** sont **fusionnées** — plus rien n'attend de ce côté.
 >
-> **Deux PR attendent ta fusion, dans cet ordre** (la seconde est empilée sur la première) :
-> **#6** `docs(e1)` — clôture d'E1-ST1 · **#7** `chore(outils)` — typage du générateur de CSP.
+> **Le geste suivant : E1-ST3 — la Home « carnet de laboratoire »**
+> ([`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST3, ligne 567). Sa
+> particularité tient en une phrase : **l'exploration visuelle précède l'implémentation**, et le
+> backlog exige **plusieurs directions franchement différentes avant de converger** — pas des
+> variantes de la première (constat C1 : le skill `frontend-design` qu'invoquait le plan d'origine
+> **n'existe pas**, ne pas le chercher). Fiches à lire : `web/frontend/principes-design-visuel.md`
+> et `ai/agents/claude-code/design-ui.md`.
 >
 > **⚠️ DEUX CONSTATS N'ATTENDENT QUE TOI, et personne d'autre ne peut les produire** (l'outil
-> navigateur est banni sur ce projet). Sur <https://salmon-sky-0a730780f.7.azurestaticapps.net> :
-> (1) **zéro violation CSP en console** ; (2) **thème sombre épinglé sans flash**
-> (`localStorage.setItem('drjst-theme','sombre')` puis rechargement).
+> navigateur est banni sur ce projet). Sur <https://salmon-sky-0a730780f.7.azurestaticapps.net>,
+> **après le déploiement d'E1-ST2** — les refaire même si tu les avais faits en août : la CSP a
+> changé avec le premier élément interactif (S-005), un constat d'avant ST2 ne vaut plus. (1) **zéro
+> violation CSP en console**, en **actionnant la bascule de thème** ; (2) **thème sombre épinglé sans
+> flash** (`localStorage.setItem('drjst-theme','sombre')` puis rechargement). S'y ajoute un troisième,
+> moins coûteux : (3) le motif SWA `/404/*` couvre-t-il **`/404/` lui-même** ? (dette (b) d'E1-ST2).
 >
-> **Le geste suivant : E1-ST2** — layout, navigation, **bascule de thème visible**, 404, skip-link,
-> landmarks ARIA. C'est un **début de gros lot** : `solution-architect` puis `devils-advocate` s'y
-> justifient (barème `.claude/README.md` §6a). Le `ThemeService` de ST1-D exporte déjà `THEMES` /
-> `CLE_THEME` / `ATTRIBUT_THEME` / `REQUETE_SOMBRE` **pour cette sous-tâche** — la bascule visible en
-> est le premier client, et elle a été volontairement laissée hors de ST1-D.
->
-> **Dette à ne pas perdre** : typage (b) **34** et (c) **35** erreurs sur les deux gates de design ;
-> et surtout **🔴 S-003** — le garde-fou de CSP ne prouve pas qu'il a *tout vu* (un guillemet
-> orphelin rend une balise `<script>` invisible à son motif ; **préexistant**, impact borné, parade
-> connue). Détail et parade : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1.
+> **Dette à ne pas perdre**, de la plus mordante à la plus froide :
+> **🔴 S-003** — le garde-fou de CSP ne prouve pas qu'il a *tout vu* (un guillemet orphelin rend une
+> balise `<script>` invisible à son motif ; **préexistant**, impact borné, parade connue — et devenue
+> **moins chère** : `verifier-axe.mjs` démontre le patron « analyseur réel plutôt que regex », jsdom
+> est déjà là) · **la CSP servie n'est vérifiée que par motifs, pas structurellement** (une CSP
+> permissive d'une autre forme que les trois refusées passerait ; parade : comparaison directive par
+> directive avec `config/staticwebapp.config.source.json`) — *c'est le constat le plus proche de ce
+> que le site enseigne, à traiter avant la première leçon publiée* · **`.claude/rules/security.md`
+> n'a pas intégré S-007/S-008** (§1 devrait exiger le fail-closed d'une vérification
+> post-déploiement, §3 la séparation gate-à-binaire-tiers / job-détenant-le-jeton **plus** le
+> scellement d'artéfact) · `Azure/static-web-apps-deploy@v1` est un **tag mutable** dans le job qui
+> détient le jeton · **typage (b) 34 et (c) 35 erreurs** sur les deux gates de design.
+> Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1 et §E1-ST2.
 >
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
 > ressources Azure créées (*Azure for Students*, palier **Free**) · secret
@@ -40,8 +54,19 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > annotation** · ST1-A : design system 3 couches (73 primitives → 58 jetons sémantiques → 0 jeton
 > composant), gate `verifier-contrastes.mjs` (33 paires, 66 mesures, plus bas 3,24:1/3,39:1) ·
 > ST1-B : Fraunces + Inter en OFL auto-hébergées (196 Ko livrés, **83 Ko chargés**), gate
-> `verifier-glyphes.mjs` (lecture réelle de la table `cmap`, 80 vérifications) — les deux gates
-> câblés dans `ci.yml` **et** `deploy.yml` · aucun `tfstate` versionné.
+> `verifier-glyphes.mjs` (lecture réelle de la table `cmap`, 80 vérifications) · ST2 : `deploy.yml`
+> **scindé en deux jobs** (`gates` sans secret → `publication` qui détient le jeton), artéfact
+> **scellé par empreintes sha256** entre les deux, vérifications en ligne **fail-closed** et portant
+> sur les **directives** CSP, pas seulement sur la présence des en-têtes — tous les gates câblés dans
+> `ci.yml` **et** `deploy.yml` (L-007) · aucun `tfstate` versionné.
+>
+> **Deux pièges d'E1-ST2 à ne pas repayer.** (1) `provideClientHydration()` d'Angular 22 active par
+> défaut l'**hydratation incrémentale**, qui injecte deux scripts inline que la CSP à hachages refuse —
+> et ces scripts n'apparaissent **qu'avec le premier élément interactif**. D'où
+> `withNoIncrementalHydration()` dans `app.config.ts` : rejeu d'événements perdu, `@defer (hydrate …)`
+> inerte — **piège pour E2**. (2) `preserveWhitespaces: false` retire le nœud blanc entre deux
+> `<span>` : le nom accessible se calcule **en un seul mot**, l'espace visible ne venant que du `gap`
+> CSS qu'aucune API d'accessibilité ne lit (**L-024**).
 >
 > **⚠️ Contrainte de RÉDACTION née de ST1-B : le contenu emploie U+00A0**, jamais U+202F.
 > L'espace fine insécable est **absente de Fraunces comme d'Inter**, et irrécupérable (le
