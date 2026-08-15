@@ -577,6 +577,86 @@ que le harnais ne garantit pas (réponses 200, HTTP local, un seul document HTTP
 - **Fichiers** : `src/app/features/home/`.
 - **Gates** : G-lint, G-test, G-build, G-axe ; revue contre `docs/design/direction-visuelle.md` §3 ; page prerendue.
 
+#### 📐 Plan arrêté — 2026-08-15 (v2, après passe `devils-advocate`)
+
+**Direction tranchée par le propriétaire : « l'exposition de pièces à conviction ».** La Home ne se
+vend pas, elle **démontre** que le site s'applique son propre cours : la *star of the show* est un
+extrait des **en-têtes de sécurité réellement servis par ce site**, annoté en marginalia, suivi de
+« Ouvrez les outils réseau, vérifiez vous-même. » Elle est dessinée en **type et filets seulement** —
+aucun SVG à main levée, donc aucun pari sur la qualité d'un dessin produit par un agent. Elle rime
+avec **E3-ST13** (« les en-têtes réels de CE site comme étude de cas ») et **prouve** la cohérence
+qu'exige `.claude/rules/security.md`.
+
+Trois directions ont été écartées : le **sceau** (branding, pas produit ; qualité suspendue à un
+dessin de LLM ; raté, il devenait la référence visuelle de tout E2), le **duo vulnérable/corrigé**
+(fait entrer la règle de contenu pédagogique §4 dans une sous-tâche d'E1, et `direction-visuelle.md:136`
+interdit l'encre rouge en ornement), et le **feuillet minimal**.
+
+**Texte figé de l'extrait** — les 3 directives les plus stables, aucune ne portant de jeton
+`__HACHAGES_*__` (contrairement à `script-src`/`style-src`), plus le **nom** du header HSTS sans sa
+valeur pour ne pas figer un `max-age` : `default-src 'self'` · `object-src 'none'` ·
+`frame-ancestors 'none'` · `Strict-Transport-Security`. **Dérive assumée pour E1** : le texte est en
+dur et peut diverger de `config/staticwebapp.config.source.json` ; le générer au build est du niveau
+E2 — c'est dit, pas promis.
+
+**Décisions consignées** :
+1. **`CarteCours` ne porte AUCUN lien** — titre en `<h2>`, pas en `<a>`. Conséquence heureuse : « un
+   seul CTA » est tenu au pied de la lettre, il n'y a **qu'un** focalisable neuf sur `/`, et aucune
+   collision de nom accessible avec le lien de nav « Sécurité des applications web ».
+2. **Confinement des contrastes** : la Home se pose sur `surface`/`surface-creuse` uniquement, dont
+   toutes les paires sont déjà mesurées (`verifier-contrastes.mjs:95-262`). `--couleur-surface-elevee`
+   est **écarté** — il n'est mesuré que sur 4 paires, aucune avec `filet`/`accent`/encres
+   secondaire-tertiaire. Zéro paire nouvelle. *Rappel structurel : le gate mesure une table de
+   jetons, pas l'usage réel des composants — rien ne détecte une combinaison non listée.*
+3. **Bloc d'en-têtes** : `<figure>` → `<pre><code>` + `<figcaption>`, `aria-label` sur la figure,
+   `overflow-x: auto` **sur le `<pre>`** et jamais sur un ancêtre (à 360 px le texte défile
+   localement, le `body` ne déborde pas). Aucune couleur d'accent dans le bloc.
+4. **Ordre DOM = ordre de lecture** — grille CSS qui se replie, **interdiction** d'une propriété
+   `order:` qui désynchroniserait le visuel du DOM (WCAG 1.3.2).
+5. **Retrait du bloc `data`** de la route `''` (`app.routes.ts:60-65`) : il ne servait qu'à
+   `PageAVenir`, le nouveau composant écrit son `<h1>` lui-même. Les garder serait du code mort
+   silencieux. `app.routes.spec.ts` **ne change pas** — son filtre `component === PageAVenir` fait
+   sortir la route toute seule.
+6. **La carte annonce le chantier** (`mentionChantier`), le CTA menant encore à `PageAVenir`. E1-ST3
+   se clôt donc ✅ et non 🟡. *À retirer quand la première leçon est publiée — rappel posé en E2-ST2.*
+
+**Découpage en 4 lots, chacun un livrable vérifiable seul, chacun un agent frais** :
+- **Lot A — implémentation** : `src/app/features/home/{accueil,carte-cours/,extrait-entetes/}` +
+  route `''`. Contrat `CarteCours` : `titre` / `description` / `lien` en `input.required`,
+  `mentionChantier` optionnel — **sans état ni progression**, ceux-là arrivent en E2-ST6.
+  Gates : `lint`, `test`, `build`, `design:contrastes:check`, `a11y:axe`.
+- **Lot B — specs Playwright d'E1-ST2** *(distinct de A, et conscient : ces comptes sont le seul
+  garde-fou contre une boucle de focus vidée)*. `navigation-clavier.spec.ts:77-81` → scoper les
+  locators « Accueil » et « Sécurité des applications web » au landmark de nav avec `exact: true`
+  (fragiles par construction, indépendamment de ce lot) ; insérer l'arrêt « CTA Commencer » entre les
+  radios et le pied de page ; `:123` 6 → 7 · `focus-visible.spec.ts:68` 6 → 7 ·
+  `cibles-pointeur.spec.ts` 8 → 9 **et son commentaire d'énumération**.
+  Gates : `typecheck:e2e` + les 3 specs.
+- **Lot C — capture et critique visuelle** *(le trou que personne ne comblait : aucun gate ne
+  REGARDE le résultat, et l'extrait n'étant pas `aria-hidden`, axe n'y changera rien)*. Script
+  Playwright **jetable, non commité**, sur le build réel servi par `npx swa start` :
+  `home-clair.png`, `home-sombre.png`, `home-360px.png` dans `e2e/__screenshots__/home/` (déjà
+  couvert par `.gitignore:40`). L'agent **lit** les PNG et critique contre G1–G9.
+  **Plafond : 3 itérations.** Au-delà, on **documente l'écart nommé** (quel G, quelle capture) et il
+  remonte au propriétaire — on ne force pas une 4ᵉ passe.
+- **Lot D — clôture documentaire** (scribe) : statut ✅ ici au format d'E1-ST2, rappel de retrait de
+  `mentionChantier` posé en E2-ST2, `roadmap.md` si elle suit ce grain.
+
+**Deux arguments FAUX du plan v1, à ne jamais resservir** : (1) `direction-visuelle.md:58` **conserve
+explicitement** le dispositif « cartel » (« *mais ses cartels inspirent les en-têtes de modules* ») —
+prétendre que le cartel est une direction tranchée contre tuerait à tort un cartel légitime en
+E2-ST2 ; (2) « minimalisme = dashboards » vient de `principes-design-visuel.md:110`/`:122`, la ligne
+sur la **depth/texture** que le projet invoque déjà **en faveur** de la sobriété (fondement de G2) —
+la ligne pertinente est `:111`.
+
+**Rappel utile au développeur** : les blocs `<style>` inline sont **hachés automatiquement**
+(`generer-config-swa.mjs:384-394`) — un composant stylé ne coûte rien à la CSP. Seul l'**attribut**
+`style="…"` fait échouer le build (`:379-382`).
+
+**Non couvert par un gate** : la Home est la **première** page à porter de la vraie copie éditoriale
+française, et **rien ne vérifie U+00A0** (`.claude/rules/contenu-pedagogique.md` §3) — à contrôler à
+la main dans le Lot A.
+
 ---
 
 ## E2 · Moteur de contenu
