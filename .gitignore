@@ -39,6 +39,15 @@ testem.log
 /typings
 __screenshots__/
 
+# Playwright — sorties d'exécution des tests de bout en bout.
+# `test-results/` reçoit traces et captures des échecs (`retain-on-failure`),
+# `playwright-report/` le rapport HTML : deux artéfacts régénérés à chaque run,
+# jamais une source.
+/playwright-report
+/test-results
+# Les binaires de navigateur vivent hors du dépôt (cache utilisateur), installés
+# par `npm run e2e:install`. Rien à ignorer de ce côté.
+
 # Terraform (infra/)
 # ⚠️ terraform.tfstate contient le jeton de déploiement SWA EN CLAIR — ne jamais le versionner.
 **/.terraform/*

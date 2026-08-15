@@ -92,6 +92,35 @@ describe('EnTete', () => {
       expect(logotype?.textContent).toContain('Je-Sais-Tout');
     });
 
+    it('donne au logotype un nom accessible ESPACÉ, que son contenu ne produit pas', async () => {
+      const fixture = await creerSur('/');
+      const hote = fixture.nativeElement as HTMLElement;
+
+      const logotype = hote.querySelector<HTMLAnchorElement>('header > a');
+      const morceauxVisibles = [...(logotype?.querySelectorAll('span') ?? [])].map((span) =>
+        (span.textContent ?? '').trim(),
+      );
+
+      // LE MODE D'ÉCHEC, CONSTATÉ TEL QUEL. `preserveWhitespaces: false` (défaut
+      // d'Angular) retire le nœud de texte blanc entre les deux `<span>` : le
+      // contenu du lien est COLLÉ, et c'est de ce contenu qu'un lecteur d'écran
+      // tirerait le nom du lien s'il n'y avait pas d'`aria-label`. L'espace qu'on
+      // voit à l'écran vient du `gap` de `.logotype`, qu'aucune API
+      // d'accessibilité ne lit. Cette ligne n'est pas décorative : le jour où le
+      // contenu se met à porter une vraie espace, elle rougit — et l'`aria-label`
+      // devra être réexaminé plutôt que traîner en doublon silencieux.
+      expect(logotype?.textContent).toBe('Dr.Je-Sais-Tout');
+
+      // Le nom accessible, lui, porte une espace ordinaire. Il est comparé au
+      // texte VISIBLE relu depuis le DOM, jamais à une chaîne recopiée : ce qui
+      // est verrouillé ici n'est pas « la valeur vaut ceci », c'est
+      // « le nom accessible EST le texte visible, dans l'ordre, séparé d'une
+      // espace » — l'exigence de WCAG 2.2 · 2.5.3 (« Étiquette dans le nom »),
+      // sans laquelle la commande vocale ne peut pas activer ce lien.
+      expect(morceauxVisibles).toEqual(['Dr.', 'Je-Sais-Tout']);
+      expect(logotype?.getAttribute('aria-label')).toBe(morceauxVisibles.join(' '));
+    });
+
     it('nomme la navigation, pour la distinguer des futurs autres `<nav>`', async () => {
       // Un site en aura plusieurs (fil d'Ariane, sommaire de module) : un `<nav>`
       // sans nom laisse le visiteur choisir entre « navigation » et « navigation ».

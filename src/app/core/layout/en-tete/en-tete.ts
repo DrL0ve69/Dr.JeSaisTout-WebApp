@@ -21,6 +21,24 @@
 // « page courante » dans une même navigation, c'est un plan faux. Vérifié par un
 // test dédié dans `en-tete.spec.ts`.
 //
+// ⚠️ LE LOGOTYPE PORTE UN `aria-label`, ET C'EST LA SEULE PARADE QUI NE CHANGE PAS
+// LE RENDU. Son contenu est fait de deux `<span>` (« Dr. » / « Je-Sais-Tout ») ;
+// `preserveWhitespaces: false` (défaut d'Angular) retire le nœud de texte blanc
+// entre eux, si bien que le nom accessible CALCULÉ À PARTIR DU CONTENU vaut
+// « Dr.Je-Sais-Tout » — en un seul mot, annoncé tel quel par un lecteur d'écran et
+// injoignable à la commande vocale. L'espace qu'on VOIT ne vient que du `gap` de
+// `.logotype`, et aucune API d'accessibilité ne lit une gouttière CSS.
+// Les deux corrections « évidentes » ont été écartées, chacune pour une raison
+// mesurable : (1) réintroduire une espace dans le gabarit (`&nbsp;`, `&ngsp;`)
+// insère un nœud de texte DANS un conteneur `inline-flex` — il y devient un
+// élément flexible anonyme, donc deux gouttières plus la chasse de l'espace au
+// lieu d'une seule gouttière : le logotype s'élargit ; (2) une espace ordinaire
+// serait de toute façon reprise par le traitement des blancs, et le nom accessible
+// dépendrait à nouveau d'un détail de compilation invisible à la relecture.
+// `aria-label` reprend EXACTEMENT le texte visible, dans l'ordre — ce qu'exige
+// WCAG 2.2 · 2.5.3 (« Étiquette dans le nom ») pour que « clique sur
+// Dr. Je-Sais-Tout » fonctionne. Contrat verrouillé par `en-tete.spec.ts`.
+//
 // La bascule de thème est composée ICI, dans l'en-tête : c'est là qu'un visiteur
 // la cherche, et l'`App` n'a pas à connaître son existence.
 // =============================================================================
@@ -35,7 +53,13 @@ import { BasculeTheme } from '../bascule-theme/bascule-theme';
   imports: [RouterLink, RouterLinkActive, BasculeTheme],
   template: `
     <header class="en-tete">
-      <a class="logotype" routerLink="/">
+      <!--
+        Un « aria-label » sur un élément qui contient déjà du texte est
+        l'exception, pas l'usage : ici le nom calculé depuis le contenu serait
+        « Dr.Je-Sais-Tout » (blancs retirés à la compilation), et toute autre
+        parade déplacerait le rendu. Voir l'en-tête de fichier.
+      -->
+      <a class="logotype" routerLink="/" aria-label="Dr. Je-Sais-Tout">
         <span class="titre-court">Dr.</span>
         <span class="titre-long">Je-Sais-Tout</span>
       </a>

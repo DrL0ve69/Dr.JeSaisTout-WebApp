@@ -6,6 +6,26 @@ name: Déploiement (main → SWA Free)
 # du propriétaire (voir infra/README.md). La CI ne détient donc aucun identifiant Azure à haut
 # privilège — seulement le jeton de déploiement de la Static Web App, dont la portée se limite à
 # téléverser du contenu statique dans cette ressource.
+#
+# ⚠️ DEUX JOBS, ET LA SÉPARATION EST UNE MESURE DE SÉCURITÉ — PAS UNE COMMODITÉ.
+# `gates` exécute toute la vérification et ne reçoit AUCUN secret ; `publication` détient le jeton
+# et ne fait que téléverser l'artéfact produit, puis constater le résultat en ligne.
+#
+# Ce qui a imposé cette coupe : le gate G-e2e installe un navigateur (`playwright install
+# --with-deps`), c'est-à-dire un binaire téléchargé depuis un CDN — HORS du contrôle d'intégrité
+# de `package-lock.json`, et installé avec les droits root du runner. Tant que cette étape
+# partageait le job du déploiement, du code téléchargé s'exécutait sur la machine qui détient le
+# jeton de publication. Constat de la revue de sécurité d'E1-ST2 ; arbitrage du propriétaire.
+#
+# ⚠️ CE QUE LA COUPE NE FAIT PAS, ET QUI EST COUVERT AUTREMENT. Isoler le secret protège le JETON,
+# pas l'ARTÉFACT : dans le job `gates`, G-axe et G-e2e s'exécutent toujours entre la construction
+# de `dist/` et son envoi, et pourraient donc le réécrire. C'est le **sceau d'empreintes** (étapes
+# « Sceller l'artéfact » / « Vérifier le sceau avant publication ») qui ferme cette seconde
+# fenêtre — pas la coupe. Les deux mesures sont nécessaires ; aucune ne remplace l'autre.
+#
+# La règle qui en découle, pour tout gate ajouté plus tard : un gate va dans `gates`, jamais dans
+# `publication`. Si une étape a besoin du jeton, elle ne vérifie rien ; si elle vérifie quelque
+# chose, elle n'a pas besoin du jeton.
 on:
   push:
     branches: [main]
@@ -20,14 +40,25 @@ permissions:
   contents: read
 
 jobs:
-  deployer:
-    name: gates · déploiement · vérification des en-têtes
+  # ---------------------------------------------------------------------------
+  # JOB 1 — toute la vérification, et AUCUN secret.
+  # C'est ici, et seulement ici, que tourne du code : dépendances npm, compilation,
+  # navigateur Playwright. Rien de ce qui s'exécute dans ce job n'a accès au jeton de
+  # publication, parce que ce job ne le reçoit pas.
+  # ---------------------------------------------------------------------------
+  gates:
+    name: gates (sans secret)
     runs-on: ubuntu-latest
     steps:
       # Majeures épinglées sur des actions qui tournent en Node 24 (checkout ≥ v5, setup-node ≥ v5).
       # En v4 elles ciblaient Node 20, déprécié : les runners les forçaient déjà en 24 avec un
       # avertissement, et ce forçage finira par disparaître.
+      # `persist-credentials: false` : ce job n'a rien à dire à git, et c'est le SEUL où s'exécute
+      # du code téléchargé (dépendances npm, navigateur Playwright). Le jeton d'Actions n'a donc
+      # aucune raison de rester écrit dans la configuration git du runner, à portée de ce code.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -65,22 +96,109 @@ jobs:
       - name: G-build (+ config SWA à hachages)
         run: npm run build
 
+      # LE SCEAU — posé ici, rompu nulle part, revérifié juste avant le téléversement.
+      # Séparer les jobs (voir l'en-tête) empêche le code téléchargé d'atteindre le JETON ; ça ne
+      # l'empêche pas d'atteindre l'ARTÉFACT, puisque G-axe et surtout G-e2e (qui installe un
+      # navigateur depuis un CDN) tournent entre la construction et l'envoi. Ces deux gates LISENT
+      # `dist/` ; aucun n'a de raison de l'écrire. L'empreinte le prouve au lieu de l'espérer.
+      # Le manifeste est écrit dans `RUNNER_TEMP`, donc HORS de `dist/` : à l'intérieur, il ferait
+      # partie de ce qu'il mesure et se réécrirait lui-même.
+      - name: Sceller l'artéfact
+        run: |
+          set -euo pipefail
+          find dist/dr-je-sais-tout/browser -type f -exec sha256sum {} + \
+            | sort -k 2 > "$RUNNER_TEMP/sceau-dist.txt"
+          echo "$(wc -l < "$RUNNER_TEMP/sceau-dist.txt") fichier(s) scellé(s)."
+
       # Même gate que dans ci.yml, au même rang — juste après G-build, dont il consomme l'artéfact.
       # Il compte doublement ici : ce sont EXACTEMENT les pages téléversées à l'étape de déploiement
       # ci-dessous qu'il audite. Première commande : l'auto-test du gate (preuve qu'il mord) ;
-      # seconde : l'audit des pages. Voir la note de `ci.yml` pour ce qu'il couvre et ce qu'il ne
-      # couvre pas (clavier, focus, target-size → checklist manuelle et Playwright en dette).
+      # seconde : l'audit des pages. Voir la note de `ci.yml` pour ce qu'il couvre. Ce qu'il ne
+      # couvre PAS — clavier, focus, taille de cible — est désormais tenu par G-e2e juste en
+      # dessous : ce n'est plus une dette ni une checklist manuelle.
       - name: G-axe
         run: |
           npm run a11y:axe:auto-test
           npm run a11y:axe
 
+      # Même gate que dans ci.yml, au même rang — juste après G-axe, dont il partage l'artéfact.
+      # Il compte doublement ici : `swa start` émule le runtime d'Azure Static Web Apps, donc ce
+      # sont bien les pages téléversées à l'étape de déploiement ci-dessous qui sont exercées SOUS
+      # LA CSP QU'ELLES EMPORTENT. C'est la seule vérification du dépôt qui presse de vraies touches
+      # sur la page interactive avant qu'elle parte en ligne — l'angle mort de la leçon S-005. Voir
+      # la note de `ci.yml` pour ce qu'il couvre (clavier, focus, taille de cible) et l'en-tête de
+      # `playwright.config.ts` pour le choix du serveur.
+      - name: G-e2e (accessibilité au clavier, sous CSP réelle)
+        run: |
+          npm run e2e:install
+          npm run e2e
+
       - name: G-audit
         run: npm audit --omit=dev
 
-      # `skip_app_build: true` : l'artéfact est déjà construit par l'étape G-build ci-dessus, avec
-      # la config SWA générée dedans. Laisser l'action rebuilder produirait un dossier SANS
-      # staticwebapp.config.json résolu — donc sans CSP.
+      # Le sceau est rompu ? Alors quelque chose a réécrit l'artéfact APRÈS que les gates l'ont
+      # jugé — et ce quelque chose est, par construction, du code qui s'est exécuté ensuite. On ne
+      # publie pas : le dossier téléversé ne serait plus celui qui a été vérifié.
+      - name: Vérifier le sceau avant publication
+        run: |
+          set -euo pipefail
+          find dist/dr-je-sais-tout/browser -type f -exec sha256sum {} + \
+            | sort -k 2 > "$RUNNER_TEMP/sceau-dist-apres.txt"
+          if ! diff -u "$RUNNER_TEMP/sceau-dist.txt" "$RUNNER_TEMP/sceau-dist-apres.txt"; then
+            echo "::error::dist/ a changé entre G-build et le téléversement — publication refusée."
+            exit 1
+          fi
+          echo "Sceau intact : l'artéfact publié est bit pour bit celui que les gates ont vérifié."
+
+      # Le passage de témoin entre les deux jobs. Ce qui est téléversé plus bas est EXACTEMENT ce
+      # que les gates ci-dessus viennent de vérifier — `staticwebapp.config.json` compris, puisqu'il
+      # est généré DANS ce dossier par `npm run build` et que c'est lui qui porte la CSP.
+      #
+      # ⚠️ Pas de `include-hidden-files` : l'artéfact n'en contient aucun (404/, cours/, polices/,
+      # index.html, les deux fichiers empreintés, staticwebapp.config.json). Cette entrée existe et
+      # devra être ajoutée le jour où un fichier commençant par un point sera livré — sinon il
+      # serait omis EN SILENCE, et le site partirait amputé sans qu'aucune étape ne rougisse.
+      - name: Transmettre l'artéfact vérifié
+        uses: actions/upload-artifact@v7
+        with:
+          name: site-verifie
+          path: dist/dr-je-sais-tout/browser
+          retention-days: 7
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # JOB 2 — la publication, et RIEN d'autre.
+  # Seul job à recevoir `AZURE_STATIC_WEB_APPS_API_TOKEN`. Il n'installe aucune dépendance,
+  # ne compile rien, n'exécute aucun binaire téléchargé : il téléverse l'artéfact déjà vérifié,
+  # puis constate en ligne. `needs: gates` fait qu'un seul gate rouge suffit à empêcher toute
+  # publication — la promesse « rien ne part en ligne sans être passé au vert » est tenue par
+  # cette dépendance, pas par l'ordre des étapes.
+  # ---------------------------------------------------------------------------
+  publication:
+    name: déploiement · vérification en ligne
+    needs: gates
+    runs-on: ubuntu-latest
+    steps:
+      # Le dépôt est nécessaire à l'action de déploiement, qui lit le contexte du dépôt en plus
+      # du dossier à téléverser. `persist-credentials: false` : rien ici ne parle à git, le jeton
+      # d'Actions n'a donc aucune raison de rester écrit dans la configuration git du runner.
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # L'artéfact reprend sa place exacte : `app_location` ci-dessous pointe ce chemin, et le
+      # garder identique à celui du job de gates évite qu'une divergence de chemin fasse téléverser
+      # un dossier vide.
+      - name: Récupérer l'artéfact vérifié
+        uses: actions/download-artifact@v8
+        with:
+          name: site-verifie
+          path: dist/dr-je-sais-tout/browser
+
+      # `skip_app_build: true` : l'artéfact est déjà construit par l'étape G-build du job `gates`,
+      # avec la config SWA générée dedans. Laisser l'action rebuilder produirait un dossier SANS
+      # staticwebapp.config.json résolu — donc sans CSP. C'est d'autant plus vrai ici : ce job n'a
+      # même pas de `node_modules`, l'action n'aurait rien avec quoi construire.
       # Pas de `skip_api_build` : cette entrée N'EXISTE PAS dans l'action (elle l'annonçait en
       # avertissement). `api_location: ''` suffit — sans API, il n'y a rien à construire.
       - name: Déployer sur Azure Static Web Apps
@@ -104,8 +222,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${URL:-}" ]; then
-            echo "::warning::URL non fournie par l'action — vérification ignorée. Confirmer le nom de la sortie au premier run."
-            exit 0
+            echo "::error::URL non fournie par l'action — impossible de vérifier les en-têtes du site DÉJÀ PUBLIÉ. Confirmer le nom de la sortie de l'action."
+            exit 1
           fi
           echo "Cible : $URL"
 
@@ -144,6 +262,33 @@ jobs:
             manquants=1
           fi
 
+          # Les DIRECTIVES, pas seulement la présence de l'en-tête. Une CSP servie mais permissive
+          # passait jusqu'ici toutes les vérifications ci-dessus — c'est exactement la faille que ce
+          # site ENSEIGNE. Ces quatre-là ne sont observables QUE sur le site publié : le harnais
+          # Playwright tourne en HTTP sur localhost, où `frame-ancestors` et `upgrade-insecure-
+          # requests` n'ont aucun effet mesurable (voir l'en-tête de `playwright.config.ts`).
+          csp=$(grep -i "^content-security-policy:" <<<"$entetes" || true)
+          for directive in "object-src 'none'" "base-uri 'self'" "frame-ancestors 'none'" "upgrade-insecure-requests"; do
+            if ! grep -qF "$directive" <<<"$csp"; then
+              echo "::error::Directive CSP absente ou affaiblie : $directive"
+              manquants=1
+            fi
+          done
+          # Le complément : ce qui ne doit JAMAIS apparaître. Un `unsafe-inline` ou un `strict-dynamic`
+          # glissé dans la CSP rendrait les hachages décoratifs sans rien casser de visible.
+          for interdit in "unsafe-inline" "unsafe-eval" "strict-dynamic"; do
+            if grep -qF "$interdit" <<<"$csp"; then
+              echo "::error::CSP affaiblie — « $interdit » est servi : les hachages ne protègent plus rien."
+              manquants=1
+            fi
+          done
+
+          # HSTS : la présence ne suffit pas, c'est la durée qui fait la protection.
+          if ! grep -i "^strict-transport-security:" <<<"$entetes" | grep -qE "max-age=[0-9]+"; then
+            echo "::error::Strict-Transport-Security sans max-age exploitable."
+            manquants=1
+          fi
+
           exit $manquants
 
       # Le routage de production change dans E1-ST2 : `navigationFallback` est retiré et
@@ -159,8 +304,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${URL:-}" ]; then
-            echo "::warning::URL non fournie par l'action — vérification du routage ignorée."
-            exit 0
+            echo "::error::URL non fournie par l'action — impossible de vérifier le routage du site DÉJÀ PUBLIÉ."
+            exit 1
           fi
           base="${URL%/}"
           entetes="${RUNNER_TEMP:-/tmp}/entetes-404.txt"

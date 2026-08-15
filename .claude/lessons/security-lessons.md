@@ -130,3 +130,43 @@ de routage applicatif (`app.routes.ts`) ne le couvre pas. Toute exclusion d'audi
 présent), pas seulement contre son nom. Fermé ici par redirection 301 sur `index.csr.html` et retrait
 de `navigationFallback`.
 **Réfs.** `config/staticwebapp.config.source.json`, `docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-007 · Isoler un secret protège le jeton, pas l'artéfact — ce sont deux mesures distinctes (A08 · chaîne d'approvisionnement CI/CD)
+
+**Symptôme.** `deploy.yml` faisait tourner tous les gates **et** la publication dans un seul job.
+Le gate d'accessibilité (`playwright install --with-deps chromium`) exécute un binaire téléchargé
+d'un CDN, hors du contrôle d'intégrité de `package-lock.json`, avec les droits root du runner —
+donc du code non épinglé s'exécutait sur la machine détenant
+`AZURE_STATIC_WEB_APPS_API_TOKEN`. Scinder le workflow en deux jobs (`gates` sans secret →
+`publication` qui téléverse) n'a fermé que la **moitié** du problème : dans `gates`, ce même code
+téléchargé s'exécute toujours entre le build de `dist/` et son envoi au job suivant, et peut le
+réécrire — y compris `staticwebapp.config.json`, qui porte la CSP.
+**Règle.** Traiter « ne pas exposer le jeton » et « ne pas laisser un binaire tiers modifier
+l'artéfact » comme **deux propriétés indépendantes, chacune avec sa propre mesure** : (1) un gate
+qui exécute du code téléchargé ne partage jamais le job qui détient un jeton de publication ; (2)
+sceller l'artéfact par empreintes `sha256` juste après le build et revérifier juste avant le
+téléversement, indépendamment de qui détient le jeton. Généralise au-delà de Playwright : tout
+outil de gate qui télécharge un binaire dans une chaîne de publication.
+**Réfs.** `.github/workflows/deploy.yml`, `.claude/rules/security.md` §1/§3,
+`docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-008 · Un `exit 0` sur chemin d'erreur rend une vérification verte sans qu'elle ait tourné (A05 · fail-open assumé dans le code)
+
+**Symptôme.** Les étapes de vérification en ligne de `deploy.yml` (en-têtes servis, routage
+404/301) commençaient par : si l'URL du site déployé n'est pas fournie par l'action de
+déploiement, émettre `::warning::` puis **`exit 0`**. Un simple renommage de sortie côté action
+tierce suffisait à rendre les deux vérifications vertes **sans rien vérifier**, juste après un
+déploiement réel — alors qu'elles sont le seul filet constatant la CSP et le routage sur le site
+publié. Corrigé en `::error::` + `exit 1`. Correctif connexe dans le même lot : la vérification
+n'exigeait que la **présence** des en-têtes, jamais la valeur des directives (une CSP servie mais
+permissive passait) ; elle exige désormais `object-src 'none'`, `base-uri 'self'`,
+`frame-ancestors 'none'`, `upgrade-insecure-requests`, un `max-age` HSTS, et refuse
+`unsafe-inline`/`unsafe-eval`/`strict-dynamic`.
+**Règle.** Distinct de [[S-003]]/[[S-004]] (le garde-fou ne voit pas tout) : ici le garde-fou peut
+ne **pas tourner du tout**, par un `exit 0` écrit exprès sur un chemin d'erreur. Toute
+vérification post-déploiement dont une précondition peut manquer doit échouer fail-closed
+(`exit 1`) sur cette précondition, jamais réussir silencieusement — un input absent n'est jamais
+une preuve d'absence de faille. Et une vérification de sécurité qui contrôle la présence d'un
+header sans contrôler la valeur de ses directives ne vérifie rien de mordant.
+**Réfs.** `.github/workflows/deploy.yml`, `.claude/rules/security.md` §1,
+`docs/agile/backlog-phase-1.md` §E1-ST2.
