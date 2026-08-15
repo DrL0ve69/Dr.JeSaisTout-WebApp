@@ -50,6 +50,12 @@ gantt
 | **J6 — Cours complet** | ~19 oct. | Module 13 (durcissement serveur) publié — 13/13 |
 | **J7 — Phase 1 close** | **31 octobre** | Audit a11y (WCAG 2.2 AA / AXE 0), audit sécurité du site (`/security-audit`), Lighthouse ≥ 90, npm audit vert ; option E5 : squelette backend .NET si le temps le permet |
 
+**Avancement au 2026-08-15** : **J1 atteint** (E0 clos) et **J2 atteint avec neuf jours d'avance**
+sur son échéance du ~24 août — E1-ST1, ST2 et ST3 sont ✅, donc **E1 est close** : jetons et polices
+auto-hébergées, coquille et navigation, home « pièces à conviction », deux thèmes dessinés, et la
+passe clavier promise par ce jalon **outillée** plutôt que seulement cochée (G-e2e Playwright, sous
+la CSP réelle). Prochain jalon : **J3, le moteur de contenu (E2)** — le chemin critique.
+
 **Chemin critique :** J1 → J3 → J4. Tout retard sur le moteur de contenu (J3) mange directement la
 fenêtre de production des leçons ; en cas de glissement, on coupe dans le raffinement de la home et
 des simulations (une simulation par module n'est pas obligatoire), jamais dans les leçons ni les quiz.

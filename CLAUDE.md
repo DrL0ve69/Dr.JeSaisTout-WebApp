@@ -11,28 +11,50 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 > ## ⏭️ REPRISE — état au 2026-08-15, fin de session
 >
-> **E0 CLOS. E1-ST1 CLOSE (ST1-A à ST1-E ✅). E1-ST2 CLOSE** — coquille du site, en-tête,
-> **bascule de thème visible**, pied de page, 404 réelle, lien d'évitement, landmarks, gestion du
-> focus au changement de route ; **plus deux gates neufs** : G-axe (`tools/a11y/verifier-axe.mjs`)
-> et **G-e2e** (Playwright servant `dist/` par `npx swa start`, donc **sous la CSP à hachages
-> réellement générée**). **170 tests / 12 fichiers · 11 tests e2e · axe 258 vérifications,
-> 0 violation.** Les PR **#6** et **#7** sont **fusionnées** — plus rien n'attend de ce côté.
+> **E0 CLOS. E1 CLOSE EN ENTIER — ST1 ✅, ST2 ✅, ST3 ✅** : design system et polices
+> auto-hébergées ; coquille, en-tête, **bascule de thème visible**, pied de page, 404 réelle, lien
+> d'évitement, landmarks, focus au changement de route ; et la **Home « pièces à conviction »**
+> (`src/app/features/home/`) — l'accueil ne vend rien, elle **montre** trois directives de la CSP
+> réellement servie et dit « vérifiez vous-même ». Trois gates neufs depuis août : G-axe, **G-e2e**
+> (Playwright servant `dist/` par `npx swa start`, donc **sous la CSP à hachages réellement
+> générée**) et la passe de **capture + critique visuelle** d'E1-ST3. **197 tests / 15 fichiers ·
+> 11 tests e2e · axe 258 vérifications, 0 violation · npm audit --omit=dev 0.** Le **jalon J2 est
+> atteint neuf jours avant son échéance**.
 >
-> **Le geste suivant : E1-ST3 — la Home « carnet de laboratoire »**
-> ([`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST3, ligne 567). Sa
-> particularité tient en une phrase : **l'exploration visuelle précède l'implémentation**, et le
-> backlog exige **plusieurs directions franchement différentes avant de converger** — pas des
-> variantes de la première (constat C1 : le skill `frontend-design` qu'invoquait le plan d'origine
-> **n'existe pas**, ne pas le chercher). Fiches à lire : `web/frontend/principes-design-visuel.md`
-> et `ai/agents/claude-code/design-ui.md`.
+> **Le geste suivant : E2 — le moteur de contenu**, et il ouvre par **E2-ST1, le pipeline de build
+> de `content/`** ([`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST1). C'est
+> le **chemin critique** de toute la phase 1 (J3 → J4) : tout retard ici mange la fenêtre d'écriture
+> des 13 leçons. **Début d'epic + décision structurante ⇒ `solution-architect` PUIS
+> `devils-advocate` sont mérités ici** (barème `.claude/README.md` §6a) — ce qui n'était pas le cas
+> des sous-tâches d'E1. À lire avant de planifier : `docs/contenu/pipeline-contenu.md` (gabarits et
+> schémas), la conclusion du spike **S-01** (§9 de `stack-et-architecture.md`), et la route
+> `docs/kb-map.md` pour le contenu **et** la pédagogie — pas seulement `web/securite/`.
 >
-> **⚠️ DEUX CONSTATS N'ATTENDENT QUE TOI, et personne d'autre ne peut les produire** (l'outil
+> **⚠️ TROIS CONSTATS N'ATTENDENT QUE TOI, et personne d'autre ne peut les produire** (l'outil
 > navigateur est banni sur ce projet). Sur <https://salmon-sky-0a730780f.7.azurestaticapps.net>,
-> **après le déploiement d'E1-ST2** — les refaire même si tu les avais faits en août : la CSP a
-> changé avec le premier élément interactif (S-005), un constat d'avant ST2 ne vaut plus. (1) **zéro
-> violation CSP en console**, en **actionnant la bascule de thème** ; (2) **thème sombre épinglé sans
-> flash** (`localStorage.setItem('drjst-theme','sombre')` puis rechargement). S'y ajoute un troisième,
-> moins coûteux : (3) le motif SWA `/404/*` couvre-t-il **`/404/` lui-même** ? (dette (b) d'E1-ST2).
+> **une fois la Home d'E1-ST3 déployée** — et les refaire même si tu les avais faits en août : la CSP
+> a changé deux fois, avec le premier élément interactif (S-005) puis avec les trois feuilles de la
+> Home (**9 hachages de style** aujourd'hui, contre 6). (1) **zéro violation CSP en console**, en
+> **actionnant la bascule de thème** ; (2) **thème sombre épinglé sans flash**
+> (`localStorage.setItem('drjst-theme','sombre')` puis rechargement) ; (3) le motif SWA `/404/*`
+> couvre-t-il **`/404/` lui-même** ? (dette (b) d'E1-ST2). Un quatrième, gratuit tant que tu y es :
+> l'accueil **est** un cas d'usage de la règle axe `link-in-text-block`, que jsdom ne peut pas
+> calculer — le lien du pied de page se distingue-t-il de son texte autrement que par la couleur ?
+>
+> **❓ NŒUDS EN ATTENTE DE TA DÉCISION** (rien n'est bloqué en attendant ; ils se tranchent au début
+> d'E2, pas avant) :
+> 1. **Quelle dette payer avant la première leçon publiée ?** La recommandation du dépôt est la
+>    **vérification structurelle de la CSP servie** (directive par directive contre
+>    `config/staticwebapp.config.source.json`) : c'est le constat le plus proche de ce que le site
+>    enseigne. Le faire **avant** E2-ST1 coûte un lot ; le faire après, c'est publier une leçon sur
+>    les en-têtes pendant qu'un trou connu reste ouvert.
+> 2. **La leçon-témoin d'E2-ST1 est-elle factice ou réelle ?** Le backlog dit « leçon-témoin
+>    factice » ; une vraie leçon (module 1) validerait le pipeline sur du contenu authentique mais
+>    mélangerait la boucle **contenu** (`/lecon`) à la boucle **livraison** — deux boucles que
+>    `.claude/README.md` sépare exprès.
+> 3. **SonarCloud** : le faux positif `css:S8776` sur le `&` de `@mixin focus-visible` ne peut être
+>    marqué *False Positive* que par toi, dans l'interface — le fichier de propriétés ne sait pas
+>    taire une issue.
 >
 > **Dette à ne pas perdre**, de la plus mordante à la plus froide :
 > **🔴 S-003** — le garde-fou de CSP ne prouve pas qu'il a *tout vu* (un guillemet orphelin rend une
@@ -45,8 +67,12 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > n'a pas intégré S-007/S-008** (§1 devrait exiger le fail-closed d'une vérification
 > post-déploiement, §3 la séparation gate-à-binaire-tiers / job-détenant-le-jeton **plus** le
 > scellement d'artéfact) · `Azure/static-web-apps-deploy@v1` est un **tag mutable** dans le job qui
-> détient le jeton · **typage (b) 34 et (c) 35 erreurs** sur les deux gates de design.
-> Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1 et §E1-ST2.
+> détient le jeton · **typage (b) 34 et (c) 35 erreurs** sur les deux gates de design · et, neuves
+> mais tièdes, les deux d'E1-ST3 : le texte de l'extrait d'en-têtes est **en dur** (borné par un test
+> qui relit `staticwebapp.config.source.json`, le générer au build est du niveau E2) et la
+> **`mentionChantier` « Chantier en cours » de la carte doit être retirée le jour où la première
+> leçon est publiée** — rappel posé dans §E2-ST2, sinon l'accueil ment.
+> Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1, §E1-ST2 et §E1-ST3.
 >
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
 > ressources Azure créées (*Azure for Students*, palier **Free**) · secret
@@ -60,7 +86,13 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > sur les **directives** CSP, pas seulement sur la présence des en-têtes — tous les gates câblés dans
 > `ci.yml` **et** `deploy.yml` (L-007) · aucun `tfstate` versionné.
 >
-> **Deux pièges d'E1-ST2 à ne pas repayer.** (1) `provideClientHydration()` d'Angular 22 active par
+> **Trois pièges à ne pas repayer.** (0, celui d'E1-ST3, le plus retors parce qu'il ne fait rougir
+> AUCUN gate) : la feuille de l'agent utilisateur pose `margin-inline: auto` sur `<hr>` — en **item
+> de grille**, une marge automatique l'emporte sur l'étirement et la largeur retombe à **zéro**. Le
+> filet occupait sa place et ne peignait rien, avec un style calculé parfaitement juste. Corrigé dans
+> `@mixin filet-horizontal` ; morale plus large : **un `getComputedStyle` correct ne prouve pas un
+> pixel peint**, seule une capture ou une géométrie le prouve (**L-025**, cousine de L-021). Puis les
+> deux d'E1-ST2 : (1) `provideClientHydration()` d'Angular 22 active par
 > défaut l'**hydratation incrémentale**, qui injecte deux scripts inline que la CSP à hachages refuse —
 > et ces scripts n'apparaissent **qu'avec le premier élément interactif**. D'où
 > `withNoIncrementalHydration()` dans `app.config.ts` : rejeu d'événements perdu, `@defer (hydrate …)`
