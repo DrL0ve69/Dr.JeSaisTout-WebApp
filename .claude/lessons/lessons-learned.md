@@ -563,7 +563,7 @@ automatiques ne pouvait voir : ils vérifient tous des contrats, aucun ne **rega
 
 ## L-026 · Une clef de cache indexée sur le CONTENU ne peut pas servir de préfixe d'identifiant — elle se répète dès que le contenu se répète
 
-**Symptôme.** Le cache des diagrammes Mermoid était indexé par `sha256(source du diagramme)`, et le
+**Symptôme.** Le cache des diagrammes Mermaid était indexé par `sha256(source du diagramme)`, et le
 **préfixe des identifiants du SVG** en était dérivé directement. Deux diagrammes **identiques** dans
 une même leçon (même source, donc même hachage) recevaient donc le même SVG en cache, donc les mêmes
 `id` **deux fois** dans la page rendue — `duplicate-id-aria` chez axe, et un `url(#…)` qui pointait
@@ -579,6 +579,36 @@ diagramme dans une même leçon avant de déclarer un pipeline de rendu fini —
 voit qu'à la répétition.
 
 **Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` ; branche `feat/e2-st1-pipeline-contenu`.
+
+---
+
+## L-027 · Un workflow GitHub illisible ne produit pas une erreur de syntaxe — il produit un run en échec de 0 s, sur un déclencheur qui n'aurait pas dû s'appliquer
+
+**Symptôme.** Une étape de `deploy.yml` renommée en
+`- name: Sceller l'artéfact (portée : construction → téléversement)`. En YAML, dans un scalaire
+**non quoté**, la séquence « `:` suivie d'une espace » ouvre une **clef de mapping** : le fichier
+devenait illisible d'un bout à l'autre. GitHub n'a signalé ni la ligne, ni la colonne, ni même le
+fichier — il a créé un run **`Déploiement`** en **échec instantané (0 s)**, intitulé « This run
+likely failed because of a workflow file issue », **sur un push de branche de fonctionnalité que le
+`branches: [main]` du fichier n'aurait jamais dû viser**. C'est logique une fois vu : ne sachant
+plus lire `on:`, GitHub ne peut plus décider de *ne pas* exécuter. Mais le symptôme désigne le
+mauvais workflow, le mauvais déclencheur, et aucune ligne.
+
+**Règle.** (1) Tout nom d'étape, de job ou de workflow contenant `:`, `#`, `{`, `[`, `,`, `&`, `*`,
+`?`, `|`, `>`, `!`, `%`, `@` ou une apostrophe ambiguë **se met entre quotes**, et un commentaire
+adjacent dit pourquoi — sinon le prochain qui « nettoie les quotes inutiles » repaie la faute.
+(2) Un workflow se vérifie en le **PARSANT**, jamais au motif : les specs qui lisaient les workflows
+à la regex sont toutes restées vertes, puisqu'une regex trouve encore `content:build` dans un
+fichier que plus aucun analyseur ne sait lire. C'est le même principe que
+`.claude/rules/security.md` §4 (analyser puis confronter) appliqué à l'outillage. (3) Ne jamais
+conclure d'un run rouge qu'on a compris quel fichier est en cause : ici, le workflow qui a rougi
+n'était pas celui qu'on venait de modifier au sens fonctionnel, et il n'aurait pas dû tourner.
+Cousine de [[L-015]] (les `.yml` sont un piège sur ce poste) et de [[L-005]] (le journal fait foi,
+pas la couleur — ici, l'absence de journal *était* l'information).
+
+**Réfs.** `src/workflows-github.spec.ts` (le gate, avec mutation vérifiée : les quotes retirées font
+rougir `deploy.yml`, et lui seul) ; `.github/workflows/deploy.yml` (le commentaire qui protège le
+nom quoté) ; PR #12.
 
 ---
 
