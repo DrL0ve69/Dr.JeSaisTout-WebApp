@@ -11,8 +11,9 @@ name: Déploiement (main → SWA Free)
 # `gates` exécute toute la vérification et ne reçoit AUCUN secret ; `publication` détient le jeton
 # et ne fait que téléverser l'artéfact produit, puis constater le résultat en ligne.
 #
-# Ce qui a imposé cette coupe : le gate G-e2e installe un navigateur (`playwright install
-# --with-deps`), c'est-à-dire un binaire téléchargé depuis un CDN — HORS du contrôle d'intégrité
+# Ce qui a imposé cette coupe : ce job installe un navigateur (`playwright install --with-deps`,
+# étape remontée en tête depuis E2-ST1 car Mermaid le partage), c'est-à-dire un binaire téléchargé
+# depuis un CDN — HORS du contrôle d'intégrité
 # de `package-lock.json`, et installé avec les droits root du runner. Tant que cette étape
 # partageait le job du déploiement, du code téléchargé s'exécutait sur la machine qui détient le
 # jeton de publication. Constat de la revue de sécurité d'E1-ST2 ; arbitrage du propriétaire.
@@ -68,6 +69,46 @@ jobs:
       - name: Installer (verrouillé)
         run: npm ci
 
+      # ⚠️ REMONTÉE ICI EXPRÈS — ne pas la redescendre près de G-e2e.
+      # `rendre-mermaid.mjs` invoque `mmdc` en lui imposant CE Chromium-là (`.puppeteerrc.cjs`
+      # interdit à Puppeteer de télécharger le sien). L'étape suivante compile `content/`, donc
+      # rend les diagrammes : une installation restée en aval ferait échouer la compilation dès la
+      # première leçon à diagramme d'E3-ST1, dans les DEUX workflows. Coût net nul — même
+      # installation, plus tôt.
+      #
+      # ⚠️ ET CE QUE CE DÉPLACEMENT CHANGE POUR LE SCEAU, dit à voix haute plutôt que subi.
+      # `playwright install --with-deps` télécharge un binaire HORS du contrôle d'intégrité de
+      # `package-lock.json` et installe des paquets système en root. Tant qu'il tournait APRÈS
+      # « Sceller l'artéfact », le sceau prouvait qu'il n'avait pas réécrit `dist/`. Il tourne
+      # désormais AVANT la construction : le sceau ne couvre plus ce risque-là, il ne couvre que la
+      # fenêtre construction → téléversement (G-axe, G-e2e), qui reste sa raison d'être. Le
+      # déplacement est IMPOSÉ par le pipeline de contenu (compiler exige le navigateur, et
+      # compiler doit précéder lint/test/build) ; il n'est pas une commodité. La coupe en deux jobs
+      # continue, elle, de protéger le JETON — ce job n'en reçoit aucun (vérifié en revue : la
+      # seule occurrence de `secrets.` du fichier est dans `publication`).
+      #
+      # PARADE RETENUE, ET CELLE QU'ON A ÉCARTÉE (revue de sécurité du 2026-08-16, E2-ST1).
+      # Épingler le binaire par empreinte ne couvre que LA MOITIÉ du risque : aucun digest
+      # n'épingle le `apt-get install` que `--with-deps` lance en root. La parade complète est un
+      # JOB PROPRE qui compile `content/` et remet `src/content-generated/` + la feuille SCSS en
+      # artéfact à `gates` — `dist/` se bâtirait alors sur une machine qu'aucun binaire CDN n'a
+      # touchée. Elle n'est pas payée ici : E2-ST1 est le chemin critique J3→J4, et le trou ne
+      # devient concret qu'avec le PREMIER DIAGRAMME, donc en E3-ST1. Elle est donc inscrite au
+      # lot de dette sécurité qui précède E3-ST1 (backlog §E2, nœud 1), avec S-003 et la
+      # vérification structurelle de la CSP. En attendant, le nom de l'étape de scellement dit sa
+      # portée réduite, pour qu'on n'ait pas à lire ce commentaire pour la connaître.
+      - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
+        run: npm run e2e:install
+
+      # Même étape que dans ci.yml, au même rang, et AVANT G-lint (L-007 : un gate câblé dans un
+      # seul workflow n'est pas câblé). `src/styles.scss` fait `@use` sur une feuille GITIGNORÉE que
+      # seul ce pipeline produit : sans cette étape, G-test tombe le premier sur un checkout frais,
+      # sur une erreur Sass qui ne nomme pas la cause. C'est aussi le gate du contenu — un
+      # `lecon.md` ou un `quiz.json` malformé fait échouer la construction ici, en nommant le
+      # fichier et le champ fautifs, plutôt que de publier une page vide.
+      - name: Compiler `content/` (pipeline)
+        run: npm run content:build
+
       - name: G-lint
         run: npm run lint
 
@@ -98,12 +139,15 @@ jobs:
 
       # LE SCEAU — posé ici, rompu nulle part, revérifié juste avant le téléversement.
       # Séparer les jobs (voir l'en-tête) empêche le code téléchargé d'atteindre le JETON ; ça ne
-      # l'empêche pas d'atteindre l'ARTÉFACT, puisque G-axe et surtout G-e2e (qui installe un
-      # navigateur depuis un CDN) tournent entre la construction et l'envoi. Ces deux gates LISENT
+      # l'empêche pas d'atteindre l'ARTÉFACT, puisque G-axe et G-e2e — qui pilote un navigateur
+      # téléchargé hors de `package-lock.json` — tournent entre la construction et l'envoi. Depuis
+      # E2-ST1, l'INSTALLATION de ce navigateur a été remontée avant la compilation du contenu
+      # (Mermaid le partage) : elle sort donc de la fenêtre que ce sceau surveille, ce qui est dit
+      # en toutes lettres à l'étape d'installation. Ces deux gates LISENT
       # `dist/` ; aucun n'a de raison de l'écrire. L'empreinte le prouve au lieu de l'espérer.
       # Le manifeste est écrit dans `RUNNER_TEMP`, donc HORS de `dist/` : à l'intérieur, il ferait
       # partie de ce qu'il mesure et se réécrirait lui-même.
-      - name: Sceller l'artéfact
+      - name: Sceller l'artéfact (portée : construction → téléversement UNIQUEMENT)
         run: |
           set -euo pipefail
           find dist/dr-je-sais-tout/browser -type f -exec sha256sum {} + \
@@ -127,11 +171,10 @@ jobs:
       # LA CSP QU'ELLES EMPORTENT. C'est la seule vérification du dépôt qui presse de vraies touches
       # sur la page interactive avant qu'elle parte en ligne — l'angle mort de la leçon S-005. Voir
       # la note de `ci.yml` pour ce qu'il couvre (clavier, focus, taille de cible) et l'en-tête de
-      # `playwright.config.ts` pour le choix du serveur.
+      # `playwright.config.ts` pour le choix du serveur. Le navigateur, lui, est installé bien plus
+      # haut : Mermaid le partage, et la compilation du contenu passe avant tous les gates.
       - name: G-e2e (accessibilité au clavier, sous CSP réelle)
-        run: |
-          npm run e2e:install
-          npm run e2e
+        run: npm run e2e
 
       - name: G-audit
         run: npm audit --omit=dev

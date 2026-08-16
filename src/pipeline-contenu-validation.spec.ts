@@ -1,0 +1,138 @@
+// =============================================================================
+// Le validateur de contenu MORD-IL, et mord-il sur la BONNE cause ? (E2-ST1, lot 5)
+// -----------------------------------------------------------------------------
+// POURQUOI CE TEST EXISTE — et pourquoi il est arrivé en retard.
+// `tools/content-pipeline/valider.mjs` porte un mode `--fixtures` qui est le
+// contrôle positif du garde-fou (L-019) : neuf dossiers, une faute chacun, tous
+// attendus REFUSÉS. Ce mode était exact, exécutable à la main… et lancé par
+// PERSONNE — ni par un test, ni par un script npm, ni par un workflow. Or
+// `content/cours/securite-web` n'existe pas encore : l'étape de validation de
+// `content:build` valide donc ZÉRO fichier, et sortirait verte même si le glob
+// était cassé ou si Ajv ne compilait plus. Le maillon qui décide si une leçon
+// entre dans le site n'était vérifié par rien (constat de revue, 2026-08-16).
+//
+// C'est la cousine de L-019 sur l'axe CÂBLAGE : un contrôle positif qu'aucun
+// runner n'exécute est une intention, pas un gate. Ce fichier est le runner.
+//
+// LES TROIS CHOSES QU'IL PROUVE, et pourquoi aucune ne suffit seule :
+//   1. Les neuf cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
+//      un validateur qui refuserait TOUT.
+//   2. La leçon-témoin VALIDE passe, code 0. C'est l'autre moitié de la pince :
+//      ensemble, les deux prouvent que le garde-fou discrimine.
+//   3. Chaque refus porte la BONNE cause, cas par cas. Sans ce troisième point,
+//      neuf refus pour une seule et même raison (un chemin introuvable, disons)
+//      seraient indistinguables de neuf refus corrects.
+//
+// LES CAUSES ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées de l'outil
+// qu'elles vérifient (L-012). Un test qui importe la constante dont il contrôle
+// la valeur ne vérifie rien du contrat : il vérifie que `x === x`.
+//
+// POURQUOI PAR PROCESSUS FILS. Même raison que le spec de compilation : le
+// validateur est un `.mjs` du TROISIÈME programme TypeScript
+// (`tsconfig.tools.json`, Node pur) ; l'importer le ferait entrer dans
+// `tsconfig.spec.json`, qui n'a ni `allowJs` ni les types Node de l'outillage.
+// On exécute donc la ligne de commande RÉELLE — celle que la CI lance.
+// =============================================================================
+
+import { execFileSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
+
+const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
+const DOSSIER_INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
+const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
+
+/** Ajv compile neuf schémas et neuf racines : lent une fois, pas neuf fois. */
+const DELAI = 60_000;
+
+/**
+ * Un cas = un dossier, une faute, une empreinte de cause. Le fragment attendu est
+ * volontairement le morceau le plus SPÉCIFIQUE du message — celui qu'un autre cas
+ * ne pourrait pas produire par accident.
+ */
+const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
+  { dossier: 'quiz-moins-de-cinq-questions', cause: /\/questions — doit compter au moins 5/ },
+  { dossier: 'quiz-explication-absente', cause: /\/questions\/1 .*« explication »/ },
+  { dossier: 'quiz-fiche-source-absente', cause: /\/questions\/0 .*« ficheSource »/ },
+  { dossier: 'frontmatter-slug-non-kebab-case', cause: /\/slug — ne respecte pas le motif/ },
+  { dossier: 'corps-espace-fine-insecable-u202f', cause: /U\+202F .*seule U\+00A0 est permise/ },
+  { dossier: 'marqueur-a-verifier-en-statut-publiee', cause: /marqueur .*statut: publiee/ },
+  { dossier: 'corps-section-gabarit-manquante', cause: /section « ## À retenir » absente/ },
+  { dossier: 'corps-conteneur-hors-liste-fermee', cause: /conteneur « ::: astuce » hors de la liste/ },
+  { dossier: 'simulation-lecon-differente-du-slug', cause: /« lecon ».*ne correspond pas au slug/ },
+];
+
+/**
+ * Lance le validateur et rend sa sortie complète. Le mode `--fixtures` sort en
+ * code 1 PAR CONSTRUCTION (du contenu invalide a bien été détecté) : c'est la
+ * liste des causes qui fait foi, pas le code. On ne peut donc pas se contenter
+ * de `execFileSync` sans capture.
+ */
+function lancer(args: readonly string[]): { sortie: string; code: number } {
+  try {
+    const sortie = execFileSync(process.execPath, [VALIDATEUR, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { sortie, code: 0 };
+  } catch (erreur) {
+    const detail = erreur as { status?: number; stdout?: string; stderr?: string };
+    return {
+      sortie: `${detail.stdout ?? ''}${detail.stderr ?? ''}`,
+      code: detail.status ?? -1,
+    };
+  }
+}
+
+describe('le contrôle positif du validateur de contenu', () => {
+  let sortie = '';
+
+  beforeAll(() => {
+    sortie = lancer(['--fixtures', DOSSIER_INVALIDES]).sortie;
+  }, DELAI);
+
+  it(
+    'traite les NEUF cas, et aucun ne manque à l’appel',
+    () => {
+      expect(sortie).toContain('9 cas attendus INVALIDES');
+      expect(sortie).toContain('9/9 cas refusés avec une cause nommée');
+    },
+    DELAI,
+  );
+
+  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Neuf refus identiques
+  // passeraient l'assertion globale ci-dessus et échoueraient ici.
+  for (const { dossier, cause } of CAS_ATTENDUS) {
+    it(
+      `refuse « ${dossier} » sur sa cause propre`,
+      () => {
+        expect(sortie).toMatch(new RegExp(`✔ ${dossier}`));
+        expect(sortie).toMatch(cause);
+      },
+      DELAI,
+    );
+  }
+
+  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un dixième cas de fixture sans
+  // écrire son assertion laisserait ce spec vert — et le nouveau cas ne serait
+  // vérifié par personne, ce qui est exactement la faute que ce fichier répare.
+  it('connaît TOUS les dossiers de fixtures — un cas ajouté sans assertion fait rougir', () => {
+    const surDisque = readdirSync(DOSSIER_INVALIDES, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
+    const connus = CAS_ATTENDUS.map((c) => c.dossier).sort();
+    expect(surDisque).toEqual(connus);
+  });
+});
+
+describe('l’autre moitié de la pince — le validateur ne refuse pas TOUT', () => {
+  it(
+    'accepte la leçon-témoin valide, en code 0',
+    () => {
+      const { sortie, code } = lancer(['--racine', FIXTURE_VALIDE]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/1 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+});

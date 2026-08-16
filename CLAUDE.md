@@ -9,70 +9,76 @@ Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code c
 comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutorat) :
 [`docs/vision.md`](docs/vision.md).
 
-> ## ⏭️ REPRISE — état au 2026-08-15, fin de session
+> ## ⏭️ REPRISE — état au 2026-08-16, fin de session
 >
-> **E0 CLOS. E1 CLOSE EN ENTIER — ST1 ✅, ST2 ✅, ST3 ✅** : design system et polices
-> auto-hébergées ; coquille, en-tête, **bascule de thème visible**, pied de page, 404 réelle, lien
-> d'évitement, landmarks, focus au changement de route ; et la **Home « pièces à conviction »**
-> (`src/app/features/home/`) — l'accueil ne vend rien, elle **montre** trois directives de la CSP
-> réellement servie et dit « vérifiez vous-même ». Trois gates neufs depuis août : G-axe, **G-e2e**
-> (Playwright servant `dist/` par `npx swa start`, donc **sous la CSP à hachages réellement
-> générée**) et la passe de **capture + critique visuelle** d'E1-ST3. **197 tests / 15 fichiers ·
-> 11 tests e2e · axe 258 vérifications, 0 violation · npm audit --omit=dev 0.** Le **jalon J2 est
-> atteint neuf jours avant son échéance**.
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE** — le **moteur de contenu tourne**. `content/` est
+> validé (Ajv + règles hors schéma), compilé en AST typé (Markdown → HTML, Shiki précompilé, encadrés),
+> ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
+> il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
+> **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
+> **256 tests / 19 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
+> Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
-> **Le geste suivant : E2 — le moteur de contenu**, et il ouvre par **E2-ST1, le pipeline de build
-> de `content/`** ([`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST1). C'est
-> le **chemin critique** de toute la phase 1 (J3 → J4) : tout retard ici mange la fenêtre d'écriture
-> des 13 leçons. **Début d'epic + décision structurante ⇒ `solution-architect` PUIS
-> `devils-advocate` sont mérités ici** (barème `.claude/README.md` §6a) — ce qui n'était pas le cas
-> des sous-tâches d'E1. À lire avant de planifier : `docs/contenu/pipeline-contenu.md` (gabarits et
-> schémas), la conclusion du spike **S-01** (§9 de `stack-et-architecture.md`), et la route
-> `docs/kb-map.md` pour le contenu **et** la pédagogie — pas seulement `web/securite/`.
+> **Le geste suivant : E2-ST2 — page leçon & routage** (tranché par le propriétaire le 2026-08-16 ;
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST2). Le backlog dit déjà
+> *quoi, où, avec quels gates* : **pas de `solution-architect` ni de `devils-advocate`** ici (barème
+> `.claude/README.md` §6a) — on implémente.
 >
-> **⚠️ TROIS CONSTATS N'ATTENDENT QUE TOI, et personne d'autre ne peut les produire** (l'outil
-> navigateur est banni sur ce projet). Sur <https://salmon-sky-0a730780f.7.azurestaticapps.net>,
-> **une fois la Home d'E1-ST3 déployée** — et les refaire même si tu les avais faits en août : la CSP
-> a changé deux fois, avec le premier élément interactif (S-005) puis avec les trois feuilles de la
-> Home (**9 hachages de style** aujourd'hui, contre 6). (1) **zéro violation CSP en console**, en
-> **actionnant la bascule de thème** ; (2) **thème sombre épinglé sans flash**
-> (`localStorage.setItem('drjst-theme','sombre')` puis rechargement) ; (3) le motif SWA `/404/*`
-> couvre-t-il **`/404/` lui-même** ? (dette (b) d'E1-ST2). Un quatrième, gratuit tant que tu y es :
-> l'accueil **est** un cas d'usage de la règle axe `link-in-text-block`, que jsdom ne peut pas
-> calculer — le lien du pied de page se distingue-t-il de son texte autrement que par la couleur ?
+> **⚠️ CE QU'E2-ST2 DOIT SAVOIR AVANT D'ÉCRIRE UNE LIGNE.**
+> **(1) Le sanitizer d'Angular efface TOUT le SVG.** Mesuré, pas supposé
+> (`src/sonde-sanitizer-svg.spec.ts`, gardée comme tripwire) : d'un SVG `mmdc` réaliste lié en
+> `[innerHTML]`, **24 éléments → 0 et 71 attributs → 0** survivent. Un diagramme lié directement
+> serait illisible ET sans `<title>`/`<desc>`. `bypassSecurityTrustHtml` est donc **inévitable**, mais
+> **scopé au seul bloc `mermaid`**, avec justification nominative au point d'appel (patron de
+> `HACHAGE_SCRIPT_ATTENDU`) et **revue `security-reviewer` OBLIGATOIRE avant le merge**. Ce qui rend
+> ce contournement acceptable est écrit dans `tools/content-pipeline/types.d.ts` — et ce texte décrit
+> désormais **ce que le code applique vraiment**, pas une intention.
+> **(2) Le manifeste attend `app.routes.server.ts`.** `src/content-generated/manifeste-routes.json`
+> porte exactement les slugs à prerendre et rien d'autre : aucun filtrage à faire, la leçon-témoin
+> vivant **hors de `content/`**. Réintroduire `cours/securite-web/:slug` **des deux côtés**, ici en
+> `RenderMode.Prerender` **avec** `getPrerenderParams()`. Sans quoi aucune leçon n'est prerendue.
+> **(3) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est inerte, le
+> rejeu d'événements est perdu. Piège hérité d'E1-ST2.
+> **(4) Retirer la `mentionChantier` « Chantier en cours »** de la carte le jour où la première leçon
+> est publiée, sinon l'accueil ment.
 >
-> **❓ NŒUDS EN ATTENTE DE TA DÉCISION** (rien n'est bloqué en attendant ; ils se tranchent au début
-> d'E2, pas avant) :
-> 1. **Quelle dette payer avant la première leçon publiée ?** La recommandation du dépôt est la
->    **vérification structurelle de la CSP servie** (directive par directive contre
->    `config/staticwebapp.config.source.json`) : c'est le constat le plus proche de ce que le site
->    enseigne. Le faire **avant** E2-ST1 coûte un lot ; le faire après, c'est publier une leçon sur
->    les en-têtes pendant qu'un trou connu reste ouvert.
-> 2. **La leçon-témoin d'E2-ST1 est-elle factice ou réelle ?** Le backlog dit « leçon-témoin
->    factice » ; une vraie leçon (module 1) validerait le pipeline sur du contenu authentique mais
->    mélangerait la boucle **contenu** (`/lecon`) à la boucle **livraison** — deux boucles que
->    `.claude/README.md` sépare exprès.
-> 3. **SonarCloud** : le faux positif `css:S8776` sur le `&` de `@mixin focus-visible` ne peut être
->    marqué *False Positive* que par toi, dans l'interface — le fichier de propriétés ne sait pas
->    taire une issue.
+> **❓ NŒUDS : tous tranchés le 2026-08-16, ne pas les rouvrir** (détail : §E2 du backlog). Dette
+> sécurité → **avant E3-ST1**, pas avant E2-ST1 · leçon-témoin → **fixture hors de `content/`** ·
+> diagrammes Mermaid → **rendus au build** (une invocation `mmdc` par leçon, cache par hachage,
+> Chromium de Playwright réutilisé). **Un seul reste ouvert, et il n'appartient qu'au propriétaire :**
+> marquer *False Positive* le `css:S8776` de SonarCloud (le `&` de `@mixin focus-visible`) — un
+> fichier de propriétés ne sait pas taire une issue.
 >
-> **Dette à ne pas perdre**, de la plus mordante à la plus froide :
-> **🔴 S-003** — le garde-fou de CSP ne prouve pas qu'il a *tout vu* (un guillemet orphelin rend une
-> balise `<script>` invisible à son motif ; **préexistant**, impact borné, parade connue — et devenue
-> **moins chère** : `verifier-axe.mjs` démontre le patron « analyseur réel plutôt que regex », jsdom
-> est déjà là) · **la CSP servie n'est vérifiée que par motifs, pas structurellement** (une CSP
-> permissive d'une autre forme que les trois refusées passerait ; parade : comparaison directive par
-> directive avec `config/staticwebapp.config.source.json`) — *c'est le constat le plus proche de ce
-> que le site enseigne, à traiter avant la première leçon publiée* · **`.claude/rules/security.md`
-> n'a pas intégré S-007/S-008** (§1 devrait exiger le fail-closed d'une vérification
-> post-déploiement, §3 la séparation gate-à-binaire-tiers / job-détenant-le-jeton **plus** le
-> scellement d'artéfact) · `Azure/static-web-apps-deploy@v1` est un **tag mutable** dans le job qui
-> détient le jeton · **typage (b) 34 et (c) 35 erreurs** sur les deux gates de design · et, neuves
-> mais tièdes, les deux d'E1-ST3 : le texte de l'extrait d'en-têtes est **en dur** (borné par un test
-> qui relit `staticwebapp.config.source.json`, le générer au build est du niveau E2) et la
-> **`mentionChantier` « Chantier en cours » de la carte doit être retirée le jour où la première
-> leçon est publiée** — rappel posé dans §E2-ST2, sinon l'accueil ment.
-> Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1, §E1-ST2 et §E1-ST3.
+> **✅ LES CONSTATS NAVIGATEUR D'E1 SONT FAITS** (2026-08-16, sur le site déployé) — et la consigne qui
+> les bloquait était **fausse par excès** : ce n'est pas le navigateur qui est banni, c'est
+> l'**extension** Claude in Chrome. **Playwright, déjà installé, est la voie.** Résultats : **0**
+> violation de CSP en actionnant les trois états de la bascule (avec **contrôle positif** : un script
+> inline non haché injecté est bien capté) · **aucun flash** de clair sur thème sombre épinglé,
+> *prouvé par capture* — les 3 images du chargement filmé sont sombres dès la première (L-025) ·
+> `/404/*` **couvre bien** `/404/` (`x-robots-tag: noindex` présent) · le lien du pied de page porte un
+> **soulignement** en plus de sa couleur (`link-in-text-block` tenu).
+> ⚠️ *Leçon de méthode payée au passage* : la 1ʳᵉ mesure du flash a échoué **sur l'instrument** — un
+> `MutationObserver` posé avant l'existence de `documentElement` levait, et le script a rapporté son
+> propre plantage comme « 1 violation CSP ».
+>
+> **Dette à ne pas perdre**, de la plus mordante à la plus froide. **Les quatre premières forment UN
+> SEUL LOT, à payer AVANT E3-ST1** (la première leçon publiée) — elles sont de la même famille :
+> **🔴 S-003** (le garde-fou de CSP ne prouve pas qu'il a *tout vu* : un guillemet orphelin rend une
+> balise `<script>` invisible à son motif) · **le garde-fou de `generer-config-swa.mjs` ne connaît que
+> le motif ` style="`** — `style='…'` ou sans guillemets lui échappe · **la CSP servie n'est vérifiée
+> que par motifs, pas structurellement** (comparer directive par directive avec
+> `config/staticwebapp.config.source.json`) · **la portée du sceau d'artéfact de `deploy.yml` a été
+> réduite** par la remontée de l'installation du navigateur (imposée par le pipeline de contenu) : la
+> parade est un **job propre** pour `content:build`, pas un digest — aucun digest n'épingle un
+> `apt-get` en root. *Ces quatre-là ont maintenant un patron de correctif DANS le dépôt :
+> `rendre-mermaid.mjs` a remplacé sa liste noire par un analyseur jsdom à liste blanche — le
+> transposer, pas en réinventer un.*
+> Puis, plus froid : `Azure/static-web-apps-deploy@v1` est un **tag mutable** dans le job qui détient
+> le jeton (SHA relevé, épinglage volontairement reporté à ce même lot) · **`.claude/rules/security.md`
+> n'a pas intégré S-007/S-008** · **typage (b) 34 et (c) 35 erreurs** sur les deux gates de design · et
+> le texte de l'extrait d'en-têtes de la Home est **en dur** (borné par un test qui relit
+> `staticwebapp.config.source.json`).
+> Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1, §E1-ST2, §E1-ST3 et §E2.
 >
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
 > ressources Azure créées (*Azure for Students*, palier **Free**) · secret
@@ -86,7 +92,19 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > sur les **directives** CSP, pas seulement sur la présence des en-têtes — tous les gates câblés dans
 > `ci.yml` **et** `deploy.yml` (L-007) · aucun `tfstate` versionné.
 >
-> **Trois pièges à ne pas repayer.** (0, celui d'E1-ST3, le plus retors parce qu'il ne fait rougir
+> **Pièges à ne pas repayer.** Les trois neufs d'E2-ST1 d'abord, parce qu'ils se ressemblent :
+> **(A) une liste NOIRE de motifs sur un format structuré est un S-003 par construction.** Le scrub
+> du SVG surveillait cinq motifs par regex ; `<a xlink:href="javascript:…">`, `<use href="https://…">`
+> et `<animate attributeName="href">` passaient intacts. On **parse**, puis on confronte à une **liste
+> blanche nominative** — jamais l'inverse. **(B) un contrôle positif qu'aucun runner n'exécute est une
+> intention, pas un gate** : les 9 fixtures invalides du validateur étaient exactes, exécutables à la
+> main… et lancées par personne, donc invisibles à toute régression (cousine de **L-019**, sur l'axe
+> *câblage*). Même famille : un garde-fou qui ne vit que dans un harnais CLI que la CI n'appelle pas.
+> **(C) un identifiant dérivé du hachage du CONTENU se duplique dès que le contenu se répète** — deux
+> diagrammes identiques dans une leçon recevaient le même SVG, donc les mêmes `id` dans la page. Une
+> clef de cache indexe une **source** ; un préfixe doit distinguer une **occurrence**.
+>
+> Puis (0, celui d'E1-ST3, le plus retors parce qu'il ne fait rougir
 > AUCUN gate) : la feuille de l'agent utilisateur pose `margin-inline: auto` sur `<hr>` — en **item
 > de grille**, une marge automatique l'emporte sur l'étirement et la largeur retombe à **zéro**. Le
 > filet occupait sa place et ne peignait rien, avec un style calculé parfaitement juste. Corrigé dans
@@ -183,16 +201,34 @@ ouverts** — ils touchent `.claude/rules/contenu-pedagogique.md` et la définit
 |---|---|---|
 | `npm run lint` | ESLint + angular-eslint | G-lint |
 | `npm test` | Vitest (runner par défaut d'Angular 22) | G-test |
-| `npm run build` | `ng build` + **génération de la config SWA** (CSP à hachages) → `dist/dr-je-sais-tout/browser` | G-build |
+| `npm run content:build` | **compile `content/`** : valide → Markdown/HTML + Mermaid → manifeste de routes + carte d'imports. **Précède** `ng build` ET `ng test` (crochets `prestart`/`pretest`) | G-content |
+| `npm run build` | `content:build` + `ng build` + **génération de la config SWA** (CSP à hachages) → `dist/dr-je-sais-tout/browser` | G-build |
 | `npm run config:swa` | régénère seul `staticwebapp.config.json` dans l'artéfact ; **code 1** si la sortie casse la CSP | G-build |
 | `npm run typecheck:tools` | vérifie les types de `tools/**/*.mjs` + `eslint.config.js` (`checkJs`) | G-typage-outils |
+| `npm run a11y:axe` | axe-core sur les pages prerendues de `dist/` | G-axe |
+| `npm run e2e` | Playwright sur `dist/` servi par `npx swa start` — donc **sous la CSP réelle** | G-e2e |
 | `npm start` | serveur de dev | — |
 | `npm run kb -- <termes>` | recherche dans la KnowledgeBase (`--full`, `--any`, `--n N`) | — |
 | `npm audit --omit=dev` | surface de production (doit rester à **0**) | G-audit |
 
-`npm audit` complet remonte 3 vulnérabilités **moderate dev-only** (SDK MCP tiré par `@angular/cli`) ;
-leur « correctif » downgraderait la CLI en v21 — refusé. C'est `--omit=dev` qui fait foi.
-Reste à venir : `content:build` (compilation de `content/`, **E2**), axe (**E1**), `dotnet build`/`dotnet test` (**phase 2**).
+⚠️ **`content:build` n'est pas optionnel, même avec un `content/` vide.** `src/styles.scss` fait
+`@use` sur `styles/coloration-syntaxique-generee`, une feuille **gitignorée** que seul ce pipeline
+produit : sur un clone frais, sans lui, c'est `npm test` qui tombe **en premier**, sur une erreur
+Sass qui ne nomme pas la cause. D'où les crochets `prestart`/`pretest` et l'étape CI placée **avant
+G-lint** dans `ci.yml` **et** `deploy.yml` (L-007).
+
+⚠️ **Sur un clone frais, l'ordre est `npm ci` → `npm run e2e:install` → le reste.** Le deuxième
+n'est pas réservé au gate e2e : `rendre-mermaid.mjs` impose **ce** Chromium-là à `mmdc`
+(`.puppeteerrc.cjs` interdit à Puppeteer d'en télécharger un second, ~200 Mo), et la leçon-témoin du
+pipeline porte deux diagrammes — donc **`npm ci && npm test` seul est ROUGE**, sur un message qui
+parle de Playwright au milieu d'un test de contenu. La CI l'installe en tête des deux workflows pour
+cette raison.
+
+`npm audit` complet remonte **5 vulnérabilités, dont 4 *high*** — toutes **dev-only et
+préexistantes** : `adm-zip`, `devcert` et `tmp` via `@azure/static-web-apps-cli`, `nanoid` via
+`@angular/build`. Aucune n'atteint la surface livrée : **`--omit=dev` reste à 0**, et c'est lui qui
+fait foi (mesure du 2026-08-16 ; l'ancienne note « 3 moderate via le SDK MCP d'@angular/cli » était
+périmée). Reste à venir : `dotnet build`/`dotnet test` (**phase 2**).
 
 ## Règles dures (rappelées automatiquement par les hooks)
 

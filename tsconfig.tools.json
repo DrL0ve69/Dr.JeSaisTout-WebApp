@@ -87,8 +87,47 @@
   // exactement le trou que ce programme a été créé pour fermer. Il manipule un DOM
   // jsdom sans que `lib: DOM` soit ajoutée — la frontière tient, sa surface jsdom
   // est déclarée en JSDoc à l'endroit où il l'obtient.
+  //
+  // `tools/content-pipeline/valider.mjs` (E2-ST1, lot 1) entre également dans le
+  // MÊME DIFF que sa création, et pour la même raison en plus forte : il décide si
+  // une leçon entre ou non dans le site, et il est le premier maillon d'une chaîne
+  // dont les lots suivants (compilateur, manifeste) dépendront. Il est listé
+  // NOMINATIVEMENT — pas de glob `tools/content-pipeline/**/*.mjs` : un glob ferait
+  // entrer d'un coup les scripts des lots 3 à 4 avant qu'ils soient typés, et la
+  // construction casserait sur du code que le lot en cours ne peut pas corriger.
+  //
+  // `compiler-markdown.mjs` et `types.d.ts` (lot 2) suivent la même règle, avec une
+  // dépendance à ne pas inverser : le `.d.ts` ne porte QUE des déclarations globales
+  // (ni `import`, ni `export`), et c'est ce qui rend `LeconCompilee`, `BlocContenu`
+  // et `Langage` visibles du compilateur sans import. Le retirer de cette liste ne
+  // ferait pas rougir un import manquant — il ferait silencieusement retomber tout
+  // le contrat en `any`, sous un `tsc` vert (L-005).
+  // `rendre-mermaid.mjs` (lot 3) entre NOMINATIVEMENT, dans le même diff que sa
+  // création, pour la raison qui vaut déjà pour ses voisins : il décide de ce
+  // qu'un SVG a le droit de contenir avant d'atteindre une page servie sous une
+  // CSP à hachages. Toujours pas de glob `tools/content-pipeline/**/*.mjs` : il
+  // ferait entrer d'un coup les scripts du lot 4 avant qu'ils soient typés, et la
+  // construction casserait sur du code que le lot en cours ne peut pas corriger
+  // (L-014/L-020).
+  //
+  // `build.mjs`, `generer-manifeste.mjs` et `verifier-poids.mjs` (lot 4) ferment la
+  // série, TOUJOURS nominativement — le glob reste refusé, même maintenant que la
+  // liste couvre tout `tools/content-pipeline/` : ce qui protégeait des lots à venir
+  // protège désormais des FICHIERS à venir (une fixture `.mjs`, un script jetable),
+  // qui entreraient sinon dans le programme sans qu'aucun humain l'ait décidé
+  // (L-014/L-020). `generer-manifeste.mjs` mérite sa place à double titre : il ÉCRIT
+  // du TypeScript (`src/content-generated/carte-lecons.ts`) que le programme
+  // applicatif compilera ensuite — un générateur de code non typé produirait du code
+  // non compilable une étape trop tard, dans un message qui ne le nommerait pas.
   "include": [
     "tools/a11y/verifier-axe.mjs",
+    "tools/content-pipeline/build.mjs",
+    "tools/content-pipeline/compiler-markdown.mjs",
+    "tools/content-pipeline/generer-manifeste.mjs",
+    "tools/content-pipeline/rendre-mermaid.mjs",
+    "tools/content-pipeline/verifier-poids.mjs",
+    "tools/content-pipeline/types.d.ts",
+    "tools/content-pipeline/valider.mjs",
     "tools/deploiement/generer-config-swa.mjs",
     "tools/kb-search.mjs",
     "eslint.config.js"

@@ -17,15 +17,21 @@
 // console, pour une page qui reste un 404 aux yeux du réseau. Le `**` seul donne
 // un 404 cohérent des deux côtés.
 //
-// ⚠️ CE QU'E2-ST1 DEVRA FAIRE, sans quoi AUCUNE leçon ne sera prerendue — le
+// ⚠️ CE QU'E2-ST2 DEVRA FAIRE, sans quoi AUCUNE leçon ne sera prerendue — le
 // site perdrait sa lisibilité sans JS sur l'essentiel de son contenu :
 // réintroduire `cours/securite-web/:slug` DES DEUX CÔTÉS, ici en
-// `RenderMode.Prerender` **avec** un `getPrerenderParams()` alimenté par la
-// compilation de `content/` (la liste des slugs de leçons). La fonction n'est pas
-// facultative : `@angular/ssr` fait échouer `npm run build` sur une route
-// paramétrée déclarée en `Prerender` qui n'en fournit pas — c'est ce garde-fou
-// qui rend l'oubli impossible, à condition de ne pas retomber sur `Client` pour
-// le faire taire.
+// `RenderMode.Prerender` **avec** un `getPrerenderParams()` alimenté par
+// `src/content-generated/manifeste-routes.json` — le tableau
+// `EntreeManifesteRoutes[]` trié par `ordre` que produit E2-ST1 (lot 4). Il porte
+// exactement les slugs à prerendre, et RIEN d'autre : aucun champ n'y distingue
+// une leçon « factice » d'une vraie, parce qu'il n'y en a plus besoin — la
+// leçon-témoin du pipeline vit hors de `content/`
+// (`tools/content-pipeline/__fixtures__/temoin/`), donc hors de portée du build de
+// production. Il n'y a donc rien à FILTRER ici : tout ce que le manifeste contient
+// se prerende. La fonction n'est pas facultative : `@angular/ssr` fait échouer
+// `npm run build` sur une route paramétrée déclarée en `Prerender` qui n'en fournit
+// pas — c'est ce garde-fou qui rend l'oubli impossible, à condition de ne pas
+// retomber sur `Client` pour le faire taire.
 //
 // ⚠️ ET UNE RÈGLE DE CONTENU QUI VA AVEC, à ne pas redécouvrir à ce moment-là :
 // UN SLUG NE SE RÉAFFICHE JAMAIS TEL QUEL. Il vient de l'URL, donc de qui forge

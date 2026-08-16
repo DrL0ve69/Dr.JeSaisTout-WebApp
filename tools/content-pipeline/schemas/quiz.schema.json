@@ -1,0 +1,188 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dr-je-sais-tout.local/schemas/quiz.schema.json",
+  "title": "quiz.json d'une leçon",
+  "description": "Contrat repris de docs/contenu/pipeline-contenu.md §Schéma quiz.json. POURQUOI if/then/else ET NON oneOf : le spike S-01 §6 a mesuré la sortie d'erreur des deux formes. Avec `oneOf`, une seule faute (un `explication` manquant) fait échouer les QUATRE branches, et Ajv rend les erreurs des quatre — dont trois hors-sujet (« doit avoir la propriété affirmation », « doit avoir la propriété paires »…). L'auteur lit alors un mur d'erreurs qui décrit un type de question qu'il n'a pas écrit. Avec `if/then` piloté par `type`, une seule branche s'applique et l'erreur nomme le champ réellement manquant.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lecon", "titre", "questions"],
+  "properties": {
+    "lecon": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Slug de la leçon. Doit égaler le `slug` du frontmatter et le suffixe du nom de dossier."
+    },
+    "titre": { "type": "string", "minLength": 3 },
+    "melanger": {
+      "type": "boolean",
+      "description": "Ordre aléatoire des questions au rendu. Optionnel, défaut décidé par le composant (E2-ST3)."
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 10,
+      "description": "5 à 10 questions, au moins 2 types différents (règle vérifiée hors schéma : JSON Schema ne sait pas compter des valeurs distinctes).",
+      "items": { "$ref": "#/definitions/question" }
+    }
+  },
+  "definitions": {
+    "identifiant": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "texteExplicatif": {
+      "type": "string",
+      "minLength": 20,
+      "description": "Jamais vide et jamais laconique : la règle contenu-pedagogique §5 exige pourquoi la bonne réponse est bonne ET pourquoi les distracteurs plausibles sont faux. Le minimum de 20 caractères ne prouve pas la qualité — il attrape les « oui », « voir la leçon » et les chaînes vides."
+    },
+    "ficheSource": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9][a-z0-9._-]*)+\\.md$",
+      "description": "Traçabilité du savoir : chemin de la fiche KnowledgeBase qui porte la réponse. Chaque segment DOIT commencer par une lettre ou un chiffre — c'est ce qui interdit « .. », donc toute remontée de dossier (CWE-22) le jour où ce chemin sera résolu sur le disque."
+    },
+    "langage": {
+      "type": "string",
+      "enum": ["php", "csharp", "typescript", "sql", "bash", "json"]
+    },
+
+    "question": {
+      "type": "object",
+      "required": ["id", "type", "ficheSource"],
+      "properties": {
+        "id": { "$ref": "#/definitions/identifiant" },
+        "type": {
+          "type": "string",
+          "enum": ["choix-multiple", "vrai-faux", "associer", "trouver-la-faille"]
+        },
+        "ficheSource": { "$ref": "#/definitions/ficheSource" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "choix-multiple" } }, "required": ["type"] },
+          "then": { "$ref": "#/definitions/choixMultiple" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "vrai-faux" } }, "required": ["type"] },
+          "then": { "$ref": "#/definitions/vraiFaux" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "associer" } }, "required": ["type"] },
+          "then": { "$ref": "#/definitions/associer" }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "trouver-la-faille" } },
+            "required": ["type"]
+          },
+          "then": { "$ref": "#/definitions/trouverLaFaille" }
+        }
+      ]
+    },
+
+    "choixMultiple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "question", "choix", "bonneReponse", "explication", "ficheSource"],
+      "properties": {
+        "id": { "$ref": "#/definitions/identifiant" },
+        "type": { "const": "choix-multiple" },
+        "ficheSource": { "$ref": "#/definitions/ficheSource" },
+        "question": { "type": "string", "minLength": 10 },
+        "choix": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "texte"],
+            "properties": {
+              "id": { "$ref": "#/definitions/identifiant" },
+              "texte": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "bonneReponse": {
+          "$ref": "#/definitions/identifiant",
+          "description": "Id d'un des `choix`. L'appartenance effective est vérifiée hors schéma."
+        },
+        "explication": { "$ref": "#/definitions/texteExplicatif" }
+      }
+    },
+
+    "vraiFaux": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "affirmation", "bonneReponse", "justification", "ficheSource"],
+      "properties": {
+        "id": { "$ref": "#/definitions/identifiant" },
+        "type": { "const": "vrai-faux" },
+        "ficheSource": { "$ref": "#/definitions/ficheSource" },
+        "affirmation": { "type": "string", "minLength": 10 },
+        "bonneReponse": { "type": "boolean" },
+        "justification": { "$ref": "#/definitions/texteExplicatif" }
+      }
+    },
+
+    "associer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "consigne", "paires", "explication", "ficheSource"],
+      "properties": {
+        "id": { "$ref": "#/definitions/identifiant" },
+        "type": { "const": "associer" },
+        "ficheSource": { "$ref": "#/definitions/ficheSource" },
+        "consigne": { "type": "string", "minLength": 10 },
+        "paires": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["gauche", "droite"],
+            "properties": {
+              "gauche": { "type": "string", "minLength": 1 },
+              "droite": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "explication": { "$ref": "#/definitions/texteExplicatif" }
+      }
+    },
+
+    "trouverLaFaille": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "consigne",
+        "langage",
+        "code",
+        "ligneFautive",
+        "faille",
+        "explication",
+        "correction",
+        "ficheSource"
+      ],
+      "properties": {
+        "id": { "$ref": "#/definitions/identifiant" },
+        "type": { "const": "trouver-la-faille" },
+        "ficheSource": { "$ref": "#/definitions/ficheSource" },
+        "consigne": { "type": "string", "minLength": 10 },
+        "langage": { "$ref": "#/definitions/langage" },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Lignes séparées par \\n, numérotation dès 1. Code VOLONTAIREMENT vulnérable : il n'est jamais exécuté par le site (règle security.md §4)."
+        },
+        "ligneFautive": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Doit désigner une ligne existante de `code` — vérifié hors schéma."
+        },
+        "faille": { "type": "string", "minLength": 3 },
+        "explication": { "$ref": "#/definitions/texteExplicatif" },
+        "correction": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

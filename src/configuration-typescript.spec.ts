@@ -200,7 +200,30 @@ describe('rigueur du compilateur', () => {
     const SCRIPT_NPM = 'typecheck:tools';
     const WORKFLOWS = ['ci.yml', 'deploy.yml'] as const;
     const NOM_ETAPE = 'G-typage-outils';
-    const FICHIER_EPINGLE = 'tools/deploiement/generer-config-swa.mjs';
+
+    /**
+     * Les fichiers dont on EXIGE qu'ils soient réellement compilés. La liste peut GRANDIR
+     * librement — `tsconfig.tools.json` fait entrer l'outillage par lots — mais elle ne peut pas
+     * RÉTRÉCIR : chaque entrée est un outil qui décide de quelque chose d'irréversible.
+     *
+     * `generer-config-swa.mjs` écrit la politique de sécurité du site. Les trois suivants forment
+     * le pipeline de contenu d'E2-ST1 : `valider.mjs` décide si une leçon entre dans le site,
+     * `compiler-markdown.mjs` décide de ce que le navigateur en reçoit, et `types.d.ts` est le
+     * CONTRAT que les deux — plus E2-ST2/ST4/ST6 — partagent. Le `.d.ts` mérite son entrée pour
+     * une raison propre : ne portant que des déclarations globales, son absence du programme ne
+     * casserait aucun import. Elle ferait retomber tout le contrat en `any` sous un `tsc` vert,
+     * qui est très exactement le gate vide de L-005.
+     */
+    const FICHIERS_EPINGLES = [
+      'tools/content-pipeline/build.mjs',
+      'tools/content-pipeline/compiler-markdown.mjs',
+      'tools/content-pipeline/generer-manifeste.mjs',
+      'tools/content-pipeline/rendre-mermaid.mjs',
+      'tools/content-pipeline/types.d.ts',
+      'tools/content-pipeline/valider.mjs',
+      'tools/content-pipeline/verifier-poids.mjs',
+      'tools/deploiement/generer-config-swa.mjs',
+    ] as const;
 
     it('vérifie réellement le JavaScript, et pas seulement le TypeScript', () => {
       // `allowJs` fait ENTRER les `.mjs` dans le programme, `checkJs` les fait
@@ -211,19 +234,20 @@ describe('rigueur du compilateur', () => {
       expect(options.checkJs).toBe(true);
     });
 
-    it(`compile réellement ${FICHIER_EPINGLE}`, () => {
-      // L'assertion précédente ne dit RIEN du périmètre : vider l'`include` de
-      // `tsconfig.tools.json`, ou le repointer ailleurs, laisse `allowJs` et
-      // `checkJs` à true, le script npm intact, les deux workflows verts — et
-      // `tsc` sort en 0 sur ZÉRO fichier. Le gate le plus vide, déplacé d'un cran
-      // (L-005). On épingle donc le fichier qui motive tout le lot : celui qui
-      // génère la CSP du site. Les `rootNames` sont la liste que `tsc` compile
-      // vraiment, `include`/`exclude`/`files` déjà résolus — pas le texte de la
-      // configuration relu par lui-même (L-012).
-      const { rootNames } = readConfiguration(join(process.cwd(), PROGRAMME_OUTILS));
-      const normalises = rootNames.map((chemin) => chemin.replace(/\\/g, '/'));
-      expect(normalises.filter((chemin) => chemin.endsWith(`/${FICHIER_EPINGLE}`))).toHaveLength(1);
-    });
+    for (const fichier of FICHIERS_EPINGLES) {
+      it(`compile réellement ${fichier}`, () => {
+        // L'assertion précédente ne dit RIEN du périmètre : vider l'`include` de
+        // `tsconfig.tools.json`, ou le repointer ailleurs, laisse `allowJs` et
+        // `checkJs` à true, le script npm intact, les deux workflows verts — et
+        // `tsc` sort en 0 sur ZÉRO fichier. Le gate le plus vide, déplacé d'un cran
+        // (L-005). Les `rootNames` sont la liste que `tsc` compile vraiment,
+        // `include`/`exclude`/`files` déjà résolus — pas le texte de la
+        // configuration relu par lui-même (L-012).
+        const { rootNames } = readConfiguration(join(process.cwd(), PROGRAMME_OUTILS));
+        const normalises = rootNames.map((chemin) => chemin.replace(/\\/g, '/'));
+        expect(normalises.filter((chemin) => chemin.endsWith(`/${fichier}`))).toHaveLength(1);
+      });
+    }
 
     it(`expose un script npm « ${SCRIPT_NPM} » qui vise ce programme`, () => {
       const manifeste: { scripts?: Record<string, string> } = JSON.parse(
@@ -335,11 +359,18 @@ describe('rigueur du compilateur', () => {
     for (const workflow of WORKFLOWS) {
       it(`est appelé par ${workflow}`, () => {
         const contenu = readFileSync(join(process.cwd(), '.github', 'workflows', workflow), 'utf8');
-        // La commande vit dans un bloc `run: |` multiligne (l'étape installe
-        // d'abord chromium) : on ancre donc la LIGNE, pas la directive `run:`.
-        // `\r?$` parce que les `.yml` du dépôt sont en CRLF (L-015).
+        // L'étape était un bloc `run: |` multiligne tant qu'elle installait
+        // elle-même chromium ; depuis E2-ST1 (lot 4), cette installation est
+        // remontée avant la compilation de `content/` — `rendre-mermaid.mjs`
+        // partage le MÊME navigateur — et l'étape n'exécute plus qu'une commande.
+        // L'ancrage accepte donc les deux formes : `run: npm run e2e` sur la
+        // directive, ou la ligne seule dans un bloc, pour que ce spec survive à un
+        // futur ajout de commande sans devenir muet. `\r?$` parce que les `.yml`
+        // du dépôt sont en CRLF (L-015), et `$` en multiligne s'ancre APRÈS le `\r`.
         expect(contenu).toContain(`- name: ${NOM_ETAPE}`);
-        expect(contenu).toMatch(new RegExp(`^[ \\t]+npm run ${SCRIPT_SUITE}\\r?$`, 'm'));
+        expect(contenu).toMatch(
+          new RegExp(`^[ \\t]+(?:run: )?npm run ${SCRIPT_SUITE}\\r?$`, 'm'),
+        );
       });
     }
   });

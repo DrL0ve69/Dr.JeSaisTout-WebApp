@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dr-je-sais-tout.local/schemas/simulation.schema.json",
+  "title": "simulation.json d'une leçon (pas-à-pas visuel, optionnel)",
+  "description": "Contrat repris de docs/contenu/pipeline-contenu.md §Schéma simulation.json. Une simulation raconte un déroulé en étapes navigables ; chaque étape porte une narration ET un état visuel déclaratif que le composant Angular (E2-ST5) sait rendre. Les renvois d'un `etatVisuel` vers un acteur (acteurActif, fleche.de/vers, clés de panneaux, surbrillance) sont vérifiés HORS SCHÉMA contre la liste `acteurs` : JSON Schema ne sait pas comparer deux branches du même document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lecon", "titre", "acteurs", "etapes"],
+  "properties": {
+    "lecon": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "Slug de la leçon. Doit égaler le `slug` du frontmatter et le suffixe du nom de dossier."
+    },
+    "titre": { "type": "string", "minLength": 3 },
+    "acteurs": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 6,
+      "description": "Les colonnes/boîtes du rendu. Au moins deux : une simulation à un acteur ne raconte pas d'échange.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "libelle", "type"],
+        "properties": {
+          "id": { "$ref": "#/definitions/identifiant" },
+          "libelle": { "type": "string", "minLength": 1 },
+          "type": {
+            "type": "string",
+            "enum": ["personne", "navigateur", "serveur", "stockage"],
+            "description": "Liste FERMÉE : le composant de rendu associe une icône et un rôle accessible à chaque valeur. Un type inconnu produirait une boîte muette pour un lecteur d'écran."
+          }
+        }
+      }
+    },
+    "etapes": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 12,
+      "description": "5 à 12 étapes ; la séquence complète doit correspondre au diagramme Mermaid de la leçon (vérification humaine, pas mécanisable).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["numero", "titre", "narration", "etatVisuel"],
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Doit valoir la position de l'étape dans le tableau (1-based) — vérifié hors schéma."
+          },
+          "titre": { "type": "string", "minLength": 3 },
+          "narration": {
+            "type": "string",
+            "minLength": 20,
+            "description": "L'équivalent textuel de l'étape. C'est CE texte qui rend la simulation compréhensible sans regarder l'état visuel (WCAG 1.1.1)."
+          },
+          "etatVisuel": { "$ref": "#/definitions/etatVisuel" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "identifiant": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "langage": {
+      "type": "string",
+      "enum": ["php", "csharp", "typescript", "sql", "bash", "json"]
+    },
+    "etatVisuel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["acteurActif"],
+      "properties": {
+        "acteurActif": { "$ref": "#/definitions/identifiant" },
+        "fleche": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["de", "vers", "libelle"],
+          "properties": {
+            "de": { "$ref": "#/definitions/identifiant" },
+            "vers": { "$ref": "#/definitions/identifiant" },
+            "libelle": { "type": "string", "minLength": 1 }
+          }
+        },
+        "panneaux": {
+          "type": "object",
+          "description": "Clé = id d'acteur ; valeur = ce qui s'affiche sous sa boîte.",
+          "propertyNames": { "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "texte": { "type": "string", "minLength": 1 },
+              "code": { "type": "string", "minLength": 1 },
+              "langage": { "$ref": "#/definitions/langage" }
+            },
+            "anyOf": [
+              { "properties": { "texte": { "type": "string" } }, "required": ["texte"] },
+              { "properties": { "code": { "type": "string" } }, "required": ["code"] }
+            ],
+            "dependencies": { "code": ["langage"] }
+          }
+        },
+        "surbrillance": {
+          "type": "array",
+          "maxItems": 6,
+          "items": { "$ref": "#/definitions/identifiant" },
+          "description": "Ids d'acteurs à mettre en évidence (danger). La mise en évidence ne doit jamais être le SEUL porteur de sens : la narration dit la même chose en mots."
+        }
+      }
+    }
+  }
+}

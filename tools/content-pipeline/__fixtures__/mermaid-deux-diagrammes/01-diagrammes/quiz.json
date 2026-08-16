@@ -1,0 +1,103 @@
+{
+  "lecon": "diagrammes",
+  "titre": "Quiz — fixture des diagrammes",
+  "melanger": false,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Deux diagrammes identiques dans une même leçon : que doivent-ils partager ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Leur entrée de cache, mais pas leurs identifiants."
+        },
+        {
+          "id": "b",
+          "texte": "Leur entrée de cache ET leurs identifiants."
+        },
+        {
+          "id": "c",
+          "texte": "Ni l'une ni les autres : chacun repasse par mmdc."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "La clef du cache est le hachage du code : deux sources identiques ne coûtent qu'un seul mmdc. Le préfixe d'identifiants, lui, se calcule par OCCURRENCE (fichier, rang, code). La réponse b décrit précisément le bug corrigé — même page, mêmes id, duplicate-id-aria chez axe. La réponse c décrit un cache inutile.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Que fait l'analyseur SVG devant un élément absent de sa liste blanche ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il le retire en silence et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer le build en nommant l'élément."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Fail-closed : un élément inconnu est un fait nouveau, pas un déchet. Le retirer en silence (a) masquerait la régression qui l'a fait apparaître, et un simple avertissement (c) serait ignoré par la CI. Le nom manquant s'ajoute à la main, après revue.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "Pourquoi un attribut « xlink:href » n'est-il admis que s'il commence par « # » ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Parce que les URL longues alourdissent le SVG."
+        },
+        {
+          "id": "b",
+          "texte": "Parce qu'une autre valeur peut être « javascript: » ou une ressource externe."
+        },
+        {
+          "id": "c",
+          "texte": "Parce que Mermaid n'en émet jamais d'autre forme."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Un « xlink:href » accepte « javascript: » dans un SVG, et une URL absolue ferait sortir la page vers un tiers. La réponse a confond poids et sûreté ; la réponse c est fausse — Mermaid émet des liens dès qu'une leçon emploie « click », ce qui est exactement le vecteur qui traversait la version à motifs.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Où vit le contrôle final des SVG compilés ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Dans le harnais « node rendre-mermaid.mjs --racine … »."
+        },
+        {
+          "id": "b",
+          "texte": "Dans build.mjs, sur le chemin que la CI emprunte réellement."
+        },
+        {
+          "id": "c",
+          "texte": "Nulle part : le nettoyage par diagramme suffit."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Un garde-fou hors du chemin d'exécution ne garde rien : le harnais (a) n'est jamais lancé par npm run content:build. Et le nettoyage par diagramme (c) ne peut pas voir l'unicité des identifiants ENTRE diagrammes, qui ne s'observe qu'en les regardant ensemble.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Un SVG relu du cache peut entrer dans le site sans repasser par l'analyseur.",
+      "bonneReponse": false,
+      "justification": "Un cache est une mémoire, donc un endroit où une faute se conserve : un fichier corrompu ou produit sous des règles antérieures entrerait sinon dans le site sans contrôle. Tout SVG relu du cache repasse par verifierSvgNettoye().",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

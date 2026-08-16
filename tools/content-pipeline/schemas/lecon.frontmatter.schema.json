@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dr-je-sais-tout.local/schemas/lecon.frontmatter.schema.json",
+  "title": "Frontmatter d'une leçon (content/cours/<sujet>/<nn>-<slug>/lecon.md)",
+  "description": "Contrat du frontmatter YAML, repris de docs/contenu/pipeline-contenu.md §Gabarit lecon.md. Les clés restent en kebab-case parce que c'est la forme que les auteurs écrivent ; la conversion vers le contrat camelCase de types.d.ts (dureeEstimee, fichesSources) appartient au compilateur (lot 2). additionalProperties=false est délibéré : un champ inventé ou mal orthographié doit faire ÉCHOUER le build, pas se perdre en silence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "titre",
+    "slug",
+    "sujet",
+    "ordre",
+    "niveau",
+    "duree-estimee",
+    "objectifs",
+    "prerequis",
+    "fiches-sources",
+    "cree",
+    "maj",
+    "statut"
+  ],
+  "properties": {
+    "titre": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 120,
+      "description": "Titre affiché de la leçon. Doit reprendre le <h1> du corps."
+    },
+    "slug": {
+      "$ref": "#/definitions/kebab",
+      "description": "Identifiant de la leçon dans son sujet, SANS le préfixe nn du dossier. Le validateur exige slug = suffixe du nom de dossier = quiz.lecon = simulation.lecon."
+    },
+    "sujet": {
+      "$ref": "#/definitions/kebab",
+      "description": "Cours auquel la leçon appartient (dossier sous content/cours/)."
+    },
+    "ordre": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99,
+      "description": "Position dans le cours ; doit valoir exactement le préfixe nn du dossier."
+    },
+    "niveau": {
+      "type": "string",
+      "enum": ["maternelle", "primaire", "secondaire", "cegep", "universite"]
+    },
+    "duree-estimee": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 240,
+      "description": "Minutes de lecture + exercices."
+    },
+    "objectifs": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 5,
+      "items": { "type": "string", "minLength": 10 },
+      "description": "3 à 5 objectifs OBSERVABLES (.claude/rules/contenu-pedagogique.md §2) : « expliquer… », « repérer… », jamais « comprendre X »."
+    },
+    "prerequis": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Slugs de leçons du même sujet, ou libellés libres. Tableau vide autorisé."
+    },
+    "fiches-sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/cheminFicheKb" },
+      "description": "Chemins relatifs à la racine de la KnowledgeBase. Au moins un : une leçon sans source est une affirmation non sourcée (règle contenu-pedagogique §1)."
+    },
+    "cree": { "$ref": "#/definitions/dateIso" },
+    "maj": { "$ref": "#/definitions/dateIso" },
+    "statut": {
+      "type": "string",
+      "enum": ["brouillon", "verifiee", "publiee"],
+      "description": "publiee interdit tout marqueur `à-vérifier:` dans le corps — règle vérifiée hors schéma."
+    }
+  },
+  "definitions": {
+    "kebab": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "kebab-case strict : minuscules non accentuées, chiffres, tirets simples."
+    },
+    "dateIso": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Date ISO courte. Volontairement une CHAÎNE et non un type `date` : le validateur lit le frontmatter sans analyseur YAML complet et ne convertit rien en objet Date."
+    },
+    "cheminFicheKb": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9][a-z0-9._-]*)+\\.md$",
+      "description": "Chemin POSIX vers une fiche de la KnowledgeBase, ex. web/securite/xss-cross-site-scripting.md. Chaque segment DOIT commencer par une lettre ou un chiffre : c'est ce qui interdit « .. » et donc toute remontée de dossier (CWE-22). Le motif précédent acceptait « web/../../secret.md ». Purement métadonnée aujourd'hui — mais le premier lot qui résoudra ce chemin sur le disque (vérificateur de fiches KB) héritera de la garantie au lieu du trou."
+    }
+  }
+}
