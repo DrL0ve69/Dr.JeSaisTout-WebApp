@@ -1,5 +1,6 @@
 // =============================================================================
-// Tests de PageAVenir — le placeholder des deux routes publiques
+// Tests de PageAVenir — le placeholder des routes annoncées avant d'exister
+// (depuis E1-ST3, seul `/cours/securite-web` ; `/` est servie par `Accueil`)
 // -----------------------------------------------------------------------------
 // Ce composant n'a qu'une seule logique, mais c'est la plus facile à casser en
 // silence : il lit son texte dans la DÉFINITION DE LA ROUTE. Un `data.titre`

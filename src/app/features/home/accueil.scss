@@ -1,0 +1,68 @@
+// =============================================================================
+// Accueil — mise en page, direction « Carnet de laboratoire »
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+//
+// ⚠️ AUCUNE PROPRIÉTÉ `order:` DANS CE FICHIER NI DANS CEUX DES DEUX ENFANTS
+// (décision 4 du plan, WCAG 1.3.2) : l'ordre visuel doit rester celui du DOM, qui
+// est celui du clavier et celui de la synthèse vocale. `accueil.spec.ts` le
+// vérifie sur les trois feuilles compilées, pour que la règle ne dépende pas de
+// la vigilance du prochain contributeur.
+//
+// UNE SEULE COLONNE, ET C'EST UN CHOIX. Le design system n'expose aucun jeton de
+// point de rupture, et la coquille (`app.scss`, `en-tete.scss`) n'emploie que des
+// mises en page intrinsèques (`flex-wrap`, `gap`) plutôt que des `@media` à
+// valeurs choisies à l'œil. Une colonne unique bornée à la mesure de lecture se
+// replie donc toute seule, de 360 px à un écran large, sans point de rupture à
+// justifier ni risque de désynchroniser l'ordre visuel. Le jour où un jeton de
+// rupture existera, la marginalia de la pièce à conviction est la première
+// candidate à passer en vraie marge, à droite du bloc.
+//
+// CONFINEMENT DES CONTRASTES (décision 2) : la page se pose sur
+// `--couleur-surface` (le fond du `body`), ses deux enfants sur
+// `--couleur-surface-creuse`. `--couleur-surface-elevee` n'apparaît nulle part.
+// =============================================================================
+
+:host {
+  display: block;
+  padding: var(--espace-6) var(--espace-3);
+}
+
+.accueil {
+  display: grid;
+
+  // Un carnet respire : le rythme vertical est la seule « décoration » de cette
+  // page avec les filets.
+  gap: var(--espace-6);
+  max-inline-size: var(--largeur-lecture);
+  margin-inline: auto;
+}
+
+// Le tampon d'ouverture et celui de la pièce à conviction. L'information passe
+// par les mots, la casse et la chasse — jamais par la seule couleur (WCAG 1.4.1),
+// et l'encre reste neutre : le rouge est la signature « vulnérable » du site.
+.tampon {
+  margin-block-end: var(--espace-2);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+.chapo {
+  margin-block-start: var(--espace-3);
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-m);
+}
+
+.sous-titre {
+  margin-block-end: var(--espace-2);
+}
+
+.intro {
+  margin-block-end: var(--espace-3);
+}

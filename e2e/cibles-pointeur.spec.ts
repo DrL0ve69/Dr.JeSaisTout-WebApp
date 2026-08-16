@@ -39,7 +39,7 @@ const SEUIL_AAA_INFORMATIF = 44;
  * Énumération plutôt que liste écrite à la main : la DÉFINITION de ce qu'est une
  * cible vit ici une seule fois, et toute cible ajoutée demain à la coquille est
  * mesurée sans qu'on ait à décrire son gabarit. Elle n'est pas mesurée en silence
- * pour autant : le compte est épinglé plus bas (`toBe(8)`), donc l'ajout d'une
+ * pour autant : le compte est épinglé plus bas (`toBe(9)`), donc l'ajout d'une
  * cible fait rougir ce fichier et demande un geste conscient. Les deux vont
  * ensemble — l'énumération évite d'oublier de MESURER, le compte évite d'oublier
  * de CONSTATER. `[tabindex="-1"]` est exclu : `<main tabindex="-1">` n'est pas une
@@ -156,9 +156,14 @@ test('chaque cible de pointeur tient la barre AA de 24 × 24 px (2.5.8)', async 
   }
 
   // Garde-fou : une énumération qui ne trouve rien passerait verte en ne prouvant
-  // rien. La coquille en compte 8 aujourd'hui (lien d'évitement, logotype, 2 liens
-  // de navigation, 3 radios, lien du pied de page).
-  expect(cibles.length, "aucune cible mesurée : l'énumération ne trouve plus rien").toBe(8);
+  // rien. LA PAGE « / » EN COMPTE 9 AUJOURD'HUI, dans l'ordre du document : lien
+  // d'évitement · logotype · lien « Accueil » · lien « Sécurité des applications
+  // web » · les 3 radios du thème (mesurés chacun sur son `<label>`, voir
+  // l'en-tête — ils comptent pour 3 cibles de POINTEUR là où ils ne valent qu'UN
+  // arrêt de tabulation) · l'appel à l'action « Commencer le cours » de l'accueil ·
+  // lien du pied de page. Le neuvième est le CTA : il est arrivé avec E1-ST3, où la
+  // route « / » a cessé de rendre `PageAVenir`, qui n'offrait aucune cible propre.
+  expect(cibles.length, "aucune cible mesurée : l'énumération ne trouve plus rien").toBe(9);
 
   const tropPetites = cibles.filter(
     (cible) =>

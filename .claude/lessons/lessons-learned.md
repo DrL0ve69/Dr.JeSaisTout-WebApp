@@ -499,4 +499,30 @@ rendu plutôt que de le corriger.
 
 ---
 
+## L-025 · Une marge automatique fait tomber un élément sans contenu à une largeur de ZÉRO dès qu'il est item de grille ou de flexbox — il occupe sa place et ne peint rien
+
+**Symptôme.** Le `<hr>` de l'accueil (E1-ST3) était invisible, alors que le `<hr>` du pied de page —
+même mixin, mêmes jetons — s'affichait. Aucune erreur, aucun avertissement, aucun gate rouge : le
+style calculé était **juste** (`height` et `background-color` corrects), et `verifier-contrastes.mjs`
+mesure une table de jetons, pas des pixels. La cause : la feuille de l'agent utilisateur pose
+`margin-inline: auto` sur `<hr>`. En flux normal, une marge automatique avec `width: auto` se résout
+à 0 et le trait prend toute la ligne. Mais un item de **grille** (ou de flexbox) dont les marges sont
+automatiques **ne s'étire pas** — les marges absorbent l'espace libre, la largeur retombe sur le
+contenu, ici **zéro**. Constaté à l'œil sur `home-clair.png`, puis mesuré :
+`getBoundingClientRect().width` valait 0.
+
+**Règle.** (1) Tout mixin qui dessine un élément **remplaçable ou à style d'agent utilisateur**
+(`<hr>`, `<fieldset>`, `<figure>`, `<button>`) neutralise explicitement les marges de l'agent
+utilisateur — sinon il ne se comporte pareil qu'en flux normal, et change de rendu selon le parent
+qui l'accueille. (2) Corollaire de méthode, plus large que le CSS : **un style calculé correct ne
+prouve pas un pixel peint**. Seule la géométrie (`getBoundingClientRect`) ou une capture le prouve —
+même famille de piège que [[L-021]], où le `getComputedStyle` mentait aussi, pour une autre raison.
+C'est le lot « capture et critique » d'E1-ST3 qui a trouvé celle-ci, qu'aucun des six gates
+automatiques ne pouvait voir : ils vérifient tous des contrats, aucun ne **regarde** le résultat.
+
+**Réfs.** `src/styles/_mixins.scss` (`@mixin filet-horizontal`, l'avertissement en tête) ;
+`docs/agile/backlog-phase-1.md` §E1-ST3, lot C.
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

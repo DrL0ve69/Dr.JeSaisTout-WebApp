@@ -64,8 +64,16 @@ const LIMITE_TABULATIONS = 20;
  * garantir que la boucle a bien mesuré quelque chose. Un test qui parcourt zéro
  * élément passerait vert en ne prouvant rien — c'est le mode d'échec silencieux
  * d'une boucle de mesure.
+ *
+ * LES SEPT, DANS L'ORDRE DU DOCUMENT : (1) lien d'évitement · (2) logotype ·
+ * (3) lien « Accueil » · (4) lien « Sécurité des applications web » · (5) le radio
+ * « Système », seul membre du groupe atteint (la boucle ne presse que Tab, jamais
+ * les flèches : un groupe natif ne livre que son membre coché) · (6) « Commencer le
+ * cours », l'unique focalisable du `<main>` depuis E1-ST3 · (7) le lien du pied de
+ * page. Six avant E1-ST3, quand la route « / » rendait `PageAVenir`, dépourvue de
+ * tout élément interactif.
  */
-const ARRETS_ATTENDUS = 6;
+const ARRETS_ATTENDUS = 7;
 
 test("chaque arrêt de tabulation porte un indicateur de focus calculé, et il n'est pas masqué", async ({
   page,

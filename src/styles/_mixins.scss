@@ -183,8 +183,22 @@ $_marques: (
 // -----------------------------------------------------------------------------
 // Filet horizontal — séparateur dans la gamme encre/papier (G1 : pas de dégradé)
 // -----------------------------------------------------------------------------
+// ⚠️ `margin-inline: 0` N'EST PAS COSMÉTIQUE : SANS LUI, LE FILET EST INVISIBLE
+// DANS UNE GRILLE. La feuille de l'agent utilisateur pose `margin-inline: auto`
+// sur `<hr>`. En flux normal, une marge automatique avec `width: auto` laisse
+// l'élément occuper toute la ligne — le trait se voit. Mais un `<hr>` ENFANT
+// D'UNE GRILLE (ou d'une flexbox) est un item : les marges automatiques y
+// l'emportent sur l'étirement (`justify-self: stretch`), la largeur retombe donc
+// sur le contenu — c'est-à-dire ZÉRO. Le trait garde sa hauteur, sa couleur et sa
+// place dans le flux, et ne peint rien : une balise morte que rien ne signale.
+// Constaté au Lot C d'E1-ST3 sur `home-clair.png` / `home-sombre.png`, où le
+// `<hr>` d'`accueil.ts` (grille) laissait un vide inexpliqué là où le pied de page
+// (flux normal) affichait bien le sien. Mesure : `getBoundingClientRect().width`
+// valait 0 pendant que `backgroundColor` et `height` étaient corrects — d'où le
+// piège, un style calculé « juste » ne prouve pas un pixel peint.
 @mixin filet-horizontal {
   height: prim.$filet-fin;
+  margin-inline: 0;
   border: 0;
   background-color: var(--couleur-filet);
 

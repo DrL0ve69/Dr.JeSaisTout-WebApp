@@ -145,7 +145,7 @@
 |---|---|---|
 | E1-ST1 | Jetons SCSS + thèmes clair/sombre | ✅ |
 | E1-ST2 | Layout, navigation, pied de page | ✅ |
-| E1-ST3 | Home « carnet de laboratoire » | ⬜ |
+| E1-ST3 | Home « carnet de laboratoire » | ✅ |
 
 ### E1-ST1 — Jetons sémantiques SCSS
 - **Objectif** : design system 3 couches (primitives → sémantiques → composants) en SCSS + custom properties ; thèmes clair (papier ivoire) et sombre (ardoise encrée) tous deux dessinés ; échelles typo/espacement ; couleurs sémantiques dont `danger-vuln` / `ok-fixed` ; service de bascule de thème (persisté, `prefers-color-scheme` par défaut) ; `prefers-reduced-motion` outillé (mixin).
@@ -657,6 +657,78 @@ la ligne pertinente est `:111`.
 française, et **rien ne vérifie U+00A0** (`.claude/rules/contenu-pedagogique.md` §3) — à contrôler à
 la main dans le Lot A.
 
+#### ✅ Clôture — 2026-08-15
+
+**Les quatre lots sont livrés, E1-ST3 est close.** La page `/` est la vraie accueil (`Accueil`,
+`features/home/`) et non plus `PageAVenir` : ouverture (tampon, `<h1>` Fraunces, chapô), filet, la
+**pièce à conviction** (`ExtraitEntetes` — `<figure>` → `<pre><code>` + marginalia + cartel
+« vérifiez vous-même »), puis `CarteCours` portant l'**unique** appel à l'action du site. Type et
+filets seulement, aucun dessin — le pari sur un SVG produit par un agent n'a jamais été pris.
+
+**Gates mesurés** : lint 0 · `typecheck:tools` 0 · `typecheck:e2e` 0 · **197 tests / 15 fichiers**
+(170 / 12 en début de lot, soit **+27** répartis 11 / 9 / 7 sur les trois composants) · build
+**3 routes prerendues**, **9 hachages de style** + 1 de script (6 + 1 avant ce lot : les trois
+feuilles de composants) · `design:contrastes:check` 33 paires / 66 mesures, **zéro paire nouvelle** ·
+axe **258 vérifications / 0 violation** · **e2e 11 tests verts sous la CSP réelle** · `npm audit
+--omit=dev` **0**.
+
+**Ce que les 27 tests neufs verrouillent, au-delà du rendu** : un seul focalisable dans toute la page ·
+le `lien` du CTA existe dans la table de routage du site (une adresse morte ferait rougir) · les
+lignes affichées par `ExtraitEntetes` **existent encore** dans `config/staticwebapp.config.source.json`
+(la preuve ne peut pas se périmer en silence) · aucune valeur périssable figée (le nom de HSTS, jamais
+son `max-age`) · `overflow` déclaré **sur le `<pre>` seul** · aucune propriété `order` dans les trois
+feuilles (WCAG 1.3.2) · U+00A0 présente et **U+202F / U+2009 absentes** du texte rendu **et** des
+trois sources · aucun `innerHTML`, aucun `bypassSecurityTrust*`, aucun attribut `style` inline.
+
+**Trois décisions consignées** :
+1. **`Accueil` est importée directement, sans `loadComponent`.** Le site est entièrement prerendu :
+   le HTML de `/` est déjà écrit, et rendre paresseuse la route d'**entrée** ajouterait un
+   aller-retour réseau avant l'hydratation de la page la plus visitée, sans économiser un octet à
+   personne. Le découpage paresseux redevient le bon geste en E2, où les routes de leçon sont
+   nombreuses et rarement toutes visitées.
+2. **Le bloc `data` de la route `''` a été retiré**, pas laissé en place : `Accueil` écrit son `<h1>`
+   elle-même. `PageAVenir` reste **générique** (titre et chapô lus dans la route) plutôt que
+   spécialisé « sommaire » — c'est ce qui lui permettra de couvrir la prochaine route annoncée avant
+   d'exister. `app.routes.spec.ts` n'a pas bougé : son filtre `component === PageAVenir` fait sortir
+   la route toute seule.
+3. **Les comptes des specs Playwright d'E1-ST2 ont été relevés consciemment** — 6 → 7 arrêts de
+   tabulation (`navigation-clavier`, `focus-visible`), 8 → 9 cibles de pointeur — et les deux liens
+   de navigation sont désormais **scopés au repère `navigation` avec `exact: true`** : « Sécurité des
+   applications web » est le nom du lien de nav **et** le titre de la carte, « Commencer le cours »
+   mène à la même adresse. Sans le scope, la recherche par sous-chaîne aurait échoué en mode strict —
+   un rouge exact mais illisible, accusant l'ordre de tabulation d'une faute qu'il n'a pas commise.
+
+**Ce que le lot C a trouvé, et qu'aucun gate ne pouvait voir** : le `<hr>` de l'accueil était
+**invisible** — style calculé juste, aucune erreur. La feuille de l'agent utilisateur pose
+`margin-inline: auto` sur `<hr>` ; en item de grille, les marges automatiques l'emportent sur
+l'étirement et la largeur retombe à **zéro**. Corrigé dans `@mixin filet-horizontal`, avec
+l'explication en tête du mixin. C'est la justification rétroactive du lot : **six gates verts, et
+personne ne REGARDAIT le résultat**. Leçon **L-025**. Une seule itération de critique a été
+nécessaire (plafond : 3). Captures conservées hors dépôt (`e2e/__screenshots__/home/`, ignoré) :
+clair, sombre, et 360 px — à 360 px, colonne unique, **aucun débordement horizontal du `body`**, le
+bloc de code tient sans défiler.
+
+**Revue contre `direction-visuelle.md` §3, à l'œil sur les captures** : G1 aucun dégradé (aplats
+encre/papier) · G2 surfaces mates, aucun flou ni transparence · G3 Fraunces en display, Inter en
+corps, hiérarchie franche · G4 un seul langage graphique — type et filets, **zéro emoji** · G5 les
+deux thèmes dessinés (l'ardoise n'est pas l'inverse du papier) · G7 **aucune couleur ni taille en
+dur** dans les trois feuilles, et G7-a tenu : **chaque bloc est borné par un filet**, jamais par sa
+seule teinte de fond · G8 focus visible mesuré sur les 7 arrêts par Playwright · G9 accents
+désaturés, aucune couleur criarde.
+
+**Dette ouverte, reportée sciemment** :
+(a) **le texte de l'extrait est en dur** — dérive assumée, bornée par le test qui relit
+`staticwebapp.config.source.json` ; le générer au build est du niveau E2 ;
+(b) **`mentionChantier` (« Chantier en cours ») est une dette datée** : tant que le CTA mène à
+`PageAVenir`, la carte doit le dire. **À retirer quand la première leçon est publiée** — rappel posé
+en E2-ST2 ;
+(c) le gate de contrastes mesure une **table de jetons**, pas l'usage réel des composants : rien ne
+détecterait une combinaison non listée. La Home se confine donc aux paires déjà mesurées
+(`surface` / `surface-creuse`), `--couleur-surface-elevee` écartée ;
+(d) toute la dette d'E1-ST2 est **inchangée** : (a) CSP servie vérifiée par motifs et non
+structurellement · (b) `Azure/static-web-apps-deploy@v1` en tag mutable · (c) `.claude/rules/security.md`
+sans S-007/S-008 · (d) S-003 · (e) typage 34 / 35 erreurs sur les deux gates de design.
+
 ---
 
 ## E2 · Moteur de contenu
@@ -679,6 +751,12 @@ la main dans le Lot A.
 - **Objectif** : route `/cours/securite-web/:slug` prerendue consommant la sortie du pipeline ; gabarit de leçon (en-tête de module « page de garde », sommaire ancré, prev/next, méta SEO/OpenGraph) ; zéro parseur Markdown au runtime.
 - **Fichiers** : `src/app/features/cours/lecon/`.
 - **Gates** : G-lint, G-test, G-build (leçon-témoin prerendue), G-axe.
+- **⏰ Rappel posé par E1-ST3** : dès que **la première leçon est publiée**, retirer la
+  `mentionChantier` (« Chantier en cours ») de l'appel à `<app-carte-cours>` dans
+  `src/app/features/home/accueil.ts`. C'est une dette datée, pas un ornement : la carte annonce un
+  chantier tant que le CTA mène à `PageAVenir`, et cet avertissement devient un **mensonge** le jour
+  où le cours ouvre. L'entrée est facultative — la retirer suffit, aucun composant à toucher
+  (`carte-cours.spec.ts` couvre déjà le cas « absente »).
 
 ### E2-ST3 — QuizComponent
 - **Objectif** : quiz piloté par JSON (choix multiple, vrai/faux, mise en situation) ; correction expliquée par question ; score et état persistés en `localStorage` ; entièrement clavier/lecteur d'écran.
