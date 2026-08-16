@@ -147,7 +147,13 @@ jobs:
       # `dist/` ; aucun n'a de raison de l'écrire. L'empreinte le prouve au lieu de l'espérer.
       # Le manifeste est écrit dans `RUNNER_TEMP`, donc HORS de `dist/` : à l'intérieur, il ferait
       # partie de ce qu'il mesure et se réécrirait lui-même.
-      - name: Sceller l'artéfact (portée : construction → téléversement UNIQUEMENT)
+      # ⚠️ NOM ENTRE QUOTES, ET IL DOIT LE RESTER. Il contient « portée : construction », donc un
+      # « : » suivi d'une espace — en YAML, dans un scalaire NON quoté, cette séquence ouvre une
+      # clef de mapping et rend le fichier illisible. GitHub ne signale alors pas une erreur de
+      # syntaxe utile : il crée un run en ÉCHEC INSTANTANÉ (0 s) « workflow file issue », sur
+      # n'importe quel push, y compris ceux qu'aucun déclencheur du fichier ne visait. Payé ici le
+      # 2026-08-16.
+      - name: "Sceller l'artéfact (portée : construction → téléversement UNIQUEMENT)"
         run: |
           set -euo pipefail
           find dist/dr-je-sais-tout/browser -type f -exec sha256sum {} + \
