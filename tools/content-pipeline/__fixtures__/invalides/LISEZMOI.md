@@ -47,12 +47,13 @@ cause existe.
 | `simulation-lecon-differente-du-slug` | `simulation.lecon` ≠ slug du dossier | cohérence des slugs hors schéma |
 | `corps-titre-de-section-vide` | un `##` suivi de blanches seules | titre de section sans texte |
 
-⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** (ligne 21 :
-`##` puis trois espaces). Un éditeur réglé sur « supprimer les espaces en fin de ligne » à
-l'enregistrement, ou un formateur lâché sur `__fixtures__/`, la ferait disparaître — et le cas
-passerait de « refusé » à « accepté à tort », c'est-à-dire que le spec rougirait en nommant le
-contrôle plutôt que la cause. Si ce cas casse sans raison apparente, vérifier d'abord la fin de
-la ligne 21.
+⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** : `##` suivi
+de trois espaces, **ligne 39 du fichier** (que le validateur rapporte comme « corps ligne 21 » — il
+compte le corps, frontmatter exclu ; ne pas chercher au mauvais endroit). Un éditeur réglé sur
+« supprimer les espaces en fin de ligne » à l'enregistrement, ou un formateur lâché sur
+`__fixtures__/`, la ferait disparaître — et le cas passerait de « refusé » à « accepté à tort »,
+c'est-à-dire que le spec rougirait en nommant le contrôle plutôt que la cause. Si ce cas casse sans
+raison apparente, vérifier d'abord la fin de cette ligne-là.
 
 ⚠️ **Ce ne sont pas des leçons** : ces dossiers appartiennent au moteur, pas à `content/`. Ils ne
 sont jamais compilés ni publiés.
