@@ -157,6 +157,20 @@ pas le symbole) : ici le symptôme est encore plus en amont — la vérification
 **Réfs.** `tools/design/verifier-contrastes.mjs` ; `.github/workflows/{ci,deploy}.yml` ;
 branche `feat/e1-st1-jetons-scss`.
 
+**Addendum (E2-ST1).** Le piège existe aussi en mode **atrophié** : `tools/content-pipeline/valider.mjs`
+avait un mode `--fixtures` (9 dossiers volontairement invalides, chacun refusé sur SA cause précise)
+correct et exécutable à la main — mais appelé par **rien** : ni test, ni script npm, ni workflow. Un
+contrôle **positif** non câblé n'est pas un gate, c'est une intention (cousine de [[L-019]] sur l'axe
+câblage plutôt que contenu de l'assertion). Aggravant constaté le même jour : `content/cours/securite-web`
+n'existant pas encore, l'étape de validation de `content:build` validait **zéro fichier** — verte même
+avec un glob cassé ou un Ajv qui ne compile plus ; et le recomptage des motifs interdits et l'unicité
+des identifiants inter-diagrammes ne vivaient que dans le harnais CLI `rendre-mermaid.mjs --racine`,
+que `npm run content:build` (le seul chemin qu'empruntent CI et devs) n'appelle jamais. Un gate qui
+valide un dossier vide, ou dont le mode le plus strict n'est exposé qu'en CLI manuelle, n'est câblé
+qu'en apparence — vérifier qu'il a **du contenu réel à mordre**, pas seulement une étape dans le
+workflow. Réparé par `src/pipeline-contenu-validation.spec.ts` et le déplacement des contrôles dans
+`build.mjs`.
+
 ---
 
 ## L-008 · Une contrepartie de conception qui n'existe que dans un commentaire de code ne protège rien
@@ -355,6 +369,19 @@ vigilance de revue.
 **Réfs.** `src/app/core/layout/gestion-focus-route.ts` ; `src/app/app.routes.ts` ; `src/app/app.spec.ts` ;
 `src/app/app.routes.server.ts` ; `tools/a11y/verifier-axe.mjs` ; branche `feat/e1-st2-layout-navigation`.
 
+**Addendum (E2-ST1).** Variante plus insidieuse qu'une citation fausse : un commentaire qui **promet
+plus que le code n'applique**. Un commentaire de `types.d.ts` citait le nettoyage SVG de
+`rendre-mermaid.mjs` comme justification écrite d'un futur `bypassSecurityTrustHtml` (donc du retrait
+total du sanitizer d'Angular) — alors que ce nettoyage n'était qu'une liste **noire** de cinq motifs
+regex, contournable (probé : `xlink:href="javascript:…"`, `<use href="https://evil…">`,
+`<animate>`/`<set>` sur `href`/`onload`). Le texte décrivait une garantie que le code ne tenait pas.
+**Règle.** Un commentaire qui sert de justification écrite à un contournement de garde-fou (sanitizer,
+CSP, validation) doit décrire **exactement** ce que le code vérifie, jamais son intention — sinon un
+futur lecteur hérite d'une confiance non gagnée. Le versant sécurité (liste noire vs liste blanche
+sur un format structuré) est traité dans `security-lessons.md`.
+
+**Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` ; `types.d.ts` ; branche `feat/e2-st1-pipeline-contenu`.
+
 ---
 
 ## L-017 · Un octet NUL dans un fichier source le rend « binaire » pour grep/ripgrep, qui le sautent EN SILENCE
@@ -413,6 +440,15 @@ doit vérifier qu'il a frappé sa cible) : ici la cible n'est pas une mutation d
 tant qu'on n'a pas vu le contrôle positif correspondant réussir.
 
 **Réfs.** `e2e/*.spec.ts` (sonde CSP) ; branche `feat/e1-st2-layout-navigation`.
+
+**Addendum (E2-ST1).** Version encore plus trompeuse : une sonde peut **rapporter son propre
+plantage comme le symptôme qu'elle cherche**. Une sonde Playwright posait un `MutationObserver` en
+`addInitScript`, exécuté avant que `document.documentElement` existe : `observe(null)` levait, et le
+script a rapporté « 1 violation CSP » sur le site déployé — alors qu'il n'avait jamais observé quoi
+que ce soit. Un contrôle positif (déclencher une vraie violation et vérifier qu'elle est vue) l'aurait
+attrapé immédiatement. Refaite par capture d'image (screencast), qui a confirmé 0 flash. Un instrument
+de mesure sans contrôle positif ne distingue pas « j'ai vu 0 » de « je suis aveugle » — pire, il peut
+confondre son erreur d'exécution avec le signal qu'il cherche.
 
 ---
 
@@ -522,6 +558,111 @@ automatiques ne pouvait voir : ils vérifient tous des contrats, aucun ne **rega
 
 **Réfs.** `src/styles/_mixins.scss` (`@mixin filet-horizontal`, l'avertissement en tête) ;
 `docs/agile/backlog-phase-1.md` §E1-ST3, lot C.
+
+---
+
+## L-026 · Une clef de cache indexée sur le CONTENU ne peut pas servir de préfixe d'identifiant — elle se répète dès que le contenu se répète
+
+**Symptôme.** Le cache des diagrammes Mermaid était indexé par `sha256(source du diagramme)`, et le
+**préfixe des identifiants du SVG** en était dérivé directement. Deux diagrammes **identiques** dans
+une même leçon (même source, donc même hachage) recevaient donc le même SVG en cache, donc les mêmes
+`id` **deux fois** dans la page rendue — `duplicate-id-aria` chez axe, et un `url(#…)` qui pointait
+chez le mauvais voisin. Invisible tant qu'aucun contenu ne se répète ; reproduit avant correction :
+24 identifiants partagés.
+
+**Règle.** Une clef de cache indexe une **source** (elle a raison de collisionner sur un contenu
+identique — c'est le but). Un préfixe d'identifiant DOM distingue une **occurrence** (il a tort de
+collisionner, même sur un contenu identique). Ne jamais dériver le second directement du premier :
+le socle SVG reste non préfixé en cache, le préfixe se calcule à part, à partir de
+fichier + rang + code du diagramme dans la leçon. Écrire un test qui répète deux fois le même
+diagramme dans une même leçon avant de déclarer un pipeline de rendu fini — c'est le cas qui ne se
+voit qu'à la répétition.
+
+**Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` ; branche `feat/e2-st1-pipeline-contenu`.
+
+---
+
+## L-027 · Un workflow GitHub illisible ne produit pas une erreur de syntaxe — il produit un run en échec de 0 s, sur un déclencheur qui n'aurait pas dû s'appliquer
+
+**Symptôme.** Une étape de `deploy.yml` renommée en
+`- name: Sceller l'artéfact (portée : construction → téléversement)`. En YAML, dans un scalaire
+**non quoté**, la séquence « `:` suivie d'une espace » ouvre une **clef de mapping** : le fichier
+devenait illisible d'un bout à l'autre. GitHub n'a signalé ni la ligne, ni la colonne, ni même le
+fichier — il a créé un run **`Déploiement`** en **échec instantané (0 s)**, intitulé « This run
+likely failed because of a workflow file issue », **sur un push de branche de fonctionnalité que le
+`branches: [main]` du fichier n'aurait jamais dû viser**. C'est logique une fois vu : ne sachant
+plus lire `on:`, GitHub ne peut plus décider de *ne pas* exécuter. Mais le symptôme désigne le
+mauvais workflow, le mauvais déclencheur, et aucune ligne.
+
+**Règle.** (1) Tout nom d'étape, de job ou de workflow contenant `:`, `#`, `{`, `[`, `,`, `&`, `*`,
+`?`, `|`, `>`, `!`, `%`, `@` ou une apostrophe ambiguë **se met entre quotes**, et un commentaire
+adjacent dit pourquoi — sinon le prochain qui « nettoie les quotes inutiles » repaie la faute.
+(2) Un workflow se vérifie en le **PARSANT**, jamais au motif : les specs qui lisaient les workflows
+à la regex sont toutes restées vertes, puisqu'une regex trouve encore `content:build` dans un
+fichier que plus aucun analyseur ne sait lire. C'est le même principe que
+`.claude/rules/security.md` §4 (analyser puis confronter) appliqué à l'outillage. (3) Ne jamais
+conclure d'un run rouge qu'on a compris quel fichier est en cause : ici, le workflow qui a rougi
+n'était pas celui qu'on venait de modifier au sens fonctionnel, et il n'aurait pas dû tourner.
+Cousine de [[L-015]] (les `.yml` sont un piège sur ce poste) et de [[L-005]] (le journal fait foi,
+pas la couleur — ici, l'absence de journal *était* l'information).
+
+**Réfs.** `src/workflows-github.spec.ts` (le gate, avec mutation vérifiée : les quotes retirées font
+rougir `deploy.yml`, et lui seul) ; `.github/workflows/deploy.yml` (le commentaire qui protège le
+nom quoté) ; PR #12.
+
+---
+
+## L-028 · Un outil d'analyse ne connaît pas la VIVACITÉ d'une collection DOM
+
+**Symptôme.** SonarCloud (règle S7747, « itérable copié sans raison ») a signalé deux copies
+défensives dans `tools/content-pipeline/rendre-mermaid.mjs`, l'analyseur à liste blanche qui décide
+de ce qu'un SVG a le droit de contenir. Les deux ressemblaient au même code. **Le conseil était juste
+sur l'une et destructeur sur l'autre :** `querySelectorAll(...)` rend une **NodeList STATIQUE** —
+retirer un nœud pendant l'itération ne raccourcit pas la liste : la copie était vraiment inutile,
+elle a été retirée. `element.attributes` rend une **NamedNodeMap VIVANTE** — et la boucle appelle
+`removeAttribute()`. Mesuré sous jsdom : sur un élément portant `a,b,c,d`, l'itération SANS copie ne
+voit que **`a` et `c`**. La liste blanche aurait inspecté **un attribut sur deux**, en silence. Ce qui
+rend le piège grave : rien ne rougit — aucun test ne tombe, la liste blanche continue de « passer »,
+et le SVG sort avec des attributs jamais confrontés à quoi que ce soit, c'est-à-dire la réouverture
+de S-009 par la moitié des attributs.
+
+**Règle.** Avant de retirer une copie défensive sur une collection DOM parce qu'un lint la dit
+inutile : établir si la collection est **vivante** ou **statique**, et si la boucle **mute** la
+collection. Statique + mutation = copie inutile. Vivante + mutation = **la copie EST le garde-fou**.
+Et la vérification se fait par **mesure** (une sonde de dix lignes), pas par lecture de la spec —
+c'est ce qui a tranché ici (même geste que [[L-013]], « seule une sonde bidirectionnelle fait foi »).
+
+**Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` ligne 719 (la boucle sur `.attributes`, qui
+porte un `// NOSONAR` et son raisonnement mesuré) · cousine de [[L-019]] sur l'axe « un instrument
+qui ne distingue pas *j'ai vu 0* de *je suis aveugle* » · famille sécurité S-003 / S-009 (liste noire
+vs liste blanche sur un format structuré) · commit `7e2675b`.
+
+---
+
+## L-029 · Une règle appliquée PAR ACCIDENT disparaît sans bruit quand on refactorise l'accident
+
+**Symptôme.** Dans `tools/content-pipeline/valider.mjs`, le relevé des titres (`titresDuCorps`)
+employait un motif qui laissait entrer un titre vide (`##` suivi de blanches seules) avec un texte
+fait d'une blanche — il devenait donc une section fantôme, et le contrôle d'ordre du gabarit finissait
+par s'en plaindre. **Le validateur refusait la faute, mais par accident, et sous une cause qui ne la
+nommait pas.** La réécriture du motif (conformité S8786, retour arrière super-linéaire) l'a fait
+disparaître du relevé : la faute cessait d'être refusée. Aucun test n'a rougi — 266 tests verts, 9
+fixtures invalides toujours 9/9 refusées — parce qu'**aucune fixture ne couvrait ce chemin**. Seule
+une revue de sécurité l'a vu, en comparant le comportement des deux motifs valeur par valeur.
+
+**Règle.** Quand un refactor touche le motif ou la structure de données **d'où** un gate tire sa
+décision, l'égalité des sorties sur les cas existants ne prouve rien pour les cas qu'aucun cas de
+test ne couvre. Le geste : identifier ce que l'ancien code refusait **de façon incidente** (par un
+effet de bord, pas par une règle écrite), puis **rendre ce refus EXPLICITE et nommé** — et lui poser
+son propre cas dans le contrôle positif. Corollaire : un contrôle positif ne prouve que les chemins
+qu'il contient ; son garde-fou de complétude prouve qu'on n'a pas oublié d'assertion, pas qu'on n'a
+pas oublié de CAS.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` fonction `titresDuCorps` (ligne 341) et
+`verifierCorps` (ligne 650), qui rend désormais `{ titres, vides }` et signale explicitement en tête
+de `verifierCorps` · `tools/content-pipeline/__fixtures__/invalides/corps-titre-de-section-vide/` et
+son assertion dans `src/pipeline-contenu-validation.spec.ts` ligne 70 · cousines [[L-019]] (contrôle
+positif) et [[L-005]] (un vert ne prouve pas qu'une vérification a tourné) · commit `7e2675b`.
 
 ---
 

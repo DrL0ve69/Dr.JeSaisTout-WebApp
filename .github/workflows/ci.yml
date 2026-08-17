@@ -33,6 +33,28 @@ jobs:
       - name: Installer (verrouillé)
         run: npm ci
 
+      # ⚠️ REMONTÉE ICI EXPRÈS — ne pas la redescendre près de G-e2e.
+      # Ce n'est plus seulement le navigateur du gate de bout en bout : `rendre-mermaid.mjs`
+      # invoque `mmdc` en lui imposant CE Chromium-là (`.puppeteerrc.cjs` interdit à Puppeteer de
+      # télécharger le sien — ~200 Mo pour un binaire en double). Or l'étape suivante compile
+      # `content/`, donc rend les diagrammes. Tant que `content/` est vide, personne ne le voit ;
+      # le jour où E3-ST1 publie sa première leçon avec un diagramme, une installation restée en
+      # aval ferait échouer la compilation, dans les DEUX workflows, sur un message parlant de
+      # Playwright au milieu d'une étape de contenu. Coût net nul : c'est la même installation,
+      # plus tôt. G-e2e n'appelle donc plus que `npm run e2e`.
+      - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
+        run: npm run e2e:install
+
+      # LE PIPELINE DE CONTENU, ET IL VIENT AVANT G-LINT — pas par élégance.
+      # `src/styles.scss` fait `@use` sur `styles/coloration-syntaxique-generee`, une feuille
+      # GITIGNORÉE que seul ce pipeline produit. Sur un checkout frais elle n'existe pas : sans
+      # cette étape, c'est G-test qui tombe en premier (le spec du design system compile la feuille
+      # globale), avant même G-build, sur une erreur Sass qui ne nomme pas la cause. L'étape est
+      # aussi le gate du contenu lui-même : un `lecon.md` ou un `quiz.json` malformé fait échouer
+      # la construction ICI, en nommant le fichier et le champ fautifs.
+      - name: Compiler `content/` (pipeline)
+        run: npm run content:build
+
       - name: G-lint
         run: npm run lint
 
@@ -106,16 +128,13 @@ jobs:
       # validée sur une page INERTE, et le premier écouteur d'événement a fait injecter par Angular
       # des scripts inline que personne n'avait vus.
       #
-      # `--with-deps` installe les bibliothèques système du runner en plus du binaire ; seul
-      # chromium est téléchargé (voir l'en-tête de `playwright.config.ts` : un second moteur
-      # doublerait la durée du gate pour une couverture quasi nulle). `npm run e2e` enchaîne le
-      # typage des specs (`tsconfig.e2e.json`, 4ᵉ programme du dépôt) puis la suite elle-même.
-      # `CI=true` est posé par GitHub Actions : `forbidOnly` mord, et aucun serveur préexistant
-      # n'est réutilisé.
+      # Le navigateur est installé BIEN PLUS HAUT (voir l'étape « Installer le navigateur ») :
+      # `rendre-mermaid.mjs` réutilise ce même Chromium pour rendre les diagrammes, et la
+      # compilation du contenu passe avant tous les gates. `npm run e2e` enchaîne le typage des
+      # specs (`tsconfig.e2e.json`, 4ᵉ programme du dépôt) puis la suite elle-même. `CI=true` est
+      # posé par GitHub Actions : `forbidOnly` mord, et aucun serveur préexistant n'est réutilisé.
       - name: G-e2e (accessibilité au clavier, sous CSP réelle)
-        run: |
-          npm run e2e:install
-          npm run e2e
+        run: npm run e2e
 
       # Surface de PRODUCTION uniquement, et tolérance zéro : `--omit=dev` doit rester à 0.
       # Le audit complet remonte 3 « moderate » dev-only via le SDK MCP d'@angular/cli, dont le

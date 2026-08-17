@@ -77,8 +77,19 @@ individuelle est par ailleurs correctement traitée. L'inconnu doit être **comp
 analysé : « je refuse tout ce que je vois » ne protège rien si voir peut échouer en silence.
 S'applique au-delà de ce script — candidat direct : tout futur validateur du pipeline
 Markdown/JSON de `content/` (E2), qui analysera lui aussi une entrée non fiable par motif.
-**Réfs.** `tools/deploiement/generer-config-swa.mjs`, `.claude/rules/security.md` §1,
-`docs/agile/backlog-phase-1.md` (lot autonome à inscrire).
+**Volet placement, ajouté en E2-ST1** : voir tout aussi si le garde-fou tourne **du tout** sur le
+chemin d'exécution réel. `rendre-mermaid.mjs` portait un recomptage de motifs interdits et un
+contrôle d'unicité d'identifiants, mais uniquement dans son harnais CLI `--racine` — jamais appelé
+par `npm run content:build`, seul chemin qu'empruntent CI et développeurs. Et un SVG relu **depuis
+le cache** était réinjecté sans repasser par aucun nettoyage : tenait en CI (cache froid), ne
+tenait pas sur poste à cache chaud. Un contrôle exact mais placé hors du chemin réel ne garde rien.
+**Règle additionnelle.** Après avoir écrit un garde-fou fail-closed, tracer **qui l'appelle** :
+s'il ne vit que dans un harnais séparé du script que CI/dev exécutent réellement, il est mort code.
+Tout artéfact réintroduit depuis un cache doit retraverser exactement le même nettoyage qu'un
+artéfact frais — le cache n'est jamais une exemption de contrôle.
+**Réfs.** `tools/deploiement/generer-config-swa.mjs`, `tools/content-pipeline/build.mjs`,
+`tools/content-pipeline/rendre-mermaid.mjs`, `.claude/rules/security.md` §1,
+`docs/agile/backlog-phase-1.md` §E2-ST1.
 
 ## S-004 · Une config de déploiement qui NOMME un chemin doit prouver qu'il existe dans l'artéfact (A05 · fail-open)
 
@@ -170,3 +181,32 @@ une preuve d'absence de faille. Et une vérification de sécurité qui contrôle
 header sans contrôler la valeur de ses directives ne vérifie rien de mordant.
 **Réfs.** `.github/workflows/deploy.yml`, `.claude/rules/security.md` §1,
 `docs/agile/backlog-phase-1.md` §E1-ST2.
+
+## S-009 · Une liste NOIRE de motifs sur un format structuré (SVG/HTML/XML) n'est pas un garde-fou, et un texte de justification ne doit jamais promettre plus que le code n'applique (A03/A08 · CWE-79/CWE-116)
+
+**Symptôme.** `rendre-mermaid.mjs` « nettoyait » le SVG produit par `mmdc` en cherchant cinq motifs
+par regex (`<style`, `style=`, `<script`, `<foreignObject`, `on…=`), avec un contrôle avant/après
+donnant l'apparence de la rigueur. La revue a fait traverser **intacts**, code 0 : `<a
+xlink:href="javascript:alert(1)">` (que Mermaid émet dès qu'une leçon emploie `click`), `<use
+href="https://evil.example/x.svg#p">`, `<animate attributeName="href" values="javascript:…">`,
+`<set attributeName="onload">`. On s'en remettait en silence au `sanitize-url` interne de Mermaid,
+dépendance tierce non épinglée pour cet usage. Aggravant : `tools/content-pipeline/types.d.ts`
+**citait ce nettoyage** comme justification écrite du futur `bypassSecurityTrustHtml`
+(E2-ST2, retrait total du sanitizer Angular sur cette chaîne) — le texte qui autorise un
+contournement décrivait une garantie plus forte que celle réellement appliquée. Même patron que
+[[S-002]] (une autorisation se compare à une valeur revue, pas à une intention), transposé d'une
+liste blanche de hachages à une liste blanche de balisage. Famille avec [[S-003]] (motif regex qui
+ne voit pas tout) et le garde-fou de `generer-config-swa.mjs` qui ne connaît que ` style="` et
+laisse passer `style='…'` ou sans guillemets — **trois occurrences de la même faute**, non
+corrigées d'un même geste.
+**Règle.** Sur un format structuré arbitraire (SVG/HTML/XML), analyser réellement l'arbre
+(`DOMParser`/jsdom `image/svg+xml`) et appliquer une **liste BLANCHE nominative** d'éléments et
+d'attributs — jamais une liste noire de motifs, quel que soit son nombre d'entrées. Nommer chaque
+refus (élément/attribut/valeur en cause). `href`/`xlink:href` : admis seulement en `#…` (référence
+interne), jamais un schéma externe ou `javascript:`. Tout texte qui **justifie** un contournement
+du sanitizer framework (`bypassSecurityTrust*`) doit décrire l'implémentation réelle du garde-fou
+en amont, pas son intention — le réviser au même diff que le garde-fou qu'il décrit. Patron de
+correctif disponible dans le dépôt : `rendre-mermaid.mjs` (jsdom + liste blanche), précédent plus
+ancien `tools/a11y/verifier-axe.mjs`.
+**Réfs.** `tools/content-pipeline/rendre-mermaid.mjs`, `tools/content-pipeline/types.d.ts`,
+`.claude/rules/security.md` §1/§4, `docs/agile/backlog-phase-1.md` §E2-ST1.

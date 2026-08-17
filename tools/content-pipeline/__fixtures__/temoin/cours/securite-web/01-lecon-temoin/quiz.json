@@ -1,0 +1,71 @@
+{
+  "lecon": "lecon-temoin",
+  "titre": "Quiz — leçon-témoin grasse du pipeline",
+  "melanger": false,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Que fait le pipeline devant une leçon dont le frontmatter porte un champ inconnu ?",
+      "choix": [
+        { "id": "a", "texte": "Il ignore le champ et compile la leçon." },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le fichier et le champ."
+        },
+        { "id": "c", "texte": "Il publie la leçon avec une page vide." }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les trois schémas posent additionalProperties: false, et le validateur nomme le fichier fautif. La réponse a laisserait une faute de frappe atteindre la production ; la réponse c décrit exactement l'échec silencieux que le contrat interdit.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "Une leçon sans diagramme force quand même le pipeline à démarrer Chromium.",
+      "bonneReponse": false,
+      "justification": "L'orchestrateur lit les sources et ne construit le rendeur Mermaid que si au moins un bloc mermaid existe. Sans cette précaution, un dépôt fraîchement cloné ne pourrait pas lancer npm test avant d'avoir installé le navigateur de Playwright.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "Pourquoi la carte d'imports écrit-elle une expression import() littérale par slug ?",
+      "choix": [
+        { "id": "a", "texte": "Pour que le bundler émette un chunk par leçon." },
+        { "id": "b", "texte": "Pour trier les leçons par ordre alphabétique." },
+        { "id": "c", "texte": "Pour éviter d'écrire un fichier JSON par leçon." }
+      ],
+      "bonneReponse": "a",
+      "explication": "Une expression import() littérale est un point de coupe analysable statiquement : le bundler y découpe un chunk. La réponse b confond la carte et le manifeste, qui porte l'ordre ; la réponse c décrit l'inverse de ce que fait le générateur, qui écrit bien un JSON par leçon.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q4",
+      "type": "trouver-la-faille",
+      "consigne": "Repérer la ligne qui laisse une entrée du client changer la structure de la requête.",
+      "langage": "php",
+      "code": "$slug = $_GET['slug'];\n$sql = \"SELECT * FROM lecons WHERE slug = '$slug'\";\n$resultat = $pdo->query($sql);",
+      "ligneFautive": 2,
+      "faille": "Injection SQL par interpolation de chaîne",
+      "explication": "La ligne 2 insère la valeur du client dans le texte de la requête : une apostrophe suffit à en changer la structure. Une requête préparée avec un paramètre nommé sépare la structure de la donnée, et c'est cette séparation, pas un filtrage de caractères, qui ferme la faille.",
+      "correction": "$requete = $pdo->prepare('SELECT * FROM lecons WHERE slug = :slug'); $requete->execute([':slug' => $slug]);",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "associer",
+      "consigne": "Associer chaque sortie du pipeline au rôle qu'elle joue pour l'application.",
+      "paires": [
+        { "gauche": "manifeste-routes.json", "droite": "la liste des routes à prerendre" },
+        { "gauche": "carte-lecons.ts", "droite": "le chargement paresseux d'une leçon" },
+        {
+          "gauche": "_coloration-syntaxique-generee.scss",
+          "droite": "les couleurs des blocs de code"
+        }
+      ],
+      "explication": "Chaque sortie a un consommateur distinct : le manifeste alimente le prerender et l'index du cours, la carte alimente la page de leçon, la feuille alimente le rendu des blocs de code. Les confondre revient à charger tout le contenu pour afficher un index.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

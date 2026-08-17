@@ -491,8 +491,13 @@ d'epic) · build 3 routes prerendues, 1 cible interne vérifiée, 1 hachage de s
 **Dette ouverte, à ne pas perdre** :
 (a) **clavier / focus visible / `target-size` ne sont couverts par AUCUN gate** — c'est le lot
 Playwright qui suit, et c'est ce qui tient E1-ST2 ouverte ;
-(b) le motif SWA `/404/*` n'a pas été confirmé comme couvrant `/404/` lui-même — à constater au
-premier déploiement ;
+(b) ~~le motif SWA `/404/*` n'a pas été confirmé comme couvrant `/404/` lui-même~~ → **CLOSE le
+2026-08-16, favorablement** : mesuré sur le site déployé, `GET /404/` répond **200 avec
+`x-robots-tag: noindex`** — le motif couvre donc bien le dossier lui-même. Deux nuances constatées au
+passage, aucune bloquante : `/404/index.html` est fermée par un **301** (comportement de
+`trailingSlash: always`), et une vraie URL inconnue (`/404/quoi`) renvoie bien **404** mais **sans**
+le `noindex` et avec `max-age=30` — c'est la réponse générée par `responseOverrides`, qui ne traverse
+pas les règles `routes`. Un 404 n'étant pas indexable de toute façon, on n'y touche pas ;
 (c) **S-003 reste ouvert** (inchangé par ce lot, mais son correctif est devenu moins cher :
 `verifier-axe.mjs` démontre le patron « analyseur réel plutôt que regex » avec jsdom déjà
 présent) ;
@@ -642,6 +647,33 @@ E2 — c'est dit, pas promis.
 - **Lot D — clôture documentaire** (scribe) : statut ✅ ici au format d'E1-ST2, rappel de retrait de
   `mentionChantier` posé en E2-ST2, `roadmap.md` si elle suit ce grain.
 
+#### ✅ Les constats NAVIGATEUR d'E1, faits le 2026-08-16 sur le site déployé
+
+Ils traînaient depuis des semaines parce qu'une consigne trop large (« l'outil navigateur est banni »)
+avait été lue comme interdisant **tout** pilotage de navigateur. Le propriétaire a rectifié : seule
+l'**extension** Claude in Chrome est écartée ; **Playwright — déjà installé pour G-e2e — est la voie**.
+Scripts jetables, non commités, lancés sur `https://salmon-sky-0a730780f.7.azurestaticapps.net`, sous
+la CSP à **9 hachages de style** réellement servie.
+
+1. **Zéro violation de CSP en usage interactif** ✔ — les **trois** états de la bascule de thème
+   actionnés, plus un aller-retour de navigation qui rejoue l'hydratation : **0** violation au
+   détecteur natif `securitypolicyviolation`, **0** en console, **0** `pageerror`. Et un **contrôle
+   positif** (L-019) dans la même page : un script inline non haché injecté après coup est refusé et
+   **capté** — le détecteur mord, il n'est pas aveugle.
+2. **Aucun flash de clair sur thème sombre épinglé** ✔ — et cette fois **prouvé par l'image**, pas par
+   un `getComputedStyle` (L-025). Le chargement est **filmé** (screencast CDP) après
+   `localStorage.setItem('drjst-theme','sombre')` : les **3 images** captées, dès la première, sont
+   sombres (`rgb(24,28,37)`, luminance 0,109). Aucune image claire.
+   ⚠️ **La première tentative a échoué sur l'INSTRUMENT, pas sur le site** : un `MutationObserver` posé
+   en `addInitScript` part avant que `document.documentElement` existe, donc `observe(null)` lève — et
+   le script mesurait son propre plantage, qu'il a rapporté comme « 1 violation CSP ». Corollaire de
+   L-019 : *un instrument sans contrôle positif ne dit pas s'il a vu ou s'il est aveugle.*
+3. **`/404/*` couvre bien `/404/`** ✔ — voir la dette (b) d'E1-ST2 ci-dessus, close favorablement.
+4. **`link-in-text-block` sur le pied de page** ✔ *(le quatrième, gratuit)* — la règle axe que jsdom ne
+   peut pas calculer. Mesuré sur le rendu réel : le lien « dépôt public sur GitHub » porte
+   `text-decoration: underline` (1 px) en plus de sa couleur `rgb(16,80,143)` contre
+   `rgb(78,88,110)` — il se distingue **autrement que par la couleur seule**. WCAG 1.4.1 tenu.
+
 **Deux arguments FAUX du plan v1, à ne jamais resservir** : (1) `direction-visuelle.md:58` **conserve
 explicitement** le dispositif « cartel » (« *mais ses cartels inspirent les en-têtes de modules* ») —
 prétendre que le cartel est une direction tranchée contre tuerait à tort un cartel légitime en
@@ -735,17 +767,177 @@ sans S-007/S-008 · (d) S-003 · (e) typage 34 / 35 erreurs sur les deux gates d
 
 | ID | Objectif | Statut |
 |---|---|---|
-| E2-ST1 | Pipeline build `content/` → HTML/JSON + routes prerendues | ⬜ |
+| E2-ST1 | Pipeline build `content/` → HTML/JSON + routes prerendues | ✅ |
 | E2-ST2 | Rendu des leçons (page leçon + routage) | ⬜ |
 | E2-ST3 | `QuizComponent` + score localStorage | ⬜ |
 | E2-ST4 | `CodeCompareComponent` | ⬜ |
 | E2-ST5 | `SimulationComponent` | ⬜ |
 | E2-ST6 | Page sommaire du cours + progression localStorage | ⬜ |
 
+#### ✅ Nœuds d'ouverture d'E2 — TRANCHÉS par le propriétaire le 2026-08-16
+
+Trois questions lui appartenaient (posées dans le bloc REPRISE de `CLAUDE.md`), plus une quatrième
+née de la passe d'avocat du diable. Le travail n'a pas été bloqué en attendant : des **défauts** ont
+été pris le 2026-08-15 et implémentés. **Au retour, le propriétaire les a tous CONFIRMÉS, sans en
+révoquer aucun**, et a fixé la suite : **E2-ST2 (page leçon & routage)** est le lot qui suit le merge
+d'E2-ST1. Ce qui suit n'est donc plus provisoire — c'est la décision.
+
+1. **Quelle dette payer avant la première leçon publiée ?** → la **vérification structurelle de la
+   CSP servie** (comparaison directive par directive avec `config/staticwebapp.config.source.json`,
+   plutôt que par motifs) est planifiée **avant E3-ST1**, la première leçon publiée — et **non**
+   avant E2-ST1. La recommandation du dépôt dit « avant la première leçon publiée » : ce placement
+   la respecte à la lettre, sans faire payer un lot au **chemin critique** J3→J4 qu'est E2-ST1.
+2. **Leçon-témoin d'E2-ST1 : factice ou réelle ?** → **factice**, comme l'écrit §E2-ST1 ci-dessous.
+   Le plan fait foi (L-001), et une vraie leçon mélangerait la boucle **contenu** (`/lecon`) à la
+   boucle **livraison** que `.claude/README.md` sépare exprès.
+3. **SonarCloud `css:S8776`** → **rien à faire côté dépôt** : le faux positif sur le `&` de
+   `@mixin focus-visible` ne se marque que dans l'interface, par le propriétaire.
+4. **Les diagrammes Mermaid sont-ils rendus au build, ou commités comme artéfacts relus ?**
+   *(nœud neuf, soulevé par la passe d'avocat du diable sur le plan d'E2-ST1)* → défaut : **rendu au
+   build**, mais avec les trois correctifs que l'avocat proposait en repli — **une invocation `mmdc`
+   par leçon** (et non par diagramme), un **cache par hachage de la source**, et la **réutilisation du
+   Chromium déjà installé pour Playwright** (`PUPPETEER_SKIP_DOWNLOAD=1` + `executablePath`), qui
+   évite ~200 Mo de téléchargement en double.
+   Pourquoi pas les SVG commités, que l'avocat recommandait : son argument principal — « chaque octet
+   passe sous un œil humain en revue de PR » — ne tient pas pour 15 Ko de données de tracé par
+   diagramme, et il se retourne même contre lui, puisque les identifiants générés par Mermaid varient
+   d'un run à l'autre : chaque régénération produirait un diff massif et illisible. Son second
+   argument — le non-déterminisme dans un artéfact scellé par sha256 — **a été vérifié et est faux** :
+   `deploy.yml` calcule le sceau **après** un unique `G-build` et le revérifie avant publication,
+   **même job, même artéfact, une seule construction**. Une variation d'un run à l'autre ne le casse
+   donc pas. Ce qui reste vrai et non contesté : le coût en temps de build pendant E3, que les trois
+   correctifs ci-dessus adressent.
+
+#### 🔴 Dette de sécurité NEUVE, découverte pendant la planification d'E2-ST1 (2026-08-15)
+
+**`tools/deploiement/generer-config-swa.mjs` ne détecte que le motif ` style="`.** Un attribut écrit
+`style='…'` (guillemets simples) ou sans guillemets **échappe au garde-fou** : il ne serait ni signalé
+ni haché, et passerait en production sous une CSP qui ne le couvre pas. C'est le **cousin direct de
+S-003** — même famille de faute, découverte en vérifiant une objection de l'avocat du diable sur un
+tout autre sujet.
+
+Portée : **dépasse E2-ST1**, qui se contente de ne rien produire qui déclenche le trou (le pipeline de
+contenu refuse tout `style=` en amont, avec son propre contrôle de conservation). Parade, la même que
+pour S-003 : un **analyseur réel plutôt qu'une regex** — `verifier-axe.mjs` en démontre déjà le
+patron, et jsdom est déjà une dépendance du dépôt.
+
+À traiter avec S-003 et la vérification structurelle de la CSP, **avant E3-ST1**.
+
+> 📌 **La parade a désormais un précédent DANS le dépôt**, ce qui abaisse encore son coût : la revue
+> de sécurité d'E2-ST1 (2026-08-16) a trouvé la MÊME faute de famille dans
+> `tools/content-pipeline/rendre-mermaid.mjs` — une liste noire de cinq motifs, que
+> `<a xlink:href="javascript:…">`, `<use href="https://…">`, `<animate attributeName="href">` et
+> `<set attributeName="onload">` traversaient intacts. Elle y a été remplacée par un **analyseur
+> jsdom à liste blanche nominative**, calibré sur les éléments et attributs que `mmdc` émet
+> réellement (six familles de diagrammes mesurées). C'est ce patron-là qu'il faudra transposer à
+> `generer-config-swa.mjs`, pas en réinventer un.
+>
+> **Troisième membre de la famille, à traiter dans le même lot** : la portée réduite du sceau
+> d'artéfact de `deploy.yml`. L'installation du navigateur (binaire CDN **+ `apt-get` en root**) a dû
+> remonter avant la construction, parce que le pipeline de contenu en dépend ; le sceau ne couvre
+> donc plus que la fenêtre construction → téléversement. Épingler le binaire par empreinte ne couvre
+> que la moitié du risque (aucun digest n'épingle un `apt-get`) : la vraie parade est un **job propre**
+> qui compile `content/` et remet ses sorties en artéfact. Le trou ne devient concret qu'avec le
+> premier diagramme, donc en E3-ST1 — d'où son placement ici. L'isolation du **jeton**, elle, n'est
+> pas touchée : vérifié, la seule occurrence de `secrets.` du fichier est dans `publication`.
+>
+> **Quatrième, du même lot et de la même nature** : `Azure/static-web-apps-deploy@v1` reste un **tag
+> mutable** dans le job qui détient le jeton. Le SHA est connu (`1a947af9992250f3bc2e68ad0754c0b0c11566c9`,
+> relevé le 2026-08-16) et l'épinglage tient en une ligne — il n'a **pas** été fait dans la PR
+> d'E2-ST1 à dessein : modifier le job de publication dans une PR sur le pipeline de contenu ferait
+> qu'un déploiement rouge ne dirait plus laquelle des deux causes l'a cassé. À payer avec le reste du
+> lot, où il aura sa propre fenêtre de vérification.
+
 ### E2-ST1 — Pipeline de contenu au build
 - **Objectif** : implémentation de la conclusion S-01 : script de build qui valide `content/cours/securite-web/**` (frontmatter, schémas JSON quiz/simulation — gabarits de `docs/contenu/pipeline-contenu.md`), compile Markdown→HTML (coloration précompilée PHP/C#/TS, encadrés ⚠️/note/à-retenir), génère la liste des routes à prerendre. Build échoue si contenu invalide.
 - **Fichiers** : `tools/content-pipeline/`, `content/cours/securite-web/` (leçon-témoin factice), `angular.json` (hook prerender).
 - **Gates** : G-build (avec la leçon-témoin) ; test du pipeline (contenu invalide → échec explicite) ; G-lint.
+- ⚠️ **Correction du champ « Fichiers » ci-dessus, vérifiée sur le dépôt** : `angular.json` **ne bouge
+  pas** — il n'a aucune notion de script pré-build. Le point d'accroche réel est l'ordre des scripts
+  de `package.json`, plus une étape CI explicite. Et la leçon-témoin ne vit **pas** dans `content/`
+  mais sous `tools/content-pipeline/__fixtures__/temoin/` : le build de production ne peut alors
+  physiquement pas la publier, ce qui supprime le besoin d'un champ `factice` que personne n'aurait
+  été obligé de lire.
+
+#### ✅ E2-ST1 CLOSE — 2026-08-16, branche `feat/e2-st1-pipeline-contenu`
+
+Le plan qui a fait foi est le **v2**, sorti d'une passe `solution-architect` → `devils-advocate` →
+2ᵉ passe d'architecte tranchant **douze objections** (4 bloquantes). Ses décisions structurantes
+vivent désormais ici et dans les nœuds §E2 — le document de plan lui-même était dans un scratchpad
+de session et n'a pas à être retrouvé.
+
+| Lot | Contenu | État |
+|---|---|---|
+| 1 | Schémas Ajv + `valider.mjs` + 9 fixtures fail-closed | ✅ 9/9 rouges sur la bonne cause |
+| 2 | `compiler-markdown.mjs` + Shiki + `types.d.ts` (le contrat) | ✅ 3 exigences dures prouvées par mutation |
+| 3 | Mermaid : sonde du sanitizer, `rendre-mermaid.mjs`, SCSS des classes | ✅ branche B mesurée, 24 éléments → 0 |
+| 4 | Manifeste + carte lazy + poids + câblage CI | ✅ `content:build` avant G-lint dans les 2 workflows |
+| 5 | Vérification complète + revues + clôture | ✅ **ce lot** |
+
+**Gates au moment de la clôture — tous verts, tous relancés par le fil principal :**
+`lint` · `typecheck:tools` · **256 tests / 19 fichiers** · `build` (9 hachages de style, 1 de script)
+· `a11y:axe` **258 vérifications, 0 violation** · **e2e 11/11** · `design:contrastes:check`
+· `npm audit --omit=dev` **0**.
+
+##### Ce que les deux revues à regard neuf ont changé — le lot 5 n'a pas été une formalité
+
+Les deux ont rendu **CHANGEMENTS DEMANDÉS**. Ce qui a été corrigé avant le merge :
+
+1. **🔴 Le nettoyage du SVG était une liste NOIRE de cinq motifs** (`rendre-mermaid.mjs`).
+   `<a xlink:href="javascript:…">` — que Mermaid émet dès qu'une leçon emploie `click` —,
+   `<use href="https://…">`, `<animate attributeName="href">` et `<set attributeName="onload">` la
+   traversaient **intacts**. Gravité réelle : c'est ce nettoyage que `types.d.ts` cite comme la
+   justification écrite du `bypassSecurityTrustHtml` d'E2-ST2, donc du **retrait total du sanitizer
+   d'Angular** sur cette chaîne — une promesse plus large que ce que le code appliquait.
+   → Remplacé par un **analyseur jsdom à liste blanche nominative** (`analyserSvg`), calibré sur les
+   éléments et attributs que `mmdc` émet réellement, mesurés sur **six familles** de diagrammes
+   (flowchart, sequence, class, state, er, pie). Refus nommés pour
+   `a use image animate animateTransform animateMotion set script foreignObject`, tout `on…` refusé,
+   `href`/`xlink:href` admis **seulement** en `#…`. Contre-vérifié indépendamment par le fil
+   principal : **18 vecteurs refusés / 18, chacun sur SA propre règle**, et **3 SVG légitimes
+   acceptés / 3** — la pince discrimine, elle ne refuse pas tout.
+2. **🔴 Un contrôle positif que personne n'exécutait.** Les 9 fixtures invalides du validateur
+   n'étaient lancées par **aucun** test, script npm ni workflow — et comme `content/cours/securite-web`
+   n'existe pas encore, l'étape de validation de `content:build` valide **zéro fichier** : elle serait
+   sortie verte avec un glob cassé. → `src/pipeline-contenu-validation.spec.ts` exige 9/9 refus
+   **chacun sur sa cause propre**, plus un garde-fou de complétude (un 10ᵉ dossier sans assertion fait
+   rougir) et l'autre moitié de la pince (la leçon-témoin valide passe en code 0). Mutation vérifiée.
+3. **🔴 Des garde-fous hors du chemin réellement exécuté** — même famille que S-003. Le recomptage
+   final et l'unicité des identifiants inter-diagrammes ne vivaient que dans le harnais CLI
+   `rendre-mermaid.mjs --racine`, que `content:build` n'appelle jamais ; et un SVG relu **du cache**
+   n'était revérifié par rien. → Les deux contrôles sont passés dans `build.mjs`, et tout SVG venu du
+   cache repasse par `verifierSvgNettoye()`.
+4. **🔴 Bug réel : deux diagrammes IDENTIQUES dans une même leçon** partageaient la clef de cache,
+   donc recevaient le même SVG — **les mêmes `id` deux fois dans la page** (`duplicate-id-aria`, et un
+   `url(#…)` pointant chez le voisin). → Le cache garde un **socle non préfixé** ; le préfixe dérive
+   de (fichier, rang, code). Reproduit avant correction (24 identifiants partagés), puis vert.
+5. Plus petits : `--no-sandbox` désormais **conditionné à `CI`** (il désarmait aussi le poste du
+   développeur) · `VERSION_RENDU`, qu'il fallait incrémenter à la main (L-008), remplacé par
+   `EMPREINTE_REGLES`, un sha256 **des règles elles-mêmes** — l'oubli devient impossible ·
+   remontée de dossier `..` fermée dans les motifs `ficheSource`/`cheminFicheKb` des deux schémas
+   (CWE-22, pure métadonnée aujourd'hui, garantie acquise pour le lot qui la résoudra) · crochet
+   `prewatch` manquant · portée réduite du sceau `deploy.yml` **dite dans le nom de l'étape**.
+
+##### Conventions tranchées en implémentation
+
+`[[quiz]]` / `[[simulation]]` comme ancres ; **`::::` (quatre points) obligatoire** sur `comparaison`,
+car l'exemple du plan à trois ouvertures pour deux fermetures **ne parse pas** ; `ligne: 0` =
+annotation portant sur le bloc entier.
+
+##### Constats hors périmètre, à ne pas perdre
+
+- **(a)** `Langage` est fermé à six valeurs, donc **aucun bloc de code sans langue n'est possible**.
+  Si le projet en veut un, c'est le **contrat** qui change, pas la fixture.
+- **(b)** ~~la note `npm audit` de `CLAUDE.md` est périmée~~ → **corrigée** : l'audit complet est passé
+  de 3 *moderate* à **5 vulnérabilités dont 4 *high*** (`adm-zip`/`devcert`/`tmp` via
+  `@azure/static-web-apps-cli`, `nanoid` via `@angular/build`) — **préexistantes et dev-only**,
+  `--omit=dev` reste à **0**.
+- **(c)** **Sur un clone frais, `npm ci && npm test` est ROUGE** : la leçon-témoin porte deux
+  diagrammes, donc `npm test` démarre `mmdc`, qui exige le Chromium de Playwright. L'ordre est
+  `npm ci` → `npm run e2e:install` → le reste ; dit dans `CLAUDE.md` §Commandes et dans l'en-tête du
+  spec d'orchestration, qui **nomme la commande** dans son message d'échec (jamais un `skip` muet).
+- **(d)** Les 8 dépendances neuves sont **toutes dev, toutes MIT, gratuites et sans clé** — aucune
+  n'entre dans `dependencies`, donc aucune n'atteint la surface livrée.
 
 ### E2-ST2 — Page leçon & routage
 - **Objectif** : route `/cours/securite-web/:slug` prerendue consommant la sortie du pipeline ; gabarit de leçon (en-tête de module « page de garde », sommaire ancré, prev/next, méta SEO/OpenGraph) ; zéro parseur Markdown au runtime.
@@ -798,6 +990,14 @@ comme les fiches. Conserver les encadrés ⚠️ « cours vs état de l'art » (
 **Gates communs** : G-lecon, G-build, G-axe sur la page prerendue. **Déploiement dès le gate vert**
 (un module = une PR = une mise en ligne). Ordre = ordre du cours de l'auteur (août : fondamentaux →
 injection → XSS d'abord).
+
+**⏰ Dette à payer AVANT la première leçon publiée** *(nœud 1 tranché le 2026-08-15, §E2)* : la
+**vérification structurelle de la CSP servie** — comparer la politique réellement renvoyée par SWA
+**directive par directive** avec `config/staticwebapp.config.source.json`, au lieu des motifs
+actuels qui laisseraient passer une CSP permissive d'une forme non listée. C'est le constat le plus
+proche de ce que le site enseigne : publier une leçon sur les en-têtes avec ce trou ouvert serait
+exactement l'incohérence que `.claude/rules/security.md` interdit. À faire dans le lot qui précède
+E3-ST1, pas pendant.
 
 ### Bloc A — Fondations & familles d'attaques *(cible : en ligne mi-septembre, J4)*
 

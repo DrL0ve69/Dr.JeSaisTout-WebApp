@@ -1,0 +1,103 @@
+{
+  "lecon": "temoin",
+  "titre": "Quiz — leçon témoin",
+  "melanger": false,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Question témoin numéro 1 — que fait le validateur devant un champ inconnu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il ignore le champ et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le champ."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les schémas posent additionalProperties: false : un champ inconnu est une faute, pas une extension. Les réponses a et c décrivent des politiques permissives qui laisseraient passer une faute de frappe jusqu'en production.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Question témoin numéro 2 — que fait le validateur devant un champ inconnu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il ignore le champ et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le champ."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les schémas posent additionalProperties: false : un champ inconnu est une faute, pas une extension. Les réponses a et c décrivent des politiques permissives qui laisseraient passer une faute de frappe jusqu'en production.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "Question témoin numéro 3 — que fait le validateur devant un champ inconnu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il ignore le champ et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le champ."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les schémas posent additionalProperties: false : un champ inconnu est une faute, pas une extension. Les réponses a et c décrivent des politiques permissives qui laisseraient passer une faute de frappe jusqu'en production.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Question témoin numéro 4 — que fait le validateur devant un champ inconnu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il ignore le champ et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le champ."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les schémas posent additionalProperties: false : un champ inconnu est une faute, pas une extension. Les réponses a et c décrivent des politiques permissives qui laisseraient passer une faute de frappe jusqu'en production.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Une leçon au statut « publiee » peut encore porter un marqueur « à-vérifier: ».",
+      "bonneReponse": false,
+      "justification": "Le marqueur signale une affirmation dont la théorie n'a pas été contre-vérifiée. Le laisser dans une leçon publiée reviendrait à publier un doute non tranché : le validateur le refuse.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

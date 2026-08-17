@@ -73,7 +73,25 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
       HTML assaini) — **aucun** `[innerHTML]` non sanitisé sur du contenu qui pourrait un jour être
       modifiable par un tiers (formulaire, import externe). Même si le contenu est aujourd'hui
       100 % auteur-contrôlé, traiter le pipeline de rendu comme une frontière de confiance.
-- [ ] **Aucun `bypassSecurityTrust*`** Angular sans justification écrite et revue.
+- [ ] **🔴 Sur un format STRUCTURÉ (SVG, HTML, XML), on ANALYSE puis on confronte à une LISTE
+      BLANCHE NOMINATIVE — jamais une liste noire de motifs, jamais une regex.** Ce n'est pas une
+      préférence de style : c'est le **patron systémique** du dépôt, constaté **trois fois**
+      (S-001, S-003, **S-009**). Une liste noire ne refuse que ce que son auteur a imaginé, et elle
+      donne toutes les apparences de la rigueur — S-009 avait même un contrôle de conservation
+      avant/après, et laissait passer `<a xlink:href="javascript:…">`, `<use href="https://…">` et
+      `<animate attributeName="href">`. **jsdom est déjà une dépendance du dépôt** et deux patrons
+      de référence existent : `tools/a11y/verifier-axe.mjs` et
+      `tools/content-pipeline/rendre-mermaid.mjs` (`analyserSvg`). Corollaire : tout élément ou
+      attribut **absent** de la liste blanche fait ÉCHOUER en se nommant — jamais un retrait
+      silencieux, qui masquerait la régression qui l'a fait apparaître.
+- [ ] **Aucun `bypassSecurityTrust*`** Angular sans justification écrite et revue — et **cette
+      justification se relit dans le MÊME diff que le garde-fou qu'elle décrit**. Un texte qui
+      promet une garantie plus forte que celle qui est appliquée autorise, de fait, plus que ce
+      qu'un humain a revu (constat S-009 ; même patron que S-002, où une autorisation se compare à
+      une valeur revue et non à une intention).
+- [ ] **Un garde-fou doit vivre sur le CHEMIN RÉELLEMENT EXÉCUTÉ.** Un contrôle qui n'existe que
+      dans un harnais de ligne de commande que ni la CI ni les développeurs n'appellent ne garde
+      rien ; idem pour un chemin de **cache** qui court-circuite la vérification. Détail : S-003.
 - [ ] **Aucune donnée personnelle collectée en phase 1** : pas de formulaire qui persiste un email/nom
       sans une raison documentée et un consentement — le site n'a pas de compte, il ne doit pas non
       plus accumuler de PII incidentelle (analytics respectueux de la vie privée si utilisés, pas de

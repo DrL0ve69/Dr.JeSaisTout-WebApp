@@ -1,0 +1,69 @@
+{
+  "lecon": "lecon-temoin",
+  "titre": "Simulation — le trajet d'un fichier de contenu jusqu'à la page",
+  "acteurs": [
+    { "id": "auteur", "libelle": "Auteur de la leçon", "type": "personne" },
+    { "id": "pipeline", "libelle": "Pipeline de contenu", "type": "serveur" },
+    { "id": "sorties", "libelle": "src/content-generated", "type": "stockage" },
+    { "id": "navigateur", "libelle": "Navigateur du lecteur", "type": "navigateur" }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "L'auteur écrit sa leçon",
+      "narration": "L'auteur dépose un lecon.md, un quiz.json et, s'il décrit un déroulé, un simulation.json dans un dossier nommé nn-slug.",
+      "etatVisuel": {
+        "acteurActif": "auteur",
+        "panneaux": { "auteur": { "texte": "content/cours/securite-web/01-lecon-temoin/" } }
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "Le validateur examine le fichier",
+      "narration": "Le pipeline compare le frontmatter au schéma, vérifie les sections du gabarit et refuse tout conteneur hors de la liste fermée.",
+      "etatVisuel": {
+        "acteurActif": "pipeline",
+        "fleche": { "de": "auteur", "vers": "pipeline", "libelle": "lecon.md" }
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "Un refus arrête tout",
+      "narration": "Si une anomalie est trouvée, la construction s'arrête en nommant le fichier et la cause. Aucune page vide n'est publiée en silence.",
+      "etatVisuel": {
+        "acteurActif": "pipeline",
+        "surbrillance": ["pipeline"],
+        "panneaux": { "pipeline": { "texte": "✖ section « ## À retenir » absente du corps" } }
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "La compilation produit un arbre de blocs",
+      "narration": "Le Markdown accepté devient une suite de sections et de blocs typés : prose, code coloré, comparaison, diagramme, encadré, ancres d'exercice.",
+      "etatVisuel": {
+        "acteurActif": "pipeline",
+        "panneaux": {
+          "pipeline": { "code": "{ \"type\": \"code\", \"langage\": \"sql\" }", "langage": "json" }
+        }
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "Les sorties sont écrites",
+      "narration": "Le générateur écrit un JSON par leçon, le manifeste de routes trié par ordre, et la carte d'imports paresseux qui cite chaque JSON.",
+      "etatVisuel": {
+        "acteurActif": "sorties",
+        "fleche": { "de": "pipeline", "vers": "sorties", "libelle": "manifeste + carte" }
+      }
+    },
+    {
+      "numero": 6,
+      "titre": "Le lecteur reçoit la page prerendue",
+      "narration": "Le navigateur reçoit d'abord le HTML déjà rendu, lisible sans JavaScript, puis ne charge que le chunk de la leçon demandée.",
+      "etatVisuel": {
+        "acteurActif": "navigateur",
+        "fleche": { "de": "sorties", "vers": "navigateur", "libelle": "chunk de la leçon" }
+      }
+    }
+  ]
+}

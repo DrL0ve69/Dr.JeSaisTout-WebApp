@@ -48,6 +48,29 @@ __screenshots__/
 # Les binaires de navigateur vivent hors du dépôt (cache utilisateur), installés
 # par `npm run e2e:install`. Rien à ignorer de ce côté.
 
+# Pipeline de contenu (E2-ST1) — sorties GÉNÉRÉES au build depuis `content/`.
+# Rien ici n'est une source : `src/content-generated/` est réécrit intégralement à chaque
+# `content:build` (leçons compilées, manifeste de routes, carte d'imports paresseux). Le versionner
+# ferait diverger deux vérités et rendrait les diffs de contenu illisibles.
+/src/content-generated/
+# Même raison pour la feuille de coloration syntaxique : `compiler-markdown.mjs` la RÉÉCRIT à
+# chaque compilation, à partir des classes que Shiki a réellement émises pour les blocs de code
+# existants. La versionner ferait diverger la feuille et le HTML qu'elle colore, et un `@use` sur
+# une feuille périmée est invisible (les classes absentes ne peignent rien, sans erreur).
+/src/styles/_coloration-syntaxique-generee.scss
+# Cache des diagrammes Mermaid rendus (E2-ST1, lot 3). Chaque SVG y est classé par
+# le hachage sha256 de la source de SON diagramme : tant que la source ne bouge
+# pas, on ne redémarre pas un Chromium pour la redessiner (~1,6 s par leçon).
+# C'est une mémoire de calcul, jamais une source — et elle se reconstruit seule.
+# La clef inclut la version des règles de nettoyage : corriger le nettoyage
+# invalide le cache, sinon un SVG mal nettoyé survivrait à sa propre correction.
+/.cache/
+#
+# ⚠️ CE QUI N'EST PAS IGNORÉ, malgré son nom : `src/styles/_mermaid-generee.scss`.
+# Il porte « generee » par héritage du plan d'E2-ST1, mais le lot 3 a tranché
+# l'inverse (objection B2) — cette feuille est ÉCRITE À LA MAIN et VERSIONNÉE.
+# L'ajouter ici enverrait tous les diagrammes du site en production sans style.
+
 # Terraform (infra/)
 # ⚠️ terraform.tfstate contient le jeton de déploiement SWA EN CLAIR — ne jamais le versionner.
 **/.terraform/*

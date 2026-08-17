@@ -1,0 +1,244 @@
+// =============================================================================
+// STYLE DES DIAGRAMMES MERMAID — écrit à la main, VERSIONNÉ
+// -----------------------------------------------------------------------------
+// ⚠️ LE NOM DE CE FICHIER MENT, ET C'EST ASSUMÉ. « generee » vient du plan
+// arrêté d'E2-ST1, où il désignait une feuille produite par le pipeline. Le lot 3
+// a tranché l'inverse (objection B2), et c'est le CONTRAIRE qui est vrai ici :
+// ce fichier est ÉCRIT À LA MAIN, VERSIONNÉ, et ne doit jamais apparaître dans
+// `.gitignore`. Le nom est conservé parce que le plan, le backlog et `styles.scss`
+// le citent ; le changer coûterait plus de confusion qu'il n'en éviterait.
+//
+// POURQUOI IL EXISTE. `mmdc` habille ses diagrammes de deux façons : un bloc
+// `<style>` dans le SVG, et une quarantaine d'attributs `style=`. Les deux sont
+// inutilisables ici, et pas pour des raisons de goût :
+//
+//   · la CSP du site est à HACHAGES. `tools/deploiement/generer-config-swa.mjs`
+//     hache tout bloc `<style>` de l'artéfact et l'injecte dans un `style-src`
+//     GLOBAL AU SITE — la palette d'un diagramme élargirait donc la politique de
+//     TOUTES les pages (S-005) ;
+//   · le même générateur REFUSE tout attribut `style=`.
+//
+// `tools/content-pipeline/rendre-mermaid.mjs` les retire donc, avec contrôle de
+// conservation, et pose la classe `diagramme-mermaid` sur le `<svg>` racine. Ce
+// fichier reprend le relais : il rhabille le diagramme depuis le bundle CSS, servi
+// par `style-src 'self'`, sans aucun hachage.
+//
+// CONSÉQUENCE PRATIQUE — le diagramme suit le THÈME. La feuille de Mermaid était
+// figée en clair (`background-color: white`) ; ici, tout passe par les jetons
+// sémantiques, donc le sombre est correct par construction et non par retouche.
+// Aucune couleur en dur : c'est le garde-fou G7 du design system.
+//
+// PORTÉE. Le sélecteur racine est `svg.diagramme-mermaid` — une classe posée par
+// le pipeline lui-même. La feuille ne dépend donc d'AUCUN balisage qu'E2-ST2
+// aurait à écrire autour du diagramme : un composant qui oublierait son enveloppe
+// n'obtiendrait pas un diagramme nu.
+//
+// CE QUI EST RECOUVRÉ, ET POURQUOI CHAQUE LIGNE. Retirer les `style=` de Mermaid
+// enlève aussi des déclarations de MISE EN PAGE, pas seulement des couleurs :
+// `text-anchor: middle` centrait les libellés de messages, `stroke-width`
+// donnait leur épaisseur aux arêtes. Les récupérer ici n'est pas cosmétique — sans
+// elles, un `sequenceDiagram` sort désaligné.
+// =============================================================================
+
+// UN SEUL bloc `svg.diagramme-mermaid`, trois sections À L'INTÉRIEUR. Le découpage
+// documentaire (racine / flowchart / sequenceDiagram) est la raison d'être de cette
+// feuille et il est conservé tel quel ; ce qui a disparu, c'est la RÉOUVERTURE du
+// même sélecteur trois fois de suite — un doublon que SonarCloud signale (css:S4666)
+// et qui, surtout, laisse croire à trois portées distinctes là où il n'y en a qu'une.
+svg.diagramme-mermaid {
+  // ---------------------------------------------------------------------------
+  // 1 · La racine — la taille est décidée ici, plus par le générateur
+  // ---------------------------------------------------------------------------
+  display: block;
+  width: 100%;
+  max-width: 100%;
+
+  // Mermaid écrivait `max-width: <largeur exacte>px` en style en ligne. Le
+  // `viewBox` survit au nettoyage : le rapport d'aspect est donc préservé, et la
+  // hauteur se calcule seule.
+  height: auto;
+  margin-block: var(--espace-4);
+  font-family: var(--police-corps);
+  font-size: var(--taille-xs);
+
+  // Le fond figé en blanc de Mermaid est parti avec les styles en ligne : le
+  // diagramme se pose sur la surface de la page, dans les deux thèmes.
+  background-color: transparent;
+
+  text {
+    fill: var(--couleur-encre);
+    font-family: var(--police-corps);
+    font-weight: var(--graisse-corps);
+  }
+
+  // ⚠️ AUCUNE règle sur `<title>` / `<desc>`, et c'est délibéré. Ils portent
+  // l'équivalent textuel du diagramme (accTitle/accDescr) et les navigateurs ne
+  // les peignent déjà pas. Le réflexe « les cacher pour être sûr » les
+  // retirerait de l'arbre d'accessibilité avec eux : le nom accessible du
+  // diagramme disparaîtrait, sans qu'aucun gate ne le voie (WCAG 1.1.1).
+
+  // ---------------------------------------------------------------------------
+  // 2 · Flowchart — nœuds, arêtes, pointes de flèche
+  // ---------------------------------------------------------------------------
+  .node rect,
+  .node circle,
+  .node ellipse,
+  .node polygon,
+  .node path {
+    fill: var(--couleur-surface-elevee);
+    stroke: var(--couleur-filet-fort);
+    stroke-width: 1.5;
+  }
+
+  .cluster rect {
+    fill: var(--couleur-surface-creuse);
+    stroke: var(--couleur-filet);
+    stroke-width: 1;
+  }
+
+  .label text,
+  .nodeLabel,
+  .cluster-label text {
+    fill: var(--couleur-encre);
+  }
+
+  // Les arêtes. `fill: none` est indispensable : un `<path>` d'arête sans lui est
+  // rempli en noir et le diagramme se couvre de taches.
+  .flowchart-link,
+  .edgePath .path,
+  .edgePaths path {
+    fill: none;
+    stroke: var(--couleur-filet-fort);
+    stroke-width: 1.5;
+  }
+
+  .edge-pattern-dashed {
+    stroke-dasharray: 8, 8;
+  }
+
+  .edge-pattern-dotted {
+    stroke-dasharray: 2, 6;
+  }
+
+  // Les pointes de flèche vivent dans un `<marker>` : elles se remplissent, elles
+  // ne se tracent pas.
+  .marker,
+  .arrowMarkerPath {
+    fill: var(--couleur-filet-fort);
+    stroke: var(--couleur-filet-fort);
+    stroke-width: 1;
+  }
+
+  .marker.cross {
+    fill: none;
+  }
+
+  // L'étiquette posée SUR une arête a besoin d'un fond opaque, sinon le trait la
+  // traverse.
+  .edgeLabel rect,
+  .labelBkg {
+    fill: var(--couleur-surface);
+  }
+
+  .edgeLabel text {
+    fill: var(--couleur-encre-secondaire);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3 · sequenceDiagram — acteurs, lignes de vie, messages
+  // ---------------------------------------------------------------------------
+  .actor {
+    fill: var(--couleur-surface-elevee);
+    stroke: var(--couleur-filet-fort);
+    stroke-width: 1.5;
+  }
+
+  // `text.actor` est le NOM de l'acteur : il ne suit pas la règle de remplissage
+  // des boîtes, sans quoi il disparaîtrait dans sa propre boîte.
+  text.actor,
+  text.actor > tspan {
+    fill: var(--couleur-encre);
+    stroke: none;
+    text-anchor: middle;
+  }
+
+  // La ligne de vie, verticale et discrète : elle structure sans attirer l'œil.
+  .actor-line {
+    stroke: var(--couleur-filet);
+    stroke-width: 1;
+  }
+
+  // Message plein (`->>`) et message pointillé (`-->>`).
+  .messageLine0 {
+    fill: none;
+    stroke: var(--couleur-encre-secondaire);
+    stroke-width: 1.5;
+  }
+
+  .messageLine1 {
+    fill: none;
+    stroke: var(--couleur-encre-secondaire);
+    stroke-width: 1.5;
+    stroke-dasharray: 3, 3;
+  }
+
+  // `text-anchor: middle` était en style en ligne : sans ce report, le libellé du
+  // message part à gauche de sa flèche.
+  .messageText {
+    fill: var(--couleur-encre);
+    stroke: none;
+    text-anchor: middle;
+  }
+
+  // Les pointes de flèche des messages sont nommées par identifiant, pas par
+  // classe — d'où le sélecteur par suffixe, qui survit au préfixage des
+  // identifiants opéré par `rendre-mermaid.mjs`.
+  [id$='-arrowhead'] path,
+  [id$='-filled-head'] path {
+    fill: var(--couleur-encre-secondaire);
+    stroke: none;
+  }
+
+  [id$='-crosshead'] path {
+    fill: none;
+    stroke: var(--couleur-encre-secondaire);
+    stroke-width: 1.5;
+  }
+
+  // Encadrés `Note over …` : la teinte « attention » du carnet, pas le jaune vif
+  // de Mermaid.
+  .note {
+    fill: var(--couleur-attention-surface);
+    stroke: var(--couleur-attention);
+    stroke-width: 1;
+  }
+
+  .noteText,
+  .noteText > tspan {
+    fill: var(--couleur-encre);
+    stroke: none;
+  }
+
+  // Blocs `loop` / `alt` / `opt`.
+  .labelBox {
+    fill: var(--couleur-surface-creuse);
+    stroke: var(--couleur-filet);
+  }
+
+  .labelText,
+  .labelText > tspan,
+  .loopText,
+  .loopText > tspan,
+  .sectionTitle,
+  .sectionTitle > tspan {
+    fill: var(--couleur-encre);
+    stroke: none;
+  }
+
+  .loopLine {
+    fill: none;
+    stroke: var(--couleur-filet);
+    stroke-width: 1;
+    stroke-dasharray: 2, 2;
+  }
+}

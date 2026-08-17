@@ -1,0 +1,95 @@
+{
+  "lecon": "une-autre-lecon",
+  "titre": "Déroulé de la validation du contenu",
+  "acteurs": [
+    {
+      "id": "auteur",
+      "libelle": "Auteur de la leçon",
+      "type": "personne"
+    },
+    {
+      "id": "validateur",
+      "libelle": "valider.mjs",
+      "type": "serveur"
+    },
+    {
+      "id": "artefact",
+      "libelle": "Artéfact de build",
+      "type": "stockage"
+    }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "Lecture du frontmatter",
+      "narration": "Le validateur ouvre lecon.md et sépare le frontmatter du corps. Étape 1 sur 5 du déroulé témoin.",
+      "etatVisuel": {
+        "acteurActif": "validateur",
+        "fleche": {
+          "de": "auteur",
+          "vers": "validateur",
+          "libelle": "étape 1"
+        },
+        "surbrillance": []
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "Contrôle du schéma",
+      "narration": "Ajv compare le frontmatter au schéma : chaque champ, chaque type. Étape 2 sur 5 du déroulé témoin.",
+      "etatVisuel": {
+        "acteurActif": "validateur",
+        "fleche": {
+          "de": "auteur",
+          "vers": "validateur",
+          "libelle": "étape 2"
+        },
+        "surbrillance": []
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "Contrôle du corps",
+      "narration": "Les sections du gabarit sont cherchées dans l'ordre attendu. Étape 3 sur 5 du déroulé témoin.",
+      "etatVisuel": {
+        "acteurActif": "validateur",
+        "fleche": {
+          "de": "auteur",
+          "vers": "validateur",
+          "libelle": "étape 3"
+        },
+        "surbrillance": []
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "Contrôle du quiz",
+      "narration": "Le quiz est chargé, validé, puis confronté au slug de la leçon. Étape 4 sur 5 du déroulé témoin.",
+      "etatVisuel": {
+        "acteurActif": "validateur",
+        "fleche": {
+          "de": "auteur",
+          "vers": "validateur",
+          "libelle": "étape 4"
+        },
+        "surbrillance": []
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "Verdict",
+      "narration": "La moindre anomalie fait sortir le processus en code 1 en nommant le fichier. Étape 5 sur 5 du déroulé témoin.",
+      "etatVisuel": {
+        "acteurActif": "validateur",
+        "fleche": {
+          "de": "auteur",
+          "vers": "validateur",
+          "libelle": "étape 5"
+        },
+        "surbrillance": [
+          "artefact"
+        ]
+      }
+    }
+  ]
+}

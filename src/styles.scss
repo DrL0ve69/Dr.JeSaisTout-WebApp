@@ -10,13 +10,39 @@
 //
 // `styles/polices` vient EN PREMIER : les `@font-face` doivent être connus du
 // navigateur avant les règles qui s'en servent. C'est aussi, avec
-// `styles/themes`, l'un des deux seuls modules qui ÉMETTENT du CSS — donc l'un
-// des deux qu'un style de composant ne doit jamais `@use`.
+// `styles/themes`, `styles/coloration-syntaxique-generee` et
+// `styles/mermaid-generee`, l'un des quatre seuls modules qui ÉMETTENT du CSS —
+// donc l'un des quatre qu'un style de composant ne doit jamais `@use`.
+//
+// ⚠️ LES DEUX FEUILLES DU CONTENU N'ONT PAS LE MÊME STATUT — malgré leurs noms
+// jumeaux. Elles répondent au même besoin (la CSP du site est à hachages : elle
+// refuse tout attribut `style=` et ferait entrer tout bloc `<style>` dans un
+// `style-src` GLOBAL), mais par deux voies opposées :
+//
+//   · `styles/coloration-syntaxique-generee` est vraiment GÉNÉRÉ, par
+//     `tools/content-pipeline/compiler-markdown.mjs`, et GITIGNORÉ : il ne
+//     contient que les classes que Shiki a réellement émises pour les blocs de
+//     code existants. Le versionner ferait diverger la feuille et le HTML.
+//   · `styles/mermaid-generee` est ÉCRIT À LA MAIN et VERSIONNÉ, malgré son nom
+//     hérité du plan. `tools/content-pipeline/rendre-mermaid.mjs` DÉSHABILLE le
+//     SVG de Mermaid (bloc `<style>` et attributs `style=` retirés, avec contrôle
+//     de conservation) et pose la classe `diagramme-mermaid` sur sa racine ; cette
+//     feuille-ci le rhabille en jetons sémantiques, donc correctement dans les
+//     deux thèmes. Rien ne la génère, rien ne doit l'ignorer.
+//
+// Conséquence de la première : sur un dépôt fraîchement cloné, la feuille de
+// coloration n'existe pas encore — la compilation du contenu doit donc précéder
+// `ng build` ET `ng test` (câblage `pretest` / `prestart` + étape CI, lot 4
+// d'E2-ST1). Sans ce câblage, Sass échoue ici avec « Can't find stylesheet to
+// import » — un échec bruyant, et c'est voulu : une page de leçon sans coloration
+// serait un défaut silencieux.
 // =============================================================================
 
 @use 'styles/polices';
 @use 'styles/themes' as themes;
 @use 'styles/mixins' as m;
+@use 'styles/coloration-syntaxique-generee';
+@use 'styles/mermaid-generee';
 
 // -----------------------------------------------------------------------------
 // 1 · Reset léger — on corrige, on ne rase pas
