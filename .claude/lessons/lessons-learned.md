@@ -612,4 +612,58 @@ nom quoté) ; PR #12.
 
 ---
 
+## L-028 · Un outil d'analyse ne connaît pas la VIVACITÉ d'une collection DOM
+
+**Symptôme.** SonarCloud (règle S7747, « itérable copié sans raison ») a signalé deux copies
+défensives dans `tools/content-pipeline/rendre-mermaid.mjs`, l'analyseur à liste blanche qui décide
+de ce qu'un SVG a le droit de contenir. Les deux ressemblaient au même code. **Le conseil était juste
+sur l'une et destructeur sur l'autre :** `querySelectorAll(...)` rend une **NodeList STATIQUE** —
+retirer un nœud pendant l'itération ne raccourcit pas la liste : la copie était vraiment inutile,
+elle a été retirée. `element.attributes` rend une **NamedNodeMap VIVANTE** — et la boucle appelle
+`removeAttribute()`. Mesuré sous jsdom : sur un élément portant `a,b,c,d`, l'itération SANS copie ne
+voit que **`a` et `c`**. La liste blanche aurait inspecté **un attribut sur deux**, en silence. Ce qui
+rend le piège grave : rien ne rougit — aucun test ne tombe, la liste blanche continue de « passer »,
+et le SVG sort avec des attributs jamais confrontés à quoi que ce soit, c'est-à-dire la réouverture
+de S-009 par la moitié des attributs.
+
+**Règle.** Avant de retirer une copie défensive sur une collection DOM parce qu'un lint la dit
+inutile : établir si la collection est **vivante** ou **statique**, et si la boucle **mute** la
+collection. Statique + mutation = copie inutile. Vivante + mutation = **la copie EST le garde-fou**.
+Et la vérification se fait par **mesure** (une sonde de dix lignes), pas par lecture de la spec —
+c'est ce qui a tranché ici (même geste que [[L-013]], « seule une sonde bidirectionnelle fait foi »).
+
+**Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` ligne 719 (la boucle sur `.attributes`, qui
+porte un `// NOSONAR` et son raisonnement mesuré) · cousine de [[L-019]] sur l'axe « un instrument
+qui ne distingue pas *j'ai vu 0* de *je suis aveugle* » · famille sécurité S-003 / S-009 (liste noire
+vs liste blanche sur un format structuré) · commit `7e2675b`.
+
+---
+
+## L-029 · Une règle appliquée PAR ACCIDENT disparaît sans bruit quand on refactorise l'accident
+
+**Symptôme.** Dans `tools/content-pipeline/valider.mjs`, le relevé des titres (`titresDuCorps`)
+employait un motif qui laissait entrer un titre vide (`##` suivi de blanches seules) avec un texte
+fait d'une blanche — il devenait donc une section fantôme, et le contrôle d'ordre du gabarit finissait
+par s'en plaindre. **Le validateur refusait la faute, mais par accident, et sous une cause qui ne la
+nommait pas.** La réécriture du motif (conformité S8786, retour arrière super-linéaire) l'a fait
+disparaître du relevé : la faute cessait d'être refusée. Aucun test n'a rougi — 266 tests verts, 9
+fixtures invalides toujours 9/9 refusées — parce qu'**aucune fixture ne couvrait ce chemin**. Seule
+une revue de sécurité l'a vu, en comparant le comportement des deux motifs valeur par valeur.
+
+**Règle.** Quand un refactor touche le motif ou la structure de données **d'où** un gate tire sa
+décision, l'égalité des sorties sur les cas existants ne prouve rien pour les cas qu'aucun cas de
+test ne couvre. Le geste : identifier ce que l'ancien code refusait **de façon incidente** (par un
+effet de bord, pas par une règle écrite), puis **rendre ce refus EXPLICITE et nommé** — et lui poser
+son propre cas dans le contrôle positif. Corollaire : un contrôle positif ne prouve que les chemins
+qu'il contient ; son garde-fou de complétude prouve qu'on n'a pas oublié d'assertion, pas qu'on n'a
+pas oublié de CAS.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` fonction `titresDuCorps` (ligne 341) et
+`verifierCorps` (ligne 650), qui rend désormais `{ titres, vides }` et signale explicitement en tête
+de `verifierCorps` · `tools/content-pipeline/__fixtures__/invalides/corps-titre-de-section-vide/` et
+son assertion dans `src/pipeline-contenu-validation.spec.ts` ligne 70 · cousines [[L-019]] (contrôle
+positif) et [[L-005]] (un vert ne prouve pas qu'une vérification a tourné) · commit `7e2675b`.
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
