@@ -54,11 +54,35 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-17
 >
-> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves).**
-> **Le geste suivant : E2-ST3 — `QuizComponent`** ([`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
-> §E2-ST3). Le backlog dit déjà *quoi, où, avec quels gates* : **pas de `solution-architect` ni de
-> `devils-advocate`** (barème `.claude/README.md` §6a) — on implémente. C'est aussi le lot qui **crée
-> `core/progression/`**, donc celui qui pose la règle « aucune feature n'importe une autre feature ».
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves) · E2-ST3 lots A et
+> B CLOS.**
+> **Le geste suivant : E2-ST3 lot C — le `QuizComponent` lui-même** (coquille, navigation, score,
+> correction expliquée, + `choix-multiple` et `vrai-faux`) — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
+> §E2-ST3, tableau de découpe. Le backlog dit déjà *quoi, où, avec quels gates* : **pas de
+> `solution-architect` ni de `devils-advocate`** (barème `.claude/README.md` §6a) — on implémente.
+>
+> **Ce que les lots A et B ont posé, et que le lot C consomme :** `core/progression/` (l'état
+> partagé, donc la règle « aucune feature n'importe une autre feature ») et le **quiz émis par le
+> pipeline** dans `LeconCompilee.quiz`. **Trois contraintes nominatives pour le lot C**, détaillées
+> en §E2-ST3 « Clôture du lot B » : (a) les `<fieldset>` se rendent sous **`PREFIXE_ID_QUESTION`**
+> (`contenu-compile.ts`), jamais sous une chaîne recopiée — la collision avec les ancres de section
+> est déjà refusée ; (b) `ficheSource` **n'est pas** dans l'artéfact, c'est voulu — la voie publiée
+> vers les sources est « Aller plus loin » ; (c) ce qui autorise à rendre `htmlColore` est **mesuré**
+> et plus étroit qu'il n'y paraît : Shiki échappe `<` en `&#x3C;` et **laisse `>` brut** — sûr parce
+> qu'aucune balise ne peut s'**ouvrir**, pas parce que tout serait échappé.
+>
+> **🔴 INCIDENT DE PRODUCTION RÉSOLU LE 2026-08-17 — à connaître avant de toucher au routage.**
+> Signalé par le propriétaire depuis la console du site déployé : `main-<hash>.js/chunk-<hash>.js` en
+> **404**. `trailingSlash: "always"` redirigeait **aussi les fichiers** ; le 301 déplaçait l'URL
+> finale du module, donc la **base de ses imports relatifs**, et **la route paresseuse de la page de
+> leçon était morte**. Défaut **connu et écrit depuis E1-ST1-B** — mais classé *coût de performance*,
+> personne n'ayant vu qu'il deviendrait une panne dès le **premier chunk paresseux** (E2-ST2).
+> Corrigé en **`trailingSlash: "auto"`** (les dossiers restent canonicalisés, les fichiers sont
+> servis directement). ⚠️ **Aucun gate local ne pouvait le voir** : l'émulateur `npx swa start`
+> n'implémente pas `trailingSlash`, donc `e2e` était vert sur une politique de routage qui n'était
+> pas celle de la production. D'où le gate neuf, **en ligne uniquement** : `deploy.yml` → « Vérifier
+> le routage servi » bloc **(c)**, chaque asset référencé par la page servie doit répondre 200 et
+> jamais 3xx. Leçon **L-032** ; détail dans `docs/deployment.md`.
 >
 > **⚠️ Les 3 réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE** (détail : backlog
 > §E2-ST2) : (1) `a11y:axe` et `e2e` **n'ont jamais vu** une page de leçon — la barre AXE est
@@ -71,7 +95,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
 > **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
-> **256 tests / 19 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
+> **381 tests / 25 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
 > **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**

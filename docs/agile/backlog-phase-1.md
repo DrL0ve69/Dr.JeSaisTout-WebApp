@@ -241,6 +241,22 @@
   **Piste** : `trailingSlash: "auto"`, ou une règle de route qui exempte les extensions. **Décision
   à prendre par le propriétaire** : le réglage porte la canonicalisation des URL de pages (effet
   SEO), il déborde du périmètre de ST1-B et ne se change pas en passant.
+  **✅ CLOS LE 2026-08-17 — et il n'était PAS qu'un coût de performance.** Signalé par le
+  propriétaire depuis la console du site déployé : `/main-5RJCKUZA.js/chunk-6ZRI2U7P.js` en **404**.
+  Le 301 déplace l'**URL finale du module**, donc la **base de résolution de ses imports relatifs** :
+  `import('./chunk-….js')` visait un dossier qui n'existe pas, et la **route paresseuse de la page de
+  leçon était morte en production**. Défaut dormant depuis E1, réveillé par le **premier chunk
+  paresseux** du dépôt (E2-ST2) — un lot qui ne l'a pas causé.
+  **Correctif appliqué** : `trailingSlash: "auto"`. Il **garde** ce qui motivait `always` — les
+  dossiers restent canonicalisés (`/cours/securite-web` → 301 → `/cours/securite-web/`, mesuré) —
+  et sert les fichiers directement, sans redirection. L'arbitrage SEO qui bloquait la décision
+  n'avait donc pas de contrepartie à peser.
+  **Gate neuf, parce qu'aucun n'aurait pu voir ça** : `deploy.yml`, étape « Vérifier le routage
+  servi », bloc **(c)** — chaque asset référencé par la page d'accueil réellement servie doit
+  répondre **200, jamais 3xx**. ⚠️ Le contrôle est **en ligne et nulle part ailleurs** :
+  l'émulateur `npx swa start` **n'implémente pas `trailingSlash`** (zéro occurrence dans son code),
+  donc le gate e2e tournait sous une politique de routage qui n'était pas celle de la production et
+  restait vert pendant que la production était cassée. Leçon **L-032**.
 - **ST1-C (script inline d'initialisation du thème) est livrée.** Un `<script id="init-theme">`
   unique dans `src/index.html` pose `data-theme` sur `<html>` **avant la première peinture** : il
   lit `localStorage['drjst-theme']` et n'épingle que sur `clair` ou `sombre` ; toute autre valeur
@@ -1052,8 +1068,8 @@ un lot en une phrase, vérifiable seul, un agent frais chacun.
 
 | Lot | Contenu | Vérifiable par | Statut |
 |---|---|---|---|
-| **A** | `core/progression/` — service de progression `localStorage`, en signaux, avec sa sérialisation versionnée et sa tolérance aux données absentes/corrompues | G-test seul (aucune UI) | ⬜ |
-| **B** | Émission du quiz par le pipeline : type `QuizCompile` dans `types.d.ts`, sortie du compilateur, fixture témoin, mutation prouvant que le gate mord | G-content, G-test | ⬜ |
+| **A** | `core/progression/` — service de progression `localStorage`, en signaux, avec sa sérialisation versionnée et sa tolérance aux données absentes/corrompues | G-test seul (aucune UI) | ✅ |
+| **B** | Émission du quiz par le pipeline : type `QuizCompile` dans `types.d.ts`, sortie du compilateur, fixture témoin, mutation prouvant que le gate mord | G-content, G-test | ✅ |
 | **C** | `QuizComponent` (coquille, navigation, score, correction expliquée) + les deux types simples : `choix-multiple`, `vrai-faux` | G-test, G-axe, **G-clavier** | ⬜ |
 | **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ⬜ |
 | **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ⬜ |
@@ -1074,6 +1090,51 @@ composant, c'est écrire le composant contre un état local qu'il faudra ensuite
 - **Le code de `trouver-la-faille` est VOLONTAIREMENT vulnérable** (`security.md` §4) : il n'est
   jamais exécuté, jamais interpolé dans du HTML de confiance, et il ne passe **pas** par le
   contournement de sanitizer d'E2-ST2 — qui reste scopé au seul bloc `mermaid`.
+
+#### ✅ Clôture du lot B — 2026-08-17
+
+Le quiz **sort du pipeline** : `QuizCompile` dans `types.d.ts`, lu / revalidé / coloré par
+`compilerQuiz`, émis dans `LeconCompilee.quiz` et rendu à l'ancre `[[quiz]]`. Deux revues
+indépendantes (sécurité, code) l'ont approuvé **avec réserves** — quatre constats Majeurs, tous
+mesurés. Les quatre sont **fermés**, et voici la forme retenue pour chacun, parce qu'elle engage
+le lot C :
+
+1. **🔴 « Shiki échappe le texte source » était une phrase, pas une garantie tenue.** C'est cette
+   propriété — et elle seule — qui autorisera le lot C à rendre `htmlColore` dans la page ; or le
+   code de la fixture ne contenait pas un seul `<`, le seul caractère qui compte. **La mesure a
+   corrigé l'énoncé** : Shiki échappe `<` en `&#x3C;` et **laisse `>` brut**. Échappement partiel,
+   mais suffisant — sans `<`, aucune balise ne peut **s'ouvrir**, donc `>` et même un `onerror=`
+   restent du texte inerte. La fixture porte désormais `<script>alert('XSS')</script>` et
+   `<img src=x onerror=alert(1)>`, et le test **analyse** au lieu de chercher des motifs interdits :
+   il retire les seules balises que Shiki émet (liste nominative) et exige qu'il ne reste **aucun
+   `<`**. Contrôle positif sur le compte de balises retirées et sur la présence de la charge.
+2. **`ficheSource` n'est plus émis.** C'est de la traçabilité de **build** : `valider.mjs` l'exige
+   sur la source, mais le navigateur n'a aucun usage d'un chemin vers une KnowledgeBase privée qu'il
+   ne peut pas ouvrir. La voie publiée vers les sources reste la section « Aller plus loin ». Le
+   champ vit donc dans `QuestionSource` (compilateur) et **pas** dans `QuestionQuiz` (contrat) — le
+   décalage entre les deux types **est** la frontière, et c'est lui qui rendrait l'oubli visible au typage.
+3. **Le préfixe d'`id` de rendu est fixé ET vérifié** : `PREFIXE_ID_QUESTION = 'quiz-'`
+   (`contenu-compile.ts`). Les `id` de question et les ancres de section partagent l'espace de noms
+   du **document** ; l'auteur choisit ses ancres sans rien savoir du quiz. `lireLeconCompilee` refuse
+   donc nommément une leçon où `quiz-<id>` heurte une ancre existante. L'écrire sans le contrôler
+   aurait été exactement **L-008** ; exiger de l'auteur qu'il connaisse les ancres réservées aurait
+   été une contrainte invisible. ⚠️ **Le lot C rend ses `<fieldset>` sous cette constante**, pas
+   sous une chaîne recopiée.
+4. **L'ancre `[[quiz]]` manquante fait échouer la compilation**, comptée dans `compilerLecon` où
+   l'AST existe (donc où le compte est **exact**), et non par relecture de la source dans le
+   validateur — un motif sur un format structuré est le patron déjà payé trois fois (S-001, S-003,
+   S-009). Le mode d'échec fermé est le plus coûteux du lot : une leçon qui compile, se prerend, se
+   publie, et dont le quiz n'est **nulle part** sur la page.
+
+**Gates au vert** : lint · **381 tests / 25 fichiers** · `content:build` · `ng build` + config SWA
+· axe **258 vérifications, 0 violation** · **e2e 11/11** · `typecheck:tools`.
+
+**⏭️ Dette transmise au lot C, à ne pas perdre.** Le `code` brut d'une question part **non
+échappé** dans l'artéfact (c'est voulu : il porte la numérotation de `ligneFautive` et le texte
+accessible). S'il contient un jour ` style="` — charge utile parfaitement plausible pour une leçon
+sur la CSP — et que le composant le rend par interpolation, `generer-config-swa.mjs` **rougira sur
+un message parlant de CSP alors que la cause sera un texte de quiz**. Fail-closed, donc sain, mais
+le diagnostic serait trompeur : prévoir le message, pas le contournement.
 
 **⚠️ Et le piège de CSP qui vise ce lot précisément** : E2-ST3 est le **premier composant réellement
 interactif d'une page de leçon**. « Une CSP validée sur une page INERTE ne vaut que pour une page

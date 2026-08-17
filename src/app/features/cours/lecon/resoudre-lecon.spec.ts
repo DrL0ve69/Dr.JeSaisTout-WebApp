@@ -61,6 +61,26 @@ const LECON_VALIDE = {
     statut: 'publiee',
   },
   sections: [{ titre: 'Introduction', ancre: 'introduction', niveau: 2, blocs: [] }],
+  // Le quiz est OBLIGATOIRE au contrat depuis E2-ST3 (lot B) : `satisfies LeconCompilee`
+  // refuserait cette leçon sans lui. Réduit au strict nécessaire — ce qui se mesure ici
+  // est le CHOIX du chargeur, pas la forme du quiz, dont l'enveloppe est éprouvée par
+  // `lecon.spec.ts` sur une leçon réellement compilée.
+  quiz: {
+    lecon: SLUG_CONNU,
+    titre: 'Quiz de test',
+    questions: [
+      {
+        id: 'q1',
+        type: 'vrai-faux',
+        // Pas de `ficheSource` : le champ est exigé sur la SOURCE (`quiz.json`) et retiré à
+        // l'émission — le contrat compilé ne le porte pas, et `satisfies` le refuserait ici.
+        affirmation: 'Ce test mesure le choix du chargeur, pas la forme du quiz.',
+        bonneReponse: true,
+        justification:
+          'La forme du quiz est éprouvée ailleurs, sur une leçon compilée pour de vrai.',
+      },
+    ],
+  },
 } satisfies LeconCompilee;
 
 /**

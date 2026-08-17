@@ -147,6 +147,22 @@ absent de toute leçon `statut: publiee`) : `<!-- à-vérifier: <affirmation> �
 Contraintes : 5 à 10 questions par leçon ; au moins 2 types différents ; `explication`/
 `justification` jamais vide (règle contenu-pedagogique §5) ; `ficheSource` sur chaque question.
 
+### Ce que le pipeline en émet
+
+Le quiz voyage **dans la leçon** : il sort en `LeconCompilee.quiz`, dans le même
+`lecons/<slug>.json` que le corps, et s'affiche à l'ancre `[[quiz]]`. Pas de fichier séparé, pas
+d'import paresseux dédié — le composant lit une donnée déjà chargée.
+
+Il est passé **fidèlement**, à un seul ajout près : `trouver-la-faille` reçoit un `htmlColore`
+produit au build par le même colorateur Shiki que les blocs de code du corps (couleur en classes
+`clr-…`, jamais en `style=` — la CSP du site est à hachages). Le `code` brut reste à côté : c'est
+lui qui porte la numérotation des lignes de `ligneFautive` et le texte accessible.
+
+Le compilateur **revalide** `quiz.json` contre le même schéma, et revérifie que `quiz.lecon` égale
+le `slug` du frontmatter — il s'exécute aussi hors de `npm run content:build` (ligne de commande,
+tests sur fixtures), là où `valider.mjs` n'a pas tourné. Le contrat détaillé des quatre types vit
+dans `tools/content-pipeline/types.d.ts` (`QuestionQuiz`, `QuizCompile`).
+
 ## Schéma `simulation.json` (pas-à-pas visuel)
 
 Une simulation raconte un déroulé (ex. attaque XSS stockée) en étapes navigables
