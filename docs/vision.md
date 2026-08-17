@@ -46,6 +46,11 @@ Trois convictions fondatrices :
 - Exercices : quiz interactifs, code annoté vulnérable/corrigé côte à côte, simulations
   pas-à-pas visuelles. **Pas** de labo exécutable, **pas** de comptes.
 - Progression sauvegardée en `localStorage` uniquement.
+- **Couche « jeu », restreinte** *(décidée le 2026-08-17)* : le site reprend de boot.dev sa **carte
+  de parcours** (les 13 modules en chemin visible, état de chacun) et sa notion de **maîtrise** (un
+  module se marque maîtrisé au quiz réussi, jamais au temps passé). Il **refuse** la série
+  quotidienne, les ligues, les classements et la monnaie virtuelle — dark patterns documentés,
+  impossibles sans compte, et sans usage réel ici. Périmètre détaillé : backlog §E2-ST6.
 - Site 100 % statique (Angular prerendu) sur **Azure Static Web Apps Free**.
 - En fin de phase, si le temps le permet : squelette backend .NET 10 (sans fonctionnalité exposée).
 
@@ -78,7 +83,7 @@ Trois convictions fondatrices :
 | S5 | Le site exemplifie ce qu'il enseigne | CSP stricte sans `unsafe-inline`, en-têtes durcis, `npm audit` sans vulnérabilité haute/critique, audit `security-audit` passé |
 | S6 | Zéro dépense | 0 $ dépensé ; SWA **Free** uniquement (`.claude/rules/budget-free-tier.md`) |
 | S7 | Performance | Lighthouse ≥ 90 (perf, a11y, best practices, SEO) sur home et pages de leçon |
-| S8 | Design distinctif | Direction visuelle appliquée (`docs/design/direction-visuelle.md`), pas de rendu « template » |
+| S8 | Design distinctif | Direction visuelle **« Moniteur ambre »** appliquée (`docs/design/direction-visuelle.md`), garde-fous G1–G11 tenus, pas de rendu « template ». ⚠️ **Thème sombre seul** en phase 1 : le thème clair est une dette datée portée par **E4-ST1** ; s'il saute pour tenir l'échéance d'octobre, l'écart se consigne **ici**, jamais en silence |
 
 ## 5 · Hors périmètre — Phase 1
 
@@ -86,6 +91,12 @@ Explicitement reportés, pour protéger l'échéance d'octobre :
 
 - Comptes utilisateurs, authentification, progression serveur (phase 2).
 - Labo d'exploitation exécutable (DVWA-like) — les simulations pas-à-pas visuelles en tiennent lieu.
+- **Séries quotidiennes, ligues, classements, monnaie virtuelle et boutique** — refusés sur le fond,
+  pas seulement reportés (voir §3 phase 1). Les ligues et classements sont à rouvrir en phase 2
+  seulement si le backend leur donne un sens ; la série quotidienne, elle, ne revient pas.
+- **Avatar / mascotte dessinée** (façon Boots chez boot.dev) : l'identité reste **typographique**
+  (décision D-4). C'est le même arbitrage de coût illustratif qui avait écarté la direction
+  « Cabinet de curiosités » — un dev solo ne tient pas un fonds d'illustrations.
 - Autres sujets que la sécurité web (phase 3) ; la home n'annonce qu'un cours.
 - Anglais ou toute autre langue : **français seulement**.
 - Domaine personnalisé payant : le sous-domaine `*.azurestaticapps.net` suffit tant qu'aucun achat

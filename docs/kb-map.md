@@ -163,6 +163,20 @@ Le CLAUDE.md renvoie aux conventions du projet frère AbrisTempo ; la KB en couv
 - **Mermaid** comme brique de rendu (la KB *utilise* Mermaid partout, aucune fiche ne le *traite*).
 - **Angular 22 spécifiquement** — la fiche Angular est un crash course 18.2 avec une section d'écarts
   2026 ; elle ne remplace pas la doc officielle ni le MCP `angular-cli`.
+- 🆕 **Gamification et conception de la motivation** *(trou constaté le 2026-08-17)* — `npm run kb --
+  gamification pedagogie motivation --any` ne remonte que **deux** fiches, dont une carte de domaine :
+  `divers/pedagogie/enseigner-informatique-ere-ia.md` (Malan/CS50) est la seule substance, et elle
+  parle de pédagogie, pas de mécaniques de jeu. Or la direction produit décidée le 2026-08-17
+  s'appuie explicitement sur boot.dev et Duolingo. Ce qui a servi à trancher (§E2-ST6 du backlog) est
+  donc de la **recherche web datée**, pas de la KB : efficacité mesurée de la gamification,
+  *dark patterns* de la série quotidienne, effet des ligues sur l'objectif d'apprentissage.
+  **Prioritaire pour l'archiviste** — c'est le seul trou de cette liste qui porte sur une décision
+  produit déjà prise.
+- 🆕 **Design d'interface de jeu / esthétique rétro** — même angle mort : la KB couvre les principes
+  de design visuel (`web/frontend/principes-design-visuel.md`) et les recettes d'effets CSS
+  (`web/css/recettes-effets-visuels.md`), rien sur les codes visuels du jeu vidéo.
 
 > Ces trous sont aussi la liste de courses de l'archiviste : ce sont les sujets à ingérer en priorité
-> si la KB doit un jour couvrir ce projet de bout en bout.
+> si la KB doit un jour couvrir ce projet de bout en bout. **Deux commandes d'archivage sont déjà
+> nommées et datées ailleurs** : la fusion du site du cours (backlog **E3-ST0**) et les deux trous
+> ci-dessus.

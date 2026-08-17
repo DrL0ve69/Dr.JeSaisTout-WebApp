@@ -9,9 +9,64 @@ Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code c
 comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutorat) :
 [`docs/vision.md`](docs/vision.md).
 
-> ## ⏭️ REPRISE — état au 2026-08-16, fin de session
+> ## 🔴 BASCULE DE DIRECTION — 2026-08-17, à lire AVANT le bloc de reprise
 >
-> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE** — le **moteur de contenu tourne**. `content/` est
+> Le propriétaire a changé la direction produit et visuelle. **Quatre décisions, prises, à ne pas
+> rouvrir** (détail et justifications : [`docs/design/direction-visuelle.md`](docs/design/direction-visuelle.md) §0 et §4) :
+>
+> **D-1 · L'habillage devient « Moniteur ambre ».** La structure produit de **boot.dev**
+> (apprentissage jalonné, carte de parcours, progression visible) habillée en **rétro-arcade +
+> Matrix**. La direction **« Carnet de laboratoire » est ABANDONNÉE** — papier ivoire, Fraunces,
+> marginalia, tampons, encre : tout ce vocabulaire est mort. ⚠️ **Le point à ne pas rater :** la
+> couleur de marque est **l'AMBRE `#FFB454`, pas le vert**, parce que **le vert est déjà pris — il
+> veut dire « corrigé »**. Un vert phosphore de marque diluerait la seule signature chromatique
+> pédagogique du site (rouge = vulnérable / vert = corrigé). *Matrix* passe par le **motif** (pluie de
+> glyphes, scanlines, noir profond), jamais par la teinte. Palette d'amorçage **mesurée** : 18 paires,
+> 0 échec.
+> **D-2 · Thème SOMBRE SEUL en phase 1.** G5 est amendé ; le thème clair devient un **livrable
+> d'E4-ST1**, pas une note flottante (mode d'échec connu du dépôt, famille L-007).
+> **D-3 · La bascule s'exécute APRÈS E3 bloc A**, sous l'épic **E6**. Le contenu garde le chemin
+> critique de mi-septembre. **Ordre révisé : E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B/C → E4 → E5.**
+> **D-4 · Identité typographique, aucun avatar dessiné.** « Dr. Je-Sais-Tout » reste le nom ; son
+> incarnation devient l'**opérateur** derrière la console.
+>
+> **Deux conséquences immédiates pour qui code d'ici E6 :** (a) écrire du composant neuf est **sans
+> risque** *à condition* de ne consommer que des **jetons sémantiques** — le pari explicite d'E6 est
+> qu'aucun composant n'a besoin d'être touché pour changer de peau, et tout composant qui l'exige
+> sera consigné comme **défaut G7** ; (b) une **règle d'architecture neuve et bloquante en revue** :
+> **aucune feature n'importe une autre feature** — `cours/sommaire` lit la progression que
+> `cours/quiz` écrit **via `core/progression/`**, jamais par import direct. Elle se gagne ou se perd
+> exactement au couple **E2-ST3 / E2-ST6**.
+>
+> **Deux tâches neuves au backlog :** **E3-ST0** — le site du cours de l'enseignant a été **complété
+> depuis la passe `/archiviste`** ; les fiches KB de `web/securite/` ont donc des trous, et une leçon
+> écrite sur une fiche trouée est à réécrire. Fusion à faire **avant** la première leçon
+> (<https://www.alexandrepetrin.ca/securisation-des-applications-web/> et
+> <https://www.alexandrepetrin.ca/php/>). Et **E6** (5 sous-tâches).
+>
+> **Périmètre « jeu », tranché et restreint** (backlog §E2-ST6) : on prend la **carte de parcours** et
+> la **maîtrise** (quiz réussi, jamais le temps passé) ; on **refuse** série quotidienne, ligues,
+> classements, monnaie et boutique — dark patterns documentés, impossibles sans compte, sans usage
+> réel ici. ⚠️ **Trou de KB constaté** : `npm run kb -- gamification …` ne remonte que 2 fiches ; ce
+> qui a tranché est de la recherche web datée, pas la KB (consigné dans `docs/kb-map.md`).
+>
+> ---
+>
+> ## ⏭️ REPRISE — état au 2026-08-17
+>
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves).**
+> **Le geste suivant : E2-ST3 — `QuizComponent`** ([`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
+> §E2-ST3). Le backlog dit déjà *quoi, où, avec quels gates* : **pas de `solution-architect` ni de
+> `devils-advocate`** (barème `.claude/README.md` §6a) — on implémente. C'est aussi le lot qui **crée
+> `core/progression/`**, donc celui qui pose la règle « aucune feature n'importe une autre feature ».
+>
+> **⚠️ Les 3 réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE** (détail : backlog
+> §E2-ST2) : (1) `a11y:axe` et `e2e` **n'ont jamais vu** une page de leçon — la barre AXE est
+> *contournée par l'absence de données*, pas franchie ; (2) la **CSP servie n'a jamais été mesurée**
+> sur une page de leçon ; (3) une leçon en `statut: brouillon` **sera prerendue publique et
+> indexable**. Les trois se lèvent **en clôture d'E3-ST1**, pas avant.
+>
+> **Ce qui suit reste vrai** — le **moteur de contenu tourne**. `content/` est
 > validé (Ajv + règles hors schéma), compilé en AST typé (Markdown → HTML, Shiki précompilé, encadrés),
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
@@ -19,28 +74,19 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **256 tests / 19 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
-> **Le geste suivant : E2-ST2 — page leçon & routage** (tranché par le propriétaire le 2026-08-16 ;
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST2). Le backlog dit déjà
-> *quoi, où, avec quels gates* : **pas de `solution-architect` ni de `devils-advocate`** ici (barème
-> `.claude/README.md` §6a) — on implémente.
->
-> **⚠️ CE QU'E2-ST2 DOIT SAVOIR AVANT D'ÉCRIRE UNE LIGNE.**
-> **(1) Le sanitizer d'Angular efface TOUT le SVG.** Mesuré, pas supposé
-> (`src/sonde-sanitizer-svg.spec.ts`, gardée comme tripwire) : d'un SVG `mmdc` réaliste lié en
-> `[innerHTML]`, **24 éléments → 0 et 71 attributs → 0** survivent. Un diagramme lié directement
-> serait illisible ET sans `<title>`/`<desc>`. `bypassSecurityTrustHtml` est donc **inévitable**, mais
-> **scopé au seul bloc `mermaid`**, avec justification nominative au point d'appel (patron de
-> `HACHAGE_SCRIPT_ATTENDU`) et **revue `security-reviewer` OBLIGATOIRE avant le merge**. Ce qui rend
-> ce contournement acceptable est écrit dans `tools/content-pipeline/types.d.ts` — et ce texte décrit
-> désormais **ce que le code applique vraiment**, pas une intention.
-> **(2) Le manifeste attend `app.routes.server.ts`.** `src/content-generated/manifeste-routes.json`
-> porte exactement les slugs à prerendre et rien d'autre : aucun filtrage à faire, la leçon-témoin
-> vivant **hors de `content/`**. Réintroduire `cours/securite-web/:slug` **des deux côtés**, ici en
-> `RenderMode.Prerender` **avec** `getPrerenderParams()`. Sans quoi aucune leçon n'est prerendue.
-> **(3) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est inerte, le
-> rejeu d'événements est perdu. Piège hérité d'E1-ST2.
+> **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**
+> **(1) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est **inerte** et
+> le rejeu d'événements est perdu. Piège hérité d'E1-ST2, et il mord **directement E2-ST3** : c'est le
+> premier composant réellement interactif d'une page de leçon.
+> **(2) Une CSP validée sur une page INERTE ne vaut que pour une page inerte.** Le premier écouteur
+> d'événement d'une page fait apparaître des scripts inline que le framework n'émettait pas avant
+> (constaté en E1-ST2, build rouge). **E2-ST3 est exactement ce moment-là pour la page de leçon** :
+> revalider la CSP, et garder la liste blanche **NOMINATIVE**, jamais dérivée de l'artéfact (S-005).
+> **(3) Le sanitizer d'Angular efface TOUT le SVG** — mesuré (`src/sonde-sanitizer-svg.spec.ts`,
+> gardée comme tripwire) : 24 éléments → 0, 71 attributs → 0. D'où le `bypassSecurityTrustHtml`
+> **scopé au seul bloc `mermaid`**, justifié nominativement au point d'appel. Ne pas l'élargir.
 > **(4) Retirer la `mentionChantier` « Chantier en cours »** de la carte le jour où la première leçon
-> est publiée, sinon l'accueil ment.
+> est publiée, sinon l'accueil ment. Rappel repris en **E6-ST4**.
 >
 > **❓ NŒUDS : tous tranchés le 2026-08-16, ne pas les rouvrir** (détail : §E2 du backlog). Dette
 > sécurité → **avant E3-ST1**, pas avant E2-ST1 · leçon-témoin → **fixture hors de `content/`** ·
@@ -243,8 +289,10 @@ périmée). Reste à venir : `dotnet build`/`dotnet test` (**phase 2**).
   `.claude/rules/security.md`.
 - **Qualité pédagogique** : chaque concept = théorie + exemple simple ET complexe + analogie bornée
   + support visuel ; jamais de fait non sourcé : `.claude/rules/contenu-pedagogique.md`.
-- **Design anti-AI-slop** : direction « Carnet de laboratoire » + garde-fous G1–G9 :
-  `docs/design/direction-visuelle.md`.
+- **Design anti-AI-slop** : direction **« Moniteur ambre »** (rétro-arcade + Matrix, sombre seul en
+  phase 1) + garde-fous **G1–G11** : `docs/design/direction-visuelle.md`. ⚠️ La direction
+  « Carnet de laboratoire » est **abandonnée depuis le 2026-08-17** mais **encore en production**
+  jusqu'à E6 — le code que tu lis peut être en retard sur le document, jamais l'inverse.
 
 ## Système d'agents (guide complet : `.claude/README.md`)
 

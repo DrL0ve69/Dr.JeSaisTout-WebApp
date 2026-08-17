@@ -5,8 +5,14 @@
 > la **section** de sa sous-tâche (pointeur `ID`), jamais ce document entier.
 >
 > Conventions : statuts ⬜ à faire · 🟦 en cours · ✅ fait · ⛔ bloqué. Mettre à jour le statut à la
-> clôture (agent scribe). Ordre nominal : E0 → E1 → E2 → E3 (parallélisable dès E2-ST4) → E4 → E5.
+> clôture (agent scribe).
 > Jalons datés : `docs/agile/roadmap.md`. Décisions et spikes : `docs/architecture/stack-et-architecture.md`.
+>
+> **⚠️ ORDRE NOMINAL RÉVISÉ le 2026-08-17** (bascule de direction visuelle, décision D-3) :
+> **E0 → E1 → E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B et C → E4 → E5.**
+> Deux insertions par rapport à l'ordre d'origine : **E3-ST0** (rattrapage d'archivage KB, §E3) en
+> amont de la première leçon, et **E6** (bascule d'identité visuelle, §E6) intercalé *après* le bloc A
+> pour que le contenu garde le chemin critique de l'échéance de mi-septembre (critère S2).
 
 **Gates récurrents** (référencés par sigle) :
 - **G-lint** : `ng lint` sans erreur · **G-test** : Vitest vert · **G-build** : `ng build` + prerender sans erreur
@@ -1010,10 +1016,30 @@ Ce qui en découle, à traiter **en clôture d'E3-ST1** (la première vraie leç
 - **Fichiers** : `src/app/features/cours/simulation/`, schéma JSON associé.
 - **Gates** : G-lint, G-test, G-build, G-axe.
 
-### E2-ST6 — Sommaire du cours & progression
+### E2-ST6 — Sommaire du cours & progression *(= la « carte de parcours »)*
 - **Objectif** : page `/cours/securite-web` : les 13 modules dans l'ordre de lecture (sections Fondations / Attaques / Identités & données / Hébergement), état par module (non commencé / lu / quiz réussi) depuis `localStorage`, temps de lecture estimé.
 - **Fichiers** : `src/app/features/cours/sommaire/`, `src/app/core/progression/`.
 - **Gates** : G-lint, G-test (service progression), G-build, G-axe.
+- 🆕 **C'est le porteur de la couche « jeu » décidée le 2026-08-17** (§E6). Elle est délibérément
+  **restreinte**, et le périmètre ci-dessous fait foi contre toute tentation d'en ajouter :
+
+  | On prend | Pourquoi |
+  |---|---|
+  | **La carte de parcours** — les 13 modules en chemin visible, état de chacun | Geste central de boot.dev, et c'était **déjà** l'objectif de cette sous-tâche. La bascule lui donne un langage visuel, pas une fonctionnalité de plus. |
+  | **La maîtrise, pas le score** — un module se marque « maîtrisé » au quiz réussi, jamais au temps passé | Le quiz explique déjà chaque distracteur (`.claude/rules/contenu-pedagogique.md` §5) : c'est de la remédiation, pas une note. |
+  | **Le moment mémorable** — la simulation pas-à-pas | Constat **D-C7**, toujours ouvert : 4 modules sur 13 n'en ont aucune. |
+
+  | On refuse | Pourquoi |
+  |---|---|
+  | **Série quotidienne (streak)** | Dark pattern documenté de Duolingo : produit de l'anxiété de série, pas de l'apprentissage. Et il n'a aucun sens sans compte, sur un cours de 13 modules à faire en 10 semaines. |
+  | **Ligues, classements** | Impossibles sans backend (phase 2) — et la recherche montre qu'ils détournent de l'objectif d'apprentissage. À rouvrir seulement si la phase 2 le justifie. |
+  | **Monnaie, coffres, boutique** | Le modèle économique de boot.dev en dépend ; pas le nôtre. Zéro dépense, zéro compte, zéro achat : un vocabulaire de récompense sans usage réel serait du décor. |
+
+- 🆕 **Règle d'architecture qui devient concrète ici** : `cours/sommaire` a besoin de la progression
+  que `cours/quiz` (E2-ST3) produit. Elle passe par un service de **`core/progression/`** que les
+  deux injectent — **aucune feature n'importe une autre feature**. C'est la seule règle de l'état de
+  l'art frontend 2026 qui manquait encore au dépôt ; détail dans
+  `docs/architecture/stack-et-architecture.md`.
 
 ---
 
@@ -1035,6 +1061,34 @@ actuels qui laisseraient passer une CSP permissive d'une forme non listée. C'es
 proche de ce que le site enseigne : publier une leçon sur les en-têtes avec ce trou ouvert serait
 exactement l'incohérence que `.claude/rules/security.md` interdit. À faire dans le lot qui précède
 E3-ST1, pas pendant.
+
+### E3-ST0 — Rattrapage d'archivage : le site du cours a été complété *(⬜ — préalable au bloc A)*
+
+- **Origine** : signalé par le propriétaire le **2026-08-17**. Lors de la passe `/archiviste` qui a
+  produit les fiches de `KnowledgeBase/web/securite/`, **le site de l'enseignant n'était pas
+  terminé** — il manquait des diapositives et des notes, ce qui a laissé des **trous dans les fiches
+  sources**. L'enseignant a depuis mis en ligne une grande partie (ou la totalité) du contenu
+  manquant.
+- **Sources** :
+  - <https://www.alexandrepetrin.ca/securisation-des-applications-web/> — le cours 420-B10-HU lui-même
+  - <https://www.alexandrepetrin.ca/php/> — le cours de PHP (les exemples de code du cours sont en PHP)
+- **Pourquoi c'est un préalable et pas une tâche de fond** : les 13 modules d'E3 sont rédigés
+  **depuis les fiches KB**. Une fiche trouée produit une leçon trouée, et le
+  `verificateur-theorie` ne peut pas inventer ce qui manque à la source. Le coût d'un rattrapage
+  après rédaction, c'est de réécrire des leçons déjà publiées.
+- **Livrable** : passe `/archiviste` sur les deux URL, **en fusion** (pas en création) sur les fiches
+  existantes de `web/securite/` ; note datée de ce qui a été ajouté, corrigé ou contredit.
+- **⚠️ Contrainte** : la KnowledgeBase est en **lecture seule sauf correction d'erreur avérée**
+  (CLAUDE.md). Une *fusion d'archivage* est le cas prévu par le skill `/archiviste` — mais tout
+  écart entre l'ancienne fiche et le nouveau matériel se **signale** ; il ne s'écrase pas en
+  silence.
+- **Portée de vérification** : si le nouveau matériel du cours contredit l'état de l'art, c'est un
+  encadré ⚠️ « ce que le cours dit vs l'état de l'art » de plus — la matière d'examen reste ce que
+  l'enseignant enseigne. C'est déjà la règle d'E3 ; le rattrapage ne fait qu'en augmenter le nombre.
+- **Gates** : fiches fusionnées sans doublon ; `docs/kb-map.md` mis à jour si la couverture change ;
+  aucun module d'E3 démarré avant que sa fiche source soit à jour.
+- **Découpe budget** : deux URL = potentiellement beaucoup de matériel. Un agent = un cours. Si le
+  cours de sécurité seul dépasse, découper par bloc de modules.
 
 ### Bloc A — Fondations & familles d'attaques *(cible : en ligne mi-septembre, J4)*
 
@@ -1083,6 +1137,20 @@ E3-ST1, pas pendant.
 - **Objectif** : passage AXE sur **toutes** les pages prerendues + parcours clavier/lecteur d'écran des 3 composants pédagogiques ; constats `fichier:ligne` ; correctifs par agents frais.
 - **Fichiers** : rapport dans `docs/audits/a11y-phase1.md` ; correctifs dans `src/`.
 - **Gates** : zéro violation AXE, WCAG 2.2 AA ; G-build après correctifs.
+- 🔴 **LIVRABLE SUPPLÉMENTAIRE — le thème clair, dette datée de la décision D-2 (2026-08-17).**
+  La bascule visuelle d'E6 livre le **sombre seul** ; le garde-fou **G5** de
+  `docs/design/direction-visuelle.md` a été amendé en conséquence et `prefers-color-scheme: light`
+  est délibérément ignoré d'ici là. **C'est ici que la dette se paie**, et elle est écrite comme un
+  livrable avec ses gates — pas comme une note dans un document, parce que le mode d'échec connu de
+  ce dépôt est précisément la dette datée sans échéance exécutable (famille de **L-007** : « un gate
+  livré n'est pas un gate câblé »).
+  - **Contenu** : second thème dessiné — *papier blueprint*, encre ambre-brûlée sur fond froid —
+    et **non** une inversion automatique du sombre (exigence historique de G5).
+  - **Gates propres** : `design:contrastes:check` vert sur **les deux** thèmes (le gate repasse de
+    33 à 66 mesures) · G-axe sur les deux thèmes · bascule manuelle persistée toujours
+    fonctionnelle (elle existe depuis E1-ST1-C, elle n'est pas à réécrire).
+  - **Si l'échéance d'octobre est menacée** : c'est cette ligne qui saute en premier, et son
+    abandon se consigne alors comme **écart assumé** dans `docs/vision.md` §S8 — jamais en silence.
 
 ### E4-ST2 — Audit sécurité (skill `/security-audit`, boucle security-auditor/reviewer/mentor)
 - **Objectif** : audit du site déployé (en-têtes effectifs, CSP réelle, absence de fuites) + revue `staticwebapp.config.json` + chaîne d'approvisionnement (G-audit, lockfile) ; le site doit exemplifier son propre cours.
@@ -1117,6 +1185,107 @@ E3-ST1, pas pendant.
 - **Objectif** : workflow GitHub Actions build+test de `api/`, déclenché sur les chemins `api/**` seulement ; pas de déploiement.
 - **Fichiers** : `.github/workflows/api-ci.yml`.
 - **Gates** : workflow vert ; zéro impact sur le pipeline frontend.
+
+---
+
+## E6 · Bascule d'identité visuelle — « Moniteur ambre »
+
+> **S'exécute APRÈS E3 bloc A**, pas avant (décision **D-3** du 2026-08-17). Le cours doit être en
+> ligne pour la mi-septembre ; l'habillage ne prend pas le chemin critique. Brief de référence :
+> [`docs/design/direction-visuelle.md`](../design/direction-visuelle.md) — qui **fait foi** et
+> contient la palette mesurée, les garde-fous G1–G11 et les quatre décisions.
+
+| ID | Objectif | Statut |
+|---|---|---|
+| E6-ST1 | Palette : primitives + jetons sémantiques + gate de contraste recalibré | ⬜ |
+| E6-ST2 | Typographie : retrait de Fraunces, police d'affichage, gate de glyphes | ⬜ |
+| E6-ST3 | Motifs : mixins carnet → mixins arcade, ambiance | ⬜ |
+| E6-ST4 | Logotype & en-têtes de module | ⬜ |
+| E6-ST5 | Vérification de bout en bout (a11y, e2e, CSP, poids) | ⬜ |
+
+**Le pari de cet épic, à vérifier plutôt qu'à supposer** : *aucun composant ne doit être touché pour
+changer de peau.* Si un composant doit l'être, c'est qu'il violait **G7** (couleur ou taille en dur)
+— c'est un **défaut à corriger et à consigner**, pas un coût normal de la bascule. Le nombre de
+composants touchés est donc la mesure de santé du design system : à rapporter en clôture.
+
+### E6-ST1 — Palette
+- **Objectif** : réécrire les 73 valeurs de `_primitives.scss` sur la gamme « moniteur ambre » ;
+  remapper les 58 jetons sémantiques de `_themes.scss` **sans renommer** ; supprimer la branche de
+  thème clair (décision D-2 — sa réintroduction est un livrable d'E4-ST1).
+- **Fichiers** : `src/styles/_primitives.scss`, `src/styles/_themes.scss`,
+  `tools/design/verifier-contrastes.mjs` (liste de paires), `src/styles/design-system.spec.ts`.
+- **Point de départ mesuré** : la table de §2 de `direction-visuelle.md` — **18 paires, 0 échec**,
+  mesurées le 2026-08-17 avec la formule du gate.
+- ⚠️ **Le piège déjà rencontré, à ne pas repayer** : le premier jet de filets (`#26343A`) mesurait
+  **1,42:1** contre le seuil **3:1** que **G7-a** rend obligatoire. Sur fond noir, un filet trop
+  discret est la faute la plus facile à commettre et elle est invisible à l'œil. Les valeurs de
+  filet se **cherchent numériquement**, jamais à vue.
+- **Gates** : `npm run design:contrastes:check` vert (33 paires recalibrées) · G-build · G-axe ·
+  G-test.
+
+### E6-ST2 — Typographie
+- **Objectif** : retirer Fraunces (2 `.woff2` + licence + `@font-face`, ~113 Ko livrés en moins) ;
+  **conserver Inter** pour le corps ; adopter une mono d'affichage pour les titres.
+- **Fichiers** : `src/styles/_polices.scss`, `public/` (fichiers de polices + licence OFL),
+  `tools/design/verifier-glyphes.mjs`, `docs/design/polices.md`.
+- 🔴 **Ordre obligatoire : mesurer AVANT d'adopter.** Une police d'affichage se passe à
+  `verifier-glyphes.mjs` (lecture réelle de la table `cmap`) **avant** d'entrer dans le dépôt. Les
+  polices pixel couvrent notoirement mal le français ; c'est ce gate qui a interdit le sous-ensemble
+  maison en E1-ST1-B, sur `œ`, `« »` et `’`. Candidats : Departure Mono, VT323, Silkscreen,
+  Press Start 2P, JetBrains Mono, IBM Plex Mono.
+- **Repli explicite si tous les candidats tombent** : une mono à large couverture traitée en
+  **capitales espacées** — le caractère vient du traitement, pas de la fonte. Ce n'est pas un échec
+  du lot, c'est une branche prévue.
+- **Contrainte inchangée** : le contenu emploie **U+00A0**, jamais U+202F ni U+2009.
+- **Gates** : `npm run design:glyphes` vert · poids des polices livrées **mesuré et rapporté**
+  (référence à battre : 196 Ko livrés / 83 Ko chargés) · G-build · G-axe.
+
+### E6-ST3 — Motifs
+- **Objectif** : remplacer le vocabulaire « carnet » par le vocabulaire arcade — `marge-carnet`,
+  tampons et marginalia sortent ; cartouche d'arcade, jauge segmentée, filet pixel entrent.
+  Ambiance (scanline, pluie de glyphes) **décorative uniquement**.
+- **Fichiers** : `src/styles/_mixins.scss`, composants n'utilisant les mixins retirés.
+- **Conservés tels quels** : `@mixin filet-horizontal` (avec son correctif **L-025** sur
+  `margin-inline: auto` — un item de grille à marge auto tombe à une largeur de zéro),
+  `@mixin focus-visible`, `marque-pedagogique($type)` (contrepartie **G7-b**, survit à
+  `forced-colors`).
+- 🔴 **G6 et G10/G11 sont bloquants ici**, et c'est le lot où on les enfreint sans le vouloir :
+  toute ambiance est `aria-hidden`, **disparaît** sous `prefers-reduced-motion`, et **ne tourne
+  jamais dans le champ de lecture d'une leçon**. Pas de terminal factice comme conteneur de prose,
+  pas de texte qui se tape tout seul, pas de « ACCESS GRANTED ».
+- ⚠️ **Rappel de l'instrumentation** : `prefers-reduced-motion` + `transition-duration: 0.01ms
+  !important` sur `*` transforme tout changement de style en micro-transition — un `getComputedStyle`
+  sec ment (**L-021**), et un style calculé juste ne prouve pas un pixel peint (**L-025**). Ce qui
+  fait foi ici est une **capture**, pas une assertion de style.
+- **Gates** : G-lint, G-test, G-build, G-axe ; **nombre de composants touchés rapporté** (cf. le pari
+  de l'épic).
+
+### E6-ST4 — Logotype & en-têtes de module
+- **Objectif** : logotype en cartouche mono capitales (décision **D-4** : identité **typographique**,
+  aucun avatar dessiné) ; en-têtes de module en cartouche d'arcade — numéro en pastille pleine, titre,
+  question-clé de la fiche KB en exergue.
+- **Fichiers** : `src/app/core/layout/`, `src/app/features/cours/lecon/`, `src/app/features/home/`.
+- ⏰ **À faire au même moment, si ce n'est pas déjà fait** : retirer la `mentionChantier`
+  (« Chantier en cours ») de `<app-carte-cours>` dans `src/app/features/home/accueil.ts` — dette
+  posée par E1-ST3, qui devient un **mensonge** dès la première leçon publiée. À E6, le bloc A est
+  en ligne : elle doit avoir disparu.
+- **Gates** : G-lint, G-test, G-build, G-axe.
+
+### E6-ST5 — Vérification de bout en bout *(agent de vérification jetable)*
+- **Objectif** : relancer la **totalité** des gates sur la peau neuve et consigner les chiffres.
+- **Gates** : `lint` · `typecheck:tools` · `test` · `build` · `a11y:axe` **zéro violation** ·
+  `e2e` · `design:contrastes:check` · `design:glyphes` · `npm audit --omit=dev` **0**.
+- 🔴 **Deux vérifications propres à CETTE bascule, qu'aucun gate existant ne couvre :**
+  1. **La CSP à hachages est sensible au CSS.** `generer-config-swa.mjs` hache les styles émis ;
+     changer toute la palette change les hachages. Un `npm run config:swa` vert **et** une
+     vérification en ligne des en-têtes servis sont exigés — « enabler ≠ enforcement » (**S-005**),
+     et un build vert ne prouve rien sur ce qui est servi (**L-004** : attendre l'*effet*, pas le
+     code de retour).
+  2. **`optimization.styles.inlineCritical: false` doit être toujours actif.** C'est ce qui empêche
+     Angular d'émettre un gestionnaire `onload` inline que la CSP stricte bloquerait — le site
+     s'afficherait alors **sans styles**. Un lot qui réécrit tout le CSS est exactement le moment où
+     cette option se fait perdre de vue.
+- **Sortie attendue** : ≤ 20 lignes, **des chiffres**, pas de logs collés.
 
 ---
 

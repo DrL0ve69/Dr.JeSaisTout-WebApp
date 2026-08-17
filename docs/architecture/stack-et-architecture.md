@@ -190,6 +190,42 @@ flowchart LR
 | `SimulationComponent` | Simulations pas-à-pas visuelles d'une attaque/défense (ex. déroulé d'un XSS, d'un CSRF), pilotées par un JSON d'étapes |
 | Rendu Markdown | Effectué **au build** (pas de parseur Markdown embarqué au runtime) — HTML sûr, coloration syntaxique précompilée |
 
+#### Organisation du code front — vérifiée contre l'état de l'art (2026-08-17)
+
+Le propriétaire a demandé si le front devait adopter **DDD** ou un autre patron d'architecture
+frontend. Réponse, après confrontation à l'état de l'art 2026 et aux fiches KB
+(`web/frontend/architecture-frontend-comparatif.md`, `web/angular/angular-fondamentaux.md`,
+`cs/architecture/clean-architecture-dotnet-ddd.md`) : **la structure actuelle est déjà celle qui est
+recommandée**, et il n'y a rien à refondre.
+
+```
+src/app/
+  core/      singletons applicatifs — thème, layout, (à venir) progression
+  features/  un dossier par domaine — home/, cours/
+  shared/    réutilisable sans état
+```
+
+C'est le patron *feature-first* / domaine : composants standalone, signaux, `OnPush`, zoneless,
+`inject()` — tout ce que `.claude/rules/angular-best-practices.md` exige est déjà en place.
+
+**Ce que le DDD tactique n'apporte PAS ici.** Agrégats, *value objects*, événements de domaine
+répondent à de la **complexité métier transactionnelle**. Un site statique prerendu sans compte ni
+serveur n'en a aucune : les importer ajouterait des couches sans problème à résoudre. Le DDD a bien
+sa place dans ce projet — dans l'**API .NET de la phase 2** (ADR-004), où la fiche KB
+`cs/architecture/clean-architecture-dotnet-ddd.md` le couvre déjà.
+
+**La seule règle de l'état de l'art qui manquait, et elle est désormais dure :**
+
+> 🔴 **Aucune feature n'importe une autre feature.** Si `features/cours/sommaire` a besoin de la
+> progression que `features/cours/quiz` produit, elle passe par un service de `core/progression/`
+> que les deux **injectent** — jamais par un import direct de l'une vers l'autre. C'est ce qui
+> empêche `features/` de redevenir un plat de spaghettis, et c'est **bloquant en revue**
+> (`code-reviewer`).
+
+Elle devient concrète immédiatement : **E2-ST3** (le quiz) écrit la progression, **E2-ST6** (le
+sommaire) la lit. C'est le premier couple de features du dépôt à partager un état — donc le premier
+endroit où la règle se gagne ou se perd.
+
 ### Phase 2 — ajout de l'API .NET
 
 ```mermaid

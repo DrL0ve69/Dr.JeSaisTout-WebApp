@@ -3,6 +3,19 @@
 > Fichiers versés au dépôt le **2026-08-04** (E1-ST1 · ST1-B). Ce document existe pour qu'on puisse
 > **refaire** l'opération et **vérifier** que rien n'a bougé, sans avoir à se souvenir de quoi que ce
 > soit. Les commentaires de `src/styles/_polices.scss` disent *pourquoi* ; ce fichier dit *d'où*.
+>
+> ⚠️ **2026-08-17 — la bascule de direction visuelle change la moitié de ce document.** Décision
+> D-1 (`docs/design/direction-visuelle.md`) : **Fraunces sera retirée** en **E6-ST2** (une serif à
+> graisses optiques est l'opposé d'un moniteur ambre ; ~113 Ko livrés en moins), et remplacée par une
+> **mono d'affichage** encore à choisir. **Inter est conservée** — c'est précisément parce qu'elle est
+> déjà passée au gate de glyphes qu'elle survit à la bascule.
+>
+> Tout ce que ce document dit de la **procédure** et du **gate** reste vrai, et devient plus
+> important, pas moins : les polices pixel/arcade couvrent notoirement mal le français.
+> **Aucune police d'affichage n'entre dans le dépôt sans être passée à
+> `tools/design/verifier-glyphes.mjs` D'ABORD** — c'est lui qui a interdit le sous-ensemble maison,
+> sur `œ`, `« »` et `’`. La contrainte de rédaction (**U+00A0**, jamais U+202F ni U+2009) ne bouge
+> pas tant qu'Inter porte le corps de texte, et sera **remesurée** sur la police d'affichage retenue.
 
 ## Pourquoi ces fichiers sont dans le dépôt
 
