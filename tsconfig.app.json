@@ -11,6 +11,28 @@
     // les seuls tests. Tenu par `src/configuration-typescript.spec.ts`.
     "types": []
   },
-  "include": ["src/**/*.ts"],
+  // `tools/content-pipeline/types.d.ts` EST LE CONTRAT DU CONTENU COMPILÉ, et il entre
+  // ici NOMINATIVEMENT (E2-ST2, lot A). Il décrivait déjà la sortie du pipeline pour le
+  // programme OUTILLAGE ; l'application, elle, ne le voyait pas — donc tout composant qui
+  // aurait consommé ce JSON aurait redéclaré sa forme, et les deux copies auraient dérivé
+  // au premier champ ajouté (L-016). Une seule déclaration, trois programmes : `tools`,
+  // `app`, `spec`.
+  //
+  // POURQUOI CETTE VOIE PLUTÔT QU'UN FICHIER DE CONTRAT SOUS `src/`. Le `.d.ts` ne porte
+  // QUE des déclarations globales (ni `import`, ni `export`) — c'est ce qui rend
+  // `BlocContenu` et `LeconCompilee` visibles de `compiler-markdown.mjs` sans import, et
+  // c'est écrit noir sur blanc dans son en-tête. Déplacer la définition sous `src/` en
+  // laissant ici un ré-alias `import('…')` couperait la documentation normative (la note
+  // du bloc `mermaid`, qui AUTORISE un `bypassSecurityTrustHtml`) de son site de
+  // définition. On préfère un seul fichier, cité trois fois.
+  //
+  // CE QUE ÇA COÛTE, ET ON L'ASSUME : les types du contrat sont AMBIANTS dans
+  // l'application (pas d'`import` au point d'usage). Contrepartie bornée — ce sont des
+  // formes de données pures, sans surface d'exécution, contrairement aux `@types/*` que
+  // `"types": []` ci-dessus continue d'exclure. Chaque composant qui les emploie NOMME
+  // ce fichier en commentaire. Que ces deux entrées soient réellement compilées est
+  // épinglé par `src/configuration-typescript.spec.ts` : les retirer d'ici seulement
+  // laisserait `npm test` vert et casserait `ng build` un lot plus tard.
+  "include": ["src/**/*.ts", "tools/content-pipeline/types.d.ts"],
   "exclude": ["src/**/*.spec.ts"]
 }

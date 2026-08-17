@@ -10,5 +10,9 @@
     // — ce qui casserait le prerender.
     "types": ["vitest/globals", "node"]
   },
-  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
+  // `tools/content-pipeline/types.d.ts` : même entrée nominative que dans
+  // `tsconfig.app.json` (E2-ST2, lot A — le raisonnement complet y est écrit). Sans elle,
+  // les fixtures d'AST des specs seraient typées `any` sous un `ng test` vert : c'est
+  // TypeScript qui garde ces fixtures conformes au contrat, pas une relecture (L-005).
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts", "tools/content-pipeline/types.d.ts"]
 }

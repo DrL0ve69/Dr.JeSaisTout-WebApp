@@ -17,7 +17,14 @@
 // console, pour une page qui reste un 404 aux yeux du réseau. Le `**` seul donne
 // un 404 cohérent des deux côtés.
 //
-// ⚠️ CE QU'E2-ST2 DEVRA FAIRE, sans quoi AUCUNE leçon ne sera prerendue — le
+// ✅ C'EST FAIT (E2-ST2, lot B) — la route paramétrée est ci-dessous, en
+// `RenderMode.Prerender`, avec son `getPrerenderParams()`. Le paragraphe qui suit
+// est conservé parce qu'il dit POURQUOI, et parce que chacune de ses contraintes
+// tient encore : ne pas filtrer, ne pas retomber sur `Client`, garder l'entrée
+// AVANT le `**`. Le manifeste vaut `[]` tant que `content/` est vide (jusqu'à
+// E3-ST1) : zéro leçon prerendue est alors le résultat NORMAL, pas une panne.
+//
+// ⚠️ CE QU'E2-ST2 DEVAIT FAIRE, sans quoi AUCUNE leçon ne serait prerendue — le
 // site perdrait sa lisibilité sans JS sur l'essentiel de son contenu :
 // réintroduire `cours/securite-web/:slug` DES DEUX CÔTÉS, ici en
 // `RenderMode.Prerender` **avec** un `getPrerenderParams()` alimenté par
@@ -47,7 +54,19 @@
 
 import { RenderMode, ServerRoute } from '@angular/ssr';
 
+import { manifesteLecons } from './features/cours/contenu-compile';
+import { parametresDePrerender } from './features/cours/lecon/navigation-lecon';
+
 export const serverRoutes: ServerRoute[] = [
+  {
+    // AVANT le `**`, sans quoi elle ne serait jamais atteinte (voir l'en-tête).
+    // `getPrerenderParams` rend UN objet par entrée du manifeste, sans filtrage :
+    // le raisonnement est dans `navigation-lecon.ts`, et il tient à ce que la
+    // leçon-témoin du pipeline vit hors de `content/`.
+    path: 'cours/securite-web/:slug',
+    renderMode: RenderMode.Prerender,
+    getPrerenderParams: () => Promise.resolve(parametresDePrerender(manifesteLecons)),
+  },
   {
     path: '**',
     renderMode: RenderMode.Prerender,

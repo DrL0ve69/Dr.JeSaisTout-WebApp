@@ -76,7 +76,8 @@ par le motif d'analyse — tout écart est une infraction fail-closed, même qua
 individuelle est par ailleurs correctement traitée. L'inconnu doit être **compté**, pas seulement
 analysé : « je refuse tout ce que je vois » ne protège rien si voir peut échouer en silence.
 S'applique au-delà de ce script — candidat direct : tout futur validateur du pipeline
-Markdown/JSON de `content/` (E2), qui analysera lui aussi une entrée non fiable par motif.
+Markdown/JSON de `content/` (E2), qui analysera lui aussi une entrée non fiable par motif. Variante
+« périmètre déclaré vs périmètre balayé » (fichier unique promis comme « le site ») : [[S-010]].
 **Volet placement, ajouté en E2-ST1** : voir tout aussi si le garde-fou tourne **du tout** sur le
 chemin d'exécution réel. `rendre-mermaid.mjs` portait un recomptage de motifs interdits et un
 contrôle d'unicité d'identifiants, mais uniquement dans son harnais CLI `--racine` — jamais appelé
@@ -210,3 +211,28 @@ correctif disponible dans le dépôt : `rendre-mermaid.mjs` (jsdom + liste blanc
 ancien `tools/a11y/verifier-axe.mjs`.
 **Réfs.** `tools/content-pipeline/rendre-mermaid.mjs`, `tools/content-pipeline/types.d.ts`,
 `.claude/rules/security.md` §1/§4, `docs/agile/backlog-phase-1.md` §E2-ST1.
+
+## S-010 · Un garde-fou doit couvrir exactement le périmètre que sa promesse énonce, avec un contrôle positif prouvant qu'il l'a réellement lu (A05 · WSTG-CONF)
+
+**Symptôme.** `rendu-blocs.ts` affirmait « **L'UNIQUE `bypassSecurityTrustHtml` DU SITE** », mais le
+garde-fou vivait dans `rendu-blocs.spec.ts` et n'appariait `bypassSecurityTrust\w*\(` que **dans ce
+seul fichier** — la promesse parlait du site, la vérification d'un fichier. Le correctif, un
+garde-fou de dépôt entier (`src/garde-fou-contournements-sanitizer.spec.ts`), a **reproduit la même
+faute dans le même geste** : il ne balayait que les `.ts`, alors que ce dépôt appelle aussi le
+sanitizer depuis des gabarits externes (`src/app/app.html`) — un `bypassSecurityTrustHtml` posé dans
+un `.html` serait passé inaperçu, promesse « tout le code applicatif », lecture de la moitié. C'est
+une revue de sécurité qui l'a vu, pas l'auteur du correctif.
+**Règle.** Quand une promesse emploie « le site », « tout », « aucun », le balayage doit couvrir
+**exactement** ce périmètre (ici : `lintFilePatterns` d'`angular.json`, `.ts` **et** `.html`) et
+porter un **contrôle positif dédié** — une fixture qui prouve qu'un `.html` réel est bien lu, pas
+seulement les `.ts` — sinon un balayage vide ou incomplet reste vert indéfiniment : seul un contrôle
+positif distingue « rien trouvé » de « rien regardé ». En **élargissant** un garde-fou existant,
+premier réflexe systématique : quel format de fichier, quelle syntaxe, quel chemin d'appel le
+nouveau balayage laisse-t-il encore dehors — c'est précisément là que la récidive s'est logée ici.
+Valider par mutation (faux contournement injecté dans chaque format couvert, doit rougir en nommant
+le fichier). Troisième occurrence de la famille [[S-003]] (garde-fou qui doit prouver avoir tout vu)
+/ [[S-009]] (justification qui promet plus que le code n'applique) : nommer l'invariant plutôt que
+d'empiler un quatrième cas.
+**Réfs.** `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts`,
+`src/garde-fou-contournements-sanitizer.spec.ts`, `angular.json` (`lintFilePatterns`),
+`.claude/rules/security.md` §4, `docs/agile/backlog-phase-1.md` §E2-ST2.

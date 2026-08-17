@@ -17,33 +17,19 @@ Projet: "C:\Users\phili\ProjetsPortfolio\2026\Dr.JeSaisTout-WebApp"
 6. La priorité est sur mon cours de sécurité des applications web que je dois reprendre de aout à octobre (laisse les autres sujets de côté, sauf si tu consultes comme sources théoriques). Donc, le but serait en priorité le contenu en lien avec la sécurié des applications web tout construisant l'app de manière à ce que celle-ci respectent les divers normes et principes de l'industrie web. Une fois le plan system design + frontend design sont en place, une simple page home avec un lien vers le contenu du premier sujet (sécurité des applications web).
 
 
-Reprise :
-  Le garde-fou, testé plutôt que supposé
+***
+ 
+  1. Pour t'aider avec comment pourrait fonctionner le site (features, backend-frontend, user friendlyness) et pour le frontend design tu peux te baser/t'inspirer sur des applications comme bootdev ou duolingo/alloprof (ou autre app populaire qui implémente l'aspect jeux vidéo pour apprendre et autres techniques pédagogiques innovatrices et interactives).
+ 
+  2. D'ailleurs sur le sujet et ça ne presse pas pour l'instant, mais j'aime beaucoup l'aspect visuel de bootdev (aspect jeux vidéo médiévale/world of warcraft). Leurs site est vraiment beau esthétiquement (couleurs, animations, emplacements des sections/items) mais est aussi très user friendly et convient à un jeune public et aux adultes dans le domaines. J'aimerais que mon app se base spécialement sur celui-ci pour le frontend design en particulier mais avec une légère twist sur la thématique ; plutôt que le style world of warcraft/médiéval, j'aimerais un style qui incorpore le retro arcade et matrix(le film). Tu devras probablement modifier le plan établit pour y arriver et mettre à jour ce qui sera à faire et retirer des décisions anciennes et maintenant obsolètes ou erronées dû au changement de direction. 
 
-  Il casse le build (code 1) si la sortie prerendue contient un gestionnaire inline, un script inline exécutable ou un
-  attribut style. J'ai d'abord cru l'avoir validé, à tort : mon premier test réactivait inlineCritical alors que
-  styles.scss était quasi vide — il n'y avait donc rien à inliner et le garde-fou ne pouvait pas se déclencher. En
-  reproduisant avec du CSS global réel, il attrape le onload sur les deux pages et nomme la cause.
+  3. Bref, avec ce que je viens d'écrire il se pourrait que tu doives revenir sur certains choix (backend & frontend surtout probablement => couleurs, police, logo, carnet, architecture visuel/esthétique & architecture front-end design basé sur les meilleurs pratiques angular ou concept adapté à mon site tel que DDD ou autres concepts architectural du frontend. J'oublie probablement certains aspects alors assure-toi de rechercher les meilleurs pratiques adaptés à mon application autant sur le web que dans la knowledgebase et base toi sur les applications mentionnés et autres application que tu perçois comme utile dans mon contexte).
 
-  Le point que je n'ai pas pu clore
+  4. Le site web du cours de sécurité & php pour lesquels j'étudie en ce moment n'était pas encore terminé lors de la passe du /archiviste et donc cela a résulté avec plusieurs trou. L'enseignant a mis une grande partie à jour (ou complètement à jour => ne manque plus de diapo ou note). Il faudrait considérer y refaire une passe pour prendre compte des ajouts et modifications. "https://www.alexandrepetrin.ca/securisation-des-applications-web/", "https://www.alexandrepetrin.ca/php/".
 
-  Le constat navigateur reste non fait : Chrome n'atteint pas localhost depuis l'onglet piloté — trois tentatives, deux
-  ports. Ce qui reste non vérifié est précis : qu'aucune violation CSP ne frappe <script id="ng-state"
-  type="application/json">, dont dépend l'hydratation. Les en-têtes sont vérifiés ; le comportement du navigateur ne
-  l'est pas. C'est consigné comme tel dans le backlog et docs/deployment.md, à lever en E0-ST4 sur l'URL Azure.
+  5. J'ai manqué de crédit lors de la dernière session mais tu devrais avoir une note de reprise ou un pointer. Avant de reprendre le /feature-cycle que tu avais peut-être débuté ou autres tâches de la dernière session je veux que tu t'assures de modifier le plan ou bien garder en mémoire les points mentionnés. Par la suite j'imagine que tu peux compléter ton boulot que tu avais débuté si celui-ci ne contrevient pas au nouveau plan établit ou entâmer la tâche/cycle suivante considérant le nouveau plan établit.
 
-  Si tu veux le lever tout de suite : relance l'émulateur avec npm run build && npx swa start
-  dist/dr-je-sais-tout/browser --swa-config-location dist/dr-je-sais-tout/browser, ouvre http://localhost:4280/ toi-même
-  et regarde la console — une violation CSP y serait explicite.
-
-  État git
-
-  Toujours rien de commité depuis l'initial commit du scaffold ; nouveaux dossiers config/, content/, tools/, plus
-  docs/deployment.md et eslint.config.js.
-
-  Reste E0-ST4 : les deux workflows GitHub Actions et le premier déploiement. Il te faudra créer la ressource SWA Free
-  et le secret AZURE_STATIC_WEB_APPS_API_TOKEN — je peux écrire les workflows en attendant. Je continue ?
-
+***
   
 
 

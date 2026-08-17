@@ -2,135 +2,189 @@
 
 > Objectif : un site **distinctif, moderne, interactif** — l'antithèse du « AI-slop » (dégradés
 > violets, glassmorphism réflexe, cartes arrondies interchangeables, emojis en guise d'icônes).
-> Le personnage : **Dr. Je-Sais-Tout**, savant sympathique — érudit, un brin théâtral, jamais
-> infantilisant. Le public est cégep/universitaire : on vise la complicité intelligente, pas le
-> gimmick enfantin.
+> Le public est cégep/universitaire : on vise la complicité intelligente, pas le gimmick enfantin.
 >
-> Ce document fixe la direction et les garde-fous ; il sert de brief à l'implémentation (E1).
->
-> ⚠️ **Corrigé le 2026-08-04** — les versions précédentes renvoyaient la maquette à un skill
-> `frontend-design` qui **n'existe pas** (constat C1, `docs/revue-plan-kb-2026-08-04.md`). La
-> méthode d'exploration retenue à sa place est décrite dans le backlog, sous-tâche **E1-ST3**, et
-> s'appuie sur les fiches KB `web/frontend/principes-design-visuel.md` et
-> `ai/agents/claude-code/design-ui.md`.
+> Ce document fixe la direction et les garde-fous. Il **prévaut sur les goûts du moment** : toute
+> dérive détectée en revue (`code-reviewer`) se juge contre les garde-fous G1–G9 ci-dessous.
 
 ---
 
-## 1 · Trois directions candidates
+## 0 · ⚠️ BASCULE DE DIRECTION — 2026-08-17
 
-### A — « Carnet de laboratoire » *(recommandée — voir §2)*
+**La direction « Carnet de laboratoire » est abandonnée.** Le propriétaire a tranché une nouvelle
+direction le 2026-08-17 : la **structure produit de boot.dev** (apprentissage jalonné, carte de
+parcours, progression visible) habillée en **rétro-arcade + Matrix**, en lieu et place du registre
+médiéval/WoW de boot.dev.
 
-L'esthétique d'un carnet de recherche tenu par un savant méticuleux : papier structuré, annotations,
-schémas à main levée précise, tampons et marginalia. Sérieux dans le fond, chaleureux dans la forme.
+Ce que ce document dit d'important sur cette bascule, et qu'il ne faut pas relire de travers :
 
-| Axe | Proposition |
-|---|---|
-| Ambiance | Papier ivoire/os (clair) et ardoise encrée (sombre) ; grille apparente discrète (règlure de carnet) ; encre comme couleur d'action |
-| Typographie | Titres : une **serif à caractère** (ex. Fraunces ou équivalent open source, graisses optiques marquées) ; corps : sans-serif humaniste lisible (ex. Inter/Source Sans) ; code : mono soignée avec ligatures désactivables |
-| Couleur | Encre bleu-noir profonde + **un accent « encre rouge de correction »** pour le vulnérable et un vert d'annotation pour le corrigé — la sémantique vulnérable/corrigé devient la signature chromatique du site |
-| Motifs signature | Encadrés « ⚠️ note du Dr. » façon marginalia ; numéros de modules en tampons ; diagrammes style schéma de labo (traits nets, hachures) ; séparateurs en règlure |
-| Risque | Tomber dans le vintage poussiéreux → contrer par une mise en page très contemporaine (grille asymétrique, blancs généreux, micro-interactions nettes) |
+1. **La direction B « Console clinique » avait été ÉCARTÉE en 2026-08, et elle est RÉHABILITÉE.**
+   Les motifs du rejet sont consignés en §1 et restent des risques réels — ils ne disparaissent pas
+   parce que la décision a changé ; ils deviennent des **garde-fous à tenir** (G10, G11).
+2. **La mécanique du design system ne bascule pas.** Les trois couches
+   (`primitives → sémantiques → composants`) sont exactement ce qui rend la bascule abordable :
+   ce sont les **valeurs** et les **motifs** qui tombent, pas l'architecture. Voir §5 pour
+   l'inventaire de ce qui survit.
+3. **La bascule est PLANIFIÉE, pas immédiate** : elle s'exécute **après le premier bloc de leçons**
+   (E3 bloc A), sous l'épic **E6** du backlog. Le contenu garde le chemin critique de l'échéance de
+   mi-septembre (critère S2 de `docs/vision.md`). Écrire du composant neuf d'ici là est sans risque
+   *à condition* de ne consommer que des jetons sémantiques (G7) — c'est déjà la règle.
 
-### B — « Console clinique »
+---
 
-L'univers du terminal et de l'audit de sécurité, assumé mais raffiné : fonds sombres par défaut,
-mono en vedette, accents phosphore.
+## 1 · Historique des directions — pourquoi celle-ci, et ce qu'elle traîne
 
-| Axe | Proposition |
-|---|---|
-| Ambiance | Sombre dominant, panneaux mats (pas de glass), lignes de scan subtiles |
-| Typographie | Mono d'affichage pour les titres, sans-serif neutre pour le corps |
-| Couleur | Noir bleuté + vert phosphore/ambre en accents ; rouge réservé au « vulnérable » |
-| Motifs signature | Prompts `$` comme puces, sorties d'outils stylisées, badges CVSS |
-| Risque | Cliché « hacker » vu partout ; thème clair peu naturel ; intimidant pour la phase 3 (sujets non-sécurité) — **écartée** pour ces raisons |
+| Direction | Statut | Ce qu'il faut en retenir |
+|---|---|---|
+| **A — Carnet de laboratoire** | **Abandonnée le 2026-08-17** | Papier ivoire / ardoise encrée, serif Fraunces, marginalia, tampons. Implémentée en E1 et **en production aujourd'hui**. Sa signature pédagogique — encre rouge = vulnérable, vert d'annotation = corrigé — est le seul élément qui **survit intact** et qui pilote la palette neuve (§2). |
+| **B — Console clinique** | **Réhabilitée, devient la base** | Terminal, mono en vedette, accents phosphore. Écartée en août pour trois motifs : « cliché hacker vu partout », « thème clair peu naturel », « intimidant pour la phase 3 (sujets non-sécurité) ». **Les trois sont toujours vrais** → ils deviennent G10, la décision D-2 (§4) et une contrainte de phase 3 à ne pas oublier. |
+| **C — Cabinet de curiosités** | Écartée (coût illustratif) | Son coût — un fonds d'illustrations sur mesure pour un dev solo — est la raison pour laquelle l'identité reste **typographique** et non incarnée par un avatar dessiné (décision D-4, §4). |
 
-### C — « Cabinet de curiosités moderne »
+## 2 · Direction retenue : **Moniteur ambre**
 
-Musée personnel du savoir : chaque module est une « pièce de collection » avec cartel, illustrations
-gravure revisitées, palette riche.
+L'univers : un **terminal à phosphore ambre** dans une salle de machines — le croisement du
+moniteur d'époque, de la borne d'arcade et de l'imagerie de *Matrix*. Sombre, net, sans
+ornement gratuit.
 
-| Axe | Proposition |
-|---|---|
-| Ambiance | Fonds profonds (vert bouteille/bordeaux), cadres fins, compositions muséales |
-| Typographie | Didone élégante pour les titres, sans-serif pour le corps |
-| Couleur | Palette de musée : verts profonds, ocres, laiton |
-| Motifs signature | Cartels d'exposition, numérotation en plaques, gravures détournées |
-| Risque | Très exigeant en illustrations sur mesure pour un dev solo ; peut paraître décoratif plutôt que pédagogique — **écartée** (coût illustratif), mais ses cartels inspirent les en-têtes de modules |
+**Le choix structurant, et il est pédagogique avant d'être esthétique : la couleur de marque est
+l'AMBRE, pas le vert.**
 
-## 2 · Direction retenue : **A — Carnet de laboratoire**
+> Le vert est **déjà pris** : il veut dire « corrigé ». La signature du site est
+> **rouge = vulnérable / vert = corrigé** ; elle est portée par `--couleur-danger-vuln` et
+> `--couleur-ok-fixed`, elle structure le `CodeCompareComponent` (E2-ST4), et c'est le seul code
+> couleur qu'un étudiant doit retenir sans effort. Un vert phosphore *de marque* — bordures, titres,
+> boutons, pluie de glyphes — le diluerait jusqu'à ce que le vert ne **signale** plus rien.
+> C'est la stricte application d'une règle que ce document portait déjà : « l'encre rouge ne sert
+> jamais d'ornement, sous peine de diluer sa valeur de signal ».
+>
+> L'ambre est *l'autre* phosphore historique des moniteurs et la couleur des marquees d'arcade. Il
+> atteint AAA sur noir sans effort, il ne fatigue pas en lecture longue, et il **laisse rouge et
+> vert entièrement disponibles pour la pédagogie**. Le rappel *Matrix* passe alors par le **motif** —
+> pluie de glyphes, scanlines, noir profond, cadence typographique — jamais par la teinte dominante.
 
-Pourquoi elle gagne :
+### Palette d'amorçage — **mesurée**, pas supposée
 
-- **Cohérente avec le personnage** : le carnet est l'attribut naturel du savant sympathique —
-  crédible pour un public cégep/universitaire, extensible aux futurs sujets (phase 3) là où la
-  console (B) enfermerait le site dans la sécurité.
-- **Signature chromatique pédagogique** : encre rouge = vulnérable, vert d'annotation = corrigé.
-  Le design system porte littéralement la pédagogie (`CodeCompareComponent`).
-- **Soutenable en solo** : la marginalia, les tampons et les schémas à traits se font en
-  SVG/CSS ; pas besoin d'un fonds d'illustrations comme C.
-- **Deux thèmes naturels** : papier ivoire (clair) / ardoise encrée (sombre) — aucun des deux n'est
-  un « mode inversé » de l'autre.
+Valeurs de départ pour E6, mesurées le 2026-08-17 avec la formule de
+`tools/design/verifier-contrastes.mjs` : **18 paires, 0 échec**. Elles ne sont pas définitives —
+le gate reste le juge, sur ses 33 paires — mais elles partent d'un état vert.
 
-Éléments d'identité à décliner (E1, selon la méthode d'exploration d'E1-ST3) :
+| Rôle | Valeur | Mesure notable |
+|---|---|---|
+| `fond` | `#06080A` | — |
+| `surface` | `#0F1619` | 1,10:1 sur `fond` — **voisin par conception**, voir G7-a |
+| `surface-creuse` | `#0B1114` | 1,04:1 sur `surface` — idem |
+| `filet` | `#5E6A70` | **3,60:1 / 3,28:1** sur fond et surface — au-dessus du seuil 3:1 de G7-a |
+| `filet-vif` | `#8AA0A8` | 6,68:1 sur surface |
+| `texte` | `#D6E2E6` | **15,17:1** sur fond (AAA) |
+| `texte-faible` | `#8CA1AA` | 7,44:1 / 6,78:1 (AAA sur fond) |
+| **`marque` (ambre)** | `#FFB454` | **11,38:1** sur fond (AAA) ; `fond` sur ambre plein : 11,38:1 |
+| `marque-sourde` | `#A97129` | 4,85:1 — pour les traits d'accent, pas pour du texte fin |
+| **`danger-vuln`** | `#FF5C57` | 6,61:1 / 6,02:1 |
+| **`ok-fixed`** | `#4ADE80` | 11,51:1 / 10,49:1 (AAA) |
+| `info` | `#5BC8E8` | 10,39:1 (AAA) |
 
-1. Logotype « Dr. Je-Sais-Tout » typographique (serif + tampon), pas de mascotte cartoon.
-2. En-têtes de module façon page de garde de carnet : numéro tamponné, titre serif, question-clé de
-   la fiche KB en exergue.
-3. Encadrés sémantiques : « note du Dr. » (marginalia), « ⚠️ cours vs état de l'art » (encre rouge),
-   « à retenir » (surligneur discret).
-4. Micro-interactions : transitions brèves et physiques (rien de flottant/parallaxe gratuit),
-   états de quiz nets (juste/faux = annotation, pas confetti).
+⚠️ **Le premier jet a échoué et c'est ce qui rend cette table crédible** : les filets proposés à vue
+(`#26343A`) mesuraient **1,42:1** — très en dessous du 3:1 que G7-a rend *obligatoire*. Ils ont été
+recherchés numériquement, pas ajustés à l'œil. Un filet trop discret est la faute la plus facile à
+commettre sur fond noir, et c'est exactement celle que G7-a existe pour attraper.
+
+### Typographie
+
+| Rôle | Décision | Contrainte |
+|---|---|---|
+| Corps | **Inter — conservée** | Déjà auto-hébergée et **déjà passée au gate de glyphes** (80 vérifications, `œ` / `« »` / `’` couverts). La conserver supprime tout le lot « polices » de la bascule. |
+| Affichage / titres | **Une mono d'affichage en capitales espacées**, famille à choisir | **Fraunces est retirée** (~113 Ko livrés en moins). Candidats à *mesurer avant adoption* : Departure Mono, VT323, Silkscreen, Press Start 2P, JetBrains Mono, IBM Plex Mono. |
+| Code | mono, inchangée dans son rôle | Coloration précompilée Shiki, déjà en place. |
+
+🔴 **Aucune police d'affichage n'entre sans être passée à `tools/design/verifier-glyphes.mjs`
+D'ABORD.** Les polices pixel couvrent notoirement mal le français ; le gate lit la vraie table
+`cmap` et échoue sur un `œ`, un `« »` ou une apostrophe `’` manquants. C'est déjà lui qui a interdit
+le sous-ensemble maison en E1-ST1-B. **Repli sûr si tous les candidats tombent** : une mono à large
+couverture, traitée en capitales espacées — le caractère vient alors du *traitement*, pas de la
+fonte.
+
+⚠️ La contrainte de rédaction née d'E1-ST1-B **ne change pas** : le contenu emploie **U+00A0** et
+jamais U+202F ni U+2009. Détail : [`polices.md`](polices.md).
+
+### Motifs signature
+
+- **Cartouche d'arcade** : en-tête de module en encadré mono, numéro en pastille pleine.
+- **Jauge segmentée** : la progression se lit en segments discrets (pixels), pas en barre lisse.
+- **Filet pixel** : les blocs se bornent par un trait net ; aucun rayon d'arrondi générique.
+- **Scanline / pluie de glyphes** : ambiance, **décor uniquement**, toujours `aria-hidden`, toujours
+  neutralisée par `prefers-reduced-motion` (G6). Jamais porteuse d'information.
+- **Identité typographique, pas d'avatar** (décision D-4) : le logotype est un cartouche mono en
+  capitales. « Dr. Je-Sais-Tout » reste le nom ; son incarnation devient l'**opérateur** derrière la
+  console, pas un personnage dessiné.
 
 ## 3 · Garde-fous « anti AI-slop » (bloquants en revue)
 
 | # | Règle |
 |---|---|
-| G1 | **Pas de dégradés violets génériques** ni de duos indigo→rose ; les dégradés, rares, restent dans la gamme encre/papier |
-| G2 | **Pas de glassmorphism par défaut** (blur/transparence réflexe) ; les surfaces sont mates et structurées |
-| G3 | **Typographie affirmée** : hiérarchie marquée (serif de caractère en display), jamais la stack système par défaut faute de décision |
-| G4 | **Illustrations et diagrammes cohérents** : un seul langage graphique (traits de carnet) ; pas d'icônes dépareillées, **pas d'emojis** en guise d'iconographie UI |
-| G5 | **Thème clair + sombre** dès E1, tous deux dessinés (pas d'inversion automatique) ; respect de `prefers-color-scheme` avec bascule manuelle persistée |
-| G6 | **`prefers-reduced-motion` respecté** : toute animation a une variante réduite ; les simulations pas-à-pas restent pilotables sans animation |
-| G7 | **Jetons sémantiques SCSS** obligatoires (`--color-surface`, `--color-ink`, `--color-danger-vuln`, `--color-ok-fixed`, échelles espacement/typo) ; aucune couleur ou taille en dur dans les composants. **Un bloc se délimite par un trait, jamais par sa seule teinte de fond** — voir §4 |
-| G8 | Contraste et focus : AA minimum partout (viser AAA pour le corps de texte), focus visible dessiné (pas l'outline supprimé) — cohérent avec la barre WCAG 2.2 AA / zéro violation AXE |
-| G9 | Le sombre n'est pas « noir + couleurs criardes » : ardoise encrée, accents désaturés recalibrés |
-
-## 4 · Mise en œuvre
-
-- Les jetons vivent dans le design system SCSS (E1-ST1 du backlog) : couches `primitives →
-  sémantiques → composants`, exposés en custom properties CSS pour le theming clair/sombre.
-- La home (E1) est la première application complète de la direction : elle passe par l'exploration
-  visuelle décrite en E1-ST3 avant implémentation, et sert de référence visuelle aux pages de
-  leçon (E2).
-- **G2 est fondé, pas seulement affaire de goût** : `web/frontend/principes-design-visuel.md`
-  recommande la « depth » (texture, glassmorphism subtil) — mais tranche dans le même sens que nous
-  sur le cas qui nous occupe, en excluant ces effets des produits « où la clarté et la vitesse de
-  scan priment ». Un site de cours est un produit de lecture.
-- **Polices auto-hébergées obligatoirement** (CSP `font-src 'self'`, aucun hôte externe) : c'est un
-  livrable d'E1-ST1, avec vérification du sous-ensemble de glyphes sur du français réel (accents,
-  **œ**, guillemets **« »**). Tant qu'il n'est pas fait, G3 reste en écart assumé.
-- Toute dérive détectée en revue (`code-reviewer`) se juge contre les garde-fous G1–G9 de ce
-  document, qui prévaut sur les goûts du moment.
+| G1 | **Pas de dégradés décoratifs** (violets génériques, duos indigo→rose, néons dégradés). Les surfaces sont plates ; la lueur (`text-shadow`/`box-shadow` ambré) est admise **ponctuellement** sur la couleur de marque, jamais sur du corps de texte. |
+| G2 | **Pas de glassmorphism** (blur/transparence réflexe) ; surfaces mates et structurées. Fondé, pas affaire de goût : voir §5. |
+| G3 | **Typographie affirmée** : hiérarchie marquée (mono d'affichage en capitales espacées), jamais la stack système par défaut faute de décision. |
+| G4 | **Un seul langage graphique** — le trait net et le pixel. Pas d'icônes dépareillées, **pas d'emojis** en guise d'iconographie UI. |
+| G5 | **Thème sombre seul en phase 1** *(amendé le 2026-08-17 — voir D-2 §4)*. Le thème clair est une **dette datée**, à honorer en E4-ST1 ; d'ici là `prefers-color-scheme: light` est délibérément ignoré et cet écart est assumé par écrit. |
+| G6 | **`prefers-reduced-motion` respecté** : toute animation a une variante réduite. Les simulations pas-à-pas restent pilotables sans animation ; la pluie de glyphes et les scanlines **disparaissent**. |
+| G7 | **Jetons sémantiques SCSS obligatoires** ; aucune couleur ou taille en dur dans les composants. **Un bloc se délimite par un trait, jamais par sa seule teinte de fond** — voir G7-a. |
+| G8 | Contraste et focus : AA minimum partout (**viser AAA pour le corps** — la palette §2 le tient largement), focus visible dessiné. Barre WCAG 2.2 AA / zéro violation AXE. |
+| G9 | Le sombre n'est pas « noir + couleurs criardes » : fond froid, accents recalibrés, **une seule** couleur de marque. La saturation se dépense à un seul endroit. |
+| **G10** | **🆕 Le cliché « hacker » est un risque, pas une esthétique.** Motif de rejet historique de la direction B, toujours valide. Interdits : cascades de `0`/`1` en fond de contenu, « ACCESS GRANTED » et vocabulaire de film, texte qui se tape tout seul dans une zone de lecture, terminal factice comme conteneur de prose. L'univers est un **cadre**, jamais un déguisement du contenu. |
+| **G11** | **🆕 La lecture prime sur le jeu.** Ce site est un produit de lecture avant d'être un jeu : sur une page de leçon, le corps de texte, son interligne et sa largeur de ligne ne sont **jamais** sacrifiés à un effet. Aucun effet ambiant ne tourne dans le champ de lecture. |
 
 ### Deux règles de conception que le gate de contraste ne peut PAS tester
 
 Ces deux-là sont la **contrepartie** d'exemptions accordées dans
-`tools/design/verifier-contrastes.mjs`. Elles ne vivaient jusqu'ici que dans un commentaire de
-script — c'est-à-dire nulle part, du point de vue de qui écrit un composant. Elles sont
-**bloquantes en revue** au même titre que G1–G9.
+`tools/design/verifier-contrastes.mjs`. Elles sont **bloquantes en revue** au même titre que G1–G11,
+et **la bascule ne les change pas** — elle les rend plus critiques, un fond noir pardonnant encore
+moins un filet trop discret.
 
 - **G7-a · Un encart est toujours borné par un trait.** `--couleur-surface-creuse` et
-  `--couleur-surface` sont volontairement proches — **1,11:1**, très en dessous de tout seuil —
-  parce que deux fonds voisins ne sont ni un composant d'interface ni un objet graphique au sens de
-  1.4.11 : les opposer imposerait un encart criard. La contrepartie est **obligatoire** : tout bloc
-  (encart, carte, bloc de code, encadré) porte une **bordure `--couleur-filet`** (mesurée ≥ 3:1).
-  Sans elle, l'encart est indistinguable de la page — et il l'est de toute façon en
-  `forced-colors: active`, où les deux fonds deviennent identiques.
+  `--couleur-surface` sont volontairement proches — **1,04:1** dans la palette neuve — parce que deux
+  fonds voisins ne sont ni un composant d'interface ni un objet graphique au sens de 1.4.11 : les
+  opposer imposerait un encart criard. La contrepartie est **obligatoire** : tout bloc (encart,
+  carte, bloc de code, encadré) porte une **bordure `--couleur-filet`** mesurée **≥ 3:1**. Sans elle,
+  l'encart est indistinguable de la page — et il l'est de toute façon en `forced-colors: active`, où
+  les deux fonds deviennent identiques.
 - **G7-b · L'information ne passe jamais par la seule couleur** (WCAG **1.4.1**). « Vulnérable » et
-  « corrigé » sont la signature chromatique du site — mais en mode contraste élevé de Windows, nos
-  trois accents deviennent un unique `CanvasText` et les deux blocs deviennent identiques. Un bloc
-  sémantique se pose donc par le mixin **`marque-pedagogique($type)`**
-  (`src/styles/_mixins.scss`), qui ajoute un **style de trait** distinct (`dashed` / `solid` /
-  `dotted`) survivant à `forced-colors` — et le gabarit y ajoute une **étiquette textuelle**
-  visible. Corollaire : `marge-carnet` est du **décor** (trait neutre) ; l'encre rouge ne sert
-  jamais d'ornement, sous peine de diluer sa valeur de signal avant le premier module.
+  « corrigé » sont la signature chromatique du site — mais en mode contraste élevé de Windows, les
+  accents deviennent un unique `CanvasText` et les deux blocs deviennent identiques. Un bloc
+  sémantique se pose donc par le mixin **`marque-pedagogique($type)`** (`src/styles/_mixins.scss`),
+  qui ajoute un **style de trait** distinct (`dashed` / `solid` / `dotted`) survivant à
+  `forced-colors` — et le gabarit y ajoute une **étiquette textuelle** visible.
+
+## 4 · Les quatre décisions du 2026-08-17 (propriétaire — ne pas rouvrir)
+
+| # | Question | Décision | Conséquence directe |
+|---|---|---|---|
+| **D-1** | Quel habillage ? | **« Moniteur ambre »** — ambre de marque, Matrix par le motif | Palette §2 ; A « Phosphore » (vert de marque) et B « Borne » (néon magenta) écartés |
+| **D-2** | Le thème clair survit-il ? | **Sombre d'abord, clair reporté** | G5 amendé ; le clair devient une **dette datée** portée par **E4-ST1**, avec échéance — pas une note flottante |
+| **D-3** | Quand basculer ? | **Après le premier bloc de leçons** (E3 bloc A) | Épic **E6** au backlog, ordonnancement E2 → E3 bloc A → **E6** → E3 blocs B et C |
+| **D-4** | Le personnage ? | **Opérateur — identité typographique** | Aucun avatar dessiné ; logotype en cartouche mono. Écarte le coût illustratif qui avait tué la direction C |
+
+> ⚠️ **La dette de D-2 a un mode d'échec connu dans ce dépôt** : une dette datée sans échéance
+> exécutable finit oubliée (c'est la famille de L-007 — « un gate livré n'est pas un gate câblé »).
+> Parade retenue : le thème clair n'est **pas** une note dans un document, c'est une **ligne de
+> livrable dans E4-ST1** avec ses propres gates. Voir le backlog.
+
+## 5 · Mise en œuvre
+
+- Les jetons vivent dans le design system SCSS : `src/styles/_primitives.scss` (valeurs) →
+  `src/styles/_themes.scss` (jetons sémantiques) → composants. **La bascule tient dans ces deux
+  fichiers plus `_mixins.scss` et `_polices.scss`** ; aucun composant ne doit être touché pour
+  changer de peau. Si un composant doit être modifié, c'est qu'il violait G7 — c'est un défaut à
+  corriger, pas un coût de la bascule.
+- **Ce qui survit à la bascule** : la mécanique à trois couches · les 58 **noms** de jetons
+  sémantiques (leur mappage change, pas leur nom) · Inter · `@mixin filet-horizontal` (avec son
+  correctif L-025 sur `margin-inline: auto`) · `@mixin focus-visible` · `marque-pedagogique()` ·
+  le gate de contraste et le gate de glyphes · G2, G6, G7, G7-a, G7-b, G8.
+- **Ce qui tombe** : les 73 valeurs primitives · Fraunces (2 fichiers, ~113 Ko) · `@mixin
+  marge-carnet` et le vocabulaire carnet (tampons, marginalia, règlure) · les formulations de G1, G4,
+  G5, G9 · les 66 mesures du gate de contraste, à refaire.
+- **G2 est fondé, pas seulement affaire de goût** : `web/frontend/principes-design-visuel.md`
+  recommande la « depth » (texture, glassmorphism subtil) — mais exclut ces effets des produits « où
+  la clarté et la vitesse de scan priment ». Un site de cours est un produit de lecture (G11).
+- **Polices auto-hébergées obligatoirement** (CSP `font-src 'self'`, aucun hôte externe).
+- La **page de démonstration** des trois habillages candidats, avec composants rendus en vrai, a été
+  publiée le 2026-08-17 : <https://claude.ai/code/artifact/a3247f7f-19bf-41ef-9d8a-cf8f8b3893be>.

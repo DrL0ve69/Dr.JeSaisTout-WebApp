@@ -36,6 +36,8 @@ gantt
     J4 Bloc A fondations+attaques (E3)  :2026-08-24, 21d
     J5 Bloc B identités & données (E3)  :2026-09-14, 28d
     J6 Bloc C durcissement (E3)         :2026-10-12, 7d
+    section Identité
+    J4b Bascule Moniteur ambre (E6)     :2026-09-14, 5d
     section Qualité
     J7 Audits & finitions (E4)          :2026-10-12, 14d
 ```
@@ -46,9 +48,17 @@ gantt
 | **J2 — Identité visible** | ~24 août | Jetons SCSS (échelle typo ≥ 25 %, espacement 8pt, polices auto-hébergées), layout/nav, home « carnet de laboratoire », thèmes clair/sombre, zéro violation AXE **+ passe clavier manuelle** |
 | **J3 — Moteur de contenu** | ~7 sept. | Pipeline `content/` → pages prerendues ; routage des leçons ; `QuizComponent`, `CodeCompareComponent`, `SimulationComponent` ; page sommaire du cours ; une leçon-témoin de bout en bout |
 | **J4 — Premier bloc en ligne** | **mi-septembre** | Modules 1–7 publiés (fondamentaux, CVSS, injection, XSS, CSRF, contrôle d'accès, inclusion/SSRF) — couvre le début du cours de l'auteur (août-septembre) |
+| **J4b — Bascule d'identité** | ~19 sept. | 🆕 **E6 · « Moniteur ambre »** : palette recalibrée, Fraunces retirée, police d'affichage passée au gate de glyphes, motifs arcade, logotype typographique. **Sombre seul** (décision D-2 ; le thème clair est une dette portée par E4-ST1). Ne démarre **qu'une fois J4 atteint** — l'habillage ne prend jamais le chemin critique du contenu |
 | **J5 — Deuxième bloc** | ~12 oct. | Modules 8–12 publiés (crypto, mots de passe, authentification, sessions, JWT) |
 | **J6 — Cours complet** | ~19 oct. | Module 13 (durcissement serveur) publié — 13/13 |
 | **J7 — Phase 1 close** | **31 octobre** | Audit a11y (WCAG 2.2 AA / AXE 0), audit sécurité du site (`/security-audit`), Lighthouse ≥ 90, npm audit vert ; option E5 : squelette backend .NET si le temps le permet |
+
+> ⚠️ **J2 tel qu'il est écrit ci-dessus décrit une identité qui va changer.** « Home carnet de
+> laboratoire » et « thèmes clair/sombre » étaient les livrables *réellement atteints* le 2026-08-15 —
+> la ligne reste donc vraie **comme trace historique**. Ce qui la remplace est **J4b** : la bascule
+> vers « Moniteur ambre », décidée par le propriétaire le **2026-08-17**
+> (`docs/design/direction-visuelle.md` §0). Le jalon n'est pas réécrit : un jalon atteint ne se
+> réécrit pas rétroactivement, il se **complète** par celui qui le corrige.
 
 **Avancement au 2026-08-15** : **J1 atteint** (E0 clos) et **J2 atteint avec neuf jours d'avance**
 sur son échéance du ~24 août — E1-ST1, ST2 et ST3 sont ✅, donc **E1 est close** : jetons et polices

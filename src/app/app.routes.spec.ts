@@ -62,12 +62,21 @@ function urlDe(chemin: string): string {
 describe('table de routes', () => {
   describe('contrat de la table', () => {
     it('donne un `title` non vide à CHAQUE route', () => {
-      // Un `title` peut aussi être une fonction de résolution ; ce site n'en
-      // utilise pas encore, et une chaîne est la seule forme que la stratégie
-      // par défaut applique sans code supplémentaire.
-      const sansTitre = routes.filter((route) => !estChaineNonVide(route.title)).map(nommer);
+      // DEUX formes sont admises, et la stratégie par défaut du routeur les
+      // applique toutes les deux : une chaîne littérale, ou un `ResolveFn<string>`.
+      // La route de leçon emploie la seconde depuis E2-ST2 — son titre vient du
+      // front-matter, donc du manifeste. Ce que ce résolveur RETOURNE se vérifie
+      // sur des données réelles dans `lecon.spec.ts` ; ici on ne tient que le
+      // contrat de la table.
+      const sansTitre = routes
+        .filter((route) => !estChaineNonVide(route.title) && typeof route.title !== 'function')
+        .map(nommer);
 
       expect(sansTitre).toEqual([]);
+      // Contrôle positif des deux formes : sans lui, ce filtre resterait vert sur
+      // une table où plus aucune route n'aurait de titre du tout (L-019).
+      expect(routes.filter((route) => typeof route.title === 'string').length).toBeGreaterThan(0);
+      expect(routes.filter((route) => typeof route.title === 'function').length).toBe(1);
     });
 
     it('donne un `data.titre` non vide à toute route servie par `PageAVenir`', () => {
@@ -92,14 +101,44 @@ describe('table de routes', () => {
       expect(joker?.component).toBe(litterale?.component);
     });
 
-    it('n’a AUCUNE route paramétrée en E1 — elles ne seraient pas prerendues', () => {
-      // Décision d'E1-ST2 : une route `:slug` sans `getPrerenderParams()` ne
-      // produit aucun fichier, donc SWA sert `404/index.html` (statut 404) et le
-      // routeur client monte un autre composant par-dessus — décalage
-      // d'hydratation. E2-ST1 la réintroduira EN PRERENDER (voir
-      // `app.routes.server.ts`) ; ce test doit alors être mis à jour sciemment,
-      // pas contourné.
-      expect(routes.filter((route) => (route.path ?? '').includes(':')).map(nommer)).toEqual([]);
+    it('déclare la route de leçon paramétrée DES DEUX CÔTÉS, en prerender paramétré', () => {
+      // MISE À JOUR SCIEMMENT (E2-ST2, lot B) de l'ancien test « aucune route
+      // paramétrée en E1 ». Le défaut qu'il protégeait n'a pas disparu, il a changé
+      // de forme : une route `:slug` déclarée côté client SANS pendant serveur en
+      // `Prerender` + `getPrerenderParams()` ne produit AUCUN fichier, donc SWA sert
+      // `404/index.html` (statut 404) et le routeur client monte une leçon
+      // par-dessus — décalage d'hydratation, exactement ce qui l'avait fait retirer.
+      //
+      // Le côté serveur est lu À SA SOURCE, comme le test voisin : importer
+      // `app.routes.server.ts` tirerait `@angular/ssr` dans le bundle de test du
+      // navigateur. Ce que `getPrerenderParams()` RETOURNE (les slugs du manifeste)
+      // est vérifié sur des données réelles par `lecon.spec.ts` — ici on tient le
+      // câblage, là-bas le contenu.
+      const parametrees = routes.filter((route) => (route.path ?? '').includes(':'));
+      expect(parametrees.map(nommer)).toEqual(["path: 'cours/securite-web/:slug'"]);
+
+      // Elle doit précéder le `**` : le routeur prend le premier motif qui
+      // correspond, et un joker placé avant avalerait toutes les leçons.
+      const rangLecon = routes.findIndex((route) => route.path === 'cours/securite-web/:slug');
+      const rangJoker = routes.findIndex((route) => route.path === '**');
+      expect(rangLecon).toBeGreaterThan(-1);
+      expect(rangLecon).toBeLessThan(rangJoker);
+
+      // Son contenu est chargé par un `resolve` de route, pas par le composant :
+      // sans lui, le prerenderer écrirait un fichier avant que la leçon n'arrive.
+      expect(parametrees[0]?.resolve?.['lecon']).toBeDefined();
+
+      const source = readFileSync(join(process.cwd(), 'src', 'app', 'app.routes.server.ts'), 'utf8');
+      const rangServeurLecon = source.indexOf("path: 'cours/securite-web/:slug'");
+      const rangServeurJoker = source.indexOf("path: '**'");
+      expect(rangServeurLecon).toBeGreaterThan(-1);
+      expect(rangServeurLecon).toBeLessThan(rangServeurJoker);
+      expect(source).toContain('getPrerenderParams');
+      // La forme exacte qui échouerait en silence : `Prerender` SANS paramètres.
+      // `@angular/ssr` refuse ce cas au build, mais le message n'arrive qu'au bout
+      // du gate le plus lent — ici, c'est rouge en deux secondes.
+      expect(source.slice(rangServeurLecon, rangServeurJoker)).toContain('RenderMode.Prerender');
+      expect(source.slice(rangServeurLecon, rangServeurJoker)).toContain('getPrerenderParams');
     });
 
     it('ne déclare AUCUN `RenderMode.Client` côté serveur', () => {

@@ -501,20 +501,73 @@ programme TypeScript de ce dépôt (cf. [[L-020]]).
 
 ---
 
-## L-023 · Un backtique dans un commentaire HTML à l'intérieur d'un gabarit *inline* Angular ferme le littéral de gabarit
+## L-023 · ⚠️ RÉPÉTÉE UNE FOIS (E2-ST2) — geste déclencheur : « j'écris un commentaire HTML dans un `template:` inline ». À ce moment précis, s'arrêter : pas de backtique.
 
-**Symptôme.** `en-tete.ts` utilisait un commentaire HTML contenant des backtiques (norme de
-commentaire de ce dépôt) à l'intérieur d'un `template:` en template-literal — le backtique du
-commentaire a fermé prématurément le littéral, produisant `Parsing error: ',' expected`. Attrapé
-gratuitement par `npm run lint`.
+**Reconnaître le geste AVANT la faute, pas le symptôme après.** Le seul moment où cette leçon peut
+encore servir, c'est celui où la main s'apprête à taper `<!-- ... -->` **à l'intérieur d'un
+template-literal** (`template: \`…\`` en `.ts`). Si ce commentaire va porter un backtique (norme de
+commentaire nourri de ce dépôt) — **s'arrêter là**, avant d'écrire, pas en lisant l'erreur de lint
+ensuite. La leçon a été relue au démarrage de session et repayée quand même le 2026-08-17 (E2-ST2) :
+elle était reconnaissable au symptôme (`Parsing error`), pas au geste. D'où la reformulation.
+
+**Symptôme (répété deux fois, deux fichiers différents).** `en-tete.ts` d'abord, puis un composant
+d'E2-ST2 — même geste, même piège : un commentaire HTML avec backtique à l'intérieur d'un `template:`
+en template-literal ferme le littéral prématurément, `Parsing error: ',' expected`, sur une ligne sans
+rapport avec la cause réelle. Attrapé gratuitement par `npm run lint` les deux fois — coûteux quand
+même : le message ne pointe pas la cause.
 
 **Règle.** Dans un gabarit Angular **inline** (template-literal en `.ts`), un commentaire HTML ne
-peut pas contenir de backtique — reformuler sans backtique, ou déplacer le gabarit dans un fichier
+peut jamais contenir de backtique — reformuler sans backtique, ou déplacer le gabarit dans un fichier
 `.html` externe si le commentaire nourri est nécessaire. Collision structurelle sur ce dépôt, dont
 le registre de commentaire emploie massivement les backtiques ([[L-011]] sur un axe voisin : le
-contenu d'`index.html` est livré tel quel, ici c'est un `.ts` qui casse à la compilation).
+contenu d'`index.html` est livré tel quel, ici c'est un `.ts` qui casse à la compilation). Signal pour
+`.claude/rules/angular-best-practices.md` : ce geste est mécanisable (lint custom sur backtique dans
+commentaire HTML d'un template-literal) et gagnerait à devenir un gate plutôt qu'une vigilance de
+mémoire — c'est précisément ce que sa répétition démontre.
 
-**Réfs.** `src/app/core/layout/en-tete/en-tete.ts`.
+**Réfs.** `src/app/core/layout/en-tete/en-tete.ts` ; composant d'E2-ST2 (page de leçon) ; branche
+`feat/e2-st2-page-lecon-routage`.
+
+---
+
+## L-030 · Un fragment nu (`href="#ancre"`) se résout contre `<base href>`, jamais contre l'URL courante — un test qui compare la CHAÎNE d'un `href` ne prouve rien de la navigation
+
+**Symptôme.** `src/index.html:6` pose `<base href="/" />`. Le sommaire de la page de leçon écrivait
+`<a [href]="'#' + ancre">` : servi sous `/cours/securite-web/xss`, chaque lien se résolvait contre la
+**base du document**, pas contre le chemin courant — les 9 entrées menaient toutes à `/#ancre`, c'est-à-
+dire l'accueil. Mesuré en Chromium réel (`pathname: "/"` sur les 9 liens), pas déduit. Le test censé
+couvrir ces liens comparait la **chaîne** de l'attribut `href` à un `id` du fragment rendu : il est
+resté vert sur un sommaire entièrement cassé, parce qu'il ne **résolvait** aucune URL.
+
+**Règle.** Sur ce dépôt (base `/` posée), un fragment relatif seul est un piège systémique dès qu'une
+page n'est pas servie à la racine — préférer `[routerLink]="[]" [fragment]="…"`, qui produit un `href`
+absolu dans le HTML prerendu. Et plus largement : un attribut d'URL syntaxiquement correct ne prouve
+pas une navigation correcte — tester en résolvant (`new URL(href, document.baseURI).pathname`), jamais
+en comparant la chaîne brute. Cousine directe de [[L-025]] (un style calculé correct ne prouve pas un
+pixel peint) et de [[L-018]] (une assertion sur ce que le gabarit rend n'est pas une assertion sur ce
+que le code fait) — ici c'est un axe de plus : ce qu'un `href` **contient** n'est pas ce vers quoi il
+**mène**.
+
+**Réfs.** page de leçon (sommaire) ; `app.config.ts` (`withInMemoryScrolling({ anchorScrolling:
+'enabled' })`) ; `src/app/core/layout/gestion-focus-route.ts` lignes 25-32 ; branche
+`feat/e2-st2-page-lecon-routage`.
+
+---
+
+## L-031 · Un module GÉNÉRÉ (`content-generated/`) doit être injectable, pas importé en dur — `vi.mock` refuse un import relatif sous Angular 22
+
+**Symptôme.** `resoudre-lecon.spec.ts` avait besoin de forcer des cas limites (slug forgé
+`constructor`/`toString`/`valueOf`, slug absent, JSON hors contrat) sur `src/content-generated/carte-lecons.ts` —
+un fichier **généré** par le pipeline de contenu. `vi.mock` sur son chemin relatif est refusé par le
+système de tests d'Angular 22 (`@angular/build:unit-test`) : les quatre cas étaient inécrivables.
+
+**Règle.** Tout module généré dont on veut tester les cas limites passe derrière un **jeton
+d'injection** (`InjectionToken`), avec la vraie donnée générée comme valeur par défaut — rien à câbler
+côté appelants normaux, mais un test peut fournir une carte forgée sans toucher au fichier généré.
+Patron déjà posé pour `MANIFESTE_LECONS`, reconduit ici pour `CARTE_LECONS`.
+
+**Réfs.** `src/content-generated/carte-lecons.ts` ; `resoudre-lecon.spec.ts` ; jeton `CARTE_LECONS` ;
+branche `feat/e2-st2-page-lecon-routage`.
 
 ---
 
