@@ -28,7 +28,7 @@
 // =============================================================================
 
 import { readConfiguration } from '@angular/compiler-cli';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -148,6 +148,59 @@ describe('rigueur du compilateur', () => {
       expect(readConfiguration(join(process.cwd(), 'tsconfig.spec.json')).options.types).toContain(
         'node',
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Le contrat du contenu est-il VRAIMENT visible des deux programmes Angular ?
+  // ---------------------------------------------------------------------------
+  // E2-ST2 (lot A) a rapatrié `tools/content-pipeline/types.d.ts` côté application en
+  // l'ajoutant NOMINATIVEMENT à l'`include` de `tsconfig.app.json` et de
+  // `tsconfig.spec.json`, plutôt qu'en recopiant le contrat sous `src/` (L-016).
+  //
+  // POURQUOI CETTE ASSERTION EXISTE ALORS QU'UN RETRAIT CASSERAIT LA COMPILATION.
+  // Parce qu'il casserait la compilation D'UN SEUL PROGRAMME À LA FOIS. Retirer
+  // l'entrée de `tsconfig.app.json` seul laisse `ng test` intégralement vert — les
+  // specs voient encore le contrat — et ne fait rougir que `ng build`, c'est-à-dire un
+  // gate d'un autre lot, plusieurs minutes plus tard, sur un message qui parle de
+  // `BlocContenu` introuvable sans dire pourquoi. Les deux programmes sont donc
+  // vérifiés SÉPARÉMENT, ici, sur les `rootNames` réellement résolus — la liste que
+  // `tsc` compile vraiment, `include` déjà déroulé, jamais le texte de la
+  // configuration relu par lui-même (L-012).
+  describe('contrat du contenu compilé', () => {
+    const CONTRAT = 'tools/content-pipeline/types.d.ts';
+
+    for (const programme of PROGRAMMES_ANGULAR) {
+      it(`${programme} compile réellement ${CONTRAT}`, () => {
+        const { rootNames } = readConfiguration(join(process.cwd(), programme));
+        const normalises = rootNames.map((chemin) => chemin.replace(/\\/g, '/'));
+        expect(normalises.filter((chemin) => chemin.endsWith(`/${CONTRAT}`))).toHaveLength(1);
+      });
+    }
+
+    it('n’a AUCUNE copie du contrat sous `src/`', () => {
+      // L'autre moitié de la pince. Les assertions ci-dessus prouvent que le contrat
+      // est VISIBLE ; celle-ci prouve qu'il est UNIQUE. Une deuxième déclaration de
+      // `BlocContenu` sous `src/` compilerait très bien à côté de la première (les
+      // types globaux et les types de module cohabitent sans conflit) et divergerait
+      // en silence au premier champ ajouté — très exactement L-016.
+      // Le nom cherché est ASSEMBLÉ à l'exécution, jamais écrit d'un seul tenant :
+      // le motif complet, s'il figurait quelque part dans CE fichier — fût-ce dans
+      // un commentaire —, se trouverait lui-même et ferait rougir l'assertion sur
+      // son propre texte. Constaté deux fois de suite au premier run, la seconde
+      // dans le commentaire qui expliquait la première.
+      const nom = ['Bloc', 'Contenu'].join('');
+      const declaration = new RegExp(`(?:type|interface)\\s+${nom}\\b`);
+
+      // Contrôle positif : la déclaration existe bel et bien là où on l'attend.
+      // Sans lui, « aucune copie sous src/ » resterait vrai d'un contrat effacé.
+      expect(declaration.test(readFileSync(join(process.cwd(), CONTRAT), 'utf8'))).toBe(true);
+
+      const racineSrc = join(process.cwd(), 'src');
+      const copies = readdirSync(racineSrc, { recursive: true, encoding: 'utf8' })
+        .filter((chemin) => chemin.endsWith('.ts'))
+        .filter((chemin) => declaration.test(readFileSync(join(racineSrc, chemin), 'utf8')));
+      expect(copies).toEqual([]);
     });
   });
 

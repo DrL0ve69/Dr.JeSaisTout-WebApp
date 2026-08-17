@@ -1,0 +1,199 @@
+// =============================================================================
+// RenduBlocs — l'habillage des ENVELOPPES, et de rien d'autre
+// -----------------------------------------------------------------------------
+// ⚠️ CETTE FEUILLE N'ATTEINT PAS LE HTML LIÉ EN `[innerHTML]`, ET C'EST STRUCTUREL.
+// L'encapsulation d'Angular tague les éléments écrits DANS le gabarit ; le HTML
+// injecté ne porte pas l'attribut de portée, donc aucun sélecteur d'ici ne peut le
+// viser. Chercher `.shiki` ou `svg` ci-dessous serait donc du code mort, et le
+// « corriger » avec `::ng-deep` (déprécié) ou `ViewEncapsulation.None` ferait fuir
+// ces règles sur tout le site. La mise en forme de la prose, du code coloré et des
+// diagrammes vient des feuilles GLOBALES, par construction :
+//   · `src/styles.scss` (h2/h3, p, ul/ol, pre, a…) ;
+//   · `src/styles/_coloration-syntaxique-generee.scss` (`.shiki`) ;
+//   · `src/styles/_mermaid-generee.scss` (`svg.diagramme-mermaid`).
+// Cette feuille habille les enveloppes : encadrés, volets de comparaison, figure.
+//
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+//
+// CONFINEMENT DES CONTRASTES. Chaque encre employée ici forme avec son fond une
+// paire DÉJÀ MESURÉE par `tools/design/verifier-contrastes.mjs` — zéro paire neuve :
+//   · `--couleur-encre` sur `--couleur-{danger-vuln,ok-corrige,attention}-surface` ;
+//   · `--couleur-{danger-vuln,ok-corrige,attention}` sur leur propre surface ;
+//   · `--couleur-{encre,encre-tertiaire,accent,filet,filet-fort}` sur
+//     `--couleur-surface-creuse`.
+// C'est pour cette raison que les étiquettes d'un volet portent l'encre sémantique
+// de leur volet, et non `--couleur-encre-tertiaire`, qui n'est mesurée sur aucune
+// des trois surfaces sémantiques.
+// =============================================================================
+
+@use '../../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+// -----------------------------------------------------------------------------
+// Rythme vertical — posé bloc par bloc, jamais par un `> * + *`
+// -----------------------------------------------------------------------------
+// `@for` et `@switch` laissent des nœuds d'ancrage dans le DOM : un sélecteur
+// d'adjacence compterait des voisins invisibles et sauterait des marges au hasard.
+// Chaque enveloppe porte donc sa propre marge, et la prose reçoit la sienne des
+// règles globales de `p`/`h3`.
+.prose,
+.code,
+.comparaison,
+.diagramme,
+.encadre {
+  margin-block: var(--espace-4);
+}
+
+// -----------------------------------------------------------------------------
+// Étiquette écrite — le TROISIÈME canal de WCAG 1.4.1
+// -----------------------------------------------------------------------------
+// `marque-pedagogique` pose deux canaux (couleur + style de trait) et dit
+// explicitement qu'il ne peut pas poser le troisième à la place du gabarit : le mot.
+// Le voici. En `forced-colors: active`, la couleur tombe et seul ce mot, avec le
+// style du trait, distingue encore « vulnérable » de « corrigé ».
+.etiquette {
+  margin-block-end: var(--espace-2);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+// -----------------------------------------------------------------------------
+// Comparaison — rendu PROVISOIRE (le composant complet est E2-ST4)
+// -----------------------------------------------------------------------------
+// Empilé, sans onglet ni ARIA : les onglets de langage sont un sous-projet
+// d'accessibilité à part entière (backlog §E2-ST4). Les deux volets sont donc dans
+// le document, lisibles sans JS, chacun avec son étiquette et ses annotations.
+.paire {
+  display: grid;
+  gap: var(--espace-3);
+
+  & + & {
+    margin-block-start: var(--espace-4);
+  }
+}
+
+.volet {
+  padding: var(--espace-3);
+}
+
+.volet-vulnerable {
+  @include m.marque-pedagogique('vulnerable');
+
+  > .etiquette {
+    color: var(--couleur-danger-vuln);
+  }
+}
+
+.volet-corrige {
+  @include m.marque-pedagogique('corrige');
+
+  > .etiquette {
+    color: var(--couleur-ok-corrige);
+  }
+}
+
+// Les annotations d'un exemple. Elles ne sont PAS décoratives : elles désignent la
+// ligne fautive et expliquent le correctif. Encre principale, donc, jamais une
+// encre affaiblie.
+.annotations {
+  margin-block-start: var(--espace-2);
+  padding-inline-start: var(--espace-3);
+  color: var(--couleur-encre);
+  font-size: var(--taille-xs);
+}
+
+.portee {
+  font-weight: var(--graisse-tampon);
+}
+
+// -----------------------------------------------------------------------------
+// Diagramme — la figure et son équivalent textuel
+// -----------------------------------------------------------------------------
+// Le `<svg>` lui-même est habillé par `_mermaid-generee.scss` (global) : rien ici
+// ne le vise, et c'est voulu — un composant qui oublierait son enveloppe
+// n'obtiendrait pas un diagramme nu.
+.diagramme {
+  // G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
+  // (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien.
+  padding: var(--espace-3);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  background-color: var(--couleur-surface-creuse);
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+// L'équivalent textuel complet (WCAG 1.1.1), révélable SANS JS : `<details>` est
+// natif, donc il fonctionne sur une page prerendue non hydratée
+// (`withNoIncrementalHydration()` est actif — cf. `src/app/app.config.ts`).
+.equivalent {
+  margin-block-start: var(--espace-3);
+  color: var(--couleur-encre);
+  font-size: var(--taille-xs);
+
+  > summary {
+    // Cible confortable (WCAG 2.2 · 2.5.8 exige 24 px ; la barre du projet est
+    // 44 px) : `--espace-6` vaut 3rem = 48 px, comme les liens de l'en-tête.
+    display: flex;
+    align-items: center;
+    min-block-size: var(--espace-6);
+    color: var(--couleur-accent);
+    cursor: pointer;
+
+    @include m.focus-visible;
+  }
+
+  > p {
+    margin-block-start: var(--espace-2);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Encadré — trois variantes, distinguées par le MOT et par le STYLE du trait
+// -----------------------------------------------------------------------------
+// WCAG 1.4.1 : la couleur seule ne porte jamais l'information. Chaque variante a
+// son étiquette écrite (« Attention », « Note », « À retenir ») ET un style de trait
+// propre — `dotted`, `solid`, `double` —, que `forced-colors: active` ne touche pas.
+// Sans ce second canal, les trois encadrés deviendraient rigoureusement identiques
+// en contraste forcé, où tout se replie sur `CanvasText`.
+.encadre {
+  padding: var(--espace-3);
+}
+
+.encadre[data-variante='attention'] {
+  @include m.marque-pedagogique('attention');
+
+  > .etiquette {
+    color: var(--couleur-attention);
+  }
+}
+
+.encadre[data-variante='note'] {
+  @include m.marge-carnet;
+
+  background-color: var(--couleur-surface-creuse);
+
+  > .etiquette {
+    color: var(--couleur-encre-tertiaire);
+  }
+}
+
+.encadre[data-variante='a-retenir'] {
+  @include m.marge-carnet(var(--couleur-accent));
+
+  border-inline-start-style: double;
+  background-color: var(--couleur-surface-creuse);
+
+  > .etiquette {
+    color: var(--couleur-accent);
+  }
+}

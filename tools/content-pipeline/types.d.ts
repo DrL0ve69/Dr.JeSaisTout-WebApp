@@ -15,8 +15,15 @@
 // Le fichier est repris VERBATIM du plan arrêté d'E2-ST1 ; y ajouter des `export`
 // en ferait un module et changerait la façon dont il se cite. Il est listé
 // NOMINATIVEMENT dans `tsconfig.tools.json`, donc ses types sont visibles de tout
-// l'outillage sans import. Une reprise côté Angular (E2-ST2) le référencera
-// explicitement.
+// l'outillage sans import.
+//
+// ✅ LA REPRISE CÔTÉ ANGULAR EST FAITE (E2-ST2, lot A) : ce même fichier est
+// désormais listé NOMINATIVEMENT dans `tsconfig.app.json` ET `tsconfig.spec.json`.
+// Les trois programmes lisent donc LA MÊME déclaration — aucune copie du contrat
+// n'existe sous `src/`, et il n'y en aura pas (L-016). Le raisonnement du choix,
+// et ce qu'il coûte (types ambiants côté application), est écrit dans
+// `tsconfig.app.json` ; que les deux entrées soient réellement compilées est
+// épinglé par `src/configuration-typescript.spec.ts`.
 //
 // CONVENTIONS MARKDOWN ASSOCIÉES — voir l'en-tête de `compiler-markdown.mjs` :
 // conteneurs `:::` en liste fermée, `[[quiz]]` / `[[simulation]]` pour les ancres,
@@ -150,21 +157,27 @@ interface EntreeManifesteRoutes {
   // AUCUN champ `factice` : la leçon-témoin ne peut plus atteindre ce manifeste.
 }
 
-/**
- * ⚠️ CE TYPE N'EST PORTÉ PAR AUCUN FICHIER GÉNÉRÉ — divergence assumée, à ne pas lire comme
- * une description (L-016). Il décrit la carte de chargement TELLE QU'E2-ST2 LA VOUDRA.
- *
- * Ce que `generer-manifeste.mjs` émet réellement dans `src/content-generated/carte-lecons.ts`,
- * c'est `export type ChargeurLecon = () => Promise<{ default: unknown }>` — `unknown`, pas
- * `LeconCompilee`, parce que ce fichier-ci appartient au programme OUTILLAGE
- * (`tsconfig.tools.json`) et que le fichier généré est compilé par le programme APPLICATIF, qui
- * ne le voit pas. Deux noms différents (`ChargeurLecon` / `CarteChargementLecons`), deux types
- * différents : la carte générée n'affine rien tant que le contrat n'est pas rapatrié côté
- * Angular.
- *
- * C'EST E2-ST2 QUI FERME L'ÉCART, en rapatriant le contrat dans `src/` : la carte générée
- * pourra alors référencer `LeconCompilee`, et ce type-ci devra soit disparaître, soit devenir
- * celui que le générateur écrit. Le laisser sans cet avertissement ferait croire qu'un fichier
- * porte déjà cette forme — c'est exactement la faute que L-016 a coûtée.
- */
-type CarteChargementLecons = Record<string /* slug */, () => Promise<{ default: LeconCompilee }>>;
+// -----------------------------------------------------------------------------
+// LA CARTE DE CHARGEMENT — pourquoi AUCUN type ne la décrit ici
+// -----------------------------------------------------------------------------
+// Il y avait ici un `CarteChargementLecons` qui décrivait la carte « telle qu'E2-ST2
+// la voudrait », avec un avertissement disant qu'aucun fichier ne la portait. E2-ST2
+// (lot A) l'a SUPPRIMÉ plutôt que corrigé : un type que rien n'implémente et que
+// personne n'importe est la faute L-016 elle-même, et le maintenir à jour serait un
+// travail sans lecteur.
+//
+// CE QUI EST VRAI AUJOURD'HUI. `generer-manifeste.mjs` écrit dans
+// `src/content-generated/carte-lecons.ts` :
+//     export type ChargeurLecon = () => Promise<{ default: unknown }>;
+// et il continue de l'écrire ainsi APRÈS le rapatriement du contrat. Le `unknown`
+// n'est plus une conséquence de la frontière entre programmes — elle est tombée —
+// mais un choix qui tient à l'import JSON : TypeScript infère `statut: string` d'un
+// `import('./lecons/x.json')`, ce qui n'est PAS assignable à l'union
+// `'brouillon' | 'verifiee' | 'publiee'` du frontmatter. Typer le `default` en
+// `LeconCompilee` ferait donc échouer la compilation du fichier généré.
+//
+// LA FRONTIÈRE EST DONC À LA CONSOMMATION, et c'est le bon endroit : la page de
+// leçon (E2-ST2, lot B) reçoit un `unknown` venu d'un fichier sur disque et le
+// rétrécit explicitement en `LeconCompilee`. Un contrôle écrit vaut mieux qu'un
+// `as` posé dans un générateur que personne ne relit.
+// -----------------------------------------------------------------------------
