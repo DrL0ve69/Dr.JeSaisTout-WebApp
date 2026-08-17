@@ -719,4 +719,42 @@ positif) et [[L-005]] (un vert ne prouve pas qu'une vérification a tourné) · 
 
 ---
 
+## L-032 · Une redirection sur un fichier JS déplace la BASE de ses imports relatifs — et l'émulateur qui ignore la directive rend le gate vert
+
+**Symptôme.** En production, `GET /main-5RJCKUZA.js` répondait **301** vers
+`/main-5RJCKUZA.js/`, puis servait le bundle en 200 avec le bon type MIME. Le site fonctionnait :
+rien ne rougissait, aucun gate ne bronchait. Mais l'URL finale du module devenait
+`/main-5RJCKUZA.js/`, **donc la base de ses imports relatifs aussi** — et son
+`import('./chunk-6ZRI2U7P.js')` visait `/main-5RJCKUZA.js/chunk-6ZRI2U7P.js`, qui n'existe pas.
+404, `content-type: text/html`, route paresseuse morte. Cause : `"trailingSlash": "always"` dans
+`config/staticwebapp.config.source.json`, qui s'applique **aussi aux fichiers avec extension**
+(documenté : `/privacy.html` → 301 → `/privacy/`).
+
+**Ce qui rend le cas retors — trois couches.** (1) Le défaut était **connu et écrit** depuis
+E1-ST1-B, mais classé *coût de performance* en attente d'un arbitrage SEO : personne n'avait vu
+qu'il deviendrait une **panne fonctionnelle**. (2) Il ne s'est déclenché qu'au **premier chunk
+paresseux** du dépôt (E2-ST2, page de leçon) — un défaut dormant depuis E1, réveillé par un lot qui
+ne l'a pas causé. (3) Le gate e2e tourne sous `npx swa start`, et **l'émulateur SWA n'implémente pas
+`trailingSlash` du tout** (zéro occurrence dans son code) : il testait donc une politique de routage
+qui n'était pas celle de la production, et restait vert pendant que la production était cassée.
+
+**Règle.** Un émulateur qui **ignore** une directive ne la valide pas, il la **masque** — sa
+verdeur ne dit rien de la directive, et c'est pire qu'une absence de test, parce que ça ressemble à
+une couverture. Le geste : pour toute directive d'hébergement que l'outillage local ne sait pas
+rejouer, la vérification appartient au **post-déploiement**, sur le site réellement servi. Et le
+corollaire propre aux modules ES : **ne jamais laisser une redirection sur un asset**. Un 301 sur
+un `.js` n'est pas un coût d'aller-retour, c'est un changement de **base de résolution** pour tout
+le graphe d'imports en aval. Une vérification en ligne « chaque asset référencé par la page est
+servi en 200, pas en 3xx » attrape la famille entière, pas ce cas-ci.
+
+**Réfs.** `config/staticwebapp.config.source.json` (`trailingSlash` : `always` → **`auto`**, qui
+garde la canonicalisation des dossiers — `/cours/securite-web` → 301 → `/cours/securite-web/` — et
+sert les fichiers directement) · `.github/workflows/deploy.yml` étape « Vérifier le routage servi »,
+bloc (c), dont la liste d'assets est **lue dans la page réellement servie** et le contrôle positif
+est le **compte** (au moins 2, sinon le test ne mesure rien — [[L-019]]) · défaut décrit à l'avance
+dans `docs/agile/backlog-phase-1.md` §E1-ST1-B · cousines [[L-004]] (attendre l'**effet**, pas le
+code de retour) et [[L-005]] (un vert ne prouve pas qu'une vérification a tourné).
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

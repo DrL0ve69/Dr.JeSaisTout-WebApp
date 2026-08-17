@@ -26,6 +26,34 @@ Détail et mesures : addendum **S-02**, `docs/architecture/stack-et-architecture
 > `__HACHAGES_STYLE__` compris → `style-src` invalide → **site sans styles en production**, sans
 > aucune erreur de build. D'où le nom et l'emplacement actuels.
 
+## `trailingSlash: "auto"` — et pourquoi surtout pas `"always"`
+
+**Un 301 sur un `.js` n'est pas un coût d'aller-retour : c'est un changement de base de résolution.**
+`"always"` s'applique **aussi aux fichiers avec extension** (documenté par Microsoft :
+`/privacy.html` → 301 → `/privacy/`). Le bundle `main-<hash>.js` était donc servi à
+`/main-<hash>.js/`, avec le bon type MIME et un 200 — le site se chargeait, tout paraissait normal.
+Mais l'URL **finale** du module devient la base de ses imports relatifs : son
+`import('./chunk-<hash>.js')` visait `/main-<hash>.js/chunk-<hash>.js`, qui n'existe pas. **La route
+paresseuse de la page de leçon était morte en production** (constaté le 2026-08-17, leçon L-032).
+
+`"auto"` garde ce qui motivait `"always"` et laisse tomber ce qui cassait :
+
+| Requête | `always` | `auto` *(retenu)* |
+|---|---|---|
+| `/cours/securite-web` (dossier) | 301 → `/cours/securite-web/` | 301 → `/cours/securite-web/` |
+| `/main-<hash>.js` (fichier) | **301 → `/main-<hash>.js/`** | **200, direct** |
+
+La canonicalisation des URL de pages — la raison SEO d'avoir un réglage plutôt qu'aucun — est donc
+intacte. Omettre la clef entièrement serait un recul : SWA ne redirigerait plus rien et servirait la
+même page sous deux URL.
+
+⚠️ **Ce réglage ne peut PAS être vérifié en local.** L'émulateur `npx swa start` n'implémente pas
+`trailingSlash` (zéro occurrence dans son code) : le gate e2e tourne donc sous une politique de
+routage qui n'est pas celle de la production, et il est resté **vert** pendant que la production
+était cassée. La vérification vit en **post-déploiement** — `deploy.yml`, étape « Vérifier le
+routage servi », bloc (c) : chaque asset référencé par la page réellement servie doit répondre
+**200, jamais 3xx**.
+
 ## Les en-têtes, et pourquoi ceux-là
 
 Tous posés dans `globalHeaders` — jamais au cas par cas dans le code Angular
