@@ -1032,6 +1032,54 @@ serait par ailleurs l'inverse de ce que ce site enseigne.
 - **Fichiers** : `src/app/features/cours/quiz/`, schéma JSON dans `tools/content-pipeline/schemas/`.
 - **Gates** : G-lint, G-test (logique de scoring), G-build, G-axe.
 
+#### 📐 Périmètre réel et découpe — relevé sur le dépôt le 2026-08-17
+
+**Deux constats qui élargissent le lot par rapport à la ligne « Objectif » ci-dessus.**
+
+1. 🔴 **Le pipeline valide `quiz.json` mais ne l'ÉMET PAS.** `valider.mjs` le contrôle
+   intégralement (schéma + cohérences hors schéma : `bonneReponse` ∈ `choix`, `lecon` = slug,
+   ≥ 2 types distincts), et `compiler-markdown.mjs` produit bien un bloc `{ type: 'ancre-quiz' }`
+   dans l'AST — mais **`LeconCompilee` n'a aucun champ quiz** (`tools/content-pipeline/types.d.ts`).
+   Rien ne parvient donc au navigateur. E2-ST3 contient un **lot de pipeline**, ce que la ligne
+   « Fichiers » ne laissait pas deviner.
+2. **Le schéma définit QUATRE types de questions**, pas trois : `choix-multiple`, `vrai-faux`,
+   `associer` et `trouver-la-faille`. Chacun a sa mécanique d'interaction **et** sa mécanique
+   d'accessibilité. La ligne « Objectif » n'en nommait que trois, dont une (« mise en situation »)
+   qui ne correspond à aucun `type` du schéma.
+
+**Découpe retenue** — application du « test du + » (`.claude/rules/agent-context-budget.md` §2) :
+un lot en une phrase, vérifiable seul, un agent frais chacun.
+
+| Lot | Contenu | Vérifiable par | Statut |
+|---|---|---|---|
+| **A** | `core/progression/` — service de progression `localStorage`, en signaux, avec sa sérialisation versionnée et sa tolérance aux données absentes/corrompues | G-test seul (aucune UI) | ⬜ |
+| **B** | Émission du quiz par le pipeline : type `QuizCompile` dans `types.d.ts`, sortie du compilateur, fixture témoin, mutation prouvant que le gate mord | G-content, G-test | ⬜ |
+| **C** | `QuizComponent` (coquille, navigation, score, correction expliquée) + les deux types simples : `choix-multiple`, `vrai-faux` | G-test, G-axe, **G-clavier** | ⬜ |
+| **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ⬜ |
+| **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ⬜ |
+
+**Pourquoi A d'abord, et pas le composant** : c'est le lot qui crée `core/progression/`, donc celui
+où se **gagne ou se perd** la règle « aucune feature n'importe une autre feature »
+(`docs/architecture/stack-et-architecture.md` §7). E2-ST6 lira ce même service. L'écrire *après* le
+composant, c'est écrire le composant contre un état local qu'il faudra ensuite extraire.
+
+**⚠️ Trois pièges nommés pour les lots C et D :**
+- **`associer` n'est PAS un glisser-déposer.** Le drag & drop est un piège d'accessibilité connu, et
+  WCAG 2.2 ajoute justement **2.5.7 Dragging Movements** (tout geste de glissement doit avoir une
+  alternative à pointeur simple). Patron attendu : une liste de sélection par paire, opérable au
+  clavier seul. À trancher au lot D, pas improvisé.
+- **`trouver-la-faille` empiète sur E2-ST4.** Il affiche du code numéroté avec une ligne à désigner —
+  c'est-à-dire la moitié du `CodeCompareComponent`. Décider au lot D si le rendu de code est **mis en
+  commun** dès maintenant ou dupliqué puis fusionné ; le dupliquer sans le dire est la vraie faute.
+- **Le code de `trouver-la-faille` est VOLONTAIREMENT vulnérable** (`security.md` §4) : il n'est
+  jamais exécuté, jamais interpolé dans du HTML de confiance, et il ne passe **pas** par le
+  contournement de sanitizer d'E2-ST2 — qui reste scopé au seul bloc `mermaid`.
+
+**⚠️ Et le piège de CSP qui vise ce lot précisément** : E2-ST3 est le **premier composant réellement
+interactif d'une page de leçon**. « Une CSP validée sur une page INERTE ne vaut que pour une page
+inerte » (S-005) — Angular injecte des scripts inline avec le premier écouteur d'événement, ce qui a
+déjà rendu un build rouge en E1-ST2. À revalider au lot E, liste blanche **nominative**.
+
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.
 - **Fichiers** : `src/app/features/cours/code-compare/`, schéma JSON associé.
