@@ -993,6 +993,40 @@ Ce qui en découle, à traiter **en clôture d'E3-ST1** (la première vraie leç
    et `X-Robots-Tag: noindex` n'existe que sur `/404/*`. Conséquence à connaître avant de committer
    un brouillon dans `content/`, pas un défaut du lot.
 
+#### 🔴 PR #13 est bloquée par SonarCloud — et seul le propriétaire peut la débloquer (2026-08-17)
+
+`lint · test · build · audit` est **vert**. `SonarCloud Code Analysis` est **rouge**, sur une
+**unique** condition : *E Security Rating on New Code* (requis ≥ A).
+
+| Champ | Valeur relevée par l'API SonarCloud |
+|---|---|
+| Règle | `typescript:S6268` — « Make sure disabling Angular built-in sanitization is safe here » |
+| Type / sévérité | **VULNERABILITY** / **BLOCKER** — pas un *hotspot* (`api/hotspots/search` renvoie 0) |
+| Emplacement | `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts:263` |
+| Nombre | **1** — c'est le seul constat de sécurité de la PR |
+
+**C'est l'unique `bypassSecurityTrustHtml` du site, et il est exactement celui qui a été décidé,
+implémenté puis revu.** Sa nécessité est *mesurée* (`src/sonde-sanitizer-svg.spec.ts` : 24 éléments
+→ 0, 71 attributs → 0), sa portée est tenue par un garde-fou à l'échelle du dépôt
+(`src/garde-fou-contournements-sanitizer.spec.ts`), sa justification nominative est au point d'appel,
+et la revue `security-reviewer` du 2026-08-17 n'a trouvé **aucun écart** entre ce que ce texte promet
+et ce que le code applique. Sonar ne peut pas savoir tout cela : S6268 se déclenche sur *tout* appel,
+par conception.
+
+**Ce qu'il ne faut PAS faire** : ajouter un `// NOSONAR`, ni tenter un `sonar.issue.ignore.*` dans
+`.sonarcloud.properties` — l'analyse **automatique** ignore ces paramètres (c'est déjà la raison pour
+laquelle `css:S8776` ne se règle pas côté dépôt). Museler un constat de sécurité par un commentaire
+serait par ailleurs l'inverse de ce que ce site enseigne.
+
+**Action, côté propriétaire uniquement, dans l'interface SonarCloud** : ouvrir l'issue et la marquer
+**« Accepted »** (*won't fix*) avec un commentaire pointant vers `rendu-blocs.ts` §« L'UNIQUE
+`bypassSecurityTrustHtml` DU SITE ». Le rating repasse à A et la porte devient verte.
+
+> 📌 **Deuxième item SonarCloud qui n'appartient qu'au propriétaire**, après le faux positif
+> `css:S8776` (le `&` de `@mixin focus-visible`). Les deux se règlent au même endroit, en deux
+> minutes. Tant qu'ils ne sont pas faits, la porte reste rouge et masque tout constat **neuf** —
+> c'est le vrai coût, et c'est pourquoi ils ne doivent pas traîner.
+
 ### E2-ST3 — QuizComponent
 - **Objectif** : quiz piloté par JSON (choix multiple, vrai/faux, mise en situation) ; correction expliquée par question ; score et état persistés en `localStorage` ; entièrement clavier/lecteur d'écran.
 - **Fichiers** : `src/app/features/cours/quiz/`, schéma JSON dans `tools/content-pipeline/schemas/`.
