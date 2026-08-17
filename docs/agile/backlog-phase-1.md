@@ -768,7 +768,7 @@ sans S-007/S-008 · (d) S-003 · (e) typage 34 / 35 erreurs sur les deux gates d
 | ID | Objectif | Statut |
 |---|---|---|
 | E2-ST1 | Pipeline build `content/` → HTML/JSON + routes prerendues | ✅ |
-| E2-ST2 | Rendu des leçons (page leçon + routage) | ⬜ |
+| E2-ST2 | Rendu des leçons (page leçon + routage) | ✅ |
 | E2-ST3 | `QuizComponent` + score localStorage | ⬜ |
 | E2-ST4 | `CodeCompareComponent` | ⬜ |
 | E2-ST5 | `SimulationComponent` | ⬜ |
@@ -847,6 +847,19 @@ patron, et jsdom est déjà une dépendance du dépôt.
 > d'E2-ST1 à dessein : modifier le job de publication dans une PR sur le pipeline de contenu ferait
 > qu'un déploiement rouge ne dirait plus laquelle des deux causes l'a cassé. À payer avec le reste du
 > lot, où il aura sa propre fenêtre de vérification.
+>
+> **Cinquième, relevé par la revue de sécurité d'E2-ST2 lot A (2026-08-17)** : dans
+> `rendre-mermaid.mjs`, la liste blanche porte sur les **noms** d'attributs, et seules les **valeurs**
+> de `href`/`xlink:href` sont contraintes (à `#…`). `fill`, `stroke`, `clip-path`, `marker-start` et
+> `marker-end` acceptent donc un `<FuncIRI>` quelconque : `prefixerIdentifiants` ne fait échouer que
+> sur un `url(#…)` orphelin, et un `url(https://exemple.invalide/x.svg#p)` traverserait en silence.
+> **Impact réel nul aujourd'hui**, et c'est pourquoi ce n'est PAS un correctif d'E2-ST2 : `default-src
+> 'self'` bloque la requête, et les navigateurs ont abandonné les références de paint-server
+> inter-documents. C'est de la défense en profondeur — le troisième filet derrière deux qui tiennent.
+> Parade : étendre le patron `ATTRIBUTS_REFERENCE` à ces attributs (mot-clef, couleur, ou `url(#…)` —
+> tout autre `url(…)` refusé **nommément**, jamais retiré en silence). La revue n'a trouvé **aucun
+> écart** entre la justification écrite du `bypassSecurityTrustHtml` et ce que le code applique, ce
+> qui était la question S-009 posée à ce lot.
 
 ### E2-ST1 — Pipeline de contenu au build
 - **Objectif** : implémentation de la conclusion S-01 : script de build qui valide `content/cours/securite-web/**` (frontmatter, schémas JSON quiz/simulation — gabarits de `docs/contenu/pipeline-contenu.md`), compile Markdown→HTML (coloration précompilée PHP/C#/TS, encadrés ⚠️/note/à-retenir), génère la liste des routes à prerendre. Build échoue si contenu invalide.
@@ -949,6 +962,30 @@ annotation portant sur le bloc entier.
   chantier tant que le CTA mène à `PageAVenir`, et cet avertissement devient un **mensonge** le jour
   où le cours ouvre. L'entrée est facultative — la retirer suffit, aucun composant à toucher
   (`carte-cours.spec.ts` couvre déjà le cas « absente »).
+
+#### ⚠️ Trois réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE (2026-08-17)
+
+Le lot B est vert, mais son gate `G-build (leçon-témoin prerendue)` **ne peut pas être franchi tel
+qu'il est écrit** : le nœud tranché le 2026-08-16 place la leçon-témoin **hors de `content/`**, donc
+le build de production prerende **0 route de leçon**. Les deux énoncés ne peuvent pas être vrais
+ensemble ; c'est le gate qui est périmé, pas le lot. La preuve du routage a donc été faite en tests
+unitaires, plus une construction jetable sur la fixture témoin (4 routes, `<head>` et sommaire
+analysés à jsdom) — **une leçon n'a jamais été fabriquée dans `content/` pour verdir un gate**.
+
+Ce qui en découle, à traiter **en clôture d'E3-ST1** (la première vraie leçon), pas avant :
+
+1. **`npm run a11y:axe` et `npm run e2e` n'ont jamais vu la page de leçon** — aucune page n'existe à
+   visiter. La barre dure AXE n'est pas *franchie* ici, elle est *contournée par l'absence de
+   données*. Premier passage réel exigé à E3-ST1.
+2. **La CSP servie n'a jamais été mesurée sur une page de leçon** : `generer-config-swa.mjs` n'a
+   jamais inspecté son `<head>`. C'est la règle « enabler ≠ enforcement » (S-005) — un `npm run
+   build` vert ne prouve rien sur une page qui n'existe pas. *Mesuré et rassurant en attendant* :
+   `script-src` est `'self' <hachages>` **sans** `strict-dynamic`, donc `'self'` reste actif et le
+   premier chunk paresseux du dépôt (`lecon`, 17,49 kB) chargera. À vérifier **live** malgré tout.
+3. **Une leçon en `statut: brouillon` sera prerendue en page publique et indexable.** Le manifeste ne
+   filtre pas sur `statut` — nœud tranché par le propriétaire le 2026-08-16, **non rouvert ici** —
+   et `X-Robots-Tag: noindex` n'existe que sur `/404/*`. Conséquence à connaître avant de committer
+   un brouillon dans `content/`, pas un défaut du lot.
 
 ### E2-ST3 — QuizComponent
 - **Objectif** : quiz piloté par JSON (choix multiple, vrai/faux, mise en situation) ; correction expliquée par question ; score et état persistés en `localStorage` ; entièrement clavier/lecteur d'écran.

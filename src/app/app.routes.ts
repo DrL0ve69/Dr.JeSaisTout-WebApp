@@ -14,16 +14,33 @@
 // principal, toujours. Le découpage paresseux redeviendra le bon geste en E2, où
 // les routes de leçon sont nombreuses et rarement toutes visitées.
 //
-// AUCUNE ROUTE PARAMÉTRÉE EN E1 : `cours/securite-web/:slug` a été retirée de ce
-// lot — elle ne pouvait qu'être servie par `404/index.html` (statut 404) puis
-// écrasée côté client, donc décalage d'hydratation. Ce qu'E2-ST1 devra remettre,
-// et comment, est écrit dans `app.routes.server.ts`.
+// ✅ LA ROUTE PARAMÉTRÉE EST DE RETOUR (E2-ST2, lot B), et cette fois elle est
+// PRERENDUE. `cours/securite-web/:slug` avait été retirée en E1 parce qu'elle ne
+// pouvait qu'être servie par `404/index.html` (statut 404) puis écrasée côté
+// client, donc décalage d'hydratation. Ce qui a changé : `app.routes.server.ts` la
+// déclare en `RenderMode.Prerender` AVEC un `getPrerenderParams()` alimenté par le
+// manifeste, donc chaque leçon devient un vrai fichier statique. Les deux tables
+// doivent rester d'accord — une entrée ici sans son pendant là-bas retomberait
+// exactement dans le défaut d'E1.
 //
-// PAS DE `TitleStrategy` MAISON. Le `title:` littéral de chaque route est
-// appliqué par la stratégie par défaut d'Angular (`TitleStrategy` →
-// `Title.setTitle`). Écrire une stratégie pour cinq routes ajouterait une classe
-// à tester et à maintenir sans rien apporter ; elle se justifiera en E2, quand le
-// titre viendra du front-matter d'une leçon.
+// ELLE EST PARESSEUSE, contrairement à `Accueil`. Le raisonnement du paragraphe
+// précédent s'inverse ici : les leçons sont nombreuses, aucun visiteur ne les lit
+// toutes, et `carte-lecons.ts` émet déjà un chunk par leçon. Faire entrer la page
+// et son corps dans le bundle initial ferait payer treize modules à qui n'en ouvre
+// aucun.
+//
+// SON CONTENU EST CHARGÉ PAR UN `resolve`, PAS PAR LE COMPOSANT. Le prerenderer
+// écrit le fichier une fois l'application stable ; un chargement déclenché depuis
+// le composant arriverait après le premier rendu et pourrait figer une page VIDE
+// sur disque. Détail complet en tête de `resoudre-lecon.ts`.
+//
+// TOUJOURS PAS DE `TitleStrategy` MAISON — et c'est maintenant une décision prise
+// EN CONNAISSANCE DU CAS QU'ELLE DEVAIT SERVIR. Le commentaire d'E1 annonçait
+// qu'elle « se justifierait en E2, quand le titre viendra du front-matter ». Le
+// titre en vient bien, mais `Route.title` accepte AUSSI un `ResolveFn<string>`, que
+// la stratégie par défaut applique telle quelle : la route de leçon passe donc
+// `titreDeDocument`, et il n'y a aucune classe à écrire. Une `TitleStrategy` maison
+// n'ajouterait ici qu'un point de passage supplémentaire à tester.
 //
 // PAS DE `withComponentInputBinding()` (raisonnement complet dans `app.config.ts`,
 // rappel dans l'en-tête de `PageAVenir`) : ces routes alimentent le composant par
@@ -64,6 +81,9 @@ import { Routes } from '@angular/router';
 
 import { PageAVenir } from './core/layout/page-a-venir/page-a-venir';
 import { PageIntrouvable } from './core/layout/page-introuvable/page-introuvable';
+import { manifesteLecons } from './features/cours/contenu-compile';
+import { titreDeDocument } from './features/cours/lecon/navigation-lecon';
+import { resoudreLecon } from './features/cours/lecon/resoudre-lecon';
 import { Accueil } from './features/home/accueil';
 
 export const routes: Routes = [
@@ -80,6 +100,20 @@ export const routes: Routes = [
       titre: 'Sécurité des applications web',
       description: 'Le sommaire des treize modules arrive avec le moteur de contenu (E2).',
     },
+  },
+  {
+    // LA PAGE DE LEÇON. Elle vient APRÈS le chemin littéral `cours/securite-web`
+    // (le sommaire) et AVANT le `**` : le routeur prend le premier motif qui
+    // correspond, et un `**` placé plus haut avalerait toutes les leçons.
+    //
+    // Le `title` est un RÉSOLVEUR, pas une chaîne : le titre d'une leçon vient de
+    // son front-matter, via le manifeste. La stratégie par défaut d'Angular
+    // l'applique comme un littéral — voir l'en-tête, et `navigation-lecon.ts` pour
+    // la raison pour laquelle il ne réaffiche JAMAIS le slug de l'URL.
+    path: 'cours/securite-web/:slug',
+    loadComponent: () => import('./features/cours/lecon/lecon').then((module) => module.Lecon),
+    resolve: { lecon: resoudreLecon },
+    title: (route) => titreDeDocument(manifesteLecons, route.paramMap.get('slug') ?? ''),
   },
   {
     // Chemin littéral → réellement prerendu en `404/index.html`. C'est LUI que
