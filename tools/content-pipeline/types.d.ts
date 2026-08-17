@@ -5,8 +5,8 @@
 // `content/**` est écrit par la boucle CONTENU (professeur-web / verificateur-
 // theorie) ; `src/app/**` est écrit par la boucle LIVRAISON. Entre les deux, le
 // pipeline de build produit un JSON par leçon. Ce fichier est la SEULE
-// description de ce JSON : E2-ST2 (page de leçon), E2-ST4 (blocs de code) et
-// E2-ST6 (quiz/simulation) s'y réfèrent, et le compilateur `compiler-markdown.mjs`
+// description de ce JSON : E2-ST2 (page de leçon), E2-ST3 (quiz), E2-ST4 (blocs de
+// code) et E2-ST6 (simulation) s'y réfèrent, et le compilateur `compiler-markdown.mjs`
 // s'y conforme sous `checkJs`. Trois représentations du même contrat existent
 // encore (ce fichier, les schémas Ajv, le Markdown réel) — le test `satisfies`
 // du lot 5 réduit l'écart, il ne l'élimine pas.
@@ -128,6 +128,103 @@ interface SectionCompilee {
   blocs: BlocContenu[];
 }
 
+// -----------------------------------------------------------------------------
+// LE QUIZ — miroir de `schemas/quiz.schema.json`, émis DANS la leçon (E2-ST3, lot B)
+// -----------------------------------------------------------------------------
+// POURQUOI LE QUIZ VOYAGE DANS LA LEÇON, ET NON DANS SON PROPRE FICHIER.
+// Il s'affiche sur la page de leçon, à l'ancre `[[quiz]]` — donc au même instant que
+// le corps, dans le même chunk. Un second import paresseux ferait un aller-retour
+// réseau de plus pour une donnée dont on sait, avant même de charger la page, qu'elle
+// sera lue. `LeconCompilee.quiz` est OBLIGATOIRE, comme `quiz.json` l'est pour toute
+// leçon (`valider.mjs` §8) : une leçon sans quiz n'existe pas, et un champ optionnel
+// aurait laissé le composant traiter un cas que le contrat interdit.
+//
+// LE QUIZ EST PASSÉ FIDÈLEMENT — UNE SEULE CHOSE EST AJOUTÉE AU BUILD.
+// `trouver-la-faille` reçoit un `htmlColore` produit par le MÊME colorateur Shiki que
+// les blocs de code du corps, pour la même raison qu'eux : la coloration se précompile,
+// le navigateur ne reçoit jamais Shiki, et la couleur sort en CLASSES (`clr-…`) parce
+// que la CSP du site est à hachages. Le `code` brut reste à côté — c'est lui qui porte
+// la numérotation des lignes (`ligneFautive`) et le texte accessible.
+//
+// ⚠️ CE `code` EST VOLONTAIREMENT VULNÉRABLE (`.claude/rules/security.md` §4). Il n'est
+// jamais exécuté, et son `htmlColore` NE PASSE PAS par le `bypassSecurityTrustHtml`
+// d'E2-ST2 — celui-ci reste scopé au seul bloc `mermaid`. Ce qui le rend sûr, MESURÉ et non
+// supposé : Shiki échappe « < » en « &#x3C; » et laisse « > » brut — un échappement partiel,
+// mais suffisant, puisque sans « < » aucune balise ne peut s'OUVRIR. La leçon-témoin porte une
+// charge `<script>` et un `onerror=`, et `src/pipeline-contenu-compilation.spec.ts` exige qu'il
+// ne reste aucun « < » une fois retirées les balises que Shiki émet. Le sanitizer d'Angular
+// repassera en outre derrière, côté composant.
+//
+// CE QUI N'EST **PAS** ÉMIS : `ficheSource`. Le schéma l'exige sur chaque question de la
+// SOURCE (traçabilité du savoir, `contenu-pedagogique.md` §5) et `valider.mjs` le contrôle ;
+// mais c'est un chemin vers une KnowledgeBase privée, que le navigateur ne peut pas ouvrir.
+// La voie publiée vers les sources est la section « Aller plus loin » de la leçon. Le champ
+// est donc retiré à l'émission — l'absence ici est le contrat, pas un oubli.
+//
+// LES `id` DEVIENNENT DES `id` DE DOCUMENT, PRÉFIXÉS PAR `quiz-`. Une question `q3` est
+// rendue sous l'`id` `quiz-q3` (`PREFIXE_ID_QUESTION`, `src/app/features/cours/contenu-compile.ts`).
+// Le préfixe n'est pas décoratif : sans lui, un `id` de question et une ancre de section
+// écrite par l'auteur se disputeraient le même espace de noms. Il est VÉRIFIÉ, pas seulement
+// écrit — `lireLeconCompilee` refuse une leçon où `quiz-<id>` heurte une ancre existante.
+// -----------------------------------------------------------------------------
+
+interface ChoixDeQuestion {
+  id: string; // kebab-case, unique dans la question
+  texte: string;
+}
+
+interface PaireDAssociation {
+  gauche: string;
+  droite: string;
+}
+
+/** Les QUATRE types du schéma — union fermée, discriminée par `type`. */
+type QuestionQuiz =
+  | {
+      type: 'choix-multiple';
+      id: string; // kebab-case, unique dans le quiz
+      question: string;
+      choix: ChoixDeQuestion[];
+      bonneReponse: string; // `id` d'un des `choix` — appartenance vérifiée par `valider.mjs`
+      explication: string;
+    }
+  | {
+      type: 'vrai-faux';
+      id: string;
+      affirmation: string;
+      bonneReponse: boolean;
+      justification: string; // le pendant d'`explication` : la raison, jamais le seul verdict
+    }
+  | {
+      type: 'associer';
+      id: string;
+      consigne: string;
+      paires: PaireDAssociation[];
+      explication: string;
+    }
+  | {
+      type: 'trouver-la-faille';
+      id: string;
+      consigne: string;
+      langage: Langage;
+      // Les DEUX sont gardés, et c'est délibéré : `code` est la source de vérité de la
+      // numérotation des lignes et du texte accessible ; `htmlColore` n'est que sa mise
+      // en couleur, ajoutée au build (voir la note ci-dessus).
+      code: string; // lignes séparées par `\n`, numérotation dès 1
+      htmlColore: string; // Shiki, transformerStyleToClass — 0 attribut style=
+      ligneFautive: number; // désigne une ligne existante de `code` — vérifié par `valider.mjs`
+      faille: string;
+      explication: string;
+      correction: string;
+    };
+
+interface QuizCompile {
+  lecon: string; // slug de la leçon — RE-vérifié à l'émission (un quiz mal apparié serait muet)
+  titre: string;
+  melanger?: boolean; // absent = le composant décide (E2-ST3, lot C)
+  questions: QuestionQuiz[];
+}
+
 interface LeconCompilee {
   frontmatter: {
     titre: string;
@@ -144,6 +241,8 @@ interface LeconCompilee {
     statut: 'brouillon' | 'verifiee' | 'publiee';
   };
   sections: SectionCompilee[];
+  /** Obligatoire — voir la note du quiz ci-dessus. Rendu à l'ancre `[[quiz]]` du corps. */
+  quiz: QuizCompile;
 }
 
 interface EntreeManifesteRoutes {

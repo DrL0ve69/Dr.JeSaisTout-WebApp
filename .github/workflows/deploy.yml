@@ -408,4 +408,48 @@ jobs:
             echecs=1
           fi
 
+          # (c) AUCUN asset référencé par la page d'accueil ne doit être servi par une REDIRECTION.
+          #     Ce n'est pas une vérification de performance : c'est une vérification de CHARGEMENT.
+          #     Un module ES redirigé garde l'URL d'ARRIVÉE comme base de ses imports relatifs. Quand
+          #     `trailingSlash: "always"` déplaçait `/main-X.js` vers `/main-X.js/`, le bundle
+          #     s'exécutait quand même (200, bon type MIME) mais son `import('./chunk-Y.js')` visait
+          #     `/main-X.js/chunk-Y.js` — 404. Le site se chargeait, la route paresseuse non.
+          #
+          #     ⚠️ POURQUOI CE CONTRÔLE EST EN LIGNE ET NULLE PART AILLEURS. `trailingSlash` n'existe
+          #     PAS dans l'émulateur `swa start` (aucune occurrence dans son code) : le gate e2e tourne
+          #     donc sous une politique de routage qui n'est pas celle de la production, et il est
+          #     resté VERT pendant que la production était cassée. Un émulateur qui ignore une
+          #     directive ne la valide pas, il la masque (L-005, versant routage).
+          #
+          #     La liste des assets est LUE dans la page réellement servie, et c'est voulu : c'est
+          #     exactement la liste que le navigateur suivra. Le contrôle POSITIF est le compte —
+          #     une page dont on n'extrait aucun asset ferait passer ce test sans rien mesurer (L-019).
+          accueil=$(curl -sS "$base/" || true)
+          assets=$(printf '%s' "$accueil" \
+            | grep -oE '(src|href)="[^"]+\.(js|css)"' \
+            | sed -E 's/^(src|href)="//; s/"$//' \
+            | sort -u)
+          nb_assets=$(printf '%s' "$assets" | grep -c . || true)
+          if [ "${nb_assets:-0}" -lt 2 ]; then
+            echo "::error::Seulement ${nb_assets:-0} asset(s) extrait(s) de la page d'accueil — le contrôle ne mesure rien (attendu : au moins le bundle et la feuille de styles)."
+            echecs=1
+          else
+            echo "Assets référencés par / : ${nb_assets}"
+          fi
+
+          while IFS= read -r asset; do
+            [ -n "$asset" ] || continue
+            # Résolution contre `<base href="/">` : les chemins émis par Angular sont relatifs.
+            case "$asset" in
+              http*) cible="$asset" ;;
+              /*)    cible="$base$asset" ;;
+              *)     cible="$base/$asset" ;;
+            esac
+            statut_asset=$(curl -sS -o /dev/null -w '%{http_code}' "$cible" || true)
+            if [ "$statut_asset" != "200" ]; then
+              echo "::error::Asset « $asset » servi en ${statut_asset:-aucun} au lieu de 200 — une redirection sur un module ES casse ses imports relatifs (relire trailingSlash dans config/staticwebapp.config.source.json)."
+              echecs=1
+            fi
+          done <<<"$assets"
+
           exit $echecs

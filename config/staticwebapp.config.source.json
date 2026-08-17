@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/staticwebapp.config.json",
-  "trailingSlash": "always",
+  "trailingSlash": "auto",
   "mimeTypes": {
     ".json": "application/json",
     ".webmanifest": "application/manifest+json",

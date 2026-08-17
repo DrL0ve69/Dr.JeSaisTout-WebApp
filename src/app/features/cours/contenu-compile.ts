@@ -29,6 +29,9 @@
 // les rend, et qui LÈVE sur un type inconnu. Deux validateurs, deux profondeurs,
 // aucun recouvrement : dupliquer ici la liste des sept types de blocs ferait
 // exactement la faute L-016 (deux vérités qui divergent au premier ajout).
+// Le quiz (E2-ST3) suit EXACTEMENT ce partage : son ENVELOPPE est vérifiée ici
+// (présence, appariement au slug, `id` et `type` de chaque question), les champs
+// propres à chacun des quatre types appartiennent au `QuizComponent`.
 //
 // FAIL-CLOSED, ET BRUYAMMENT. Un artéfact malformé LÈVE en nommant le champ fautif.
 // Sur une route prerendue, cela fait échouer `npm run build` — le comportement
@@ -77,6 +80,40 @@ export const ANCRES_RESERVEES = [
 
 /** Les deux niveaux de titre qu'une section compilée peut porter (`NiveauTitre`). */
 const NIVEAUX_DE_TITRE = [2, 3] as const;
+
+/**
+ * Les QUATRE types de question du contrat — liste NOMINATIVE, comme `STATUTS` et
+ * `NIVEAUX`. Un `type` accepté tel quel ferait retomber le rendu sur une branche
+ * par défaut, c'est-à-dire une question affichée vide : exactement l'échec
+ * silencieux que ce fichier existe pour interdire.
+ */
+export const TYPES_DE_QUESTION = [
+  'choix-multiple',
+  'vrai-faux',
+  'associer',
+  'trouver-la-faille',
+] as const;
+
+/** Le kebab-case du schéma — ancres de section ET identifiants de question. */
+const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * Le préfixe sous lequel un `id` de question devient un `id` de DOCUMENT.
+ *
+ * POURQUOI IL EST FIXÉ ICI, ET NON LAISSÉ AU COMPOSANT. Les `id` de question et les ancres
+ * de section vivent dans le MÊME espace de noms — celui du document. L'auteur d'une leçon
+ * choisit ses ancres (`ancre: 'quiz'` est parfaitement naturel) sans rien savoir des `id`
+ * de son quiz, et réciproquement. Sans préfixe, deux éléments porteraient le même `id` :
+ * le sommaire ancré sauterait au mauvais endroit, et `aria-labelledby` désignerait l'autre.
+ *
+ * ET IL EST VÉRIFIÉ, PAS SEULEMENT ÉCRIT. Un préfixe posé dans un commentaire et appliqué
+ * nulle part serait exactement L-008 ; obliger l'auteur à connaître les ancres réservées de
+ * la page serait une contrainte invisible. D'où la confrontation ci-dessous : c'est le
+ * contrat qui se plie à la leçon, en refusant bruyamment le seul cas qu'il ne peut pas
+ * arbitrer. Le lot C rendra ses `<fieldset>` sous `PREFIXE_ID_QUESTION + question.id` — la
+ * même constante, pas une chaîne recopiée.
+ */
+export const PREFIXE_ID_QUESTION = 'quiz-';
 
 /** Un objet quelconque, une fois qu'on sait que c'en est un. */
 type Objet = Record<string, unknown>;
@@ -246,6 +283,11 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
     }
   }
 
+  // Hissé hors du bloc : l'espace de noms des `id` du document se compose ICI, et le quiz
+  // (plus bas) doit s'y confronter. Reste vide si `sections` est hors contrat — la collision
+  // ne se mesure alors sur rien, et c'est juste : la vraie faute est déjà signalée.
+  let ancresDuDocument: unknown[] = [];
+
   const sections = valeur['sections'];
   if (!Array.isArray(sections)) {
     manques.push('« sections » : tableau attendu');
@@ -261,10 +303,7 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
       if (!estChaineNonVide(section['titre'])) manques.push(`${ou}.titre : chaîne non vide`);
       // L'ancre sert d'`id` dans le document ET de cible `#…` dans le sommaire : une
       // ancre hors du kebab-case casserait le lien sans rien afficher d'anormal.
-      if (
-        typeof section['ancre'] !== 'string' ||
-        !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(section['ancre'])
-      ) {
+      if (typeof section['ancre'] !== 'string' || !KEBAB_CASE.test(section['ancre'])) {
         manques.push(`${ou}.ancre : kebab-case attendu`);
       }
       if (!NIVEAUX_DE_TITRE.some((connu) => connu === section['niveau'])) {
@@ -277,7 +316,10 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
     // L'UNICITÉ SE MESURE CONTRE LE DOCUMENT ENTIER, pas entre sections seulement :
     // la page émet aussi les `id` d'`ANCRES_RESERVEES`, et une section qui en
     // reprendrait un donnerait deux éléments de même `id`.
-    const ancres = sections.map((section) => (estObjet(section) ? section['ancre'] : undefined));
+    ancresDuDocument = sections.map((section) =>
+      estObjet(section) ? section['ancre'] : undefined,
+    );
+    const ancres = ancresDuDocument;
     const toutesLesAncres = [...ANCRES_RESERVEES, ...ancres];
     if (new Set(toutesLesAncres).size !== toutesLesAncres.length) {
       const reservees = ancres.filter((ancre) => ANCRES_RESERVEES.some((id) => id === ancre));
@@ -290,7 +332,109 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
     }
   }
 
+  verifierEnveloppeDuQuiz(
+    valeur['quiz'],
+    estObjet(frontmatter) ? frontmatter['slug'] : undefined,
+    ancresDuDocument,
+    manques,
+  );
+
   if (manques.length > 0) refuser(provenance, manques);
 
   return valeur as unknown as LeconCompilee;
+}
+
+/**
+ * Contrôle l'ENVELOPPE du quiz — et rien de plus (E2-ST3, lot B).
+ *
+ * POURQUOI ICI, DÈS CE LOT. `LeconCompilee.quiz` est OBLIGATOIRE : sans ce contrôle, le
+ * type promettrait au composant un champ que rien ne vérifie, et une leçon compilée par
+ * une version antérieure du pipeline arriverait sans quiz — page à moitié rendue, aucune
+ * erreur. Un contrat n'est tenu qu'à l'endroit où il est confronté à la donnée.
+ *
+ * CE QUI EST VÉRIFIÉ : que le quiz existe, qu'il désigne CETTE leçon, qu'il porte un
+ * titre et au moins une question, et que chaque question a un `id` kebab-case unique et
+ * un `type` de la liste NOMINATIVE. L'appariement au slug est le seul contrôle « métier »
+ * qui vaut la peine ici : un quiz apparié ailleurs s'afficherait sous la mauvaise leçon
+ * sans que rien ne le dise.
+ *
+ * ⏭️ CE QUI RESTE AU LOT SUIVANT : les champs PROPRES à chaque type (`choix`,
+ * `bonneReponse`, `paires`, `code`/`htmlColore`…). C'est le `QuizComponent` (lot C) qui
+ * les lit, donc lui qui doit les refuser nommément — même partage que `sections`/`blocs`,
+ * dont le contenu appartient à `RenduBlocs`. Dupliquer ici la forme des quatre types
+ * ferait deux vérités qui divergeraient au premier ajustement du schéma (L-016).
+ *
+ * @param valeur le champ `quiz` brut
+ * @param slug le `frontmatter.slug` déjà lu, ou `undefined` si le frontmatter est hors contrat
+ * @param ancresDuDocument les ancres de section déjà lues — l'autre moitié de l'espace de noms
+ * @param manques canal d'accumulation partagé avec `lireLeconCompilee`
+ */
+function verifierEnveloppeDuQuiz(
+  valeur: unknown,
+  slug: unknown,
+  ancresDuDocument: readonly unknown[],
+  manques: string[],
+): void {
+  if (!estObjet(valeur)) {
+    manques.push('« quiz » : objet attendu — toute leçon porte son quiz');
+    return;
+  }
+
+  if (!estChaineNonVide(valeur['titre'])) manques.push('« quiz.titre » : chaîne non vide attendue');
+
+  // Le slug n'est comparé que s'il est lui-même conforme : sinon le message décrirait un
+  // désaccord avec une valeur déjà signalée fautive, et masquerait la vraie cause.
+  if (typeof slug === 'string' && valeur['lecon'] !== slug) {
+    manques.push(
+      `« quiz.lecon » : « ${String(valeur['lecon'])} » alors que « frontmatter.slug » vaut « ${slug} »`,
+    );
+  }
+
+  const questions = valeur['questions'];
+  if (!Array.isArray(questions)) {
+    manques.push('« quiz.questions » : tableau attendu');
+    return;
+  }
+  if (questions.length === 0) {
+    manques.push('« quiz.questions » : au moins une question attendue');
+    return;
+  }
+
+  const identifiants: string[] = [];
+  for (const [rang, question] of questions.entries()) {
+    const ou = `« quiz.questions[${rang}] »`;
+    if (!estObjet(question)) {
+      manques.push(`${ou} : objet attendu`);
+      continue;
+    }
+    // L'`id` sert d'ancre de `<fieldset>` et de clef de progression (`core/progression/`) :
+    // deux questions homonymes rendraient la progression de l'une indiscernable de l'autre.
+    if (typeof question['id'] !== 'string' || !KEBAB_CASE.test(question['id'])) {
+      manques.push(`${ou}.id : kebab-case attendu`);
+    } else {
+      identifiants.push(question['id']);
+    }
+    if (!TYPES_DE_QUESTION.some((connu) => connu === question['type'])) {
+      manques.push(`${ou}.type : attendu ${TYPES_DE_QUESTION.join(' | ')}`);
+    }
+  }
+
+  if (new Set(identifiants).size !== identifiants.length) {
+    manques.push('« quiz.questions » : deux questions partagent le même « id »');
+  }
+
+  // LA COLLISION AVEC LE RESTE DU DOCUMENT — l'autre moitié de l'unicité des `id`.
+  // Les `ANCRES_RESERVEES` sont hors de portée par CONSTRUCTION : elles commencent toutes
+  // par « titre- », qu'aucun `PREFIXE_ID_QUESTION + …` ne peut produire. Ne restent donc que
+  // les ancres écrites par l'auteur, qui sont libres — et c'est exactement le cas qu'aucune
+  // des deux parties ne peut arbitrer seule, d'où le refus nominatif ici.
+  const heurtees = identifiants.filter((id) =>
+    ancresDuDocument.some((ancre) => ancre === `${PREFIXE_ID_QUESTION}${id}`),
+  );
+  if (heurtees.length > 0) {
+    manques.push(
+      `« quiz.questions » : l'« id » ${heurtees.join(', ')} donnerait l'« id » de document ` +
+        `« ${PREFIXE_ID_QUESTION}${heurtees[0]} », déjà pris par une ancre de section`,
+    );
+  }
 }

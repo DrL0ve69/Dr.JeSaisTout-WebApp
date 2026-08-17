@@ -76,6 +76,12 @@ module.exports = defineConfig([
       // (`let ratioMin` jamais réaffecté) : on la fait détecter, pas juste corriger.
       'prefer-const': 'error',
       'no-var': 'error',
+      // `ignoreRestSiblings` aligne ces fichiers sur le défaut de typescript-eslint, qui
+      // gouverne déjà tout `src/`. Sans lui, la façon idiomatique d'OMETTRE une propriété
+      // — `const { champ, ...reste } = objet` — est signalée comme variable inutilisée,
+      // ce qui pousse vers un `delete` sur une copie, moins lisible et moins bien typé.
+      // Le cas réel du dépôt : `emettreQuestion` retire `ficheSource` à l'émission du quiz.
+      'no-unused-vars': ['error', { ignoreRestSiblings: true }],
     },
   },
   // ===========================================================================

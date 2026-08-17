@@ -47,6 +47,7 @@ import {
   ANCRES_RESERVEES,
   MANIFESTE_LECONS,
   NIVEAUX,
+  PREFIXE_ID_QUESTION,
   lireLeconCompilee,
   lireManifeste,
 } from '../contenu-compile';
@@ -166,6 +167,14 @@ describe('page de leçon — la fixture elle-même', () => {
     // absente » de la page de garde.
     expect(frontmatter.prerequis).toEqual([]);
   });
+
+  it('porte le quiz de la leçon, apparié à son slug (E2-ST3, lot B)', () => {
+    // CONTRÔLE POSITIF des trois mutations de quiz ci-dessous : sans lui, elles
+    // seraient vertes sur une leçon dont le quiz serait déjà absent ou déjà cassé.
+    const quiz = lecon().quiz;
+    expect(quiz.lecon).toBe(slugTemoin);
+    expect(quiz.questions.length).toBeGreaterThan(0);
+  });
 });
 
 describe('rétrécissement `unknown` → `LeconCompilee`', () => {
@@ -243,6 +252,43 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
         (l.sections[0] as unknown as Record<string, unknown>)['ancre'] = 'titre-sommaire';
       },
       attendu: 'ancre réservée',
+    },
+    // ─── L'enveloppe du quiz (E2-ST3, lot B) ──────────────────────────────────
+    // Le champ est OBLIGATOIRE au contrat : sans ces trois cas, `lireLeconCompilee`
+    // promettrait au `QuizComponent` une donnée que rien ne confronte au fichier.
+    {
+      nom: 'un quiz absent, alors que le contrat le rend obligatoire',
+      muter: (l) => {
+        delete (l as unknown as Record<string, unknown>)['quiz'];
+      },
+      attendu: 'quiz',
+    },
+    {
+      nom: 'un quiz apparié à une autre leçon que la sienne',
+      muter: (l) => {
+        (l.quiz as unknown as Record<string, unknown>)['lecon'] = 'une-autre-lecon';
+      },
+      attendu: 'quiz.lecon',
+    },
+    {
+      nom: 'une question dont le `type` sort de la liste nominative',
+      muter: (l) => {
+        (l.quiz.questions[0] as unknown as Record<string, unknown>)['type'] = 'devinette';
+      },
+      attendu: 'type',
+    },
+    {
+      // Les `id` de question et les ancres de section partagent l'espace de noms du DOCUMENT.
+      // L'auteur choisit ses ancres sans rien savoir des `id` du quiz : c'est le seul cas que
+      // ni l'une ni l'autre des deux parties ne peut arbitrer seule, d'où le refus nominatif.
+      nom: "une question dont l'`id` préfixé heurte une ancre de section",
+      muter: (l) => {
+        const question = l.quiz.questions[0] as unknown as Record<string, unknown>;
+        const section = l.sections[0] as unknown as Record<string, unknown>;
+        question['id'] = 'introduction';
+        section['ancre'] = `${PREFIXE_ID_QUESTION}introduction`;
+      },
+      attendu: 'déjà pris par une ancre de section',
     },
   ];
 

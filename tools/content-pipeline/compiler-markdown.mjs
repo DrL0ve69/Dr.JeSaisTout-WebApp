@@ -68,6 +68,10 @@
  * fait échouer la compilation en le disant — plutôt que de produire un `svg: ''` que personne ne
  * remarquerait.
  *
+ * LE QUIZ (E2-ST3, lot B) : `quiz.json` est lu, REVALIDÉ et émis ici même, dans
+ * `LeconCompilee.quiz` — il voyage DANS la leçon parce qu'il s'affiche sur la page de leçon, à
+ * l'ancre `[[quiz]]`. Le raisonnement complet est en tête de `compilerQuiz`.
+ *
  * DIVERGENCE DE LECTURE DU FRONTMATTER — le legs explicite du lot 1. `valider.mjs` lit le
  * frontmatter avec un sous-ensemble YAML maison qui garde `cree`/`maj` en CHAÎNE ; `gray-matter`
  * (donc js-yaml) rend des objets `Date`. Le schéma exige `type: string` : sans normalisation, il
@@ -177,16 +181,21 @@ function afficher(chemin) {
 // ---------------------------------------------------------------------------
 
 const ajv = new Ajv({ allErrors: true, strict: true });
-const validerFrontmatter = ajv.compile(
-  /** @type {object} */ (
-    JSON.parse(
-      readFileSync(
-        join(RACINE_DEPOT, 'tools/content-pipeline/schemas/lecon.frontmatter.schema.json'),
-        'utf8',
-      ),
-    )
-  ),
-);
+
+/**
+ * @param {string} nom nom du fichier de schéma, dans `schemas/`
+ * @returns {import('ajv').ValidateFunction}
+ */
+function compilerSchema(nom) {
+  return ajv.compile(
+    /** @type {object} */ (
+      JSON.parse(readFileSync(join(RACINE_DEPOT, 'tools/content-pipeline/schemas', nom), 'utf8'))
+    ),
+  );
+}
+
+const validerFrontmatter = compilerSchema('lecon.frontmatter.schema.json');
+const validerQuiz = compilerSchema('quiz.schema.json');
 
 /**
  * Ramène `cree`/`maj` au `YYYY-MM-DD` du schéma.
@@ -205,11 +214,26 @@ function normaliserDates(donnees) {
 }
 
 /**
+ * Rend la PREMIÈRE erreur Ajv utile, en nommant l'emplacement fautif.
+ *
+ * Les erreurs de mot-clé `if` sont écartées, exactement comme dans `valider.mjs` : sur le schéma
+ * du quiz — le seul des trois à être piloté par `if/then` — elles disent « ne correspond pas au
+ * schéma then », ce qui répète la faute sans jamais nommer le champ. Les garder ferait dépendre
+ * la lisibilité du message de l'ordre dans lequel Ajv range ses erreurs.
+ *
+ * ⚠️ LE TEXTE D'AJV RESTE EN ANGLAIS ICI — dette assumée, PAS un oubli. La table de traduction
+ * (`decrireErreurAjv`) vit dans `valider.mjs`, qui est le fichier que l'auteur d'une leçon voit
+ * en premier ; la recopier ferait deux vérités à maintenir (L-016), et la partager suppose un
+ * module commun que ce lot n'ouvre pas. Ce qui compte est tenu : l'emplacement ET le champ
+ * fautifs sont nommés.
+ *
  * @param {readonly import('ajv').ErrorObject[] | null | undefined} erreurs
  * @returns {string}
  */
 function premiereErreurAjv(erreurs) {
-  const e = erreurs?.[0];
+  const toutes = erreurs ?? [];
+  const utiles = toutes.filter((erreur) => erreur.keyword !== 'if');
+  const e = utiles[0] ?? toutes[0];
   if (e === undefined) return 'erreur de schéma non décrite';
   const ou = e.instancePath === '' ? 'racine' : e.instancePath.replace(/^\//, '');
   return `« ${ou} » ${e.message ?? 'invalide'}`;
@@ -1086,6 +1110,139 @@ function creerMarkdownIt() {
   return md;
 }
 
+// ---------------------------------------------------------------------------
+// Le quiz : relu, REVALIDÉ, coloré — puis émis DANS la leçon (E2-ST3, lot B)
+// ---------------------------------------------------------------------------
+
+/**
+ * Le quiz TEL QU'IL EST ÉCRIT, avant enrichissement — c'est-à-dire `QuizCompile` privé du
+ * seul champ que le build ajoute. Le distinguer n'est pas un raffinement gratuit : caster
+ * la sortie d'`Ajv` directement en `QuizCompile` affirmerait qu'un `htmlColore` existe
+ * alors que le schéma l'INTERDIT en entrée (`additionalProperties: false`), et le typage
+ * mentirait exactement là où il sert (L-016, versant types).
+ *
+ * `ficheSource` figure ici et NON dans `QuestionQuiz` : le schéma l'exige sur la source, et
+ * l'émission le retire (voir `emettreQuestion`). Le décalage entre les deux types EST le
+ * contrat de la frontière — c'est lui qui rend l'oubli du retrait visible au typage.
+ *
+ * @typedef {Extract<QuestionQuiz, { type: 'trouver-la-faille' }>} QuestionFaille
+ * @typedef {(Exclude<QuestionQuiz, QuestionFaille> | Omit<QuestionFaille, 'htmlColore'>) & { ficheSource: string }} QuestionSource
+ * @typedef {Omit<QuizCompile, 'questions'> & { questions: QuestionSource[] }} QuizSource
+ */
+
+/**
+ * Lit `quiz.json`, le revalide et l'émet en `QuizCompile`.
+ *
+ * POURQUOI CE FICHIER REVALIDE UN QUIZ QUE `valider.mjs` A DÉJÀ ACCEPTÉ.
+ * `compilerRacine` s'exécute aussi HORS de `build.mjs` — la ligne de commande de ce
+ * fichier, et les specs qui compilent des fixtures — là où le validateur n'a pas tourné.
+ * Un générateur ne suppose pas qu'un garde-fou situé en amont s'est exécuté : c'est le
+ * précédent NOMINATIF de `rendreCarteLecons` (`generer-manifeste.mjs`, contrôle du slug
+ * avant écriture de code), et la même raison qui fait revalider le frontmatter ici même.
+ *
+ * CE QU'IL REVÉRIFIE HORS SCHÉMA, ET C'EST TOUT : `quiz.lecon === frontmatter.slug`.
+ * C'est une invariante de l'ÉMISSION, pas une règle de contenu — un quiz mal apparié
+ * serait attaché en silence à la mauvaise leçon, et rien dans la page ne le dirait. Les
+ * autres cohérences (`bonneReponse` ∈ `choix`, `ligneFautive` ≤ nombre de lignes, deux
+ * types distincts au minimum, unicité des `id`) restent la propriété de `valider.mjs` :
+ * les dupliquer ici ferait deux vérités qui divergeraient au premier ajustement (L-016).
+ *
+ * @param {string} dossier chemin absolu du dossier de la leçon
+ * @param {string} slug le `slug` du frontmatter, déjà validé
+ * @param {Colorateur} colorateur
+ * @returns {QuizCompile}
+ */
+function compilerQuiz(dossier, slug, colorateur) {
+  const chemin = join(dossier, 'quiz.json');
+  const nomFichier = afficher(chemin);
+
+  if (!existsSync(chemin)) {
+    echec(`${nomFichier} : fichier obligatoire absent`, [
+      'toute leçon porte son quiz — le contrat `LeconCompilee.quiz` n’a pas de cas « absent »',
+      'gabarit : docs/contenu/pipeline-contenu.md §Schéma quiz.json',
+    ]);
+  }
+
+  let donnees;
+  try {
+    donnees = JSON.parse(readFileSync(chemin, 'utf8'));
+  } catch (e) {
+    echec(`${nomFichier} : JSON illisible`, [e instanceof Error ? e.message : String(e)]);
+  }
+
+  if (!validerQuiz(donnees)) {
+    echec(`${nomFichier} : quiz refusé par le schéma`, [premiereErreurAjv(validerQuiz.errors)]);
+  }
+  const quiz = /** @type {QuizSource} */ (donnees);
+
+  if (quiz.lecon !== slug) {
+    echec(`${nomFichier} : quiz apparié à la mauvaise leçon`, [
+      `« lecon » vaut « ${String(quiz.lecon)} », le frontmatter déclare « ${slug} »`,
+      'un quiz mal apparié s’afficherait sous une autre leçon sans qu’aucune page ne le signale',
+    ]);
+  }
+
+  /** @type {QuizCompile} */
+  const emis = {
+    lecon: quiz.lecon,
+    titre: quiz.titre,
+    questions: quiz.questions.map((question) => emettreQuestion(question, colorateur, nomFichier)),
+  };
+  // Recopié seulement s'il est écrit : le contrat le déclare optionnel, et `undefined`
+  // disparaîtrait de toute façon à la sérialisation JSON — autant ne pas l'inventer.
+  if (quiz.melanger !== undefined) emis.melanger = quiz.melanger;
+  return emis;
+}
+
+/**
+ * Émet UNE question. Tout est passé fidèlement ; seul `trouver-la-faille` s'enrichit.
+ *
+ * La coloration est précompilée ICI pour la même raison que celle des blocs de code du
+ * corps : le navigateur ne reçoit jamais Shiki, et la couleur sort en CLASSES parce que
+ * la CSP du site est à hachages. Le contrôle de conservation « zéro `style=` » du
+ * colorateur s'applique donc au code du quiz gratuitement — et il nomme `quiz.json`.
+ *
+ * ⚠️ CE `code` EST VOLONTAIREMENT VULNÉRABLE (`.claude/rules/security.md` §4) : c'est
+ * l'énoncé même de la question. Il n'est JAMAIS exécuté, et son `htmlColore` ne passe
+ * PAS par le `bypassSecurityTrustHtml` d'E2-ST2, qui reste scopé au seul bloc `mermaid`.
+ * Le `code` brut est conservé à côté : il porte la numérotation des lignes
+ * (`ligneFautive`) et le texte accessible dont le rendu aura besoin.
+ *
+ * ⚠️ LA GARANTIE EXACTE, MESURÉE — ET PLUS ÉTROITE QU'ON NE LE CROIT. Shiki échappe
+ * « < » en « &#x3C; » et laisse « > » BRUT. Ce n'est pas un échappement HTML complet, et
+ * c'est pourtant suffisant : sans « < », aucune balise ne peut s'OUVRIR, donc « > » et
+ * même un `onerror=` restent des caractères de texte. C'est cette propriété — et elle
+ * seule — qui autorise le lot C à rendre `htmlColore`. Elle ne peut donc pas rester une
+ * affirmation de commentaire (L-008) : la leçon-témoin porte une charge `<script>` et un
+ * `onerror=`, et `src/pipeline-contenu-compilation.spec.ts` retire les balises que Shiki
+ * émet (liste nominative) pour exiger qu'il ne reste plus un seul « < ». Ne pas retirer la
+ * charge de la fixture : sans elle, l'assertion serait verte sur un code qui ne contient
+ * aucun « < » — le patron S-009 croisé L-019, sur le chemin même qui portera le module
+ * XSS d'E3.
+ *
+ * `ficheSource` NE FRANCHIT PAS cette frontière : c'est de la traçabilité de BUILD.
+ * `valider.mjs` l'exige sur la source (§5 de `contenu-pedagogique.md`), mais le navigateur
+ * n'a aucun usage d'un chemin vers une KnowledgeBase privée qu'il ne peut pas ouvrir. La
+ * voie PUBLIÉE vers les sources est la section « Aller plus loin » de la leçon, écrite en
+ * Markdown. Une surface publiée en moins, sans rien perdre de la traçabilité.
+ *
+ * @param {QuestionSource} question
+ * @param {Colorateur} colorateur
+ * @param {string} nomFichier pour le message d'échec du colorateur
+ * @returns {QuestionQuiz}
+ */
+function emettreQuestion(question, colorateur, nomFichier) {
+  if (question.type === 'trouver-la-faille') {
+    const { ficheSource, ...publiable } = question;
+    return {
+      ...publiable,
+      htmlColore: colorateur.colorer(question.code, question.langage, nomFichier),
+    };
+  }
+  const { ficheSource, ...publiable } = question;
+  return publiable;
+}
+
 /**
  * Compile UNE leçon.
  *
@@ -1130,10 +1287,37 @@ export function compilerLecon(dossier, outils) {
     ]);
   }
 
+  // L'ANCRE `[[quiz]]` DOIT ÊTRE PRÉSENTE, ET UNE SEULE FOIS.
+  // Le quiz est obligatoire dans `LeconCompilee` ; l'ancre est le seul endroit du corps où il
+  // s'affiche. Une leçon qui l'oublie compilerait, se prerendrait, se publierait — et son quiz
+  // ne serait NULLE PART sur la page, sans qu'aucun gate ne rougisse : c'est de la donnée
+  // livrée et jamais rendue, le mode d'échec le plus coûteux parce qu'il ne se voit qu'à l'œil.
+  // Deux ancres seraient l'autre moitié du même défaut : le même quiz rendu deux fois, donc
+  // des `id` de question dupliqués dans le document (cf. `PREFIXE_ID_QUESTION`).
+  //
+  // Le compte se fait ICI et pas dans `valider.mjs` : l'AST existe à cet instant, donc le
+  // compte est EXACT. Le validateur, lui, ne lit que la source — il devrait deviner par motif
+  // qu'un `[[quiz]]` n'est ni dans un bloc de code clôturé ni dans un commentaire retiré, et
+  // une liste de motifs sur un format structuré est le patron que ce dépôt a déjà payé
+  // trois fois (S-001, S-003, S-009).
+  const ancresQuiz = sections
+    .flatMap((section) => section.blocs)
+    .filter((bloc) => bloc.type === 'ancre-quiz').length;
+  if (ancresQuiz !== 1) {
+    echec(`${nomFichier} : le corps porte ${ancresQuiz} ancre(s) « [[quiz]] », une seule attendue`, [
+      ancresQuiz === 0
+        ? 'le quiz est obligatoire mais ne s’afficherait nulle part — ajouter un paragraphe valant exactement « [[quiz]] »'
+        : 'le même quiz serait rendu plusieurs fois, donc les `id` de ses questions dupliqués dans le document',
+      'gabarit : docs/contenu/pipeline-contenu.md §Gabarit de leçon',
+    ]);
+  }
+
+  const slug = String(donnees['slug']);
+
   return {
     frontmatter: {
       titre: String(donnees['titre']),
-      slug: String(donnees['slug']),
+      slug,
       sujet: String(donnees['sujet']),
       ordre: Number(donnees['ordre']),
       niveau: String(donnees['niveau']),
@@ -1146,6 +1330,7 @@ export function compilerLecon(dossier, outils) {
       statut: /** @type {LeconCompilee['frontmatter']['statut']} */ (String(donnees['statut'])),
     },
     sections,
+    quiz: compilerQuiz(dossier, slug, outils.colorateur),
   };
 }
 

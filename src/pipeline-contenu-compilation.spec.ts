@@ -17,6 +17,12 @@
 //   3. Un conteneur `:::` hors de la liste fermée fait ÉCHOUER la compilation.
 //      markdown-it-container ne « dégrade » pas : il retombe en paragraphe et les
 //      deux-points s'affichent au lecteur.
+//   4. (E2-ST3, lot B) `quiz.json` est lu, REVALIDÉ et émis dans `LeconCompilee.quiz` —
+//      absent, mal apparié à sa leçon ou hors schéma, il fait échouer la compilation.
+//      Seul `trouver-la-faille` s'enrichit d'un `htmlColore`, et son `code` brut reste
+//      à côté. Le compilateur revalide parce qu'il s'exécute AUSSI hors de `build.mjs`
+//      (cette ligne de commande en est la preuve vivante) : `valider.mjs` n'a alors pas
+//      tourné, et un générateur ne suppose pas qu'un garde-fou d'amont s'est exécuté.
 //
 // LE CONTRÔLE POSITIF (L-019). Une assertion « la sortie ne contient pas
 // `à-vérifier` » est vraie sur une sortie vide, sur une leçon sans marqueur, et
@@ -65,9 +71,29 @@ interface SectionLue {
   blocs: BlocQuelconque[];
 }
 
+/**
+ * Le quiz TEL QU'IL SORT du pipeline — lu en forme LARGE, pas en `QuizCompile`.
+ * C'est délibéré : un type qui décrirait déjà les quatre variantes ferait passer pour
+ * vérifié ce que ce spec doit justement constater à l'exécution (L-012).
+ */
+interface QuestionLue {
+  id: string;
+  type: string;
+  langage?: string;
+  code?: string;
+  htmlColore?: string;
+}
+
+interface QuizLu {
+  lecon: string;
+  titre: string;
+  questions: QuestionLue[];
+}
+
 interface LeconLue {
   frontmatter: Record<string, unknown>;
   sections: SectionLue[];
+  quiz: QuizLu;
 }
 
 /** Un dossier jetable par exécution : les sorties générées ne doivent jamais toucher `src/`. */
@@ -99,15 +125,64 @@ function tousLesBlocs(sections: readonly SectionLue[]): BlocQuelconque[] {
   return plat;
 }
 
-/** Tous les fragments de HTML coloré produits, y compris ceux nichés dans une comparaison. */
+/**
+ * Tous les fragments de HTML coloré produits : ceux du corps, ceux nichés dans une comparaison,
+ * ET celui de chaque question `trouver-la-faille` du quiz (E2-ST3, lot B).
+ *
+ * Le quiz entre dans CE helper plutôt que dans une assertion parallèle, et c'est le point : le
+ * code d'un quiz est coloré par le MÊME colorateur que celui du corps, donc les deux garanties
+ * qui suivent (zéro `style=`, toute classe `clr-` définie dans la feuille) doivent le couvrir
+ * sans qu'on ait à y penser. Une assertion écrite à côté aurait à être répétée au bloc suivant.
+ */
 function htmlColores(lecon: LeconLue): string[] {
-  return tousLesBlocs(lecon.sections).flatMap((bloc) => [
-    ...(bloc.htmlColore === undefined ? [] : [bloc.htmlColore]),
-    ...(bloc.exemples ?? []).flatMap((paire) => [
-      paire.vulnerable.htmlColore,
-      paire.corrige.htmlColore,
+  return [
+    ...tousLesBlocs(lecon.sections).flatMap((bloc) => [
+      ...(bloc.htmlColore === undefined ? [] : [bloc.htmlColore]),
+      ...(bloc.exemples ?? []).flatMap((paire) => [
+        paire.vulnerable.htmlColore,
+        paire.corrige.htmlColore,
+      ]),
     ]),
-  ]);
+    ...lecon.quiz.questions.flatMap((question) =>
+      question.htmlColore === undefined ? [] : [question.htmlColore],
+    ),
+  ];
+}
+
+/**
+ * Recopie la leçon-témoin dans un dossier JETABLE du bac à sable, en laissant muter chacun de
+ * ses deux fichiers.
+ *
+ * POURQUOI DANS LE BAC À SABLE, ET NON SOUS `__fixtures__/invalides/`. Ce dernier dossier est la
+ * table CÂBLÉE de `pipeline-contenu-validation.spec.ts`, dont le garde-fou de complétude exige
+ * une assertion par dossier : y déposer un cas destiné au COMPILATEUR ferait rougir le spec du
+ * VALIDATEUR, pour une faute qui n'est pas la sienne.
+ *
+ * @param nom sous-dossier du bac à sable — un par cas, pour qu'aucun n'hérite du voisin
+ * @param corps transforme le `lecon.md` du témoin ; absent = copie conforme
+ * @param quiz mute le `quiz.json` déjà parsé ; `null` = ne pas écrire de quiz du tout
+ */
+function leconAdHoc(
+  nom: string,
+  corps?: (source: string) => string,
+  quiz?: ((donnees: Record<string, unknown>) => void) | null,
+): string {
+  const racine = join(bacASable, nom);
+  const dossier = join(racine, '01-temoin');
+  mkdirSync(dossier, { recursive: true });
+
+  const source = readFileSync(join(FIXTURE_TEMOIN, '01-temoin', 'lecon.md'), 'utf8');
+  writeFileSync(join(dossier, 'lecon.md'), corps === undefined ? source : corps(source), 'utf8');
+
+  if (quiz !== null) {
+    const donnees = JSON.parse(
+      readFileSync(join(FIXTURE_TEMOIN, '01-temoin', 'quiz.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    quiz?.(donnees);
+    writeFileSync(join(dossier, 'quiz.json'), JSON.stringify(donnees, null, 2), 'utf8');
+  }
+
+  return racine;
 }
 
 describe('pipeline de contenu — compilation Markdown', () => {
@@ -139,6 +214,101 @@ describe('pipeline de contenu — compilation Markdown', () => {
       expect(htmlColores(lecon).length).toBeGreaterThan(0);
     });
 
+    it('émet le quiz de la leçon, avec ses CINQ questions et les QUATRE types', () => {
+      // CONTRÔLE POSITIF DE TOUT CE QUI SUIT (L-019). Sans lui, « aucun style= dans le
+      // HTML coloré du quiz » serait vrai d'un quiz vide, et « chaque type traverse
+      // intact » serait vrai d'un quiz mono-type. C'est cette assertion qui oblige la
+      // fixture à porter de quoi mordre — voir son LISEZMOI.
+      expect(lecon.quiz.lecon).toBe(lecon.frontmatter['slug']);
+      expect(lecon.quiz.titre).not.toBe('');
+      expect(lecon.quiz.questions).toHaveLength(5);
+      expect([...new Set(lecon.quiz.questions.map((question) => question.type))].sort()).toEqual([
+        'associer',
+        'choix-multiple',
+        'trouver-la-faille',
+        'vrai-faux',
+      ]);
+    });
+
+    it('colore le code de « trouver-la-faille » — et GARDE le code brut à côté', () => {
+      // Le `code` brut est la source de vérité de la numérotation des lignes
+      // (`ligneFautive`) et du texte accessible : le remplacer par son rendu HTML
+      // rendrait la ligne fautive indésignable. Les deux doivent coexister.
+      const failles = lecon.quiz.questions.filter((q) => q.type === 'trouver-la-faille');
+      expect(failles).toHaveLength(1);
+      for (const faille of failles) {
+        expect(faille.code).toContain('$_GET');
+        expect(faille.htmlColore).toMatch(/^<pre class="shiki/);
+        expect(faille.htmlColore).toContain('clr-');
+      }
+    });
+
+    it('ÉCHAPPE les métacaractères HTML du code — la propriété qui autorise le lot C', () => {
+      // ⚠️ LE CONSTAT LE PLUS IMPORTANT DE CE FICHIER. Le lot C rendra `htmlColore` dans la
+      // page ; ce qui l'y autorise n'est pas le sanitizer d'Angular mais une propriété du
+      // colorateur : Shiki traite sa source comme du TEXTE, donc `<script>` en ressort en
+      // `&lt;script&gt;`. Tant que personne ne la mesure, c'est une phrase de commentaire
+      // (L-008) — et ce chemin portera `<script>alert('XSS')</script>` dès le module XSS d'E3.
+      const faille = lecon.quiz.questions.find((q) => q.type === 'trouver-la-faille');
+      expect(faille).toBeDefined();
+      const { code = '', htmlColore = '' } = faille ?? {};
+
+      // CONTRÔLE POSITIF (L-019) : sans charge utile dans la fixture, tout ce qui suit serait
+      // vrai d'un code sans le moindre chevron. C'est cette assertion qui fait mordre l'autre.
+      expect(code).toContain("<script>alert('XSS')</script>");
+      expect(code).toContain('onerror=');
+
+      // ⚠️ CE QUE SHIKI FAIT RÉELLEMENT, MESURÉ ET NON SUPPOSÉ : il échappe « < » en « &#x3C; »
+      // et laisse « > » BRUT. La première version de ce test cherchait « &lt;script&gt; » et
+      // refusait tout « onerror= » — les deux étaient fausses, et la seconde rougissait sur du
+      // TEXTE inoffensif. La garantie exacte est plus étroite, et elle suffit : aucun « < » du
+      // source ne survit, donc aucune balise ne peut s'OUVRIR. « > » et « onerror= » restent
+      // alors des caractères de texte, sans pouvoir s'attacher à quoi que ce soit.
+      //
+      // On ANALYSE plutôt qu'on ne cherche des motifs interdits (S-001 · S-003 · S-009) : on
+      // retire les seules balises que Shiki émet — liste NOMINATIVE — et on exige qu'il ne
+      // reste plus un seul « < ». Une liste de motifs (« <script », « <img ») ne refuserait que
+      // ce que son auteur a imaginé ; celle-ci refuse tout ce qu'il n'a pas imaginé.
+      const BALISES_DE_SHIKI = /<\/?(?:pre|code|span)(?:\s[^>]*)?>/g;
+      const balisesRetirees = htmlColore.match(BALISES_DE_SHIKI)?.length ?? 0;
+      const texteSeul = htmlColore.replace(BALISES_DE_SHIKI, '');
+
+      // Contrôle positif du retrait lui-même : un `replace` qui n'aurait rien retiré, ou un
+      // texte vidé de sa charge, rendrait l'assertion suivante vraie sans rien prouver.
+      expect(balisesRetirees).toBeGreaterThan(0);
+      expect(texteSeul).toContain('onerror=alert(1)');
+
+      expect(texteSeul).not.toContain('<');
+
+      // Et la charge ressort bien — échappée, pas silencieusement effacée : l'énoncé de la
+      // question doit rester LISIBLE, c'est la matière même de l'exercice.
+      expect(texteSeul).toContain('&#x3C;script>');
+      expect(texteSeul).toContain('&#x3C;img');
+    });
+
+    it("n'émet AUCUN `ficheSource` — la traçabilité reste côté build", () => {
+      // `valider.mjs` l'EXIGE sur chaque question de la source (contenu-pedagogique §5) : le
+      // contrôle positif est donc que le fichier lu en porte bien, sans quoi cette assertion
+      // serait verte sur un quiz qui n'en a jamais eu.
+      const source = readFileSync(join(FIXTURE_TEMOIN, '01-temoin', 'quiz.json'), 'utf8');
+      expect(source).toContain('"ficheSource"');
+
+      // Un chemin vers une KnowledgeBase privée n'a aucun usage dans un navigateur qui ne peut
+      // pas l'ouvrir : c'est de la surface publiée pour rien. La voie publique vers les sources
+      // est la section « Aller plus loin » de la leçon.
+      expect(JSON.stringify(lecon.quiz)).not.toContain('ficheSource');
+    });
+
+    it('passe les AUTRES types du quiz sans y toucher — aucun `htmlColore` inventé', () => {
+      // L'enrichissement est UNIQUE et ciblé. Un `htmlColore` apparu sur un
+      // `choix-multiple` signalerait un colorateur appliqué au petit bonheur.
+      for (const question of lecon.quiz.questions) {
+        if (question.type === 'trouver-la-faille') continue;
+        expect(question.htmlColore).toBeUndefined();
+        expect(question.langage).toBeUndefined();
+      }
+    });
+
     it("n'émet AUCUN attribut style= dans le HTML coloré", () => {
       for (const html of htmlColores(lecon)) {
         expect(html.match(/\sstyle\s*=/gi) ?? []).toEqual([]);
@@ -167,7 +337,15 @@ describe('pipeline de contenu — compilation Markdown', () => {
       expect(source).toContain('<!-- à-vérifier:');
       expect(lecon.frontmatter['statut']).toBe('brouillon');
 
-      const rendu = JSON.stringify(lecon);
+      // ⚠️ LA PORTÉE EST `sections`, PAS LA LEÇON ENTIÈRE — et c'est la portée EXACTE de
+      // la garantie, pas un rabotage de commodité. Le marqueur est un COMMENTAIRE HTML du
+      // Markdown : `html: false` l'échappe au lieu de l'effacer, d'où le retrait explicite
+      // et ce contrôle. `quiz.json` ne traverse ni markdown-it ni cet échappement — JSON
+      // n'a pas de commentaires, donc la chaîne « à-vérifier » n'y est jamais un doute qui
+      // fuit, seulement une DONNÉE. La question `vrai-faux` du témoin la cite d'ailleurs
+      // dans son affirmation, exprès. Élargir l'assertion au quiz interdirait à une leçon
+      // de parler du marqueur — et le compilateur a la même portée (`JSON.stringify(sections)`).
+      const rendu = JSON.stringify(lecon.sections);
       expect(rendu).not.toContain('à-vérifier');
       expect(rendu).not.toContain('<!--');
       expect(rendu).not.toContain('&lt;!--');
@@ -214,20 +392,95 @@ describe('pipeline de contenu — compilation Markdown', () => {
       () => {
         // Écrit à la volée : le contrat `Langage` est une liste fermée de six valeurs, et une leçon
         // qui en emploie une septième ne serait pas colorée — E2-ST4 ne saurait pas la rendre.
-        const racine = join(bacASable, 'langue-inconnue');
-        const dossier = join(racine, '01-temoin');
-        mkdirSync(dossier, { recursive: true });
+        // ⚠️ LE `quiz.json` EST RECOPIÉ, et ce n'est pas décoratif : depuis E2-ST3 il est
+        // OBLIGATOIRE. Sans lui, ce cas rougirait toujours — mais sur l'absence du quiz, donc
+        // en cessant de mesurer ce qu'il prétend mesurer (cousin de L-010 : une mutation doit
+        // frapper SA cible, et une seule).
         const source = readFileSync(join(FIXTURE_TEMOIN, '01-temoin', 'lecon.md'), 'utf8');
         const frontmatter = source.slice(0, source.indexOf('---', 4) + 4);
-        writeFileSync(
-          join(dossier, 'lecon.md'),
-          `${frontmatter}\n# Titre\n\n## Une section\n\n\`\`\`brainfuck\n+++\n\`\`\`\n`,
-          'utf8',
+        const racine = leconAdHoc(
+          'langue-inconnue',
+          () => `${frontmatter}\n# Titre\n\n## Une section\n\n\`\`\`brainfuck\n+++\n\`\`\`\n`,
         );
 
         const message = messageDEchec(racine);
         expect(message).not.toBeNull();
         expect(message).toContain('brainfuck');
+      },
+      DELAI,
+    );
+
+    // ─── Le quiz, émis par le compilateur depuis E2-ST3 (lot B) ────────────────────
+    // Chaque cas isole UNE cause, et mute le fichier qui la porte. La leçon-témoin,
+    // elle, compile — c'est le groupe précédent qui l'établit, donc la mutation est
+    // bien la seule cause de l'échec constaté ici.
+
+    it(
+      'refuse une leçon dont le `quiz.json` est ABSENT, en nommant le fichier',
+      () => {
+        const racine = leconAdHoc('quiz-absent', undefined, null);
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('quiz.json');
+        expect(message).toContain('obligatoire');
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse un quiz apparié à une AUTRE leçon, en nommant les deux valeurs',
+      () => {
+        const racine = leconAdHoc('quiz-mal-apparie', undefined, (quiz) => {
+          // La mutation a-t-elle une cible ? (L-010) Le quiz d'origine désigne bien
+          // « temoin » — sans quoi ce test mesurerait l'inertie du compilateur.
+          expect(quiz['lecon']).toBe('temoin');
+          quiz['lecon'] = 'une-autre-lecon';
+        });
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('une-autre-lecon');
+        expect(message).toMatch(/frontmatter d.clare .*temoin/);
+      },
+      DELAI,
+    );
+
+    it(
+      "refuse une leçon dont le corps a PERDU son ancre « [[quiz]] »",
+      () => {
+        // Le mode d'échec que ce cas ferme est le plus coûteux du lot : la leçon compile, se
+        // prerend, se publie — et son quiz n'est NULLE PART sur la page. Aucun gate ne rougit,
+        // parce qu'il n'y a rien de malformé : il y a de la donnée livrée et jamais rendue.
+        let vue = false;
+        const racine = leconAdHoc('quiz-sans-ancre', (source) => {
+          // L-010 : la mutation doit frapper SA cible. Sans ce constat, une leçon-témoin qui
+          // aurait perdu son ancre en amont rendrait ce test vert pour la mauvaise raison.
+          vue = source.includes('[[quiz]]');
+          return source.replace('[[quiz]]', '');
+        });
+        expect(vue).toBe(true);
+
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('[[quiz]]');
+        expect(message).toContain('0 ancre');
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse une question au schéma cassé, en citant le champ manquant',
+      () => {
+        const racine = leconAdHoc('quiz-question-cassee', undefined, (quiz) => {
+          const questions = quiz['questions'] as Record<string, unknown>[];
+          const premiere = questions[0];
+          if (premiere === undefined) throw new Error('le quiz témoin est vide');
+          expect(typeof premiere['explication']).toBe('string');
+          delete premiere['explication'];
+        });
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('quiz.json');
+        expect(message).toContain('explication');
       },
       DELAI,
     );
