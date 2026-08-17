@@ -261,7 +261,9 @@ function trancherHorsCode(corps) {
       dansCode &&
       cloture !== undefined &&
       ouvrante !== null &&
-      cloture[0] === ouvrante[0] &&
+      // `charAt` et non `ouvrante[0]` : sous `noUncheckedIndexedAccess`, l'indexation rend
+      // `string | undefined`, que `startsWith` refuse — `charAt` rend toujours une chaîne.
+      cloture.startsWith(ouvrante.charAt(0)) &&
       cloture.length >= ouvrante.length
     ) {
       courante.push(ligne);
@@ -370,7 +372,10 @@ function ancrer(titre, dejaVues) {
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    // UN seul tiret, pas `-+` : la ligne précédente vient de réduire TOUT groupe de caractères
+    // non alphanumériques à un tiret unique, donc `--` ne peut plus exister ici. Le quantificateur
+    // n'ajoutait rien qu'un retour arrière super-linéaire (S8786).
+    .replace(/^-|-$/g, '');
   if (base === '') base = 'section';
 
   let ancre = base;
@@ -519,7 +524,12 @@ function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
   /** @type {Record<string, string>} */
   const attributs = {};
   const corps = accolade[1] ?? '';
-  const MOTIF_PAIRE = /([a-z-]+)="([^"]*)"/g;
+  // Le `\b` de tête n'est pas décoratif : sans lui, `[a-z-]+` peut démarrer au MILIEU d'un nom de
+  // clef et le moteur essaie chaque point de départ, d'où un retour arrière super-linéaire (S8786).
+  // Ancré sur une frontière de mot, il n'y a plus qu'un départ possible par clef. Le contrôle de
+  // résidu ci-dessous est inchangé : `{lignes=2}` (guillemets oubliés) ne correspond toujours à
+  // rien, donc laisse un résidu non vide, donc échoue — c'est le garde-fou testé.
+  const MOTIF_PAIRE = /\b([a-z-]+)="([^"]*)"/g;
   for (const paire of corps.matchAll(MOTIF_PAIRE)) {
     const clef = paire[1] ?? '';
     if (!clefsAutorisees.includes(clef)) {
@@ -680,6 +690,83 @@ function lireExemple(enfants, ouverture, nom, ctx) {
 }
 
 /**
+ * Refuse un jeton rencontré dans un `:::: comparaison` là où une ouverture `::: vulnerable` était
+ * attendue.
+ *
+ * Tolérer de la prose ici reviendrait à la perdre : le contrat de `comparaison` n'a pas de place
+ * pour elle. Mieux vaut le dire à l'auteur.
+ *
+ * @param {JetonMd} jeton jeton rencontré, dont le type n'est pas `container_vulnerable_open`
+ * @param {string} nomFichier fichier de contenu, pour nommer la faute
+ * @returns {void} rend la main si le jeton est un simple résidu de balisage à ignorer
+ */
+function refuserJetonHorsPaire(jeton, nomFichier) {
+  if (jeton.type === 'container_corrige_open') {
+    echec(`${nomFichier} : « ::: corrige » sans « ::: vulnerable » juste avant`);
+  }
+  if (jeton.nesting === 1 || jeton.type === 'fence') {
+    echec(`${nomFichier} : « :::: comparaison » ne peut contenir que des paires`, [
+      `« ${jeton.type} » rencontré — attendu « ::: vulnerable » puis « ::: corrige »`,
+    ]);
+  }
+}
+
+/**
+ * Lit UNE paire `::: vulnerable` + `::: corrige` et vérifie qu'elle est comparable : même langage
+ * des deux côtés, et cohérent avec le `{langage="…"}` éventuellement annoncé sur la comparaison.
+ *
+ * @param {readonly JetonMd[]} enfants jetons intérieurs du `:::: comparaison`
+ * @param {number} debut position de l'ouverture `container_vulnerable_open`
+ * @param {JetonMd} ouvertureVulnerable jeton d'ouverture du volet vulnérable
+ * @param {string | undefined} langageAnnonce valeur de `{langage="…"}` sur la comparaison
+ * @param {Contexte} ctx
+ * @returns {{ paire: { langage: Langage, vulnerable: ExempleCode, corrige: ExempleCode }, fin: number }}
+ *   la paire lue et la position de la fermeture du volet corrigé
+ */
+function lirePaireVulnerableCorrige(enfants, debut, ouvertureVulnerable, langageAnnonce, ctx) {
+  const finVulnerable = trouverFermeture(enfants, debut, 'vulnerable', ctx.nomFichier);
+  const debutCorrige = finVulnerable + 1;
+  const ouvertureCorrige = enfants[debutCorrige];
+  if (ouvertureCorrige?.type !== 'container_corrige_open') {
+    echec(`${ctx.nomFichier} : « ::: vulnerable » n'est pas suivi de « ::: corrige »`, [
+      'chaque exemple vulnérable doit montrer sa parade immédiatement après',
+    ]);
+  }
+  const finCorrige = trouverFermeture(enfants, debutCorrige, 'corrige', ctx.nomFichier);
+
+  const vulnerable = lireExemple(
+    enfants.slice(debut + 1, finVulnerable),
+    ouvertureVulnerable,
+    'vulnerable',
+    ctx,
+  );
+  const corrige = lireExemple(
+    enfants.slice(debutCorrige + 1, finCorrige),
+    ouvertureCorrige,
+    'corrige',
+    ctx,
+  );
+  if (vulnerable.langage !== corrige.langage) {
+    echec(`${ctx.nomFichier} : la paire compare du ${vulnerable.langage} à du ${corrige.langage}`, [
+      'les deux versions doivent être écrites dans la même langue pour être comparables',
+    ]);
+  }
+  if (langageAnnonce !== undefined && langageAnnonce !== vulnerable.langage) {
+    echec(
+      `${ctx.nomFichier} : « {langage="${langageAnnonce}"} » contredit les blocs, en ${vulnerable.langage}`,
+    );
+  }
+  return {
+    paire: {
+      langage: vulnerable.langage,
+      vulnerable: vulnerable.exemple,
+      corrige: corrige.exemple,
+    },
+    fin: finCorrige,
+  };
+}
+
+/**
  * Lit un `:::: comparaison` : une suite de paires `vulnerable` puis `corrige`.
  *
  * @param {readonly JetonMd[]} enfants
@@ -698,60 +785,70 @@ function lireComparaison(enfants, ouverture, ctx) {
     const jeton = enfants[i];
     if (jeton === undefined) break;
     if (jeton.type !== 'container_vulnerable_open') {
-      // Tolérer de la prose ici reviendrait à la perdre : le contrat de `comparaison` n'a pas de
-      // place pour elle. Mieux vaut le dire à l'auteur.
-      if (jeton.type === 'container_corrige_open') {
-        echec(`${ctx.nomFichier} : « ::: corrige » sans « ::: vulnerable » juste avant`);
-      }
-      if (jeton.nesting === 1 || jeton.type === 'fence') {
-        echec(`${ctx.nomFichier} : « :::: comparaison » ne peut contenir que des paires`, [
-          `« ${jeton.type} » rencontré — attendu « ::: vulnerable » puis « ::: corrige »`,
-        ]);
-      }
+      refuserJetonHorsPaire(jeton, ctx.nomFichier);
       i += 1;
       continue;
     }
 
-    const finVulnerable = trouverFermeture(enfants, i, 'vulnerable', ctx.nomFichier);
-    const debutCorrige = finVulnerable + 1;
-    const ouvertureCorrige = enfants[debutCorrige];
-    if (ouvertureCorrige?.type !== 'container_corrige_open') {
-      echec(`${ctx.nomFichier} : « ::: vulnerable » n'est pas suivi de « ::: corrige »`, [
-        'chaque exemple vulnérable doit montrer sa parade immédiatement après',
-      ]);
-    }
-    const finCorrige = trouverFermeture(enfants, debutCorrige, 'corrige', ctx.nomFichier);
-
-    const vulnerable = lireExemple(enfants.slice(i + 1, finVulnerable), jeton, 'vulnerable', ctx);
-    const corrige = lireExemple(
-      enfants.slice(debutCorrige + 1, finCorrige),
-      ouvertureCorrige,
-      'corrige',
-      ctx,
-    );
-    if (vulnerable.langage !== corrige.langage) {
-      echec(
-        `${ctx.nomFichier} : la paire compare du ${vulnerable.langage} à du ${corrige.langage}`,
-        ['les deux versions doivent être écrites dans la même langue pour être comparables'],
-      );
-    }
-    if (langageAnnonce !== undefined && langageAnnonce !== vulnerable.langage) {
-      echec(
-        `${ctx.nomFichier} : « {langage="${langageAnnonce}"} » contredit les blocs, en ${vulnerable.langage}`,
-      );
-    }
-    exemples.push({
-      langage: vulnerable.langage,
-      vulnerable: vulnerable.exemple,
-      corrige: corrige.exemple,
-    });
-    i = finCorrige + 1;
+    const { paire, fin } = lirePaireVulnerableCorrige(enfants, i, jeton, langageAnnonce, ctx);
+    exemples.push(paire);
+    i = fin + 1;
   }
 
   if (exemples.length === 0) {
     echec(`${ctx.nomFichier} : « :::: comparaison » ne contient aucune paire vulnérable/corrigé`);
   }
   return { type: 'comparaison', exemples };
+}
+
+/**
+ * Reconnaît une ANCRE DE COMPOSANT : un paragraphe qui ne contient que `[[quiz]]` ou
+ * `[[simulation]]`, et rien d'autre.
+ *
+ * L'exigence « rien d'autre » est le contrat : un paragraphe qui mêlerait `[[quiz]]` à de la prose
+ * reste de la prose, et l'ancre y sera rendue littéralement — visible pour l'auteur, plutôt que
+ * silencieusement avalée.
+ *
+ * @param {readonly JetonMd[]} jetons
+ * @param {number} i position du jeton examiné
+ * @returns {BlocContenu | null} le bloc d'ancre, ou `null` si ce n'en est pas une
+ */
+function lireAncreDeComposant(jetons, i) {
+  if (jetons[i]?.type !== 'paragraph_open') return null;
+  const contenu = jetons[i + 1];
+  const fermeture = jetons[i + 2];
+  if (fermeture?.type !== 'paragraph_close') return null;
+  const texte = contenu?.type === 'inline' ? contenu.content.trim() : null;
+  if (texte === '[[quiz]]') return { type: 'ancre-quiz' };
+  if (texte === '[[simulation]]') return { type: 'ancre-simulation' };
+  return null;
+}
+
+/**
+ * Classe un conteneur `:::` ouvert : comparaison, encadré de la liste fermée, ou faute.
+ *
+ * `vulnerable` et `corrige` n'existent qu'appariés dans une comparaison — les rencontrer ici veut
+ * dire qu'ils ont été écrits seuls, et c'est un échec nommé, pas un silence.
+ *
+ * @param {readonly JetonMd[]} enfants jetons intérieurs du conteneur
+ * @param {JetonMd} ouverture jeton d'ouverture, porteur de son `info` (attributs)
+ * @param {string} nom nom du conteneur, extrait de `container_<nom>_open`
+ * @param {Contexte} ctx
+ * @returns {BlocContenu}
+ */
+function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
+  if (nom === 'comparaison') return lireComparaison(enfants, ouverture, ctx);
+  if (!ENCADRES.has(/** @type {'attention' | 'note' | 'a-retenir'} */ (nom))) {
+    echec(`${ctx.nomFichier} : « ::: ${nom} » hors d'un « :::: comparaison »`, [
+      'vulnerable et corrige n’existent qu’appariés, à l’intérieur d’une comparaison',
+    ]);
+  }
+  lireAttributs(ouverture.info, nom, [], ctx.nomFichier);
+  return {
+    type: 'encadre',
+    variante: /** @type {'attention' | 'note' | 'a-retenir'} */ (nom),
+    blocs: construireBlocs(enfants, ctx),
+  };
 }
 
 /**
@@ -775,29 +872,32 @@ function construireBlocs(jetons, ctx) {
     if (html !== '') blocs.push({ type: 'prose', html });
   };
 
-  for (let i = 0; i < jetons.length; i += 1) {
+  // Boucle `while` et non `for` : le pas N'EST PAS de 1. Une ancre `[[quiz]]` consomme trois
+  // jetons (ouverture/inline/fermeture) et un conteneur `:::` consomme tout jusqu'à SA fermeture —
+  // ces sauts sont délibérés, le contenu déjà absorbé ne doit pas être relu. Réaffecter le
+  // compteur d'un `for` masquait cette mécanique derrière un en-tête qui annonce `i += 1` (S2310) ;
+  // ici chaque branche déclare elle-même de combien elle avance.
+  let i = 0;
+  while (i < jetons.length) {
     const jeton = jetons[i];
-    if (jeton === undefined) continue;
+    if (jeton === undefined) {
+      i += 1;
+      continue;
+    }
 
     if (jeton.type === 'fence') {
       viderTampon();
       blocs.push(blocDeCloture(jeton, ctx));
+      i += 1;
       continue;
     }
 
-    if (jeton.type === 'paragraph_open') {
-      const contenu = jetons[i + 1];
-      const fermeture = jetons[i + 2];
-      const texte = contenu?.type === 'inline' ? contenu.content.trim() : null;
-      if (
-        fermeture?.type === 'paragraph_close' &&
-        (texte === '[[quiz]]' || texte === '[[simulation]]')
-      ) {
-        viderTampon();
-        blocs.push(texte === '[[quiz]]' ? { type: 'ancre-quiz' } : { type: 'ancre-simulation' });
-        i += 2;
-        continue;
-      }
+    const ancre = lireAncreDeComposant(jetons, i);
+    if (ancre !== null) {
+      viderTampon();
+      blocs.push(ancre);
+      i += 3;
+      continue;
     }
 
     const ouverture = /^container_(.+)_open$/.exec(jeton.type);
@@ -805,29 +905,113 @@ function construireBlocs(jetons, ctx) {
     if (nom !== undefined) {
       viderTampon();
       const fin = trouverFermeture(jetons, i, nom, ctx.nomFichier);
-      const enfants = jetons.slice(i + 1, fin);
-      if (nom === 'comparaison') blocs.push(lireComparaison(enfants, jeton, ctx));
-      else if (ENCADRES.has(/** @type {'attention' | 'note' | 'a-retenir'} */ (nom))) {
-        lireAttributs(jeton.info, nom, [], ctx.nomFichier);
-        blocs.push({
-          type: 'encadre',
-          variante: /** @type {'attention' | 'note' | 'a-retenir'} */ (nom),
-          blocs: construireBlocs(enfants, ctx),
-        });
-      } else {
-        echec(`${ctx.nomFichier} : « ::: ${nom} » hors d'un « :::: comparaison »`, [
-          'vulnerable et corrige n’existent qu’appariés, à l’intérieur d’une comparaison',
-        ]);
-      }
-      i = fin;
+      blocs.push(classerConteneurOuvert(jetons.slice(i + 1, fin), jeton, nom, ctx));
+      i = fin + 1;
       continue;
     }
 
     tampon.push(jeton);
+    i += 1;
   }
 
   viderTampon();
   return blocs;
+}
+
+/**
+ * Une section en cours d'accumulation : son titre, son niveau, et les jetons déjà absorbés.
+ *
+ * @typedef {{ titre: string, niveau: NiveauTitre, jetons: JetonMd[] }} SectionEnCours
+ */
+
+/**
+ * L'état du découpage, porté d'un jeton à l'autre.
+ *
+ * POURQUOI UN OBJET PLUTÔT QUE QUATRE VARIABLES LOCALES. Le traitement d'un titre modifie trois de
+ * ces quatre champs à la fois (il clôt la section courante, en ouvre une autre, et mémorise le
+ * `<h1>` déjà vu) : les passer séparément à une fonction extraite obligerait à rendre un tuple et
+ * à le redistribuer au point d'appel, ce qui déplacerait la mécanique sans la clarifier.
+ *
+ * @typedef {{
+ *   sections: SectionCompilee[],
+ *   ancres: Set<string>,
+ *   courante: SectionEnCours | null,
+ *   titreLuNiveau1: boolean,
+ * }} EtatDecoupage
+ */
+
+/**
+ * Texte d'un titre ATX : le contenu `inline` qui suit son `heading_open`.
+ *
+ * @param {readonly JetonMd[]} jetons
+ * @param {number} i position du `heading_open`
+ * @returns {string} le titre nettoyé, ou la chaîne vide si le titre n'a pas de contenu
+ */
+function texteDuTitre(jetons, i) {
+  const contenu = jetons[i + 1];
+  return contenu?.type === 'inline' ? contenu.content.trim() : '';
+}
+
+/**
+ * Fige une section accumulée en section compilée, en lui attribuant son ancre.
+ *
+ * @param {SectionEnCours} courante
+ * @param {Set<string>} ancres ancres déjà attribuées — mutée par `ancrer` pour garantir l'unicité
+ * @param {Contexte} ctx
+ * @returns {SectionCompilee}
+ */
+function cloturerSection(courante, ancres, ctx) {
+  return {
+    titre: courante.titre,
+    ancre: ancrer(courante.titre, ancres),
+    niveau: courante.niveau,
+    blocs: construireBlocs(courante.jetons, ctx),
+  };
+}
+
+/**
+ * Traite un titre rencontré dans le flux : `#` (titre de la leçon, hors sommaire), `##`/`###`
+ * (ouverture d'une section), ou un niveau inférieur qui n'en est pas un.
+ *
+ * @param {EtatDecoupage} etat muté sur place
+ * @param {string} titre texte du titre
+ * @param {number} niveau niveau ATX lu sur la balise (`h1` → 1, `h2` → 2…)
+ * @param {Contexte} ctx
+ * @returns {boolean} `true` si le titre a été consommé comme titre ; `false` pour un `h4` et
+ *   au-delà, qui n'est pas une section du sommaire mais du contenu légitime
+ */
+function traiterTitre(etat, titre, niveau, ctx) {
+  if (niveau === 1) {
+    if (etat.titreLuNiveau1) echec(`${ctx.nomFichier} : deux titres de niveau 1`);
+    if (etat.courante !== null) {
+      echec(`${ctx.nomFichier} : titre de niveau 1 « ${titre} » après le début du corps`);
+    }
+    etat.titreLuNiveau1 = true;
+    return true;
+  }
+
+  if (niveau !== 2 && niveau !== 3) return false;
+
+  if (titre === '') echec(`${ctx.nomFichier} : titre de niveau ${niveau} vide`);
+  if (etat.courante !== null) {
+    etat.sections.push(cloturerSection(etat.courante, etat.ancres, ctx));
+  }
+  etat.courante = { titre, niveau: /** @type {NiveauTitre} */ (niveau), jetons: [] };
+  return true;
+}
+
+/**
+ * Un jeton rencontré AVANT la première section est-il un simple résidu de balisage, qu'on peut
+ * ignorer sans rien perdre ?
+ *
+ * Les jetons `inline` du `<h1>` déjà consommé et les jetons cachés (fermetures implicites de
+ * markdown-it) tombent ici ; tout le reste est du contenu réel, qui doit vivre sous un `##`.
+ *
+ * @param {JetonMd} jeton
+ * @returns {boolean}
+ */
+function estJetonIgnorableHorsSection(jeton) {
+  return jeton.type === 'inline' || jeton.hidden;
 }
 
 /**
@@ -838,44 +1022,16 @@ function construireBlocs(jetons, ctx) {
  * @returns {SectionCompilee[]}
  */
 function construireSections(jetons, ctx) {
-  /** @type {SectionCompilee[]} */
-  const sections = [];
-  /** @type {Set<string>} */
-  const ancres = new Set();
-  /** @type {{ titre: string, niveau: NiveauTitre, jetons: JetonMd[] } | null} */
-  let courante = null;
-  let titreLuNiveau1 = false;
+  /** @type {EtatDecoupage} */
+  const etat = { sections: [], ancres: new Set(), courante: null, titreLuNiveau1: false };
 
   for (let i = 0; i < jetons.length; i += 1) {
     const jeton = jetons[i];
     if (jeton === undefined) continue;
 
     if (jeton.type === 'heading_open') {
-      const contenu = jetons[i + 1];
-      const titre = contenu?.type === 'inline' ? contenu.content.trim() : '';
       const niveau = Number(jeton.tag.slice(1));
-
-      if (niveau === 1) {
-        if (titreLuNiveau1) echec(`${ctx.nomFichier} : deux titres de niveau 1`);
-        if (courante !== null) {
-          echec(`${ctx.nomFichier} : titre de niveau 1 « ${titre} » après le début du corps`);
-        }
-        titreLuNiveau1 = true;
-        i += 2;
-        continue;
-      }
-
-      if (niveau === 2 || niveau === 3) {
-        if (titre === '') echec(`${ctx.nomFichier} : titre de niveau ${niveau} vide`);
-        if (courante !== null) {
-          sections.push({
-            titre: courante.titre,
-            ancre: ancrer(courante.titre, ancres),
-            niveau: courante.niveau,
-            blocs: construireBlocs(courante.jetons, ctx),
-          });
-        }
-        courante = { titre, niveau: /** @type {NiveauTitre} */ (niveau), jetons: [] };
+      if (traiterTitre(etat, texteDuTitre(jetons, i), niveau, ctx)) {
         i += 2;
         continue;
       }
@@ -883,8 +1039,9 @@ function construireSections(jetons, ctx) {
       // dans la prose de la section courante, avec ses jetons de fermeture.
     }
 
+    const courante = etat.courante;
     if (courante === null) {
-      if (jeton.type === 'inline' || jeton.hidden) continue;
+      if (estJetonIgnorableHorsSection(jeton)) continue;
       echec(`${ctx.nomFichier} : contenu hors de toute section`, [
         `« ${jeton.type} » rencontré avant le premier titre de niveau 2`,
         'tout le corps doit vivre sous un « ## » (ou un « ### »)',
@@ -893,16 +1050,13 @@ function construireSections(jetons, ctx) {
     courante.jetons.push(jeton);
   }
 
-  if (courante !== null) {
-    sections.push({
-      titre: courante.titre,
-      ancre: ancrer(courante.titre, ancres),
-      niveau: courante.niveau,
-      blocs: construireBlocs(courante.jetons, ctx),
-    });
+  if (etat.courante !== null) {
+    etat.sections.push(cloturerSection(etat.courante, etat.ancres, ctx));
   }
-  if (sections.length === 0) echec(`${ctx.nomFichier} : aucune section (aucun titre de niveau 2)`);
-  return sections;
+  if (etat.sections.length === 0) {
+    echec(`${ctx.nomFichier} : aucune section (aucun titre de niveau 2)`);
+  }
+  return etat.sections;
 }
 
 // ---------------------------------------------------------------------------
@@ -996,6 +1150,21 @@ export function compilerLecon(dossier, outils) {
 }
 
 /**
+ * Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de la plateforme.
+ * Même fonction, même raison que dans `tools/a11y/verifier-axe.mjs` et
+ * `tools/deploiement/generer-config-swa.mjs` (L-009) : ce sont des chemins ASCII, et l'ordre de
+ * compilation doit être le même sur ce poste Windows et sur le runner Linux.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number} négatif, nul ou positif, au contrat de `Array.prototype.sort`
+ */
+function comparerOctets(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
+/**
  * Recense les dossiers de leçon d'une racine — mêmes règles que `valider.mjs` : c'est la présence
  * d'un `lecon.md` qui déclare une leçon, jamais celle d'un dossier.
  *
@@ -1014,7 +1183,7 @@ function recenserLecons(racine) {
     }
   };
   descendre(racine);
-  return trouves.sort();
+  return trouves.sort(comparerOctets);
 }
 
 /**

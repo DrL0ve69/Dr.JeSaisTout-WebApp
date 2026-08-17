@@ -178,7 +178,11 @@ function scalaire(brut, contexte) {
       `${contexte} : structure en ligne non acceptée (« ${t} ») — utiliser la forme en blocs « - item »`,
     );
   }
-  const sansCommentaire = t.replace(/\s+#.*$/, '').trim();
+  // `\s` et non `\s+` : deux quantificateurs adjacents dont les classes se chevauchent donnent un
+  // retour arrière super-linéaire (S8786). Une seule blanche suffit à reconnaître le début du
+  // commentaire ; les blanches qui la précèdent restent en tête et le `.trim()` — qui était DÉJÀ
+  // là — les enlève. Sortie identique, à la lettre.
+  const sansCommentaire = t.replace(/\s#.*$/, '').trim();
   if (sansCommentaire === '' || sansCommentaire === '~' || sansCommentaire === 'null') return null;
   if (/^-?\d+$/.test(sansCommentaire)) return Number(sansCommentaire);
   if (sansCommentaire === 'true') return true;
@@ -222,7 +226,11 @@ function analyserFrontmatter(brut) {
     const contexte = `frontmatter ligne ${i + 2}`;
     if (ligne.trim() === '' || /^\s*#/.test(ligne)) continue;
 
-    const item = /^\s+-\s+(.*)$/.exec(ligne) ?? /^-\s+(.*)$/.exec(ligne);
+    // UN seul motif là où il y en avait deux : leur union est exactement `^\s*-` (« tiret indenté »
+    // OU « tiret en colonne 0 »). Et `\s` plutôt que `\s+` après le tiret — la blanche
+    // supplémentaire tombe dans la capture, que `scalaire()` commence par `.trim()`. Les deux
+    // gestes suppriment le retour arrière super-linéaire (S8786) sans toucher à ce qui est accepté.
+    const item = /^\s*-\s(.*)$/.exec(ligne);
     if (item) {
       if (cleEnCours === null) {
         throw new ErreurContenu(`${contexte} : élément de liste « - » sans clé au-dessus`);
@@ -242,7 +250,8 @@ function analyserFrontmatter(brut) {
     if (Object.hasOwn(donnees, cle)) {
       throw new ErreurContenu(`${contexte} : clé « ${cle} » répétée`);
     }
-    const reste = (paire[2] ?? '').replace(/\s+#.*$/, '').trim();
+    // `\s` et non `\s+` — même raison qu'en tête de `scalaire()`, et même `.trim()` derrière.
+    const reste = (paire[2] ?? '').replace(/\s#.*$/, '').trim();
     if (reste === '') {
       cleEnCours = cle;
       liste = [];
@@ -278,19 +287,21 @@ function lignesDuCorps(corps) {
   const lignes = corps.split('\n');
   for (let i = 0; i < lignes.length; i++) {
     const texte = (lignes[i] ?? '').replace(/\r$/, '');
-    const marque = /^\s{0,3}(`{3,}|~{3,})\s*(.*)$/.exec(texte);
+    // Le motif ne reconnaît QUE le préfixe (indentation + marqueur) ; la fin de ligne se récupère
+    // en JS. Un `\s*(.*)$` accolé au marqueur rendait le motif super-linéaire (S8786) alors que
+    // seule la question « ce qui suit est-il vide ? » nous intéresse.
+    const marque = /^\s{0,3}(`{3,}|~{3,})/.exec(texte);
     if (marque) {
       const suite = marque[1] ?? '';
-      const caractere = suite[0] ?? '`';
+      const caractere = suite.charAt(0);
+      const apres = texte.slice(marque[0].length).trim();
       if (cloture === null) {
         cloture = { caractere, longueur: suite.length };
         resultat.push({ numero: i + 1, texte, code: true });
         continue;
       }
       const fermante =
-        caractere === cloture.caractere &&
-        suite.length >= cloture.longueur &&
-        (marque[2] ?? '').trim() === '';
+        caractere === cloture.caractere && suite.length >= cloture.longueur && apres === '';
       resultat.push({ numero: i + 1, texte, code: true });
       if (fermante) cloture = null;
       continue;
@@ -315,23 +326,41 @@ function normaliserApostrophes(texte) {
 /**
  * Titres ATX du corps, blocs de code exclus.
  *
+ * CE QUI EST RENDU À PART, ET POURQUOI. Un titre SANS texte (`##` suivi de blanches seulement) ne
+ * peut pas entrer dans `titres` : il deviendrait une section fantôme dans le contrôle d'ordre du
+ * gabarit, qui rapporterait alors « section manquante » — une cause à côté de la vraie. Mais il ne
+ * peut pas non plus être ignoré : le refactor S8786 du 2026-08-17 l'avait fait, et le validateur
+ * cessait de mordre là où l'ancien motif `(.+?)` mordait par accident (constat de revue de
+ * sécurité). Il sort donc par la seconde porte, `vides`, pour être refusé EN SE NOMMANT — c'est le
+ * contrat du dépôt : ce qui n'est pas compris est refusé, jamais ignoré.
+ *
  * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
- * @returns {Array<{ niveau: number, texte: string, numero: number }>}
+ * @returns {{ titres: Array<{ niveau: number, texte: string, numero: number }>, vides: number[] }}
+ *   `vides` porte les numéros de ligne des titres sans texte
  */
 function titresDuCorps(lignes) {
   /** @type {Array<{ niveau: number, texte: string, numero: number }>} */
   const titres = [];
+  /** @type {number[]} */
+  const vides = [];
   for (const l of lignes) {
     if (l.code) continue;
-    const t = /^(#{1,6})\s+(.+?)\s*$/.exec(l.texte);
+    // Préfixe seul (`###` + UNE blanche), le titre se prend en JS : `\s+` suivi de `(.+?)\s*$`
+    // faisait travailler le moteur sur chaque découpe possible de la blanche (S8786).
+    const t = /^(#{1,6})\s/.exec(l.texte);
     if (!t) continue;
+    const texte = l.texte.slice(t[0].length).trim();
+    if (texte === '') {
+      vides.push(l.numero);
+      continue;
+    }
     titres.push({
       niveau: (t[1] ?? '').length,
-      texte: normaliserApostrophes((t[2] ?? '').trim()),
+      texte: normaliserApostrophes(texte),
       numero: l.numero,
     });
   }
-  return titres;
+  return { titres, vides };
 }
 
 // ---------------------------------------------------------------------------
@@ -449,17 +478,15 @@ function estObjet(v) {
 }
 
 /**
- * Vérifie le corps : sections, typographie, marqueurs de doute, conteneurs.
+ * --- 4a. Titre de niveau 1 ---
  *
- * @param {string} corps
- * @param {string} statut
+ * Le corps porte exactement UN `# …`, et c'est le tout premier titre rencontré : c'est lui que la
+ * page prerendue affiche en tête, et lui que le manifeste de routes annonce.
+ *
+ * @param {Array<{ niveau: number, texte: string, numero: number }>} titres
  * @param {(cause: string) => void} signaler
  */
-function verifierCorps(corps, statut, signaler) {
-  const lignes = lignesDuCorps(corps);
-  const titres = titresDuCorps(lignes);
-
-  // --- 4. Sections du gabarit ---------------------------------------------
+function verifierTitreDeNiveau1(titres, signaler) {
   const h1 = titres.filter((t) => t.niveau === 1);
   if (h1.length !== 1) {
     signaler(
@@ -468,9 +495,21 @@ function verifierCorps(corps, statut, signaler) {
   } else if (titres[0]?.niveau !== 1) {
     signaler('le titre de niveau 1 (# …) doit être le tout premier titre du corps');
   }
+}
 
-  const h2 = titres.filter((t) => t.niveau === 2);
-  const textesH2 = h2.map((t) => t.texte);
+/**
+ * --- 4b. Présence et unicité de chaque section du gabarit ---
+ *
+ * Rend la position de chaque section requise dans la suite des `##`, ou `null` dès qu'une section
+ * manque ou se répète : sans les positions complètes, contrôler l'ORDRE (4c) reviendrait à
+ * comparer une liste trouée, donc à signaler un désordre imaginaire par-dessus l'absence déjà
+ * signalée.
+ *
+ * @param {string[]} textesH2 textes des titres de niveau 2, dans l'ordre du corps
+ * @param {(cause: string) => void} signaler
+ * @returns {number[] | null} positions dans `textesH2`, ou `null` si le relevé est incomplet
+ */
+function releverPositionsDesSectionsRequises(textesH2, signaler) {
   /** @type {number[]} */
   const positions = [];
   let sectionsCompletes = true;
@@ -488,32 +527,49 @@ function verifierCorps(corps, statut, signaler) {
     }
     positions.push(textesH2.indexOf(attendue));
   }
-  if (sectionsCompletes) {
-    for (let i = 1; i < positions.length; i++) {
-      const precedent = positions[i - 1] ?? -1;
-      const courant = positions[i] ?? -1;
-      if (courant < precedent) {
-        signaler(
-          `section « ## ${SECTIONS_REQUISES[i]} » placée avant « ## ${SECTIONS_REQUISES[i - 1]} » — ` +
-            "l'ordre du gabarit n'est pas respecté",
-        );
-        break;
-      }
-    }
-    if (textesH2[0] !== SECTIONS_REQUISES[0]) {
+  return sectionsCompletes ? positions : null;
+}
+
+/**
+ * --- 4c. Ordre du gabarit, et bornes (première et dernière section) ---
+ *
+ * @param {number[]} positions positions des sections requises, dans l'ordre du gabarit
+ * @param {string[]} textesH2 textes des titres de niveau 2, dans l'ordre du corps
+ * @param {(cause: string) => void} signaler
+ */
+function verifierOrdreEtBornesDesSections(positions, textesH2, signaler) {
+  for (let i = 1; i < positions.length; i++) {
+    const precedent = positions[i - 1] ?? -1;
+    const courant = positions[i] ?? -1;
+    if (courant < precedent) {
       signaler(
-        `la première section de niveau 2 doit être « ## ${SECTIONS_REQUISES[0]} », pas « ## ${textesH2[0] ?? '(aucune)'} »`,
+        `section « ## ${SECTIONS_REQUISES[i]} » placée avant « ## ${SECTIONS_REQUISES[i - 1]} » — ` +
+          "l'ordre du gabarit n'est pas respecté",
       );
-    }
-    const derniere = SECTIONS_REQUISES[SECTIONS_REQUISES.length - 1];
-    if (textesH2[textesH2.length - 1] !== derniere) {
-      signaler(
-        `la dernière section de niveau 2 doit être « ## ${derniere} », pas « ## ${textesH2[textesH2.length - 1] ?? '(aucune)'} »`,
-      );
+      break;
     }
   }
+  if (textesH2[0] !== SECTIONS_REQUISES[0]) {
+    signaler(
+      `la première section de niveau 2 doit être « ## ${SECTIONS_REQUISES[0]} », pas « ## ${textesH2[0] ?? '(aucune)'} »`,
+    );
+  }
+  const derniere = SECTIONS_REQUISES.at(-1);
+  const derniereVue = textesH2.at(-1);
+  if (derniereVue !== derniere) {
+    signaler(
+      `la dernière section de niveau 2 doit être « ## ${derniere} », pas « ## ${derniereVue ?? '(aucune)'} »`,
+    );
+  }
+}
 
-  // --- 5. Espaces fines interdites (hors code, hors code en ligne) ---------
+/**
+ * --- 5. Espaces fines interdites (hors code, hors code en ligne) ---
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {(cause: string) => void} signaler
+ */
+function verifierEspacesFinesInterdites(lignes, signaler) {
   for (const l of lignes) {
     if (l.code) continue;
     // Les segments `code en ligne` sont blanchis SUR PLACE (même longueur) pour que la colonne
@@ -529,25 +585,41 @@ function verifierCorps(corps, statut, signaler) {
       }
     }
   }
+}
 
-  // --- 6. Marqueur de doute vs statut -------------------------------------
-  if (statut === 'publiee') {
-    for (const l of lignes) {
-      if (l.texte.includes(MARQUEUR_DOUTE)) {
-        signaler(
-          `corps ligne ${l.numero} : marqueur « ${MARQUEUR_DOUTE} » présent alors que ` +
-            '`statut: publiee` — une leçon publiée ne porte plus de doute non tranché',
-        );
-      }
+/**
+ * --- 6. Marqueur de doute vs statut ---
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {string} statut
+ * @param {(cause: string) => void} signaler
+ */
+function verifierMarqueurDeDouteVsStatut(lignes, statut, signaler) {
+  if (statut !== 'publiee') return;
+  for (const l of lignes) {
+    if (l.texte.includes(MARQUEUR_DOUTE)) {
+      signaler(
+        `corps ligne ${l.numero} : marqueur « ${MARQUEUR_DOUTE} » présent alors que ` +
+          '`statut: publiee` — une leçon publiée ne porte plus de doute non tranché',
+      );
     }
   }
+}
 
-  // --- 7. Conteneurs `:::` en liste fermée ---------------------------------
+/**
+ * --- 7. Conteneurs `:::` en liste fermée ---
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {(cause: string) => void} signaler
+ */
+function verifierConteneursEnListeFermee(lignes, signaler) {
   for (const l of lignes) {
     if (l.code) continue;
-    const marque = /^\s{0,3}:{3,}\s*(.*)$/.exec(l.texte);
+    // Préfixe seul (indentation + `:::`), la suite en JS — même raison qu'en `lignesDuCorps` et
+    // `titresDuCorps` : `\s*(.*)$` accolé au marqueur rend le motif super-linéaire (S8786).
+    const marque = /^\s{0,3}:{3,}/.exec(l.texte);
     if (!marque) continue;
-    const suite = (marque[1] ?? '').trim();
+    const suite = l.texte.slice(marque[0].length).trim();
     if (suite === '') continue; // fermeture d'un conteneur
     const nom = /^([A-Za-z0-9-]+)/.exec(suite);
     if (!nom) {
@@ -561,6 +633,90 @@ function verifierCorps(corps, statut, signaler) {
           `(${[...CONTENEURS_AUTORISES].join(', ')})`,
       );
     }
+  }
+}
+
+/**
+ * Vérifie le corps : sections, typographie, marqueurs de doute, conteneurs.
+ *
+ * L'ORDRE DES APPELS EST LE CONTRAT. Les anomalies sortent dans l'ordre où elles sont signalées,
+ * et cet ordre est comparé d'une exécution à l'autre (même raison que `comparerOctets` plus bas) :
+ * ne pas réordonner ces étapes sans en mesurer l'effet sur la sortie du gate.
+ *
+ * @param {string} corps
+ * @param {string} statut
+ * @param {(cause: string) => void} signaler
+ */
+function verifierCorps(corps, statut, signaler) {
+  const lignes = lignesDuCorps(corps);
+  const { titres, vides } = titresDuCorps(lignes);
+
+  // --- 4. Sections du gabarit ---------------------------------------------
+  // Les titres SANS texte se signalent AVANT tout le reste, et par leur vraie cause. Placés après,
+  // ils seraient précédés d'un « section manquante » qui enverrait l'auteur corriger la mauvaise
+  // ligne — or la première anomalie est celle que le contrôle positif compare.
+  for (const numero of vides) {
+    signaler(`corps ligne ${numero} : titre de section sans texte (« # » suivi de blanches seules)`);
+  }
+  verifierTitreDeNiveau1(titres, signaler);
+  const textesH2 = titres.filter((t) => t.niveau === 2).map((t) => t.texte);
+  const positions = releverPositionsDesSectionsRequises(textesH2, signaler);
+  if (positions !== null) verifierOrdreEtBornesDesSections(positions, textesH2, signaler);
+
+  // --- 5. Espaces fines interdites (hors code, hors code en ligne) ---------
+  verifierEspacesFinesInterdites(lignes, signaler);
+
+  // --- 6. Marqueur de doute vs statut -------------------------------------
+  verifierMarqueurDeDouteVsStatut(lignes, statut, signaler);
+
+  // --- 7. Conteneurs `:::` en liste fermée ---------------------------------
+  verifierConteneursEnListeFermee(lignes, signaler);
+}
+
+/**
+ * Cohérences d'une question `choix-multiple` : identifiants de choix distincts, et
+ * `bonneReponse` qui désigne réellement l'un d'eux.
+ *
+ * Un `bonneReponse` orphelin est le défaut le plus coûteux du format : le schéma ne peut pas
+ * l'exprimer (il faudrait comparer une valeur à une liste voisine), et une question dont aucune
+ * réponse n'est bonne ne se voit qu'à l'usage, en pleine leçon.
+ *
+ * @param {Record<string, unknown>} q question déjà validée par le schéma
+ * @param {string} id identifiant de la question, tel qu'il est rapporté
+ * @param {(cause: string) => void} signaler
+ */
+function verifierQuestionChoixMultiple(q, id, signaler) {
+  const choix = Array.isArray(q['choix']) ? q['choix'] : [];
+  const idsChoix = choix
+    .map((c) => (estObjet(c) && typeof c['id'] === 'string' ? c['id'] : null))
+    .filter((c) => c !== null);
+  if (new Set(idsChoix).size !== idsChoix.length) {
+    signaler(`question « ${id} » : deux choix portent le même identifiant`);
+  }
+  if (!idsChoix.includes(String(q['bonneReponse']))) {
+    signaler(
+      `question « ${id} » : « bonneReponse » vaut « ${String(q['bonneReponse'])} », qui n'est ` +
+        `l'identifiant d'aucun choix (${idsChoix.join(', ') || 'aucun'})`,
+    );
+  }
+}
+
+/**
+ * Cohérence d'une question `trouver-la-faille` : la ligne désignée comme fautive existe
+ * réellement dans l'extrait de code fourni.
+ *
+ * @param {Record<string, unknown>} q question déjà validée par le schéma
+ * @param {string} id identifiant de la question, tel qu'il est rapporté
+ * @param {(cause: string) => void} signaler
+ */
+function verifierQuestionTrouverLaFaille(q, id, signaler) {
+  const code = typeof q['code'] === 'string' ? q['code'] : '';
+  const nbLignes = code.split('\n').length;
+  const fautive = typeof q['ligneFautive'] === 'number' ? q['ligneFautive'] : 0;
+  if (fautive > nbLignes) {
+    signaler(
+      `question « ${id} » : « ligneFautive » vaut ${fautive} alors que « code » ne compte que ${nbLignes} ligne(s)`,
+    );
   }
 }
 
@@ -590,32 +746,8 @@ function verifierQuizHorsSchema(quiz, slug, signaler) {
     ids.add(id);
     if (typeof q['type'] === 'string') types.add(q['type']);
 
-    if (q['type'] === 'choix-multiple') {
-      const choix = Array.isArray(q['choix']) ? q['choix'] : [];
-      const idsChoix = choix
-        .map((c) => (estObjet(c) && typeof c['id'] === 'string' ? c['id'] : null))
-        .filter((c) => c !== null);
-      if (new Set(idsChoix).size !== idsChoix.length) {
-        signaler(`question « ${id} » : deux choix portent le même identifiant`);
-      }
-      if (!idsChoix.includes(String(q['bonneReponse']))) {
-        signaler(
-          `question « ${id} » : « bonneReponse » vaut « ${String(q['bonneReponse'])} », qui n'est ` +
-            `l'identifiant d'aucun choix (${idsChoix.join(', ') || 'aucun'})`,
-        );
-      }
-    }
-
-    if (q['type'] === 'trouver-la-faille') {
-      const code = typeof q['code'] === 'string' ? q['code'] : '';
-      const nbLignes = code.split('\n').length;
-      const fautive = typeof q['ligneFautive'] === 'number' ? q['ligneFautive'] : 0;
-      if (fautive > nbLignes) {
-        signaler(
-          `question « ${id} » : « ligneFautive » vaut ${fautive} alors que « code » ne compte que ${nbLignes} ligne(s)`,
-        );
-      }
-    }
+    if (q['type'] === 'choix-multiple') verifierQuestionChoixMultiple(q, id, signaler);
+    if (q['type'] === 'trouver-la-faille') verifierQuestionTrouverLaFaille(q, id, signaler);
   });
 
   // « Au moins 2 types différents » (pipeline-contenu.md §quiz) : un quiz mono-type teste la
@@ -715,6 +847,118 @@ function avecJson(chemin, suite, signaler) {
 }
 
 /**
+ * --- 3. Cohérence dossier ↔ frontmatter ---
+ *
+ * Le nom du dossier (`<nn>-<slug>`) et le frontmatter disent DEUX FOIS la même chose : la position
+ * de la leçon et son slug. Deux sources doivent concorder, sinon l'URL prerendue et le lien qui y
+ * mène finissent par diverger.
+ *
+ * @param {RegExpExecArray | null} decoupe résultat du découpage du nom de dossier, ou `null` si le
+ *   nommage est déjà signalé comme invalide — rien n'est alors comparable
+ * @param {Record<string, unknown>} frontmatter déjà validé par le schéma
+ * @param {string} slug slug déclaré par le frontmatter
+ * @param {(cause: string) => void} signaler
+ */
+function verifierCoherenceDossierEtFrontmatter(decoupe, frontmatter, slug, signaler) {
+  if (!decoupe) return;
+  const nn = decoupe[1] ?? '';
+  const slugDossier = decoupe[2] ?? '';
+  if (slugDossier !== slug) {
+    signaler(
+      `le slug du frontmatter (« ${slug} ») diffère du suffixe du dossier (« ${slugDossier} »)`,
+    );
+  }
+  if (frontmatter['ordre'] !== Number(nn)) {
+    signaler(
+      `« ordre » vaut ${String(frontmatter['ordre'])} alors que le dossier annonce ${Number(nn)} (« ${nn}- »)`,
+    );
+  }
+}
+
+/**
+ * Le `<h1>` doit reprendre le titre du frontmatter : c'est le titre que la page prerendue affiche
+ * et celui que le manifeste de routes annonce. Deux titres différents, c'est une page qui ne dit
+ * pas la même chose que le lien qui y mène.
+ *
+ * @param {string} corps corps du Markdown, frontmatter retiré
+ * @param {Record<string, unknown>} frontmatter déjà validé par le schéma
+ * @param {(cause: string) => void} signaler
+ */
+function verifierTitreContreFrontmatter(corps, frontmatter, signaler) {
+  // Les titres VIDES ne concernent pas cette comparaison — `verifierCorps` les a déjà signalés,
+  // et un titre sans texte ne peut de toute façon pas être le `<h1>` attendu.
+  const { titres } = titresDuCorps(lignesDuCorps(corps));
+  const premierTitre = titres.find((t) => t.niveau === 1);
+  const titreAttendu = normaliserApostrophes(String(frontmatter['titre']));
+  if (premierTitre && premierTitre.texte !== titreAttendu) {
+    signaler(
+      `le titre de niveau 1 (« ${premierTitre.texte} ») diffère du « titre » du frontmatter (« ${titreAttendu} »)`,
+    );
+  }
+}
+
+/**
+ * --- 8. `quiz.json` (obligatoire) ---
+ *
+ * Toute leçon porte son quiz : son absence est une anomalie, pas une option. Les anomalies du quiz
+ * sont rapportées sous SON chemin à lui, pas sous celui de `lecon.md` — l'auteur doit savoir quel
+ * fichier ouvrir.
+ *
+ * @param {string} dossier chemin absolu du dossier de la leçon
+ * @param {string} slug slug déclaré par le frontmatter de la leçon
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ */
+function validerQuizDeLecon(dossier, slug, anomalies) {
+  const cheminQuiz = join(dossier, 'quiz.json');
+  const relQuiz = relative(RACINE_DEPOT, cheminQuiz).replaceAll('\\', '/');
+  /** @param {string} cause */
+  const signalerQuiz = (cause) => anomalies.push({ fichier: relQuiz, cause });
+  if (!existsSync(cheminQuiz)) {
+    signalerQuiz('fichier obligatoire absent — toute leçon porte son quiz');
+    return;
+  }
+  avecJson(
+    cheminQuiz,
+    (quiz) => {
+      if (!validerQuiz(quiz)) {
+        signalerQuiz(premiereErreurAjv(validerQuiz.errors));
+        return;
+      }
+      verifierQuizHorsSchema(quiz, slug, signalerQuiz);
+    },
+    signalerQuiz,
+  );
+}
+
+/**
+ * --- 9. `simulation.json` (optionnel) ---
+ *
+ * Absente, la simulation ne dit rien ; présente, elle est validée comme le reste.
+ *
+ * @param {string} dossier chemin absolu du dossier de la leçon
+ * @param {string} slug slug déclaré par le frontmatter de la leçon
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ */
+function validerSimulationDeLecon(dossier, slug, anomalies) {
+  const cheminSimulation = join(dossier, 'simulation.json');
+  if (!existsSync(cheminSimulation)) return;
+  const relSimulation = relative(RACINE_DEPOT, cheminSimulation).replaceAll('\\', '/');
+  /** @param {string} cause */
+  const signalerSimulation = (cause) => anomalies.push({ fichier: relSimulation, cause });
+  avecJson(
+    cheminSimulation,
+    (simulation) => {
+      if (!validerSimulation(simulation)) {
+        signalerSimulation(premiereErreurAjv(validerSimulation.errors));
+        return;
+      }
+      verifierSimulationHorsSchema(simulation, slug, signalerSimulation);
+    },
+    signalerSimulation,
+  );
+}
+
+/**
  * Valide UNE leçon (un dossier contenant `lecon.md`).
  *
  * @param {string} dossier chemin absolu du dossier de la leçon
@@ -763,77 +1007,36 @@ function validerLecon(dossier) {
   const statut = String(frontmatter['statut']);
 
   // --- 3. Cohérence dossier ↔ frontmatter ---------------------------------
-  if (decoupe) {
-    const nn = decoupe[1] ?? '';
-    const slugDossier = decoupe[2] ?? '';
-    if (slugDossier !== slug) {
-      signalerLecon(
-        `le slug du frontmatter (« ${slug} ») diffère du suffixe du dossier (« ${slugDossier} »)`,
-      );
-    }
-    if (frontmatter['ordre'] !== Number(nn)) {
-      signalerLecon(
-        `« ordre » vaut ${String(frontmatter['ordre'])} alors que le dossier annonce ${Number(nn)} (« ${nn}- »)`,
-      );
-    }
-  }
+  verifierCoherenceDossierEtFrontmatter(decoupe, frontmatter, slug, signalerLecon);
 
   // --- 4 à 7. Corps --------------------------------------------------------
   const corps = texte.slice(separation[0].length);
   verifierCorps(corps, statut, signalerLecon);
-
-  // Le <h1> doit reprendre le titre du frontmatter : c'est le titre que la page prerendue affiche
-  // et celui que le manifeste de routes annonce. Deux titres différents, c'est une page qui ne dit
-  // pas la même chose que le lien qui y mène.
-  const premierTitre = titresDuCorps(lignesDuCorps(corps)).find((t) => t.niveau === 1);
-  const titreAttendu = normaliserApostrophes(String(frontmatter['titre']));
-  if (premierTitre && premierTitre.texte !== titreAttendu) {
-    signalerLecon(
-      `le titre de niveau 1 (« ${premierTitre.texte} ») diffère du « titre » du frontmatter (« ${titreAttendu} »)`,
-    );
-  }
+  verifierTitreContreFrontmatter(corps, frontmatter, signalerLecon);
 
   // --- 8. quiz.json (obligatoire) -----------------------------------------
-  const cheminQuiz = join(dossier, 'quiz.json');
-  const relQuiz = relative(RACINE_DEPOT, cheminQuiz).replaceAll('\\', '/');
-  /** @param {string} cause */
-  const signalerQuiz = (cause) => anomalies.push({ fichier: relQuiz, cause });
-  if (!existsSync(cheminQuiz)) {
-    signalerQuiz('fichier obligatoire absent — toute leçon porte son quiz');
-  } else {
-    avecJson(
-      cheminQuiz,
-      (quiz) => {
-        if (!validerQuiz(quiz)) {
-          signalerQuiz(premiereErreurAjv(validerQuiz.errors));
-          return;
-        }
-        verifierQuizHorsSchema(quiz, slug, signalerQuiz);
-      },
-      signalerQuiz,
-    );
-  }
+  validerQuizDeLecon(dossier, slug, anomalies);
 
   // --- 9. simulation.json (optionnel) --------------------------------------
-  const cheminSimulation = join(dossier, 'simulation.json');
-  if (existsSync(cheminSimulation)) {
-    const relSimulation = relative(RACINE_DEPOT, cheminSimulation).replaceAll('\\', '/');
-    /** @param {string} cause */
-    const signalerSimulation = (cause) => anomalies.push({ fichier: relSimulation, cause });
-    avecJson(
-      cheminSimulation,
-      (simulation) => {
-        if (!validerSimulation(simulation)) {
-          signalerSimulation(premiereErreurAjv(validerSimulation.errors));
-          return;
-        }
-        verifierSimulationHorsSchema(simulation, slug, signalerSimulation);
-      },
-      signalerSimulation,
-    );
-  }
+  validerSimulationDeLecon(dossier, slug, anomalies);
 
   return { anomalies, slug, ordre: frontmatter['ordre'], sujet: frontmatter['sujet'] };
+}
+
+/**
+ * Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de la plateforme.
+ * Même fonction, même raison que dans `tools/a11y/verifier-axe.mjs` et
+ * `tools/deploiement/generer-config-swa.mjs` (L-009) : ce sont des chemins et des noms de dossiers
+ * ASCII, et l'ORDRE DES ANOMALIES rapportées doit être le même sur ce poste Windows et sur le
+ * runner Linux — sinon deux exécutions du même gate ne se comparent plus.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number} négatif, nul ou positif, au contrat de `Array.prototype.sort`
+ */
+function comparerOctets(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
 }
 
 /**
@@ -860,7 +1063,31 @@ function recenserLecons(racine) {
     }
   };
   descendre(racine);
-  return trouves.sort();
+  return trouves.sort(comparerOctets);
+}
+
+/**
+ * Exige qu'une valeur soit portée par UNE SEULE leçon de la racine, et nomme le premier porteur
+ * quand elle se répète.
+ *
+ * POURQUOI NOMMER LE PREMIER PORTEUR. Un doublon de slug ou d'ordre ne se corrige pas en regardant
+ * la leçon qui rougit : il faut voir les DEUX pour décider laquelle se déplace. Un message qui ne
+ * cite qu'un des deux fichiers renvoie l'auteur à une chasse manuelle.
+ *
+ * @template T
+ * @param {Map<T, string>} dejaVus valeurs déjà rencontrées → chemin relatif de leur porteur
+ * @param {T} valeur valeur portée par la leçon courante
+ * @param {string} rel chemin relatif de la leçon courante
+ * @param {(premierPorteur: string) => string} decrire rend la cause, le premier porteur en main
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ */
+function exigerUniciteDansLaRacine(dejaVus, valeur, rel, decrire, anomalies) {
+  const dejaVu = dejaVus.get(valeur);
+  if (dejaVu === undefined) {
+    dejaVus.set(valeur, rel);
+    return;
+  }
+  anomalies.push({ fichier: rel, cause: decrire(dejaVu) });
 }
 
 /**
@@ -886,22 +1113,26 @@ function validerRacine(racine) {
     const resultat = validerLecon(dossier);
     anomalies.push(...resultat.anomalies);
     if (resultat.slug !== null) {
-      const dejaVu = slugsVus.get(resultat.slug);
-      if (dejaVu !== undefined) {
-        anomalies.push({
-          fichier: rel,
-          cause: `le slug « ${resultat.slug} » est déjà porté par « ${dejaVu} » — il doit être unique dans le sujet`,
-        });
-      } else slugsVus.set(resultat.slug, rel);
+      const slug = resultat.slug;
+      exigerUniciteDansLaRacine(
+        slugsVus,
+        slug,
+        rel,
+        (dejaVu) =>
+          `le slug « ${slug} » est déjà porté par « ${dejaVu} » — il doit être unique dans le sujet`,
+        anomalies,
+      );
     }
     if (typeof resultat.ordre === 'number') {
-      const dejaVu = ordresVus.get(resultat.ordre);
-      if (dejaVu !== undefined) {
-        anomalies.push({
-          fichier: rel,
-          cause: `« ordre: ${resultat.ordre} » est déjà porté par « ${dejaVu} » — deux leçons ne peuvent pas occuper la même position`,
-        });
-      } else ordresVus.set(resultat.ordre, rel);
+      const ordre = resultat.ordre;
+      exigerUniciteDansLaRacine(
+        ordresVus,
+        ordre,
+        rel,
+        (dejaVu) =>
+          `« ordre: ${ordre} » est déjà porté par « ${dejaVu} » — deux leçons ne peuvent pas occuper la même position`,
+        anomalies,
+      );
     }
     if (typeof resultat.sujet === 'string') sujets.add(resultat.sujet);
   }
@@ -986,7 +1217,7 @@ if (options.fixtures !== null) {
   const cas = readdirSync(dossierFixtures, { withFileTypes: true })
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
-    .sort();
+    .sort(comparerOctets);
   if (cas.length === 0)
     echec(`aucun cas dans ${options.fixtures} — un contrôle positif vide ne prouve rien`);
 
@@ -1006,9 +1237,8 @@ if (options.fixtures !== null) {
     }
     refuses++;
     const reste = resultat.anomalies.length - 1;
-    console.log(
-      `  ✔ ${nom}\n      refusé : ${premiere.cause}${reste > 0 ? `  (+${reste} autre(s))` : ''}`,
-    );
+    const mentionAutres = reste > 0 ? `  (+${reste} autre(s))` : '';
+    console.log(`  ✔ ${nom}\n      refusé : ${premiere.cause}${mentionAutres}`);
   }
   console.log(`\n${refuses}/${cas.length} cas refusés avec une cause nommée.`);
   if (manques.length > 0) {

@@ -313,6 +313,23 @@ const ATTRIBUTS_RETIRES = new Set(['style']);
 const ATTRIBUTS_REFERENCE = new Set(['href', 'xlink:href']);
 
 /**
+ * Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de
+ * la plateforme. Même fonction, même raison que dans `tools/a11y/verifier-axe.mjs`
+ * et `tools/deploiement/generer-config-swa.mjs` (L-009) : `localeCompare` classerait
+ * les mêmes noms différemment selon la locale du poste, et ces listes triées
+ * alimentent un HACHAGE qui sert de clef de cache — une divergence d'ordre entre ce
+ * poste Windows et le runner Linux invaliderait le cache d'un côté seulement.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number} négatif, nul ou positif, au contrat de `Array.prototype.sort`
+ */
+function comparerOctets(a, b) {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+}
+
+/**
  * L'EMPREINTE DES RÈGLES — la contrepartie exécutable de l'invalidation du cache.
  *
  * Un entier `VERSION_RENDU` qu'un commentaire demandait d'incrémenter à la main
@@ -324,12 +341,12 @@ const ATTRIBUTS_REFERENCE = new Set(['href', 'xlink:href']);
 const EMPREINTE_REGLES = createHash('sha256')
   .update(
     JSON.stringify({
-      elementsAutorises: [...ELEMENTS_AUTORISES].sort(),
-      elementsRetires: [...ELEMENTS_RETIRES].sort(),
-      elementsRefuses: [...ELEMENTS_REFUSES.keys()].sort(),
-      attributsAutorises: [...ATTRIBUTS_AUTORISES].sort(),
-      attributsRetires: [...ATTRIBUTS_RETIRES].sort(),
-      attributsReference: [...ATTRIBUTS_REFERENCE].sort(),
+      elementsAutorises: [...ELEMENTS_AUTORISES].sort(comparerOctets),
+      elementsRetires: [...ELEMENTS_RETIRES].sort(comparerOctets),
+      elementsRefuses: [...ELEMENTS_REFUSES.keys()].sort(comparerOctets),
+      attributsAutorises: [...ATTRIBUTS_AUTORISES].sort(comparerOctets),
+      attributsRetires: [...ATTRIBUTS_RETIRES].sort(comparerOctets),
+      attributsReference: [...ATTRIBUTS_REFERENCE].sort(comparerOctets),
       prefixesAttributs: PREFIXES_ATTRIBUTS,
       configMermaid: CONFIG_MERMAID,
       classeRacine: CLASSE_RACINE,
@@ -383,7 +400,11 @@ function localiserChromium() {
   let chemin;
   try {
     chemin = chromium.executablePath();
-  } catch (erreur) {
+    // S7718 attend un paramètre nommé `error_` — nomenclature anglophone incompatible avec la
+    // règle de langue du dépôt (CLAUDE.md : identifiants en français). `.sonarcloud.properties`
+    // n'accepte pas `sonar.issue.ignore.multicriteria` (son en-tête énumère ce qu'il accepte) :
+    // le seul levier est un `NOSONAR`, et il est PAR LIGNE.
+  } catch (erreur) { // NOSONAR
     return echec('Playwright ne sait pas où est son Chromium', [
       String(erreur instanceof Error ? erreur.message : erreur),
       'lancer : npm run e2e:install',
@@ -498,8 +519,12 @@ export function extraireDiagrammes(source) {
  * @returns {{ titreAccessible: string, descriptionLongue: string }}
  */
 function lireDirectivesAcces(code, nomFichier, rang) {
-  const titre = /^[ \t]*accTitle[ \t]*:[ \t]*(.+)$/m.exec(code)?.[1]?.trim() ?? '';
-  const descLigne = /^[ \t]*accDescr[ \t]*:[ \t]*(.+)$/m.exec(code)?.[1]?.trim() ?? '';
+  // Les espaces qui suivent le « : » sont capturées puis retirées par `.trim()`, plutôt que
+  // consommées par un `[ \t]*` devant la capture : deux quantificateurs adjacents dont les classes
+  // se chevauchent (`[ \t]` ⊂ `.`) donnent à l'analyseur un retour arrière super-linéaire (S8786).
+  // Le `.trim()` était déjà là — la forme est donc plus simple ET équivalente.
+  const titre = /^[ \t]*accTitle[ \t]*:(.*)$/m.exec(code)?.[1]?.trim() ?? '';
+  const descLigne = /^[ \t]*accDescr[ \t]*:(.*)$/m.exec(code)?.[1]?.trim() ?? '';
   const descBloc = /^[ \t]*accDescr[ \t]*\{([\s\S]*?)\}/m.exec(code)?.[1] ?? '';
   const description = (descLigne || descBloc).replace(/\s+/g, ' ').trim();
 
@@ -561,6 +586,148 @@ function abreger(valeur) {
  */
 
 /**
+ * Le sort réservé à un élément ou à un attribut, une fois confronté aux listes blanches.
+ *
+ * `retirer` porte la clef de comptage (c'est elle qui alimente le contrôle de conservation de
+ * `verifierSvgNettoye`), `refuser` porte le libellé déjà rédigé pour l'humain, `garder` ne porte
+ * rien. Trois cas nommés valent mieux qu'un booléen plus un canal de message à côté : c'est la
+ * forme qui empêche un retrait SILENCIEUX de se glisser à la place d'un refus.
+ *
+ * @typedef {{ genre: 'retirer', clef: string }
+ *   | { genre: 'refuser', libelle: string }
+ *   | { genre: 'garder' }} Verdict
+ */
+
+/**
+ * Ouvre le SVG en XML strict et vérifie que sa racine est bien un `<svg>`.
+ *
+ * L'analyseur refuse de laisser passer ce qu'il n'a pas su lire ENTIÈREMENT : un garde-fou qui ne
+ * prouve pas avoir tout vu ne garde rien (S-003).
+ *
+ * @param {string} source
+ * @param {string} origine ce qu'on nomme dans le message — fichier, rang, ou chemin de cache
+ * @returns {{ window: FenetreXml }} le document analysé, racine `<svg>` confirmée
+ */
+function ouvrirDocumentSvg(source, origine) {
+  /** @type {{ window: FenetreXml }} */
+  let dom;
+  try {
+    dom = new JSDOM(source, { contentType: 'image/svg+xml' });
+    // `NOSONAR` : S7718 réclame `error_`, contre la règle « français seulement » — voir
+    // `localiserChromium` pour le raisonnement complet.
+  } catch (erreur) { // NOSONAR
+    return echec(`${origine} : le SVG n'est pas du XML bien formé`, [
+      String(erreur instanceof Error ? erreur.message : erreur),
+      "l'analyseur refuse de laisser passer ce qu'il n'a pas su lire ENTIÈREMENT — un",
+      'garde-fou qui ne prouve pas avoir tout vu ne garde rien (S-003)',
+    ]);
+  }
+
+  const racine = dom.window.document.documentElement;
+  if (racine.tagName !== 'svg') {
+    return echec(`${origine} : la racine du document est « ${racine.tagName} », pas « svg »`);
+  }
+  return dom;
+}
+
+/**
+ * Un élément dont un ancêtre vient d'être supprimé n'est plus dans le document :
+ * l'inspecter produirait des refus sur du contenu déjà parti.
+ *
+ * @param {ElementXml} element
+ * @param {ReadonlySet<ElementXml>} supprimes éléments déjà retirés au cours de cette analyse
+ * @returns {boolean}
+ */
+function estDetache(element, supprimes) {
+  for (let parent = element.parentNode; parent !== null; parent = parent.parentNode) {
+    if (supprimes.has(parent)) return true;
+  }
+  return false;
+}
+
+/**
+ * Confronte UN élément aux listes blanches et rend son verdict.
+ *
+ * @param {string} nom nom de la balise, tel que l'analyseur XML l'a lu
+ * @returns {Verdict}
+ */
+function jugerElement(nom) {
+  if (ELEMENTS_RETIRES.has(nom)) return { genre: 'retirer', clef: `<${nom}>` };
+
+  const raison = ELEMENTS_REFUSES.get(nom);
+  if (raison !== undefined) {
+    return { genre: 'refuser', libelle: `élément « <${nom}> » — ${raison}` };
+  }
+  if (!ELEMENTS_AUTORISES.has(nom)) {
+    return { genre: 'refuser', libelle: `élément « <${nom}> » — absent de ELEMENTS_AUTORISES` };
+  }
+  return { genre: 'garder' };
+}
+
+/**
+ * Confronte UN attribut aux listes blanches et rend son verdict.
+ *
+ * @param {string} nom nom de la balise porteuse, pour que le message désigne l'attribut EN
+ *   SITUATION — « absent de la liste » sans dire de quel élément renvoie à une fouille
+ * @param {string} cle nom de l'attribut
+ * @param {string} valeur valeur de l'attribut
+ * @returns {Verdict}
+ */
+function jugerAttribut(nom, cle, valeur) {
+  if (ATTRIBUTS_RETIRES.has(cle)) return { genre: 'retirer', clef: `${cle}=` };
+  if (/^on/i.test(cle)) {
+    return {
+      genre: 'refuser',
+      libelle: `<${nom} ${cle}="${abreger(valeur)}"> — gestionnaire d'événement`,
+    };
+  }
+  if (ATTRIBUTS_REFERENCE.has(cle)) {
+    if (valeur.startsWith('#')) return { genre: 'garder' };
+    return {
+      genre: 'refuser',
+      libelle:
+        `<${nom} ${cle}="${abreger(valeur)}"> — seule une référence INTERNE ` +
+        '(« #… ») est admise ; une URL externe ou un « javascript: » est refusée',
+    };
+  }
+  if (PREFIXES_ATTRIBUTS.some((prefixe) => cle.startsWith(prefixe))) return { genre: 'garder' };
+  if (!ATTRIBUTS_AUTORISES.has(cle)) {
+    return {
+      genre: 'refuser',
+      libelle: `<${nom} ${cle}="${abreger(valeur)}"> — absent de ATTRIBUTS_AUTORISES`,
+    };
+  }
+  return { genre: 'garder' };
+}
+
+/**
+ * Applique la liste blanche à TOUS les attributs d'un élément déjà autorisé.
+ *
+ * La copie est ICI load-bearing, contrairement à celle du parcours d'éléments de `analyserSvg` :
+ * `attributes` est une `NamedNodeMap` VIVANTE, et le corps de boucle appelle `removeAttribute`.
+ * Mesuré sur jsdom : sur quatre attributs a,b,c,d dont chacun est retiré au passage, l'itération
+ * directe n'en voit que DEUX (a puis c) — la moitié des attributs échapperait donc à la liste
+ * blanche, en silence. Ne pas « simplifier ».
+ *
+ * @param {ElementXml} element muté sur place : les attributs `retirer` en sont ôtés
+ * @param {string} nom nom de la balise, pour les messages
+ * @param {(clef: string) => void} compterRetrait comptabilise un retrait effectif
+ * @param {string[]} refus collecteur de constats, muté sur place
+ * @returns {void}
+ */
+function appliquerListeBlancheAuxAttributs(element, nom, compterRetrait, refus) {
+  for (const attribut of [...element.attributes]) { // NOSONAR
+    const verdict = jugerAttribut(nom, attribut.name, attribut.value);
+    if (verdict.genre === 'retirer') {
+      compterRetrait(verdict.clef);
+      element.removeAttribute(attribut.name);
+      continue;
+    }
+    if (verdict.genre === 'refuser') refus.push(verdict.libelle);
+  }
+}
+
+/**
  * Parse un SVG et confronte CHAQUE élément et CHAQUE attribut aux listes blanches.
  *
  * Le contrat est délibérément SANS EFFET DE BORD sur le processus : la fonction ne
@@ -573,23 +740,9 @@ function abreger(valeur) {
  * @returns {RapportAnalyse}
  */
 function analyserSvg(source, origine) {
-  /** @type {{ window: FenetreXml }} */
-  let dom;
-  try {
-    dom = new JSDOM(source, { contentType: 'image/svg+xml' });
-  } catch (erreur) {
-    return echec(`${origine} : le SVG n'est pas du XML bien formé`, [
-      String(erreur instanceof Error ? erreur.message : erreur),
-      "l'analyseur refuse de laisser passer ce qu'il n'a pas su lire ENTIÈREMENT — un",
-      'garde-fou qui ne prouve pas avoir tout vu ne garde rien (S-003)',
-    ]);
-  }
-
+  const dom = ouvrirDocumentSvg(source, origine);
   const document = dom.window.document;
   const racine = document.documentElement;
-  if (racine.tagName !== 'svg') {
-    return echec(`${origine} : la racine du document est « ${racine.tagName} », pas « svg »`);
-  }
 
   /** @type {Record<string, number>} */
   const retires = {};
@@ -603,68 +756,25 @@ function analyserSvg(source, origine) {
     retires[clef] = (retires[clef] ?? 0) + 1;
   };
 
-  /**
-   * Un élément dont un ancêtre vient d'être supprimé n'est plus dans le document :
-   * l'inspecter produirait des refus sur du contenu déjà parti.
-   *
-   * @param {ElementXml} element
-   * @returns {boolean}
-   */
-  const detache = (element) => {
-    for (let parent = element.parentNode; parent !== null; parent = parent.parentNode) {
-      if (supprimes.has(parent)) return true;
-    }
-    return false;
-  };
-
-  // Instantané AVANT toute mutation : on retire des nœuds en cours de route.
-  for (const element of [...document.querySelectorAll('*')]) {
-    if (supprimes.has(element) || detache(element)) continue;
+  // Instantané AVANT toute mutation : `querySelectorAll` rend une NodeList STATIQUE, elle ne se
+  // met donc pas à jour quand on retire des nœuds en cours de route — la copie serait sans effet.
+  for (const element of document.querySelectorAll('*')) {
+    if (supprimes.has(element) || estDetache(element, supprimes)) continue;
     const nom = element.tagName;
 
-    if (ELEMENTS_RETIRES.has(nom)) {
-      compterRetrait(`<${nom}>`);
+    const verdict = jugerElement(nom);
+    if (verdict.genre === 'retirer') {
+      compterRetrait(verdict.clef);
       supprimes.add(element);
       element.remove();
       continue;
     }
-
-    const raison = ELEMENTS_REFUSES.get(nom);
-    if (raison !== undefined) {
-      refus.push(`élément « <${nom}> » — ${raison}`);
-      continue;
-    }
-    if (!ELEMENTS_AUTORISES.has(nom)) {
-      refus.push(`élément « <${nom}> » — absent de ELEMENTS_AUTORISES`);
+    if (verdict.genre === 'refuser') {
+      refus.push(verdict.libelle);
       continue;
     }
 
-    for (const attribut of [...element.attributes]) {
-      const cle = attribut.name;
-
-      if (ATTRIBUTS_RETIRES.has(cle)) {
-        compterRetrait(`${cle}=`);
-        element.removeAttribute(cle);
-        continue;
-      }
-      if (/^on/i.test(cle)) {
-        refus.push(`<${nom} ${cle}="${abreger(attribut.value)}"> — gestionnaire d'événement`);
-        continue;
-      }
-      if (ATTRIBUTS_REFERENCE.has(cle)) {
-        if (!attribut.value.startsWith('#')) {
-          refus.push(
-            `<${nom} ${cle}="${abreger(attribut.value)}"> — seule une référence INTERNE ` +
-              '(« #… ») est admise ; une URL externe ou un « javascript: » est refusée',
-          );
-        }
-        continue;
-      }
-      if (PREFIXES_ATTRIBUTS.some((prefixe) => cle.startsWith(prefixe))) continue;
-      if (!ATTRIBUTS_AUTORISES.has(cle)) {
-        refus.push(`<${nom} ${cle}="${abreger(attribut.value)}"> — absent de ATTRIBUTS_AUTORISES`);
-      }
-    }
+    appliquerListeBlancheAuxAttributs(element, nom, compterRetrait, refus);
   }
 
   const svg = new dom.window.XMLSerializer().serializeToString(racine).trim();
@@ -856,14 +966,19 @@ function invoquerMmdc(codes, outils, nomFichier) {
         [outils.mmdc, '-i', entree, '-o', sortie, '-c', config, '-p', puppeteer, '-q'],
         { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' },
       );
-    } catch (erreur) {
+      // `NOSONAR` : S7718 réclame `error_`, contre la règle « français seulement » — voir
+      // `localiserChromium` pour le raisonnement complet.
+    } catch (erreur) { // NOSONAR
       const detail = /** @type {{ stderr?: string, stdout?: string }} */ (erreur);
-      return echec(`${nomFichier} : mmdc a échoué sur le lot de diagrammes`, [
-        ...String(detail.stderr ?? detail.stdout ?? erreur)
+      // `slice` rend DÉJÀ un tableau neuf : l'étaler dans un littéral n'en faisait qu'une copie
+      // de plus, sans effet.
+      return echec(
+        `${nomFichier} : mmdc a échoué sur le lot de diagrammes`,
+        String(detail.stderr ?? detail.stdout ?? erreur)
           .split('\n')
           .filter((l) => l.trim() !== '')
           .slice(-6),
-      ]);
+      );
     }
 
     return codes.map((_code, index) => {
@@ -1199,7 +1314,10 @@ export function recenserFichiersLecon(racine) {
     }
   };
   descendre(racine);
-  return trouves.sort();
+  // `comparerOctets` et non le tri par défaut : ce recensement décide de l'ORDRE de rendu des
+  // leçons, donc des préfixes d'identifiants du SVG (L-026). Un ordre dépendant de la locale
+  // produirait deux artéfacts différents pour la même entrée selon la machine (L-009).
+  return trouves.sort(comparerOctets);
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

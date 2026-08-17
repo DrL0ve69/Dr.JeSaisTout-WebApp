@@ -8,10 +8,10 @@ pas le code.
 > ### 🔒 Qui exécute ce contrôle, et pourquoi ce n'est PAS une étape de CI
 >
 > Le gate est **`src/pipeline-contenu-validation.spec.ts`**, donc **G-test** — qui tourne déjà dans
-> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **9/9 refus** et vérifie
-> que **chaque cas est refusé sur SA cause propre** : neuf refus pour une seule et même raison (un
-> chemin introuvable, disons) seraient sinon indistinguables de neuf refus corrects. Il porte en
-> plus un **garde-fou de complétude** — ajouter un dixième dossier ici sans écrire son assertion
+> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **10/10 refus** et vérifie
+> que **chaque cas est refusé sur SA cause propre** : dix refus pour une seule et même raison (un
+> chemin introuvable, disons) seraient sinon indistinguables de dix refus corrects. Il porte en
+> plus un **garde-fou de complétude** — ajouter un onzième dossier ici sans écrire son assertion
 > fait ROUGIR le spec.
 >
 > N'ajoutez donc **pas** d'étape `content:valider:fixtures` aux workflows : elle ferait tourner la
@@ -45,6 +45,14 @@ cause existe.
 | `corps-section-gabarit-manquante` | `## À retenir` retirée | sections du gabarit, présence et ordre |
 | `corps-conteneur-hors-liste-fermee` | `::: astuce` | liste fermée de conteneurs |
 | `simulation-lecon-differente-du-slug` | `simulation.lecon` ≠ slug du dossier | cohérence des slugs hors schéma |
+| `corps-titre-de-section-vide` | un `##` suivi de blanches seules | titre de section sans texte |
+
+⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** (ligne 21 :
+`##` puis trois espaces). Un éditeur réglé sur « supprimer les espaces en fin de ligne » à
+l'enregistrement, ou un formateur lâché sur `__fixtures__/`, la ferait disparaître — et le cas
+passerait de « refusé » à « accepté à tort », c'est-à-dire que le spec rougirait en nommant le
+contrôle plutôt que la cause. Si ce cas casse sans raison apparente, vérifier d'abord la fin de
+la ligne 21.
 
 ⚠️ **Ce ne sont pas des leçons** : ces dossiers appartiennent au moteur, pas à `content/`. Ils ne
 sont jamais compilés ni publiés.

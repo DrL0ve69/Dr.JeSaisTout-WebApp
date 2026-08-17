@@ -71,6 +71,16 @@ function enKo(octets) {
  */
 
 /**
+ * Marque imprimée en tête de ligne, par verdict. Table plutôt que ternaires imbriqués (S3358) : la
+ * correspondance verdict → symbole se lit d'un coup d'œil, et le typage `Record` force à couvrir
+ * TOUS les verdicts — un verdict ajouté sans sa marque ne compile plus, là où un ternaire l'aurait
+ * silencieusement rangé dans la branche par défaut.
+ *
+ * @type {Record<Mesure['verdict'], string>}
+ */
+const MARQUES = { echec: '✖', avertissement: '▲', ok: '·' };
+
+/**
  * @param {number} octets
  * @returns {Mesure['verdict']}
  */
@@ -123,8 +133,7 @@ export function imprimer(mesures, dossier) {
     console.log('   (0 leçon mesurée)');
   }
   for (const m of mesures) {
-    const marque = m.verdict === 'echec' ? '✖' : m.verdict === 'avertissement' ? '▲' : '·';
-    console.log(`   ${marque} ${m.slug.padEnd(32)} ${enKo(m.octets).padStart(10)}`);
+    console.log(`   ${MARQUES[m.verdict]} ${m.slug.padEnd(32)} ${enKo(m.octets).padStart(10)}`);
   }
 
   const avertissements = mesures.filter((m) => m.verdict === 'avertissement').length;

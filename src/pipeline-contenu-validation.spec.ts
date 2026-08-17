@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // POURQUOI CE TEST EXISTE — et pourquoi il est arrivé en retard.
 // `tools/content-pipeline/valider.mjs` porte un mode `--fixtures` qui est le
-// contrôle positif du garde-fou (L-019) : neuf dossiers, une faute chacun, tous
+// contrôle positif du garde-fou (L-019) : dix dossiers, une faute chacun, tous
 // attendus REFUSÉS. Ce mode était exact, exécutable à la main… et lancé par
 // PERSONNE — ni par un test, ni par un script npm, ni par un workflow. Or
 // `content/cours/securite-web` n'existe pas encore : l'étape de validation de
@@ -15,13 +15,13 @@
 // runner n'exécute est une intention, pas un gate. Ce fichier est le runner.
 //
 // LES TROIS CHOSES QU'IL PROUVE, et pourquoi aucune ne suffit seule :
-//   1. Les neuf cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
+//   1. Les dix cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
 //      un validateur qui refuserait TOUT.
 //   2. La leçon-témoin VALIDE passe, code 0. C'est l'autre moitié de la pince :
 //      ensemble, les deux prouvent que le garde-fou discrimine.
 //   3. Chaque refus porte la BONNE cause, cas par cas. Sans ce troisième point,
-//      neuf refus pour une seule et même raison (un chemin introuvable, disons)
-//      seraient indistinguables de neuf refus corrects.
+//      dix refus pour une seule et même raison (un chemin introuvable, disons)
+//      seraient indistinguables de dix refus corrects.
 //
 // LES CAUSES ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées de l'outil
 // qu'elles vérifient (L-012). Un test qui importe la constante dont il contrôle
@@ -41,7 +41,7 @@ const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const DOSSIER_INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
 const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
 
-/** Ajv compile neuf schémas et neuf racines : lent une fois, pas neuf fois. */
+/** Ajv compile ses schémas et dix racines : lent une fois, pas dix fois. */
 const DELAI = 60_000;
 
 /**
@@ -59,6 +59,15 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
   { dossier: 'corps-section-gabarit-manquante', cause: /section « ## À retenir » absente/ },
   { dossier: 'corps-conteneur-hors-liste-fermee', cause: /conteneur « ::: astuce » hors de la liste/ },
   { dossier: 'simulation-lecon-differente-du-slug', cause: /« lecon ».*ne correspond pas au slug/ },
+  // Dixième cas, ajouté le 2026-08-17 sur constat de revue de sécurité. Il ne verrouille pas une
+  // règle NEUVE : il verrouille une règle que le validateur appliquait PAR ACCIDENT. L'ancien motif
+  // de titre `/^(#{1,6})\s+(.+?)\s*$/` faisait entrer « ## » suivi de blanches seules dans le relevé
+  // des sections, où le contrôle d'ordre du gabarit finissait par s'en plaindre — sous une cause qui
+  // ne nommait pas la vraie faute. La réécriture du motif (S8786) l'a fait disparaître du relevé, et
+  // donc cesser d'être refusé, SANS qu'aucun test ne rougisse : le seul chemin du lot où une décision
+  // a bougé sans que rien d'exécutable le constate. Le refus est désormais EXPLICITE, et ce cas est
+  // ce qui l'empêche de redevenir accidentel.
+  { dossier: 'corps-titre-de-section-vide', cause: /titre de section sans texte/ },
 ];
 
 /**
@@ -91,15 +100,18 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les NEUF cas, et aucun ne manque à l’appel',
+    'traite les DIX cas, et aucun ne manque à l’appel',
     () => {
-      expect(sortie).toContain('9 cas attendus INVALIDES');
-      expect(sortie).toContain('9/9 cas refusés avec une cause nommée');
+      // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
+      // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
+      // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
+      expect(sortie).toContain('10 cas attendus INVALIDES');
+      expect(sortie).toContain('10/10 cas refusés avec une cause nommée');
     },
     DELAI,
   );
 
-  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Neuf refus identiques
+  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Dix refus identiques
   // passeraient l'assertion globale ci-dessus et échoueraient ici.
   for (const { dossier, cause } of CAS_ATTENDUS) {
     it(
@@ -112,7 +124,7 @@ describe('le contrôle positif du validateur de contenu', () => {
     );
   }
 
-  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un dixième cas de fixture sans
+  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un onzième cas de fixture sans
   // écrire son assertion laisserait ce spec vert — et le nouveau cas ne serait
   // vérifié par personne, ce qui est exactement la faute que ce fichier répare.
   it('connaît TOUS les dossiers de fixtures — un cas ajouté sans assertion fait rougir', () => {

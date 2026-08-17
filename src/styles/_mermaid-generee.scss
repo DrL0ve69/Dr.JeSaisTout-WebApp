@@ -40,10 +40,15 @@
 // elles, un `sequenceDiagram` sort désaligné.
 // =============================================================================
 
-// -----------------------------------------------------------------------------
-// 1 · La racine — la taille est décidée ici, plus par le générateur
-// -----------------------------------------------------------------------------
+// UN SEUL bloc `svg.diagramme-mermaid`, trois sections À L'INTÉRIEUR. Le découpage
+// documentaire (racine / flowchart / sequenceDiagram) est la raison d'être de cette
+// feuille et il est conservé tel quel ; ce qui a disparu, c'est la RÉOUVERTURE du
+// même sélecteur trois fois de suite — un doublon que SonarCloud signale (css:S4666)
+// et qui, surtout, laisse croire à trois portées distinctes là où il n'y en a qu'une.
 svg.diagramme-mermaid {
+  // ---------------------------------------------------------------------------
+  // 1 · La racine — la taille est décidée ici, plus par le générateur
+  // ---------------------------------------------------------------------------
   display: block;
   width: 100%;
   max-width: 100%;
@@ -71,12 +76,10 @@ svg.diagramme-mermaid {
   // les peignent déjà pas. Le réflexe « les cacher pour être sûr » les
   // retirerait de l'arbre d'accessibilité avec eux : le nom accessible du
   // diagramme disparaîtrait, sans qu'aucun gate ne le voie (WCAG 1.1.1).
-}
 
-// -----------------------------------------------------------------------------
-// 2 · Flowchart — nœuds, arêtes, pointes de flèche
-// -----------------------------------------------------------------------------
-svg.diagramme-mermaid {
+  // ---------------------------------------------------------------------------
+  // 2 · Flowchart — nœuds, arêtes, pointes de flèche
+  // ---------------------------------------------------------------------------
   .node rect,
   .node circle,
   .node ellipse,
@@ -140,12 +143,10 @@ svg.diagramme-mermaid {
   .edgeLabel text {
     fill: var(--couleur-encre-secondaire);
   }
-}
 
-// -----------------------------------------------------------------------------
-// 3 · sequenceDiagram — acteurs, lignes de vie, messages
-// -----------------------------------------------------------------------------
-svg.diagramme-mermaid {
+  // ---------------------------------------------------------------------------
+  // 3 · sequenceDiagram — acteurs, lignes de vie, messages
+  // ---------------------------------------------------------------------------
   .actor {
     fill: var(--couleur-surface-elevee);
     stroke: var(--couleur-filet-fort);
