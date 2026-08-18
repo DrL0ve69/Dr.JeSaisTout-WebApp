@@ -1086,7 +1086,7 @@ un lot en une phrase, vérifiable seul, un agent frais chacun.
 | **B** | Émission du quiz par le pipeline : type `QuizCompile` dans `types.d.ts`, sortie du compilateur, fixture témoin, mutation prouvant que le gate mord | G-content, G-test | ✅ |
 | **C** | `QuizComponent` (coquille, navigation, score, correction expliquée) + les deux types simples : `choix-multiple`, `vrai-faux` | G-test, G-axe, **G-clavier** | ✅ *(G-clavier et G-axe reportés au lot E : `content/` vide, aucune page de leçon prerendue)* |
 | **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ✅ *(G-clavier et G-axe reportés au lot E, même cause qu'au lot C)* |
-| **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ⬜ |
+| **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ✅ |
 
 #### ⏭️ ÉTAT DU LOT E au 2026-08-18 — pointeur de reprise
 
@@ -1100,7 +1100,10 @@ de découpe appliquée en chemin, chaque fois qu'un lot révélait un « + ».
 | 3 | parité des deux clefs d'indiscernabilité (**L-008**) | ✅ dans `cf4ffc1` |
 | 4 | **E-b1** — `style-src` borné à la provenance Angular (décision E-3) | ✅ écrit, **revue sécurité en cours**, non commité |
 | 5 | **E-b2** — harnais fixture câblé en CI (décision E-2) + CSP mesurée **quiz à l'écran** + G-axe | ✅ **chiffres ci-dessous** |
-| 6 | **E-c** — e2e sous CSP réelle : L-033 prouvé par Playwright, piège du `<select>`, parcours clavier, **G-clavier** | ⬜ **le geste suivant** |
+| 6 | **E-c** — e2e sous CSP réelle : L-033 prouvé par Playwright, piège du `<select>`, parcours clavier, **G-clavier** | ✅ |
+| 6.1 | **E-c1** — le quiz se parcourt au clavier seul, L-033 cesse d'être raisonné | ✅ commité `f0c2e03` |
+| 6.2 | **E-c2** — la CSP mesurée par un navigateur qui ACTIONNE le quiz | ✅ commité `e9f83a7` |
+| 6.3 | **E-c3** — les six fichiers neufs du lot E entrent dans le programme e2e (tripwire de typage) | ✅ commité `3dd5594` |
 
 ##### ✅ Clôture du lot E-b2, 2026-08-18 — LA PAGE DE LEÇON INTERACTIVE EXISTE, ET ELLE EST MESURÉE
 
@@ -1209,6 +1212,84 @@ provenance neuve.
 qu'imposent `npm test` sur une suite de 470 tests **et** les preuves de mutation. E-b2 et E-c ajoutent
 `ng build`, axe et Playwright — les découper encore plus fin, ou sortir les gates lourds dans un agent
 jetable distinct (`.claude/rules/agent-context-budget.md` §4).
+
+##### ✅ Clôture du lot E et d'E2-ST3 — 2026-08-18
+
+**Ce que le lot E-c a fermé.** La CSP n'est plus seulement conforme dans l'artéfact : elle est
+**mesurée par un navigateur qui ACTIONNE le quiz** — 4 radios cochées, 3 `<select>` remplis,
+correction demandée, 5 verdicts obtenus, **0 violation**, journal de console vide, aucun
+`pageerror`. La CSP est exigée sur la réponse de la page de leçon elle-même (923 caractères,
+`'self'` + `sha256-`), jamais sur `/`. Le constat d'E-b2 est **confirmé côté navigateur** :
+`script-src` n'a pas bougé, la liste blanche reste nominative à un seul élément. Contrôle positif
+propre à cette page, injecté **après hydratation**, capté par les deux détecteurs, avec le témoin
+d'exécution resté `false` (donc CSP appliquée, pas `report-only`).
+
+**L-033 cesse d'être raisonné.** La fenêtre de pré-hydratation n'est plus estimée mais
+**élargie** : le chunk paresseux de la leçon est retenu (règle : tout `.js` que le document servi
+n'annonce pas), on agit dedans, on relâche. Deux contrôles positifs attestent qu'elle était
+ouverte — un clic sur « Corriger » émis pendant la fenêtre est **perdu**, et les attributs `ngh`
+sont encore là. Le piège jumeau du `<select>` a son propre test.
+
+**G-clavier existe.** Huit arrêts parcourus dans l'ordre du document, flèches dans les trois
+mécaniques à radios, `<select>` rempli à la flèche seule avec preuve que le `(change)` a couru,
+Entrée puis focus au résumé, Maj+Tab en miroir, indicateur de focus calculé et non masqué sur
+chaque arrêt (2.4.7 / 2.4.11).
+
+**🔴 LE TRIPWIRE DE TYPAGE A MORDU, ET C'EST LE FAIT LE PLUS INSTRUCTIF DU LOT.**
+`src/configuration-typescript.spec.ts` épingle nommément le périmètre de `tsconfig.e2e.json`. Les
+lots E-c1 et E-c2 y ont fait entrer **six fichiers d'un coup** ; G-test a rougi sur « expected 12 to
+have a length of 6 » **avant qu'aucun humain n'ait remarqué leur entrée**. Le mode d'échec que son
+commentaire annonçait (L-014) était réel. ⚠️ Et le point qui compte pour la suite : les trois
+`e2e/aides/*.ts` **ne sont pas des specs** et sont épinglés quand même — depuis les mutualisations
+du lot E (**L-016**), ce sont eux qui portent la MESURE (ce qu'est un anneau de focus dessiné, les
+trois collecteurs de violations CSP, le point de départ commun de la page de leçon). Mutualiser a
+**déplacé** le risque : un défaut de typage y serait invisible depuis les specs appelants et
+ferait passer verts les gates les plus structurants du dépôt.
+
+**Trois corrections de prémisse, toutes dans les specs, aucune dans le produit** (E-c1) : le
+compte de radios du quiz est **11 et non 14** — les 3 manquantes sont la bascule de thème de la
+coquille, hors du `.quiz`, et le 14 inscrit en clôture d'E-b2 comptait toute la page · le
+`<select>` doit se mettre sur une réponse **délibérément fausse**, parce qu'une association juste
+se corrige par « Association correcte » qui ne cite rien, or c'est la citation qui prouve que le
+`(change)` a couru · l'U+00A0 d'une chaîne attendue s'écrit `\u00A0` (`no-irregular-whitespace`
+est actif sur `e2e/`).
+
+**Les chiffres de clôture, mesurés le 2026-08-18** :
+
+| Gate | Mesure | Verdict |
+|---|---|---|
+| G-lint | — | ✅ |
+| G-typage-outils / G-typage-e2e | — | ✅ |
+| G-test | **498 tests / 28 fichiers** | ✅ |
+| G-content (fixture) | 1 leçon · 2 SVG contrôlés · 48/48 identifiants uniques | ✅ |
+| G-build (fixture témoin) | 4 routes prerendues · 5 pages inspectées · **12 hachages de style, 1 de script** | ✅ (1 avertissement, ci-dessous) |
+| G-build (production) | 4 pages inspectées · **9 hachages de style, 1 de script** | ✅ |
+| G-axe | auto-test vert · 4 fichiers · 1 écarté · **344 vérifications, 0 violation** | ✅ |
+| G-e2e | **21 tests** (11 à l'ouverture du lot E) | ✅ |
+| G-audit (`--omit=dev`) | **0** | ✅ |
+| G-contraste | 33 paires en sombre, plus bas 3,39:1 | ✅ |
+| G-glyphes | 196,4 Kio livrés | ✅ |
+
+**🔵 RECTIFICATION d'un chiffre inscrit en clôture d'E-b2.** Ce tableau-là annonçait **472 tests
+côté production contre 488 côté fixture**, soit un écart de 16. Mesuré à nouveau le 2026-08-18,
+sur les deux racines de contenu, avec `npx ng test` (donc sans le crochet `pretest` qui écrase la
+compilation) : **498 des deux côtés, à l'unité près**. Le compte de tests **ne dépend pas de la
+racine de contenu** — aucun `describe` n'est généré par leçon. L'écart inscrit à E-b2 est donc
+erroné ou périmé ; il ne faut pas le reproduire dans un tableau futur.
+
+**Ce qui reste ouvert, et qui n'appartient pas à E2-ST3** — reports, pas des oublis :
+- **`quiz.scss` dépasse son budget de 88 o** (4,09 Ko pour 4,00 Ko). Avertissement, pas erreur, et
+  **antérieur au lot E** (lot C). Question de fond à trancher dans E2-ST4 ou le lot de dette :
+  relever le budget ou alléger la feuille.
+- **Le harnais de fixture se retire à la clôture d'E3-ST1** — inchangé, écrit à trois endroits
+  (`ci.yml`, `src/workflows-github.spec.ts`, backlog).
+- **Les quatre dettes de sécurité à payer avant E3-ST1** — inchangées (S-003, le motif ` style="`
+  du garde-fou, la CSP servie vérifiée par motifs et non structurellement, la portée du sceau
+  d'artéfact).
+- **Les 3 réserves de clôture d'E2-ST2** : les réserves (1) et (2) sont **levées** par le harnais
+  de fixture et le lot E — G-axe et G-e2e ont vu une page de leçon interactive, et la CSP y a été
+  mesurée servie **et** appliquée. La réserve (3) — une leçon en `statut: brouillon` serait
+  prerendue publique et indexable — **reste entière** et se lève en clôture d'E3-ST1.
 
 **Pourquoi A d'abord, et pas le composant** : c'est le lot qui crée `core/progression/`, donc celui
 où se **gagne ou se perd** la règle « aucune feature n'importe une autre feature »
@@ -1570,6 +1651,53 @@ revue du lot E-b1.
 - **Gates** : G-lint, G-test, G-build, G-axe (annotations accessibles, pas de sens porté par la couleur seule)
   **+ vérification clavier manuelle** : flèches gauche/droite entre onglets, Home/End, un seul
   `tabindex="0"` dans le `tablist`, focus visible à chaque étape. `G-axe` ne teste rien de tout ça.
+
+#### 🔵 Les deux décisions d'E2-ST4, tranchées le 2026-08-18 (avant d'écrire une ligne)
+
+**ST4-1 · Il n'y a PAS de sélecteur de langage, et le nœud « onglets » du backlog est sans objet.**
+L'objectif écrit annonçait « onglets de langage (PHP/C#/TS) ». La passe `devils-advocate` a
+montré, et la vérification sur le dépôt a confirmé, que **le modèle de données ne porte pas ça** :
+les `exemples` d'un bloc `comparaison` sont des **paires de vulnérabilités DISTINCTES**, pas le
+même code traduit. La fixture témoin le prouve — paire 1 = PHP / XSS, paire 2 = C# / injection SQL
+(`tools/content-pipeline/__fixtures__/temoin/cours/securite-web/*/lecon.md`, section « Exemple
+complet »), et `compiler-markdown.mjs` n'impose aucune unicité de langage entre paires. Des onglets
+« de langage » cacheraient donc **un exemple pédagogique entier** derrière une étiquette
+mensongère. Ni ARIA `tablist` ni `<details name>` : **aucun sélecteur**. ⚠️ Ce qui reste vrai et
+mérite d'être gardé de la passe d'architecture : construire des onglets JavaScript sur une page
+prerendue de ce dépôt serait de toute façon un **bouton mort qui a l'air vivant** pendant la
+fenêtre de pré-hydratation (`withNoIncrementalHydration()` actif, L-033).
+
+**ST4-2 · On enrichit le rendu EN PLACE, on n'extrait pas de `code-compare/`.** Le rendu
+`comparaison` existe déjà dans `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts` (~l.
+114-165) — deux volets côte à côte, étiquettes écrites, annotations rattachées, zéro JS — et s'y
+annonce lui-même comme provisoire. Ses paires de contraste sont **déjà mesurées** dans
+`rendu-blocs.scss`. L'extraire obligerait à repasser les données et à déplacer des styles mesurés,
+pour un gain de découpage sur un fichier qui ne pousse pas. Décision du propriétaire, 2026-08-18.
+**Le chemin `src/app/features/cours/code-compare/` écrit dans l'objectif d'E2-ST4 est donc
+caduc.**
+**Aucun repliage** : toutes les paires restent visibles. Trois coûts réels l'écartent sur un site
+de cours — le contenu d'un `<details>` fermé **ne s'imprime pas**, Safari ne le trouve pas au
+`Ctrl+F`, et un accordéon exclusif peut finir avec **zéro exemple à l'écran**.
+
+**Le delta réel d'E2-ST4**, et sa découpe :
+
+| Lot | Contenu | Gates | Statut |
+|---|---|---|---|
+| **A1** | Le contrôle de portée des annotations, **des deux côtés** (`compiler-markdown.mjs` + `resoudre-lecon.ts`) + fixture invalide exécutée par la CI. Traite aussi le doublon : `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois** | G-typage-outils, G-content, G-test | ⬜ |
+| **A2** | Sonde : **que survit-il au sanitizer d'Angular** sur la sortie Shiki (`class` oui ; `data-*`/`id` à mesurer — précédent SVG 24 éléments → 0) ; **mesurer avant de concevoir**, puis le transformateur `line` | G-test, G-content | ⬜ |
+| **B** | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, `.ligne-annotee` avec filet — le sens jamais porté par la couleur seule | G-lint, G-test, G-build | ⬜ |
+| **C** | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ⬜ |
+
+Et deux constats à ne pas perdre, vérifiés sur le code :
+- 🔴 **Le contrôle de portée manque réellement** : `compiler-markdown.mjs` (~l. 691-699) n'accepte
+  qu'un entier `>= 0`, **sans plafond** — `lignes="42"` sur un extrait de 5 lignes sort G-content
+  **vert**. `valider.mjs` (~l. 879-884) fait pourtant exactement ce contrôle pour `ligneFautive` :
+  l'asymétrie est nette. Même famille que la dette du lot D.
+- ⚠️ `ExempleCode` **ne conserve pas le code brut** (`types.d.ts`) : rien en aval ne peut recompter
+  les lignes. Le contrôle doit donc vivre **dans le compilateur** ; le pendant côté
+  `resoudre-lecon.ts` ne peut vérifier que la cohérence avec le HTML colorisé.
+- Détail de nommage : le jeton s'appelle **`--couleur-ok-corrige`** (`src/styles/_themes.scss`) ;
+  `ok-fixed` n'existe que dans les docs.
 
 ### E2-ST5 — SimulationComponent
 - **Objectif** : simulation pas-à-pas visuelle pilotée par un JSON d'étapes (acteurs : navigateur/attaquant/serveur ; états ; flèches/messages) ; contrôles précédent/suivant/réinitialiser ; variante `prefers-reduced-motion` sans animation.
