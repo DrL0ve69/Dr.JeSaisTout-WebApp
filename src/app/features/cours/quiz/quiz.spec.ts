@@ -519,6 +519,81 @@ describe('Quiz', () => {
     });
   });
 
+  describe('fenêtre de pré-hydratation (L-033) — la saisie du visiteur survit', () => {
+    /**
+     * CE QUE CE GROUPE REPRODUIT, ET POURQUOI IL S'Y PREND AINSI. En production, la page
+     * est peinte prerendue puis hydratée par un chunk paresseux, sans rejeu d'événements
+     * (`withNoIncrementalHydration()`). Entre les deux, le visiteur coche une radio : le
+     * DOM change **pour de vrai**, mais aucun `(change)` n'est branché pour l'entendre.
+     * Le `TestBed` ne sait pas fabriquer cet état — il n'existe pas de DOM prerendu avant
+     * le premier rendu — alors on le fabrique à la main : `checked = true` **sans
+     * dispatcher d'événement**, ce qui est très exactement ce que fait le navigateur.
+     */
+    function cocherSansEvenement(hote: HTMLElement, idQuestion: string, valeur: string): void {
+      const cible = radios(hote, idQuestion).find((radio) => radio.value === valeur);
+      if (cible === undefined) throw new Error(`Aucune réponse « ${valeur} »`);
+      cible.checked = true;
+    }
+
+    it('🔴 la coche posée AVANT l’hydratation compte dans le score, au lieu d’être écrasée', async () => {
+      const hote = await monter(QUIZ_CORRIGEABLE);
+
+      // CONTRÔLE POSITIF (L-019) : sans amorçage, le composant ignore tout de ces
+      // trois coches — c'est ce qu'affirme l'assertion suivante, et c'est bien le
+      // défaut que L-033 décrit.
+      cocherSansEvenement(hote, 'quiz-injection', 'requete-preparee');
+      cocherSansEvenement(hote, 'quiz-csp', 'faux');
+      cocherSansEvenement(hote, 'quiz-entetes', 'sniff');
+      expect(fixture.componentInstance.reponseDe('injection')).toBeUndefined();
+
+      fixture.componentInstance.amorcerDepuisLeDom();
+      await fixture.whenStable();
+
+      // Les trois réponses sont maintenant CELLES DU DOM, pas un état vide réécrit
+      // par-dessus.
+      expect(fixture.componentInstance.reponseDe('injection')).toBe('requete-preparee');
+      expect(fixture.componentInstance.reponseDe('csp')).toBe('faux');
+      expect(fixture.componentInstance.reponseDe('entetes')).toBe('sniff');
+      expect(radios(hote, 'quiz-injection').filter((radio) => radio.checked).length).toBe(1);
+
+      await cliquerBouton(hote);
+      expect(fixture.componentInstance.score()).toBe(3);
+      expect(TestBed.inject(ProgressionService).estMaitrisee('injection-sql')).toBe(true);
+    });
+
+    it('n’invente RIEN quand le DOM ne porte aucune coche, et n’écrase pas une réponse déjà saisie', async () => {
+      const hote = await monter(QUIZ_CORRIGEABLE);
+
+      fixture.componentInstance.amorcerDepuisLeDom();
+      await fixture.whenStable();
+      expect(fixture.componentInstance.reponseDe('injection')).toBeUndefined();
+
+      // Idempotence : une réponse déjà connue du composant a coché sa radio, donc
+      // l'amorçage la relit — il doit la retrouver identique, pas la perdre.
+      await repondre(hote, 'quiz-injection', 'liste-noire');
+      fixture.componentInstance.amorcerDepuisLeDom();
+      await fixture.whenStable();
+      expect(fixture.componentInstance.reponseDe('injection')).toBe('liste-noire');
+    });
+
+    it('reste SANS EFFET une fois le quiz corrigé — le verdict ne bouge plus', async () => {
+      const hote = await monter(QUIZ_CORRIGEABLE);
+      await repondre(hote, 'quiz-injection', 'liste-noire');
+      await cliquerBouton(hote);
+      expect(fixture.componentInstance.score()).toBe(0);
+
+      // Les radios sont `disabled`, mais `checked` reste assignable par programme :
+      // l'amorçage doit se taire de lui-même, sans quoi un score DÉJÀ enregistré
+      // pourrait se mettre à diverger de ce que la progression a retenu.
+      cocherSansEvenement(hote, 'quiz-injection', 'requete-preparee');
+      fixture.componentInstance.amorcerDepuisLeDom();
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.reponseDe('injection')).toBe('liste-noire');
+      expect(fixture.componentInstance.score()).toBe(0);
+    });
+  });
+
   describe('interdits de forme et de sécurité', () => {
     it('ne pose pas `standalone: true` (défaut depuis Angular 20)', () => {
       expect(sourceDuComposant()).not.toContain('standalone');
@@ -538,6 +613,16 @@ describe('Quiz', () => {
       const source = sourceDuComposant();
       expect(source).not.toContain('innerHTML');
       expect(source).not.toContain('bypassSecurityTrust');
+    });
+
+    it('BRANCHE l’amorçage sur `afterNextRender`, sinon il ne garde rien (L-008)', () => {
+      // Les trois tests de la fenêtre de pré-hydratation appellent `amorcerDepuisLeDom()`
+      // eux-mêmes, faute de pouvoir fabriquer un DOM prerendu dans le `TestBed` : ils
+      // prouvent que la méthode fait ce qu'il faut, pas que quelqu'un l'appelle. C'est
+      // exactement le trou de L-008, et voici ce qui le bouche.
+      expect(sourceDuComposant()).toMatch(
+        /afterNextRender\(\(\) => \{\s*this\.amorcerDepuisLeDom\(\);/,
+      );
     });
 
     it('🔴 AFFICHE une charge utile sans en faire naître un seul nœud — preuve par le DOM', async () => {

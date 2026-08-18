@@ -55,7 +55,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ## ⏭️ REPRISE — état au 2026-08-17
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves) · E2-ST3 lots A,
-> B ET C CLOS** (C avec ses trois constats de revue fermés).
+> B ET C CLOS** (C avec ses quatre constats de revue fermés).
 > **Le geste suivant : E2-ST3 lot D — les deux types difficiles, `associer` et
 > `trouver-la-faille`** — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
 > §E2-ST3, tableau de découpe. Le backlog dit déjà *quoi, où, avec quels gates* : **pas de
@@ -123,13 +123,17 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
 > **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
-> **413 tests / 26 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
+> **417 tests / 26 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
 > **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**
 > **(1) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est **inerte** et
-> le rejeu d'événements est perdu. Piège hérité d'E1-ST2, et il mord **directement E2-ST3** : c'est le
-> premier composant réellement interactif d'une page de leçon.
+> le rejeu d'événements est perdu. Piège hérité d'E1-ST2, et il **a mordu au lot C d'E2-ST3**, comme
+> annoncé : entre la peinture prerendue et l'hydratation, le DOM natif accepte la saisie, et la
+> première détection de changements l'**écrase**. Le composant amorce donc son état depuis le DOM
+> (`afterNextRender`) — **leçon L-033, à relire avant tout `(change)`/`(click)` neuf sur une page
+> prerendue**. « Sans JS » et « pas encore hydraté » sont deux états distincts ; le second ment,
+> parce que l'interface a l'air vivante.
 > **(2) Une CSP validée sur une page INERTE ne vaut que pour une page inerte.** Le premier écouteur
 > d'événement d'une page fait apparaître des scripts inline que le framework n'émettait pas avant
 > (constaté en E1-ST2, build rouge). **E2-ST3 est exactement ce moment-là pour la page de leçon** :

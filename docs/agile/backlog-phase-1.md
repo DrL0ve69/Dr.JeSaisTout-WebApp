@@ -1148,7 +1148,7 @@ Le `QuizComponent` existe : coquille, `<fieldset>`/`<legend>` par question sous
 questions corrigeables, correction expliquée distracteur par distracteur, et écriture de la maîtrise
 dans `core/progression/` — jamais par import d'une autre feature. Les formes `associer` et
 `trouver-la-faille` sont rendues **lisibles mais provisoires** (hors score, hors persistance), en
-attendant le lot D. **Gates au vert : lint · 413 tests / 26 fichiers · `ng build` + config SWA
+attendant le lot D. **Gates au vert : lint · 417 tests / 26 fichiers · `ng build` + config SWA
 (9 hachages de style, 1 de script, inchangés) · `typecheck:tools` 0 erreur.**
 
 **Un défaut du lot B corrigé au passage, prouvé par mutation.** Le contrôle « exactement une ancre
@@ -1156,13 +1156,13 @@ attendant le lot D. **Gates au vert : lint · 413 tests / 26 fichiers · `ng bui
 écrite dans un `::: note` était invisible, et le quiz se serait rendu **deux fois**, tous ses `id`
 de question dupliqués — c'est-à-dire très exactement ce que le contrôle existait pour empêcher.
 Le compte est désormais récursif (`encadre` est le seul bloc qui en imbrique d'autres). Récursion
-neutralisée → **un seul** test rouge ; restaurée → 413/413.
+neutralisée → **un seul** test rouge ; restaurée → 417/417.
 
 **Trois décisions prises hors brief, gardées après revue** : radios **gelées** (`disabled`) à la
 correction plutôt que retirées · **pas de `<form>`** (la touche Entrée rechargerait la page sans JS)
 · titre en `<h3>` (l'ancre vit sous une section `##` — `heading-order` d'axe).
 
-**Les trois constats des deux revues, fermés dans un lot de correctifs à part** (l'implémenteur
+**Les quatre constats des deux revues, fermés dans un lot de correctifs à part** (l'implémenteur
 avait fini à 264k, il n'a pas été repris — `.claude/rules/agent-context-budget.md` §3) :
 
 1. **🔴 La note « mode d'échec » de `quiz.ts` ne nommait qu'un motif sur deux.**
@@ -1185,6 +1185,17 @@ avait fini à 264k, il n'a pas été repris — `.claude/rules/agent-context-bud
    déjà quatre invariants d'`id` ; celui-là en est un cinquième (zéro ancre = quiz nulle part, deux
    ancres = tous les `id` dupliqués). Ajouté, récursif comme au compilateur, avec ses **deux** cas de
    mutation — dont celui de l'ancre cachée dans un encadré, seul capable de prouver la récursion.
+4. **🔴 La fenêtre de pré-hydratation effaçait la première coche du visiteur.** La page de leçon est
+   un **chunk paresseux** et `withNoIncrementalHydration()` est actif : le rejeu d'événements est
+   perdu. Entre la peinture prerendue et le branchement du `(change)`, la radio se coche
+   **réellement** — le navigateur le fait, le composant ne voit rien — puis la première détection de
+   changements réévalue `[checked]` à `false` et **réécrit** la coche. Aucun test rouge, aucune
+   erreur console : la coche apparaît et disparaît. Le composant amorce désormais son état **depuis
+   le DOM** au premier rendu client (`afterNextRender` → `amorcerDepuisLeDom()`), avec ses trois
+   cas (la saisie compte dans le score · rien n'est inventé sur un DOM vierge, et une réponse déjà
+   saisie n'est pas perdue · sans effet une fois corrigé) et un garde-fou de **câblage** contre
+   L-008. Mutation : `amorcees > 0` → `> 99` ⇒ un seul test rouge. Leçon **L-033** — et le piège
+   était **annoncé** dans `CLAUDE.md` depuis E1-ST2, ce qui n'a pas suffi à l'éviter.
 
 **⏭️ Ce que le lot C laisse ouvert, et qui appartient au lot E.**
 

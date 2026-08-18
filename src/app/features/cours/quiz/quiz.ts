@@ -289,6 +289,32 @@ function estRempli(valeur: unknown): boolean {
 export class Quiz {
   private readonly progression = inject(ProgressionService);
   private readonly injecteur = inject(Injector);
+  private readonly hote = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /**
+   * 🔴 LA FENÊTRE DE PRÉ-HYDRATATION — le seul endroit du composant qui lit le DOM
+   * plutôt que de l'écrire, et il le faut (L-033).
+   *
+   * La page de leçon est prerendue puis hydratée par un **chunk paresseux**, et
+   * `withNoIncrementalHydration()` est actif (`src/app/app.config.ts`) : le **rejeu
+   * d'événements est perdu**. Entre la peinture du HTML prerendu et le branchement du
+   * `(change)`, la radio se coche **réellement** — c'est le navigateur qui le fait, le
+   * composant ne voit rien. Puis, à la première détection de changements, `[checked]`
+   * s'évalue à `false` et **réécrit** la coche : l'état du composant efface la saisie
+   * réelle du visiteur. Angular saute la création de nœuds à l'hydratation, pas la mise
+   * à jour des liaisons.
+   *
+   * ⚠️ « SANS JS » ET « PAS ENCORE HYDRATÉ » SONT DEUX ÉTATS DISTINCTS. L'en-tête de ce
+   * fichier documente soigneusement le premier (page lisible, seule la correction
+   * manque) — le second est plus trompeur : l'interface répond au clic, elle a l'air
+   * vivante, et elle ment. On amorce donc l'état DEPUIS le DOM au premier rendu client,
+   * avant que la première détection ne réécrive les liaisons.
+   */
+  constructor() {
+    afterNextRender(() => {
+      this.amorcerDepuisLeDom();
+    });
+  }
 
   /**
    * Le quiz de la leçon, REQUIS. Un input optionnel laisserait passer le trou
@@ -406,6 +432,38 @@ export class Quiz {
   /** La réponse en cours pour une question, ou `undefined`. */
   reponseDe(id: string): string | undefined {
     return this.reponses().get(id);
+  }
+
+  /**
+   * Relit les radios réellement cochées dans le DOM et en amorce l'état.
+   *
+   * APPELÉE PAR LE CONSTRUCTEUR, dans `afterNextRender` — voir la note qui l'y pose
+   * pour le pourquoi. Publique parce que `quiz.spec.ts` la déclenche pour reproduire
+   * la fenêtre de pré-hydratation, que le `TestBed` ne peut pas fabriquer (il n'y a
+   * pas de DOM prerendu avant le premier rendu).
+   *
+   * Elle est IDEMPOTENTE et ne perd rien : une coche déjà connue du composant se
+   * réécrit à l'identique, et une question sans radio cochée n'est pas touchée. Le
+   * passage par `questionsPreparees` — plutôt que par le `name` du DOM — évite de
+   * retirer un préfixe à la main : l'appariement `idDocument` → `source.id` est déjà
+   * établi à un seul endroit.
+   */
+  amorcerDepuisLeDom(): void {
+    if (this.corrige()) return;
+
+    const suivant = new Map(this.reponses());
+    let amorcees = 0;
+    for (const question of this.corrigeables()) {
+      const coche = this.hote.nativeElement.querySelector<HTMLInputElement>(
+        `[id="${question.idDocument}"] input[type="radio"]:checked`,
+      );
+      if (coche === null) continue;
+      suivant.set(question.source.id, coche.value);
+      amorcees += 1;
+    }
+    // Ne pas remplacer le signal pour rien : une page hydratée sans saisie en cours
+    // est le cas NORMAL, et une écriture inutile relancerait un rendu.
+    if (amorcees > 0) this.reponses.set(suivant);
   }
 
   /** Enregistre une réponse. Sans effet une fois le quiz corrigé. */
