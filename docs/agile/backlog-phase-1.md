@@ -985,7 +985,7 @@ annotation portant sur le bloc entier.
   où le cours ouvre. L'entrée est facultative — la retirer suffit, aucun composant à toucher
   (`carte-cours.spec.ts` couvre déjà le cas « absente »).
 
-#### ⚠️ Trois réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE (2026-08-17)
+#### ⚠️ Réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE (2026-08-17 ; **4 depuis le 2026-08-18**)
 
 Le lot B est vert, mais son gate `G-build (leçon-témoin prerendue)` **ne peut pas être franchi tel
 qu'il est écrit** : le nœud tranché le 2026-08-16 place la leçon-témoin **hors de `content/`**, donc
@@ -996,9 +996,13 @@ analysés à jsdom) — **une leçon n'a jamais été fabriquée dans `content/`
 
 Ce qui en découle, à traiter **en clôture d'E3-ST1** (la première vraie leçon), pas avant :
 
-1. **`npm run a11y:axe` et `npm run e2e` n'ont jamais vu la page de leçon** — aucune page n'existe à
-   visiter. La barre dure AXE n'est pas *franchie* ici, elle est *contournée par l'absence de
-   données*. Premier passage réel exigé à E3-ST1.
+1. ~~**`npm run a11y:axe` et `npm run e2e` n'ont jamais vu la page de leçon**~~ — **amendée le
+   2026-08-18 (lot E-b2).** La barre AXE est désormais **franchie sur la FIXTURE TÉMOIN** : depuis la
+   décision E-2, `ci.yml` bâtit son artéfact sur `tools/content-pipeline/__fixtures__/temoin/…`, donc
+   G-axe voit une page de leçon **interactive** (mesure du 2026-08-18 : **4 fichiers · 344
+   vérifications · 0 violation**). Ce qui **reste ouvert** : la confirmation sur le **contenu réel**
+   à E3-ST1 — une fixture n'est pas une leçon, et c'est `deploy.yml` (racine de production) qui
+   construit ce qui part en ligne. G-e2e sur la page de leçon relève du **lot E-c**.
 2. **La CSP servie n'a jamais été mesurée sur une page de leçon** : `generer-config-swa.mjs` n'a
    jamais inspecté son `<head>`. C'est la règle « enabler ≠ enforcement » (S-005) — un `npm run
    build` vert ne prouve rien sur une page qui n'existe pas. *Mesuré et rassurant en attendant* :
@@ -1008,6 +1012,16 @@ Ce qui en découle, à traiter **en clôture d'E3-ST1** (la première vraie leç
    filtre pas sur `statut` — nœud tranché par le propriétaire le 2026-08-16, **non rouvert ici** —
    et `X-Robots-Tag: noindex` n'existe que sur `/404/*`. Conséquence à connaître avant de committer
    un brouillon dans `content/`, pas un défaut du lot.
+4. 🔴 **RETIRER LE HARNAIS DE FIXTURE de `ci.yml`** (décision E-2, lot E-b2 — ajouté le 2026-08-18).
+   Il n'existe **que** parce que `content/` est vide : dès qu'une leçon y est publiée, il **masque le
+   contenu réel** et fait auditer une fixture à sa place. Trois gestes, dans le même commit :
+   (a) l'étape **G-build de `ci.yml` redevient `npm run build`** (les trois commandes dépliées
+   disparaissent avec le `--racine`) ; (b) le drapeau **`--hachages-style 12` disparaît** — le compte
+   retombe sur le défaut épinglé `NOMBRE_HACHAGES_STYLE_ATTENDU` ; (c) le `describe`
+   « le harnais de leçon interactive » et la constante `HACHAGES_STYLE_CI_ATTENDU` de
+   `src/workflows-github.spec.ts` sont supprimés. ✅ **Ce rappel a un tripwire exécutable** : le
+   dernier cas de ce `describe` rougit tout seul dès que `content/cours/securite-web/` porte une
+   `lecon.md` — la note ci-dessus n'est donc pas le seul filet (famille **L-007**).
 
 #### 🔴 PR #13 est bloquée par SonarCloud — et seul le propriétaire peut la débloquer (2026-08-17)
 
@@ -1085,8 +1099,82 @@ de découpe appliquée en chemin, chaque fois qu'un lot révélait un « + ».
 | 2 | correctifs des deux revues (1 Majeur, 5 Mineurs) | ✅ dans `cf4ffc1` |
 | 3 | parité des deux clefs d'indiscernabilité (**L-008**) | ✅ dans `cf4ffc1` |
 | 4 | **E-b1** — `style-src` borné à la provenance Angular (décision E-3) | ✅ écrit, **revue sécurité en cours**, non commité |
-| 5 | **E-b2** — harnais fixture câblé en CI (décision E-2) + CSP mesurée **quiz à l'écran** + G-axe | ⬜ **le geste suivant** |
-| 6 | **E-c** — e2e sous CSP réelle : L-033 prouvé par Playwright, piège du `<select>`, parcours clavier, **G-clavier** | ⬜ |
+| 5 | **E-b2** — harnais fixture câblé en CI (décision E-2) + CSP mesurée **quiz à l'écran** + G-axe | ✅ **chiffres ci-dessous** |
+| 6 | **E-c** — e2e sous CSP réelle : L-033 prouvé par Playwright, piège du `<select>`, parcours clavier, **G-clavier** | ⬜ **le geste suivant** |
+
+##### ✅ Clôture du lot E-b2, 2026-08-18 — LA PAGE DE LEÇON INTERACTIVE EXISTE, ET ELLE EST MESURÉE
+
+La barre qui était *contournée par l'absence de données* depuis E2-ST2 est franchie : `ci.yml` bâtit
+son artéfact depuis la fixture témoin, donc G-axe, G-e2e et le générateur de CSP voient en
+permanence une page de leçon **interactive** (`cours/securite-web/lecon-temoin/index.html`, 94 Ko :
+**6 `<fieldset>`, 14 radios natives, 3 `<select>`, 1 bouton**). `deploy.yml` garde la racine de
+production ; l'écart entre les deux artéfacts est assumé, et ce sont ses vérifications **en ligne**
+qui font foi sur la CSP servie.
+
+**Les chiffres, avant → après** (mesures locales du 2026-08-18, artéfact réel des deux côtés) :
+
+| Mesure | Production (`content/` vide) | CI (fixture témoin) |
+|---|---|---|
+| Routes prerendues | 3 (+ `index.csr.html`) | **4** (+ `index.csr.html`) |
+| Fichiers HTML inspectés par le générateur | 4 | **5** |
+| Hachages `style-src` distincts | 9 | **12** |
+| Hachages `script-src` distincts | 1 | **1 — inchangé** |
+| G-axe : fichiers · vérifications · violations | 3 · 258 · 0 | **4 · 344 · 0** |
+| G-test | 472 tests / 28 fichiers | **488 tests / 28 fichiers** |
+
+**🔴 LE CONSTAT DE FOND, ET IL EST RASSURANT : `script-src` N'A PAS BOUGÉ.** L'inquiétude de S-005
+— « le premier écouteur d'événement fait injecter par Angular des scripts inline que personne n'a
+vus », rouge mesuré en E1-ST2 — **ne s'est pas reproduite ici**. La page de leçon porte bien un
+script inline de plus qu'avant, `<script id="ng-state" type="application/json">` (5 215 o, l'état
+d'hydratation du quiz), mais son `type` est **inerte** : le navigateur ne l'exécute pas et la CSP ne
+le soumet pas à `script-src`. Le générateur le classe déjà comme tel (`TYPES_INERTES`). La liste
+blanche reste donc **NOMINATIVE et à un seul élément** : `init-theme`, au hachage épinglé.
+⚠️ Ce qui reste **non mesuré** et appartient au lot E-c : que le navigateur, sous la CSP réelle, ne
+signale aucune violation en **actionnant** le quiz. Un artéfact conforme n'est pas une page qui
+fonctionne.
+
+**Les 3 hachages `style-src` neufs sont nommés, pas comptés** — inspection bloc par bloc de
+l'artéfact : `[_nghost-ng-c2422324600]` (page `lecon`, 4 196 o), `[_nghost-ng-c675505835]` (rendeur
+de blocs, `.prose`/`.code`, 4 229 o), `[_nghost-ng-c3398307194]` (`.quiz`, 5 669 o). Tous
+`<style ng-app-id="ng">`, enfants directs de `<head>`, sans autre attribut — donc de provenance et
+de place légitimes au sens du contrôle d'E-b1. C'est **exactement le rouge que l'amendement E-3 bis
+avait annoncé** (« ~3-4 rouges d'ici la fin d'E2 ») : il est arrivé du premier coup, et il a été
+inspecté avant que la valeur ne soit inscrite.
+
+**🔵 Le conflit des deux comptes, et comment il est tranché.** Un artéfact avec page de leçon et un
+sans ne peuvent pas partager une constante unique. Le compte attendu devient un **paramètre du point
+d'appel** — `node tools/deploiement/generer-config-swa.mjs --hachages-style <n>` — avec les **deux
+valeurs écrites dans le dépôt, donc revues** : `NOMBRE_HACHAGES_STYLE_ATTENDU = 9` (défaut, employé
+par `deploy.yml` et par `npm run build` en local) et le `--hachages-style 12` de l'étape G-build de
+`ci.yml`. Le contrôle reste **fail-closed** : égalité exacte dans les deux sens (jamais « au
+moins »), drapeau absent ⇒ **la valeur épinglée**, jamais « pas de vérification », et **aucune
+écriture ne tait le contrôle** — valeur manquante, non entière, négative, `0` (nommément refusé,
+c'est la seule forme qui le viderait de son sens) et option inconnue sortent toutes en **code 1**.
+13 cas neufs le gardent dans `src/config-swa-provenance-style.spec.ts`.
+
+**Le harnais est prouvé CÂBLÉ, pas seulement livré** (L-007/L-019) : `src/workflows-github.spec.ts`
+lit désormais les **commandes réellement exécutées** par les workflows (analyse YAML, pas `grep` —
+un commentaire qui *explique* le drapeau n'est pas un `run:` qui le *pose*) et vérifie que la racine
+de fixture nommée dans `ci.yml` **existe sur le disque**, que le drapeau y est un entier > 0, et que
+`deploy.yml` ne bascule ni sur la fixture ni sur le drapeau. **Mutation à l'appui** : `securite-web`
+→ `securite-webb` dans `ci.yml` ⇒ 1 test rouge nommant le chemin absent, et la commande elle-même
+sort en code 1 (« racine de contenu introuvable »). Restauré.
+
+**⏳ PÉREMPTION, à ne pas perdre : le harnais se retire à la clôture d'E3-ST1.** Le jour où
+`content/` porte sa première leçon publiée, l'étape G-build de `ci.yml` redevient `npm run build`,
+le `--hachages-style` disparaît avec elle, et le bloc `describe` du harnais dans
+`src/workflows-github.spec.ts` aussi. Écrit à trois endroits (le workflow, le spec, ici) pour que
+l'oubli soit visible. ⚠️ **`content/` reste compilé par sa propre étape** dans `ci.yml`, avant
+G-lint : c'est elle le gate du contenu publié, et si les deux étapes basculaient sur la fixture, un
+`lecon.md` malformé passerait la CI pour ne tomber qu'au déploiement.
+
+**Deux constats laissés ouverts, avec leur raison.**
+- **`ng build` avertit que `quiz.scss` dépasse son budget** (4,09 Ko pour 4,00 Ko, +88 o). Un
+  avertissement, pas une erreur, et il **précède** ce lot (lot C). Le corriger ici, c'était toucher
+  au style d'un composant dans un lot dont le livrable est la mesure — à traiter dans E2-ST4 ou
+  dans le lot de dette, avec la question de fond : relever le budget ou alléger la feuille.
+- **La CSP mesurée ici est celle de l'ARTÉFACT, pas celle qu'un navigateur applique.** C'est
+  précisément la moitié que le lot E-c doit fermer (`npx swa start` + Playwright).
 
 **Ce que le lot E a déjà changé, et qu'il ne faut pas re-découvrir.**
 - **466 → 472 tests / 28 fichiers** (435 à l'ouverture du lot). 14 fixtures invalides, chacune

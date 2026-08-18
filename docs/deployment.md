@@ -12,8 +12,10 @@
 | `tools/deploiement/generer-config-swa.mjs` | Résout les hachages et écrit le fichier final dans l'artéfact. |
 | `dist/dr-je-sais-tout/browser/staticwebapp.config.json` | **Généré à chaque build.** Jamais édité, jamais versionné. |
 
-`npm run build` = `ng build && npm run config:swa`. Le générateur sort en **code 1** si quoi que ce
-soit cloche : la CI casse au lieu de déployer une CSP fausse.
+`npm run build` = `npm run content:build && ng build && npm run config:swa` — **trois** commandes, et
+la compilation du contenu en fait partie (elle produit la feuille de coloration syntaxique
+gitignorée, sans laquelle Sass échoue). Le générateur sort en **code 1** si quoi que ce soit
+cloche : la CI casse au lieu de déployer une CSP fausse.
 
 **Pourquoi générer ?** Chaque page prerendue porte un bloc `<style ng-app-id>` produit par Angular.
 Une CSP stricte ne peut l'autoriser que par **hachage**, et ce hachage change dès qu'un style
@@ -109,9 +111,33 @@ comme prévu. Coût : **0 $**.
 
 | Fichier | Déclencheur | Rôle |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR vers `main` | G-lint → G-test → G-build → G-audit. Aucun déploiement. |
+| `.github/workflows/ci.yml` | PR vers `main` | G-lint → G-typage-outils → G-contraste → G-glyphes → G-test → G-build → G-axe → G-e2e → G-audit. Aucun déploiement. **G-build y est bâti sur la FIXTURE TÉMOIN** (voir ci-dessous). |
 | `.github/workflows/infra.yml` | PR/push touchant `infra/**` | `terraform fmt -check` + `validate` (`-backend=false` : aucun identifiant Azure en CI). |
-| `.github/workflows/deploy.yml` | push sur `main` | Mêmes gates, puis publication, puis **vérification des en-têtes servis en ligne**. |
+| `.github/workflows/deploy.yml` | push sur `main` | Mêmes gates, **sauf G-build : racine de PRODUCTION** (voir ci-dessous), puis publication, puis **vérification des en-têtes servis en ligne**. |
+
+### ⚠️ Les deux workflows ne construisent PAS le même artéfact (décision E-2, E2-ST3 lot E)
+
+`content/` ne portera sa première leçon qu'à E3-ST1. Un artéfact bâti sur cette racine ne prerende
+donc **aucune page de leçon**, et G-axe, G-e2e ainsi que le générateur de CSP restaient aveugles au
+premier composant réellement **interactif** du site (`QuizComponent`) — la barre n'était pas
+franchie, elle était contournée par l'absence de données (point aveugle **S-005**).
+
+| | `ci.yml` (G-build) | `deploy.yml` (G-build) |
+|---|---|---|
+| Commande | les **trois** commandes de `npm run build`, **dépliées** | `npm run build` |
+| Racine de contenu | `tools/content-pipeline/__fixtures__/temoin/cours/securite-web` (`--racine`) | `content/` (défaut) |
+| Hachages `style-src` attendus | **12** (`--hachages-style 12`) — les 3 de plus sont les blocs `<style>` des composants de la page de leçon | **9** — défaut épinglé `NOMBRE_HACHAGES_STYLE_ATTENDU` |
+| Ce que ça prouve | les gates voient en permanence une page de leçon **interactive** | ce qui part **en ligne** est bien ce qui a été construit |
+
+Les deux comptes sont **écrits dans le dépôt et revus**, jamais dérivés de l'artéfact (S-002), et
+chacun a son **miroir en test** : le 9 dans `src/config-swa-provenance-style.spec.ts`, le 12 dans
+`src/workflows-github.spec.ts`. Ce dernier garde aussi l'**équivalence** entre le dépliage de
+`ci.yml` et `scripts.build` — sans quoi un segment retiré du script passerait la CI verte et
+publierait un `dist/` sans `staticwebapp.config.json`. La CSP mesurée en CI n'est donc pas octet
+pour octet celle du déploiement : ce sont les vérifications **en ligne**, fail-closed, qui font foi.
+
+⏳ **Harnais temporaire**, à retirer à la clôture d'E3-ST1 (backlog §E2-ST2, réserve 4) — un test
+rougit tout seul le jour où `content/cours/securite-web/` porte une leçon.
 | `infra/` (Terraform) | **manuel, poste du propriétaire** | Groupe de ressources + Static Web App **Free**. Jamais exécuté en CI. |
 
 **Le provisionnement ne passe pas par la CI, délibérément.** Terraform détient des identifiants

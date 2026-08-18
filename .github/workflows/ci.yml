@@ -52,6 +52,12 @@ jobs:
       # globale), avant même G-build, sur une erreur Sass qui ne nomme pas la cause. L'étape est
       # aussi le gate du contenu lui-même : un `lecon.md` ou un `quiz.json` malformé fait échouer
       # la construction ICI, en nommant le fichier et le champ fautifs.
+      #
+      # ⚠️ CETTE ÉTAPE-CI GARDE LA RACINE DE PRODUCTION (`content/`), et elle doit la garder. C'est
+      # ELLE le gate du contenu réellement publié : la fixture témoin employée plus bas à G-build
+      # (décision E-2) sert à bâtir un ARTÉFACT interactif, pas à valider `content/`. Si les deux
+      # étapes basculaient sur la fixture, un `lecon.md` malformé de `content/` passerait la CI et
+      # ne tomberait qu'au déploiement.
       - name: Compiler `content/` (pipeline)
         run: npm run content:build
 
@@ -83,14 +89,57 @@ jobs:
       - name: G-test
         run: npm test
 
-      # `npm run build` = ng build + génération de la config SWA. Le générateur sort en code 1
-      # si la sortie prerendue casse la CSP (gestionnaire inline, script inline, attribut style) :
-      # ce gate protège donc aussi la CSP, pas seulement la compilation.
-      - name: G-build (+ config SWA à hachages)
-        run: npm run build
+      # Les trois commandes ci-dessous SONT `npm run build`, déplié : compilation du contenu, puis
+      # `ng build`, puis la génération de la config SWA. Le générateur sort en code 1 si la sortie
+      # prerendue casse la CSP (gestionnaire inline, script inline, attribut style) : ce gate
+      # protège donc aussi la CSP, pas seulement la compilation.
+      #
+      # ⚠️ CETTE ÉTAPE N'EST PAS `npm run build`, ET C'EST LE CŒUR DE LA DÉCISION E-2 (E2-ST3, lot E).
+      # Elle bâtit le MÊME artéfact, mais depuis la FIXTURE TÉMOIN au lieu de `content/`.
+      #
+      # POURQUOI. `content/` ne contient qu'un `README.md` jusqu'à E3-ST1 : aucune page de leçon
+      # n'est donc prerendue, et les trois routes que voient G-axe, G-e2e et le générateur de config
+      # sont INERTES. Le vert de ces gates ne prouvait rien sur le premier composant réellement
+      # interactif du site (`QuizComponent`, E2-ST3 lots C et D) : la barre n'était pas franchie,
+      # elle était contournée par l'absence de données. La fixture porte 1 leçon, 5 questions, les
+      # 4 types et 2 diagrammes Mermaid — les gates ci-dessous voient donc en permanence une page
+      # de leçon INTERACTIVE. C'est exactement le point aveugle de S-005.
+      #
+      # ⏳ PÉREMPTION — À RETIRER À LA CLÔTURE D'E3-ST1. Le jour où `content/` porte sa première
+      # leçon publiée, ce harnais devient inutile ET nuisible (il masquerait le vrai contenu) :
+      # cette étape redevient `npm run build`, et le `--hachages-style` ci-dessous disparaît avec
+      # elle. Le rappel ne vit PAS que dans ce commentaire : il est (a) l'item 4 de la liste
+      # « à traiter en clôture d'E3-ST1 » du backlog (§E2-ST2, « Réserves de clôture »),
+      # l'endroit qu'ouvrira celui qui clôt E3-ST1 ; et surtout (b) un TRIPWIRE
+      # EXÉCUTABLE : `src/workflows-github.spec.ts` rougit tout seul le jour où
+      # `content/cours/securite-web/` porte une leçon et que ce `--racine` est encore là.
+      #
+      # `deploy.yml` GARDE la racine de production : c'est lui qui publie, et ses vérifications
+      # EN LIGNE restent le juge de la CSP réellement servie. L'écart entre les deux artéfacts est
+      # assumé et nommé (backlog §E2-ST3, décision E-2).
+      #
+      # 🔴 LE `--hachages-style 12` N'EST PAS UN DESSERRAGE. Le générateur compare le nombre de
+      # hachages de style à une valeur ÉPINGLÉE (égalité exacte, jamais « au moins »). Deux
+      # artéfacts ⇒ deux comptes : 9 pour la production (défaut de `NOMBRE_HACHAGES_STYLE_ATTENDU`,
+      # employé par `deploy.yml`), 12 ici — les 3 de plus sont les blocs `<style>` des composants de
+      # la page de leçon (`lecon`, le rendeur de blocs, `quiz`), mesurés le 2026-08-18 et relus.
+      # Un drapeau absent retombe sur 9 ; il n'existe aucune écriture qui TAISE le contrôle.
+      # Changer ce nombre passe par `security-reviewer` PUIS l'édition, jamais l'inverse (S-002).
+      # Ce 12 est ÉPINGLÉ EN MIROIR dans `src/workflows-github.spec.ts`
+      # (`HACHAGES_STYLE_CI_ATTENDU`), comme le 9 l'est dans `config-swa-provenance-style.spec.ts` :
+      # le bouger ici seul rougit G-test. Deux fichiers, donc une revue — c'est le but.
+      - name: G-build (+ config SWA à hachages) — artéfact bâti sur la FIXTURE TÉMOIN
+        run: |
+          node tools/content-pipeline/build.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web
+          npx ng build
+          npm run config:swa -- --hachages-style 12
 
       # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de
       # `dist/dr-je-sais-tout/browser`. Il vient donc APRÈS G-build, qui produit l'artéfact.
+      # ✅ DEPUIS LE LOT E (décision E-2), CET ARTÉFACT CONTIENT UNE PAGE DE LEÇON INTERACTIVE
+      # (`cours/securite-web/lecon-temoin/index.html`, avec son quiz). Jusque-là, axe n'avait
+      # JAMAIS vu le `QuizComponent` : il auditait trois pages inertes. Ne pas déplacer cette étape
+      # avant G-build, ni y reconstruire l'artéfact — elle doit voir CELUI de G-build.
       # Pas de Playwright : le site est 100 % prerendu, et `jsdom` était déjà là — `axe-core` est la
       # seule dépendance ajoutée (devDep, 0 octet en production).
       #

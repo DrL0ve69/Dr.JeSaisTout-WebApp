@@ -106,7 +106,10 @@ function page(blocsStyle: readonly string[]): string {
  * générateur vérifie ses cibles (S-004) ; il ne porte AUCUN bloc `<style>`, pour que le compte de
  * hachages rapporté ne dépende que des blocs à l'essai.
  */
-function lancer(blocsStyle: readonly string[]): { sortie: string; code: number; config: string } {
+function lancer(
+  blocsStyle: readonly string[],
+  args: readonly string[] = [],
+): { sortie: string; code: number; config: string } {
   const racine = mkdtempSync(join(BASE, 'artefact-'));
   const navigateur = join(racine, 'dist', 'dr-je-sais-tout', 'browser');
   mkdirSync(join(racine, 'config'), { recursive: true });
@@ -118,7 +121,7 @@ function lancer(blocsStyle: readonly string[]): { sortie: string; code: number; 
   let sortie: string;
   let code: number;
   try {
-    sortie = execFileSync(process.execPath, [GENERATEUR], {
+    sortie = execFileSync(process.execPath, [GENERATEUR, ...args], {
       cwd: racine,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -191,11 +194,15 @@ const CAS_REFUSES: readonly { nom: string; bloc: string; cause: RegExp }[] = [
   },
 ];
 
-describe('le garde-fou de provenance de `style-src`', () => {
-  afterAll(() => {
-    rmSync(BASE, { recursive: true, force: true });
-  });
+// AU NIVEAU DU FICHIER, PAS DANS UN `describe`. La purge vivait dans le premier bloc, et le second
+// (ajouté au lot E-b2) partait alors sur un `BASE` déjà effacé : huit cas rouges en 0 ms, sur un
+// ENOENT qui ne parlait pas de ce qu'ils testent. Un `afterAll` de suite s'exécute à la FIN DE SA
+// SUITE, pas à la fin du fichier.
+afterAll(() => {
+  rmSync(BASE, { recursive: true, force: true });
+});
 
+describe('le garde-fou de provenance de `style-src`', () => {
   for (const cas of CAS_REFUSES) {
     it(
       `refuse ${cas.nom}, en le nommant`,
@@ -277,4 +284,117 @@ describe('le garde-fou de provenance de `style-src`', () => {
     },
     DELAI,
   );
+});
+
+// =============================================================================
+// `--hachages-style <n>` — DEUX ARTÉFACTS, DEUX COMPTES, AUCUN DESSERRAGE
+// -----------------------------------------------------------------------------
+// Depuis la décision E-2 (lot E-b2), la CI bâtit l'artéfact depuis la fixture
+// témoin — donc AVEC une page de leçon interactive et les blocs `<style>` de ses
+// composants — tandis que `deploy.yml` le bâtit depuis `content/`, vide jusqu'à
+// E3-ST1. Une constante unique ne peut pas satisfaire les deux comptes, et
+// « au moins n » desserrerait le contrôle.
+//
+// CE QUE CES CAS PROUVENT — et ils portent tous sur le MÊME risque : qu'un
+// drapeau devienne une porte de sortie.
+//   · absent      → la valeur épinglée s'applique, jamais « pas de vérification » ;
+//   · présent     → égalité EXACTE avec la valeur donnée, dans les deux sens
+//                   (un bloc de moins rougit autant qu'un bloc de plus) ;
+//   · illisible   → code 1, jamais un repli permissif ;
+//   · zéro        → code 1 : c'est la seule écriture qui viderait le contrôle de
+//                   son sens, et elle est nommément refusée ;
+//   · inconnu     → code 1, un drapeau mal tapé ne s'ignore pas en silence.
+// =============================================================================
+
+describe('le compte de hachages de style, paramétré au point d’appel', () => {
+  const AUTRE_COMPTE = NOMBRE_HACHAGES_ATTENDU + 3; // l'écart réel mesuré : 9 → 12 avec la page de leçon
+
+  it(
+    `accepte ${AUTRE_COMPTE} blocs quand l’appel demande ${AUTRE_COMPTE} — et écrit les ${AUTRE_COMPTE} hachages`,
+    () => {
+      const { sortie, code, config } = lancer(blocsAngular(AUTRE_COMPTE), [
+        '--hachages-style',
+        String(AUTRE_COMPTE),
+      ]);
+      expect(code).toBe(0);
+      expect(sortie).toContain(`${AUTRE_COMPTE} hachage(s) de style distinct(s)`);
+      const directive = /style-src[^;]*/.exec(config)?.[0] ?? '';
+      expect(directive.match(/sha256-/g) ?? []).toHaveLength(AUTRE_COMPTE);
+    },
+    DELAI,
+  );
+
+  it(
+    'reste une ÉGALITÉ : un bloc de moins que le compte demandé rougit aussi',
+    () => {
+      // Le sens « en moins » compte autant que le sens « en plus » : un `.scss` disparu change la
+      // directive servie tout autant, et un contrôle « au moins n » ne le verrait jamais.
+      const { sortie, code, config } = lancer(blocsAngular(AUTRE_COMPTE - 1), [
+        '--hachages-style',
+        String(AUTRE_COMPTE),
+      ]);
+      expect(code).toBe(1);
+      expect(sortie).toContain(
+        `${AUTRE_COMPTE - 1} hachage(s) de style distinct(s) dans l’artéfact — ${AUTRE_COMPTE} attendu(s)`,
+      );
+      expect(config).toBe('');
+    },
+    DELAI,
+  );
+
+  it(
+    `sans drapeau, applique la valeur épinglée (${NOMBRE_HACHAGES_ATTENDU}) — jamais « pas de vérification »`,
+    () => {
+      const { sortie, code, config } = lancer(blocsAngular(AUTRE_COMPTE));
+      expect(code).toBe(1);
+      expect(sortie).toContain(
+        `${AUTRE_COMPTE} hachage(s) de style distinct(s) dans l’artéfact — ${NOMBRE_HACHAGES_ATTENDU} attendu(s)`,
+      );
+      expect(config).toBe('');
+    },
+    DELAI,
+  );
+
+  const ARGS_REFUSES: readonly { nom: string; args: readonly string[]; cause: RegExp }[] = [
+    {
+      nom: 'une valeur manquante',
+      args: ['--hachages-style'],
+      cause: /--hachages-style attend un entier ≥ 1 — reçu « undefined »/,
+    },
+    {
+      nom: 'une valeur non numérique',
+      args: ['--hachages-style', 'douze'],
+      cause: /--hachages-style attend un entier ≥ 1 — reçu « douze »/,
+    },
+    {
+      nom: 'une valeur négative',
+      args: ['--hachages-style', '-1'],
+      cause: /--hachages-style attend un entier ≥ 1 — reçu « -1 »/,
+    },
+    {
+      nom: 'zéro — la seule écriture qui viderait le contrôle de son sens',
+      args: ['--hachages-style', '0'],
+      cause: /--hachages-style refuse 0/,
+    },
+    {
+      nom: 'une option inconnue, plutôt que de l’ignorer',
+      args: ['--hachages-styles', '12'],
+      cause: /option inconnue : « --hachages-styles »/,
+    },
+  ];
+
+  for (const cas of ARGS_REFUSES) {
+    it(
+      `refuse ${cas.nom}`,
+      () => {
+        // L'artéfact est CONFORME au défaut : seul l'argument peut faire échouer ces cas, donc un
+        // rouge ici ne peut venir que de ce qu'on teste.
+        const { sortie, code, config } = lancer(blocsAngular(NOMBRE_HACHAGES_ATTENDU), cas.args);
+        expect(code).toBe(1);
+        expect(sortie).toMatch(cas.cause);
+        expect(config).toBe('');
+      },
+      DELAI,
+    );
+  }
 });
