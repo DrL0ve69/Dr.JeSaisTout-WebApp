@@ -10,9 +10,10 @@
 //
 // `styles/polices` vient EN PREMIER : les `@font-face` doivent être connus du
 // navigateur avant les règles qui s'en servent. C'est aussi, avec
-// `styles/themes`, `styles/coloration-syntaxique-generee` et
-// `styles/mermaid-generee`, l'un des quatre seuls modules qui ÉMETTENT du CSS —
-// donc l'un des quatre qu'un style de composant ne doit jamais `@use`.
+// `styles/themes`, `styles/coloration-syntaxique-generee`,
+// `styles/mermaid-generee` et `styles/code`, l'un des cinq seuls modules qui
+// ÉMETTENT du CSS — donc l'un des cinq qu'un style de composant ne doit jamais
+// `@use`.
 //
 // ⚠️ LES DEUX FEUILLES DU CONTENU N'ONT PAS LE MÊME STATUT — malgré leurs noms
 // jumeaux. Elles répondent au même besoin (la CSP du site est à hachages : elle
@@ -43,6 +44,10 @@
 @use 'styles/mixins' as m;
 @use 'styles/coloration-syntaxique-generee';
 @use 'styles/mermaid-generee';
+// Numérotation des lignes du code coloré — globale par NÉCESSITÉ : le HTML de
+// Shiki est injecté par `[innerHTML]`, hors de portée de toute feuille de
+// composant (E2-ST4, lot B2).
+@use 'styles/code';
 
 // -----------------------------------------------------------------------------
 // 1 · Reset léger — on corrige, on ne rase pas
@@ -207,6 +212,24 @@ video {
 
   body {
     background-color: transparent;
+  }
+
+  // 🔴 LE CODE REVIENT À LA LIGNE AU PAPIER, SINON IL EST PERDU (revue du lot B,
+  // E2-ST4). À l'écran, une ligne de code trop longue défile — `overflow-x: auto`,
+  // porté par `.defileur` depuis le lot B2. Une feuille A4 n'a pas de barre de
+  // défilement : ce qui dépasse la boîte n'est pas coupé « à peu près », il
+  // DISPARAÎT, sans le moindre signe qu'il manque quelque chose. Et le mode
+  // d'échec est silencieux dans les deux sens — ni un gate ni une relecture à
+  // l'écran ne le montrent.
+  // C'est ICI, dans la feuille GLOBALE, et nulle part ailleurs : le `<pre>` est du
+  // HTML INJECTÉ par `[innerHTML]` (`rendu-blocs.ts`), donc hors de portée de tout
+  // sélecteur d'une feuille de composant. `.defileur` fait l'autre moitié en
+  // rendant son débordement visible (`rendu-blocs.scss`).
+  // `overflow-wrap` et non `word-break` : on coupe DANS un mot seulement quand il
+  // n'y a pas d'autre issue, ce qui garde lisible une ligne de code ordinaire.
+  pre {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
   }
 
   // Les URL des liens sont perdues au papier : on les rend explicites.

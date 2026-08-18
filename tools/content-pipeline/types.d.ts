@@ -41,8 +41,14 @@ type NiveauTitre = 2 | 3; // <h2>/<h3> réels — pour un sommaire imbriqué cor
  * répétée sous deux étiquettes, comme si l'auteur avait écrit deux commentaires. Une remarque qui
  * couvre deux lignes est UNE remarque à deux ancres, pas deux remarques.
  *
- * INVARIANTS, tous imposés par `lireExemple`/`lirePortee` (`compiler-markdown.mjs`) :
- *   · jamais vide — l'absence de `{lignes="…"}` vaut `[0]` ;
+ * ⚠️ OÙ LA PORTÉE S'ÉCRIT, DEPUIS LE LOT B1a : en TÊTE DE LA NOTE, plus sur le conteneur. Dans un
+ * `::: vulnerable` / `::: corrige`, après la clôture de code, chaque paragraphe est UNE note et
+ * doit ouvrir par `{lignes="…"}`. L'ancienne forme `::: vulnerable {lignes="2"}` fait désormais
+ * ÉCHOUER le build (clef inconnue) : la migration se voit.
+ *
+ * INVARIANTS, tous imposés par `lireExemple`/`lireNote`/`lirePortee` (`compiler-markdown.mjs`) :
+ *   · jamais vide — une note sans portée lisible en tête fait échouer le build, il n'y a plus de
+ *     portée par défaut ;
  *   · entiers >= 0, sans doublon, triés par ordre croissant ;
  *   · `[0]` = l'annotation porte sur le bloc ENTIER (convention tranchée en E2-ST1). `0` ne se
  *     combine avec aucun numéro de ligne, et aucune ligne réelle ne porte le numéro 0 ;
@@ -88,22 +94,34 @@ interface ExempleCode {
   // `src/sonde-sanitizer-shiki.spec.ts` a monté cette sortie même dans un composant qui la lie en
   // `[innerHTML]`, comme `rendu-blocs.ts`, et a compté sur trois lignes :
   //
-  //     class 15 → 15 · tabindex 4 → 4 · aria-describedby 3 → 3 · aria-label 3 → 3
+  //     class 15 → 15 · tabindex 3 → 3 · aria-describedby 3 → 3 · aria-label 3 → 3
   //     id 3 → 0 · data-ligne 3 → 0
+  //
+  // ⚠️ `tabindex` valait « 4 → 4 » jusqu'au lot B : le quatrième était celui que Shiki posait sur
+  // son `<pre>`, devenu un arrêt de tabulation MORT depuis que le défilement vit sur `.defileur`
+  // dans le gabarit. Le transformateur `drjst-pre-sans-tabindex` le retire, et `htmlColore` ne
+  // porte donc AUCUN `tabindex` — l'atteignabilité au clavier appartient au gabarit, seul endroit
+  // où un nom accessible survit.
   //
   // `data-*` et `id` sont EFFACÉS par le sanitizer : la liste blanche d'Angular est nominative et
   // ne connaît ni l'un ni l'autre. Un `data-ligne="3"` aurait donné un artéfact correct, une page
   // sans crochet, et aucun gate rouge. Corollaire pour le lot B : `aria-describedby` traverse, mais
   // la CIBLE du lien doit être écrite dans le GABARIT (son `id` serait effacé ici).
   htmlColore: string;
-  // ⚠️ 0 OU 1 ÉLÉMENT EN PRATIQUE — le type promet N, `lireExemple` n'en produit jamais deux.
-  // Depuis E2-ST4 (lot A1), toute la prose d'un volet est JOINTE en un seul `texte` et poussée en
-  // UNE annotation ; la syntaxe n'offre qu'un `{lignes="…"}` par volet, donc une seule portée à
-  // attribuer. Le tableau et le `@for` du rendu ne sont pas de l'anticipation gratuite : c'est le
-  // LOT B (« annotations ancrées à la ligne ») qui fera sauter la limite, en attachant une portée
-  // à chaque paragraphe du volet. Écrit ici pour qu'il ne le découvre pas en chemin — un
-  // consommateur qui compterait sur « au plus une » se casserait ce jour-là.
-  annotations: AnnotationLigne[]; // peut être vide, jamais absente
+  // ✅ N ÉLÉMENTS, POUR DE VRAI DEPUIS E2-ST4 (lot B1a) — la limite « 0 ou 1 en pratique » du lot
+  // A1 est tombée avec le `.join(' ')` qui la causait. UN PARAGRAPHE DU VOLET = UNE NOTE, dans
+  // l'ordre du document, chacune ouvrant par sa propre portée `{lignes="…"}`. Ce que le
+  // compilateur garantit à tout consommateur (`RenduBlocs` en premier) :
+  //   · le tableau peut être VIDE (un volet sans prose), jamais absent ;
+  //   · les notes sont dans l'ORDRE OÙ L'AUTEUR LES A ÉCRITES — jamais retriées : un volet dont
+  //     les portées décroissent fait ÉCHOUER le build plutôt que de voir sa prose réordonnée ;
+  //   · cet ordre est croissant par plus petite ligne de portée, `lignes: [0]` (le bloc entier)
+  //     venant donc en tête ;
+  //   · DEUX NOTES PEUVENT CITER LA MÊME LIGNE, et c'est voulu : deux remarques distinctes sur la
+  //     même ligne sont légitimes. Aucun dédoublonnage entre notes — un rendu qui indexerait les
+  //     notes PAR numéro de ligne (une note par ligne) en perdrait. `lirePortee` ne refuse le
+  //     doublon qu'à l'INTÉRIEUR d'une même portée (`{lignes="1,1"}`).
+  annotations: AnnotationLigne[];
 }
 
 type BlocContenu =

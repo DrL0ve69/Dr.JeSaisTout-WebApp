@@ -63,6 +63,22 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
     expect(print).toContain('--couleur-surface: #f7f4ec');
   });
 
+  it('fait REVENIR LE CODE À LA LIGNE au papier — sinon il disparaît sans trace', () => {
+    // 🔴 LE DÉFAUT QUE CETTE ASSERTION FERME (revue du lot B, E2-ST4). Le défilement
+    // horizontal du code vit sur `.defileur` depuis le lot B2 ; une feuille A4 n'a pas
+    // de barre de défilement, donc tout ce qui dépasse la boîte est PERDU, en silence.
+    // La règle doit vivre dans la feuille GLOBALE : le `<pre>` est du HTML injecté par
+    // `[innerHTML]`, hors de portée de toute feuille de composant.
+    const print = blocMedia(css, 'print');
+    expect(print).not.toBeNull();
+    expect(print).toMatch(/pre\s*\{[^}]*white-space:\s*pre-wrap/);
+    // CONTRÔLE POSITIF : hors impression, le `<pre>` garde bien son comportement
+    // d'écran. La feuille entière ne contient qu'UNE occurrence, et elle est dans le
+    // bloc ci-dessus — donc la règle n'a pas fui hors du média, ce qui supprimerait le
+    // défilement partout, y compris là où il est voulu.
+    expect(css.split('pre-wrap').length - 1).toBe(1);
+  });
+
   it('ne laisse aucun bloc `prefers-color-scheme: dark` hors du média `screen`', () => {
     // La cause racine : Firefox et Safari évaluent encore la préférence système à
     // l'impression. Restreindre au type `screen` retire le bloc sombre du champ
@@ -111,6 +127,43 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
     const affichages = [...css.matchAll(/font-display:\s*([\w-]+)/g)].map((m) => m[1]);
     expect(affichages.length).toBe(sources.length);
     for (const a of affichages) expect(a).toBe('swap');
+  });
+});
+
+describe('Numérotation des lignes de code — feuille globale (E2-ST4, lot B2)', () => {
+  const css = compile(FEUILLE_GLOBALE, { loadPaths: [RACINE_STYLES] }).css;
+
+  it('numérote TOUTES les lignes, par un compteur remis à zéro à chaque bloc', () => {
+    // C'est ce qui rend « Ligne 2 : » — l'étiquette d'annotation de `rendu-blocs.ts` —
+    // localisable d'un regard, pour toutes les notes à la fois. La feuille doit être
+    // GLOBALE : le HTML de Shiki est injecté par `[innerHTML]`, donc hors de portée de
+    // toute feuille de composant.
+    expect(css).toMatch(/pre\.shiki > code\s*\{[^}]*counter-reset:\s*ligne-de-code/);
+    expect(css).toMatch(/pre\.shiki > code > span\.line\s*\{[^}]*counter-increment:\s*ligne-de-code/);
+    expect(css).toMatch(/span\.line::before\s*\{[^}]*content:\s*counter\(ligne-de-code\)/);
+  });
+
+  it('masque la ligne FANTÔME — `:last-child` ET `:empty`, jamais l’un sans l’autre', () => {
+    // markdown-it termine le contenu d'une clôture par un saut de ligne, dont Shiki
+    // fait une dernière ligne VIDE, ancrée comme les autres (mesuré :
+    // `src/pipeline-contenu-compilation.spec.ts`). La numéroter afficherait un numéro
+    // devant du vide. `:empty` seul masquerait aussi une ligne vide AU MILIEU d'un
+    // extrait — une respiration voulue par l'auteur — et décalerait alors l'œil d'un
+    // cran par rapport aux annotations.
+    expect(css).toMatch(/span\.line:last-child:empty\s*\{[^}]*display:\s*none/);
+    expect(css).not.toMatch(/span\.line:empty\s*\{/);
+  });
+
+  it('n’introduit AUCUNE couleur pour les numéros — zéro paire de contraste neuve', () => {
+    // Le numéro hérite de l'encre du code. Une encre affaiblie « pour la discrétion »
+    // serait une paire de plus à mesurer par `tools/design/verifier-contrastes.mjs`,
+    // sur des fonds (`--shiki-*-bg`) que ce gate ne connaît pas.
+    const regle = /span\.line::before\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(regle.length).toBeGreaterThan(0);
+    expect(regle).not.toMatch(/(^|[\s;])color:/);
+    expect(regle).not.toMatch(/opacity:/);
+    // G7 : la gouttière passe par un jeton, jamais par une valeur littérale.
+    expect(regle).toContain('inline-size: var(--espace-4)');
   });
 });
 

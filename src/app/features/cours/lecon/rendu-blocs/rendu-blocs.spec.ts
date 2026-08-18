@@ -30,6 +30,7 @@ import { join } from 'node:path';
 
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
+import { compile } from 'sass';
 
 import { RenduBlocs } from './rendu-blocs';
 
@@ -75,10 +76,19 @@ const COMPTES_PROSE: Record<string, number> = {
 const ATTRIBUTS_PROSE = 1;
 
 /**
- * La forme que Shiki émet avec `transformerStyleToClass` : `<pre class="shiki …"
- * tabindex="0"><code><span class="line ancre-ligne-1">…`. TOUT le sens visuel est porté par
+ * La forme que Shiki émet avec `transformerStyleToClass` : `<pre class="shiki …"><code><span
+ * class="line ancre-ligne-1">…`. TOUT le sens visuel est porté par
  * des `class` — zéro `style=`, la CSP du site étant à hachages (S-005). Si le sanitizer
  * mangeait ces `class`, le code s'afficherait en noir et blanc sous un run vert.
+ *
+ * ⚠️ PAS DE `tabindex="0"` SUR LE `<pre>`, et c'est le lot B qui l'a retiré (transformateur
+ * `drjst-pre-sans-tabindex` de `compiler-markdown.mjs`). Shiki en posait un, utile tant que
+ * `.shiki` défilait ; depuis que le défilement vit sur `.defileur`, c'était un arrêt de
+ * tabulation MORT — 16 arrêts pour 8 blocs sur la leçon-témoin prerendue. Cette recopie suit
+ * donc la sortie réelle ; ce qui MESURE la sortie réelle est
+ * `src/pipeline-contenu-compilation.spec.ts` (côté compilateur) et
+ * `src/sonde-sanitizer-shiki.spec.ts` (côté DOM) — l'assertion d'ici tient l'invariant de RENDU,
+ * qui vaut aussi pour un `htmlColore` d'origine différente.
  *
  * ⚠️ `ancre-ligne-N` est l’ANCRE DE LIGNE du transformateur `drjst-ancre-de-ligne` (E2-ST4,
  * lot A2), sur laquelle le lot B accrochera les annotations. Elle est ici parce que la
@@ -86,13 +96,13 @@ const ATTRIBUTS_PROSE = 1;
  * réelle ; ce qui MESURE sa survie au sanitizer est `src/sonde-sanitizer-shiki.spec.ts`,
  * qui, lui, part de la sortie du compilateur et non d'une recopie.
  */
-const HTML_CODE = `<pre class="shiki shiki-themes carnet-clair carnet-sombre" tabindex="0"><code><span class="line ancre-ligne-1"><span class="sVar">$requete</span><span class="sOp"> = </span><span class="sTxt">"SELECT * FROM utilisateurs"</span><span class="sOp">;</span></span>
+const HTML_CODE = `<pre class="shiki shiki-themes carnet-clair carnet-sombre"><code><span class="line ancre-ligne-1"><span class="sVar">$requete</span><span class="sOp"> = </span><span class="sTxt">"SELECT * FROM utilisateurs"</span><span class="sOp">;</span></span>
 <span class="line ancre-ligne-2"></span>
 <span class="line ancre-ligne-3"><span class="sCom">// concaténation : ne jamais faire</span></span></code></pre>`;
 
-/** 3 noms d'éléments, 10 occurrences, 10 attributs (8 `class` + `class`/`tabindex` du `pre`). */
+/** 3 noms d'éléments, 10 occurrences, 9 attributs (8 `class` de `span` + le `class` du `pre`). */
 const COMPTES_CODE: Record<string, number> = { pre: 1, code: 1, span: 8 };
-const ATTRIBUTS_CODE = 10;
+const ATTRIBUTS_CODE = 9;
 
 /**
  * Extrait représentatif d'une sortie `mmdc` déjà passée par l'analyseur à liste
@@ -158,6 +168,84 @@ const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
 };
 
 /**
+ * 🔴 LE CAS QUE `FIXTURES.comparaison` NE COUVRE PAS : deux paires du MÊME langage.
+ *
+ * Le nom accessible d'un défileur était `Code`/`Exemple vulnérable`/`Correctif` suivi du seul
+ * LANGAGE — deux blocs `php` donnaient donc deux groupes homonymes. La leçon-témoin y échappe
+ * par hasard (huit blocs, huit langages), et c'est précisément pourquoi ce cas doit être écrit
+ * ICI : un défaut qu'aucune fixture ne porte est un défaut qu'aucun gate ne voit.
+ */
+const COMPARAISON_DEUX_PAIRES_PHP: BlocContenu = {
+  type: 'comparaison',
+  exemples: [
+    {
+      langage: 'php',
+      vulnerable: {
+        htmlColore: '<pre class="shiki"><code><span class="line">echo $_GET;</span></code></pre>',
+        annotations: [{ lignes: [1], texte: 'La donnée du client est écrite telle quelle.' }],
+      },
+      corrige: {
+        htmlColore:
+          '<pre class="shiki"><code><span class="line">echo htmlspecialchars($_GET);</span></code></pre>',
+        annotations: [{ lignes: [1], texte: 'L’encodage de sortie neutralise la charge.' }],
+      },
+    },
+    {
+      langage: 'php',
+      vulnerable: {
+        htmlColore: '<pre class="shiki"><code><span class="line">$sql .= $slug;</span></code></pre>',
+        annotations: [{ lignes: [1], texte: 'Concaténation dans le texte de la requête.' }],
+      },
+      corrige: {
+        htmlColore:
+          '<pre class="shiki"><code><span class="line">$pdo->prepare($sql);</span></code></pre>',
+        annotations: [{ lignes: [1], texte: 'La donnée reste un paramètre.' }],
+      },
+    },
+  ],
+};
+
+/** Un SECOND bloc `code`, du même langage que `FIXTURES.code` — le compteur des `code`. */
+const CODE_PHP_BIS: BlocContenu = {
+  type: 'code',
+  langage: 'php',
+  htmlColore: '<pre class="shiki"><code><span class="line">session_start();</span></code></pre>',
+};
+
+/**
+ * 🔴 LA CHARGE S-011, POSÉE LÀ OÙ ELLE ARRIVERA VRAIMENT : dans le `texte` d'une annotation.
+ * Depuis le lot B, c'est le SEUL canal de prose d'un volet — donc l'endroit exact où une leçon
+ * sur le XSS écrira un gestionnaire d'événement entre guillemets, et le style en ligne avec.
+ */
+const COMPARAISON_CHARGE_S011: BlocContenu = {
+  type: 'comparaison',
+  exemples: [
+    {
+      langage: 'php',
+      vulnerable: {
+        htmlColore: '<pre class="shiki"><code><span class="line">echo $avis;</span></code></pre>',
+        annotations: [
+          {
+            lignes: [1],
+            texte: 'Un avis valant <img src=x onerror="alert(\'XSS\')"> s’exécute ici.',
+          },
+        ],
+      },
+      corrige: {
+        htmlColore:
+          '<pre class="shiki"><code><span class="line">echo htmlspecialchars($avis);</span></code></pre>',
+        annotations: [
+          {
+            lignes: [1],
+            texte: 'Plus aucun style="color:red" ni <script>alert(1)</script> ne peut naître.',
+          },
+        ],
+      },
+    },
+  ],
+};
+
+/**
  * Le quiz que ce composant TRAVERSE. Il ne le lit pas : il le passe à `Quiz`, qui
  * le valide et le rend (E2-ST3, lot C). Une seule question suffit donc ici — la
  * couverture des quatre types appartient à `quiz.spec.ts`, pas à ce fichier.
@@ -216,6 +304,60 @@ async function rendre(blocs: readonly BlocContenu[]): Promise<HTMLElement> {
   fixture.componentRef.setInput('quiz', QUIZ);
   await fixture.whenStable();
   return fixture.nativeElement as HTMLElement;
+}
+
+/**
+ * La feuille du composant, RÉELLEMENT COMPILÉE — patron de `src/styles/design-system.spec.ts`.
+ *
+ * Deux constats de ce lot ne se voient que dans la sortie : une valeur littérale glissée à la
+ * place d'un jeton (G7) et un `@media` de largeur réintroduit. `sass` est le compilateur qu'utilise
+ * déjà `@angular/build` — aucune dépendance neuve. Le résultat est mémoïsé : la compilation coûte,
+ * et la feuille ne change pas d'une assertion à l'autre.
+ */
+let cssDuComposant: string | null = null;
+function feuilleCompilee(): string {
+  cssDuComposant ??= compile(
+    join(process.cwd(), 'src', 'app', 'features', 'cours', 'lecon', 'rendu-blocs', 'rendu-blocs.scss'),
+    { loadPaths: [join(process.cwd(), 'src', 'styles')] },
+  ).css;
+  return cssDuComposant;
+}
+
+/** Extrait le corps d'un bloc `@media <condition>` par appariement d'accolades. */
+function blocMedia(css: string, condition: string): string | null {
+  const debut = css.indexOf(`@media ${condition}`);
+  if (debut === -1) return null;
+  const ouvrante = css.indexOf('{', debut);
+  let profondeur = 0;
+  for (let i = ouvrante; i < css.length; i += 1) {
+    if (css[i] === '{') profondeur += 1;
+    else if (css[i] === '}') {
+      profondeur -= 1;
+      if (profondeur === 0) return css.slice(ouvrante + 1, i);
+    }
+  }
+  return null;
+}
+
+/**
+ * TOUS les corps de `@media <condition>` de la feuille, dans l'ordre source.
+ *
+ * `blocMedia` ne rend que le PREMIER, et cela suffisait tant que la feuille n'avait qu'un bloc
+ * d'impression. Elle en a deux depuis que `.defileur` a le sien : lire le premier seul ferait
+ * dépendre le résultat de l'ordre des règles dans le fichier, c'est-à-dire d'une propriété que
+ * personne ne surveille.
+ */
+function tousLesBlocsMedia(css: string, condition: string): string[] {
+  const corps: string[] = [];
+  let depuis = 0;
+  for (;;) {
+    const debut = css.indexOf(`@media ${condition}`, depuis);
+    if (debut === -1) return corps;
+    const bloc = blocMedia(css.slice(debut), condition);
+    if (bloc === null) return corps;
+    corps.push(bloc);
+    depuis = debut + `@media ${condition}`.length;
+  }
 }
 
 function sourceDuComposant(): string {
@@ -279,7 +421,7 @@ describe('RenduBlocs', () => {
 
     it('`code` : le HTML de Shiki survit INTACT, `class` comprises', async () => {
       const rendu = await rendre([FIXTURES.code]);
-      const cible = rendu.querySelector('.code');
+      const cible = rendu.querySelector('.bloc-code .defileur');
       expect(cible).not.toBeNull();
 
       const avant = recenserFragment(HTML_CODE);
@@ -296,8 +438,8 @@ describe('RenduBlocs', () => {
       // les perdre afficherait un code en noir et blanc sous un run vert.
       expect(cible?.querySelector('pre')?.getAttribute('class')).toContain('shiki');
       expect(cible?.querySelectorAll('span.line').length).toBe(3);
-      // Le langage reste lisible du DOM sans être une promesse visuelle.
-      expect(cible?.getAttribute('data-langage')).toBe('php');
+      // Le langage reste lisible du DOM, sur l'enveloppe qui le porte.
+      expect(rendu.querySelector('.bloc-code')?.getAttribute('data-langage')).toBe('php');
     });
   });
 
@@ -592,6 +734,243 @@ describe('RenduBlocs', () => {
     });
   });
 
+  // ─── LE DÉFILEUR DE CODE (E2-ST4, lot B2) ───────────────────────────────────
+  // 🔴 LE DÉFAUT QUE CETTE SECTION FERME. `overflow-x: auto` vivait sur `.shiki`,
+  // donc sur le HTML INJECTÉ par `[innerHTML]` : la région qui défile n'existait
+  // pas dans le gabarit, ne portait aucun nom, et rien ici ne pouvait la nommer —
+  // le `id` d'un `aria-labelledby` posé dans le HTML coloré serait de toute façon
+  // effacé par le sanitizer (mesure : `src/sonde-sanitizer-shiki.spec.ts`).
+  // ⚠️ ET AUCUN GATE NE LE VOYAIT : la règle axe `scrollable-region-focusable` est
+  // DÉSACTIVÉE dans `tools/a11y/verifier-axe.mjs` (jsdom ne calcule pas le
+  // débordement). Ces assertions-ci sont donc le seul filet, et le passage à deux
+  // colonnes rendait le débordement systématique.
+  describe('bloc de code — une région défilante atteignable et NOMMÉE', () => {
+    it('enveloppe le code d’un `code` dans une figure légendée + un défileur nommé', async () => {
+      const rendu = await rendre([FIXTURES.code]);
+
+      const figure = rendu.querySelector('figure.bloc-code');
+      expect(figure).not.toBeNull();
+      // La légende est ÉCRITE : jusqu'ici le langage d'un bloc `code` ne vivait que
+      // dans un `data-langage`, que personne ne lit.
+      expect(figure?.querySelector('figcaption.etiquette')?.textContent).toContain('php');
+
+      const defileur = figure?.querySelector('.defileur');
+      // WCAG 2.1.1 : une région qui défile doit s'atteindre au clavier.
+      expect(defileur?.getAttribute('tabindex')).toBe('0');
+      // WCAG 2.4.6 : et s'annoncer. Un `aria-label` vide ne vaudrait pas mieux
+      // qu'aucun, d'où la mesure de longueur plutôt qu'un simple `not.toBeNull`.
+      expect((defileur?.getAttribute('aria-label') ?? '').length).toBeGreaterThan(0);
+      // `aria-label` et JAMAIS `aria-labelledby` : plusieurs blocs de code
+      // coexistent dans une leçon, et un identifiant qui se répète est L-026.
+      expect(rendu.querySelector('[aria-labelledby]')).toBeNull();
+      // Le code lui-même est bien DANS le défileur, sinon rien ne défilerait.
+      expect(defileur?.querySelector('pre.shiki')).not.toBeNull();
+    });
+
+    it('ne laisse AUCUN `pre[tabindex]` — un seul arrêt de tabulation par bloc', async () => {
+      // 🔴 LA RÉGRESSION QUE CETTE ASSERTION FERME (revue du 2026-08-18, lot B).
+      // Remonter le défilement dans le gabarit a fermé un défaut et en a ouvert un
+      // autre : Shiki pose son propre `tabindex="0"` sur le `<pre>`, qui n'avait
+      // désormais plus rien à faire défiler. La leçon-témoin prerendue est passée de
+      // 8 à 16 arrêts de tabulation sur le code — 8 `.defileur` nommés, plus 8 `pre`
+      // MUETS : atteignables, sans nom, sans rôle, sans effet.
+      // ⚠️ ET AUCUN GATE NE LE VOYAIT : `focus-order-semantics` est désactivée par
+      // défaut chez axe, `scrollable-region-focusable` l'est dans
+      // `tools/a11y/verifier-axe.mjs`. Cette assertion-ci est le filet côté RENDU ; le
+      // filet côté compilateur vit dans `src/pipeline-contenu-compilation.spec.ts`,
+      // sur la sortie réelle de Shiki — les deux, parce qu'un `htmlColore` peut aussi
+      // arriver d'ailleurs (le quiz `trouver-la-faille` en est un).
+      const rendu = await rendre([FIXTURES.code, FIXTURES.comparaison]);
+
+      // Contrôle positif : la mesure porte bien sur des `<pre>` réellement rendus, et
+      // sur des arrêts de tabulation réellement présents (L-019).
+      expect(rendu.querySelectorAll('pre.shiki').length).toBe(3);
+      const arrets = [...rendu.querySelectorAll('[tabindex]')];
+      expect(arrets.length).toBe(3);
+
+      expect(rendu.querySelector('pre[tabindex]')).toBeNull();
+      // Et les seuls arrêts sont les défileurs — nommés, et un par bloc.
+      expect(arrets.every((element) => element.classList.contains('defileur'))).toBe(true);
+    });
+
+    it('nomme le défileur EXACTEMENT comme la légende visible', async () => {
+      // Le nom entendu et le nom vu sortent de la même méthode ; s'ils divergeaient,
+      // c'est l'oreille qui perdrait, en silence (WCAG 2.5.3 · étiquette dans le nom).
+      const rendu = await rendre([FIXTURES.comparaison]);
+
+      for (const figure of rendu.querySelectorAll('figure.bloc-code')) {
+        const legende = figure.querySelector('figcaption')?.textContent?.trim() ?? '';
+        expect(legende.length).toBeGreaterThan(0);
+        expect(figure.querySelector('.defileur')?.getAttribute('aria-label')).toBe(legende);
+      }
+    });
+
+    it('donne à CHAQUE volet d’une paire son propre défileur, et deux noms distincts', async () => {
+      const rendu = await rendre([FIXTURES.comparaison]);
+
+      const defileurs = [...rendu.querySelectorAll('.paire .defileur')];
+      expect(defileurs).toHaveLength(2);
+      for (const defileur of defileurs) {
+        expect(defileur.getAttribute('tabindex')).toBe('0');
+        // `group` et non `region` : `region` est un point de repère, et deux points
+        // de repère de même nom feraient rougir `landmark-unique` d'axe dès la
+        // deuxième paire d'une leçon.
+        expect(defileur.getAttribute('role')).toBe('group');
+      }
+      const noms = defileurs.map((d) => d.getAttribute('aria-label'));
+      expect(noms[0]).toContain('vulnérable');
+      expect(noms[1]).toContain('Correctif');
+      // ⚠️ CE QUE CETTE PAIRE-CI NE PROUVE PAS. Les deux noms diffèrent par le GENRE
+      // (« Exemple vulnérable » / « Correctif »), qui sont deux libellés distincts : les
+      // compter ne dit donc rien de l'unicité, c'est une assertion qui se compare à
+      // elle-même (L-012). Le cas où l'unicité est réellement en jeu — deux paires du
+      // MÊME langage — est mesuré par le test suivant.
+      expect(new Set(noms).size).toBe(2);
+    });
+
+    it('🔴 numérote les figures : deux paires du MÊME langage n’ont pas le même nom', async () => {
+      // LE DÉFAUT QUE CETTE ASSERTION FERME (revue du lot B, E2-ST4). Le nom était
+      // « Exemple vulnérable — php », sans rang : deux blocs du même langage dans une
+      // leçon donnaient deux groupes HOMONYMES. La leçon-témoin y échappait par hasard,
+      // ses huit blocs étant de huit langages distincts — et une leçon qui compare deux
+      // failles PHP est le cas NORMAL. Le rang lève l'homonymie.
+      const rendu = await rendre([COMPARAISON_DEUX_PAIRES_PHP, FIXTURES.code, CODE_PHP_BIS]);
+
+      const defileurs = [...rendu.querySelectorAll('.defileur')];
+      // CONTRÔLE POSITIF (L-019) : quatre volets (deux paires) + deux blocs `code`, et
+      // TOUS du même langage. Sans lui, « les noms sont uniques » serait vrai d'un rendu
+      // qui n'aurait produit qu'une figure.
+      expect(defileurs).toHaveLength(6);
+      const noms = defileurs.map((d) => d.getAttribute('aria-label') ?? '');
+      expect(noms.every((nom) => nom.endsWith('— php'))).toBe(true);
+
+      // L'UNICITÉ, sur le seul cas où elle est en jeu.
+      expect(new Set(noms).size, noms.join(' · ')).toBe(6);
+
+      // ET LE RANG EST CELUI QU'ON ATTEND, pas un numéro quelconque : les deux volets
+      // d'une MÊME paire partagent leur rang (l'appariement que la mise en page montre),
+      // et les blocs `code` sont comptés à part — deux compteurs, pas un.
+      expect(noms[0]).toContain('Exemple vulnérable n°1');
+      expect(noms[1]).toContain('Correctif n°1');
+      expect(noms[2]).toContain('Exemple vulnérable n°2');
+      expect(noms[3]).toContain('Correctif n°2');
+      expect(noms[4]).toContain('Code n°1');
+      expect(noms[5]).toContain('Code n°2');
+
+      // Le rang est VU autant qu'entendu : la légende visible sort de la même méthode.
+      const legendes = [...rendu.querySelectorAll('figcaption.etiquette')].map(
+        (l) => l.textContent?.trim() ?? '',
+      );
+      expect(legendes).toEqual(noms);
+    });
+
+    it('🔴 S-011 sur `annotations[].texte` — la charge s’affiche ENTIÈRE, sans un seul nœud', async () => {
+      // POURQUOI CE TEST EXISTE (revue du lot B, E2-ST4). `note.texte` est devenu le seul
+      // canal de prose d'un volet, donc l'endroit précis où une leçon sur le XSS écrira
+      // `onerror="…"`. `quiz.ts` porte cette note depuis le lot D et la mesure ; ce
+      // chemin-ci ne la portait pas et n'était mesuré par rien.
+      const rendu = await rendre([COMPARAISON_CHARGE_S011]);
+      const notes = [...rendu.querySelectorAll('.annotations li')];
+
+      // MAIN 1 — CONTRÔLE POSITIF (L-019) : les deux charges sont à l'écran, ENTIÈRES.
+      // Sans lui, « rien n'a été interprété » serait vrai d'un rendu qui n'affiche rien.
+      expect(notes).toHaveLength(2);
+      const texte = notes.map((n) => n.textContent ?? '').join('\n');
+      expect(texte).toContain('<img src=x onerror="alert(\'XSS\')">');
+      expect(texte).toContain('style="color:red"');
+      expect(texte).toContain('<script>alert(1)</script>');
+
+      // … et pas un nœud n'en est né. On interroge le DOM, pas la source : c'est la
+      // différence entre « le composant n'écrit pas `innerHTML` » et « rien ne s'exécute ».
+      for (const note of notes) {
+        expect(note.querySelector('img')).toBeNull();
+        expect(note.querySelector('script')).toBeNull();
+        // Le seul enfant légitime d'une annotation est le `<b class="portee">` de son
+        // étiquette de portée : tout le reste du `<li>` est du TEXTE.
+        expect([...note.children].map((e) => e.localName)).toEqual(['b']);
+      }
+
+      // MAIN 2 — la séquence que `tools/deploiement/generer-config-swa.mjs` cherche dans le
+      // HTML prerendu survit INTACTE, parce qu'Angular n'échappe que « & », « < » et « > ».
+      // Le build échouerait donc, fail-closed, sur un message parlant de CSP. Si cette
+      // assertion tombe un jour, c'est que le mode d'échec a disparu : retirer la note
+      // S-011 du gabarit dans le MÊME diff — jamais assouplir le gate.
+      const listes = [...rendu.querySelectorAll('.annotations')].map((l) => l.innerHTML);
+      expect(listes).toHaveLength(2);
+      expect(listes[0]).toContain('&lt;img');
+      expect(listes[0]).toContain(' onerror="');
+      expect(listes[1]).toContain(' style="color:red"');
+      expect(listes[1]).toContain('&lt;script&gt;');
+    });
+
+    it('garde l’ordre du DOM : vulnérable AVANT correctif, sans `order`', async () => {
+      // WCAG 1.3.2 : l'ordre visuel des deux colonnes est celui du document. Un
+      // `order` CSS le contredirait pour l'œil sans rien changer au clavier.
+      const rendu = await rendre([FIXTURES.comparaison]);
+      const volets = [...rendu.querySelectorAll('.paire > .volet')].map((v) => v.className);
+
+      expect(volets).toEqual(['volet volet-vulnerable', 'volet volet-corrige']);
+      expect(feuilleCompilee()).not.toMatch(/(^|[\s;{])order\s*:/);
+    });
+  });
+
+  // ─── LA FEUILLE DU COMPOSANT, COMPILÉE (patron de `src/styles/design-system.spec.ts`)
+  // Un sélecteur global que rien n'épingle est exactement le code mort que l'en-tête
+  // de `rendu-blocs.scss` dénonce : on interroge le CSS ÉMIS, pas la source SCSS.
+  describe('feuille du composant — la grille, l’impression, le défilement', () => {
+    it('passe à deux colonnes par `auto-fit`, sur le JETON, sans `@media` de largeur', () => {
+      const css = feuilleCompilee();
+
+      expect(css).toContain(
+        'grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--largeur-volet-min)), 1fr))',
+      );
+      // Aucune valeur littérale : c'est G7, et c'est aussi ce qui rend la mesure
+      // ajustable depuis les primitives plutôt que depuis cette feuille.
+      expect(css).not.toMatch(/minmax\(\s*min\(100%,\s*\d/);
+      // Le dépôt ne bascule pas sur la largeur de l'écran (cf. `accueil.scss`) : la
+      // seule requête média tolérée ici est celle du papier.
+      const requetes = [...css.matchAll(/@media ([^{]+)\{/g)].map((m) => (m[1] ?? '').trim());
+      for (const requete of requetes) {
+        expect(requete, requete).not.toMatch(/width/);
+      }
+    });
+
+    it('imprime les deux volets sur UNE colonne', () => {
+      // Deux volets de code sur une demi-page A4 sortent à ~30 caractères par ligne,
+      // et le papier n'a pas de défilement horizontal pour rattraper ça.
+      // ⚠️ On concatène TOUS les blocs `@media print` : la feuille en porte plus d'un
+      // depuis que `.defileur` a le sien, et ne lire que le premier ferait passer ce
+      // test au gré de l'ordre des règles dans le fichier.
+      const impression = tousLesBlocsMedia(feuilleCompilee(), 'print');
+      expect(impression.length).toBeGreaterThan(0);
+      expect(impression.join('\n')).toContain('grid-template-columns: 1fr');
+    });
+
+    it('porte le défilement horizontal sur `.defileur`, jamais sur `.shiki`', () => {
+      // `.shiki` est le HTML INJECTÉ : une règle qui le viserait ici serait du code
+      // mort (encapsulation d'Angular), et le défilement y serait sans nom ni focus.
+      const css = feuilleCompilee();
+      expect(css).toMatch(/\.defileur[^{]*\{[^}]*overflow-x:\s*auto/);
+      expect(css).not.toContain('.shiki');
+    });
+
+    it('LIBÈRE le débordement du défileur au papier — sinon la ligne longue est perdue', () => {
+      // 🔴 LE COROLLAIRE QUE LE LOT B2 AVAIT LAISSÉ (revue du lot B). En reprenant
+      // `overflow-x` à `.shiki`, il a aussi repris ce qu'il fallait en faire à
+      // l'impression : une feuille A4 n'a pas de barre de défilement, donc ce qui
+      // dépasse d'une zone `overflow-x: auto` DISPARAÎT, sans aucun signe. Cette
+      // moitié-ci rend le débordement visible ; l'autre — faire revenir le `<pre>`
+      // INJECTÉ à la ligne — ne peut vivre que dans la feuille globale, et elle est
+      // épinglée par `src/styles/design-system.spec.ts`.
+      const impression = tousLesBlocsMedia(feuilleCompilee(), 'print').join('\n');
+      expect(impression).toMatch(/\.defileur[^{]*\{[^}]*overflow-x:\s*visible/);
+      // CONTRÔLE POSITIF : à l'écran, le défilement est toujours là. Sans lui, ce test
+      // resterait vert d'une feuille qui aurait simplement perdu `overflow-x: auto`.
+      const ecran = feuilleCompilee().split('@media print')[0] ?? '';
+      expect(ecran).toMatch(/\.defileur[^{]*\{[^}]*overflow-x:\s*auto/);
+    });
+  });
+
   describe('ancres de quiz et de simulation', () => {
     it('rend le QUIZ à son ancre, et rien du tout à celle de la simulation', async () => {
       // E2-ST3, lot C. L'ancre du quiz porte désormais le composant ; celle de la
@@ -635,7 +1014,7 @@ describe('RenduBlocs', () => {
 
       const rendu = await rendre(tous);
       expect(rendu.querySelector('.prose')).not.toBeNull();
-      expect(rendu.querySelector('.code')).not.toBeNull();
+      expect(rendu.querySelector('.bloc-code')).not.toBeNull();
       expect(rendu.querySelector('.comparaison')).not.toBeNull();
       expect(rendu.querySelector('.diagramme')).not.toBeNull();
       expect(rendu.querySelector('.encadre')).not.toBeNull();

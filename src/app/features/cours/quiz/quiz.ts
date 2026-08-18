@@ -232,6 +232,43 @@ function estRempli(valeur: unknown): boolean {
 }
 
 /**
+ * 🔴 LE QUATRIÈME COMPTEUR DE LIGNES DU DÉPÔT — et c'est une COPIE DÉLIBÉRÉE de
+ * `compterLignes` (`tools/content-pipeline/compter-lignes.mjs`), qui est la DÉFINITION DE
+ * RÉFÉRENCE. Toute évolution de la formule commence là-bas et se recopie ici, jamais
+ * l'inverse.
+ *
+ * POURQUOI UNE COPIE, ET NON UN IMPORT. `tools/**` et `src/**` sont deux programmes
+ * TypeScript distincts (`tsconfig.tools.json` le dit dans son en-tête) : l'application
+ * Angular ne peut pas importer un `.mjs` d'outillage sans le faire entrer dans son
+ * programme, donc dans son bundle. La frontière est délibérée dans ce dépôt — c'est la
+ * même que celle de `clefIndiscernable` juste au-dessus, et elle se paie de la même
+ * façon : par un contrôle de PARITÉ, pas par un commentaire (L-008).
+ *
+ * 🔴 CE QUE LA DIVERGENCE COÛTAIT, MESURÉ (revue du lot B, E2-ST4). Ce chemin comptait
+ * `question.code.split('\n')`. Sur un `code` de quiz terminé par un saut de ligne —
+ * `tools/content-pipeline/__fixtures__/invalides/quiz-ligne-fautive-hors-extrait` prouve
+ * que les auteurs en écrivent — cela produisait une ligne VIDE de plus, donc une RADIO
+ * FANTÔME « Ligne N+1 » au libellé `<code>` vide : sélectionnable, et toujours fausse. Et
+ * la garde `ligneFautive > lignes.length` d'en dessous devenait par le fait plus permissive
+ * que celle de `valider.mjs`, c'est-à-dire que la divergence que le lot B croyait payer
+ * avait seulement changé de place.
+ *
+ * ON DÉCOUPE, ON NE COMPTE PAS. Rendre le TABLEAU plutôt qu'un nombre est ce qui empêche
+ * la prochaine divergence : la longueur affichée est celle du découpage réellement rendu,
+ * il n'y a donc pas deux valeurs à garder d'accord. Le `\r?` couvre les fins de ligne CRLF
+ * de ce poste (L-015), qui laisseraient sinon un `\r` en queue de chaque ligne affichée.
+ *
+ * 🔴 EXPORTÉE POUR ÊTRE CONFRONTÉE, PAS POUR ÊTRE RÉUTILISÉE — même statut que
+ * `clefIndiscernable`. Son seul consommateur est `src/compter-lignes-parite.spec.ts`, qui
+ * fait compter un corpus piégeux par CETTE copie et par le module de référence (processus
+ * fils) et exige l'égalité cas par cas.
+ */
+export function decouperLignesDeCode(code: string): readonly string[] {
+  const sansFin = code.replace(/\r?\n$/, '');
+  return sansFin === '' ? [] : sansFin.split(/\r?\n/);
+}
+
+/**
  * 🔴 LA CLEF D'INDISCERNABILITÉ — la MÊME règle que `clefIndiscernable` de
  * `tools/content-pipeline/valider.mjs`, écrite ici parce que les deux bouts doivent la
  * porter à l'identique (même partage que l'unicité de `gauche` elle-même).
@@ -1105,10 +1142,13 @@ export class Quiz implements OnInit {
 
     if (manques.length > 0) this.refuser(question, rang, manques);
 
-    // La numérotation commence à 1 — c'est le référentiel de `ligneFautive`.
-    const lignes: readonly LigneDeCode[] = question.code
-      .split('\n')
-      .map((texte, index) => ({ numero: index + 1, valeur: String(index + 1), texte }));
+    // La numérotation commence à 1 — c'est le référentiel de `ligneFautive`. Le découpage
+    // passe par `decouperLignesDeCode` (ci-dessus) et JAMAIS par `code.split('\n')` : un
+    // `code` terminé par un saut de ligne rendrait sinon une radio fantôme « Ligne N+1 »
+    // au libellé vide, et desserrerait la garde ci-dessous par rapport à `valider.mjs`.
+    const lignes: readonly LigneDeCode[] = decouperLignesDeCode(question.code).map(
+      (texte, index) => ({ numero: index + 1, valeur: String(index + 1), texte }),
+    );
 
     // `valider.mjs` le contrôle déjà côté source ; on le REFAIT ici parce qu'un
     // artéfact compilé par une autre version du pipeline ne serait pas passé par lui,

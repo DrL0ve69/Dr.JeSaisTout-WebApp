@@ -8,10 +8,10 @@ pas le code.
 > ### 🔒 Qui exécute ce contrôle, et pourquoi ce n'est PAS une étape de CI
 >
 > Le gate est **`src/pipeline-contenu-validation.spec.ts`**, donc **G-test** — qui tourne déjà dans
-> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **14/14 refus** et vérifie
-> que **chaque cas est refusé sur SA cause propre** : quatorze refus pour une seule et même raison (un
-> chemin introuvable, disons) seraient sinon indistinguables de quatorze refus corrects. Il porte en
-> plus un **garde-fou de complétude** — ajouter un quinzième dossier ici sans écrire son assertion
+> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **15/15 refus** et vérifie
+> que **chaque cas est refusé sur SA cause propre** : quinze refus pour une seule et même raison (un
+> chemin introuvable, disons) seraient sinon indistinguables de quinze refus corrects. Il porte en
+> plus un **garde-fou de complétude** — ajouter un seizième dossier ici sans écrire son assertion
 > fait ROUGIR le spec.
 >
 > N'ajoutez donc **pas** d'étape `content:valider:fixtures` aux workflows : elle ferait tourner la
@@ -50,6 +50,7 @@ cause existe.
 | `quiz-choix-identifiant-repete` | deux `choix` au même `id` (q1) | unicité des `choix[].id` hors schéma |
 | `quiz-question-identifiant-repete` | deux questions au même `id` (`q1`) | unicité des `id` de question hors schéma |
 | `quiz-associer-gauche-indiscernable` | deux `gauche` que seule une U+00A0 sépare (q4) | unicité de `gauche` sur clef **normalisée** |
+| `quiz-ligne-fautive-hors-extrait` | `code` terminé par un saut de ligne + `ligneFautive: 4` (q3) | borne de `ligneFautive` sur `compterLignes` **partagé** |
 
 ⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** : `##` suivi
 de trois espaces, **ligne 39 du fichier** (que le validateur rapporte comme « corps ligne 21 » — il
@@ -66,6 +67,17 @@ remplacer par une espace ordinaire : c'est exactement la collision que
 `.claude/rules/contenu-pedagogique.md` §3 rend certaine (le contenu du site emploie U+00A0 par
 consigne), et le cas est le contrôle positif de la clef normalisée de `clefIndiscernable`. Avant le
 correctif du lot E-a, ce dossier sortait **accepté**.
+
+⚠️ **La faute de `quiz-ligne-fautive-hors-extrait` tient à UN caractère, et il est écrit en
+séquence d'échappement** : le `code` de `q3` se termine par un `\n` **JSON** (deux caractères dans
+le fichier, pour qu'on le VOIE à la relecture), et `ligneFautive` vaut `4` là où l'extrait ne
+compte que 3 lignes. La 4ᵉ « ligne » est la chaîne vide qui suit le dernier saut : le quiz
+l'afficherait vide, et personne ne pourrait la désigner à l'écran. Retirer ce saut final ferait
+passer le cas de « refusé » à « accepté à tort ». Avant le correctif d'E2-ST4 (lot B), ce dossier
+sortait **accepté** : `verifierQuestionTrouverLaFaille` comptait avec `code.split('\n').length`,
+pendant que le compilateur comptait avec `compterLignes` — deux formules recopiées, divergentes
+d'une ligne, vertes chacune de son côté. Les trois appelants partagent désormais
+`tools/content-pipeline/compter-lignes.mjs`.
 
 ⚠️ **Les quatre cas du 2026-08-18 dérivent de `__fixtures__/temoin-minimal`**, pas du témoin des huit
 premiers : c'est la seule leçon-témoin VALIDE du dépôt, donc la base la plus sûre pour n'injecter

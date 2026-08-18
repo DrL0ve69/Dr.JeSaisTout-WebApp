@@ -509,7 +509,7 @@ programme TypeScript de ce dépôt (cf. [[L-020]]).
 
 ---
 
-## L-023 · ⚠️ RÉPÉTÉE UNE FOIS (E2-ST2) — geste déclencheur : « j'écris un commentaire HTML dans un `template:` inline ». À ce moment précis, s'arrêter : pas de backtique.
+## L-023 · ⚠️ RÉPÉTÉE DEUX FOIS (E2-ST2, E2-ST4 lot B) — la leçon écrite ne suffit plus, il faut un garde-fou exécutable
 
 **Reconnaître le geste AVANT la faute, pas le symptôme après.** Le seul moment où cette leçon peut
 encore servir, c'est celui où la main s'apprête à taper `<!-- ... -->` **à l'intérieur d'un
@@ -535,6 +535,21 @@ mémoire — c'est précisément ce que sa répétition démontre.
 
 **Réfs.** `src/app/core/layout/en-tete/en-tete.ts` ; composant d'E2-ST2 (page de leçon) ; branche
 `feat/e2-st2-page-lecon-routage`.
+
+**⚠️ Troisième occurrence (E2-ST4 lot B), et verdict : la leçon écrite ne change plus le
+comportement.** Un commentaire HTML avec backtique dans le `template:` inline de
+`rendu-blocs.ts` a de nouveau terminé le littéral, `npm run lint` rouge sur un « Parsing error »
+sans rapport avec la cause — exactement le symptôme déjà décrit deux fois. Le problème n'est ni
+la formulation (le geste déclencheur était déjà écrit noir sur blanc) ni le placement : au
+troisième passage, une leçon *lue* et *repayée quand même* n'est plus un problème de mémoire, c'est
+la preuve qu'une vigilance humaine ne suffit pas sur ce geste précis. **Elle cesse d'être une
+leçon de mentor et devient une dette d'outillage.**
+
+**Décision.** Ne pas ajouter de quatrième paragraphe si ça mord une quatrième fois — écrire
+directement le garde-fou mécanisable déjà signalé ci-dessus : une règle ESLint (ou un script
+`PostToolUse`/gate CI) qui refuse un backtique à l'intérieur d'un commentaire HTML `<!-- … -->`
+présent dans un littéral `template: \`…\`` d'un `.ts`. **Signalé à `.claude/rules/angular-best-practices.md`
+pour que ce geste y soit porté en dur**, plutôt que de rester une entrée de plus dans ce fichier.
 
 ---
 
@@ -884,6 +899,54 @@ choisi, ET viser le **mauvais côté de la frontière** (l'appelant plutôt que 
 être mise à l'épreuve) ; `src/pipeline-contenu-compilation.spec.ts`
 (`appelerVerifierAncres`, test « ANCRE — le garde-fou du COMPILATEUR refuse… ») ; revue
 `code-reviewer` du 2026-08-18 ; branche `feat/e2-st4-lot-a2`.
+
+---
+
+## L-037 · « UNE définition, N appelants, dette PAYÉE » n'est vrai que si les N appelants ont été RECENSÉS — pas seulement ceux qui vivent dans le même dossier que l'outil
+
+**Symptôme.** `tools/content-pipeline/compter-lignes.mjs` (lot B d'E2-ST4) unifiait deux formules de
+comptage de lignes divergentes (compilateur/validateur), avec un en-tête déclarant « UNE définition,
+TROIS appelants » et la dette « PAYÉE ». La revue a trouvé un **quatrième** copieur :
+`src/app/features/cours/quiz/quiz.ts` (`question.code.split('\n')`), qui produisait une radio
+fantôme « Ligne N+1 » sélectionnable au libellé vide, et une garde de composant plus permissive que
+celle du validateur. La divergence n'avait pas disparu, elle avait **changé de place** — sous un
+commentaire qui affirmait le contraire.
+
+**Ce qui rendait le quatrième invisible.** Il vivait **hors du dossier de l'outil**
+(`src/app/…`, pas `tools/…`) et un composant Angular **ne peut structurellement pas importer** un
+`.mjs` de `tools/` (deux programmes TypeScript distincts, cf. [[L-020]]) — la copie y était donc
+nécessaire, ce qui la rendait facile à oublier plutôt qu'impossible.
+
+**Règle.** Avant d'écrire « UNE définition, N appelants, dette payée » dans l'en-tête d'un module
+qui remplace une formule dupliquée : recenser les copieurs par une recherche **plein-texte du
+calcul**, pas par dossier ni par type de fichier — en particulier vérifier le côté **rendu/UI**, qui
+vit presque toujours hors de `tools/` et ne peut par construction pas importer le module unifié. Un
+appelant qu'on ne peut pas faire importer le module de référence n'est pas hors sujet : c'est lui
+qu'il faut nommer explicitement comme **copie verrouillée** (pointeur vers la définition + test de
+parité, patron `clef-indiscernable-parite.spec.ts`), jamais laisser une formule maison sans
+étiquette. Cousine de [[L-008]]/[[L-016]] (une contrepartie ou une citation n'est vraie que
+vérifiée) sur un axe neuf : ici, c'est un **compte** annoncé dans un commentaire qui doit se
+vérifier avant d'être écrit, pas seulement une promesse qualitative.
+
+**Réfs.** `tools/content-pipeline/compter-lignes.mjs` ; `src/app/features/cours/quiz/quiz.ts` ;
+revue `code-reviewer`, branche `feat/e2-st4-lot-b`.
+
+---
+
+## L-038 · Défaire une mutation de test par `git checkout -- <fichier>` sur un arbre SALE efface aussi le travail non commité de ce fichier
+
+**Symptôme.** Un garde-fou de ce dépôt s'éprouve par mutation ([[L-036]]) : on modifie le fichier,
+on observe le refus, on rétablit. Un implémenteur du lot B a rétabli avec `git checkout --
+<fichier>` alors que `git status` n'était **pas propre** — les correctifs des lots précédents sur ce
+même fichier n'étaient pas encore commités. `git checkout` a effacé la mutation **et** tout le
+travail non commité, qu'il a fallu réécrire.
+
+**Règle.** Avant de défaire une mutation de test : vérifier `git status`. Si l'arbre n'est pas
+propre sur le fichier visé, ne jamais `git checkout -- <fichier>` — copier le fichier à part (ou
+`git stash push -- <fichier>`) avant de muter, et restaurer depuis cette copie. `git checkout` sur
+un arbre sale ne distingue pas « ce que je viens de muter » de « ce que je n'ai pas encore commité ».
+
+**Réfs.** branche `feat/e2-st4-lot-b`, correctifs de revue du lot B.
 
 ---
 

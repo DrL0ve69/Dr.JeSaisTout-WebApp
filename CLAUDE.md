@@ -55,11 +55,11 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ## ⏭️ REPRISE — état au 2026-08-18
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
-> CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 lot A1 CLOS.**
-> **Le geste suivant : E2-ST4 lot A2** — la sonde du sanitizer, PUIS le transformateur `line` :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST4, « Les deux décisions
-> d'E2-ST4 » et son tableau de découpe (lots **A1 ✅, A2, B, C**). Travail en cours sur la branche
-> `feat/e2-st4-comparaison`.
+> CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 lots A1, A2 et B CLOS** (PR #18, #19, #20).
+> **Le geste suivant : E2-ST4 lot C** — vérification jetable (G-axe, G-e2e clavier sous CSP réelle,
+> `config:swa`) :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST4, tableau de découpe
+> (lots **A1 ✅, A2 ✅, B ✅, C**).
 >
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
@@ -97,30 +97,33 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > Le delta réel : **(a)** ancrer les annotations à la ligne, **(b)** le contrôle de portée manquant,
 > **(c)** les 2 colonnes en large.
 >
-> ✅ **LOT A1 CLOS — ce qu'il a trouvé, et ce n'était pas ce qu'il cherchait.** La portée
-> `{lignes="…"}` n'avait aucun plafond (`lignes="42"` sur 5 lignes sortait vert) : corrigé, et
-> l'invariant est tenu **des deux côtés**. Mais le vrai défaut était ailleurs — **`lignes="1,,2"`,
-> un jeton VIDE entre deux virgules, devenait une valeur LÉGALE par coercition** : `Number('')` vaut
-> `0`, `Number.isInteger(0)` est vrai, et `0` signifie « le bloc entier ». Une coquille de frappe
-> changeait donc **silencieusement le sens** de l'annotation, et se publiait.
-> Le contrat est passé de `ligne: number` à **`lignes: number[]`** (une annotation portant plusieurs
-> lignes, au lieu de N notes au texte identique). ⚠️ `ExempleCode` **ne conserve pas le code brut** :
-> le contrôle de borne vit donc **dans le compilateur**, et le pendant côté application le déclare
-> **non prouvable** en toutes lettres — le déduire du balisage Shiki serait une garantie dérivée de
-> l'artéfact (S-005/S-009).
-> ⚠️ **Limite laissée en place et écrite, pour le lot B** : `lireExemple` joint toute la prose d'un
-> volet, donc `ExempleCode.annotations` ne porte plus que **0 ou 1** élément — alors que le type, le
-> `@if` et le `@for` en promettent N. Le lot B (annotations ancrées à la ligne) la fera sauter.
-> ⚠️ **`docs/contenu/pipeline-contenu.md` documentait une syntaxe MORTE** — et pire que périmée :
-> `langageDe` ne lit que le premier mot de la clôture, donc ` ```php vulnerable ligne=2 ` était
-> **ignoré en silence** et le bloc sortait en simple `code`. Un auteur suivant la doc aurait publié
-> une leçon sans côte-à-côte, tous gates verts. Réécrit — c'est le fichier depuis lequel
-> `professeur-web` écrit.
-> ⚠️ **Mesurer avant de concevoir** (lot A2) : on ne sait pas ce que le sanitizer d'Angular laisse
-> passer sur la sortie Shiki. `class` très probablement ; `data-*` et `id`, à **mesurer** — le
-> précédent du SVG (24 éléments → 0) interdit de le supposer.
-> Détail de nommage : le jeton s'appelle **`--couleur-ok-corrige`** ; `ok-fixed` n'existe que dans
-> les docs.
+> ✅ **LOT A1 CLOS.** Le contrat est passé de `ligne: number` à **`lignes: number[]`** — le vrai
+> défaut trouvé était `lignes="1,,2"` (jeton VIDE légal par coercition, `Number('')` = `0` = « bloc
+> entier »), pas le plafond manquant qu'on cherchait. `docs/contenu/pipeline-contenu.md` documentait
+> une syntaxe **morte** (`langageDe` ignorait tout sauf le premier mot) — réécrit.
+> ✅ **LOT A2 CLOS.** Sonde mesurée : le sanitizer d'Angular laisse passer `class` mais **efface
+> `id` et `data-*`** (3 → 0, comme le SVG) — donc l'ancre de ligne est `class="ancre-ligne-N"`,
+> jamais un `data-*`. Deux récidives S-001/S-003/S-009 (**S-014**) et L-036 corrigées au passage.
+>
+> ✅ **LOT B CLOS — deux décisions du propriétaire, à ne pas rouvrir.** **(1)** Le filet
+> `.ligne-annotee` est **retiré du périmètre**, remplacé par une **numérotation CSS de toutes les
+> lignes** (`_code.scss`) : un filet disparaît en `forced-colors: active` et ne peut donc pas porter
+> l'information seul. **(2)** Syntaxe d'auteur à **forme unique** : `{lignes="…"}` obligatoire en
+> tête d'un paragraphe-note, l'ancienne écriture échoue en se nommant plutôt que de se dégrader.
+> **Trois constats de revue 🔴, tous corrigés dans le lot** : (a) la dette du comptage de lignes
+> avait **changé de place**, pas disparu — un 4ᵉ appelant (`quiz.ts`) comptait encore à la main,
+> corrigé + verrouillé par `src/compter-lignes-parite.spec.ts` (**L-037**) ; (b) le garde-fou « zéro
+> style en ligne » cherchait un **motif** dans le HTML — donc dans le **texte du code de l'auteur** —
+> et aurait refusé un exemple PHP légitime citant `style="…"` ; 5ᵉ récidive de la famille
+> S-001/S-003/S-009/S-014, axe neuf : le **sur-refus** (**S-015**, jsdom) ; (c) le lot a
+> **lui-même créé** un `tabindex` mort par bloc de code en déplaçant le défilement dans le gabarit
+> (8 → 16 arrêts), invisible à axe (règles désactivées) — corrigé par transformateur Shiki, mesuré
+> 16 → 8.
+> **Dette neuve → E6** : `--couleur-code-fond` vient des thèmes github (fichier gitignoré), **hors
+> du gate de contraste** dès aujourd'hui. **→ lot C** : arrêts clavier en Playwright (seul filet
+> réel) et unicité inter-sections des noms de défileur.
+> **Chiffres (2026-08-18)** : G-test **566/30**, G-e2e 21/0 sauté (fixture), G-axe 344 vérif./0
+> violation, G-build 12/1 hachages (fixture) inchangés, `npm audit --omit=dev` 0.
 >
 > ---
 >
