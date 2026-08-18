@@ -1074,6 +1074,54 @@ un lot en une phrase, vérifiable seul, un agent frais chacun.
 | **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ✅ *(G-clavier et G-axe reportés au lot E, même cause qu'au lot C)* |
 | **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ⬜ |
 
+#### ⏭️ ÉTAT DU LOT E au 2026-08-18 — pointeur de reprise
+
+Le lot E s'est découpé **plus fin que prévu** (six agents, pas trois) : c'est la consigne du tableau
+de découpe appliquée en chemin, chaque fois qu'un lot révélait un « + ».
+
+| # | Lot | État |
+|---|---|---|
+| 1 | **E-a** — les quatre dettes du lot D | ✅ commité `cf4ffc1` |
+| 2 | correctifs des deux revues (1 Majeur, 5 Mineurs) | ✅ dans `cf4ffc1` |
+| 3 | parité des deux clefs d'indiscernabilité (**L-008**) | ✅ dans `cf4ffc1` |
+| 4 | **E-b1** — `style-src` borné à la provenance Angular (décision E-3) | ✅ écrit, **revue sécurité en cours**, non commité |
+| 5 | **E-b2** — harnais fixture câblé en CI (décision E-2) + CSP mesurée **quiz à l'écran** + G-axe | ⬜ **le geste suivant** |
+| 6 | **E-c** — e2e sous CSP réelle : L-033 prouvé par Playwright, piège du `<select>`, parcours clavier, **G-clavier** | ⬜ |
+
+**Ce que le lot E a déjà changé, et qu'il ne faut pas re-découvrir.**
+- **466 → 472 tests / 28 fichiers** (435 à l'ouverture du lot). 14 fixtures invalides, chacune
+  refusée sur sa cause propre.
+- 🔴 **L'égalité d'octets n'est pas l'indiscernabilité.** `gauche` et `choix[].id` se comparent
+  désormais sur une clef normalisée (NFC, blanches repliées, rognée), **des deux côtés** —
+  `valider.mjs` et `quiz.ts`. La collision était organisée par le projet lui-même :
+  `.claude/rules/contenu-pedagogique.md` §3 **impose** U+00A0. Un spec de parité
+  (`src/clef-indiscernable-parite.spec.ts`, corpus de 16 valeurs piégeuses en dur) garde les deux
+  copies d'accord ; la mutation dans le sens dangereux — `normalize('NFC')` retiré **côté
+  validateur**, qui devient alors plus permissif que le composant — rougit sur 1 test, et
+  **aucun autre test du dépôt ne le voyait**.
+- 🔴 **Le générateur de config SWA balayait `<style>` par MOTIF** (`/<style[^>]*>…/gi` : `[^>]*`
+  coupe au premier `>` même cité ; ni `<STYLE>` ni `ng-app-id='ng'` n'étaient couverts). La branche
+  `<style>` **analyse** maintenant (jsdom), avec un **contrôle de conservation** (occurrences brutes
+  vs éléments rendus). ⚠️ **La branche `<script>` reste sur motif** — c'est la dette **S-003**, à
+  payer dans son lot avant E3-ST1, et elle a maintenant **deux** patrons de correctif dans le dépôt
+  (`rendre-mermaid.mjs` et cette branche-ci).
+- **Rectification du backlog** : l'unicité des `choix[].id` n'avait jamais manqué à `valider.mjs` —
+  seule sa **fixture** manquait (voir la rectification en clôture du lot D).
+
+**⚠️ Pour qui reprend E-b2.** Les deux décisions qui le cadrent sont **prises** (E-2 : harnais câblé
+en CI sur la fixture témoin ; E-3 : `style-src` borné) — ne pas les rouvrir. La commande qui produit
+une page de leçon **interactive** prerendue est
+`node tools/content-pipeline/build.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web`
+(la fixture porte 5 questions et **les 4 types**). Note d'E-b1 : les `<style>` de Mermaid sont déjà
+retirés par `rendre-mermaid.mjs`, donc une leçon à diagrammes ne butera pas sur la règle de
+provenance neuve.
+
+**⚠️ Budget de contexte — constat à porter au bilan d'epic.** Malgré la découpe, les agents ont fini
+à **180k, 187k, 130k et 138k**. La cause n'est pas le brief : c'est le nombre d'allers-retours
+qu'imposent `npm test` sur une suite de 470 tests **et** les preuves de mutation. E-b2 et E-c ajoutent
+`ng build`, axe et Playwright — les découper encore plus fin, ou sortir les gates lourds dans un agent
+jetable distinct (`.claude/rules/agent-context-budget.md` §4).
+
 **Pourquoi A d'abord, et pas le composant** : c'est le lot qui crée `core/progression/`, donc celui
 où se **gagne ou se perd** la règle « aucune feature n'importe une autre feature »
 (`docs/architecture/stack-et-architecture.md` §7). E2-ST6 lira ce même service. L'écrire *après* le
@@ -1373,9 +1421,39 @@ La parade existe déjà et ne bouge pas — les contrôles fail-closed **en lign
 qui portent sur les directives servies.
 
 **E-3 · `style-src` cesse de tout hacher : la dérivation est BORNÉE À LA PROVENANCE Angular.**
+*(⚠️ **AMENDÉE le 2026-08-18** — la borne de provenance est nécessaire mais **ne suffit pas** ; lire
+l'amendement **E-3 bis** juste en dessous avant de s'appuyer sur ce qui suit.)*
 Seuls les blocs `<style ng-app-id="ng">` **sans autre attribut** sont hachés ; tout autre `<style>`
 de la sortie prerendue devient une **infraction nommée**, au même titre qu'un gestionnaire
 d'événement en ligne.
+
+> 🔴 **AMENDEMENT E-3 bis, 2026-08-18 — la décision ci-dessus, telle qu'écrite, promettait plus que
+> le code ne pouvait appliquer.** Elle annonçait qu'un bloc injecté par **autre chose qu'Angular**
+> — « un composant » — ne pourrait plus s'auto-autoriser. **Faux, et mesuré** : les blocs `<style>`
+> de l'artéfact **SONT** les styles des composants (`[_nghost-ng-c…]`), tous émis par Angular avec
+> `ng-app-id="ng"`. La revue sécurité a ajouté à l'artéfact réel un
+> `<style ng-app-id="ng">.quiz[…]{color:red}</style>` → **code 0, 9 → 10 hachages, aucun signal**.
+> Borner à `ng-app-id="ng"`, c'est borner à un **marqueur**, pas à une **provenance** : le producteur
+> légitime porte lui-même le marqueur. Le risque nommé en tête de `CLAUDE.md` — « `quiz.scss` y
+> ajoutera un hachage **en silence** dès la première leçon prerendue » — restait donc **intact**.
+> **Ce que le propriétaire a tranché** : épingler le **NOMBRE** de hachages de style attendus,
+> `NOMBRE_HACHAGES_STYLE_ATTENDU` (9 au 2026-08-18), miroir exact de `hachagesScript.size !== 1` ;
+> message d'échec imposant `security-reviewer` **PUIS** mise à jour de la constante, jamais l'inverse
+> (S-002). Deux contrôles s'y ajoutent : le bloc doit être **enfant direct de `<head>`/`<body>`**
+> (`<noscript><style ng-app-id="ng">` était haché alors que le navigateur n'y voit **aucun élément**
+> — divergence d'analyseurs, famille S-001), et le comptage brut du contrôle de conservation est
+> ancré sur `/<style[\s>/]/gi` (sans quoi `<style-guide>` rendait la construction rouge sur un
+> message accusant la CSP pour une cause **éditoriale** — la pression S-011).
+> **Pourquoi le nombre et pas les valeurs** : éditer un `.scss` ne change **pas** le compte, donc
+> l'objection qui avait écarté l'épinglage des hachages eux-mêmes (« rouge permanent ») ne s'applique
+> pas. Un composant neuf porteur de styles rougit **une fois**, et cette fois-là est la revue qu'on
+> veut — **~3-4 rouges attendus d'ici la fin d'E2** (ST4, ST5, ST6). C'est la propriété que E-3
+> revendiquait sans la livrer.
+> **Ce qui reste ouvert, et se dit** : le **contenu** de chaque bloc reste **dérivé**, jamais comparé
+> à une valeur revue. `style-src` n'est **pas** une liste blanche nominative comme `script-src` — le
+> nombre est épinglé, les valeurs ne le sont pas. Détail : `.claude/lessons/security-lessons.md`
+> §S-002, en-tête de `tools/deploiement/generer-config-swa.mjs`, et les 11 cas de
+> `src/config-swa-provenance-style.spec.ts` (trois mutations à l'appui).
 *Ce qui l'a tranché.* En l'état, `generer-config-swa.mjs` hache **tout ce qu'il trouve** — c'est la
 lettre de **S-002** (« une autorisation CSP se compare à une valeur revue épinglée, jamais ne se
 dérive de l'artéfact »), et le générateur cesserait d'être un garde-fou pour devenir un distributeur
@@ -1383,10 +1461,14 @@ de permissions, ce que son propre en-tête reproche déjà à `script-src`. Épi
 style comme `HACHAGE_SCRIPT_ATTENDU` était l'option fidèle à la lettre, et c'est précisément celle
 qui rougirait à **chaque `.scss` touché** : la pression à contourner serait permanente, sur un
 garde-fou dont S-011 nous a déjà montré qu'il en subit.
-⚠️ **L'écart résiduel se DÉCLARE, il ne se tait pas** : le *contenu* d'un bloc Angular reste dérivé.
-Ce qui est fermé, c'est qu'un bloc injecté par **autre chose qu'Angular** puisse s'auto-autoriser.
+⚠️ **L'écart résiduel se DÉCLARE, il ne se tait pas** — mais il était **mal mesuré**, et l'amendement
+E-3 bis ci-dessus le corrige. Formulation qui fait foi : le *contenu* de chaque bloc reste dérivé, et
+ce qui est fermé, c'est qu'un hachage de style **apparaisse dans la CSP sans que personne ne le
+voie** — parce que leur **NOMBRE** est épinglé, pas parce que la provenance saurait distinguer
+Angular d'un composant (elle ne le sait pas : c'est Angular qui émet les styles des composants).
 À écrire dans S-002 et dans l'en-tête du générateur, dans le même diff que le code — sans quoi c'est
-**S-009** (un texte qui promet plus que le code n'applique).
+**S-009** (un texte qui promet plus que le code n'applique). ✅ Fait le 2026-08-18, correctifs de
+revue du lot E-b1.
 
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.

@@ -53,8 +53,66 @@ divergence fait échouer la construction avec pour consigne explicite de repasse
 `security-reviewer` **avant** de mettre la constante à jour. Ne jamais laisser un artéfact généré
 s'auto-valider. Normaliser les fins de ligne avant tout calcul de hachage sur du HTML source. Même
 esprit que [[L-009]] (artéfact généré reproductible, mode `--check`).
+
+**⚠️ ÉCART ASSUMÉ, DÉCLARÉ ICI PARCE QU'IL NE DOIT PAS SE TAIRE — `style-src`, décision E-3 du lot E
+(E2-ST3, 2026-08-18), AMENDÉE le jour même après revue sécurité.** `script-src` respecte la règle
+ci-dessus à la lettre ; `style-src` **non**, et c'est un choix, pas un oubli. Jusqu'au 2026-08-18 le
+générateur hachait **tout** bloc `<style>` de l'artéfact : la permission se dérivait entièrement de
+la sortie, et le premier `.scss` d'un composant interactif (E2-ST3) y aurait ajouté un hachage **en
+silence**.
+
+**🔴 Ce que la première rédaction de cette note promettait à tort — la lire avant tout le reste.**
+Elle annonçait qu'« un bloc injecté par autre chose qu'Angular — **un composant** — ne peut plus
+s'auto-autoriser ». C'est **faux, et c'était mesurable** : les blocs `<style>` de l'artéfact **sont**
+les styles des composants (`[_nghost-ng-c…]`), tous émis par Angular avec `ng-app-id="ng"`. La revue
+a ajouté à l'artéfact réel un `<style ng-app-id="ng">.quiz[_ngcontent-ng-c999]{color:red}</style>` →
+**code 0, 9 → 10 hachages, aucun signal**. Borner à `ng-app-id="ng"`, c'est borner à un **marqueur**,
+pas à une **provenance** : le producteur légitime porte lui-même le marqueur. Le texte était donc
+exactement la faute qu'il prétendait éviter ([[S-009]]), et l'écart résiduel était déclaré trop
+étroit — il portait sur **le nombre de blocs et leur contenu**, pas sur « le contenu d'un bloc ».
+
+**La dérivation est désormais bornée par TROIS contrôles cumulés :**
+· **PROVENANCE** — seuls les blocs `<style ng-app-id="ng">`, **sans aucun autre attribut** ;
+· **PLACE** — enfant direct de `<head>` ou `<body>`. `<noscript><style ng-app-id="ng">` (et
+`<svg><style …>`) étaient acceptés et hachés : script activé, le navigateur ne voit **aucun élément**
+dans le `<noscript>`, et son contenu obtenait pourtant un hachage dans un `style-src` **global** —
+divergence d'analyseurs de la famille [[S-001]] ;
+· **NOMBRE ÉPINGLÉ** — `NOMBRE_HACHAGES_STYLE_ATTENDU` (9 au 2026-08-18), miroir exact de
+`hachagesScript.size !== 1`. Toute divergence fait échouer la construction, avec la consigne
+`security-reviewer` **PUIS** mise à jour de la constante. **Jamais l'inverse.**
+
+· **Ce qui est fermé** : qu'un hachage de style **apparaisse dans la CSP sans que personne ne le
+voie**. Un composant neuf porteur de styles rougit **une fois** et passe en revue (~3-4 fois d'ici la
+fin d'E2 : ST4, ST5, ST6) — c'est le comportement voulu, pas une nuisance.
+· **Ce qui reste ouvert** : le **contenu** de chaque bloc reste **dérivé**, jamais comparé à une
+valeur revue. `style-src` n'est donc **pas** une liste blanche nominative comme `script-src` — le
+**nombre** est épinglé, les **valeurs** ne le sont pas. Aucun texte du dépôt ne doit laisser croire
+l'inverse.
+· **Pourquoi le nombre et non les valeurs** : un `HACHAGE_STYLE_ATTENDU` par bloc rougirait à
+**chaque `.scss` touché** ; la pression à contourner le garde-fou serait permanente, sur un fichier
+dont [[S-011]] montre qu'il en subit déjà. Éditer un `.scss` ne change **pas** le compte : l'objection
+qui écarte l'épinglage des valeurs ne s'applique pas à celui du nombre. Un garde-fou qu'on désarme
+sous la pression protège moins qu'un garde-fou plus faible qui tient.
+· **Le garde-fou est CÂBLÉ** : `src/config-swa-provenance-style.spec.ts` exécute la ligne de commande
+réelle sur un artéfact jetable — sept refus nommés (provenance ×3, contrôle de conservation [[S-003]]
+×2, place ×2, plus le **bloc de trop** qui est le seul à voir un `.scss` neuf) et trois
+contre-épreuves acceptées. Sans elles, les refus seraient compatibles avec un générateur qui refuse
+tout ([[L-019]], axe câblage). Les trois contrôles sont prouvés par **mutation** (compte permissif →
+1 rouge nommant 10 vs 9 · contrainte de place neutralisée → 2 rouges · ancrage du compte brut
+relâché → 1 rouge).
+· **La cause éditoriale se dit dans le code** : le contrôle de conservation rougit aussi sur un
+`<style` en commentaire, dans un `<template>`, dans une chaîne de script, ou dans une **valeur
+d'attribut** — messages qui accusent la CSP pour une faute de rédaction ([[S-011]]). Le cas
+`<style-guide>` (élément dont le nom commence par `style`) a été supprimé à la racine en ancrant le
+comptage brut sur `/<style[\s>/]/gi` : ce sont exactement les caractères qui terminent un nom de
+balise, donc aucun vrai `<style>` n'échappe au compte.
+· **Le bloc `<style>` est ANALYSÉ (jsdom), pas apparié par motif** — la branche `<script>` du même
+fichier reste sur motif, et ce trou-là est [[S-003]], lot autonome à payer avant E3-ST1. Le patron à
+y transposer est la branche `<style>`, pas un motif de plus.
+
 **Réfs.** `tools/deploiement/generer-config-swa.mjs`, `config/staticwebapp.config.source.json`,
-`.claude/rules/security.md` §1, `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
+`src/config-swa-provenance-style.spec.ts`, `.claude/rules/security.md` §1,
+`docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C) et §E2-ST3 (décision E-3).
 
 ## S-003 · Un garde-fou fail-closed doit prouver qu'il a TOUT vu, pas seulement bien refuser ce qu'il voit (A05 · WSTG-CONF)
 
