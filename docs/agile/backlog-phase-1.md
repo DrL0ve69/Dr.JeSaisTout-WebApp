@@ -1071,7 +1071,7 @@ un lot en une phrase, vérifiable seul, un agent frais chacun.
 | **A** | `core/progression/` — service de progression `localStorage`, en signaux, avec sa sérialisation versionnée et sa tolérance aux données absentes/corrompues | G-test seul (aucune UI) | ✅ |
 | **B** | Émission du quiz par le pipeline : type `QuizCompile` dans `types.d.ts`, sortie du compilateur, fixture témoin, mutation prouvant que le gate mord | G-content, G-test | ✅ |
 | **C** | `QuizComponent` (coquille, navigation, score, correction expliquée) + les deux types simples : `choix-multiple`, `vrai-faux` | G-test, G-axe, **G-clavier** | ✅ *(G-clavier et G-axe reportés au lot E : `content/` vide, aucune page de leçon prerendue)* |
-| **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ⬜ |
+| **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ✅ *(G-clavier et G-axe reportés au lot E, même cause qu'au lot C)* |
 | **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ⬜ |
 
 **Pourquoi A d'abord, et pas le composant** : c'est le lot qui crée `core/progression/`, donc celui
@@ -1246,6 +1246,90 @@ DATÉE** : E2-ST4 fusionne, avec les deux cas réels en main. Ce qui était inte
 découpe, c'est de dupliquer **en silence** — ceci est le contraire du silence.
 ⚠️ **À reprendre en E2-ST4, nominativement** : `.code-numerote` (`quiz.scss` + gabarit de `quiz.ts`)
 est le morceau à fusionner ; s'il a divergé d'ici là, c'est la fusion qui arbitre, pas l'ancienneté.
+
+#### ✅ Clôture du lot D — 2026-08-18
+
+`associer` et `trouver-la-faille` sont **corrigeables**. Les deux décisions ci-dessus ont été
+exécutées telles quelles : `<select>` natif par ligne (zéro ARIA, zéro glisser-déposer), radio par
+ligne de code, rendu de code gardé dans `cours/quiz/`. **Gates : lint · 435 tests / 26 fichiers ·
+`ng build` + config SWA (9 hachages de style, 1 de script, inchangés depuis le lot C) ·
+`typecheck:tools` 0.** Mutation du lot : `champ.value === VALEUR_SANS_CHOIX` retiré de
+`amorcerDepuisLeDom()` ⇒ exactement 1 test rouge.
+
+**La garantie de maîtrise a changé de gardien, et il faut savoir lequel.** Le lot C interdisait
+d'écrire une maîtrise tant qu'une question était `provisoire` (`provisoires().length === 0`). La
+forme `provisoire` est supprimée ; la garantie tient désormais par l'**exhaustivité** de
+`preparer()`, qui lève sur tout type inconnu — donc une question que le composant ne sait pas
+corriger ne peut plus être *rendue*, et la construction casse avant la publication. ⚠️ Mais la
+**première** ligne de défense reste `TYPES_DE_QUESTION` de `contenu-compile.ts` : le `default` de
+`preparer()` est **inatteignable en production** et ne couvre que l'artéfact d'une autre version du
+pipeline. Le commentaire le disait mal ; il est corrigé.
+
+**Six constats de revue fermés dans le même diff** (code + sécurité, deux agents indépendants) :
+
+1. **🔴 Le nom accessible d'une ligne de code portait le numéro NU.** « 2 » de quoi ? Une ligne vide
+   avait pour nom accessible entier « 2 », et la correction annonçait « Ligne 2 » qui ne
+   correspondait à **aucun** libellé d'option. Le mot est maintenant **écrit** dans le document
+   (`Ligne&nbsp;N`), avec la largeur de gouttière qui va avec. **axe ne voit rien de tout cela**
+   (constat D-C6) — c'est le test qui le tient.
+2. **🔴 La note de collision S-011 vivait dans UNE branche du `@switch`**, alors que le lot D ouvre
+   quatre sites de texte d'auteur de plus — dont `correction`, qui est du *code corrigé*, et le texte
+   des `<option>` d'un `associer`. Elle est **remontée à l'en-tête du fichier**, avec la liste
+   nominative des sites. Invariant : *une note de garde-fou de sortie s'attache au fichier, pas à la
+   branche où on y a pensé.*
+3. **Mesure neuve, et elle rétrécit S-011 dans le bon sens.** La revue de sécurité a instrumenté
+   **domino** (le sérialiseur du prerender) *et* jsdom : en **contexte d'attribut**, un `"` est
+   sérialisé `&quot;`, donc les motifs du gate — qui exigent un guillemet **littéral** — ne peuvent
+   pas s'y former. Les surfaces d'attribut du lot D (`[value]`, `[attr.data-champ]`) **n'élargissent
+   pas** la collision ; seuls les **nœuds texte** collisionnent. Écrit dans l'en-tête du composant.
+4. **`question.id` est revalidé au kebab-case dans `preparer()`.** C'est le seul champ qui alimente un
+   **langage de requête** (un `id` de document, puis un fragment de sélecteur CSS — deux sites depuis
+   le lot D). `lireLeconCompilee` le contraignait déjà et reste le chemin de production ; mais le
+   composant revalide nominativement tout le reste à sa frontière, et déléguer précisément celui-là
+   était la mauvaise exception. Un guillemet y donnerait soit un `SyntaxError` au prerender, soit —
+   pire — un sélecteur qui relit la radio d'une **autre** question, en silence.
+5. **L-033 : le mécanisme livré était présumé insuffisant PAR SON PROPRE ÉNONCÉ.** Une liaison de
+   propriété part d'un état non initialisé : la toute première passe de mise à jour écrit
+   `checked = false` / `value = ''` **inconditionnellement**, et `afterNextRender` s'exécute **après**
+   elle. L'amorçage se fait donc maintenant dans **`ngOnInit`** (gardé par `isPlatformBrowser`) —
+   après que les entrées sont posées, **avant** la mise à jour du gabarit ; en rendu client pur
+   l'hôte est vide, donc c'est un no-op. L'`afterNextRender` reste en **second filet** (l'amorçage est
+   idempotent). La leçon **L-033 elle-même a été corrigée** : elle prescrivait `afterNextRender` tout
+   en exigeant « avant la première détection », ce que ce mécanisme ne peut pas tenir.
+6. **Le commentaire de `corriger()` laissait croire que le fichier se gardait tout seul** — corrigé
+   (voir ci-dessus).
+
+**⏭️ CE QUI RESTE OUVERT — nommé ici plutôt qu'entamé à moitié.**
+
+- **🔴 (bloquant pour le lot E) L'unicité de `gauche` n'est imposée QUE par le composant.** Ni
+  `quiz.schema.json`, ni `valider.mjs`, ni `docs/contenu/pipeline-contenu.md` ne la connaissent. Une
+  leçon légale au schéma passe donc **G-content vert**, puis casse au prerender d'`ng build`, sur un
+  message qui nomme la question et le champ mais **pas le fichier**, au milieu d'une pile Angular.
+  Même famille, héritée du lot C : l'unicité des `choix[].id`. **Correctif attendu** : remonter les
+  **deux** règles dans `valider.mjs`, à côté de `bonneReponse ∈ choix` et `ligneFautive ≤ nbLignes` —
+  c'est là que le message nomme le fichier ; documenter la contrainte dans la `description` de
+  `paires` du schéma et dans `pipeline-contenu.md` ; **garder** le contrôle du composant, qui cesse
+  seulement d'être le premier à parler.
+- **La clause de D-1 « `droite` en double reste permise » n'a aucun contrôle positif.** Aucune fixture
+  n'a deux paires partageant un `droite`, donc la déduplication d'`optionsDroite` n'est **jamais
+  exécutée**. Le test qui semble la couvrir pose deux `<select>` sur la même valeur d'un lot dont tous
+  les `droite` sont distincts : il prouve l'interface, pas la décision. **Correctif attendu** :
+  fixture à `droite` dupliqué, trois assertions (l'option n'apparaît qu'une fois · les deux lignes
+  peuvent être justes **simultanément** · la correction ligne à ligne le dit pour les deux). Aucun
+  bug trouvé derrière ce trou — c'est une lacune de **preuve**.
+- **Le test à deux mains de S-011 ne couvre qu'un type sur quatre.** Il n'exerce que
+  `trouver-la-faille` ; ni le chemin `associer` (`gauche`/`droite`) ni le champ `correction` ne
+  portent de charge. **Correctif attendu** : poser une charge dans les deux, puis rejouer les deux
+  mains (aucun nœud né · le HTML sérialisé contient encore la séquence).
+- **En-tête et libellés de `quiz.spec.ts` périmés d'un lot** (il se déclare « lot C », promet un test
+  de persistance qui n'existe plus, et `expect(querySelector('.mention-provisoire')).toBeNull()` est
+  devenu **vacuux** : la classe n'existe plus nulle part, l'assertion ne peut plus tomber — le motif
+  L-019 que ce fichier prêche par ailleurs).
+- **`quiz.scss` dépasse de 88 octets** le budget d'**avertissement** `anyComponentStyle` (4,00 ko ;
+  total 4,09 ko), après une déduplication réelle (−26 %). `angular.json` **n'a pas été touché** pour
+  faire taire l'avertissement : la résolution est **E2-ST4**, qui extrait `.code-numerote`.
+- **L-023 a mordu une fois de plus** (backtique dans un commentaire HTML d'un `template:` inline) et
+  **rien dans le dépôt ne le garde** — candidat sérieux à un vrai gate.
 
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.
