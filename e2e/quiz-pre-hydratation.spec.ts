@@ -65,6 +65,10 @@
 import { Page, expect, test } from '@playwright/test';
 
 import { attendreHydratation } from './aides/hydratation';
+import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+
+exigerLaPageDeLecon('la fenêtre de pré-hydratation (L-033)');
+
 
 /**
  * La page de leçon INTERACTIVE, produite par la fixture témoin.
