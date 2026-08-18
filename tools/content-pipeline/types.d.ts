@@ -33,13 +33,44 @@
 type Langage = 'php' | 'csharp' | 'typescript' | 'sql' | 'bash' | 'json';
 type NiveauTitre = 2 | 3; // <h2>/<h3> réels — pour un sommaire imbriqué correct (E2-ST2)
 
+/**
+ * UNE remarque de l'auteur, et la PORTÉE sur laquelle elle s'applique.
+ *
+ * ⚠️ FORME CHANGÉE EN E2-ST4 (lot A1) : `ligne: number` est devenu `lignes: number[]`.
+ * `{lignes="1,2"}` poussait auparavant DEUX annotations portant le même `texte` — la même phrase
+ * répétée sous deux étiquettes, comme si l'auteur avait écrit deux commentaires. Une remarque qui
+ * couvre deux lignes est UNE remarque à deux ancres, pas deux remarques.
+ *
+ * INVARIANTS, tous imposés par `lireExemple`/`lirePortee` (`compiler-markdown.mjs`) :
+ *   · jamais vide — l'absence de `{lignes="…"}` vaut `[0]` ;
+ *   · entiers >= 0, sans doublon, triés par ordre croissant ;
+ *   · `[0]` = l'annotation porte sur le bloc ENTIER (convention tranchée en E2-ST1). `0` ne se
+ *     combine avec aucun numéro de ligne, et aucune ligne réelle ne porte le numéro 0 ;
+ *   · 🔴 chaque numéro EXISTE dans l'extrait annoté — et c'est le seul invariant de cette liste
+ *     qu'aucun consommateur de l'artéfact ne peut revérifier, parce qu'`ExempleCode` ne conserve
+ *     pas le code brut (voir ci-dessous). Il se tient au compilateur, ou il ne se tient pas.
+ */
 interface AnnotationLigne {
-  ligne: number;
+  lignes: number[];
   texte: string;
 }
 
+/**
+ * ⚠️ `htmlColore` EST LA SEULE FORME DU CODE QUI SURVIT À LA COMPILATION — le code brut n'est PAS
+ * conservé. C'est délibéré (rien en aval n'a à recolorer quoi que ce soit), mais la conséquence se
+ * paie sur `annotations` : la borne « la ligne N existe » n'est vérifiable QUE dans le compilateur.
+ * Un contrôle écrit côté application ne pourrait que la déduire du balisage de Shiki, donc promettre
+ * une garantie dérivée de l'artéfact qu'elle contrôle — le patron que S-005 et S-009 refusent.
+ */
 interface ExempleCode {
   htmlColore: string; // Shiki, transformerStyleToClass — 0 attribut style=
+  // ⚠️ 0 OU 1 ÉLÉMENT EN PRATIQUE — le type promet N, `lireExemple` n'en produit jamais deux.
+  // Depuis E2-ST4 (lot A1), toute la prose d'un volet est JOINTE en un seul `texte` et poussée en
+  // UNE annotation ; la syntaxe n'offre qu'un `{lignes="…"}` par volet, donc une seule portée à
+  // attribuer. Le tableau et le `@for` du rendu ne sont pas de l'anticipation gratuite : c'est le
+  // LOT B (« annotations ancrées à la ligne ») qui fera sauter la limite, en attachant une portée
+  // à chaque paragraphe du volet. Écrit ici pour qu'il ne le découvre pas en chemin — un
+  // consommateur qui compterait sur « au plus une » se casserait ce jour-là.
   annotations: AnnotationLigne[]; // peut être vide, jamais absente
 }
 

@@ -79,18 +79,70 @@ statut: brouillon                # brouillon | verifiee | publiee
 ## Aller plus loin               <!-- fiches KB + sources originales -->
 ```
 
-**Blocs de code vulnérable/corrigé** — convention de marquage (parsée au build pour le rendu
-côte à côte ; le code vulnérable n'est JAMAIS exécutable sur le site) :
+**Blocs de code vulnérable/corrigé** — un conteneur `comparaison` à **quatre** deux-points, qui
+apparie explicitement chaque volet (parsé au build pour le rendu côte à côte ; le code vulnérable
+n'est JAMAIS exécutable sur le site) :
 
 ````markdown
-```php vulnerable ligne=2
-// Le paramètre "name" est renvoyé sans encodage
-echo 'Hello ' . $_GET['name'];
+:::: comparaison
+::: vulnerable {lignes="2"}
+```php
+$nom = $_GET['nom'];
+echo 'Bonjour ' . $nom;
 ```
-```php corrige
-echo 'Hello ' . htmlspecialchars($_GET['name'], ENT_QUOTES, 'UTF-8');
+La valeur vient du client et atteint la page sans encodage : tout balisage qu'elle contient est
+interprété par le navigateur.
+:::
+::: corrige
+```php
+$nom = $_GET['nom'];
+echo 'Bonjour ' . htmlspecialchars($nom, ENT_QUOTES, 'UTF-8');
 ```
+L'encodage à la sortie transforme le balisage en texte affiché.
+:::
+::::
 ````
+
+> 🔴 **La forme ci-dessus est la seule qui compile**, et elle est vérifiée sur la leçon-témoin
+> (`tools/content-pipeline/__fixtures__/temoin/cours/securite-web/01-lecon-temoin/lecon.md`, section
+> « Exemple complet »). La notation ` ```php vulnerable ligne=2 ` que ce document décrivait
+> jusqu'au 2026-08-18 n'a **jamais** été implémentée — et elle ne fait pas échouer le build : le
+> compilateur ne lit que le **premier mot** de la clôture (`langageDe`), donc `vulnerable ligne=2`
+> est **ignoré en silence** et le bloc sort en simple `code`, sans comparaison, sans annotation.
+> Le langage se met sur la clôture de code (jamais sur le `:::`), et la portée s'écrit `lignes`,
+> au pluriel, **entre guillemets droits**.
+
+Ce qu'il faut savoir pour écrire un volet :
+
+- **`::::` pour la comparaison, `:::` pour chaque volet.** Un conteneur qui en imbrique un autre
+  prend un deux-points de plus. Les volets vont par paires `vulnerable` → `corrige`, dans cet
+  ordre ; une comparaison peut en enchaîner plusieurs (deux langages, deux failles distinctes).
+- **Exactement une clôture de code par volet**, et son langage est un des six du contrat
+  (`php`, `csharp`, `typescript`, `sql`, `bash`, `json`).
+- **La prose qui suit le code devient l'annotation** du volet. Sans prose, pas d'annotation — et
+  `{lignes="…"}` sans prose est un **refus** (une portée qui n'annote rien).
+  ⚠️ Toute la prose d'un volet est jointe en **une seule** note ; plusieurs notes distinctes par
+  volet arrivent avec le **lot B** d'E2-ST4.
+- **`{langage="php"}` est accepté sur `comparaison`** : c'est alors une ASSERTION, vérifiée contre
+  les blocs — elle échoue si elle les contredit. À omettre dès que les paires changent de langage.
+
+**Portée d'une annotation — `{lignes="…"}`.** `{lignes="1,2"}` dit « cette remarque porte sur ces
+deux lignes-là » : **une** note à deux ancres, rendue « Lignes 1 et 2 : ». Attribut **omis** =
+portée `[0]` = **le bloc entier**, rendu « Ensemble du bloc : ». Les numéros commencent à **1**.
+
+Les cinq écritures que le build **refuse** en nommant le fichier et la valeur (`lirePortee`,
+`tools/content-pipeline/compiler-markdown.mjs`) :
+
+| Écrit | Refusé parce que |
+|---|---|
+| `{lignes="3"}` sur un extrait de 2 lignes | la ligne n'existe pas — la leçon publiée annoncerait « Ligne 3 : » devant un bloc qui n'en a que deux |
+| `{lignes="1,,2"}`, `{lignes=""}` | valeur vide ; `Number("")` vaut `0`, la coquille basculerait en silence sur « le bloc entier » |
+| `{lignes="-1"}`, `{lignes="1.5"}`, `{lignes="1e2"}`, `{lignes="0x2"}` | seule une suite de chiffres est lue ; `Number` accepte les quatre, et `0x2` compilerait **silencieusement** en ligne 2 |
+| `{lignes="1,1"}` | la même ligne citée deux fois dans une seule note |
+| `{lignes="0,2"}` | `0` désigne le bloc ENTIER : il ne se combine avec aucun numéro de ligne |
+
+Et deux refus de forme, du même garde-fou : `{lignes=2}` sans guillemets, et `{ligne="2"}` au
+singulier (clef inconnue — les clefs sont en liste fermée, une faute de frappe ne se perd pas).
 
 **Marqueur de doute** (posé par le `professeur-web`, consommé par le `verificateur-theorie`,
 absent de toute leçon `statut: publiee`) : `<!-- à-vérifier: <affirmation> — <raison du doute> -->`.

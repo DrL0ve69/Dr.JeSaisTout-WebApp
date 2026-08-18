@@ -32,6 +32,8 @@
 //      inline non haché injecté doit être refusé, compté et journalisé.
 // =============================================================================
 
+import { existsSync, readFileSync } from 'node:fs';
+
 import { type ConsoleMessage, type Page, type Response as ReponsePlaywright, expect } from '@playwright/test';
 
 /**
@@ -236,5 +238,56 @@ export function exigerCspServie(reponse: ReponsePlaywright | null): string {
   expect(politique, 'la CSP servie autorise `unsafe-inline`').not.toContain('unsafe-inline');
   expect(politique, 'la CSP servie autorise `unsafe-eval`').not.toContain('unsafe-eval');
 
+  exigerPolitiqueDeLArtefactCourant(politique);
+
   return politique;
+}
+
+/** Le `staticwebapp.config.json` que `swa start` est censé appliquer. */
+const CONFIG_ARTEFACT = 'dist/dr-je-sais-tout/browser/staticwebapp.config.json';
+
+/**
+ * Exige que la politique SERVIE soit celle de l'artéfact PRÉSENT SUR LE DISQUE.
+ *
+ * 🔴 CE CONTRÔLE EST NÉ D'UNE MESURE FAUSSE, PAYÉE EN DIRECT (E2-ST4, lot A1).
+ * `playwright.config.ts` pose `reuseExistingServer: !CI` : en local, un
+ * `npx swa start` laissé en marche par un run précédent est RÉUTILISÉ tel quel.
+ * Or il sert la politique qu'il a lue à SON démarrage. Reconstruire l'artéfact ne
+ * le lui apprend pas — et il suffit qu'un gabarit change pour que l'identifiant du
+ * composant change, donc le contenu de son bloc `<style>`, donc son hachage.
+ * Résultat mesuré : une violation `style-src-elem` parfaitement reproductible, sur
+ * un dépôt sain, pendant que `npm run config:swa` sortait vert avec le bon compte.
+ *
+ * ⚠️ ET C'EST LE SENS INVERSE QUI EST DANGEREUX. Ici, la divergence a rendu un
+ * run ROUGE, donc bruyant. Elle peut tout aussi bien le rendre VERT : un serveur
+ * qui a démarré sur une politique plus PERMISSIVE (avant qu'on la resserre, ou
+ * avant qu'un hachage devienne obligatoire) laisserait passer exactement ce que
+ * ces specs existent pour attraper. Un gate qui mesure la mauvaise politique ne
+ * mesure rien — c'est la famille de L-032, sur un axe neuf : l'émulateur
+ * implémente bien la directive, mais depuis un INSTANTANÉ.
+ *
+ * La comparaison est faite sur la chaîne ENTIÈRE, à l'octet près, et non sur
+ * quelques motifs : deux politiques peuvent partager `'self'`, un `sha256-` et
+ * l'absence d'`unsafe-*` en différant sur le seul hachage qui compte.
+ */
+function exigerPolitiqueDeLArtefactCourant(politiqueServie: string): void {
+  expect(
+    existsSync(CONFIG_ARTEFACT),
+    `${CONFIG_ARTEFACT} est absent : l'artéfact n'a pas été bâti, or c'est lui que \`swa start\` sert. Lancer \`npm run build\` (ou la variante fixture témoin) avant \`npm run e2e\``,
+  ).toBe(true);
+
+  const configuration = JSON.parse(readFileSync(CONFIG_ARTEFACT, 'utf8')) as {
+    globalHeaders?: Record<string, string>;
+  };
+  const attendue = configuration.globalHeaders?.['Content-Security-Policy'] ?? '';
+
+  expect(
+    attendue,
+    `${CONFIG_ARTEFACT} ne porte aucune \`Content-Security-Policy\` dans ses \`globalHeaders\` — l'artéfact est incomplet, la comparaison ci-dessous ne voudrait rien dire`,
+  ).not.toBe('');
+
+  expect(
+    politiqueServie,
+    'la CSP SERVIE diffère de celle de l’artéfact présent sur le disque. La cause de loin la plus probable : un `npx swa start` d’un run précédent est encore en marche et sert la politique qu’il a lue à SON démarrage (`reuseExistingServer: !CI` dans `playwright.config.ts`). Arrêter le processus qui écoute le port, puis relancer. Tant qu’il tourne, ce gate mesure une politique qui n’est plus celle du site',
+  ).toBe(attendue);
 }
