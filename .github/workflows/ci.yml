@@ -128,10 +128,21 @@ jobs:
       # Ce 12 est ÉPINGLÉ EN MIROIR dans `src/workflows-github.spec.ts`
       # (`HACHAGES_STYLE_CI_ATTENDU`), comme le 9 l'est dans `config-swa-provenance-style.spec.ts` :
       # le bouger ici seul rougit G-test. Deux fichiers, donc une revue — c'est le but.
+      #
+      # ⚠️ `node_modules/.bin/ng` ET NON `npx ng` — deux constats SonarCloud sur la PR #17,
+      # `githubactions:S6505` et `githubactions:S8543`, tous deux justes. `npx` INSTALLE À LA
+      # DEMANDE ce qu'il ne trouve pas : si `@angular/cli` disparaissait des dépendances, ou si
+      # `npm ci` échouait à moitié, `npx ng build` irait chercher un `ng` au registre — donc une
+      # version non épinglée, dont les scripts de cycle de vie s'exécuteraient, dans le job qui
+      # bâtit l'artéfact publié. Ce n'est pas théorique : c'est la voie d'entrée classique d'une
+      # compromission de chaîne d'approvisionnement, et ce dépôt ENSEIGNE ce risque. Le chemin
+      # direct ne peut rien installer : il échoue si le binaire n'est pas là, ce qui est le bon
+      # mode d'échec. Le commentaire de `src/workflows-github.spec.ts` disait déjà que `npx`
+      # « appelle le MÊME binaire de `node_modules/.bin` » — c'est maintenant littéral.
       - name: G-build (+ config SWA à hachages) — artéfact bâti sur la FIXTURE TÉMOIN
         run: |
           node tools/content-pipeline/build.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web
-          npx ng build
+          node_modules/.bin/ng build
           npm run config:swa -- --hachages-style 12
 
       # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de

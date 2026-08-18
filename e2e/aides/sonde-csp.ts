@@ -120,7 +120,19 @@ export async function surveiller(page: Page): Promise<JournalPage> {
     const fenetre = window as FenetreSondeeCsp;
     // Un jeton par document : deux documents successifs ne peuvent pas produire la
     // même clé, donc la fusion ne peut pas confondre deux violations distinctes.
-    const jeton = Math.random().toString(36).slice(2);
+    //
+    // ⚠️ `crypto.randomUUID()` ET NON `Math.random()` — constat SonarCloud
+    // `typescript:S2245` sur la PR #17. Ici, l'enjeu n'est PAS la prédictibilité :
+    // ce jeton n'autorise rien, il distingue deux journaux. Ce qui le motive est
+    // qu'un `Math.random()` peut RÉPÉTER une valeur — c'est un générateur de 52
+    // bits dont l'état repart d'une graine par contexte — et une clé répétée entre
+    // deux documents ferait taire une violation par déduplication, donc rendrait ce
+    // gate vert à tort. Le CSPRNG du navigateur est disponible partout ici (le
+    // harnais sert la page en `localhost`, contexte sûr) et coûte le même geste.
+    // Corollaire de méthode : sur un site qui enseigne la sécurité, on ne muselle
+    // pas un constat d'analyseur par un commentaire — on prend la voie sûre quand
+    // elle est gratuite.
+    const jeton = crypto.randomUUID();
     const journalDuDocument: ViolationCsp[] = [];
     fenetre.__drjstViolationsCsp = journalDuDocument;
 
