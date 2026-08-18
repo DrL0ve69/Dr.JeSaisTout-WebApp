@@ -60,7 +60,12 @@ const LECON_VALIDE = {
     maj: '2026-08-17',
     statut: 'publiee',
   },
-  sections: [{ titre: 'Introduction', ancre: 'introduction', niveau: 2, blocs: [] }],
+  // L'ancre `[[quiz]]` fait partie du contrat de l'artéfact, au même titre que le quiz
+  // lui-même : `lireLeconCompilee` en exige EXACTEMENT une dans le corps, sans quoi le
+  // quiz ne serait rendu nulle part (ou plusieurs fois, tous ses `id` dupliqués).
+  sections: [
+    { titre: 'Introduction', ancre: 'introduction', niveau: 2, blocs: [{ type: 'ancre-quiz' }] },
+  ],
   // Le quiz est OBLIGATOIRE au contrat depuis E2-ST3 (lot B) : `satisfies LeconCompilee`
   // refuserait cette leçon sans lui. Réduit au strict nécessaire — ce qui se mesure ici
   // est le CHOIX du chargeur, pas la forme du quiz, dont l'enveloppe est éprouvée par

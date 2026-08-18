@@ -1244,6 +1244,26 @@ function emettreQuestion(question, colorateur, nomFichier) {
 }
 
 /**
+ * Compte les ancres `[[quiz]]` d'une liste de blocs, ENCADRÉS COMPRIS.
+ *
+ * La récursion n'est pas une précaution : `construireBlocs` descend dans le contenu de
+ * chaque `::: note` / `::: attention` / `::: a-retenir`, donc une ancre y produit bien un
+ * bloc `ancre-quiz` — invisible à un `flatMap` de premier niveau. Voir le contrôle qui
+ * appelle cette fonction pour ce que ce trou coûtait.
+ *
+ * @param {readonly BlocContenu[]} blocs
+ * @returns {number}
+ */
+function compterAncresQuiz(blocs) {
+  let total = 0;
+  for (const bloc of blocs) {
+    if (bloc.type === 'ancre-quiz') total += 1;
+    else if (bloc.type === 'encadre') total += compterAncresQuiz(bloc.blocs);
+  }
+  return total;
+}
+
+/**
  * Compile UNE leçon.
  *
  * @param {string} dossier chemin absolu du dossier contenant `lecon.md`
@@ -1300,9 +1320,16 @@ export function compilerLecon(dossier, outils) {
   // qu'un `[[quiz]]` n'est ni dans un bloc de code clôturé ni dans un commentaire retiré, et
   // une liste de motifs sur un format structuré est le patron que ce dépôt a déjà payé
   // trois fois (S-001, S-003, S-009).
-  const ancresQuiz = sections
-    .flatMap((section) => section.blocs)
-    .filter((bloc) => bloc.type === 'ancre-quiz').length;
+  // 🔴 LE COMPTE EST RÉCURSIF, ET IL DOIT L'ÊTRE. Il ne l'était pas jusqu'au lot C :
+  // `sections.flatMap(s => s.blocs)` ne voit que le PREMIER niveau, alors qu'un
+  // `[[quiz]]` écrit dans un `::: note` produit un `ancre-quiz` imbriqué —
+  // `construireBlocs` descend dans les encadrés. Une leçon portant l'ancre au premier
+  // niveau ET une seconde dans un encadré comptait donc 1, passait le contrôle, et le
+  // composant rendait le quiz DEUX fois : `id` de questions dupliqués dans le
+  // document, c'est-à-dire très exactement ce que le paragraphe ci-dessus promet
+  // d'empêcher. `encadre` est le seul bloc qui en imbrique d'autres (`comparaison`
+  // porte des `exemples`, pas des blocs).
+  const ancresQuiz = compterAncresQuiz(sections.flatMap((section) => section.blocs));
   if (ancresQuiz !== 1) {
     echec(`${nomFichier} : le corps porte ${ancresQuiz} ancre(s) « [[quiz]] », une seule attendue`, [
       ancresQuiz === 0

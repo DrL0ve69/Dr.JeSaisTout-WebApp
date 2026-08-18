@@ -151,6 +151,25 @@ const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
   'ancre-simulation': { type: 'ancre-simulation' },
 };
 
+/**
+ * Le quiz que ce composant TRAVERSE. Il ne le lit pas : il le passe à `Quiz`, qui
+ * le valide et le rend (E2-ST3, lot C). Une seule question suffit donc ici — la
+ * couverture des quatre types appartient à `quiz.spec.ts`, pas à ce fichier.
+ */
+const QUIZ: QuizCompile = {
+  lecon: 'lecon-de-passage',
+  titre: 'Quiz de la leçon de passage',
+  questions: [
+    {
+      type: 'vrai-faux',
+      id: 'q1',
+      affirmation: 'Une ancre de quiz rend le quiz de la leçon.',
+      bonneReponse: true,
+      justification: 'C’est le rôle du cas `ancre-quiz` du `@switch` de ce composant.',
+    },
+  ],
+};
+
 // -----------------------------------------------------------------------------
 // Outillage
 // -----------------------------------------------------------------------------
@@ -188,6 +207,7 @@ function recenserFragment(html: string): Recensement {
 async function rendre(blocs: readonly BlocContenu[]): Promise<HTMLElement> {
   const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
   fixture.componentRef.setInput('blocs', blocs);
+  fixture.componentRef.setInput('quiz', QUIZ);
   await fixture.whenStable();
   return fixture.nativeElement as HTMLElement;
 }
@@ -333,6 +353,7 @@ describe('RenduBlocs', () => {
       // position de défilement et focus perdus à chaque changement d'état de la page.
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [FIXTURES.mermaid]);
+      fixture.componentRef.setInput('quiz', QUIZ);
       await fixture.whenStable();
 
       const hote = fixture.nativeElement as HTMLElement;
@@ -370,6 +391,7 @@ describe('RenduBlocs', () => {
       fixture.componentRef.setInput('blocs', [
         { type: 'mermaid', svg: SVG_MERMAID, titreAccessible: '  ', descriptionLongue: 'x' },
       ]);
+      fixture.componentRef.setInput('quiz', QUIZ);
 
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/1\.1\.1/);
     });
@@ -443,15 +465,35 @@ describe('RenduBlocs', () => {
   });
 
   describe('ancres de quiz et de simulation', () => {
-    it('ne rendent RIEN — aucune promesse à l’écran d’un quiz qui n’existe pas', async () => {
-      // Un cadre « Quiz » ou un « à venir » ferait mentir la page. Les deux cas sont
-      // traités NOMMÉMENT dans le `@switch` (aucun `@default` muet) ; ce qu'ils
-      // rendent est le vide, et leur position est celle où E2-ST3/E2-ST5 poseront
-      // leur composant.
+    it('rend le QUIZ à son ancre, et rien du tout à celle de la simulation', async () => {
+      // E2-ST3, lot C. L'ancre du quiz porte désormais le composant ; celle de la
+      // simulation reste vide (E2-ST5), et un cadre « à venir » y ferait mentir la
+      // page. Les deux cas sont traités NOMMÉMENT dans le `@switch`, sans `@default`.
       const rendu = await rendre([FIXTURES['ancre-quiz'], FIXTURES['ancre-simulation']]);
 
-      expect(rendu.querySelectorAll('*').length).toBe(0);
-      expect(rendu.textContent?.trim()).toBe('');
+      const quiz = rendu.querySelector('app-quiz');
+      expect(quiz).not.toBeNull();
+      expect(quiz?.querySelector('h3')?.textContent).toContain('Quiz de la leçon de passage');
+      // Ce qui prouve que c'est bien LE quiz reçu en entrée, et pas une coquille.
+      expect(rendu.textContent).toContain('Une ancre de quiz rend le quiz de la leçon.');
+    });
+
+    it('ne rend le quiz QU’UNE FOIS quand une seule ancre est présente', async () => {
+      // Le pendant côté composant du compte d'ancres de `compiler-markdown.mjs` :
+      // deux rendus donneraient deux `<fieldset id="quiz-q1">`, donc des `id`
+      // dupliqués dans le document.
+      const rendu = await rendre([FIXTURES.prose, FIXTURES['ancre-quiz']]);
+      expect(rendu.querySelectorAll('app-quiz').length).toBe(1);
+      expect(rendu.querySelectorAll('[id="quiz-q1"]').length).toBe(1);
+    });
+
+    it('rend le quiz d’une ancre IMBRIQUÉE dans un encadré — le quiz descend', async () => {
+      // La récursion passe l'input : sans cela, une ancre écrite dans un `::: note`
+      // ne compilerait pas (l'input requis manquerait) ou rendrait un quiz vide.
+      const rendu = await rendre([
+        { type: 'encadre', variante: 'note', blocs: [{ type: 'ancre-quiz' }] },
+      ]);
+      expect(rendu.querySelectorAll('.encadre app-quiz').length).toBe(1);
     });
   });
 
@@ -479,6 +521,7 @@ describe('RenduBlocs', () => {
       const inconnu = { type: 'carrousel-3d' } as unknown as BlocContenu;
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [FIXTURES.prose, inconnu]);
+      fixture.componentRef.setInput('quiz', QUIZ);
 
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/carrousel-3d/);
       // Et il dit OÙ : « bloc n°2 », pas « un bloc quelque part ».

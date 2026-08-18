@@ -236,3 +236,43 @@ d'empiler un quatrième cas.
 **Réfs.** `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts`,
 `src/garde-fou-contournements-sanitizer.spec.ts`, `angular.json` (`lintFilePatterns`),
 `.claude/rules/security.md` §4, `docs/agile/backlog-phase-1.md` §E2-ST2.
+
+## S-011 · Un garde-fou qui balaie la SORTIE rencontre un jour le contenu qui enseigne le motif qu'il refuse (A05 · pression d'assouplissement)
+
+**Symptôme.** `tools/deploiement/generer-config-swa.mjs` lit le HTML prerendu et refuse deux
+séquences : le style en ligne (` style="`, ligne 379) et tout gestionnaire d'événement en ligne
+(` on[a-z]+="`, ligne 333). C'est juste — ce sont exactement les formes que la CSP à hachages ne
+peut pas autoriser. Mais le `QuizComponent` (E2-ST3 lot C) affiche du code **volontairement
+vulnérable** par interpolation, et l'interpolation d'Angular n'échappe **que** `&`, `<` et `>` : les
+guillemets et le signe `=` passent intacts. Une question « trouver la faille » d'une leçon sur le
+XSS, qui contient `onerror="alert('XSS')"` — c'est-à-dire la charge la plus banale du sujet le plus
+central du cours — arrive donc **littéralement** dans le HTML servi et fait **échouer le build**,
+sur un message accusant la CSP alors que la cause est un texte de quiz parfaitement sûr. Le
+composant documentait le mode d'échec, mais pour un seul des deux motifs (` style="`) : celui de la
+leçon sur la CSP, pas celui de la leçon sur le XSS.
+
+**Pourquoi c'est une leçon de sécurité et non un bogue d'ergonomie.** La panne est **fail-closed**,
+donc saine ; le danger est ailleurs. Le jour où elle survient, elle survient **au moment de publier
+une leçon**, avec un diagnostic trompeur — et la correction la plus rapide, celle qui vient à
+l'esprit sous pression, est d'**assouplir le garde-fou** (exclure la page de leçon du balayage,
+retirer un motif). Sur un site dont la raison d'être est d'enseigner la CSP, ce serait perdre la
+mesure au moment précis où on prêche. Un garde-fou de sortie sur un site pédagogique a une
+propriété qu'il n'a nulle part ailleurs : **son motif est aussi une matière d'enseignement**, donc
+sa collision avec le contenu est certaine, pas hypothétique.
+
+**Règle.** Un garde-fou qui balaie une **sortie rendue** (HTML prerendu, artéfact publié) doit
+énumérer **tous** ses motifs à l'endroit du code qui peut les produire, et ce mode d'échec doit être
+**mesuré par un test**, jamais promis par un commentaire (sinon [[L-008]]). Le test à écrire est
+comportemental et à deux mains : (a) la charge s'affiche **entière** à l'écran et n'engendre **aucun
+nœud** (ni `img`, ni `script`, aucun attribut `on…`/`style` sur un élément réel) — c'est la preuve
+d'innocuité que doit à lui-même un site qui affiche des payloads ; (b) le HTML sérialisé **contient
+encore** la séquence que le garde-fou cherche — c'est la preuve que la collision existe, et le jour
+où cette assertion tombe, c'est la note qui doit partir, pas le garde-fou. Et la parade éditoriale
+est du côté du **contenu** (guillemets typographiques, entité), jamais du côté de la mesure.
+Corollaire de méthode, valable au-delà de ce cas : une note « mode d'échec à connaître » qui cite un
+garde-fou doit relire ce garde-fou et **compter ses motifs**, pas nommer celui auquel on pensait.
+
+**Réfs.** `src/app/features/cours/quiz/quiz.ts` (note du cas `trouver-la-faille`),
+`src/app/features/cours/quiz/quiz.spec.ts` (« AFFICHE une charge utile sans en faire naître un seul
+nœud »), `tools/deploiement/generer-config-swa.mjs` (lignes 333 et 379),
+`.claude/rules/security.md` §1 et §4, `.claude/rules/contenu-pedagogique.md` §4.

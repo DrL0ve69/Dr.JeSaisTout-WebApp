@@ -39,6 +39,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 
+import { Quiz } from '../../quiz/quiz';
+
 /**
  * Les types de blocs que ce composant sait rendre — liste NOMINATIVE, jamais un
  * `default` muet. Elle vaut aussi contrôle de complétude : ajouter un membre à
@@ -84,6 +86,7 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
 
 @Component({
   selector: 'app-rendu-blocs',
+  imports: [Quiz],
   styleUrl: './rendu-blocs.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // AUCUN `@default` dans le `@switch` ci-dessous, et c'est délibéré : le cas
@@ -192,18 +195,22 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
           <aside class="encadre" [attr.data-variante]="bloc.variante">
             <p class="etiquette">{{ etiquetteEncadre(bloc.variante) }}</p>
             <!-- RÉCURSION : un encadré porte lui-même des blocs. L'enfant refait
-                 sa propre validation, donc un type inconnu imbriqué lève aussi. -->
-            <app-rendu-blocs [blocs]="bloc.blocs" />
+                 sa propre validation, donc un type inconnu imbriqué lève aussi.
+                 Le quiz DESCEND avec la récursion : une ancre écrite dans un
+                 encadré doit rendre le même quiz que la même ancre au premier
+                 niveau — le compilateur, lui, refuse qu'il y en ait deux. -->
+            <app-rendu-blocs [blocs]="bloc.blocs" [quiz]="quiz()" />
           </aside>
         }
 
         @case ('ancre-quiz') {
           <!--
-            RIEN N'EST RENDU, ET C'EST LA DÉCISION. Le quiz est E2-ST3 : afficher
-            aujourd'hui un cadre « Quiz » ou un « à venir » ferait mentir la page à
-            l'écran. Le cas est traité NOMMÉMENT (il ne tombe dans aucun default),
-            sa position dans le flux est celle où E2-ST3 posera le composant.
+            E2-ST3 (lot C) : le quiz se rend ICI, à la position que l'auteur a
+            choisie dans son corps de leçon. Le bloc lui-même ne porte AUCUNE
+            donnée — c'est une ancre, pas un conteneur ; le quiz voyage dans
+            LeconCompilee.quiz et traverse ce composant par un input requis.
           -->
+          <app-quiz [quiz]="quiz()" />
         }
 
         @case ('ancre-simulation') {
@@ -218,6 +225,22 @@ export class RenduBlocs {
 
   /** Les blocs d'UNE section, dans l'ordre du document. Un tableau vide est légitime. */
   readonly blocs = input.required<readonly BlocContenu[]>();
+
+  /**
+   * Le quiz de la leçon, REQUIS — même quand la section rendue ne porte pas
+   * l'ancre.
+   *
+   * POURQUOI REQUIS, ET NON OPTIONNEL. Le compilateur compte les ancres `[[quiz]]`
+   * et exige qu'il y en ait exactement une, précisément pour qu'un quiz livré ne
+   * puisse pas rester invisible. Un input optionnel rouvrirait ce trou par l'autre
+   * bout : la page de leçon oublierait la liaison, le `@case` rendrait un composant
+   * sans données ou rien du tout, aucun gate ne rougirait, et le quiz manquerait à
+   * l'écran d'une leçon publiée. Requis, l'oubli ne compile pas.
+   *
+   * `LeconCompilee.quiz` étant obligatoire au contrat, l'exiger ici ne coûte rien
+   * à l'appelant : il a toujours la valeur sous la main.
+   */
+  readonly quiz = input.required<QuizCompile>();
 
   /**
    * Valide puis prépare les blocs. Deux choses s'y passent, et une seule est

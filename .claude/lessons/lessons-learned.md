@@ -757,4 +757,41 @@ code de retour) et [[L-005]] (un vert ne prouve pas qu'une vérification a tourn
 
 ---
 
+## L-033 · Entre la peinture prerendue et l'hydratation, le DOM natif accepte la saisie — et sans rejeu d'événements, la première détection l'écrase
+
+**Symptôme.** Sur le `QuizComponent` (E2-ST3 lot C), le visiteur coche une réponse, la coche
+apparaît puis disparaît, ou la correction affiche « sans réponse » pour une question visiblement
+répondue. Aucun test rouge, aucune erreur console. Mécanisme : la page de leçon est un **chunk
+paresseux**, et `withNoIncrementalHydration()` est actif dans `src/app/app.config.ts` — le rejeu
+d'événements est supprimé. Entre la peinture du HTML prerendu et le branchement du gestionnaire
+`(change)`, la radio se coche **réellement** dans le DOM (c'est le navigateur qui le fait, le
+composant ne voit rien) ; puis à la première détection de changements, la liaison `[checked]`
+s'évalue à `false` et est **réécrite** — Angular saute la création de nœuds à l'hydratation, pas la
+mise à jour des liaisons. L'état du composant efface la saisie réelle du visiteur.
+
+**Pourquoi personne ne l'avait vu.** Le composant documentait soigneusement le cas « **sans JS** »
+(page prerendue lisible, seule la correction manquant) et en concluait, à tort, qu'il était
+couvert. « Sans JS » et « **pas encore hydraté** » sont deux états distincts — le second est plus
+trompeur, l'interface répond au clic, elle a l'air vivante, elle ment. Aggravant : le piège était
+**nommé d'avance** dans le bloc de reprise de `CLAUDE.md` (« PIÈGES ENCORE ACTIFS » n°1,
+`withNoIncrementalHydration()` actif, « il mord directement E2-ST3 ») — annoncé n'est pas évité
+tant qu'aucun test ne l'a mordu. Cousine de [[L-032]] : là un émulateur qui ignore une directive ne
+la valide pas, il la masque ; ici c'est un raisonnement (« sans JS = couvert ») qui ignore un état
+réel et le masque de la même façon.
+
+**Règle.** Tout composant interactif d'une page prerendue hydratée paresseusement (donc sans rejeu
+d'événements) doit **amorcer son état depuis le DOM au premier rendu client**, dans un
+`afterNextRender` qui relit les éléments natifs déjà mutés par le visiteur (ici :
+`input[type=radio]:checked` de l'hôte), **avant** que la première détection de changements ne
+réécrive les liaisons. Signal détecteur, à répéter avant d'écrire tout `(change)`/`(click)` sur une
+page prerendue : se demander explicitement ce que le DOM natif accepte **avant que le composant ne
+soit hydraté**, pas seulement ce qui se passe sans JS du tout. Et poser un test qui coche l'input
+*avant* la première détection, pour prouver que le verdict n'efface pas la saisie.
+
+**Réfs.** composant `QuizComponent`, E2-ST3 lot C ; `src/app/app.config.ts`
+(`withNoIncrementalHydration()`) ; CLAUDE.md, bloc de reprise « PIÈGES ENCORE ACTIFS » n°1 ;
+cousine [[L-032]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

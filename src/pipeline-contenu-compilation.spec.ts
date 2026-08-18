@@ -468,6 +468,41 @@ describe('pipeline de contenu — compilation Markdown', () => {
     );
 
     it(
+      'refuse une SECONDE ancre « [[quiz]] » cachée dans un encadré',
+      () => {
+        // 🔴 LE DÉFAUT QUE CE CAS FERME (relevé au lot C). Le compte d'ancres se
+        // faisait sur `sections.flatMap(s => s.blocs)`, donc sur le PREMIER NIVEAU
+        // seulement — alors que `construireBlocs` descend dans les encadrés. Une
+        // leçon portant l'ancre au premier niveau ET une seconde dans un `::: note`
+        // comptait 1, passait le contrôle, et le composant rendait le quiz DEUX
+        // fois : `id` de questions dupliqués dans le document (`PREFIXE_ID_QUESTION`),
+        // c'est-à-dire très exactement ce que ce contrôle promet d'empêcher.
+        // La fermeture du premier conteneur `:::` du témoin. La tolérance au `\r` n'est
+        // pas décorative : les fins de ligne de ce poste sont mixtes, et une mutation
+        // ancrée sur un `\n` nu ne muterait RIEN en silence (L-015).
+        const FERMETURE = /\r?\n:::\r?\n/;
+        let vue = false;
+        const racine = leconAdHoc('quiz-deux-ancres-dont-une-imbriquee', (source) => {
+          // L-010 : la mutation doit frapper SA cible. Le témoin porte bien UN
+          // `::: note`, sa fermeture, et UNE ancre de premier niveau — sans quoi ce
+          // test mesurerait autre chose que la récursion du compte.
+          vue = source.includes('::: note') && source.includes('[[quiz]]') &&
+            FERMETURE.test(source);
+          return source.replace(FERMETURE, '\n\n[[quiz]]\n:::\n');
+        });
+        expect(vue).toBe(true);
+
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('[[quiz]]');
+        // Le compte doit être EXACT — « 1 » prouverait que la récursion n'a pas eu
+        // lieu, et le cas serait vert sur l'ancienne implémentation.
+        expect(message).toContain('2 ancre');
+      },
+      DELAI,
+    );
+
+    it(
       'refuse une question au schéma cassé, en citant le champ manquant',
       () => {
         const racine = leconAdHoc('quiz-question-cassee', undefined, (quiz) => {

@@ -290,6 +290,36 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
       },
       attendu: 'déjà pris par une ancre de section',
     },
+    // ─── L'ancre `[[quiz]]` (E2-ST3, lot C) ───────────────────────────────────
+    // Le compilateur exige déjà exactement une ancre dans le corps. Ces deux cas
+    // tiennent le même invariant à la LECTURE, parce que c'est là qu'il devient un
+    // invariant d'`id` : zéro ancre = un quiz rendu nulle part, deux ancres = un
+    // quiz rendu deux fois, donc tous ses `id` de question dupliqués.
+    {
+      nom: 'un corps privé de son ancre « [[quiz]] »',
+      muter: (l) => {
+        for (const section of l.sections) {
+          (section as unknown as Record<string, unknown>)['blocs'] = section.blocs.filter(
+            (bloc) => bloc.type !== 'ancre-quiz',
+          );
+        }
+      },
+      attendu: 'une seule attendue',
+    },
+    {
+      // 🔴 LE CAS QUI EXIGE LA RÉCURSION, et la seule façon de prouver qu'elle est là :
+      // un balayage de premier niveau compterait 1 ici et laisserait passer. C'est
+      // exactement le trou que le compilateur portait jusqu'au lot C.
+      nom: 'une SECONDE ancre « [[quiz]] » cachée dans un encadré',
+      muter: (l) => {
+        const premiere = l.sections[0] as unknown as Record<string, unknown>;
+        premiere['blocs'] = [
+          ...(premiere['blocs'] as readonly unknown[]),
+          { type: 'encadre', variante: 'note', blocs: [{ type: 'ancre-quiz' }] },
+        ];
+      },
+      attendu: 'une seule attendue',
+    },
   ];
 
   for (const cas of mutations) {

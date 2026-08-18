@@ -1070,7 +1070,7 @@ un lot en une phrase, vérifiable seul, un agent frais chacun.
 |---|---|---|---|
 | **A** | `core/progression/` — service de progression `localStorage`, en signaux, avec sa sérialisation versionnée et sa tolérance aux données absentes/corrompues | G-test seul (aucune UI) | ✅ |
 | **B** | Émission du quiz par le pipeline : type `QuizCompile` dans `types.d.ts`, sortie du compilateur, fixture témoin, mutation prouvant que le gate mord | G-content, G-test | ✅ |
-| **C** | `QuizComponent` (coquille, navigation, score, correction expliquée) + les deux types simples : `choix-multiple`, `vrai-faux` | G-test, G-axe, **G-clavier** | ⬜ |
+| **C** | `QuizComponent` (coquille, navigation, score, correction expliquée) + les deux types simples : `choix-multiple`, `vrai-faux` | G-test, G-axe, **G-clavier** | ✅ *(G-clavier et G-axe reportés au lot E : `content/` vide, aucune page de leçon prerendue)* |
 | **D** | Les deux types difficiles : `associer` et `trouver-la-faille` | G-test, G-axe, **G-clavier** | ⬜ |
 | **E** | Vérification de bout en bout (agent jetable) : a11y, e2e sous CSP réelle, CSP revalidée | tous gates | ⬜ |
 
@@ -1140,6 +1140,75 @@ le diagnostic serait trompeur : prévoir le message, pas le contournement.
 interactif d'une page de leçon**. « Une CSP validée sur une page INERTE ne vaut que pour une page
 inerte » (S-005) — Angular injecte des scripts inline avec le premier écouteur d'événement, ce qui a
 déjà rendu un build rouge en E1-ST2. À revalider au lot E, liste blanche **nominative**.
+
+#### ✅ Clôture du lot C — 2026-08-17
+
+Le `QuizComponent` existe : coquille, `<fieldset>`/`<legend>` par question sous
+`PREFIXE_ID_QUESTION`, radios **natives** (aucun rôle ARIA de remplacement), score sur les seules
+questions corrigeables, correction expliquée distracteur par distracteur, et écriture de la maîtrise
+dans `core/progression/` — jamais par import d'une autre feature. Les formes `associer` et
+`trouver-la-faille` sont rendues **lisibles mais provisoires** (hors score, hors persistance), en
+attendant le lot D. **Gates au vert : lint · 417 tests / 26 fichiers · `ng build` + config SWA
+(9 hachages de style, 1 de script, inchangés) · `typecheck:tools` 0 erreur.**
+
+**Un défaut du lot B corrigé au passage, prouvé par mutation.** Le contrôle « exactement une ancre
+`[[quiz]]` » de `compilerLecon` ne balayait que le **premier niveau** des blocs : une seconde ancre
+écrite dans un `::: note` était invisible, et le quiz se serait rendu **deux fois**, tous ses `id`
+de question dupliqués — c'est-à-dire très exactement ce que le contrôle existait pour empêcher.
+Le compte est désormais récursif (`encadre` est le seul bloc qui en imbrique d'autres). Récursion
+neutralisée → **un seul** test rouge ; restaurée → 417/417.
+
+**Trois décisions prises hors brief, gardées après revue** : radios **gelées** (`disabled`) à la
+correction plutôt que retirées · **pas de `<form>`** (la touche Entrée rechargerait la page sans JS)
+· titre en `<h3>` (l'ancre vit sous une section `##` — `heading-order` d'axe).
+
+**Les quatre constats des deux revues, fermés dans un lot de correctifs à part** (l'implémenteur
+avait fini à 264k, il n'a pas été repris — `.claude/rules/agent-context-budget.md` §3) :
+
+1. **🔴 La note « mode d'échec » de `quiz.ts` ne nommait qu'un motif sur deux.**
+   `generer-config-swa.mjs` refuse ` style="` (ligne 379) **et** ` on[a-z]+="` (ligne 333), et
+   l'interpolation d'Angular n'échappe que `&`, `<` et `>` : un `onerror="…"` dans une question de la
+   leçon **XSS** — la charge la plus banale du sujet le plus central du cours — arrive intact dans le
+   HTML servi et fait échouer le build sur un message accusant la CSP. Le risque n'est pas la panne
+   (fail-closed, saine) : c'est la **pression à assouplir le garde-fou pour publier**, sur un site qui
+   enseigne la CSP. Note réécrite, et la parade est éditoriale (guillemets typographiques, entité).
+   Leçon **S-011**.
+2. **Rien ne prouvait par le comportement qu'une charge utile s'affiche sans s'exécuter.** Les
+   assertions existantes (`innerHTML`/`bypassSecurityTrust*` absents de la source) resteraient vertes
+   si le gabarit passait un jour à une liaison de HTML brut écrite autrement. Test neuf, à deux mains :
+   la charge est **entière à l'écran** et **aucun nœud n'en naît** (ni `img`, ni `script`, aucun
+   attribut `on…`/`style` sur un élément réel) ; et le HTML sérialisé **contient encore** la séquence
+   que le gate cherche — si cette seconde assertion tombe, c'est la note du point 1 qui doit partir,
+   pas le gate.
+3. **L'invariant « exactement une ancre » n'existait qu'au compilateur.** `lireLeconCompilee` se
+   déclare frontière de confiance contre un artéfact d'une **autre version** du pipeline et tenait
+   déjà quatre invariants d'`id` ; celui-là en est un cinquième (zéro ancre = quiz nulle part, deux
+   ancres = tous les `id` dupliqués). Ajouté, récursif comme au compilateur, avec ses **deux** cas de
+   mutation — dont celui de l'ancre cachée dans un encadré, seul capable de prouver la récursion.
+4. **🔴 La fenêtre de pré-hydratation effaçait la première coche du visiteur.** La page de leçon est
+   un **chunk paresseux** et `withNoIncrementalHydration()` est actif : le rejeu d'événements est
+   perdu. Entre la peinture prerendue et le branchement du `(change)`, la radio se coche
+   **réellement** — le navigateur le fait, le composant ne voit rien — puis la première détection de
+   changements réévalue `[checked]` à `false` et **réécrit** la coche. Aucun test rouge, aucune
+   erreur console : la coche apparaît et disparaît. Le composant amorce désormais son état **depuis
+   le DOM** au premier rendu client (`afterNextRender` → `amorcerDepuisLeDom()`), avec ses trois
+   cas (la saisie compte dans le score · rien n'est inventé sur un DOM vierge, et une réponse déjà
+   saisie n'est pas perdue · sans effet une fois corrigé) et un garde-fou de **câblage** contre
+   L-008. Mutation : `amorcees > 0` → `> 99` ⇒ un seul test rouge. Leçon **L-033** — et le piège
+   était **annoncé** dans `CLAUDE.md` depuis E1-ST2, ce qui n'a pas suffi à l'éviter.
+
+**⏭️ Ce que le lot C laisse ouvert, et qui appartient au lot E.**
+
+- **🔴 La CSP n'a JAMAIS été mesurée avec le quiz à l'écran.** `content/` est vide : aucune page de
+  leçon n'est prerendue, les 3 routes inspectées par `config:swa` sont **inertes**, et le vert du
+  build ne prouve donc rien sur le premier composant réellement interactif du site. La réserve (2)
+  d'E2-ST2 ne s'est pas seulement maintenue, elle **s'est aggravée** : il ne s'agit plus de mesurer
+  la CSP servie sur une page de leçon, mais sur une page de leçon **interactive**. S-005 intact.
+- **`style-src` est dérivé de l'artéfact, contrairement à `script-src`** (relevé par la revue de
+  sécurité). `quiz.scss` y ajoutera donc un hachage **en silence** dès la première leçon prerendue —
+  à confronter à S-002 au lot E, avant que l'habitude ne s'installe.
+- **G-axe et G-clavier n'ont pas vu le composant**, pour la même raison : ils sont *contournés par
+  l'absence de données*, pas franchis. Ce sont eux, avec l'e2e sous CSP réelle, qui font le lot E.
 
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.

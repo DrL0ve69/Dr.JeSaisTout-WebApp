@@ -1,0 +1,257 @@
+// =============================================================================
+// Quiz — l'habillage du quiz d'une leçon (E2-ST3, lot C)
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet AUCUN CSS tant qu'aucun mixin n'est appelé) et
+// JAMAIS `themes` : un style de composant est une unité de compilation séparée, il
+// dupliquerait tout le bloc `:root` des jetons dans son propre fichier.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons
+// SÉMANTIQUES. C'est le pari explicite d'E6 (« Moniteur ambre ») : la bascule de
+// peau ne doit toucher AUCUN composant. Les seules valeurs nues ci-dessous sont des
+// remises à plat (`0`), des mots-clés (`none`, `pre`) et les couleurs système du
+// mode contraste forcé.
+//
+// CONFINEMENT DES CONTRASTES — ZÉRO PAIRE NEUVE. Chaque encre employée ici forme
+// avec son fond une paire DÉJÀ MESURÉE par `tools/design/verifier-contrastes.mjs` :
+//   · `--couleur-encre` / `--couleur-encre-secondaire` sur `--couleur-surface-creuse` ;
+//   · `--couleur-ok-corrige` et `--couleur-danger-vuln` sur `--couleur-surface-creuse` ;
+//   · `--couleur-sur-accent` sur `--couleur-accent` (libellé d'un bouton plein) ;
+//   · `--couleur-code-encre` sur `--couleur-code-surface` ;
+//   · `--couleur-encre` sur `--couleur-attention-surface` (mention provisoire) ;
+//   · `--couleur-filet` / `--couleur-filet-fort` sur `--couleur-surface-creuse`.
+// C'est pour cette raison que le fond du quiz est `--couleur-surface-creuse` et pas
+// `--couleur-surface` : le verdict a besoin de ses deux encres sémantiques, qui ne
+// sont mesurées que sur `surface` et sur `surface-creuse`.
+//
+// AUCUNE ANIMATION, DONC AUCUN `mouvement-reduit` À POSER. Le seul retour visuel
+// est un changement de couleur au survol, que `prefers-reduced-motion` ne concerne
+// pas. Toute animation ajoutée ici devra être enveloppée (G6).
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+// -----------------------------------------------------------------------------
+// L'enveloppe
+// -----------------------------------------------------------------------------
+// G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
+// (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien seuls.
+.quiz {
+  margin-block: var(--espace-6);
+  padding: var(--espace-4);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  border-radius: var(--rayon-carte);
+  background-color: var(--couleur-surface-creuse);
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+.titre {
+  // Le titre est CIBLABLE (`tabindex="-1"`) pour recevoir le focus après
+  // « Recommencer » : il doit donc dessiner son anneau comme tout le reste.
+  @include m.focus-visible;
+}
+
+.consigne-generale {
+  margin-block-start: var(--espace-2);
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-xs);
+}
+
+// -----------------------------------------------------------------------------
+// Les questions
+// -----------------------------------------------------------------------------
+// Le `<fieldset>` arrive avec la bordure et le padding de l'agent utilisateur : on
+// remet à plat, puis on redessine. Il RESTE un fieldset — c'est lui qui groupe les
+// radios et porte le `<legend>`, c'est-à-dire le nom accessible du groupe. Aucun
+// rôle ARIA de remplacement : un motif ARIA à moitié posé dégrade l'accessibilité.
+.questions {
+  display: grid;
+  gap: var(--espace-4);
+  margin-block-start: var(--espace-4);
+}
+
+.question {
+  margin: 0;
+  padding: var(--espace-3);
+  border: 0;
+  border-block-start: var(--filet-fin) solid var(--couleur-filet);
+
+  @include m.contraste-force {
+    border-block-start-color: CanvasText;
+  }
+}
+
+.enonce {
+  // Un `<legend>` hérite mal de la typographie : on la repose explicitement.
+  padding: 0;
+  color: var(--couleur-encre);
+  font-weight: var(--graisse-tampon);
+}
+
+.choix {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: center;
+
+  // WCAG 2.2 · 2.5.8 « Taille de cible (minimum) » exige 24 × 24 px ; 2.5.5 (AAA)
+  // exige 44 × 44. La barre du projet est la haute : `--espace-6` vaut 3rem, soit
+  // 48 px. Aucun gate ne peut l'attraper — jsdom ne fait pas de mise en page :
+  // elle tient ici ou nulle part.
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-1);
+  cursor: pointer;
+}
+
+.pastille {
+  // `appearance` reste le défaut : le rond natif porte déjà l'état coché avec un
+  // contraste garanti par le système, et rien de ce que ce composant ferait à la
+  // main ne serait meilleur. Ce qui compte pour la technologie d'assistance (rôle,
+  // état, position « 2 sur 3 ») vient de l'élément.
+  flex: none;
+  inline-size: var(--espace-2);
+  block-size: var(--espace-2);
+  margin: 0;
+  accent-color: var(--couleur-accent);
+
+  @include m.focus-visible;
+}
+
+.libelle {
+  color: var(--couleur-encre);
+}
+
+// -----------------------------------------------------------------------------
+// Rendu PROVISOIRE des deux types du lot D (`associer`, `trouver-la-faille`)
+// -----------------------------------------------------------------------------
+// Même parti que le cas `comparaison` de `RenduBlocs` : l'énoncé est complet et
+// lisible, l'interaction manque, et la page LE DIT. Une question muette ferait
+// croire à un bogue ; une question interactive à moitié corrigée ferait pire.
+.code-numerote {
+  margin-block-start: var(--espace-2);
+  padding: var(--espace-2) var(--espace-2) var(--espace-2) var(--espace-4);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  background-color: var(--couleur-code-surface);
+  color: var(--couleur-code-encre);
+  font-family: var(--police-code);
+  font-size: var(--taille-xs);
+
+  > li > code {
+    // Le code garde son indentation : c'est parfois elle qui rend la faille
+    // visible. `pre-wrap` plutôt que `pre` — une ligne longue doit se replier
+    // au lieu de forcer un défilement horizontal de la page (WCAG 1.4.10).
+    white-space: pre-wrap;
+  }
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+.mention-provisoire {
+  @include m.marque-pedagogique('attention');
+
+  margin-block-start: var(--espace-2);
+  padding: var(--espace-2);
+  color: var(--couleur-encre);
+  font-size: var(--taille-xs);
+}
+
+// -----------------------------------------------------------------------------
+// La correction
+// -----------------------------------------------------------------------------
+// WCAG 1.4.1 : juste / faux n'est JAMAIS porté par la seule couleur. Le MOT est
+// écrit dans le gabarit (« Bonne réponse », « Réponse incorrecte », « Aucune
+// réponse — comptée comme fausse ») ; la couleur et le style du trait ne font que
+// l'appuyer. En `forced-colors: active`, les deux couleurs tombent sur
+// `CanvasText` et seuls le mot et le style du trait subsistent.
+.verdict {
+  margin-block-start: var(--espace-3);
+  padding-inline-start: var(--espace-2);
+}
+
+.verdict[data-verdict='juste'] {
+  border-inline-start: var(--filet-marge) solid var(--couleur-ok-corrige);
+  color: var(--couleur-ok-corrige);
+}
+
+.verdict[data-verdict='faux'],
+.verdict[data-verdict='absente'] {
+  border-inline-start: var(--filet-marge) dashed var(--couleur-danger-vuln);
+  color: var(--couleur-danger-vuln);
+}
+
+.verdict {
+  @include m.contraste-force {
+    border-inline-start-color: CanvasText;
+    color: CanvasText;
+  }
+}
+
+.mot {
+  font-weight: var(--graisse-tampon);
+}
+
+.attendue,
+.explication {
+  margin-block-start: var(--espace-2);
+  color: var(--couleur-encre);
+  font-size: var(--taille-xs);
+}
+
+// -----------------------------------------------------------------------------
+// Commandes et résumé
+// -----------------------------------------------------------------------------
+.commandes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin-block-start: var(--espace-4);
+}
+
+.bouton {
+  // Cible confortable, largeur comprise : `--espace-6` vaut 3rem (48 px) et le
+  // padding en ligne tient la largeur même pour le libellé le plus court.
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-3);
+  border: var(--filet-fin) solid var(--couleur-accent);
+  border-radius: var(--rayon-net);
+  background-color: var(--couleur-accent);
+  color: var(--couleur-sur-accent);
+  font-family: var(--police-corps);
+  font-size: var(--taille-s);
+  font-weight: var(--graisse-tampon);
+  cursor: pointer;
+
+  @include m.focus-visible;
+
+  &:hover {
+    background-color: var(--couleur-accent-survol);
+    border-color: var(--couleur-accent-survol);
+  }
+
+  @include m.contraste-force {
+    border-color: ButtonText;
+    background-color: ButtonFace;
+    color: ButtonText;
+  }
+}
+
+// La région live existe DÈS LE PREMIER RENDU, vide : une région insérée en même
+// temps que son texte n'est pas annoncée. Vide, elle ne doit rien occuper — d'où
+// la marge posée sur `:not(:empty)` plutôt que sur l'élément.
+.resume {
+  color: var(--couleur-encre);
+  font-weight: var(--graisse-tampon);
+
+  @include m.focus-visible;
+
+  &:not(:empty) {
+    margin-block-start: var(--espace-3);
+  }
+}

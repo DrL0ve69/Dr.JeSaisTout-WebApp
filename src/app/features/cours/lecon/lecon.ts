@@ -187,7 +187,14 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             }
           }
 
-          <app-rendu-blocs [blocs]="section.blocs" />
+          <!--
+            Le quiz descend avec les blocs, à toutes les sections : c'est l'ancre
+            [[quiz]] qui décide OÙ il se rend, pas la page. Le compilateur garantit
+            qu'il y a exactement une ancre dans tout le corps, donc exactement un
+            rendu — d'où un input requis plutôt qu'une liaison conditionnelle que la
+            page aurait à deviner.
+          -->
+          <app-rendu-blocs [blocs]="section.blocs" [quiz]="lecon().quiz" />
         </section>
       }
 

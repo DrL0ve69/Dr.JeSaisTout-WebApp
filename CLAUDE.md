@@ -54,22 +54,50 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-17
 >
-> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves) · E2-ST3 lots A et
-> B CLOS.**
-> **Le geste suivant : E2-ST3 lot C — le `QuizComponent` lui-même** (coquille, navigation, score,
-> correction expliquée, + `choix-multiple` et `vrai-faux`) — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves) · E2-ST3 lots A,
+> B ET C CLOS** (C avec ses quatre constats de revue fermés).
+> **Le geste suivant : E2-ST3 lot D — les deux types difficiles, `associer` et
+> `trouver-la-faille`** — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
 > §E2-ST3, tableau de découpe. Le backlog dit déjà *quoi, où, avec quels gates* : **pas de
 > `solution-architect` ni de `devils-advocate`** (barème `.claude/README.md` §6a) — on implémente.
+> ⚠️ **Le lot D hérite de deux décisions à prendre, écrites d'avance** en §E2-ST3 : `associer` n'est
+> **pas** un glisser-déposer (WCAG 2.2 **2.5.7**), et `trouver-la-faille` empiète sur le
+> `CodeCompareComponent` d'E2-ST4 — mettre le rendu de code en commun **ou** le dupliquer en le
+> disant ; le dupliquer en silence est la vraie faute. Le lot C rend déjà ces deux formes, mais
+> **provisoires** : lisibles, hors score, hors persistance.
 >
-> **Ce que les lots A et B ont posé, et que le lot C consomme :** `core/progression/` (l'état
-> partagé, donc la règle « aucune feature n'importe une autre feature ») et le **quiz émis par le
-> pipeline** dans `LeconCompilee.quiz`. **Trois contraintes nominatives pour le lot C**, détaillées
-> en §E2-ST3 « Clôture du lot B » : (a) les `<fieldset>` se rendent sous **`PREFIXE_ID_QUESTION`**
-> (`contenu-compile.ts`), jamais sous une chaîne recopiée — la collision avec les ancres de section
-> est déjà refusée ; (b) `ficheSource` **n'est pas** dans l'artéfact, c'est voulu — la voie publiée
-> vers les sources est « Aller plus loin » ; (c) ce qui autorise à rendre `htmlColore` est **mesuré**
-> et plus étroit qu'il n'y paraît : Shiki échappe `<` en `&#x3C;` et **laisse `>` brut** — sûr parce
-> qu'aucune balise ne peut s'**ouvrir**, pas parce que tout serait échappé.
+> **Ce que le lot C a posé.** Le `QuizComponent` rend des radios **natives** dans des `<fieldset>`
+> sous **`PREFIXE_ID_QUESTION`**, score les seules questions corrigeables et écrit la maîtrise dans
+> `core/progression/` — jamais par import d'une autre feature. Il a corrigé au passage un défaut du
+> lot B, **prouvé par mutation** : le contrôle « exactement une ancre `[[quiz]]` » ne balayait que le
+> premier niveau des blocs, donc une ancre cachée dans un `::: note` rendait le quiz **deux fois**,
+> tous ses `id` dupliqués. L'invariant est maintenant tenu **aux deux bouts** (compilateur *et*
+> `lireLeconCompilee`), récursivement.
+>
+> 🔴 **Ce que le lot C laisse ouvert, et c'est le point important : la CSP n'a jamais été mesurée
+> avec le quiz à l'écran.** `content/` est vide, aucune page de leçon n'est prerendue, les 3 routes
+> inspectées sont **inertes** — le vert du build ne prouve rien sur le premier composant réellement
+> interactif. La réserve (2) d'E2-ST2 **s'aggrave** : il ne s'agit plus de mesurer la CSP servie sur
+> une page de leçon, mais sur une page de leçon **interactive**. Et `style-src` est **dérivé de
+> l'artéfact** contrairement à `script-src` : `quiz.scss` y ajoutera un hachage **en silence** dès la
+> première leçon prerendue (à confronter à S-002). Tout cela est le **lot E**, avec G-clavier, G-axe
+> et l'e2e sous CSP réelle.
+>
+> **🔴 LEÇON S-011, née du lot C, à connaître avant d'écrire une question de leçon.**
+> `generer-config-swa.mjs` refuse dans le HTML prerendu **deux** motifs — le style en ligne **et**
+> tout gestionnaire d'événement en ligne (`on…=` suivi d'un guillemet) — et l'interpolation
+> d'Angular n'échappe que `&`, `<` et `>`. Un `onerror=` entre guillemets dans une question de la
+> leçon **XSS** arrive donc **intact** dans la sortie et fait échouer le build sur un message
+> accusant la CSP. Fail-closed, donc sain ; le piège est la **pression à assouplir le garde-fou pour
+> publier**, sur un site qui enseigne la CSP. La parade est **éditoriale** (guillemets
+> typographiques, entité), jamais une exclusion de balayage.
+>
+> **Ce que les lots A et B avaient posé, et qui reste vrai :** (a) `ficheSource` **n'est pas** dans
+> l'artéfact, c'est voulu — la voie publiée vers les sources est « Aller plus loin » ; (b) ce qui
+> autorise à rendre `htmlColore` est **mesuré** et plus étroit qu'il n'y paraît : Shiki échappe `<`
+> en `&#x3C;` et **laisse `>` brut** — sûr parce qu'aucune balise ne peut s'**ouvrir**, pas parce que
+> tout serait échappé. ⚠️ Le lot C **ne lit toujours pas** `htmlColore` : il rend le `code` brut, par
+> interpolation.
 >
 > **🔴 INCIDENT DE PRODUCTION RÉSOLU LE 2026-08-17 — à connaître avant de toucher au routage.**
 > Signalé par le propriétaire depuis la console du site déployé : `main-<hash>.js/chunk-<hash>.js` en
@@ -95,13 +123,17 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
 > **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
-> **381 tests / 25 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
+> **417 tests / 26 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
 > **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**
 > **(1) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est **inerte** et
-> le rejeu d'événements est perdu. Piège hérité d'E1-ST2, et il mord **directement E2-ST3** : c'est le
-> premier composant réellement interactif d'une page de leçon.
+> le rejeu d'événements est perdu. Piège hérité d'E1-ST2, et il **a mordu au lot C d'E2-ST3**, comme
+> annoncé : entre la peinture prerendue et l'hydratation, le DOM natif accepte la saisie, et la
+> première détection de changements l'**écrase**. Le composant amorce donc son état depuis le DOM
+> (`afterNextRender`) — **leçon L-033, à relire avant tout `(change)`/`(click)` neuf sur une page
+> prerendue**. « Sans JS » et « pas encore hydraté » sont deux états distincts ; le second ment,
+> parce que l'interface a l'air vivante.
 > **(2) Une CSP validée sur une page INERTE ne vaut que pour une page inerte.** Le premier écouteur
 > d'événement d'une page fait apparaître des scripts inline que le framework n'émettait pas avant
 > (constaté en E1-ST2, build rouge). **E2-ST3 est exactement ce moment-là pour la page de leçon** :
