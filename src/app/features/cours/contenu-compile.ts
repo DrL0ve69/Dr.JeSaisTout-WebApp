@@ -115,6 +115,36 @@ const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
  */
 export const PREFIXE_ID_QUESTION = 'quiz-';
 
+/**
+ * Compte les blocs `ancre-quiz` d'une liste de blocs BRUTE — encadrés compris.
+ *
+ * POURQUOI CETTE FONCTION EXISTE ICI, EN DOUBLE DU COMPILATEUR. `compilerLecon`
+ * (`tools/content-pipeline/compiler-markdown.mjs`) refuse déjà une leçon dont le corps ne
+ * porte pas exactement une ancre `[[quiz]]`, et il le fait récursivement depuis le lot C.
+ * Mais ce fichier-ci se déclare frontière de confiance contre un artéfact produit par une
+ * AUTRE version du pipeline (voir l'en-tête) : un invariant qui n'existe qu'au compilateur
+ * n'est pas tenu à la lecture. Or celui-là est un invariant d'`id` au même titre que les
+ * quatre autres déjà contrôlés — deux ancres, c'est le quiz rendu deux fois, donc tous les
+ * `id` de question dupliqués dans le document.
+ *
+ * LA RÉCURSION N'EST PAS UNE PRÉCAUTION : `encadre` est le seul bloc qui en imbrique
+ * d'autres, et c'est exactement là que le compilateur avait son trou (une ancre dans un
+ * `::: note` était invisible à un balayage de premier niveau). Le type des blocs est
+ * `unknown` à ce stade — leur CONTENU appartient à `RenduBlocs`, qui lève sur un type
+ * inconnu ; on ne lit ici que ce qu'il faut pour compter.
+ */
+function compterAncresQuiz(blocs: readonly unknown[]): number {
+  let total = 0;
+  for (const bloc of blocs) {
+    if (!estObjet(bloc)) continue;
+    if (bloc['type'] === 'ancre-quiz') total += 1;
+    else if (bloc['type'] === 'encadre' && Array.isArray(bloc['blocs'])) {
+      total += compterAncresQuiz(bloc['blocs']);
+    }
+  }
+  return total;
+}
+
 /** Un objet quelconque, une fois qu'on sait que c'en est un. */
 type Objet = Record<string, unknown>;
 
@@ -329,6 +359,28 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
               `(réservées : ${ANCRES_RESERVEES.join(' · ')})`
           : '« sections » : deux sections partagent la même ancre (ids dupliqués)',
       );
+    }
+
+    // L'ANCRE DU QUIZ EST UN INVARIANT D'`id`, EXACTEMENT COMME LES ANCRES DE SECTION.
+    // Elle n'est comptée que si TOUTES les listes de blocs sont lisibles : sinon le
+    // compte porterait sur un artéfact déjà signalé hors contrat, et le « 0 ancre »
+    // qui en sortirait accuserait la mauvaise cause.
+    const blocsDeChaqueSection = sections.map((section) =>
+      estObjet(section) ? section['blocs'] : undefined,
+    );
+    if (blocsDeChaqueSection.every((blocs) => Array.isArray(blocs))) {
+      const ancresQuiz = blocsDeChaqueSection.reduce(
+        (total, blocs) => total + compterAncresQuiz(blocs as readonly unknown[]),
+        0,
+      );
+      if (ancresQuiz !== 1) {
+        manques.push(
+          `« sections » : ${ancresQuiz} ancre(s) « [[quiz]] » dans le corps, une seule attendue ` +
+            (ancresQuiz === 0
+              ? '— le quiz ne serait rendu nulle part'
+              : '— le quiz serait rendu plusieurs fois, tous ses ids dupliqués'),
+        );
+      }
     }
   }
 
