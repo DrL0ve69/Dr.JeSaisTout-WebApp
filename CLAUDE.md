@@ -52,50 +52,103 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
-> ## ⏭️ REPRISE — état au 2026-08-17
+> ## ⏭️ REPRISE — état au 2026-08-18
 >
-> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves) · E2-ST3 lots A,
-> B, C ET D CLOS** (C et D avec leurs constats de revue fermés — 4 et 6).
-> **Le geste suivant : E2-ST3 lot E — la vérification de bout en bout**, par un **agent jetable** :
-> G-axe, **G-clavier**, e2e sous CSP réelle, et la CSP **revalidée sur une page de leçon
-> INTERACTIVE** — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST3, tableau
-> de découpe et « ✅ Clôture du lot D ».
-> ⚠️ **DÉCOUPER PLUS FIN QUE LES LOTS C ET D.** Les deux ont fini leur agent **au-delà du plafond
-> absolu** de `.claude/rules/agent-context-budget.md` (264k et 262k) : ce n'est plus un accident de
-> brief, c'est la taille des lots. Le lot E se découpe en au moins deux agents.
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
+> CLOSE EN ENTIER** — lots A à E, PR **#17 verte, SonarCloud compris**, en attente de fusion par le
+> propriétaire.
+> **Le geste suivant : E2-ST4 — le bloc `comparaison`**, et il est **beaucoup plus petit que son
+> objectif écrit** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST4,
+> « Les deux décisions d'E2-ST4 » et son tableau de découpe (lots **A1, A2, B, C**).
 >
-> **🔴 Ce que le lot E doit MORDRE en priorité, et que rien d'autre ne peut voir.**
-> (a) La **CSP mesurée avec le quiz à l'écran** — `content/` est vide, donc les 3 routes prerendues
-> sont **inertes** et le vert du build ne prouve rien sur le premier composant réellement interactif
-> (réserve (2) d'E2-ST2, **aggravée** ; S-005 intact). (b) **L'amorçage de pré-hydratation
-> (L-033)** : il est **raisonné, pas mesuré** — `ngOnInit` est présumé assez tôt, ça se prouve avec
-> Playwright (cocher pendant la fenêtre, laisser hydrater, vérifier que la coche survit), et le
-> piège jumeau est qu'un `<select>` peut avaler une valeur **avant que ses `<option>` n'existent**.
-> (c) `style-src` est **dérivé de l'artéfact** contrairement à `script-src` : `quiz.scss` y ajoutera
-> un hachage **en silence** dès la première leçon prerendue (à confronter à **S-002**).
+> **🔵 LES DEUX DÉCISIONS D'E2-ST4, PRISES LE 2026-08-18, À NE PAS ROUVRIR.**
+> **ST4-1 · Il n'y a PAS de sélecteur de langage, et le nœud « onglets » du backlog est SANS OBJET.**
+> L'objectif écrit annonçait « onglets de langage (PHP/C#/TS) ». Le modèle de données ne porte pas
+> ça : les `exemples` d'un bloc `comparaison` sont des **paires de vulnérabilités DISTINCTES** — la
+> fixture témoin fait PHP/XSS puis C#/injection SQL — et `compiler-markdown.mjs` n'impose aucune
+> unicité de langage entre paires. Des onglets « de langage » cacheraient **un exemple pédagogique
+> entier** derrière une étiquette mensongère. Ni ARIA `tablist`, ni `<details name>` : **aucun
+> sélecteur**, et **aucun repliage** (un `<details>` fermé ne s'imprime pas, Safari ne le trouve pas
+> au `Ctrl+F`, et un accordéon exclusif peut finir avec zéro exemple à l'écran).
+> ⚠️ À garder de la passe d'architecture, parce que ça vaut pour **tout** composant à venir :
+> construire des onglets JavaScript sur une page prerendue de ce dépôt donnerait un **bouton mort
+> qui a l'air vivant** pendant la fenêtre de pré-hydratation (`withNoIncrementalHydration()` actif,
+> **L-033**).
+> **ST4-2 · On enrichit le rendu EN PLACE, on n'extrait pas de `code-compare/`.** Le rendu
+> `comparaison` **existe déjà** (`src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts`, ~l.
+> 114-165 : deux volets côte à côte, étiquettes écrites, annotations, zéro JS) et s'y annonce
+> lui-même comme provisoire ; ses paires de contraste sont **déjà mesurées**. Le chemin
+> `src/app/features/cours/code-compare/` écrit dans l'objectif est donc **caduc**.
+> Le delta réel : **(a)** ancrer les annotations à la ligne, **(b)** le contrôle de portée manquant,
+> **(c)** les 2 colonnes en large.
 >
-> **⏭️ Et trois dettes du lot D, écrites en §E2-ST3 « Clôture du lot D », à ne pas perdre :**
-> l'unicité de `gauche` (et des `choix[].id`) n'est imposée **que par le composant** — donc
-> G-content sort **vert** sur un contenu que le prerender refusera, avec un message qui ne nomme pas
-> le fichier : à remonter dans `valider.mjs` · la clause de D-1 « `droite` en double reste permise »
-> n'a **aucun contrôle positif** · le test à deux mains de S-011 ne couvre **qu'un type sur quatre**.
+> 🔴 **Le constat qui ouvre le lot A1, vérifié sur le code** : `compiler-markdown.mjs` (~l. 691-699)
+> n'accepte qu'un entier `>= 0`, **sans plafond** — `lignes="42"` sur un extrait de 5 lignes sort
+> G-content **VERT**. `valider.mjs` (~l. 879-884) fait pourtant exactement ce contrôle pour
+> `ligneFautive`. Même famille que la dette du lot D, et même parade : l'invariant se tient **des
+> deux côtés**. ⚠️ `ExempleCode` **ne conserve pas le code brut** : rien en aval ne peut recompter
+> les lignes, donc le contrôle vit **dans le compilateur**. Second constat du même endroit :
+> `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois**.
+> ⚠️ **Mesurer avant de concevoir** (lot A2) : on ne sait pas ce que le sanitizer d'Angular laisse
+> passer sur la sortie Shiki. `class` très probablement ; `data-*` et `id`, à **mesurer** — le
+> précédent du SVG (24 éléments → 0) interdit de le supposer.
+> Détail de nommage : le jeton s'appelle **`--couleur-ok-corrige`** ; `ok-fixed` n'existe que dans
+> les docs.
 >
-> **Ce que le lot C a posé.** Le `QuizComponent` rend des radios **natives** dans des `<fieldset>`
-> sous **`PREFIXE_ID_QUESTION`**, score les seules questions corrigeables et écrit la maîtrise dans
-> `core/progression/` — jamais par import d'une autre feature. Il a corrigé au passage un défaut du
-> lot B, **prouvé par mutation** : le contrôle « exactement une ancre `[[quiz]]` » ne balayait que le
-> premier niveau des blocs, donc une ancre cachée dans un `::: note` rendait le quiz **deux fois**,
-> tous ses `id` dupliqués. L'invariant est maintenant tenu **aux deux bouts** (compilateur *et*
-> `lireLeconCompilee`), récursivement.
+> ---
 >
-> 🔴 **Ce que le lot C laisse ouvert, et c'est le point important : la CSP n'a jamais été mesurée
-> avec le quiz à l'écran.** `content/` est vide, aucune page de leçon n'est prerendue, les 3 routes
-> inspectées sont **inertes** — le vert du build ne prouve rien sur le premier composant réellement
-> interactif. La réserve (2) d'E2-ST2 **s'aggrave** : il ne s'agit plus de mesurer la CSP servie sur
-> une page de leçon, mais sur une page de leçon **interactive**. Et `style-src` est **dérivé de
-> l'artéfact** contrairement à `script-src` : `quiz.scss` y ajoutera un hachage **en silence** dès la
-> première leçon prerendue (à confronter à S-002). Tout cela est le **lot E**, avec G-clavier, G-axe
-> et l'e2e sous CSP réelle.
+> **✅ CE QUE LE LOT E A FERMÉ, ET QUI NE SE REDÉCOUVRE PAS.**
+> **(1) La CSP est mesurée avec le quiz à l'écran, par DEUX instruments.** Côté artéfact : la page
+> de leçon interactive porte bien un script inline de plus — `<script id="ng-state"
+> type="application/json">`, l'état d'hydratation — mais son `type` est **inerte**, donc `script-src`
+> **n'a pas bougé** et la liste blanche reste **nominative à un seul élément**. Côté navigateur :
+> `npx swa start` + Playwright, quiz réellement actionné (4 radios, 3 `<select>`, correction, 5
+> verdicts) → **0 violation**, contrôle positif injecté **après hydratation**, témoin prouvant que la
+> politique est **appliquée** et non `report-only`.
+> 🔴 **La crainte de S-005 était juste sur le principe et fausse sur la CIBLE** : ce n'est pas
+> `script-src` qui bouge quand la page devient interactive, c'est **`style-src`** (+3 hachages, les
+> blocs `<style>` des composants) — et c'est lui qui est **dérivé de l'artéfact**. Les 3 ont été
+> **nommés et inspectés un par un** avant d'être épinglés.
+> **(2) L-033 est mesuré, plus raisonné.** La fenêtre de pré-hydratation est **élargie** : le chunk
+> paresseux est retenu (règle : tout `.js` que le document servi n'annonce pas), on agit dedans, on
+> relâche. Deux contrôles positifs attestent qu'elle était ouverte — un clic sur « Corriger » émis
+> pendant la fenêtre est **perdu**, et les `ngh` sont encore là. Le piège jumeau du `<select>` a son
+> test.
+> **(3) G-clavier existe** : huit arrêts dans l'ordre du document, flèches dans les trois mécaniques
+> à radios, `<select>` rempli à la flèche seule avec preuve que le `(change)` a couru, Maj+Tab en
+> miroir, indicateur de focus calculé et non masqué partout (2.4.7 / 2.4.11).
+> **Chiffres de clôture (2026-08-18)** : **G-test 498 / 28 fichiers · G-e2e 21 · G-axe 4 fichiers,
+> 344 vérifications, 0 violation · G-build 12 hachages de style (fixture) / 9 (production), 1 de
+> script des deux côtés · `npm audit --omit=dev` 0.**
+>
+> **⚠️ LES DEUX PIÈGES QUE LE LOT E A CRÉÉS EN SE CORRIGEANT — à connaître avant d'écrire un e2e.**
+> **(a) Mutualiser une vérification DÉPLACE le risque** (**L-034**, née ici). `e2e/aides/` porte
+> désormais la mesure elle-même — ce qu'est un anneau de focus dessiné, les trois collecteurs de
+> violations CSP, le point de départ commun de la page de leçon. Ces modules **ne sont pas des
+> specs** et sont épinglés nommément dans `src/configuration-typescript.spec.ts` : un défaut de
+> typage y serait invisible depuis les appelants et ferait passer **verts** les gates les plus
+> structurants du dépôt. Tout fichier neuf sous `e2e/` doit être inscrit dans cette liste — sinon
+> G-test rougit, et c'est voulu (le tripwire a mordu sur six fichiers d'un coup, avant qu'aucun
+> humain ne remarque leur entrée).
+> **(b) Une prémisse de test fausse rougit sur un produit sain** (**L-035**, née ici). Les trois
+> échecs du lot E-c1 venaient tous du spec : un compte relevé sur la page entière réemployé dans un
+> périmètre borné au quiz (14 au lieu de 11), un test qui choisissait la **bonne** réponse puis
+> exigeait une correction qui ne cite que les **fausses**, et une U+00A0 littérale refusée par
+> `no-irregular-whitespace` (elle s'écrit `\u00A0` dans un littéral).
+>
+> **⏳ PÉREMPTION, à ne pas perdre : le harnais de fixture se retire à la clôture d'E3-ST1.** Depuis
+> le lot E-b2, `ci.yml` bâtit son artéfact depuis `tools/content-pipeline/__fixtures__/temoin/…` avec
+> `--hachages-style 12` : G-axe, G-e2e et le générateur de CSP voient donc en permanence une page de
+> leçon **interactive**. `deploy.yml` garde la racine de production (9 hachages). Le jour où
+> `content/` porte sa première leçon, l'étape G-build de `ci.yml` redevient `npm run build` et le
+> drapeau disparaît. Écrit à trois endroits (workflow, `src/workflows-github.spec.ts`, backlog), dont
+> un **tripwire exécutable**.
+>
+> **⚠️ RESTE OUVERT après E2-ST3** — la réserve **(3)** d'E2-ST2 : une leçon en `statut: brouillon`
+> **sera prerendue publique et indexable**. Elle se lève en clôture d'E3-ST1. Les réserves (1) et (2)
+> sont levées. Et un avertissement de build **antérieur au lot E** : `quiz.scss` dépasse son budget
+> de **88 o** (4,09 Ko pour 4,00 Ko) — relever le budget ou alléger la feuille, à trancher en E2-ST4
+> ou dans le lot de dette.
 >
 > **🔴 LEÇON S-011, née du lot C, à connaître avant d'écrire une question de leçon.**
 > `generer-config-swa.mjs` refuse dans le HTML prerendu **deux** motifs — le style en ligne **et**
@@ -137,7 +190,8 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
 > **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
-> **435 tests / 26 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
+> **Au 2026-08-18 : 498 tests / 28 fichiers · 21 e2e · axe 344 vérifications, 0 violation ·
+> `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
 > **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**

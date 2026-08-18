@@ -184,6 +184,22 @@ autoriserait alors tout script qu'une future version du framework y injecterait,
 À rapprocher de [[S-003]] (garde-fou qui doit prouver avoir tout vu).
 **Réfs.** `src/app/app.config.ts`, `docs/agile/backlog-phase-1.md` §E1-ST2.
 
+**✅ MESURÉE le 2026-08-18 (lot E d'E2-ST3), sur la page de leçon réellement interactive (quiz à
+l'écran) — deux instruments indépendants, résultat qui affine la crainte plutôt que de la confirmer
+telle quelle.** Côté artéfact : la page interactive gagne bien un script inline de plus
+(`<script id="ng-state" type="application/json">`, l'état d'hydratation), mais son `type` est
+**inerte** — le navigateur ne l'exécute pas, la CSP ne le soumet pas à `script-src`, qui **n'a pas
+bougé** (liste nominative, un seul élément, intacte). Ce qui bouge, c'est `style-src`
+(+3 hachages, un par bloc de styles de composant). Côté navigateur : `npx swa start` + Playwright,
+quiz réellement actionné (radios, `<select>`, correction) → **0 violation**, avec contrôle positif
+et témoin que la politique est appliquée (pas `report-only`).
+**Correction à la règle : ce n'est pas `script-src` qui bouge quand une page de ce dépôt devient
+interactive, c'est `style-src` — et `style-src` est dérivé de l'artéfact ([[S-002]], écart assumé)
+là où `script-src` reste nominatif.** Le danger annoncé par S-005 a changé de directive sans changer
+de nature ; revalider « la CSP au premier écouteur » reste juste, mais viser `style-src` en premier,
+pas `script-src`, sur ce dépôt précis.
+**Réfs additionnelles.** `docs/agile/backlog-phase-1.md` §E2-ST3 lot E (E-b2, E-c2).
+
 ## S-006 · Tout fichier présent dans l'artéfact est servable, qu'un plan de routage le mentionne ou non (A05 · exclusion d'audit sur motif faux)
 
 **Symptôme.** `dist/dr-je-sais-tout/browser/index.csr.html` (coquille de rendu client vide, ni
@@ -334,3 +350,36 @@ garde-fou doit relire ce garde-fou et **compter ses motifs**, pas nommer celui a
 `src/app/features/cours/quiz/quiz.spec.ts` (« AFFICHE une charge utile sans en faire naître un seul
 nœud »), `tools/deploiement/generer-config-swa.mjs` (lignes 333 et 379),
 `.claude/rules/security.md` §1 et §4, `.claude/rules/contenu-pedagogique.md` §4.
+
+## S-012 · `npx` dans un job de CI qui produit l'artéfact publié est une résolution de code NON ÉPINGLÉE au moment de l'exécution (A08 · CICD-SEC)
+
+**Symptôme.** `ci.yml` bâtissait l'artéfact avec `npx ng build`. `npx` installe depuis le registre
+npm ce qu'il ne trouve pas localement (et exécute ses scripts de cycle de vie) : si `@angular/cli`
+disparaissait des dépendances déclarées, ou si `npm ci` échouait à moitié sans faire échouer
+l'étape, la CI irait chercher un `ng` non épinglé dans le job même qui produit ce qui part en
+ligne. Constats SonarCloud `githubactions:S6505` + `S8543`, tous deux justes — aucun `// NOSONAR`
+ni `sonar.issue.ignore.*` posé : sur un site qui enseigne la sécurité, on ne muselle pas un constat
+juste quand la voie sûre est gratuite.
+**Règle.** Dans un job de build/CI, appeler le binaire résolu par `npm ci`
+(`node_modules/.bin/<outil>`), jamais `npx <outil>` — `npx` ne peut alors rien installer et échoue
+proprement si le binaire manque, au lieu d'aller chercher une version non épinglée à l'exécution.
+Même famille que la dette déjà notée sur `Azure/static-web-apps-deploy@v1` (tag mutable dans le job
+qui détient le jeton) : une commande de CI capable de résoudre du code non épinglé au runtime, dans
+un job sensible.
+**Réfs.** `.github/workflows/ci.yml`, `docs/agile/backlog-phase-1.md` §E2-ST3 lot E.
+
+## S-013 · Un aléa faible dans un INSTRUMENT DE MESURE de sécurité ne crée pas une faille, il crée un FAUX NÉGATIF (A05 · CWE-330 appliqué à un gate)
+
+**Symptôme.** `e2e/aides/sonde-csp.ts` employait `Math.random()` pour produire un jeton par
+document, servant à dédupliquer les violations CSP relevées pendant l'e2e sous CSP réelle. La
+prédictibilité de `Math.random()` n'ouvrait aucune faille ici — le jeton n'autorise rien. Le risque
+était qu'une valeur **répétée** entre deux documents ferait taire à tort une violation par
+déduplication, donc rendrait **vert** le seul gate qui mesure la CSP à l'exécution (constat
+SonarCloud `typescript:S2245`). Corrigé en `crypto.randomUUID()`.
+**Règle.** Dans le code d'un gate/instrument de mesure (e2e, sonde, harnais de vérification), traiter
+tout usage d'aléa comme un risque de **faux négatif silencieux**, pas seulement de prévisibilité
+exploitable — l'un menace la mesure elle-même, l'autre menace ce qu'elle mesure. Utiliser
+systématiquement `crypto.randomUUID()`/`crypto.getRandomValues()`, même sans usage cryptographique
+apparent, dès que la valeur sert à distinguer des événements dans un gate de sécurité : un faux
+négatif s'y lit comme une preuve.
+**Réfs.** `e2e/aides/sonde-csp.ts`, `docs/agile/backlog-phase-1.md` §E2-ST3 lot E.
