@@ -134,6 +134,17 @@ jobs:
       - name: G-test
         run: npm test
 
+      # ⚠️ ICI, ET SEULEMENT ICI, C'EST BIEN `npm run build` — sur la racine de PRODUCTION.
+      # `ci.yml` bâtit le même artéfact depuis la fixture témoin (décision E-2, E2-ST3 lot E), pour
+      # que G-axe et G-e2e voient en permanence une page de leçon INTERACTIVE malgré un `content/`
+      # vide jusqu'à E3-ST1. Ce workflow-ci PUBLIE : il doit construire ce qui part en ligne, ni
+      # plus ni moins. Deux conséquences à ne pas confondre avec des anomalies :
+      #   · le compte de hachages de style diffère entre les deux workflows (9 ici — le défaut
+      #     épinglé de `NOMBRE_HACHAGES_STYLE_ATTENDU` —, 12 en CI). Aucun drapeau
+      #     `--hachages-style` ne se pose ici : l'absence de drapeau EST la valeur de production ;
+      #   · la CSP mesurée en CI n'est donc pas octet pour octet celle du déploiement. La parade
+      #     ne bouge pas : ce sont les vérifications EN LIGNE, fail-closed, plus bas dans ce même
+      #     fichier, qui font foi sur les directives réellement servies.
       - name: G-build (+ config SWA à hachages)
         run: npm run build
 

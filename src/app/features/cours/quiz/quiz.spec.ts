@@ -1,21 +1,36 @@
 // =============================================================================
-// Tests du Quiz — E2-ST3, lot C
+// Tests du Quiz — E2-ST3, lots C, D et E-a
 // -----------------------------------------------------------------------------
 // CE QUE CE FICHIER TIENT, ET POURQUOI CHAQUE GROUPE A SON CONTRÔLE POSITIF.
 //
-//   · La FORME. Radios natives dans des `<fieldset>`/`<legend>`, aucun rôle ARIA
-//     de remplacement, un `id` de document par question. Le contrôle positif est
-//     qu'on a bien compté des radios : « aucun role=radiogroup » serait vrai d'un
-//     composant qui ne rend rien (L-019).
-//   · Le SCORE. Bonnes réponses sur questions CORRIGEABLES, une question sans
-//     réponse comptant comme fausse — et le disant à l'écran.
-//   · La PERSISTANCE. `enregistrerQuiz` est appelé sur un quiz entièrement
-//     corrigeable, et ne l'est PAS dès qu'une question provisoire est là. Les deux
-//     moitiés de la pince : sans la première, « rien n'est écrit » serait vrai d'un
-//     composant qui n'écrit jamais.
+//   · La FORME. Radios natives dans des `<fieldset>`/`<legend>`, un `<select>` natif
+//     par ligne d'un `associer` (décision D-1), aucun rôle ARIA de remplacement, un
+//     `id` de document par question. Le contrôle positif est qu'on a bien compté des
+//     radios et des champs : « aucun role=radiogroup » serait vrai d'un composant qui
+//     ne rend rien (L-019).
+//   · Le SCORE. Bonnes réponses sur les QUATRE types, une question sans réponse
+//     comptant comme fausse — et le disant à l'écran. Il n'y a plus de question
+//     « provisoire » depuis le lot D : le dénominateur est le total.
+//   · La PROGRESSION. `enregistrerQuiz` est appelé sur un quiz mixte, avec sa moitié
+//     de pince : une association ratée fait bien retomber le score enregistré. Sans
+//     elle, « 5/5 est écrit » serait vrai d'un composant qui compterait tout juste.
+//   · La FENÊTRE DE PRÉ-HYDRATATION (L-033). La saisie faite avant que le composant
+//     ne se branche survit à la première détection de changements — plus un garde-fou
+//     de CÂBLAGE, parce que les trois cas appellent l'amorçage eux-mêmes (L-008).
 //   · La VALIDATION. Les champs propres à chaque type lèvent en nommant la
 //     question. C'est le pendant de `verifierEnveloppeDuQuiz` (`contenu-compile.ts`),
 //     qui s'arrête, lui, à l'enveloppe.
+//   · LA COLLISION S-011, à deux mains et sur les QUATRE types (lot E-a) : la charge
+//     utile d'auteur s'affiche ENTIÈRE sans qu'un seul nœud n'en naisse, ET la
+//     séquence que `generer-config-swa.mjs` cherche survit dans le HTML sérialisé —
+//     COMPTÉE, jamais seulement « présente ». Les quatre types ont chacun leur `it()` :
+//     `choix-multiple` (`question`, `choix[].texte`), `vrai-faux` (`affirmation`,
+//     `justification`), `associer` (`gauche`, `droite`) et `trouver-la-faille`
+//     (`code`, `correction`). La couverture se COMPTE, elle ne se déclare pas : jusqu'au
+//     lot E-a cet en-tête annonçait quatre types pour deux `it()`, et un document de
+//     garde-fou qui promet plus que le garde-fou n'applique, c'est S-009.
+//     Si cette seconde main tombe un jour, c'est la note S-011 de `quiz.ts` qui doit
+//     partir dans le même diff — jamais le gate qui doit s'assouplir.
 //
 // LES VALEURS ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées du composant
 // ni de `contenu-compile.ts` (L-012). Le préfixe `quiz-` est donc littéral
@@ -126,6 +141,111 @@ const Q_FAILLE_XSS: QuestionQuiz = {
   correction: "echo htmlspecialchars($_GET['avis'], ENT_QUOTES, 'UTF-8');",
 };
 
+/**
+ * LE CONTRÔLE POSITIF DE LA CLAUSE DE D-1 : « plusieurs `<select>` peuvent porter la
+ * même valeur `droite` ». `Q_ASSOCIER` n'a que des `droite` DISTINCTS — la déduplication
+ * d'`optionsDroite` n'y est donc jamais exécutée, et le test qui pose deux champs sur la
+ * même valeur y prouve l'interface, pas la décision. Ici, deux paires partagent
+ * réellement leur `droite` : le lot ne compte que DEUX valeurs de réponse pour TROIS
+ * lignes, et les deux lignes qui la partagent doivent pouvoir être justes en même temps.
+ * `gauche`, lui, reste unique — c'est l'autre moitié de la décision, et `valider.mjs` la
+ * refuse désormais en nommant le fichier.
+ */
+const Q_ASSOCIER_DROITE_DOUBLE: QuestionQuiz = {
+  type: 'associer',
+  id: 'paires-doublon',
+  consigne: 'Associer chaque en-tête à la catégorie de défense dont il relève.',
+  paires: [
+    { gauche: 'HSTS', droite: 'défense du transport' },
+    { gauche: 'X-Frame-Options', droite: 'défense du rendu' },
+    { gauche: 'nosniff', droite: 'défense du rendu' },
+  ],
+  explication:
+    'Deux en-têtes peuvent relever de la même catégorie : c’est précisément ce que la ' +
+    'question fait constater, et c’est pourquoi l’unicité des réponses n’est pas forcée.',
+};
+
+/**
+ * LA CHARGE UTILE SUR LE CHEMIN `associer` — les deux côtés. Le `gauche` devient le texte
+ * d'un `<span>` d'étiquette et le texte d'une ligne de correction ; le `droite` devient le
+ * texte d'une `<option>`, sa `value`, et le texte de la réponse attendue. Une leçon sur le
+ * XSS appariera littéralement `onerror="…"` à son vecteur : la collision S-011 n'y est pas
+ * hypothétique.
+ */
+const Q_ASSOCIER_XSS: QuestionQuiz = {
+  type: 'associer',
+  id: 'paires-xss',
+  consigne: 'Associer chaque charge utile au vecteur qu’elle emprunte.',
+  paires: [
+    { gauche: '<img src=x onerror="alert(\'XSS\')">', droite: 'un attribut style="color:red"' },
+    { gauche: '<script>alert(1)</script>', droite: 'une balise ouverte' },
+  ],
+  explication:
+    'Les deux charges sont ici du TEXTE : elles s’affichent entières et ne s’exécutent ' +
+    'pas, parce que le rendu passe par interpolation et jamais par du HTML brut.',
+};
+
+/**
+ * LA CHARGE UTILE DANS `correction` — le champ le plus exposé du lot, et le moins évident :
+ * une correction est du CODE CORRIGÉ, donc du code qui pose légitimement un attribut. Le
+ * `style="…"` ci-dessous n'a rien d'une charge exotique, c'est ce qu'un correctif écrit.
+ * Ce champ ne se rend qu'APRÈS la correction : le test doit cliquer pour le voir.
+ */
+const Q_FAILLE_CORRECTION_XSS: QuestionQuiz = {
+  type: 'trouver-la-faille',
+  id: 'faille-correction',
+  consigne: 'Repérer la ligne qui recopie une entrée du client dans du HTML.',
+  langage: 'php',
+  code: "$avis = $_GET['avis'];\necho '<p>' . $avis . '</p>';",
+  htmlColore: '<pre class="shiki"><code><span class="line">$avis</span></code></pre>',
+  ligneFautive: 2,
+  faille: 'XSS réfléchi',
+  explication: 'La ligne 2 recopie la donnée du client dans le HTML sans l’encoder.',
+  correction:
+    'echo \'<p style="color:red">\' . htmlspecialchars($avis, ENT_QUOTES, \'UTF-8\') . ' +
+    '\'</p>\'; // plus aucun onerror="…" ne peut naître de $avis',
+};
+
+/**
+ * LA CHARGE UTILE SUR LE CHEMIN `choix-multiple` — l'énoncé (`question`) et le libellé
+ * d'une proposition (`choix[].texte`). Ces deux sites sont nommés dans la liste S-011 de
+ * `quiz.ts` et n'avaient, jusqu'au lot E-a, AUCUNE assertion : l'en-tête de ce fichier
+ * promettait « les quatre types » et n'en exerçait que deux. Un document de garde-fou qui
+ * promet plus que le garde-fou n'applique, c'est S-009 — on ferme le trou, pas la promesse.
+ *
+ * ⚠️ Les `choix[].id` restent en kebab-case : c'est eux qui deviennent la `value` des
+ * radios, donc un contexte d'ATTRIBUT, où la séquence ne peut de toute façon pas se former.
+ * La charge est là où le lecteur la lit — dans le texte.
+ */
+const Q_CHOIX_XSS: QuestionQuiz = {
+  type: 'choix-multiple',
+  id: 'choix-xss',
+  question: 'Que rend le navigateur devant <img src=x onerror="alert(\'XSS\')"> ?',
+  choix: [
+    { id: 'texte', texte: 'Rien : la charge s’affiche comme du texte si elle est encodée.' },
+    { id: 'balise', texte: 'Une balise, si la sortie n’est pas encodée — ex. style="color:red".' },
+  ],
+  bonneReponse: 'texte',
+  explication:
+    'Une charge encodée en sortie reste du texte : le navigateur n’ouvre aucune balise et ' +
+    'n’exécute aucun gestionnaire d’événement.',
+};
+
+/**
+ * LA CHARGE UTILE SUR LE CHEMIN `vrai-faux` — l'`affirmation` et sa `justification`.
+ * La justification ne se rend qu'APRÈS correction : le test doit cliquer pour la voir,
+ * comme pour `correction` d'un `trouver-la-faille`.
+ */
+const Q_VRAI_FAUX_XSS: QuestionQuiz = {
+  type: 'vrai-faux',
+  id: 'vrai-faux-xss',
+  affirmation: 'Le fragment <img src=x onerror="alert(\'XSS\')"> est inoffensif une fois encodé.',
+  bonneReponse: true,
+  justification:
+    'Encodée en sortie, la charge devient du texte. Un correctif écrit d’ailleurs ' +
+    'légitimement <p style="color:red"> sans la moindre intention d’attaque.',
+};
+
 /** Trois questions, toutes corrigeables : le chemin où la progression S'ÉCRIT. */
 const QUIZ_CORRIGEABLE: QuizCompile = {
   lecon: 'injection-sql',
@@ -133,7 +253,7 @@ const QUIZ_CORRIGEABLE: QuizCompile = {
   questions: [Q_CHOIX, Q_VRAI_FAUX, Q_AUTRE_CHOIX],
 };
 
-/** Trois corrigeables + les deux formes provisoires du lot D. */
+/** Les cinq questions, un exemplaire de chacun des quatre types : le quiz complet. */
 const QUIZ_MIXTE: QuizCompile = {
   lecon: 'injection-sql',
   titre: 'Quiz — injection SQL et en-têtes',
@@ -214,6 +334,87 @@ function sourceDuComposant(): string {
   );
 }
 
+/**
+ * 🔴 LA LISTE BLANCHE DES ATTRIBUTS QUE CE COMPOSANT A LE DROIT DE RENDRE. Écrite en dur,
+ * NOMINATIVEMENT, et exhaustive : tout attribut qui n'y figure pas fait échouer le test EN
+ * SE NOMMANT.
+ *
+ * Pourquoi une liste blanche et pas la liste des formes interdites (`style`, `on…`) qui
+ * tenait ce rôle jusqu'au lot E-a : une liste noire ne refuse que ce que son auteur a
+ * imaginé. `srcdoc`, `formaction`, `href="javascript:"`, `xlink:href` seraient passés
+ * intacts. C'est le patron systémique du dépôt, constaté trois fois (S-001, S-003,
+ * S-009) : sur un format STRUCTURÉ, on relève puis on confronte à une liste blanche.
+ *
+ * ⚠️ Ajouter un nom ici est une DÉCISION, pas une formalité de mise à jour : c'est
+ * déclarer qu'un humain a regardé ce que le gabarit rend de neuf.
+ */
+const ATTRIBUTS_PERMIS: readonly string[] = [
+  'class',
+  'id',
+  'type',
+  'name',
+  'value',
+  'checked',
+  'disabled',
+  'selected',
+  'role',
+  'tabindex',
+  'aria-live',
+  'aria-atomic',
+  'data-champ',
+  'data-verdict',
+];
+
+/**
+ * Angular pose l'encapsulation de styles émulée sous des noms dérivés d'un compteur de
+ * build (`_nghost-ng-c1234567`, `_ngcontent-ng-c1234567`) : le suffixe ne PEUT pas être
+ * nominatif, le préfixe l'est. C'est la seule dérogation, et elle est bornée à ces deux
+ * préfixes-là.
+ */
+function estAttributPermis(nom: string): boolean {
+  if (/^_ng(host|content)-/.test(nom)) return true;
+  return ATTRIBUTS_PERMIS.includes(nom);
+}
+
+/**
+ * LA PREMIÈRE MAIN DE S-011, factorisée parce qu'elle se rejoue sur les QUATRE types de
+ * question. Elle interroge le DOM, jamais la source : c'est la différence entre « le
+ * composant n'écrit pas `innerHTML` » et « rien ne s'exécute ».
+ *
+ * Le balayage porte sur l'HÔTE ENTIER, pas sur le seul groupe : une charge qui
+ * s'échapperait de son `<fieldset>` serait le pire des cas, donc celui qu'il faut voir.
+ */
+function exigerQu_aucunNoeudNeSoitNe(hote: HTMLElement, groupe: Element | null): void {
+  expect(groupe?.querySelector('img')).toBeNull();
+  expect(groupe?.querySelector('script')).toBeNull();
+  expect(groupe?.querySelector('div')).toBeNull();
+
+  const elements = [...hote.querySelectorAll('*')];
+  // CONTRÔLE POSITIF (L-019) : sans lui, « aucun attribut inconnu » serait vrai d'un
+  // composant qui ne rend aucun élément.
+  expect(elements.length).toBeGreaterThan(0);
+
+  const inconnus = new Set(
+    elements.flatMap((element) =>
+      [...element.attributes]
+        .map((attribut) => attribut.name)
+        .filter((nom) => !estAttributPermis(nom))
+        .map((nom) => `<${element.localName} ${nom}>`),
+    ),
+  );
+  expect([...inconnus]).toEqual([]);
+}
+
+/**
+ * Compte les occurrences EXACTES d'une séquence littérale. La couverture se compte, elle
+ * ne se déclare pas : un `toContain` dit qu'une occurrence existe, jamais combien — et un
+ * `not.toContain` à l'échelle d'un élément confondrait deux contextes (`outerHTML`
+ * sérialise l'attribut ET le nœud texte, dont un seul est risqué pour le gate).
+ */
+function compterOccurrences(dans: string, sequence: string): number {
+  return dans.split(sequence).length - 1;
+}
+
 /** Construit un quiz d'UNE question, pour isoler un cas de validation. */
 function quizDe(question: QuestionQuiz): QuizCompile {
   return { lecon: 'injection-sql', titre: 'Quiz', questions: [question] };
@@ -286,7 +487,7 @@ describe('Quiz', () => {
       expect([...noms].sort()).toEqual(['quiz-csp', 'quiz-entetes', 'quiz-injection']);
     });
 
-    it('respecte l’ordre de la SOURCE — `melanger` n’est pas implémenté au lot C', async () => {
+    it('respecte l’ordre de la SOURCE — `melanger` n’est pas encore implémenté', async () => {
       // Mélanger côté client désaligne le DOM hydraté du DOM prerendu. Le champ est
       // ignoré, et ce test est ce qui empêche de l'implémenter par inadvertance.
       const hote = await monter({ ...QUIZ_MIXTE, melanger: true });
@@ -433,11 +634,12 @@ describe('Quiz', () => {
 
       // Le nom accessible vient du `<label>` qui CONTIENT le champ — zéro ARIA,
       // zéro `id` fabriqué, donc zéro collision possible avec une ancre de section.
-      const etiquettes = [...(groupe?.querySelectorAll('label.paire') ?? [])].map(
-        (label) => label.querySelector('span')?.textContent?.trim(),
-      );
+      // Une seule interrogation du DOM, réutilisée : rejouer le sélecteur dans la
+      // boucle la rendrait vacue tout seule le jour où il cesserait de matcher (L-019).
+      const labels = [...(groupe?.querySelectorAll('label.paire') ?? [])];
+      const etiquettes = labels.map((label) => label.querySelector('span')?.textContent?.trim());
       expect(etiquettes).toEqual(['HSTS', 'X-Frame-Options', 'nosniff']);
-      for (const label of groupe?.querySelectorAll('label.paire') ?? []) {
+      for (const label of labels) {
         expect(label.querySelector('select')).not.toBeNull();
       }
       for (const attendu of ['listbox', 'combobox', 'option', 'group']) {
@@ -454,6 +656,60 @@ describe('Quiz', () => {
       // erreur de compréhension : les deux champs gardent la même valeur.
       const selects = champs(hote, 'quiz-paires');
       expect([selects[0]!.value, selects[1]!.value]).toEqual(['force HTTPS', 'force HTTPS']);
+    });
+
+    it('🔴 DEUX PAIRES peuvent partager leur `droite` — la clause de D-1, exécutée', async () => {
+      // Le test précédent pose deux champs sur la même valeur d'un lot dont TOUS les
+      // `droite` sont distincts : il prouve l'interface (rien n'interdit de rejouer une
+      // valeur), pas la décision (une même réponse peut être JUSTE deux fois). C'est ce
+      // lot-ci qui exécute la déduplication d'`optionsDroite`, jamais atteinte sinon.
+      const hote = await monter(quizDe(Q_ASSOCIER_DROITE_DOUBLE));
+      const selects = champs(hote, 'quiz-paires-doublon');
+      expect(selects.length).toBe(3);
+
+      // (a) L'option partagée n'apparaît qu'UNE fois dans CHAQUE champ — trois paires,
+      // mais deux valeurs de réponse seulement. Les libellés sont écrits en dur (L-012).
+      for (const champ of selects) {
+        const options = [...champ.options].map((option) => option.value);
+        expect(options).toEqual(['', 'défense du transport', 'défense du rendu']);
+      }
+
+      // (b) Les deux lignes qui partagent la réponse sont justes SIMULTANÉMENT — c'est
+      // le cœur de la décision : forcer l'unicité les aurait rendues incompatibles.
+      await associer(hote, 'quiz-paires-doublon', 0, 'défense du transport');
+      await associer(hote, 'quiz-paires-doublon', 1, 'défense du rendu');
+      await associer(hote, 'quiz-paires-doublon', 2, 'défense du rendu');
+      await cliquerBouton(hote);
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('juste');
+      expect(fixture.componentInstance.score()).toBe(1);
+
+      // (c) … et la correction ligne à ligne le DIT pour les deux, chacune avec son mot.
+      const lignes = [...hote.querySelectorAll('.ligne-corrigee')];
+      expect(lignes.map((ligne) => ligne.getAttribute('data-verdict'))).toEqual([
+        'juste',
+        'juste',
+        'juste',
+      ]);
+      expect(lignes[1]?.textContent).toContain('Association correcte');
+      expect(lignes[2]?.textContent).toContain('Association correcte');
+      expect(lignes[1]?.textContent).toContain('X-Frame-Options');
+      expect(lignes[2]?.textContent).toContain('nosniff');
+    });
+
+    it('CONTRÔLE POSITIF du `droite` partagé : une seule des deux lignes peut être fausse', async () => {
+      // Sans lui, « les deux sont justes » serait vrai d'un composant qui déclarerait
+      // juste toute ligne dont la valeur figure QUELQUE PART dans le lot — donc d'un
+      // composant qui ne compare rien ligne à ligne.
+      const hote = await monter(quizDe(Q_ASSOCIER_DROITE_DOUBLE));
+      await associer(hote, 'quiz-paires-doublon', 0, 'défense du rendu'); // faux
+      await associer(hote, 'quiz-paires-doublon', 1, 'défense du rendu'); // juste
+      await associer(hote, 'quiz-paires-doublon', 2, 'défense du rendu'); // juste
+      await cliquerBouton(hote);
+
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('faux');
+      expect(
+        [...hote.querySelectorAll('.ligne-corrigee')].map((l) => l.getAttribute('data-verdict')),
+      ).toEqual(['faux', 'juste', 'juste']);
     });
 
     it('corrige LIGNE PAR LIGNE, en écrivant le mot de chaque ligne', async () => {
@@ -617,8 +873,13 @@ describe('Quiz', () => {
       // un mensonge à l'écran sur un quiz entièrement corrigé.
       expect(resume).not.toContain('arrive');
       expect(resume).not.toContain('pas enregistré');
-      // Aucune question ne se rend plus en « provisoire ».
-      expect(hote.querySelector('.mention-provisoire')).toBeNull();
+      // La classe `.mention-provisoire` n'existant plus NULLE PART, l'ancienne assertion
+      // « elle est absente du rendu » était devenue VACUE : plus rien ne pouvait la faire
+      // rougir. C'est le motif L-019 que ce fichier prêche par ailleurs. Ce qui la
+      // remplace peut tomber : les CINQ questions sont rendues et corrigées, aucune n'est
+      // mise de côté — c'est ce que la fin des questions provisoires signifie vraiment.
+      expect(hote.querySelectorAll('fieldset').length).toBe(5);
+      expect(hote.querySelectorAll('.verdict').length).toBe(5);
     });
 
     it('🔴 ÉCRIT la progression sur un quiz mixte — c’est la fin de la retenue du lot C', async () => {
@@ -717,6 +978,24 @@ describe('Quiz', () => {
           ],
         },
         attendu: /même « gauche »/,
+      },
+      {
+        // 🔴 LE CONTRÔLE POSITIF DE LA CLEF NORMALISÉE (lot E-a). Ces deux `gauche` sont
+        // deux chaînes d'octets DIFFÉRENTES — la seconde finit par une U+00A0 — et un
+        // `Set` sur les valeurs brutes les acceptait. Le rendu posait alors deux `<select>`
+        // au nom accessible identique, c'est-à-dire exactement ce que la règle interdit.
+        // Le cas n'a rien d'exotique : `.claude/rules/contenu-pedagogique.md` §3 IMPOSE
+        // U+00A0 dans le contenu du site. La blanche est écrite en séquence d'échappement
+        // pour qu'on la VOIE à la relecture (même consigne que l'en-tête de `quiz.ts`).
+        nom: 'deux `gauche` que seule une U+00A0 sépare — indiscernables à l’écran',
+        question: {
+          ...ASSOCIER,
+          paires: [
+            { gauche: 'HSTS', droite: 'force HTTPS' },
+            { gauche: 'HSTS\u00a0', droite: 'interdit le cadrage' },
+          ],
+        },
+        attendu: /même « gauche ».*rien ne les distingue à l’écran/,
       },
       {
         nom: 'une `explication` vide sur un `associer`',
@@ -927,13 +1206,7 @@ describe('Quiz', () => {
       // ... et pas un nœud n'en est né. On interroge le DOM, pas la source :
       // c'est la différence entre « le composant n'écrit pas `innerHTML` » et
       // « rien ne s'exécute ».
-      expect(groupe?.querySelector('img')).toBeNull();
-      expect(groupe?.querySelector('script')).toBeNull();
-      expect(groupe?.querySelector('div')).toBeNull();
-      const contamines = [...hote.querySelectorAll('*')].filter(
-        (element) => element.hasAttribute('onerror') || element.hasAttribute('style'),
-      );
-      expect(contamines).toEqual([]);
+      exigerQu_aucunNoeudNeSoitNe(hote, groupe);
       // Les lignes de code ne portent QUE du texte : aucun élément enfant, donc
       // aucune balise n'a été interprétée en chemin.
       const lignes = [...(groupe?.querySelectorAll('.code-numerote code') ?? [])];
@@ -954,6 +1227,142 @@ describe('Quiz', () => {
       expect(html).toContain('&lt;img');
       expect(html).toContain(' onerror="');
       expect(html).toContain(' style="color:red"');
+    });
+
+    it('🔴 S-011 sur le chemin `associer` — les deux mains, `gauche` ET `droite`', async () => {
+      // Le test ci-dessus n'exerce qu'UN type sur quatre. Or le lot D a ouvert quatre
+      // sites de texte d'auteur de plus, dont le `gauche` et le `droite` d'un `associer` :
+      // une leçon sur le XSS appariera littéralement `onerror="…"` à son vecteur.
+      const hote = await monter(quizDe(Q_ASSOCIER_XSS));
+      const groupe = hote.querySelector('[id="quiz-paires-xss"]');
+
+      // MAIN 1 — CONTRÔLE POSITIF (L-019) : les deux côtés sont à l'écran, ENTIERS.
+      const texte = groupe?.textContent ?? '';
+      expect(texte).toContain('<img src=x onerror="alert(\'XSS\')">');
+      expect(texte).toContain('<script>alert(1)</script>');
+      expect(texte).toContain('un attribut style="color:red"');
+      // … et pas un nœud n'en est né.
+      exigerQu_aucunNoeudNeSoitNe(hote, groupe);
+      // Les étiquettes ne portent QUE du texte : aucune balise n'a été interprétée.
+      // CONTRÔLE POSITIF (L-019) avant la boucle : sans lui, un sélecteur qui ne
+      // matche plus rien rendrait cette vérification VACUE — elle ne pourrait plus
+      // rougir. C'est le défaut que ce même diff répare 350 lignes plus haut.
+      const etiquettes = [...(groupe?.querySelectorAll('label.paire > span') ?? [])];
+      expect(etiquettes.length).toBe(2);
+      for (const span of etiquettes) {
+        expect(span.children.length).toBe(0);
+      }
+
+      // MAIN 2 — la séquence que `tools/deploiement/generer-config-swa.mjs` cherche dans
+      // le HTML prerendu survit INTACTE, parce qu'Angular n'échappe pas les guillemets.
+      // Si cette assertion tombe, c'est la note S-011 de `quiz.ts` qui doit partir dans
+      // le même diff — jamais le gate qui doit s'assouplir.
+      const html = groupe?.innerHTML ?? '';
+      expect(html).toContain('&lt;img');
+      expect(html).toContain(' onerror="');
+      expect(html).toContain(' style="color:red"');
+    });
+
+    it('S-011 · en contexte d’ATTRIBUT la séquence ne se forme pas — la moitié JSDOM', async () => {
+      // 🔴 CE QUE CE TEST MESURE, ET CE QU'IL NE MESURE PAS. La revue de sécurité du lot D
+      // avait instrumenté DEUX sérialiseurs : domino (celui du prerender) et jsdom. Un `"`
+      // posé dans une valeur d'attribut y est sérialisé `&quot;`, donc les motifs du gate —
+      // qui exigent un guillemet LITTÉRAL — ne peuvent pas s'y former.
+      // CE test-ci n'exerce que JSDOM, parce que c'est le seul DOM que le `TestBed` a. La
+      // moitié DOMINO se re-mesure au PRERENDER, au lot E-b, sur une page de leçon
+      // réellement construite : écrire « mesure du lot D » ici laisserait croire que les
+      // deux moitiés sont tenues par ce fichier.
+      const hote = await monter(quizDe(Q_ASSOCIER_XSS));
+      const groupe = hote.querySelector('[id="quiz-paires-xss"]');
+      const chargee = [...(groupe?.querySelectorAll('option') ?? [])].find((option) =>
+        option.value.includes('style='),
+      );
+
+      // CONTRÔLE POSITIF : la valeur d'attribut porte bien la charge, guillemets compris.
+      expect(chargee?.value).toBe('un attribut style="color:red"');
+
+      // … et sa SÉRIALISATION ne peut pas nourrir le gate : le guillemet y est une
+      // ENTITÉ. L'attendu est écrit en toutes lettres plutôt qu'en « ne contient pas » —
+      // l'`<option>` sérialisée porte AUSSI son nœud texte, où la charge est littérale,
+      // et un « ne contient pas » sur l'élément entier confondrait les deux contextes.
+      const serialise = chargee?.outerHTML ?? '';
+      expect(serialise).toContain('value="un attribut style=&quot;color:red&quot;"');
+
+      // La preuve que les deux contextes cohabitent SANS se confondre : la séquence
+      // littérale n'apparaît qu'UNE fois dans l'élément — celle du nœud texte. Deux
+      // occurrences voudraient dire que l'attribut a cessé d'être échappé.
+      const litterales = serialise.split(' style="color:red"').length - 1;
+      expect(litterales).toBe(1);
+    });
+
+    it('🔴 S-011 sur le champ `correction` — du CODE CORRIGÉ, donc des attributs légitimes', async () => {
+      // `correction` ne se rend qu'APRÈS le clic. C'est le site le moins évident du lot :
+      // un correctif écrit naturellement ` style="…"`, sans aucune intention d'attaque.
+      const hote = await monter(quizDe(Q_FAILLE_CORRECTION_XSS));
+      await cliquerBouton(hote);
+      const groupe = hote.querySelector('[id="quiz-faille-correction"]');
+
+      // MAIN 1 — la correction est à l'écran, entière, et rien n'en est né.
+      const rendu = groupe?.querySelector('.correction code');
+      expect(rendu?.textContent).toContain('<p style="color:red">');
+      expect(rendu?.textContent).toContain('onerror="…"');
+      expect(rendu?.children.length).toBe(0);
+      exigerQu_aucunNoeudNeSoitNe(hote, groupe);
+
+      // MAIN 2 — les DEUX motifs du gate survivent dans le nœud texte.
+      const html = groupe?.innerHTML ?? '';
+      expect(html).toContain(' style="color:red"');
+      expect(html).toContain(' onerror="…"');
+    });
+
+    it('🔴 S-011 sur le chemin `choix-multiple` — `question` ET `choix[].texte`', async () => {
+      // Ces deux sites sont nommés dans la liste S-011 de `quiz.ts` et n'avaient AUCUNE
+      // assertion avant le lot E-a : l'en-tête de ce fichier promettait « les quatre
+      // types » et n'en couvrait que deux.
+      const hote = await monter(quizDe(Q_CHOIX_XSS));
+      const groupe = hote.querySelector('[id="quiz-choix-xss"]');
+
+      // MAIN 1 — CONTRÔLE POSITIF (L-019) : les deux charges sont à l'écran, ENTIÈRES.
+      const texte = groupe?.textContent ?? '';
+      expect(texte).toContain('<img src=x onerror="alert(\'XSS\')">');
+      expect(texte).toContain('style="color:red"');
+      // … et pas un nœud n'en est né.
+      exigerQu_aucunNoeudNeSoitNe(hote, groupe);
+      const libelles = [...(groupe?.querySelectorAll('label.choix > span.libelle') ?? [])];
+      expect(libelles.length).toBe(2);
+      for (const libelle of libelles) {
+        expect(libelle.children.length).toBe(0);
+      }
+
+      // MAIN 2 — la séquence que `generer-config-swa.mjs` cherche survit INTACTE dans le
+      // HTML sérialisé. COMPTÉE, pas seulement présente : les `value` des radios sont des
+      // `id` kebab-case, donc aucune occurrence ne peut venir d'un contexte d'attribut —
+      // une occurrence de plus dirait qu'un site inattendu s'est mis à porter la charge.
+      const html = groupe?.innerHTML ?? '';
+      expect(html).toContain('&lt;img');
+      expect(compterOccurrences(html, ' onerror="')).toBe(1);
+      expect(compterOccurrences(html, ' style="color:red"')).toBe(1);
+    });
+
+    it('🔴 S-011 sur le chemin `vrai-faux` — `affirmation` ET `justification`', async () => {
+      // La `justification` ne se rend qu'APRÈS le clic, comme `correction` : sans lui,
+      // la moitié du site d'auteur de ce type resterait hors du champ du test.
+      const hote = await monter(quizDe(Q_VRAI_FAUX_XSS));
+      await cliquerBouton(hote);
+      const groupe = hote.querySelector('[id="quiz-vrai-faux-xss"]');
+
+      // MAIN 1 — les deux charges sont à l'écran, entières, et rien n'en est né.
+      const texte = groupe?.textContent ?? '';
+      expect(texte).toContain('<img src=x onerror="alert(\'XSS\')">');
+      expect(texte).toContain('<p style="color:red">');
+      expect(groupe?.querySelector('.explication')?.children.length).toBe(0);
+      exigerQu_aucunNoeudNeSoitNe(hote, groupe);
+
+      // MAIN 2 — comptée : une occurrence dans l'affirmation, une dans la justification.
+      const html = groupe?.innerHTML ?? '';
+      expect(html).toContain('&lt;img');
+      expect(compterOccurrences(html, ' onerror="')).toBe(1);
+      expect(compterOccurrences(html, ' style="color:red"')).toBe(1);
     });
 
     it('n’importe RIEN de `features/cours/lecon` — la flèche ne remonte jamais', () => {

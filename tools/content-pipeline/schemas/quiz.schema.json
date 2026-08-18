@@ -27,6 +27,11 @@
   },
   "definitions": {
     "identifiant": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "chaineNonVide": {
+      "type": "string",
+      "pattern": "\\S",
+      "description": "Au moins un caractère NON BLANC. `minLength: 1` ne suffit pas : le composant exige `trim() !== ''`, donc un « gauche »: «    » sortait G-content VERT et cassait `ng build` au prerender, sur un message qui ne nomme pas le fichier. Le motif fait mordre le schéma là où l'auteur voit encore son fichier."
+    },
     "texteExplicatif": {
       "type": "string",
       "minLength": 20,
@@ -94,8 +99,11 @@
             "additionalProperties": false,
             "required": ["id", "texte"],
             "properties": {
-              "id": { "$ref": "#/definitions/identifiant" },
-              "texte": { "type": "string", "minLength": 1 }
+              "id": {
+                "$ref": "#/definitions/identifiant",
+                "description": "Deux à deux DISTINCTS dans une même question — vérifié hors schéma. Deux choix au même `id` rendent deux radios de même `value` dans le même groupe : le visiteur en coche une, la correction lit l'autre."
+              },
+              "texte": { "$ref": "#/definitions/chaineNonVide" }
             }
           }
         },
@@ -134,13 +142,14 @@
           "type": "array",
           "minItems": 2,
           "maxItems": 8,
+          "description": "Les libellés `gauche` doivent être DEUX À DEUX DISTINCTS — vérifié hors schéma (JSON Schema ne sait pas comparer deux branches d'un même document). Le rendu pose un `<select>` par ligne de gauche, indexé par son rang : deux libellés identiques donnent deux champs que rien ne distingue à l'écran. À l'inverse, deux paires PEUVENT partager la même valeur `droite` : c'est la clause explicite de la décision D-1 (backlog §E2-ST3) — forcer l'unicité des réponses transformerait l'exercice en sudoku et masquerait la vraie erreur de compréhension. Les `<option>` sont dédupliquées au rendu, et la correction se dit ligne par ligne.",
           "items": {
             "type": "object",
             "additionalProperties": false,
             "required": ["gauche", "droite"],
             "properties": {
-              "gauche": { "type": "string", "minLength": 1 },
-              "droite": { "type": "string", "minLength": 1 }
+              "gauche": { "$ref": "#/definitions/chaineNonVide" },
+              "droite": { "$ref": "#/definitions/chaineNonVide" }
             }
           }
         },
@@ -171,8 +180,8 @@
         "langage": { "$ref": "#/definitions/langage" },
         "code": {
           "type": "string",
-          "minLength": 1,
-          "description": "Lignes séparées par \\n, numérotation dès 1. Code VOLONTAIREMENT vulnérable : il n'est jamais exécuté par le site (règle security.md §4)."
+          "pattern": "\\S",
+          "description": "Au moins un caractère non blanc, même raison que `chaineNonVide` (le composant exige `trim() !== ''`). Lignes séparées par \\n, numérotation dès 1. Code VOLONTAIREMENT vulnérable : il n'est jamais exécuté par le site (règle security.md §4)."
         },
         "ligneFautive": {
           "type": "integer",
@@ -181,7 +190,7 @@
         },
         "faille": { "type": "string", "minLength": 3 },
         "explication": { "$ref": "#/definitions/texteExplicatif" },
-        "correction": { "type": "string", "minLength": 1 }
+        "correction": { "$ref": "#/definitions/chaineNonVide" }
       }
     }
   }

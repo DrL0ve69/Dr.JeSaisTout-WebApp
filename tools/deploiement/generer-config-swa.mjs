@@ -27,9 +27,60 @@
  * Il sert aussi de GARDE-FOU : il échoue si la sortie contient un gestionnaire d'événement inline
  * ou un script inline exécutable AUTRE que celui autorisé nommément ci-dessous, deux choses que la
  * CSP bloquerait *silencieusement* en production.
+ *
+ * ⚠️ CE QUE `style-src` GARANTIT — ET CE QU'IL NE GARANTIT PAS (décision E-3 du lot E, E2-ST3,
+ * AMENDÉE le 2026-08-18 après revue sécurité — lire l'amendement, la première rédaction promettait
+ * plus que le code n'appliquait).
+ * Jusqu'au 2026-08-18, ce script hachait **tout** bloc `<style>` trouvé dans l'artéfact : la
+ * permission se dérivait donc de la sortie, ce que **S-002** interdit et ce que l'en-tête ci-dessus
+ * reproche déjà au cas `script-src`. Le premier `.scss` d'un composant interactif y aurait ajouté un
+ * hachage **en silence**, sans qu'aucun humain ne l'ait vu.
+ * La dérivation est désormais bornée par DEUX contrôles, et il faut **les deux** :
+ *   1. PROVENANCE ET PLACE : seuls les blocs `<style ng-app-id="ng">`, sans aucun autre attribut,
+ *      **enfants directs de `<head>` ou de `<body>`**, sont hachés ; tout autre `<style>` de la
+ *      sortie prerendue est une infraction nommée, au même titre qu'un gestionnaire d'événement
+ *      inline. La contrainte de place n'est pas décorative : `<noscript><style ng-app-id="ng">` est
+ *      **invisible au navigateur** quand le script est actif, et son contenu obtenait quand même un
+ *      hachage global dans `style-src` — divergence d'analyseurs de la famille **S-001**.
+ *   2. NOMBRE ÉPINGLÉ : `NOMBRE_HACHAGES_STYLE_ATTENDU` ci-dessous. Le compte de hachages distincts
+ *      de l'artéfact est comparé à une valeur **revue**, exactement comme `hachagesScript.size`
+ *      l'est à 1. Depuis la décision E-2 (lot E d'E2-ST3), DEUX artéfacts différents sortent de ce
+ *      même code — celui du déploiement (`content/` vide) et celui de la CI (bâti sur la fixture
+ *      témoin, donc avec une page de leçon interactive et les blocs `<style>` de ses composants).
+ *      Le compte attendu est donc un PARAMÈTRE DU POINT D'APPEL (`--hachages-style <n>`), et les
+ *      deux valeurs sont écrites dans le dépôt : la constante ci-dessous pour la production, le
+ *      drapeau de l'étape G-build de `ci.yml` pour la CI. Un drapeau absent retombe sur la
+ *      constante — jamais sur « pas de vérification ». Détail : `lireNombreHachagesStyleAttendu`.
+ *   · CE QUI EST FERMÉ : qu'un hachage de style **apparaisse dans la CSP sans que personne ne le
+ *     voie**. Un composant neuf qui porte des styles fait rougir la construction UNE fois, et cette
+ *     fois-là passe par une revue.
+ *   · CE QUI RESTE OUVERT, ET SE DIT : le **contenu** de chaque bloc reste **dérivé de l'artéfact**,
+ *     jamais comparé à une valeur revue. `style-src` n'est donc **PAS** une liste blanche nominative
+ *     comme `script-src` — le nombre est épinglé, les valeurs ne le sont pas. Ne jamais laisser
+ *     croire, ici ou ailleurs, l'inverse : un texte qui promet plus que le code n'applique, c'est
+ *     **S-009**.
+ *   · CE QUE LA PREMIÈRE RÉDACTION DE CETTE NOTE PROMETTAIT À TORT, et pourquoi le nombre a été
+ *     ajouté : elle annonçait qu'« un bloc injecté par autre chose qu'Angular — **un composant** —
+ *     ne peut plus s'auto-autoriser ». C'est **faux**, et c'était mesurable : les blocs `<style>` de
+ *     l'artéfact **SONT** les styles des composants (`[_nghost-ng-c…]`), tous émis par Angular avec
+ *     `ng-app-id="ng"`. Borner à ce marqueur, c'est borner à un **marqueur**, pas à une
+ *     **provenance** — le producteur légitime le porte lui-même, et la revue a fait accepter un
+ *     `<style ng-app-id="ng">.quiz[_ngcontent-ng-c999]{color:red}</style>` ajouté à l'artéfact réel
+ *     (code 0, 9 → 10 hachages, aucun signal). D'où le contrôle 2.
+ *   · POURQUOI LE NOMBRE ET NON LES VALEURS : un `HACHAGE_STYLE_ATTENDU` par bloc rougirait à
+ *     **chaque `.scss` touché** — pression permanente à désarmer le garde-fou, sur un fichier dont
+ *     **S-011** montre qu'il en subit déjà. Éditer un `.scss` ne change **pas** le compte :
+ *     l'objection qui écartait l'épinglage des valeurs ne s'applique pas à celui du nombre.
+ *
+ * ⚠️ ASYMÉTRIE ASSUMÉE ENTRE LES DEUX BRANCHES : les blocs `<style>` sont ANALYSÉS (jsdom, déjà
+ * dépendance du dépôt), les balises `<script>` restent appariées par MOTIF. Ce n'est pas une
+ * préférence : le trou de motif de la branche `<script>` est **S-003**, inscrit au backlog comme
+ * lot autonome à payer avant E3-ST1. La branche `<style>` ci-dessous est le patron à y transposer,
+ * pas un second motif à ajouter.
  */
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { join, relative, resolve, sep } from 'node:path';
 
 const RACINE = process.cwd();
@@ -58,6 +109,80 @@ const ID_SCRIPT_AUTORISE = 'init-theme';
  * relecture `security-reviewer`. Même esprit que le mode `--check` de la leçon L-009.
  */
 const HACHAGE_SCRIPT_ATTENDU = "'sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M='";
+
+/**
+ * La SEULE provenance de bloc `<style>` reconnue : le marqueur qu'Angular pose sur les styles qu'il
+ * injecte lui-même dans la page prerendue (`<style ng-app-id="ng">`). La forme est mesurée sur
+ * l'artéfact, pas devinée : au 2026-08-18, les 17 blocs des 4 pages prerendues portent tous
+ * `ng-app-id="ng"` et **rien d'autre**. On retient donc la forme la plus étroite qui couvre ce
+ * qu'Angular émet réellement — exactement un attribut, celui-ci, à cette valeur.
+ *
+ * ⚠️ Élargir ce couple (autre valeur, attribut supplémentaire toléré) ROUVRE le trou que la
+ * décision E-3 ferme : la reconnaissance de provenance redeviendrait assez lâche pour qu'un bloc
+ * d'une autre origine s'y glisse. Si une version d'Angular change ce marquage, la construction
+ * échouera en NOMMANT le bloc — c'est le moment de faire relire la nouvelle forme, pas de la
+ * recopier ici sans regard.
+ */
+const ATTRIBUT_PROVENANCE_STYLE = 'ng-app-id';
+const VALEUR_PROVENANCE_STYLE = 'ng';
+
+/**
+ * Les SEULS parents admis pour un bloc `<style>` haché.
+ *
+ * POURQUOI UNE CONTRAINTE DE PLACE EN PLUS DE LA PROVENANCE. Le marqueur `ng-app-id="ng"` se pose
+ * n'importe où : `<svg><style ng-app-id="ng">` et surtout `<noscript><style ng-app-id="ng">`
+ * étaient acceptés et hachés. Le second est une **divergence d'analyseurs** (famille S-001) :
+ * script activé, le navigateur ne voit **aucun élément** dans le `<noscript>` — il n'y a là qu'un
+ * texte —, mais son contenu obtenait tout de même un hachage dans un `style-src` **global**, donc
+ * valable pour toute la page. Angular pose ses styles en enfant direct de `<head>` (mesuré sur les
+ * 4 pages prerendues, 2026-08-18) ; toute autre place est une infraction NOMMÉE, pas un silence.
+ */
+const PARENTS_STYLE_ADMIS = new Set(['head', 'body']);
+
+/**
+ * Nombre de hachages de style DISTINCTS attendus dans l'artéfact — ÉPINGLÉ ICI EXPRÈS.
+ *
+ * C'est le miroir exact de `hachagesScript.size !== 1` : la seule chose qui empêche une permission
+ * `style-src` d'apparaître **sans qu'aucun humain ne l'ait vue**. Sans cette constante, la
+ * reconnaissance de provenance ne borne qu'un marqueur — que le producteur légitime porte lui-même
+ * (voir l'en-tête du fichier) : le `.scss` d'un composant neuf s'ajouterait donc en silence.
+ *
+ * ⚠️ CE NOMBRE VA ROUGIR, ET C'EST LE COMPORTEMENT VOULU. Trois à quatre fois d'ici la fin d'E2
+ * (E2-ST4, ST5, ST6 ajoutent chacune un composant à la page de leçon). Éditer un `.scss` existant
+ * ne change **pas** le compte : un composant neuf porteur de styles rougit **une fois**, et cette
+ * fois-là est exactement la revue qu'on veut. Mettre la constante à jour n'est PAS une formalité :
+ * elle passe par une relecture `security-reviewer`, **puis** l'édition. Jamais l'inverse (S-002).
+ *
+ * Valeur mesurée sur l'artéfact du 2026-08-18 : 9 hachages distincts pour 4 fichiers HTML inspectés
+ * (17 blocs, dédupliqués — les mises en page partagées se répètent d'une page à l'autre).
+ *
+ * ⚠️ CE NOMBRE EST CELUI DE L'ARTÉFACT DE PRODUCTION — `content/` vide, donc AUCUNE page de leçon
+ * prerendue (état du dépôt jusqu'à E3-ST1). Il est la valeur PAR DÉFAUT, celle qu'emploient
+ * `npm run build` en local et `deploy.yml`. La CI, elle, construit le même artéfact depuis la
+ * FIXTURE TÉMOIN pour que les gates voient une page de leçon interactive (décision E-2 du lot E) :
+ * son artéfact porte trois blocs de plus, et elle passe donc `--hachages-style` — voir juste
+ * en dessous. Un drapeau absent retombe ICI : jamais sur « pas de vérification ».
+ */
+const NOMBRE_HACHAGES_STYLE_ATTENDU = 9;
+
+/**
+ * @typedef {{ name: string }} AttributHtml
+ * @typedef {{ attributes: Iterable<AttributHtml>, getAttribute(nom: string): string | null, textContent: string | null, parentElement: { tagName: string } | null }} ElementHtml
+ * @typedef {{ document: { querySelectorAll(selecteur: string): Iterable<ElementHtml> } }} FenetreHtml
+ */
+
+const requerir = createRequire(import.meta.url);
+
+/**
+ * jsdom ne publie pas de types et `@types/jsdom` serait une dépendance de plus pour trois membres.
+ * La frontière est donc déclarée ICI, explicitement : c'est exactement la surface DOM que ce script
+ * s'autorise. `tsconfig.tools.json` n'a pas `lib: DOM` — volontairement — et cette annotation
+ * respecte cette frontière sans l'affaiblir. Même patron que `tools/a11y/verifier-axe.mjs` et
+ * `tools/content-pipeline/rendre-mermaid.mjs`.
+ *
+ * @type {new (html: string) => { window: FenetreHtml }}
+ */
+const JSDOM = requerir('jsdom').JSDOM;
 
 /**
  * Types de `<script>` réellement INERTES — le navigateur ne les exécute pas et la CSP ne les
@@ -139,6 +264,26 @@ const MOTIF_SCRIPT = /<script((?:"[^"]*"|'[^']*'|[^>"'])*)>([\s\S]*?)<\/script\s
 function hacher(contenu) {
   const normalise = contenu.replace(/\r\n?/g, '\n');
   return `'sha256-${createHash('sha256').update(normalise, 'utf8').digest('base64')}'`;
+}
+
+/**
+ * Décrit les attributs d'un élément pour un message d'infraction : c'est ce qui NOMME le bloc
+ * fautif. Sans cette description, « un bloc <style> refusé » n'apprend rien à qui doit corriger.
+ * Tronqué, parce qu'un message d'erreur ne doit pas déverser trois kilo-octets (même geste que
+ * `rendre-mermaid.mjs`).
+ *
+ * @param {ElementHtml} element
+ * @returns {string} `attr="valeur" …`, ou `(aucun attribut)` si l'élément n'en porte pas
+ */
+function decrireAttributs(element) {
+  const rendu = [...element.attributes]
+    .map((a) => {
+      const valeur = element.getAttribute(a.name);
+      const court = (valeur ?? '').length > 40 ? `${(valeur ?? '').slice(0, 40)}…` : (valeur ?? '');
+      return valeur === null ? a.name : `${a.name}="${court}"`;
+    })
+    .join(' ');
+  return rendu || '(aucun attribut)';
 }
 
 /**
@@ -287,6 +432,79 @@ function echec(message, details = []) {
   process.exit(1);
 }
 
+// --- 0. Ligne de commande ------------------------------------------------------
+
+/**
+ * Lit `--hachages-style <n>` : le nombre de hachages de style attendu POUR CET APPEL.
+ *
+ * POURQUOI UN PARAMÈTRE DU POINT D'APPEL, ET NON UNE SECONDE CONSTANTE. Depuis la décision E-2
+ * (lot E d'E2-ST3), deux artéfacts différents sortent du même code : celui du DÉPLOIEMENT, bâti
+ * sur `content/` (vide jusqu'à E3-ST1, donc aucune page de leçon), et celui de la CI, bâti sur la
+ * FIXTURE TÉMOIN pour que G-axe, G-e2e et ce générateur voient en permanence une page de leçon
+ * INTERACTIVE. Le second porte les blocs `<style>` des composants de leçon en plus : une constante
+ * unique ne peut pas satisfaire les deux, et « au moins n » desserrerait le contrôle.
+ *
+ * LES DEUX VALEURS RESTENT ÉCRITES DANS LE DÉPÔT, DONC REVUES : la valeur de production est
+ * `NOMBRE_HACHAGES_STYLE_ATTENDU` ci-dessus (défaut), celle de la CI est écrite en clair dans
+ * `.github/workflows/ci.yml`, à l'étape G-build. Aucune n'est dérivée de l'artéfact (S-002).
+ *
+ * FAIL-CLOSED, ET IL N'Y A AUCUNE FORME QUI TAIT LE CONTRÔLE :
+ *   · drapeau absent            → la valeur épinglée par défaut, jamais « pas de vérification » ;
+ *   · valeur manquante / non entière / négative → code 1 ;
+ *   · zéro                      → code 1 (un artéfact sans aucun bloc de style est une anomalie ;
+ *                                 l'accepter serait la seule écriture qui rendrait le contrôle
+ *                                 vide de sens) ;
+ *   · option inconnue           → code 1, plutôt qu'un drapeau mal tapé ignoré en silence.
+ *   · drapeau RÉPÉTÉ            → code 1. « Le dernier gagne » est la règle habituelle des
+ *                                 parseurs, et c'est précisément la mauvaise ici : le jour où
+ *                                 `scripts.config:swa` porterait un défaut, un
+ *                                 `npm run config:swa -- --hachages-style N` appendu l'écraserait
+ *                                 SANS BRUIT. Une autorisation CSP ne se surcharge pas en silence.
+ * La comparaison finale reste une ÉGALITÉ EXACTE, jamais un minimum.
+ *
+ * @returns {number}
+ */
+function lireNombreHachagesStyleAttendu() {
+  const args = process.argv.slice(2);
+  let attendu = NOMBRE_HACHAGES_STYLE_ATTENDU;
+  let dejaVu = false;
+
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg !== '--hachages-style') {
+      echec(`option inconnue : « ${String(arg)} »`, [
+        'usage : node tools/deploiement/generer-config-swa.mjs [--hachages-style <entier ≥ 1>]',
+        `sans ce drapeau, le compte attendu est celui de l’artéfact de production : ${NOMBRE_HACHAGES_STYLE_ATTENDU}`,
+      ]);
+    }
+    if (dejaVu) {
+      echec('l’option --hachages-style est répétée', [
+        'le dernier gagnerait, en silence — et ce nombre est une AUTORISATION CSP :',
+        'une valeur revue serait écrasée par une valeur appendue, sans que rien ne le dise.',
+      ]);
+    }
+    dejaVu = true;
+    const valeur = args[i + 1];
+    if (valeur === undefined || !/^\d+$/.test(valeur)) {
+      echec(`l’option --hachages-style attend un entier ≥ 1 — reçu « ${String(valeur)} »`, [
+        'ce nombre est une AUTORISATION CSP : une valeur illisible ne peut pas devenir un défaut permissif.',
+      ]);
+    }
+    const nombre = Number(valeur);
+    if (nombre < 1) {
+      echec('l’option --hachages-style refuse 0', [
+        'un artéfact prerendu sans aucun bloc <style> est une anomalie, pas un cas nominal :',
+        'accepter 0 serait la seule écriture de ce drapeau qui viderait le contrôle de son sens.',
+      ]);
+    }
+    attendu = nombre;
+    i += 1;
+  }
+  return attendu;
+}
+
+const nombreHachagesStyleAttendu = lireNombreHachagesStyleAttendu();
+
 // --- 1. Vérifications préalables ---------------------------------------------
 let source;
 try {
@@ -381,17 +599,77 @@ for (const page of pages) {
     infractions.push(`${nom} : ${n} attribut(s) style inline — bloqué(s) par style-src (les hachages ne couvrent pas les attributs)`);
   }
 
-  for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
-    // Un bloc vide donne `''`, jamais `undefined` : le groupe est obligatoire, ce cas est
-    // inatteignable. On le signale quand même plutôt que de sauter en silence — même geste que
-    // la branche <script> ci-dessus, et même règle affichée : ce qui n'est pas compris est
-    // REFUSÉ, jamais ignoré. Un `continue` muet ici serait le seul saut silencieux du fichier.
-    const corpsStyle = m[1];
-    if (corpsStyle === undefined) {
-      infractions.push(`${nom} : bloc <style> illisible — refusé par principe`);
+  // --- Blocs <style> : ANALYSÉS, puis confrontés à une provenance nominative -------------------
+  // Un motif regex ne verrait pas ce que le navigateur voit : `<STYLE>`, `<style ng-app-id='ng'>`,
+  // un attribut dont la valeur contient un `>`… autant de blocs qu'un motif rate ou découpe mal —
+  // et un bloc raté par le garde-fou est un bloc que rien ne signale (S-003). jsdom est déjà une
+  // dépendance du dépôt et applique les mêmes règles d'analyse que le navigateur : on parse, puis
+  // on confronte à la liste blanche. C'est la règle de `.claude/rules/security.md` §4 sur les
+  // formats structurés, et le patron de `rendre-mermaid.mjs`.
+  /** @type {ElementHtml[]} */
+  let blocsStyle = [];
+  try {
+    blocsStyle = [...new JSDOM(html).window.document.querySelectorAll('style')];
+  } catch (erreur) { // NOSONAR — nom français, voir `rendre-mermaid.mjs`
+    infractions.push(
+      `${nom} : page HTML non analysable (${String(erreur instanceof Error ? erreur.message : erreur)}) — refusée par principe`,
+    );
+  }
+
+  // CONTRÔLE DE CONSERVATION (S-003) : « je refuse tout ce que je vois » ne protège rien si voir
+  // peut échouer en silence. On compte les occurrences BRUTES de la structure ciblée et on exige
+  // l'égalité stricte avec ce que l'analyseur a rendu. Un écart n'est pas forcément dangereux : il
+  // est simplement NON COMPRIS, donc refusé en se nommant plutôt qu'ignoré.
+  //
+  // ⚠️ CE MESSAGE ACCUSE LA CSP POUR DES CAUSES QUI SONT SOUVENT ÉDITORIALES — les connaître évite
+  // la pression d'assouplissement décrite en S-011. Écarts possibles, tous reproduits :
+  //   · un `<style` dans un commentaire HTML ;
+  //   · un `<style` dans un `<template>` inerte ;
+  //   · un `<style` dans la chaîne d'un script ;
+  //   · un `<style ` dans une VALEUR D'ATTRIBUT (`<p data-exemple="<style >">`) : 1 brute, 0
+  //     élément. Faux positif LÉGITIME et conservé — un `<style` en valeur d'attribut mérite un
+  //     regard, parce que rien ne garantit que tous les analyseurs le lisent comme celui-ci.
+  // Un cinquième cas existait et a été supprimé À LA RACINE : un élément dont le NOM commence par
+  // `style` (`<style-guide>`, un composant web parfaitement légal dans une leçon) comptait comme
+  // occurrence brute et rendait la construction rouge. D'où l'ancrage `<style` + délimiteur de nom
+  // de balise ci-dessous — whitespace, `/` ou `>` sont exactement les caractères qui terminent un
+  // nom de balise pour le tokeniseur HTML, donc aucun vrai `<style>` ne peut échapper au compte
+  // (pas de fail-open) alors que `<style-guide>` en sort.
+  const occurrencesBrutes = (html.match(/<style[\s>/]/gi) ?? []).length;
+  if (occurrencesBrutes !== blocsStyle.length) {
+    infractions.push(
+      `${nom} : ${occurrencesBrutes} occurrence(s) brute(s) de « <style » pour ${blocsStyle.length} élément(s) <style> vu(s) par l’analyseur — écart refusé (le garde-fou doit prouver qu’il a TOUT vu)`,
+    );
+  }
+
+  for (const bloc of blocsStyle) {
+    const noms = [...bloc.attributes].map((a) => a.name.toLowerCase());
+    const provenanceAngular =
+      noms.length === 1 &&
+      noms[0] === ATTRIBUT_PROVENANCE_STYLE &&
+      bloc.getAttribute(ATTRIBUT_PROVENANCE_STYLE) === VALEUR_PROVENANCE_STYLE;
+    if (!provenanceAngular) {
+      infractions.push(
+        `${nom} : bloc <style ${decrireAttributs(bloc)}> de provenance non reconnue — seul « <style ${ATTRIBUT_PROVENANCE_STYLE}="${VALEUR_PROVENANCE_STYLE}"> », sans autre attribut, est haché ; tout autre bloc est bloqué par style-src`,
+      );
       continue;
     }
-    hachagesStyle.add(hacher(corpsStyle));
+    // PLACE, en plus de la provenance : le marqueur se pose n'importe où, et deux places ont été
+    // mesurées comme acceptées à tort — `<svg><style ng-app-id="ng">` et surtout
+    // `<noscript><style ng-app-id="ng">`, que le navigateur ne voit PAS comme un élément quand le
+    // script est actif alors que son contenu obtenait un hachage global (S-001).
+    const parent = (bloc.parentElement?.tagName ?? '').toLowerCase();
+    if (!PARENTS_STYLE_ADMIS.has(parent)) {
+      infractions.push(
+        `${nom} : bloc <style ${decrireAttributs(bloc)}> placé dans <${parent || '(racine)'}> — un bloc haché doit être enfant direct de ${[...PARENTS_STYLE_ADMIS].map((p) => `<${p}>`).join(' ou ')} ; ailleurs, ce que la CSP autorise n’est pas ce que le navigateur rend`,
+      );
+      continue;
+    }
+    // Le contenu, lui, reste DÉRIVÉ de l'artéfact — écart assumé à S-002, déclaré en tête de
+    // fichier. `textContent` est le texte tel que l'analyseur l'a construit, donc fins de ligne
+    // déjà normalisées ; `hacher` renormalise sans effet, et c'est bien ce texte-là que la CSP
+    // hache côté navigateur.
+    hachagesStyle.add(hacher(bloc.textContent ?? ''));
   }
 }
 
@@ -417,6 +695,30 @@ if (hachagesScript.size !== 1) {
     'Les pages prerendues doivent toutes porter le même script inline, octet pour octet.',
     'Vérifier que le script vient bien de `src/index.html` et qu’aucun composant n’en injecte un.',
   ]);
+}
+
+// MIROIR DU CONTRÔLE CI-DESSUS, POUR `style-src` (amendement de la décision E-3, 2026-08-18).
+// La reconnaissance de provenance ne borne qu'un MARQUEUR, et le producteur légitime le porte
+// lui-même : sans ce compte épinglé, le `.scss` d'un composant neuf ajoute son hachage à la CSP
+// sans qu'aucun humain ne le voie — mesuré, 9 → 10, code 0. Le compte, lui, ne bouge pas quand un
+// `.scss` existant est édité : le rouge arrive une fois par composant porteur de styles, et c'est
+// exactement la revue qu'on veut.
+if (hachagesStyle.size !== nombreHachagesStyleAttendu) {
+  echec(
+    `${hachagesStyle.size} hachage(s) de style distinct(s) dans l’artéfact — ${nombreHachagesStyleAttendu} attendu(s)`,
+    [
+      'Un bloc <style> de plus (ou de moins) CHANGE la permission style-src réellement servie.',
+      'Faire relire l’artéfact et la nouvelle directive par `security-reviewer`,',
+      'PUIS reporter le nouveau compte. Jamais l’inverse.',
+      // DEUX endroits, parce que DEUX artéfacts (décision E-2) : sans ce rappel, la moitié de la
+      // mise à jour se fait et l'autre workflow rougit plus tard sur une cause qui semblera étrangère.
+      'Où : NOMBRE_HACHAGES_STYLE_ATTENDU (artéfact de production, `deploy.yml`) pour un appel sans',
+      'drapeau ; le `--hachages-style` de l’étape G-build de `.github/workflows/ci.yml` pour l’artéfact',
+      'bâti sur la fixture témoin. Les deux comptes diffèrent, et c’est normal — la CI porte en plus',
+      'les blocs <style> des composants de la page de leçon.',
+      'Attendu ~3-4 fois d’ici la fin d’E2 : un composant neuf porteur de styles rougit une fois.',
+    ],
+  );
 }
 
 // --- 3. Écriture de l'artéfact -------------------------------------------------
@@ -467,5 +769,10 @@ writeFileSync(join(ARTEFACT, 'staticwebapp.config.json'), resolu);
 console.log(`✔ staticwebapp.config.json généré dans ${relative(RACINE, ARTEFACT)}`);
 console.log(`  ${pages.length} page(s) inspectée(s)`);
 console.log(`  ${cibles.length} cible(s) interne(s) vérifiée(s) présente(s) dans l’artéfact`);
-console.log(`  ${hachagesStyle.size} hachage(s) de style distinct(s), ${hachagesScript.size} de script`);
-if (hachagesStyle.size === 0) console.log('  (aucun bloc <style> inline — style-src reste à \'self\')');
+console.log(
+  `  ${hachagesStyle.size} hachage(s) de style distinct(s) (provenance ${ATTRIBUT_PROVENANCE_STYLE}="${VALEUR_PROVENANCE_STYLE}", ${nombreHachagesStyleAttendu} attendu(s)), ${hachagesScript.size} de script`,
+);
+// L'ancienne note « aucun bloc <style> inline — style-src reste à 'self' » a été retirée : le
+// compte étant désormais épinglé à NOMBRE_HACHAGES_STYLE_ATTENDU, arriver ici avec 0 hachage est
+// impossible (le typage l'a d'ailleurs signalé, TS2367). Un artéfact sans bloc de style est
+// aujourd'hui une anomalie qui doit rougir, pas une note de bas de page.

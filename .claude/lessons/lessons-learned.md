@@ -30,6 +30,14 @@ lignes 40-58 »), jamais le document entier. Un agent = un livrable vérifiable,
 
 **Réfs.** `.claude/rules/agent-context-budget.md` §2.
 
+**Addendum (2026-08-18, E2-ST4).** Une revue adversariale de plan a trouvé une prémisse fausse dans
+le backlog : « onglets de langage (PHP/C#/TS) » supposait le même code traduit en trois langages,
+alors que la fixture et le compilateur montrent des `exemples` en **paires de vulnérabilités
+distinctes** (PHP/XSS, C#/injection SQL) — un excellent arbitrage ARIA-vs-`<details>` a été produit
+pour une question qui ne se posait pas. **Un objectif de backlog est une intention, pas un
+contrat** : avant d'arbitrer COMMENT rendre une chose, vérifier dans le modèle de données/la
+fixture réelle que cette chose **existe telle que décrite**.
+
 **Addendum (2026-08-08).** Le même piège existe en sens inverse : mesurer le code avant de coder un
 défaut déjà consigné ne remplace pas **ouvrir son entrée de backlog**. Sur `chore/tsconfig-strict`,
 mesurer `tsconfig.json` a bien trouvé le volet `strict`, mais a manqué le second volet du même
@@ -801,6 +809,51 @@ justification qui promet plus que le code n'applique (famille S-009).
 **Réfs.** composant `QuizComponent`, E2-ST3 lot C ; `src/app/app.config.ts`
 (`withNoIncrementalHydration()`) ; CLAUDE.md, bloc de reprise « PIÈGES ENCORE ACTIFS » n°1 ;
 cousine [[L-032]].
+
+---
+
+## L-034 · Mutualiser une VÉRIFICATION déplace le risque vers le module mutualisé — il hérite du pouvoir de rendre tous ses appelants verts
+
+**Symptôme.** E2-ST3 lot E a extrait, à raison ([[L-016]] : deux copies d'une même assertion
+divergeraient en silence), trois modules d'aide depuis les specs e2e :
+`e2e/aides/indicateur-focus.ts`, `sonde-csp.ts`, `hydratation.ts`. Une fois extraits, ce ne sont
+plus des specs mais des **modules produit-adjacents qui portent la mesure** : un défaut de typage
+ou de logique y serait invisible depuis chaque spec appelant, et ferait passer verts les gates les
+plus structurants du dépôt (focus visible, CSP, hydratation — L-033/S-005). Ils ont dû être
+épinglés nommément dans le programme de typage e2e, avec justification écrite.
+
+**Règle.** Quand on factorise une vérification (assertion, sonde, matcher) hors d'un fichier de
+test, le module qui en résulte **change de nature** : il devient aussi critique que ce qu'il
+remplace, et demande la même garde qu'un gate — épinglage nominatif dans son programme de typage
+([[L-014]]/[[L-020]]), pas seulement un import propre. Réflexe à chaque extraction d'aide e2e/test :
+« ce fichier peut-il, seul, faire passer un test vert à tort ? » — si oui, il rejoint la liste
+gardée.
+
+**Réfs.** `e2e/aides/indicateur-focus.ts`, `sonde-csp.ts`, `hydratation.ts` ; `tsconfig.e2e.json` ;
+branche `feat/e2-st3-lot-e` ; cousines [[L-014]], [[L-016]], [[L-020]].
+
+---
+
+## L-035 · Un chiffre mesuré dans un périmètre ne se réemploie pas dans un autre périmètre sans être remesuré — et un test qui exige une sortie doit d'abord vérifier que l'entrée choisie la PRODUIT
+
+**Symptôme.** Trois échecs du lot E-c1, tous dans le spec, jamais dans le produit. (1) Le compte de
+radios épinglé (**14**) avait été relevé sur la **page entière** dans un document de clôture
+antérieur, puis réemployé tel quel dans un sélecteur borné **au seul quiz** — 3 des 14 étaient la
+bascule de thème de la coquille. (2) Le test choisissait la **bonne** réponse d'un `<select>`, puis
+exigeait que la correction la **cite** — le composant ne cite que les réponses **fausses** : le
+test rougissait sur un composant correct, faute d'avoir vérifié que son entrée produirait la sortie
+attendue. (3) Une U+00A0 littérale (imposée par la typo française du produit,
+`.claude/rules/contenu-pedagogique.md` §3) faisait rougir `no-irregular-whitespace`.
+
+**Règle.** (a) Un chiffre mesuré dans un périmètre (page entière, fixture antérieure, autre lot) ne
+s'épingle dans un test qu'après avoir été **remesuré dans le périmètre exact** du test — jamais
+recopié d'un document de clôture. (b) Un test qui affirme « la sortie contient X » doit d'abord
+vérifier que l'**entrée choisie** est de la nature qui produit X (ici : une mauvaise réponse pour
+tester une citation de correction) — sinon il teste une hypothèse sur le comportement, pas le
+comportement. Cousine de [[L-019]] (contrôle positif) sur un axe amont : ici c'est la **prémisse du
+test**, pas l'instrument de mesure, qui est fausse.
+
+**Réfs.** E2-ST3 lot E-c1 ; `e2e/parcours-clavier-quiz.spec.ts` ; `e2e/quiz-pre-hydratation.spec.ts`.
 
 ---
 
