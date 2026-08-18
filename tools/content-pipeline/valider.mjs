@@ -37,11 +37,32 @@
  *   node tools/content-pipeline/valider.mjs
  *   node tools/content-pipeline/valider.mjs --racine <chemin>
  *   node tools/content-pipeline/valider.mjs --fixtures <dossier>
+ *   node tools/content-pipeline/valider.mjs --clefs   (< tableau JSON sur l'entrée standard)
  *
  * `--fixtures` est le CONTRÔLE POSITIF du garde-fou (leçon L-019) : chaque sous-dossier y est une
  * racine dont on ATTEND qu'elle soit refusée. Le code de sortie y vaut 1 par construction — c'est
  * la liste des causes imprimées qui fait foi, pas le code. Un cas qui passerait est signalé en
  * toutes lettres comme un contrôle manqué.
+ *
+ * `--clefs` est un mode de TEST, au même titre que `--fixtures` : il expose `clefIndiscernable`
+ * à un runner sans ouvrir ce fichier à l'importation. La clef d'indiscernabilité existe en DEUX
+ * exemplaires — ici et dans `src/app/features/cours/quiz/quiz.ts` — et la duplication est
+ * assumée : la frontière entre l'outillage `.mjs` (troisième programme TypeScript,
+ * `tsconfig.tools.json`, Node pur) et la source Angular est délibérée. Ce qui n'est pas
+ * acceptable, c'est que le seul lien entre les deux copies soit un COMMENTAIRE (L-008). Ce mode
+ * est ce qui permet à `src/clef-indiscernable-parite.spec.ts` de faire calculer un même corpus
+ * par les deux implémentations et d'exiger l'égalité valeur par valeur.
+ *
+ * Le mode d'échec qu'il ferme n'est vicieux que dans un sens : si la copie du validateur devient
+ * plus PERMISSIVE que celle du composant, une leçon sort G-content verte puis casse au prerender
+ * d'`ng build`, sur un message qui ne nomme pas le fichier, au milieu d'une pile Angular.
+ *
+ * Entrée : un tableau JSON de chaînes, sur l'entrée standard. Sortie : le tableau JSON des clefs,
+ * dans le même ordre. Les deux passent par JSON, et la sortie est ÉCHAPPÉE EN ASCII PUR, parce
+ * que les valeurs en jeu sont faites de blanches significatives (U+00A0, tabulation, saut de
+ * ligne) et de décompositions Unicode : ni argv ni un flux dépendant de la page de code d'une
+ * console Windows ne les transportent sans les abîmer, et un transport qui abîme la valeur
+ * fabriquerait une divergence qui n'existe pas.
  */
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, relative, resolve, basename } from 'node:path';
@@ -674,12 +695,103 @@ function verifierCorps(corps, statut, signaler) {
 }
 
 /**
+ * 🔴 LA CLEF D'INDISCERNABILITÉ — le cœur de la règle, écrit ici parce que le composant
+ * (`src/app/features/cours/quiz/quiz.ts`) porte la MÊME et doit la porter à l'identique.
+ *
+ * L'invariant réellement voulu n'est pas « deux chaînes d'octets égales », c'est « deux
+ * champs que RIEN ne distingue à l'écran ». Une comparaison brute laisse donc passer
+ * `HSTS` contre `HSTS␠` (blanche de fin), contre `HSTS␠` en U+00A0, ou contre la même
+ * chaîne en NFD — et le rendu pose alors deux `<select>` au nom accessible identique,
+ * ce que la règle existait précisément pour empêcher.
+ *
+ * Ce n'est pas un cas exotique : `.claude/rules/contenu-pedagogique.md` §3 IMPOSE U+00A0
+ * dans le contenu du site. La collision est organisée par le projet lui-même.
+ *
+ * `\s` couvre U+00A0 et U+202F en JavaScript : replier toute suite de blanches sur une
+ * espace ordinaire, puis rogner les bords, rend indiscernables exactement les chaînes que
+ * l'œil ne sépare pas. La normalisation NFC replie en plus les décompositions Unicode
+ * (`é` en un point de code contre `e` + accent combinant).
+ *
+ * @param {string} valeur
+ * @returns {string}
+ */
+function clefIndiscernable(valeur) {
+  return valeur.normalize('NFC').replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Relève les groupes de valeurs INDISCERNABLES qui apparaissent plus d'une fois, dans
+ * l'ordre de leur première occurrence. Un message qui NOMME la valeur fautive vaut mieux
+ * qu'un message qui annonce seulement qu'il en existe une : l'auteur cherche sinon à
+ * l'œil dans un lot de huit paires.
+ *
+ * La comparaison se fait sur `clefIndiscernable`, mais chaque groupe conserve les valeurs
+ * BRUTES rencontrées : c'est celles-là que l'auteur doit reconnaître dans son fichier, pas
+ * une forme normalisée qu'il n'y trouvera nulle part.
+ *
+ * @param {readonly string[]} valeurs
+ * @returns {{ brutes: string[], invisible: boolean }[]}
+ */
+function releverDoublons(valeurs) {
+  /** @type {Map<string, { brutes: string[], occurrences: number }>} */
+  const parClef = new Map();
+  for (const valeur of valeurs) {
+    const clef = clefIndiscernable(valeur);
+    const groupe = parClef.get(clef);
+    if (groupe === undefined) {
+      parClef.set(clef, { brutes: [valeur], occurrences: 1 });
+      continue;
+    }
+    groupe.occurrences += 1;
+    if (!groupe.brutes.includes(valeur)) groupe.brutes.push(valeur);
+  }
+  return [...parClef.values()]
+    .filter((groupe) => groupe.occurrences > 1)
+    .map((groupe) => ({ brutes: groupe.brutes, invisible: groupe.brutes.length > 1 }));
+}
+
+/**
+ * Met une liste de valeurs en forme pour un message d'anomalie : « a », « b ».
+ * Fonction plutôt qu'expression en ligne — un `map(…).join(…)` interpolé dans un
+ * gabarit de chaîne y imbrique un second gabarit, que la règle
+ * `sonarjs/no-nested-template-literals` refuse.
+ *
+ * @param {readonly string[]} valeurs
+ * @returns {string}
+ */
+function enumererEntreGuillemets(valeurs) {
+  return valeurs.map((valeur) => `« ${valeur} »`).join(', ');
+}
+
+/**
+ * Décrit les groupes rendus par `releverDoublons`. Un groupe dont les valeurs brutes
+ * DIFFÈRENT le dit : sans cette mention, l'auteur lirait deux libellés visuellement
+ * identiques entre guillemets et croirait à un défaut du validateur, alors que la
+ * différence est justement celle qu'il ne peut pas voir.
+ *
+ * @param {readonly { brutes: string[], invisible: boolean }[]} groupes
+ * @returns {string}
+ */
+function decrireDoublons(groupes) {
+  const invisible = groupes.some((groupe) => groupe.invisible);
+  const liste = groupes.map((groupe) => enumererEntreGuillemets(groupe.brutes)).join(', ');
+  if (!invisible) return liste;
+  return `${liste} — ces libellés ne diffèrent que par des blanches ou une normalisation Unicode, donc rien ne les distingue à l'écran`;
+}
+
+/**
  * Cohérences d'une question `choix-multiple` : identifiants de choix distincts, et
  * `bonneReponse` qui désigne réellement l'un d'eux.
  *
  * Un `bonneReponse` orphelin est le défaut le plus coûteux du format : le schéma ne peut pas
  * l'exprimer (il faudrait comparer une valeur à une liste voisine), et une question dont aucune
  * réponse n'est bonne ne se voit qu'à l'usage, en pleine leçon.
+ *
+ * ℹ️ La clef d'indiscernabilité est PARTAGÉE avec `gauche`, mais elle est ici une IDENTITÉ :
+ * `choix[].id` est tenu au kebab-case par le schéma (`#/definitions/identifiant`), motif qui
+ * n'admet ni blanche ni caractère hors ASCII. Aucun `id` légal ne peut donc changer en
+ * traversant `clefIndiscernable`. On la passe quand même, par une seule fonction de relevé —
+ * deux fonctions divergeraient, et celle-ci ne peut rien relâcher sur un `id` valide.
  *
  * @param {Record<string, unknown>} q question déjà validée par le schéma
  * @param {string} id identifiant de la question, tel qu'il est rapporté
@@ -690,13 +802,66 @@ function verifierQuestionChoixMultiple(q, id, signaler) {
   const idsChoix = choix
     .map((c) => (estObjet(c) && typeof c['id'] === 'string' ? c['id'] : null))
     .filter((c) => c !== null);
-  if (new Set(idsChoix).size !== idsChoix.length) {
-    signaler(`question « ${id} » : deux choix portent le même identifiant`);
+  const idsRepetes = releverDoublons(idsChoix);
+  if (idsRepetes.length > 0) {
+    // Deux choix au même `id` rendent deux radios de même `value` dans le même groupe :
+    // le visiteur en coche une, la correction lit l'autre — et la question devient
+    // infalsifiable. Le composant le refuse aussi (`quiz.ts`), mais c'est ICI que le
+    // message nomme le FICHIER, avant que le prerender ne casse au milieu d'une pile
+    // Angular. Le nommer ici ne dispense pas de l'y garder : le composant est la
+    // frontière de confiance contre un artéfact d'une AUTRE version du pipeline.
+    signaler(
+      `question « ${id} » : « choix » — deux choix portent le même « id » ` +
+        `(${decrireDoublons(idsRepetes)})`,
+    );
   }
   if (!idsChoix.includes(String(q['bonneReponse']))) {
     signaler(
       `question « ${id} » : « bonneReponse » vaut « ${String(q['bonneReponse'])} », qui n'est ` +
         `l'identifiant d'aucun choix (${idsChoix.join(', ') || 'aucun'})`,
+    );
+  }
+}
+
+/**
+ * Cohérence d'une question `associer` : deux paires ne peuvent pas porter le même
+ * libellé `gauche`.
+ *
+ * POURQUOI ICI, ET PAS SEULEMENT DANS LE COMPOSANT. Le rendu (décision D-1, backlog
+ * §E2-ST3) pose un `<select>` par ligne de gauche, indexé par son RANG ; deux libellés
+ * identiques donnent donc deux champs que rien ne distingue à l'écran, sur une
+ * correction ligne à ligne devenue illisible. `quiz.ts` le refuse — mais il le refuse
+ * au PRERENDER, sur un message qui nomme la question et le champ sans nommer le
+ * fichier, au milieu d'une pile Angular. Une leçon légale au schéma sortait donc
+ * G-content VERT avant de casser `ng build`. Le contrôle du composant reste en place :
+ * il cesse seulement d'être le premier à parler.
+ *
+ * ⚠️ L'ÉGALITÉ D'OCTETS N'EST PAS L'INDISCERNABILITÉ (lot E-a). La comparaison passe par
+ * `clefIndiscernable` : `HSTS` et `HSTS` suivi d'une U+00A0 rendraient deux `<select>` au
+ * nom accessible identique tout en étant deux chaînes distinctes. Le contenu du site
+ * EMPLOIE U+00A0 par consigne (`.claude/rules/contenu-pedagogique.md` §3) — la collision
+ * est donc organisée par le projet, pas hypothétique.
+ *
+ * ⚠️ `droite`, LUI, A LE DROIT DE SE RÉPÉTER — et ce n'est pas un oubli. La clause de
+ * D-1 est explicite : forcer l'unicité des réponses transformerait l'exercice en sudoku
+ * et masquerait la vraie erreur de compréhension. Le rendu déduplique les `<option>` ;
+ * la correction dit ligne par ligne ce qui est juste. Ne pas « compléter » cette
+ * fonction par symétrie.
+ *
+ * @param {Record<string, unknown>} q question déjà validée par le schéma
+ * @param {string} id identifiant de la question, tel qu'il est rapporté
+ * @param {(cause: string) => void} signaler
+ */
+function verifierQuestionAssocier(q, id, signaler) {
+  const paires = Array.isArray(q['paires']) ? q['paires'] : [];
+  const gauches = paires
+    .map((p) => (estObjet(p) && typeof p['gauche'] === 'string' ? p['gauche'] : null))
+    .filter((g) => g !== null);
+  const gauchesRepetes = releverDoublons(gauches);
+  if (gauchesRepetes.length > 0) {
+    signaler(
+      `question « ${id} » : « paires » — deux paires portent le même « gauche » ` +
+        `(${decrireDoublons(gauchesRepetes)})`,
     );
   }
 }
@@ -747,6 +912,7 @@ function verifierQuizHorsSchema(quiz, slug, signaler) {
     if (typeof q['type'] === 'string') types.add(q['type']);
 
     if (q['type'] === 'choix-multiple') verifierQuestionChoixMultiple(q, id, signaler);
+    if (q['type'] === 'associer') verifierQuestionAssocier(q, id, signaler);
     if (q['type'] === 'trouver-la-faille') verifierQuestionTrouverLaFaille(q, id, signaler);
   });
 
@@ -1155,7 +1321,7 @@ function validerRacine(racine) {
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {{ racine: string, racineExplicite: boolean, fixtures: string | null }}
+ * @returns {{ racine: string, racineExplicite: boolean, fixtures: string | null, clefs: boolean }}
  */
 function lireArguments() {
   const args = process.argv.slice(2);
@@ -1163,9 +1329,16 @@ function lireArguments() {
   let racineExplicite = false;
   /** @type {string | null} */
   let fixtures = null;
+  let clefs = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    // `--clefs` est un DRAPEAU, pas une option à valeur : les chaînes du corpus arrivent par
+    // l'entrée standard, jamais par argv (voir l'en-tête du fichier).
+    if (arg === '--clefs') {
+      clefs = true;
+      continue;
+    }
     if (arg === '--racine' || arg === '--fixtures') {
       const valeur = args[i + 1];
       if (valeur === undefined || valeur.startsWith('--')) {
@@ -1182,9 +1355,10 @@ function lireArguments() {
     }
     echec(`argument inconnu : « ${String(arg)} »`, [
       'Usage : node tools/content-pipeline/valider.mjs [--racine <chemin>] [--fixtures <dossier>]',
+      '        node tools/content-pipeline/valider.mjs --clefs   (tableau JSON sur stdin)',
     ]);
   }
-  return { racine, racineExplicite, fixtures };
+  return { racine, racineExplicite, fixtures, clefs };
 }
 
 /**
@@ -1206,7 +1380,46 @@ function imprimerAnomalies(anomalies) {
   for (const a of anomalies) console.error(`   ✖ ${a.fichier}\n      ${a.cause}`);
 }
 
+/**
+ * Échappe en ASCII PUR toute unité de code hors de l'ASCII imprimable, pour que le tableau JSON
+ * écrit sur la sortie standard traverse n'importe quelle page de code. `JSON.stringify` laisse
+ * `é` et U+00A0 littéraux ; ce sont précisément les caractères que le corpus met en jeu.
+ *
+ * @param {readonly string[]} valeurs
+ * @returns {string}
+ */
+function enJsonAscii(valeurs) {
+  return JSON.stringify(valeurs).replace(/[^\x20-\x7E]/gu, (c) => {
+    const code = c.charCodeAt(0).toString(16).padStart(4, '0');
+    return `\\u${code}`;
+  });
+}
+
 const options = lireArguments();
+
+if (options.clefs) {
+  // --- Mode PARITÉ DES DEUX COPIES DE LA CLEF -------------------------------
+  // Lecture SYNCHRONE du descripteur 0 : ce fichier n'a pas de fonction principale asynchrone,
+  // et le corpus tient en quelques centaines d'octets.
+  const brut = readFileSync(0, 'utf8');
+  /** @type {unknown} */
+  let recu;
+  try {
+    recu = JSON.parse(brut);
+  } catch {
+    echec("--clefs : l'entrée standard n'est pas du JSON valide");
+  }
+  // FAIL-CLOSED, comme partout ailleurs dans ce fichier : une entrée non comprise est une
+  // infraction. Un mode de test qui accepterait n'importe quoi rendrait des clefs sur du vide,
+  // et la parité serait « vérifiée » sur zéro valeur.
+  if (!Array.isArray(recu) || recu.some((v) => typeof v !== 'string')) {
+    echec('--clefs : attendu un tableau JSON de chaînes sur l\'entrée standard');
+  }
+  const valeurs = /** @type {string[]} */ (recu);
+  if (valeurs.length === 0) echec('--clefs : corpus vide — une parité sur zéro valeur ne prouve rien');
+  process.stdout.write(`${enJsonAscii(valeurs.map(clefIndiscernable))}\n`);
+  process.exit(0);
+}
 
 if (options.fixtures !== null) {
   // --- Mode CONTRÔLE POSITIF ------------------------------------------------

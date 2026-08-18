@@ -147,6 +147,45 @@ absent de toute leçon `statut: publiee`) : `<!-- à-vérifier: <affirmation> �
 Contraintes : 5 à 10 questions par leçon ; au moins 2 types différents ; `explication`/
 `justification` jamais vide (règle contenu-pedagogique §5) ; `ficheSource` sur chaque question.
 
+### Les trois unicités que JSON Schema ne sait pas exprimer
+
+Elles sont vérifiées **hors schéma** par `valider.mjs`, donc refusées avec un message qui **nomme
+le fichier**, la question et le champ — et non au prerender, au milieu d'une pile Angular.
+
+- **`questions[].id` — deux à deux distincts dans un même quiz.** C'est le seul des trois qui
+  alimente le langage de requête : le composant retrouve une radio par
+  `[id="…"] input[type=radio]:checked`, et `querySelector` rend le **premier** match — deux
+  questions homonymes feraient donc relire l'état d'une **autre** question à l'amorçage de
+  pré-hydratation (L-033).
+- **`choix[].id` — deux à deux distincts dans une même question.** Deux choix au même `id` rendent
+  deux radios de même `value` dans le même groupe : le visiteur en coche une, la correction lit
+  l'autre, et la question devient infalsifiable.
+- **`paires[].gauche` — deux à deux distincts dans une même question.** Le rendu pose un `<select>`
+  par ligne de gauche, indexé par son **rang** (décision D-1, backlog §E2-ST3) : deux libellés
+  identiques donnent deux champs que rien ne distingue à l'écran, sur une correction ligne à ligne
+  devenue illisible.
+
+🔴 **L'unicité se juge sur une clef NORMALISÉE, pas sur l'égalité d'octets** (`clefIndiscernable`,
+écrite des deux côtés) : `NFC`, toute suite de blanches repliée sur une espace, bords rognés.
+L'invariant voulu est « deux champs que **rien ne distingue à l'écran** » — `HSTS` contre `HSTS`
+suivi d'une U+00A0 passait les deux contrôles. Ce n'est pas un cas exotique :
+[`.claude/rules/contenu-pedagogique.md`](../../.claude/rules/contenu-pedagogique.md) §3 **impose**
+U+00A0 dans le contenu. Le message d'erreur cite les valeurs **brutes**, celles que l'auteur
+retrouvera dans son fichier, et dit quand la différence est invisible.
+
+ℹ️ **Un champ de texte doit porter au moins un caractère non blanc** : `texte`, `gauche`, `droite`,
+`correction` et `code` sont sous `pattern: "\\S"`, pas sous `minLength: 1`. Le composant exige
+`trim() !== ''` — un `"gauche": "   "` sortait donc G-content **vert** avant de casser `ng build`
+au prerender, sur un message qui ne nomme pas le fichier.
+
+⚠️ **`paires[].droite`, lui, PEUT se répéter** — c'est une décision, pas un trou. Forcer l'unicité
+des réponses transformerait l'exercice en sudoku et masquerait la vraie erreur de compréhension.
+Les `<option>` sont dédupliquées au rendu, et la correction se prononce **ligne par ligne**.
+
+Le composant (`src/app/features/cours/quiz/quiz.ts`) applique **les mêmes règles** à sa frontière
+(l'unicité des `questions[].id` y étant tenue par `lireLeconCompilee`) : il n'est plus le premier à
+parler, mais il reste la défense contre un artéfact produit par une **autre version** du pipeline.
+
 ### Ce que le pipeline en émet
 
 Le quiz voyage **dans la leçon** : il sort en `LeconCompilee.quiz`, dans le même

@@ -231,6 +231,44 @@ function estRempli(valeur: unknown): boolean {
   return typeof valeur === 'string' && valeur.trim() !== '';
 }
 
+/**
+ * 🔴 LA CLEF D'INDISCERNABILITÉ — la MÊME règle que `clefIndiscernable` de
+ * `tools/content-pipeline/valider.mjs`, écrite ici parce que les deux bouts doivent la
+ * porter à l'identique (même partage que l'unicité de `gauche` elle-même).
+ *
+ * L'invariant voulu n'est pas « deux chaînes d'octets égales », c'est « deux champs que
+ * RIEN ne distingue à l'écran ». `HSTS` contre `HSTS` suivi d'une U+00A0, ou une paire
+ * NFC/NFD, passaient les deux contrôles et rendaient deux `<select>` au nom accessible
+ * identique — exactement ce que la règle existe pour empêcher. Et la collision est
+ * ORGANISÉE par le projet : `.claude/rules/contenu-pedagogique.md` §3 impose U+00A0 dans
+ * le contenu du site.
+ *
+ * `\s` couvre U+00A0 en JavaScript : replier toute suite de blanches sur une espace
+ * ordinaire puis rogner les bords rend indiscernables les chaînes que l'œil ne sépare
+ * pas ; `normalize('NFC')` replie en plus les décompositions Unicode.
+ *
+ * ℹ️ Sur un `choix[].id`, la même clef est une IDENTITÉ : le kebab-case (`KEBAB_CASE`,
+ * imposé plus bas et par le schéma) n'admet ni blanche ni caractère hors ASCII. On la
+ * partage quand même, pour n'avoir qu'une seule règle à faire évoluer.
+ *
+ * 🔴 EXPORTÉE POUR ÊTRE CONFRONTÉE, PAS POUR ÊTRE RÉUTILISÉE. Aucune autre source du site
+ * ne l'importe — et si l'une le faisait, ce serait un import inter-features, interdit. Le
+ * seul consommateur est `src/clef-indiscernable-parite.spec.ts`, qui fait calculer un
+ * corpus de valeurs piégeuses par CETTE copie et par celle de `valider.mjs`
+ * (mode `--clefs`, par processus fils) et exige l'égalité valeur par valeur. Avant lui, le
+ * seul lien entre les deux copies était le commentaire ci-dessus — donc rien du tout
+ * (L-008), sur une divergence dont le mode d'échec est de rendre G-content VERTE puis de
+ * casser au prerender.
+ */
+export function clefIndiscernable(valeur: string): string {
+  return valeur.normalize('NFC').replace(/\s+/g, ' ').trim();
+}
+
+/** Vrai si deux valeurs de la liste sont indiscernables à l'écran. */
+function porteUnDoublonIndiscernable(valeurs: readonly string[]): boolean {
+  return new Set(valeurs.map(clefIndiscernable)).size !== valeurs.length;
+}
+
 @Component({
   selector: 'app-quiz',
   styleUrl: './quiz.scss',
@@ -957,9 +995,12 @@ export class Quiz implements OnInit {
         }
         if (!estRempli(choix?.texte)) manques.push(`${ou}.texte : texte non vide attendu`);
       }
-      if (new Set(identifiants).size !== identifiants.length) {
+      if (porteUnDoublonIndiscernable(identifiants)) {
         // Deux propositions homonymes rendraient deux radios de même `value` : le
-        // visiteur en cocherait une et la correction lirait l'autre.
+        // visiteur en cocherait une et la correction lirait l'autre. Comme pour
+        // `gauche` ci-dessous, `valider.mjs` porte la même règle à G-content et parle
+        // le premier, en nommant le fichier ; celui-ci garde l'artéfact d'une autre
+        // version du pipeline (lot E-a).
         manques.push('« choix » : deux propositions partagent le même « id »');
       }
       if (!identifiants.includes(question.bonneReponse)) {
@@ -1013,12 +1054,25 @@ export class Quiz implements OnInit {
         else gauches.push(paire.gauche);
         if (!estRempli(paire?.droite)) manques.push(`${ou}.droite : texte non vide attendu`);
       }
-      if (new Set(gauches).size !== gauches.length) {
+      if (porteUnDoublonIndiscernable(gauches)) {
         // Deux libellés de gauche identiques rendraient deux champs au nom
         // accessible identique : le lecteur d'écran annoncerait deux fois la même
         // chose, et la correction ligne à ligne deviendrait illisible. Les valeurs
         // de DROITE, elles, ont parfaitement le droit de se répéter (décision D-1).
-        manques.push('« paires » : deux paires partagent le même « gauche »');
+        //
+        // ⚠️ CE CONTRÔLE N'EST PLUS LE PREMIER À PARLER (lot E-a). `valider.mjs`
+        // porte la même règle, à G-content, là où le message NOMME LE FICHIER —
+        // avant que le prerender ne casse au milieu d'une pile Angular. Celui-ci
+        // reste néanmoins la frontière de confiance contre un artéfact produit par
+        // une AUTRE version du pipeline : ne pas le retirer au motif du doublon.
+        //
+        // La comparaison passe par `clefIndiscernable`, pas par l'égalité d'octets :
+        // « rien ne les distingue à l'écran » est l'invariant, et une U+00A0 de fin
+        // suffisait à contourner un `Set` sur les valeurs brutes.
+        manques.push(
+          '« paires » : deux paires portent le même « gauche » — à blanches et ' +
+            'normalisation Unicode près, donc rien ne les distingue à l’écran',
+        );
       }
     }
 

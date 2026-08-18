@@ -1310,6 +1310,13 @@ pipeline. Le commentaire le disait mal ; il est corrigé.
   c'est là que le message nomme le fichier ; documenter la contrainte dans la `description` de
   `paires` du schéma et dans `pipeline-contenu.md` ; **garder** le contrôle du composant, qui cesse
   seulement d'être le premier à parler.
+  ⚠️ **Rectification du 2026-08-18, relevée au lot E-a et vérifiée sur la source** : la seconde
+  moitié de ce constat était **fausse**. L'unicité des `choix[].id` était **déjà** dans
+  `valider.mjs` (`7e2675b`, passe SonarCloud) — ce qui manquait était sa **fixture**. C'est du
+  **L-019 pur** : une règle exacte que rien n'exerçait, donc invisible à toute régression, et un
+  document qui la déclarait absente parce que rien ne la faisait parler. La source prime sur la
+  doc ; le lot E-a a ajouté la fixture et enrichi le message (il nomme désormais la valeur en
+  double).
 - **La clause de D-1 « `droite` en double reste permise » n'a aucun contrôle positif.** Aucune fixture
   n'a deux paires partageant un `droite`, donc la déduplication d'`optionsDroite` n'est **jamais
   exécutée**. Le test qui semble la couvrir pose deux `<select>` sur la même valeur d'un lot dont tous
@@ -1330,6 +1337,56 @@ pipeline. Le commentaire le disait mal ; il est corrigé.
   faire taire l'avertissement : la résolution est **E2-ST4**, qui extrait `.code-numerote`.
 - **L-023 a mordu une fois de plus** (backtique dans un commentaire HTML d'un `template:` inline) et
   **rien dans le dépôt ne le garde** — candidat sérieux à un vrai gate.
+
+#### 🔵 Les trois décisions du lot E, tranchées le 2026-08-18 (avant d'écrire une ligne)
+
+Même exigence qu'au lot D : le lot E touche la **forme de la CI** et la **posture CSP**, deux choses
+qu'on n'improvise pas en chemin. Les voici, avec ce qui les a tranchées.
+
+**E-1 · Le lot E se découpe en TROIS agents frais, et les dettes du lot D passent en premier.**
+`E-a` — les dettes du lot D, **sans navigateur** : unicité de `gauche` et des `choix[].id` remontée
+dans `valider.mjs`, contrôle positif du `droite` dupliqué, test à deux mains de S-011 étendu aux
+quatre types, nettoyage de `quiz.spec.ts`. `E-b` — le **harnais de leçon interactive**, la CSP servie
+enfin mesurée avec le quiz à l'écran, la confrontation `style-src`/S-002, G-axe. `E-c` — l'**e2e sous
+CSP réelle** : L-033 prouvé par Playwright (cocher pendant la fenêtre de pré-hydratation), le piège
+jumeau du `<select>` qui avale une valeur avant que ses `<option>` n'existent, le parcours clavier
+complet, et la checklist **G-clavier**.
+*Ce qui l'a tranché.* Les lots C et D ont fini leur agent à **264k et 262k**, au-delà du plafond
+absolu de `.claude/rules/agent-context-budget.md`. Ce n'est plus un accident de brief : c'est le
+calibre des lots. `E-a` est déjà un livrable vérifiable seul (G-content + G-test) et ne partage
+**aucun** contexte avec la mesure navigateur ; `E-c` consomme le harnais que `E-b` pose, donc l'ordre
+est contraint, pas arbitraire.
+
+**E-2 · Le harnais de leçon interactive est CÂBLÉ en CI, sur la fixture témoin.**
+`ci.yml` compile désormais le contenu depuis
+`tools/content-pipeline/__fixtures__/temoin/cours/securite-web` : G-axe, G-e2e et la génération de
+config SWA voient **en permanence** une page de leçon interactive. `deploy.yml` garde la racine de
+production (`content/cours/securite-web`) — c'est lui qui publie, et ses vérifications **en ligne**
+restent le juge de la CSP réellement servie.
+*Ce qui l'a tranché.* Une mesure jetable aurait laissé le composant redevenir invisible aux gates dès
+le lendemain — exactement le motif **L-019 / L-005** que ce dépôt paie déjà. Et l'angle mort n'est pas
+propre à E2-ST3 : **E2-ST4, ST5 et ST6** ajoutent chacune un composant interactif à la page de leçon
+et se heurteraient au même `content/` vide. Le second `ng build` d'une étape séparée coûtait ~3 min de
+CI pour la seule fidélité d'un artéfact que `deploy.yml` reconstruit de toute façon.
+⚠️ **Écart assumé et nommé** : la CSP mesurée en CI n'est pas octet pour octet celle du déploiement.
+La parade existe déjà et ne bouge pas — les contrôles fail-closed **en ligne** de `deploy.yml`,
+qui portent sur les directives servies.
+
+**E-3 · `style-src` cesse de tout hacher : la dérivation est BORNÉE À LA PROVENANCE Angular.**
+Seuls les blocs `<style ng-app-id="ng">` **sans autre attribut** sont hachés ; tout autre `<style>`
+de la sortie prerendue devient une **infraction nommée**, au même titre qu'un gestionnaire
+d'événement en ligne.
+*Ce qui l'a tranché.* En l'état, `generer-config-swa.mjs` hache **tout ce qu'il trouve** — c'est la
+lettre de **S-002** (« une autorisation CSP se compare à une valeur revue épinglée, jamais ne se
+dérive de l'artéfact »), et le générateur cesserait d'être un garde-fou pour devenir un distributeur
+de permissions, ce que son propre en-tête reproche déjà à `script-src`. Épingler chaque hachage de
+style comme `HACHAGE_SCRIPT_ATTENDU` était l'option fidèle à la lettre, et c'est précisément celle
+qui rougirait à **chaque `.scss` touché** : la pression à contourner serait permanente, sur un
+garde-fou dont S-011 nous a déjà montré qu'il en subit.
+⚠️ **L'écart résiduel se DÉCLARE, il ne se tait pas** : le *contenu* d'un bloc Angular reste dérivé.
+Ce qui est fermé, c'est qu'un bloc injecté par **autre chose qu'Angular** puisse s'auto-autoriser.
+À écrire dans S-002 et dans l'en-tête du générateur, dans le même diff que le code — sans quoi c'est
+**S-009** (un texte qui promet plus que le code n'applique).
 
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.

@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // POURQUOI CE TEST EXISTE — et pourquoi il est arrivé en retard.
 // `tools/content-pipeline/valider.mjs` porte un mode `--fixtures` qui est le
-// contrôle positif du garde-fou (L-019) : dix dossiers, une faute chacun, tous
+// contrôle positif du garde-fou (L-019) : quatorze dossiers, une faute chacun, tous
 // attendus REFUSÉS. Ce mode était exact, exécutable à la main… et lancé par
 // PERSONNE — ni par un test, ni par un script npm, ni par un workflow. Or
 // `content/cours/securite-web` n'existe pas encore : l'étape de validation de
@@ -15,13 +15,13 @@
 // runner n'exécute est une intention, pas un gate. Ce fichier est le runner.
 //
 // LES TROIS CHOSES QU'IL PROUVE, et pourquoi aucune ne suffit seule :
-//   1. Les dix cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
+//   1. Les quatorze cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
 //      un validateur qui refuserait TOUT.
 //   2. La leçon-témoin VALIDE passe, code 0. C'est l'autre moitié de la pince :
 //      ensemble, les deux prouvent que le garde-fou discrimine.
 //   3. Chaque refus porte la BONNE cause, cas par cas. Sans ce troisième point,
-//      dix refus pour une seule et même raison (un chemin introuvable, disons)
-//      seraient indistinguables de dix refus corrects.
+//      quatorze refus pour une seule et même raison (un chemin introuvable, disons)
+//      seraient indistinguables de quatorze refus corrects.
 //
 // LES CAUSES ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées de l'outil
 // qu'elles vérifient (L-012). Un test qui importe la constante dont il contrôle
@@ -41,7 +41,7 @@ const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const DOSSIER_INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
 const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
 
-/** Ajv compile ses schémas et dix racines : lent une fois, pas dix fois. */
+/** Ajv compile ses schémas et quatorze racines : lent une fois, pas quatorze fois. */
 const DELAI = 60_000;
 
 /**
@@ -68,6 +68,36 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
   // a bougé sans que rien d'exécutable le constate. Le refus est désormais EXPLICITE, et ce cas est
   // ce qui l'empêche de redevenir accidentel.
   { dossier: 'corps-titre-de-section-vide', cause: /titre de section sans texte/ },
+  // Onzième et douzième cas, ajoutés le 2026-08-18 (E2-ST3, lot E-a). Ils verrouillent les deux
+  // unicités qu'un `quiz.json` doit tenir et que JSON Schema ne peut pas exprimer. Le point à ne
+  // pas manquer : sans eux, le refus vient du COMPOSANT, donc au prerender d'`ng build`, sur un
+  // message qui nomme la question et le champ mais PAS le fichier, au milieu d'une pile Angular.
+  // Et l'unicité des `choix[].id` était déjà écrite dans `valider.mjs` — sans qu'aucune fixture ne
+  // l'exerce : exactement L-019, une règle exacte que rien n'empêchait de disparaître.
+  {
+    dossier: 'quiz-associer-gauche-repete',
+    cause: /« q4 » : « paires » — deux paires portent le même « gauche »/,
+  },
+  {
+    dossier: 'quiz-choix-identifiant-repete',
+    cause: /« q1 » : « choix » — deux choix portent le même « id »/,
+  },
+  // Treizième cas (lot E-a, constat de revue) : la TROISIÈME règle d'unicité du quiz — celle des
+  // `id` de QUESTION — existait dans `valider.mjs` sans aucune fixture, pendant que les deux
+  // autres venaient d'en recevoir une. C'est le L-019 laissé ouvert sur la seule des trois qui
+  // alimente vraiment le langage de requête : `quiz.ts` retrouve une radio par
+  // `[id="…"] input[type=radio]:checked`, et `querySelector` rend le PREMIER match — deux
+  // questions homonymes feraient donc relire à l'amorçage L-033 la radio d'une AUTRE question.
+  { dossier: 'quiz-question-identifiant-repete', cause: /« q1 » : identifiant répété/ },
+  // Quatorzième cas (lot E-a) : le CONTRÔLE POSITIF de la clef d'indiscernabilité. Les deux
+  // libellés `gauche` y sont deux chaînes d'octets DIFFÉRENTES (la seconde finit par une U+00A0)
+  // que rien ne sépare à l'écran. Avant le correctif, la comparaison portait sur les octets bruts
+  // et ce cas sortait ACCEPTÉ — sur un contenu que le rendu aurait cassé. Et ce n'est pas
+  // exotique : `.claude/rules/contenu-pedagogique.md` §3 impose U+00A0 dans le contenu du site.
+  {
+    dossier: 'quiz-associer-gauche-indiscernable',
+    cause: /« q4 » : « paires ».*ne diffèrent que par des blanches ou une normalisation Unicode/,
+  },
 ];
 
 /**
@@ -100,18 +130,18 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les DIX cas, et aucun ne manque à l’appel',
+    'traite les QUATORZE cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('10 cas attendus INVALIDES');
-      expect(sortie).toContain('10/10 cas refusés avec une cause nommée');
+      expect(sortie).toContain('14 cas attendus INVALIDES');
+      expect(sortie).toContain('14/14 cas refusés avec une cause nommée');
     },
     DELAI,
   );
 
-  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Dix refus identiques
+  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Douze refus identiques
   // passeraient l'assertion globale ci-dessus et échoueraient ici.
   for (const { dossier, cause } of CAS_ATTENDUS) {
     it(
@@ -124,7 +154,7 @@ describe('le contrôle positif du validateur de contenu', () => {
     );
   }
 
-  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un onzième cas de fixture sans
+  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un quinzième cas de fixture sans
   // écrire son assertion laisserait ce spec vert — et le nouveau cas ne serait
   // vérifié par personne, ce qui est exactement la faute que ce fichier répare.
   it('connaît TOUS les dossiers de fixtures — un cas ajouté sans assertion fait rougir', () => {
