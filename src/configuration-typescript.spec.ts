@@ -340,9 +340,10 @@ describe('rigueur du compilateur', () => {
   // L-014 : un tsconfig rigoureux, un script npm, les DEUX workflows qui
   // l'appellent — et rien, nulle part, qui asserte ce qu'il vérifie RÉELLEMENT.
   // Vider ou repointer son `include` laisse `tsc -p tsconfig.e2e.json` sortir en 0
-  // sur ZÉRO fichier : les cinq specs qui portent tout le clavier, tout le focus et
-  // la seule mesure de CSP à l'exécution du dépôt cesseraient d'être typés sans
-  // qu'aucun run ne rougisse. Le bloc ci-dessous est calqué sur celui du programme
+  // sur ZÉRO fichier : les huit specs qui portent tout le clavier, tout le focus et
+  // la seule mesure de CSP à l'exécution du dépôt — plus les trois modules d'aide
+  // où cette mesure vit désormais — cesseraient d'être typés sans qu'aucun run ne
+  // rougisse. Le bloc ci-dessous est calqué sur celui du programme
   // outillage, pour la même raison et avec la même exigence de bout en bout : le
   // périmètre est épinglé NOMMÉMENT, le script npm vise bien ce tsconfig, et les
   // deux workflows appellent bien ce script.
@@ -362,16 +363,40 @@ describe('rigueur du compilateur', () => {
      * le fichier qui décide QUEL SERVEUR sert l'artéfact ne serait vérifié par
      * personne (L-008).
      *
-     * Le compte est épinglé lui aussi : un sixième spec ajouté demain fait rougir
-     * cette ligne, et c'est voulu. Inscrire un spec ici coûte une ligne ; ne pas
+     * Le compte est épinglé lui aussi : un spec ajouté demain fait rougir cette
+     * ligne, et c'est voulu. Inscrire un spec ici coûte une ligne ; ne pas
      * l'inscrire coûterait la découverte, dans six mois, qu'un fichier entier
      * échappait au typage.
+     *
+     * ✅ IL A MORDU — E2-ST3, lot E, 2026-08-18. Les six entrées neuves ci-dessous
+     * sont arrivées ensemble, et c'est ce test qui les a fait constater : `npm test`
+     * a rougi sur « expected 12 to have a length of 6 » avant qu'aucun humain n'ait
+     * remarqué que six fichiers venaient d'entrer dans le programme. Le mode
+     * d'échec que le commentaire annonçait était donc réel, et le gate n'était pas
+     * décoratif.
+     *
+     * ⚠️ LES TROIS `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
+     * QUAND MÊME — c'est le point le plus important de cette liste depuis le lot E.
+     * Ce sont eux qui portent désormais la MESURE elle-même : `indicateur-focus.ts`
+     * décide ce qu'est « un anneau de focus dessiné » pour deux fichiers,
+     * `sonde-csp.ts` porte les trois collecteurs de violations et l'exigence de CSP
+     * servie pour deux autres, `hydratation.ts` définit le point de départ commun
+     * de tout ce qui s'exécute sur la page de leçon. Un défaut de typage y serait
+     * strictement invisible depuis les specs qui les appellent, et il ferait passer
+     * VERTS les gates les plus structurants du dépôt. Les mutualiser (L-016) a
+     * déplacé le risque : cette liste est l'endroit où on le rattrape.
      */
     const FICHIERS_EPINGLES = [
+      'e2e/aides/hydratation.ts',
+      'e2e/aides/indicateur-focus.ts',
+      'e2e/aides/sonde-csp.ts',
       'e2e/bascule-theme.spec.ts',
       'e2e/cibles-pointeur.spec.ts',
       'e2e/focus-visible.spec.ts',
       'e2e/navigation-clavier.spec.ts',
+      'e2e/parcours-clavier-quiz.spec.ts',
+      'e2e/quiz-pre-hydratation.spec.ts',
+      'e2e/quiz-sous-csp.spec.ts',
       'e2e/skip-link.spec.ts',
       'playwright.config.ts',
     ] as const;
