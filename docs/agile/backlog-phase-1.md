@@ -1210,6 +1210,43 @@ avait fini à 264k, il n'a pas été repris — `.claude/rules/agent-context-bud
 - **G-axe et G-clavier n'ont pas vu le composant**, pour la même raison : ils sont *contournés par
   l'absence de données*, pas franchis. Ce sont eux, avec l'e2e sous CSP réelle, qui font le lot E.
 
+#### 🔵 Les deux décisions du lot D, tranchées le 2026-08-18 (avant d'écrire une ligne)
+
+Le tableau de découpe exigeait qu'elles soient **prises**, pas improvisées en chemin. Les voici, avec
+ce qui les a tranchées.
+
+**D-1 · `associer` se rend par un `<select>` natif par ligne de gauche.** Chaque `gauche` porte un
+`<label>` et un `<select>` dont les `<option>` sont toutes les valeurs `droite` du lot, dans un ordre
+fixe (celui de la source, comme les questions — voir la note `melanger` de `quiz.ts`). Zéro ARIA,
+zéro glisser-déposer.
+*Ce qui l'a tranché.* La KB n'a **aucune fiche** sur un widget d'appariement (`npm run kb -- associer
+appariement clavier` ne remonte que `composant-tabs.md`, qui parle d'autre chose) — le trou est
+consigné ici plutôt que comblé par une invention. Restait donc la doctrine, et elle est déjà écrite
+deux fois dans ce dépôt : « no ARIA is better than bad ARIA »
+(`web/html/html-semantique-accessibilite.md`), et le lot C entier tient parce qu'il n'emploie **que
+du natif** (radios, `<fieldset>`, `<legend>`, aucun rôle de remplacement). Un `<select>` est le seul
+contrôle du HTML qui exprime « choisir une valeur parmi N » avec une navigation clavier, un nom
+accessible et une annonce de position que **le navigateur** fournit, sans une ligne d'ARIA. WCAG 2.2
+**2.5.7 (Dragging Movements)** interdisait déjà l'autre voie ; ceci ferme la question dans l'autre
+sens, en n'ayant rien à réimplémenter.
+⚠️ **Le distracteur n'est pas la difficulté** : plusieurs `<select>` peuvent porter la même valeur.
+C'est **volontaire** — forcer l'unicité côté client transformerait l'exercice en sudoku et masquerait
+la vraie erreur de compréhension. La correction dit ligne par ligne ce qui est juste.
+
+**D-2 · `trouver-la-faille` garde SON rendu de code dans `cours/quiz/`, et E2-ST4 fera l'extraction.**
+La ligne fautive se désigne par une **radio par ligne**, dont le `<label>` est la ligne de code
+numérotée — donc exactement la machinerie du lot C, sans rien de neuf à rendre accessible.
+*Ce qui l'a tranché, et c'est le point à ne pas travestir.* Ce n'est **pas** « on verra plus tard » :
+les deux besoins ne sont pas le même. Le quiz a besoin d'une ligne **sélectionnable** (radio +
+label + `name` de groupe) ; le `CodeCompareComponent` d'E2-ST4 a besoin de lignes **annotées, en
+vis-à-vis, sur deux colonnes, avec onglets de langage**. Extraire un composant commun à partir d'un
+seul exemplaire, avant que le second consommateur n'ait exprimé ses vraies contraintes, est une
+abstraction prématurée qu'E2-ST4 paierait en la défaisant. **La duplication est donc assumée et
+DATÉE** : E2-ST4 fusionne, avec les deux cas réels en main. Ce qui était interdit par le tableau de
+découpe, c'est de dupliquer **en silence** — ceci est le contraire du silence.
+⚠️ **À reprendre en E2-ST4, nominativement** : `.code-numerote` (`quiz.scss` + gabarit de `quiz.ts`)
+est le morceau à fusionner ; s'il a divergé d'ici là, c'est la fusion qui arbitre, pas l'ancienneté.
+
 ### E2-ST4 — CodeCompareComponent
 - **Objectif** : affichage côte à côte (empilé en mobile) vulnérable/corrigé avec annotations ancrées aux lignes, onglets de langage (PHP/C#/TS), coloration précompilée au build ; couleurs `danger-vuln`/`ok-fixed` des jetons.
 - **Fichiers** : `src/app/features/cours/code-compare/`, schéma JSON associé.
