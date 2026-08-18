@@ -75,8 +75,8 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
       100 % auteur-contrôlé, traiter le pipeline de rendu comme une frontière de confiance.
 - [ ] **🔴 Sur un format STRUCTURÉ (SVG, HTML, XML), on ANALYSE puis on confronte à une LISTE
       BLANCHE NOMINATIVE — jamais une liste noire de motifs, jamais une regex.** Ce n'est pas une
-      préférence de style : c'est le **patron systémique** du dépôt, constaté **trois fois**
-      (S-001, S-003, **S-009**). Une liste noire ne refuse que ce que son auteur a imaginé, et elle
+      préférence de style : c'est le **patron systémique** du dépôt, constaté **quatre fois**
+      (S-001, S-003, S-009, **S-014**). Une liste noire ne refuse que ce que son auteur a imaginé, et elle
       donne toutes les apparences de la rigueur — S-009 avait même un contrôle de conservation
       avant/après, et laissait passer `<a xlink:href="javascript:…">`, `<use href="https://…">` et
       `<animate attributeName="href">`. **jsdom est déjà une dépendance du dépôt** et deux patrons
@@ -84,6 +84,15 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
       `tools/content-pipeline/rendre-mermaid.mjs` (`analyserSvg`). Corollaire : tout élément ou
       attribut **absent** de la liste blanche fait ÉCHOUER en se nommant — jamais un retrait
       silencieux, qui masquerait la régression qui l'a fait apparaître.
+      ⚠️ **LA RÈGLE NE S'ARRÊTE PAS À L'ASSAINISSEMENT — elle vaut pour tout contrôle de
+      CONSERVATION ou de COMPLÉTUDE** (S-014, E2-ST4 lot A2). Le quatrième cas ne portait pas sur
+      du contenu hostile mais sur la sortie d'un outil réputé sûr (Shiki), et le motif cherché
+      était **notre propre marqueur** — d'où l'impression, fausse, d'être hors périmètre. Or la
+      chaîne inspectée contenait le **texte du code de l'auteur**, donc une entrée : un commentaire
+      de leçon citant « ligne-1, ligne-2 » suffisait à contenter le garde-fou, transformateur
+      débranché. **Un garde-fou dont l'ENTRÉE peut fabriquer la preuve qu'il exige n'est pas un
+      garde-fou.** Dès qu'on cherche un motif dans une chaîne qui contient une entrée, quel que
+      soit le but — on analyse.
 - [ ] **Aucun `bypassSecurityTrust*`** Angular sans justification écrite et revue — et **cette
       justification se relit dans le MÊME diff que le garde-fou qu'elle décrit**. Un texte qui
       promet une garantie plus forte que celle qui est appliquée autorise, de fait, plus que ce

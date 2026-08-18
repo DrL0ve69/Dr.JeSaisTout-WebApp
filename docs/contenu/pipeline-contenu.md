@@ -144,6 +144,15 @@ Les cinq écritures que le build **refuse** en nommant le fichier et la valeur (
 Et deux refus de forme, du même garde-fou : `{lignes=2}` sans guillemets, et `{ligne="2"}` au
 singulier (clef inconnue — les clefs sont en liste fermée, une faute de frappe ne se perd pas).
 
+> **Côté sortie (rien à écrire, mais bon à savoir).** Chaque ligne colorée porte son **ancre**
+> `class="line ancre-ligne-N"`, N en base **1** — la même base que `{lignes="…"}`. C'est ce qui permettra
+> au rendu d'ancrer une annotation **à sa ligne**. Le compilateur **analyse sa propre sortie**
+> (jsdom) et refuse une compilation où une ligne n'aurait pas reçu la sienne, ou dont les ancres ne
+> formeraient pas la suite `1…N` — il ne cherche pas un motif dans le HTML, parce que le **texte du
+> code** en contient parfois un. ⚠️ C'est une **classe**, et non `data-ligne` ou `id`, parce que
+> le sanitizer d'Angular **efface** ces deux-là du HTML posé en `[innerHTML]` — mesuré
+> (`src/sonde-sanitizer-shiki.spec.ts` : `class` 15 → 15, `id` 3 → **0**, `data-ligne` 3 → **0**).
+
 **Marqueur de doute** (posé par le `professeur-web`, consommé par le `verificateur-theorie`,
 absent de toute leçon `statut: publiee`) : `<!-- à-vérifier: <affirmation> — <raison du doute> -->`.
 

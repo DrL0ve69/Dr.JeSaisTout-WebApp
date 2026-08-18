@@ -76,13 +76,19 @@ const ATTRIBUTS_PROSE = 1;
 
 /**
  * La forme que Shiki émet avec `transformerStyleToClass` : `<pre class="shiki …"
- * tabindex="0"><code><span class="line">…`. TOUT le sens visuel est porté par des
- * `class` — zéro `style=`, la CSP du site étant à hachages (S-005). Si le sanitizer
+ * tabindex="0"><code><span class="line ancre-ligne-1">…`. TOUT le sens visuel est porté par
+ * des `class` — zéro `style=`, la CSP du site étant à hachages (S-005). Si le sanitizer
  * mangeait ces `class`, le code s'afficherait en noir et blanc sous un run vert.
+ *
+ * ⚠️ `ancre-ligne-N` est l’ANCRE DE LIGNE du transformateur `drjst-ancre-de-ligne` (E2-ST4,
+ * lot A2), sur laquelle le lot B accrochera les annotations. Elle est ici parce que la
+ * sonde ci-dessous compte des attributs sur un fragment censé ressembler à la sortie
+ * réelle ; ce qui MESURE sa survie au sanitizer est `src/sonde-sanitizer-shiki.spec.ts`,
+ * qui, lui, part de la sortie du compilateur et non d'une recopie.
  */
-const HTML_CODE = `<pre class="shiki shiki-themes carnet-clair carnet-sombre" tabindex="0"><code><span class="line"><span class="sVar">$requete</span><span class="sOp"> = </span><span class="sTxt">"SELECT * FROM utilisateurs"</span><span class="sOp">;</span></span>
-<span class="line"></span>
-<span class="line"><span class="sCom">// concaténation : ne jamais faire</span></span></code></pre>`;
+const HTML_CODE = `<pre class="shiki shiki-themes carnet-clair carnet-sombre" tabindex="0"><code><span class="line ancre-ligne-1"><span class="sVar">$requete</span><span class="sOp"> = </span><span class="sTxt">"SELECT * FROM utilisateurs"</span><span class="sOp">;</span></span>
+<span class="line ancre-ligne-2"></span>
+<span class="line ancre-ligne-3"><span class="sCom">// concaténation : ne jamais faire</span></span></code></pre>`;
 
 /** 3 noms d'éléments, 10 occurrences, 10 attributs (8 `class` + `class`/`tabindex` du `pre`). */
 const COMPTES_CODE: Record<string, number> = { pre: 1, code: 1, span: 8 };

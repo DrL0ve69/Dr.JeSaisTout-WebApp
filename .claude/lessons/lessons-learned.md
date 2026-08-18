@@ -857,4 +857,34 @@ test**, pas l'instrument de mesure, qui est fausse.
 
 ---
 
+## L-036 · Un contrôle positif du CORRECTIF doit APPELER l'outil corrigé — un test qui compile transformateur branché mesure sa propre lecture, pas la capacité de refus qu'on vient de réparer
+
+**Symptôme.** `verifierAncres` (garde-fou neuf de `compiler-markdown.mjs`) cherchait d'abord un
+**motif** (`\bligne-(\d+)\b`) dans le HTML coloré — donc un commentaire d'auteur citant « voir
+ligne-1, ligne-2 » satisfaisait le garde-fou sans que le transformateur d'ancres soit branché.
+Réparé (analyse jsdom + liste blanche nominative). Mais la première preuve du correctif — une
+fixture leurre compilée par le pipeline **entier**, puis assertion sur les ancres relevées — ne
+prouvait rien : elle exerçait `ancresDe` (la lecture du spec), pas la capacité de **refus** de
+`verifierAncres`. L'ANCIENNE version défaillante du garde-fou aurait passé ce test tout aussi
+vert.
+
+**Règle.** Quand le correctif vit **dans un outil**, le contrôle positif doit **appeler cet
+outil directement** — l'exporter s'il ne l'est pas — plutôt que de faire tourner le pipeline
+autour et d'observer un effet de bord en aval. Question à se poser avant d'écrire le test :
+« ce test aurait-il échoué **avant** le correctif ? » Si la réponse est non, ce n'est pas le test
+du correctif, même s'il touche le bon fichier et le bon symptôme. Le correctif final appelle
+`verifierAncres` dans un processus fils avec un HTML **forgé** (sans ancre, texte leurre) et
+assertion sur le code de sortie 1, plus une contre-épreuve (fragment réellement ancré ⇒ code 0)
+et un cas d'ancres décalées d'un cran ⇒ refus. Cousine de [[L-019]] (un contrôle positif est
+nécessaire, pas seulement un tableau vide) et de [[L-005]] (un vert ne prouve pas qu'une
+vérification a tourné) — l'axe neuf ici : le test peut tourner, être vert à raison sur le HTML
+choisi, ET viser le **mauvais côté de la frontière** (l'appelant plutôt que l'outil corrigé).
+
+**Réfs.** `tools/content-pipeline/compiler-markdown.mjs` (`verifierAncres`, exportée exprès pour
+être mise à l'épreuve) ; `src/pipeline-contenu-compilation.spec.ts`
+(`appelerVerifierAncres`, test « ANCRE — le garde-fou du COMPILATEUR refuse… ») ; revue
+`code-reviewer` du 2026-08-18 ; branche `feat/e2-st4-lot-a2`.
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
