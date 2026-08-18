@@ -1684,8 +1684,8 @@ de cours — le contenu d'un `<details>` fermé **ne s'imprime pas**, Safari ne 
 | Lot | Contenu | Gates | Statut |
 |---|---|---|---|
 | **A1** | Le contrôle de portée des annotations, **des deux côtés** (`compiler-markdown.mjs` + `rendu-blocs.ts`) + fixture invalide exécutée par la CI. Traite aussi le doublon : `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois** | G-typage-outils, G-content, G-test | ✅ **clos le 2026-08-18** (`b0fc189`) |
-| **A2** | Sonde : **que survit-il au sanitizer d'Angular** sur la sortie Shiki (`class` oui ; `data-*`/`id` à mesurer — précédent SVG 24 éléments → 0) ; **mesurer avant de concevoir**, puis le transformateur `line` | G-test, G-content | ⬜ |
-| **B** | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, `.ligne-annotee` avec filet — le sens jamais porté par la couleur seule | G-lint, G-test, G-build | ⬜ |
+| **A2** | Sonde : **que survit-il au sanitizer d'Angular** sur la sortie Shiki (`class` oui ; `data-*`/`id` à mesurer — précédent SVG 24 éléments → 0) ; **mesurer avant de concevoir**, puis le transformateur `line` | G-test, G-content | ✅ **clos le 2026-08-18** (`441af77`) |
+| **B** ⏭️ *(geste suivant)* | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, `.ligne-annotee` avec filet — le sens jamais porté par la couleur seule | G-lint, G-test, G-build | ⬜ |
 | **C** | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ⬜ |
 
 
@@ -1732,6 +1732,55 @@ la prochaine leçon. Réécrit avec la forme réelle et les cinq refus.
 
 **Chiffres** : G-test **509 / 28 fichiers** · G-e2e **21** (artéfact fixture) · G-axe 344
 vérifications, 0 violation · G-lint, G-typage-outils, G-typage-e2e verts · `npm audit --omit=dev` **0**.
+
+##### ✅ Clôture du lot A2 — 2026-08-18
+
+**Verdict de la sonde** (`src/sonde-sanitizer-shiki.spec.ts`, compile la fixture `temoin-minimal`
+par processus fils, mesure ce que le sanitizer d'Angular laisse passer de la sortie Shiki, sur
+Angular 22.1) : `class` 15 → 15, `tabindex` 4 → 4, `aria-describedby` 3 → 3, `aria-label` 3 → 3,
+mais **`id` 3 → 0 et `data-ligne` 3 → 0**. Le précédent du SVG (24 éléments → 0) interdisait de le
+supposer ; c'est confirmé pour `data-*`/`id`.
+
+**Décision qui en découle : une classe, pas un `data-*` ni un `id`.** Le transformateur Shiki
+`drjst-ancre-de-ligne` (`compiler-markdown.mjs`) pose donc `class="line ancre-ligne-N"` (base 1) —
+le seul véhicule mesuré comme survivant. Un `data-ligne` aurait produit un artéfact **correct** à la
+compilation, une page prerendue **sans le crochet** une fois passée au sanitizer côté navigateur, et
+**aucun gate rouge** pour le signaler avant la publication — exactement le mode d'échec que « mesurer
+avant de concevoir » existe pour éviter.
+
+**Deux constats de revue Majeurs, corrigés dans le même diff.**
+- *Revue sécurité* : la première écriture du garde-fou cherchait un **motif** dans la chaîne HTML —
+  laquelle contient le texte du code de l'auteur, donc un commentaire de leçon citant « ligne-1,
+  ligne-2, ligne-3 » satisfaisait le garde-fou avec le **transformateur débranché** (mesuré par le
+  reviewer). Quatrième récidive de la famille S-001/S-003/S-009. Corrigé : le compilateur **analyse**
+  sa propre sortie (jsdom, sélecteur `pre.shiki > code > span.line`) et exige la suite ordonnée
+  1..N — liste blanche nominative, jamais un motif. Leçon **S-014**.
+- *Revue de code* : le test censé prouver ce correctif compilait avec le transformateur **branché** —
+  il exerçait la fonction de lecture du spec, pas la capacité de **refus** du compilateur, et serait
+  passé vert **avant** le correctif aussi. `verifierAncres` est désormais exporté et appelé
+  directement dans un processus fils : HTML forgé sans ancre mais dont le texte en cite ⇒ code de
+  sortie 1 ; le même fragment ancré ⇒ 0 ; ancres décalées d'un cran ⇒ 1. Leçon **L-036**.
+
+**Écrit pour le lot B** : l'artéfact porte **une ligne de plus** que la source — le saut final de
+markdown-it devient une dernière ligne vide, elle aussi ancrée. `[1,2,3,4]` pour un bloc source de 3
+lignes du corps de leçon, `[1,2,3]` pour le code d'un quiz. Règle exacte consignée dans `types.d.ts`
+et épinglée par une mesure.
+
+**Chiffres** : G-lint vert · `npm run typecheck:tools` vert · G-test **517 / 29 fichiers**, 0 échec
+(509 / 28 avant le lot) · `npm run build` + `config:swa` verts, **9 hachages de style / 1 de
+script**, inchangés. G-e2e et G-axe non rejoués — le rendu utilisateur ne change pas (une classe
+inerte de plus) ; ils appartiennent au **lot C**.
+
+**PR #19** (`feat/e2-st4-lot-a2` → `main`).
+
+**⏭️ Dette neuve, à payer avec le lot B (pas avant) : le compteur de lignes du validateur diverge
+du compilateur.** `verifierQuestionTrouverLaFaille` (`tools/content-pipeline/valider.mjs`, ~l. 879)
+compte les lignes d'une question avec `code.split('\n').length` — ni retrait du saut final, ni
+`\r?` — alors que le compilateur emploie `compterLignes`. Sur un `code` de quiz terminé par un saut
+de ligne, le validateur accepte donc `ligneFautive = N+1`, la ligne vide finale que personne ne peut
+désigner dans l'interface. Non corrigé dans le lot A2 à dessein : resserrer ce garde-fou demande sa
+propre fixture invalide sous `__fixtures__/invalides/` et son assertion — le lot B touchera de toute
+façon aux deux côtés du comptage de lignes.
 
 ##### 🔴 Le déploiement rouge du 2026-08-18, et le mécanisme qui le referme
 
