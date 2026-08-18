@@ -64,6 +64,8 @@
 
 import { Page, expect, test } from '@playwright/test';
 
+import { attendreHydratation } from './aides/hydratation';
+
 /**
  * La page de leçon INTERACTIVE, produite par la fixture témoin.
  *
@@ -167,22 +169,6 @@ async function ouvrirFenetreDePreHydratation(page: Page): Promise<FenetreDePreHy
     .toBeGreaterThan(0);
 
   return { relacher, retenus };
-}
-
-/**
- * Attend que l'hydratation soit terminée.
- *
- * Les attributs `ngh` d'Angular marquent le HTML déshydraté ; ils disparaissent à
- * mesure que les vues s'hydratent. Point de synchronisation OBSERVABLE — pas une
- * durée. Assertion Playwright auto-réessayée : si le marqueur changeait de nom
- * dans une version future d'Angular, cette ligne expirerait et le fichier
- * rougirait, au lieu de laisser passer un vert vide.
- */
-async function attendreHydratation(page: Page): Promise<void> {
-  await expect(
-    page.locator('[ngh]'),
-    'l’hydratation ne s’est jamais terminée (attributs `ngh` toujours présents)',
-  ).toHaveCount(0);
 }
 
 test('une coche posée PENDANT la fenêtre de pré-hydratation survit, et le composant la compte', async ({

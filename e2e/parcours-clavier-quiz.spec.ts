@@ -66,6 +66,8 @@ import {
   releverEtatAuRepos,
 } from './aides/indicateur-focus';
 
+import { attendreHydratation } from './aides/hydratation';
+
 /** Voir l'en-tête de `quiz-pre-hydratation.spec.ts` : cette route vient de la fixture témoin. */
 const CHEMIN_LECON = '/cours/securite-web/lecon-temoin/';
 
@@ -96,22 +98,6 @@ const ARRETS_DU_QUIZ = [
   { nom: 'q5 · associer — select de la 3e ligne', selecteur: '#quiz-q5 select >> nth=2' },
   { nom: 'bouton « Corriger mes réponses »', selecteur: '.quiz button' },
 ] as const;
-
-/**
- * Attend la fin de l'hydratation.
- *
- * Les attributs `ngh` marquent le HTML déshydraté et disparaissent quand les vues
- * s'hydratent : point de synchronisation OBSERVABLE, jamais une durée. Sans cette
- * attente, un Tab pressé pendant la fenêtre de pré-hydratation mesurerait un
- * parcours que le composant ne pilote pas encore — l'objet, lui, de
- * `quiz-pre-hydratation.spec.ts`.
- */
-async function attendreHydratation(page: Page): Promise<void> {
-  await expect(
-    page.locator('[ngh]'),
-    'l’hydratation ne s’est jamais terminée (attributs `ngh` toujours présents)',
-  ).toHaveCount(0);
-}
 
 /**
  * Tabule depuis le début du document jusqu'au PREMIER arrêt situé dans le quiz, et
