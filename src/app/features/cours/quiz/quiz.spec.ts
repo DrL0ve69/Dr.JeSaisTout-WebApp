@@ -80,7 +80,11 @@ const Q_ASSOCIER: QuestionQuiz = {
   type: 'associer',
   id: 'paires',
   consigne: 'Associer chaque en-tête à son effet.',
-  paires: [{ gauche: 'HSTS', droite: 'force HTTPS' }],
+  paires: [
+    { gauche: 'HSTS', droite: 'force HTTPS' },
+    { gauche: 'X-Frame-Options', droite: 'interdit le cadrage' },
+    { gauche: 'nosniff', droite: 'interdit la déduction de type' },
+  ],
   explication: 'Chaque en-tête a un effet distinct.',
 };
 
@@ -167,6 +171,32 @@ async function repondre(hote: HTMLElement, idQuestion: string, valeur: string): 
     throw new Error(`Aucune réponse « ${valeur} » dans la question « ${idQuestion} »`);
   }
   cible.click();
+  await fixture.whenStable();
+}
+
+/** Les `<select>` d'un `associer`, dans l'ordre du document. */
+function champs(hote: HTMLElement, idQuestion: string): HTMLSelectElement[] {
+  return [...hote.querySelectorAll<HTMLSelectElement>(`[id="${idQuestion}"] select`)];
+}
+
+/** Choisit une valeur dans le n-ième `<select>` d'une question, comme un visiteur. */
+async function associer(
+  hote: HTMLElement,
+  idQuestion: string,
+  rang: number,
+  valeur: string,
+): Promise<void> {
+  const champ = champs(hote, idQuestion)[rang];
+  if (champ === undefined) {
+    throw new Error(`Aucun champ n°${rang} dans la question « ${idQuestion} »`);
+  }
+  champ.value = valeur;
+  // Une valeur refusée par le `<select>` retombe sur la chaîne vide sans rien dire :
+  // sans ce contrôle, un test sur une option inexistante passerait pour « absente ».
+  if (champ.value !== valeur) {
+    throw new Error(`« ${valeur} » n’est proposée par aucune option de « ${idQuestion} »`);
+  }
+  champ.dispatchEvent(new Event('change'));
   await fixture.whenStable();
 }
 
@@ -378,76 +408,244 @@ describe('Quiz', () => {
     });
   });
 
-  describe('questions provisoires (lot D) — lisibles, hors score, et sans persistance', () => {
-    it('affiche la consigne, le code NUMÉROTÉ dès 1, et la mention d’attente', async () => {
+  describe('`associer` (D-1) — un `<select>` natif par ligne de gauche', () => {
+    it('rend un champ par paire, avec l’attente PUIS toutes les valeurs de droite', async () => {
       const hote = await monter(QUIZ_MIXTE);
+      const groupe = hote.querySelector('[id="quiz-paires"]');
 
-      const associer = hote.querySelector('[id="quiz-paires"]');
-      expect(associer?.querySelector('legend')?.textContent).toContain(
-        'Associer chaque en-tête à son effet.',
-      );
-      expect(associer?.querySelector('.mention-provisoire')?.textContent).toContain(
-        'pas encore corrigeable',
-      );
-      // Aucune interaction : l'énoncé est lisible, il n'est pas jouable.
-      expect(associer?.querySelector('input')).toBeNull();
+      const selects = champs(hote, 'quiz-paires');
+      // CONTRÔLE POSITIF (L-019) : sans lui, « aucun rôle ARIA » serait vrai d'un
+      // composant qui ne rendrait aucun champ.
+      expect(selects.length).toBe(3);
 
-      const faille = hote.querySelector('[id="quiz-faille-php"]');
-      const lignes = faille?.querySelectorAll('.code-numerote > li') ?? [];
-      expect(lignes.length).toBe(2);
-      expect(lignes[1]?.textContent).toContain('SELECT * FROM lecons');
-      // Le code part par INTERPOLATION : Angular l'échappe, aucun `innerHTML`.
-      expect(faille?.querySelector('pre')).toBeNull();
+      // L'ordre des options est celui de la SOURCE, précédé de l'attente. Les
+      // valeurs sont écrites ici en dur (L-012), jamais dérivées de la fixture.
+      const options = [...selects[0]!.options].map((option) => option.value);
+      expect(options).toEqual([
+        '',
+        'force HTTPS',
+        'interdit le cadrage',
+        'interdit la déduction de type',
+      ]);
+      // Rien n'est pré-choisi : le prerender part de l'attente, donc le troisième
+      // état de WCAG 1.4.1 (« absente ») reste atteignable.
+      expect(selects.every((champ) => champ.value === '')).toBe(true);
+
+      // Le nom accessible vient du `<label>` qui CONTIENT le champ — zéro ARIA,
+      // zéro `id` fabriqué, donc zéro collision possible avec une ancre de section.
+      const etiquettes = [...(groupe?.querySelectorAll('label.paire') ?? [])].map(
+        (label) => label.querySelector('span')?.textContent?.trim(),
+      );
+      expect(etiquettes).toEqual(['HSTS', 'X-Frame-Options', 'nosniff']);
+      for (const label of groupe?.querySelectorAll('label.paire') ?? []) {
+        expect(label.querySelector('select')).not.toBeNull();
+      }
+      for (const attendu of ['listbox', 'combobox', 'option', 'group']) {
+        expect(groupe?.querySelector(`[role="${attendu}"]`)).toBeNull();
+      }
     });
 
-    it('les sort du DÉNOMINATEUR — 3 corrigées sur 5 questions', async () => {
+    it('ACCEPTE deux champs sur la même valeur — l’unicité n’est PAS forcée (D-1)', async () => {
       const hote = await monter(QUIZ_MIXTE);
+      await associer(hote, 'quiz-paires', 0, 'force HTTPS');
+      await associer(hote, 'quiz-paires', 1, 'force HTTPS');
+
+      // Forcer l'unicité transformerait l'exercice en sudoku et masquerait la vraie
+      // erreur de compréhension : les deux champs gardent la même valeur.
+      const selects = champs(hote, 'quiz-paires');
+      expect([selects[0]!.value, selects[1]!.value]).toEqual(['force HTTPS', 'force HTTPS']);
+    });
+
+    it('corrige LIGNE PAR LIGNE, en écrivant le mot de chaque ligne', async () => {
+      const hote = await monter(QUIZ_MIXTE);
+      await associer(hote, 'quiz-paires', 0, 'force HTTPS'); // juste
+      await associer(hote, 'quiz-paires', 1, 'force HTTPS'); // faux
+      // Le troisième champ reste sur l'attente.
+      await cliquerBouton(hote);
+
+      const groupe = hote.querySelector('[id="quiz-paires"]');
+      // Une association PARTIELLE est fausse pour le score…
+      expect(groupe?.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('faux');
+      // … mais la correction dit exactement ce qui est acquis, ligne à ligne.
+      const lignes = [...(groupe?.querySelectorAll('.ligne-corrigee') ?? [])];
+      expect(lignes.length).toBe(3);
+      expect(lignes.map((ligne) => ligne.getAttribute('data-verdict'))).toEqual([
+        'juste',
+        'faux',
+        'absente',
+      ]);
+      // WCAG 1.4.1 : le MOT, jamais la seule couleur.
+      expect(lignes[0]?.textContent).toContain('Association correcte');
+      expect(lignes[1]?.textContent).toContain('Association incorrecte');
+      expect(lignes[2]?.textContent).toContain('Aucune association choisie');
+
+      // La ligne fausse montre la réponse donnée ET l'attendue ; la juste et
+      // l'absente n'ont pas de « votre réponse » à afficher.
+      expect(lignes[1]?.textContent).toContain('interdit le cadrage');
+      expect(lignes[1]?.querySelector('.donnee')?.textContent).toContain('force HTTPS');
+      expect(lignes[0]?.querySelector('.donnee')).toBeNull();
+      expect(lignes[2]?.querySelector('.donnee')).toBeNull();
+
+      // Pas de « réponse attendue » globale : elle n'aurait aucun sens ici.
+      expect(groupe?.querySelector('.attendue')).toBeNull();
+      expect(groupe?.querySelector('.explication')?.textContent).toContain(
+        'Chaque en-tête a un effet distinct.',
+      );
+    });
+
+    it('vaut « juste » quand TOUTES les lignes le sont, « absente » quand aucune ne l’est', async () => {
+      const hote = await monter(quizDe(Q_ASSOCIER));
+      await cliquerBouton(hote);
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('absente');
+
+      await cliquerBouton(hote); // « Recommencer »
+      await associer(hote, 'quiz-paires', 0, 'force HTTPS');
+      await associer(hote, 'quiz-paires', 1, 'interdit le cadrage');
+      await associer(hote, 'quiz-paires', 2, 'interdit la déduction de type');
+      await cliquerBouton(hote);
+
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('juste');
+      expect(fixture.componentInstance.score()).toBe(1);
+    });
+
+    it('revenir sur « Choisir… » EFFACE la réponse au lieu d’en stocker une vide', async () => {
+      const hote = await monter(quizDe(Q_ASSOCIER));
+      await associer(hote, 'quiz-paires', 0, 'force HTTPS');
+      expect(fixture.componentInstance.reponseDe('paires#0')).toBe('force HTTPS');
+
+      await associer(hote, 'quiz-paires', 0, '');
+      // Sans l'effacement, le verdict serait « faux » — donc « vous vous êtes
+      // trompé » là où le visiteur n'a simplement rien répondu.
+      expect(fixture.componentInstance.reponseDe('paires#0')).toBeUndefined();
+      await cliquerBouton(hote);
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('absente');
+    });
+
+    it('GÈLE les champs à la correction, comme les radios', async () => {
+      const hote = await monter(quizDe(Q_ASSOCIER));
+      await cliquerBouton(hote);
+      expect(champs(hote, 'quiz-paires').filter((champ) => champ.disabled).length).toBe(3);
+    });
+  });
+
+  describe('`trouver-la-faille` (D-2) — une radio par ligne de code', () => {
+    it('rend une radio par ligne, dont le label porte le NUMÉRO et le code', async () => {
+      const hote = await monter(QUIZ_MIXTE);
+      const groupe = hote.querySelector('[id="quiz-faille-php"]');
+
+      const lignes = [...(groupe?.querySelectorAll('.code-numerote > li') ?? [])];
+      expect(lignes.length).toBe(2);
+
+      const boutons = radios(hote, 'quiz-faille-php');
+      expect(boutons.length).toBe(2);
+      // La numérotation commence à 1 — c'est le référentiel de `ligneFautive`.
+      expect(boutons.map((bouton) => bouton.value)).toEqual(['1', '2']);
+      // Un `name` unique par question : c'est LUI qui fait le groupe natif.
+      expect(new Set(boutons.map((bouton) => bouton.name))).toEqual(
+        new Set(['quiz-faille-php']),
+      );
+
+      // 🔴 LE MOT « Ligne » EST ÉCRIT, pas seulement le numéro — et c'est ce qui rend
+      // le nom accessible de la radio utilisable. Le marqueur d'une `<ol>` n'entre pas
+      // dans le calcul du nom, donc le numéro doit venir du document ; et le numéro NU
+      // laissait un nom ambigu (« 2 » de quoi ?), tandis que la correction annonce
+      // « Ligne 2 », qui ne correspondait alors à AUCUN libellé d'option. axe ne juge
+      // pas la justesse d'un nom accessible (constat D-C6) : ce test le fait.
+      const label = lignes[1]?.querySelector('label.ligne-code');
+      expect(label?.querySelector('.numero-ligne')?.textContent?.trim()).toBe('Ligne\u00A02');
+      expect(label?.querySelector('code')?.textContent).toContain('SELECT * FROM lecons');
+      expect(label?.querySelector('input[type="radio"]')).not.toBeNull();
+      // Le code part par INTERPOLATION : Angular l'échappe, aucun `innerHTML`.
+      expect(groupe?.querySelector('pre')).toBeNull();
+    });
+
+    it('corrige la ligne désignée, et affiche faille, explication ET correction', async () => {
+      const hote = await monter(quizDe(Q_FAILLE));
+      await repondre(hote, 'quiz-faille-php', '1'); // la fautive est la 2
+      await cliquerBouton(hote);
+
+      const groupe = hote.querySelector('[id="quiz-faille-php"]');
+      expect(groupe?.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('faux');
+      // Le NUMÉRO seul serait ambigu à l'oreille : le libellé reprend le mot qui
+      // étiquette déjà chaque ligne à l'écran.
+      expect(groupe?.querySelector('.attendue')?.textContent).toContain('Ligne 2');
+      expect(groupe?.querySelector('.faille')?.textContent).toContain(
+        'Injection SQL par interpolation',
+      );
+      expect(groupe?.querySelector('.explication')?.textContent).toContain(
+        'insère la donnée du client',
+      );
+      expect(groupe?.querySelector('.correction')?.textContent).toContain('$pdo->prepare');
+    });
+
+    it('vaut « juste » sur la bonne ligne, « absente » sans réponse', async () => {
+      const hote = await monter(quizDe(Q_FAILLE));
+      await cliquerBouton(hote);
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('absente');
+
+      await cliquerBouton(hote); // « Recommencer »
+      await repondre(hote, 'quiz-faille-php', '2');
+      await cliquerBouton(hote);
+      expect(hote.querySelector('.verdict')?.getAttribute('data-verdict')).toBe('juste');
+      expect(fixture.componentInstance.score()).toBe(1);
+    });
+  });
+
+  describe('le dénominateur est redevenu le TOTAL (fin des questions provisoires)', () => {
+    /** Répond juste aux cinq questions de `QUIZ_MIXTE`. */
+    async function toutRepondre(hote: HTMLElement): Promise<void> {
       await repondre(hote, 'quiz-injection', 'requete-preparee');
       await repondre(hote, 'quiz-csp', 'faux');
       await repondre(hote, 'quiz-entetes', 'sniff');
+      await associer(hote, 'quiz-paires', 0, 'force HTTPS');
+      await associer(hote, 'quiz-paires', 1, 'interdit le cadrage');
+      await associer(hote, 'quiz-paires', 2, 'interdit la déduction de type');
+      await repondre(hote, 'quiz-faille-php', '2');
+    }
+
+    it('compte 5 questions sur 5, sans mention d’attente dans le résumé', async () => {
+      const hote = await monter(QUIZ_MIXTE);
+      await toutRepondre(hote);
       await cliquerBouton(hote);
 
-      expect(fixture.componentInstance.total()).toBe(3);
-      expect(fixture.componentInstance.score()).toBe(3);
+      expect(fixture.componentInstance.total()).toBe(5);
+      expect(fixture.componentInstance.score()).toBe(5);
 
       const resume = hote.querySelector('[role="status"]')?.textContent ?? '';
-      expect(resume).toContain('3 bonnes réponses sur 3 questions corrigées');
-      expect(resume).toContain('2 questions arrivent bientôt');
-      expect(resume).toContain('n’est donc pas enregistré');
+      expect(resume).toContain('5 bonnes réponses sur 5 questions corrigées');
+      // La mention du lot C a disparu AVEC la forme provisoire : la laisser serait
+      // un mensonge à l'écran sur un quiz entièrement corrigé.
+      expect(resume).not.toContain('arrive');
+      expect(resume).not.toContain('pas enregistré');
+      // Aucune question ne se rend plus en « provisoire ».
+      expect(hote.querySelector('.mention-provisoire')).toBeNull();
     });
 
-    it('🔴 n’écrit RIEN dans la progression tant qu’une question est provisoire', async () => {
+    it('🔴 ÉCRIT la progression sur un quiz mixte — c’est la fin de la retenue du lot C', async () => {
       const hote = await monter(QUIZ_MIXTE);
-      await repondre(hote, 'quiz-injection', 'requete-preparee');
-      await repondre(hote, 'quiz-csp', 'faux');
-      await repondre(hote, 'quiz-entetes', 'sniff');
-      await cliquerBouton(hote);
-
-      // 3/3 marquerait la leçon « maîtrisée » (seuil 0,8) sans avoir jamais évalué
-      // les deux questions les plus difficiles : une fausse maîtrise se croit,
-      // une progression absente se rattrape.
-      const service = TestBed.inject(ProgressionService);
-      expect(service.estMaitrisee('injection-sql')).toBe(false);
-      expect(service.etatDe('injection-sql').totalQuestions).toBe(0);
-      expect(fenetre().localStorage.getItem(CLE_PROGRESSION)).toBeNull();
-    });
-
-    it('CONTRÔLE POSITIF : le même geste, sans question provisoire, ÉCRIT bien', async () => {
-      // L'autre moitié de la pince. Sans lui, « rien n'est écrit » serait vrai d'un
-      // composant qui n'écrit jamais.
-      const hote = await monter(QUIZ_CORRIGEABLE);
-      await repondre(hote, 'quiz-injection', 'requete-preparee');
-      await repondre(hote, 'quiz-csp', 'faux');
-      await repondre(hote, 'quiz-entetes', 'sniff');
+      await toutRepondre(hote);
       await cliquerBouton(hote);
 
       const service = TestBed.inject(ProgressionService);
       expect(service.etatDe('injection-sql')).toEqual({
         lue: true,
-        meilleurScore: 3,
-        totalQuestions: 3,
+        meilleurScore: 5,
+        totalQuestions: 5,
       });
+      expect(service.estMaitrisee('injection-sql')).toBe(true);
       expect(fenetre().localStorage.getItem(CLE_PROGRESSION)).not.toBeNull();
+    });
+
+    it('CONTRÔLE POSITIF : une association RATÉE fait bien tomber le score à 4/5', async () => {
+      // L'autre moitié de la pince. Sans lui, « 5/5 est enregistré » serait vrai
+      // d'un composant qui compterait juste toutes les questions difficiles.
+      const hote = await monter(QUIZ_MIXTE);
+      await toutRepondre(hote);
+      await associer(hote, 'quiz-paires', 2, 'force HTTPS'); // on casse la 3e ligne
+      await cliquerBouton(hote);
+
+      expect(fixture.componentInstance.score()).toBe(4);
+      expect(TestBed.inject(ProgressionService).etatDe('injection-sql').meilleurScore).toBe(4);
     });
   });
 
@@ -461,6 +659,7 @@ describe('Quiz', () => {
     const CHOIX = Q_CHOIX as Extract<QuestionQuiz, { type: 'choix-multiple' }>;
     const VRAI_FAUX = Q_VRAI_FAUX as Extract<QuestionQuiz, { type: 'vrai-faux' }>;
     const ASSOCIER = Q_ASSOCIER as Extract<QuestionQuiz, { type: 'associer' }>;
+    const FAILLE = Q_FAILLE as Extract<QuestionQuiz, { type: 'trouver-la-faille' }>;
 
     const cas: readonly { nom: string; question: QuestionQuiz; attendu: RegExp }[] = [
       {
@@ -488,9 +687,68 @@ describe('Quiz', () => {
         attendu: /justification/,
       },
       {
-        nom: 'une `consigne` vide sur une question provisoire',
+        nom: 'une `consigne` vide sur un `associer`',
         question: { ...ASSOCIER, consigne: '' },
         attendu: /consigne/,
+      },
+      {
+        nom: 'un `associer` à une seule paire',
+        question: { ...ASSOCIER, paires: [{ gauche: 'HSTS', droite: 'force HTTPS' }] },
+        attendu: /au moins deux paires/,
+      },
+      {
+        nom: 'une paire dont le `droite` est vide',
+        question: {
+          ...ASSOCIER,
+          paires: [
+            { gauche: 'HSTS', droite: 'force HTTPS' },
+            { gauche: 'nosniff', droite: '  ' },
+          ],
+        },
+        attendu: /paires\[1\].*droite/,
+      },
+      {
+        nom: 'deux paires qui partagent le même `gauche`',
+        question: {
+          ...ASSOCIER,
+          paires: [
+            { gauche: 'HSTS', droite: 'force HTTPS' },
+            { gauche: 'HSTS', droite: 'interdit le cadrage' },
+          ],
+        },
+        attendu: /même « gauche »/,
+      },
+      {
+        nom: 'une `explication` vide sur un `associer`',
+        question: { ...ASSOCIER, explication: '' },
+        attendu: /explication/,
+      },
+      {
+        nom: 'un `code` vide sur un `trouver-la-faille`',
+        question: { ...FAILLE, code: '' },
+        attendu: /code/,
+      },
+      {
+        nom: 'une `faille` vide',
+        question: { ...FAILLE, faille: '   ' },
+        attendu: /faille » : texte non vide/,
+      },
+      {
+        nom: 'une `correction` vide',
+        question: { ...FAILLE, correction: '' },
+        attendu: /correction/,
+      },
+      {
+        nom: 'une `ligneFautive` qui déborde du code',
+        // Le mode d'échec est MUET : la bonne réponse ne serait proposée par aucune
+        // radio, et toutes les tentatives du visiteur seraient fausses.
+        question: { ...FAILLE, ligneFautive: 3 },
+        attendu: /ligneFautive.*ne désigne aucune ligne \(le code en compte 2\)/,
+      },
+      {
+        nom: 'une `ligneFautive` à zéro — la numérotation commence à 1',
+        question: { ...FAILLE, ligneFautive: 0 },
+        attendu: /ligneFautive/,
       },
     ];
 
@@ -576,6 +834,36 @@ describe('Quiz', () => {
       expect(fixture.componentInstance.reponseDe('injection')).toBe('liste-noire');
     });
 
+    it('🔴 le `<select>` choisi AVANT l’hydratation n’est pas ramené sur « Choisir… »', async () => {
+      // Le cas le PLUS exposé de L-033 : un `<select>` garde silencieusement la
+      // valeur choisie avant l'hydratation, sans aucun repère visuel qu'un état
+      // concurrent existe — et `[value]` la réécrirait à '' à la première détection.
+      const hote = await monter(QUIZ_MIXTE);
+
+      const selects = champs(hote, 'quiz-paires');
+      selects[0]!.value = 'force HTTPS'; // sans `dispatchEvent` : c'est le navigateur
+      selects[1]!.value = 'interdit le cadrage';
+      cocherSansEvenement(hote, 'quiz-faille-php', '2');
+
+      // CONTRÔLE POSITIF (L-019) : sans amorçage, le composant ignore tout de ces
+      // trois saisies — c'est bien le défaut que L-033 décrit.
+      expect(fixture.componentInstance.reponseDe('paires#0')).toBeUndefined();
+      expect(fixture.componentInstance.reponseDe('faille-php')).toBeUndefined();
+
+      fixture.componentInstance.amorcerDepuisLeDom();
+      await fixture.whenStable();
+
+      expect(fixture.componentInstance.reponseDe('paires#0')).toBe('force HTTPS');
+      expect(fixture.componentInstance.reponseDe('paires#1')).toBe('interdit le cadrage');
+      // Le champ laissé sur l'attente n'invente RIEN : la chaîne vide n'est jamais
+      // stockée, sinon le verdict « absente » deviendrait inatteignable.
+      expect(fixture.componentInstance.reponseDe('paires#2')).toBeUndefined();
+      expect(fixture.componentInstance.reponseDe('faille-php')).toBe('2');
+
+      // Et la saisie SURVIT à la détection de changements qui suit.
+      expect(champs(hote, 'quiz-paires')[0]?.value).toBe('force HTTPS');
+    });
+
     it('reste SANS EFFET une fois le quiz corrigé — le verdict ne bouge plus', async () => {
       const hote = await monter(QUIZ_CORRIGEABLE);
       await repondre(hote, 'quiz-injection', 'liste-noire');
@@ -648,7 +936,7 @@ describe('Quiz', () => {
       expect(contamines).toEqual([]);
       // Les lignes de code ne portent QUE du texte : aucun élément enfant, donc
       // aucune balise n'a été interprétée en chemin.
-      const lignes = [...(groupe?.querySelectorAll('.code-numerote > li > code') ?? [])];
+      const lignes = [...(groupe?.querySelectorAll('.code-numerote code') ?? [])];
       expect(lignes.length).toBe(3);
       for (const ligne of lignes) {
         expect(ligne.children.length).toBe(0);

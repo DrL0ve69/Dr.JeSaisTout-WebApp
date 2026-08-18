@@ -780,13 +780,23 @@ la valide pas, il la masque ; ici c'est un raisonnement (« sans JS = couvert »
 réel et le masque de la même façon.
 
 **Règle.** Tout composant interactif d'une page prerendue hydratée paresseusement (donc sans rejeu
-d'événements) doit **amorcer son état depuis le DOM au premier rendu client**, dans un
-`afterNextRender` qui relit les éléments natifs déjà mutés par le visiteur (ici :
-`input[type=radio]:checked` de l'hôte), **avant** que la première détection de changements ne
-réécrive les liaisons. Signal détecteur, à répéter avant d'écrire tout `(change)`/`(click)` sur une
-page prerendue : se demander explicitement ce que le DOM natif accepte **avant que le composant ne
-soit hydraté**, pas seulement ce qui se passe sans JS du tout. Et poser un test qui coche l'input
-*avant* la première détection, pour prouver que le verdict n'efface pas la saisie.
+d'événements) doit **amorcer son état depuis le DOM**, en relisant les éléments natifs déjà mutés
+par le visiteur (ici : `input[type=radio]:checked` et la `value` des `<select>` de l'hôte), **avant
+que son propre état ne puisse les écraser**. Signal détecteur, à répéter avant d'écrire tout
+`(change)`/`(click)` sur une page prerendue : se demander explicitement ce que le DOM natif accepte
+**avant que le composant ne soit hydraté**, pas seulement ce qui se passe sans JS du tout.
+
+**⚠️ ET LA MOITIÉ QUI MANQUAIT À CETTE LEÇON, ajoutée le 2026-08-18 (lot D).** La première rédaction
+prescrivait `afterNextRender` — or **`afterNextRender` s'exécute APRÈS la détection de changements**,
+donc après les écritures DOM qu'elle a pu faire : le mécanisme prescrit ne peut pas, en toute
+rigueur, satisfaire l'exigence que la règle énonce. Un test unitaire ne peut pas trancher (le
+`TestBed` n'a pas de DOM prerendu avant le premier rendu, donc le test appelle l'amorçage à la
+main : il prouve que la lecture est JUSTE, jamais qu'elle arrive à TEMPS). **Cette famille de
+correctifs se mesure dans un vrai navigateur, ou elle n'est pas mesurée** — Playwright, cocher
+pendant la fenêtre, laisser hydrater, vérifier que la coche survit. Cousine directe de [[L-032]] :
+un instrument qui n'implémente pas le comportement observé rend vert sans avoir regardé. Et le
+commentaire au point d'appel doit dire ce qui est prouvé **et ce qui ne l'est pas**, sinon c'est une
+justification qui promet plus que le code n'applique (famille S-009).
 
 **Réfs.** composant `QuizComponent`, E2-ST3 lot C ; `src/app/app.config.ts`
 (`withNoIncrementalHydration()`) ; CLAUDE.md, bloc de reprise « PIÈGES ENCORE ACTIFS » n°1 ;

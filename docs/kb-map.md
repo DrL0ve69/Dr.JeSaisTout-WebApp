@@ -172,6 +172,14 @@ Le CLAUDE.md renvoie aux conventions du projet frère AbrisTempo ; la KB en couv
   *dark patterns* de la série quotidienne, effet des ligues sur l'objectif d'apprentissage.
   **Prioritaire pour l'archiviste** — c'est le seul trou de cette liste qui porte sur une décision
   produit déjà prise.
+- 🆕 **Widgets d'exercice interactifs (appariement, désignation de ligne)** *(trou constaté le
+  2026-08-18, lot D d'E2-ST3)* — `npm run kb -- associer appariement clavier --any` ne remonte que
+  `web/css/composant-tabs.md`, qui traite d'autre chose. La KB couvre les **onglets** accessibles et
+  la doctrine ARIA (`web/html/html-semantique-accessibilite.md`), rien sur les patrons d'exercice
+  qu'un site d'apprentissage emploie tous les jours. Ce qui a tranché le lot D (décision **D-1** du
+  backlog : un `<select>` natif par ligne, jamais un glisser-déposer) est donc la **doctrine « no
+  ARIA is better than bad ARIA » + WCAG 2.2 2.5.7**, pas une fiche. À ingérer avant E2-ST5, qui aura
+  le même besoin sur la simulation pas-à-pas.
 - 🆕 **Design d'interface de jeu / esthétique rétro** — même angle mort : la KB couvre les principes
   de design visuel (`web/frontend/principes-design-visuel.md`) et les recettes d'effets CSS
   (`web/css/recettes-effets-visuels.md`), rien sur les codes visuels du jeu vidéo.

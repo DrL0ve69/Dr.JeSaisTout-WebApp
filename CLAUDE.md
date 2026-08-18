@@ -55,16 +55,30 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ## ⏭️ REPRISE — état au 2026-08-17
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (avec 3 réserves) · E2-ST3 lots A,
-> B ET C CLOS** (C avec ses quatre constats de revue fermés).
-> **Le geste suivant : E2-ST3 lot D — les deux types difficiles, `associer` et
-> `trouver-la-faille`** — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md)
-> §E2-ST3, tableau de découpe. Le backlog dit déjà *quoi, où, avec quels gates* : **pas de
-> `solution-architect` ni de `devils-advocate`** (barème `.claude/README.md` §6a) — on implémente.
-> ⚠️ **Le lot D hérite de deux décisions à prendre, écrites d'avance** en §E2-ST3 : `associer` n'est
-> **pas** un glisser-déposer (WCAG 2.2 **2.5.7**), et `trouver-la-faille` empiète sur le
-> `CodeCompareComponent` d'E2-ST4 — mettre le rendu de code en commun **ou** le dupliquer en le
-> disant ; le dupliquer en silence est la vraie faute. Le lot C rend déjà ces deux formes, mais
-> **provisoires** : lisibles, hors score, hors persistance.
+> B, C ET D CLOS** (C et D avec leurs constats de revue fermés — 4 et 6).
+> **Le geste suivant : E2-ST3 lot E — la vérification de bout en bout**, par un **agent jetable** :
+> G-axe, **G-clavier**, e2e sous CSP réelle, et la CSP **revalidée sur une page de leçon
+> INTERACTIVE** — [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST3, tableau
+> de découpe et « ✅ Clôture du lot D ».
+> ⚠️ **DÉCOUPER PLUS FIN QUE LES LOTS C ET D.** Les deux ont fini leur agent **au-delà du plafond
+> absolu** de `.claude/rules/agent-context-budget.md` (264k et 262k) : ce n'est plus un accident de
+> brief, c'est la taille des lots. Le lot E se découpe en au moins deux agents.
+>
+> **🔴 Ce que le lot E doit MORDRE en priorité, et que rien d'autre ne peut voir.**
+> (a) La **CSP mesurée avec le quiz à l'écran** — `content/` est vide, donc les 3 routes prerendues
+> sont **inertes** et le vert du build ne prouve rien sur le premier composant réellement interactif
+> (réserve (2) d'E2-ST2, **aggravée** ; S-005 intact). (b) **L'amorçage de pré-hydratation
+> (L-033)** : il est **raisonné, pas mesuré** — `ngOnInit` est présumé assez tôt, ça se prouve avec
+> Playwright (cocher pendant la fenêtre, laisser hydrater, vérifier que la coche survit), et le
+> piège jumeau est qu'un `<select>` peut avaler une valeur **avant que ses `<option>` n'existent**.
+> (c) `style-src` est **dérivé de l'artéfact** contrairement à `script-src` : `quiz.scss` y ajoutera
+> un hachage **en silence** dès la première leçon prerendue (à confronter à **S-002**).
+>
+> **⏭️ Et trois dettes du lot D, écrites en §E2-ST3 « Clôture du lot D », à ne pas perdre :**
+> l'unicité de `gauche` (et des `choix[].id`) n'est imposée **que par le composant** — donc
+> G-content sort **vert** sur un contenu que le prerender refusera, avec un message qui ne nomme pas
+> le fichier : à remonter dans `valider.mjs` · la clause de D-1 « `droite` en double reste permise »
+> n'a **aucun contrôle positif** · le test à deux mains de S-011 ne couvre **qu'un type sur quatre**.
 >
 > **Ce que le lot C a posé.** Le `QuizComponent` rend des radios **natives** dans des `<fieldset>`
 > sous **`PREFIXE_ID_QUESTION`**, score les seules questions corrigeables et écrit la maîtrise dans
@@ -123,7 +137,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
 > **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
-> **417 tests / 26 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
+> **435 tests / 26 fichiers · 11 e2e · axe 258 vérifications, 0 violation · `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >
 > **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**
