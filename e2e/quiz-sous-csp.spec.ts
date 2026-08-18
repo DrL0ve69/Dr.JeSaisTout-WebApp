@@ -64,6 +64,10 @@ import {
 } from './aides/sonde-csp';
 
 import { attendreHydratation } from './aides/hydratation';
+import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+
+exigerLaPageDeLecon('la CSP mesurée en actionnant le quiz (S-005)');
+
 
 /**
  * La page de leçon INTERACTIVE, produite par la fixture témoin.

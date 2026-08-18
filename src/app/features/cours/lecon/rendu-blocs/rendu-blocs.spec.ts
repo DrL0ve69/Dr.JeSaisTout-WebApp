@@ -120,15 +120,15 @@ const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
           htmlColore:
             '<pre class="shiki"><code><span class="line">$q = "…" . $_GET;</span></code></pre>',
           annotations: [
-            { ligne: 1, texte: 'La donnée du client entre telle quelle dans la requête.' },
-            { ligne: 0, texte: 'Aucune requête préparée dans tout ce bloc.' },
+            { lignes: [1], texte: 'La donnée du client entre telle quelle dans la requête.' },
+            { lignes: [0], texte: 'Aucune requête préparée dans tout ce bloc.' },
           ],
         },
         corrige: {
           htmlColore:
             '<pre class="shiki"><code><span class="line">$s = $pdo->prepare("…");</span></code></pre>',
           annotations: [
-            { ligne: 1, texte: 'La requête est préparée, la donnée reste un paramètre.' },
+            { lignes: [1], texte: 'La requête est préparée, la donnée reste un paramètre.' },
           ],
         },
       },
@@ -446,7 +446,7 @@ describe('RenduBlocs', () => {
       expect(vulnerable?.querySelectorAll('.annotations li').length).toBe(2);
       expect(corrige?.querySelectorAll('.annotations li').length).toBe(1);
       expect(vulnerable?.textContent).toContain('Ligne 1');
-      // `ligne: 0` désigne le bloc entier (convention tranchée en E2-ST1) : il ne
+      // `lignes: [0]` désigne le bloc entier (convention tranchée en E2-ST1) : il ne
       // doit surtout pas s'afficher « Ligne 0 ».
       expect(vulnerable?.textContent).toContain('Ensemble du bloc');
       expect(vulnerable?.textContent).not.toContain('Ligne 0');
@@ -461,6 +461,128 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelector('[role="tablist"]')).toBeNull();
       expect(rendu.querySelector('[role="tab"]')).toBeNull();
       expect(rendu.querySelector('[role="tabpanel"]')).toBeNull();
+    });
+
+    // ─── La PORTÉE des annotations (E2-ST4, lot A1) ──────────────────────────────
+    // Le contrôle de BORNE (« la ligne 42 existe-t-elle ? ») ne vit PAS ici et ne peut pas y
+    // vivre : `ExempleCode` ne conserve pas le code brut, le composant ne voit que du HTML
+    // coloré. Il est tenu par `lirePortee` (`compiler-markdown.mjs`), exercé par
+    // `pipeline-contenu-compilation.spec.ts`. Ce qui suit couvre l'autre moitié : la FORME de la
+    // portée, et son rendu.
+
+    /** Une comparaison minimale portant les annotations données côté vulnérable. */
+    function comparaisonAvec(annotations: readonly AnnotationLigne[]): BlocContenu {
+      return {
+        type: 'comparaison',
+        exemples: [
+          {
+            langage: 'php',
+            vulnerable: { htmlColore: '<pre><code>…</code></pre>', annotations: [...annotations] },
+            corrige: { htmlColore: '<pre><code>…</code></pre>', annotations: [] },
+          },
+        ],
+      };
+    }
+
+    it('rend UNE seule note pour une portée multiple, et l’écrit au pluriel', async () => {
+      // 🔴 LE DÉFAUT QUE CE CAS FERME. `{lignes="1,2"}` poussait DEUX annotations portant le
+      // MÊME texte : la leçon affichait la même phrase sous « Ligne 1 : », puis à nouveau sous
+      // « Ligne 2 : ». Une remarque qui couvre deux lignes est UNE remarque à deux ancres.
+      const rendu = await rendre([
+        comparaisonAvec([{ lignes: [1, 2], texte: 'Le paramètre entre dans la requête.' }]),
+      ]);
+
+      const notes = [...rendu.querySelectorAll('.volet-vulnerable .annotations li')];
+      expect(notes).toHaveLength(1);
+      expect(notes[0]?.querySelector('.portee')?.textContent?.trim()).toBe(
+        `Lignes 1 et 2${String.fromCharCode(160)}:`,
+      );
+    });
+
+    it('énumère trois lignes à la française — virgules, puis « et » devant la dernière', async () => {
+      const rendu = await rendre([comparaisonAvec([{ lignes: [1, 2, 5], texte: 'Trois.' }])]);
+      expect(rendu.querySelector('.portee')?.textContent).toContain('Lignes 1, 2 et 5');
+    });
+
+    it('ÉCHOUE sur une portée malformée, en nommant la paire et le volet', () => {
+      // Le cast n'est pas nécessaire : le contrat autorise `number[]`, c'est le COMPILATEUR qui
+      // garantit la forme. Ce cas simule donc exactement ce qu'il doit simuler — un
+      // `lecons/<slug>.json` produit par une AUTRE version du pipeline (même raison que le
+      // contrôle d'équivalent textuel des diagrammes).
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [
+        comparaisonAvec([{ lignes: [1, 1], texte: 'Deux fois la même ligne.' }]),
+      ]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/deux fois/);
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
+        /paire n°1, volet vulnérable/,
+      );
+    });
+
+    it('ÉCHOUE sur chacune des quatre formes hors contrat, chacune sur SA cause', () => {
+      const cas: readonly { lignes: number[]; cause: RegExp }[] = [
+        { lignes: [], cause: /portée vide/ },
+        { lignes: [1.5], cause: /entiers >= 0 attendus/ },
+        { lignes: [-1], cause: /entiers >= 0 attendus/ },
+        // 0 = le bloc ENTIER : le mêler à une ligne précise n'est pas ambigu, c'est
+        // contradictoire — et le rendu afficherait « Lignes 0 et 2 ».
+        { lignes: [0, 2], cause: /0 \(le bloc entier\) mêlé/ },
+      ];
+
+      for (const { lignes, cause } of cas) {
+        TestBed.resetTestingModule();
+        const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+        fixture.componentRef.setInput('blocs', [comparaisonAvec([{ lignes, texte: 'Note.' }])]);
+        fixture.componentRef.setInput('quiz', QUIZ);
+        expect(() => fixture.componentInstance.blocsPrepares(), lignes.join('|')).toThrowError(
+          cause,
+        );
+      }
+    });
+
+    it('NOMME l’ancienne forme « ligne » au lieu de planter dessus anonymement', () => {
+      // 🔴 LE DÉFAUT QUE CE CAS FERME (constat de revue du lot A1). Le texte de `fautePortee`
+      // déclare couvrir « un `lecons/<slug>.json` compilé par une AUTRE version du pipeline » —
+      // or le seul cas réaliste EST l'ancienne forme `{ ligne: 1 }` d'avant E2-ST4. `note.lignes`
+      // y vaut `undefined`, et `lignes.length` levait alors un `TypeError` anonyme : le garde-fou
+      // censé nommer la faute plantait, sans la nommer, sur le seul cas qu'il prétendait couvrir.
+      // Le transtypage est l'artéfact périmé lui-même — c'est ce que ce cas doit simuler.
+      const ancienneForme = [{ ligne: 1, texte: 'Écrite avant E2-ST4.' }] as unknown as
+        readonly AnnotationLigne[];
+
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [comparaisonAvec(ancienneForme)]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+
+      // Le message, pas seulement le fait de lever : « ligne » nommée comme l'ancienne forme…
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
+        /« lignes » absent ou non-tableau/,
+      );
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/ancienne forme/);
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
+        /paire n°1, volet vulnérable/,
+      );
+      // … et surtout PAS le plantage anonyme d'avant le correctif.
+      expect(() => fixture.componentInstance.blocsPrepares()).not.toThrowError(TypeError);
+    });
+
+    it('DÉCRIT la valeur hors contrat reçue, au lieu de la réduire au silence', () => {
+      // `[null].join()` rend la chaîne VIDE et un objet « [object Object] » : le message
+      // accuserait une portée fautive sans jamais dire ce qu'il a reçu — or c'est très
+      // exactement la raison d'être de ce garde-fou (constat de revue du lot A1).
+      const horsContrat = [null, { ligne: 1 }] as unknown as readonly number[];
+
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [
+        comparaisonAvec([{ lignes: [...horsContrat], texte: 'Note.' }]),
+      ]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
+        /reçu null, \{"ligne":1\}/,
+      );
     });
   });
 

@@ -59,9 +59,19 @@ interface BlocQuelconque {
   blocs?: BlocQuelconque[];
   exemples?: {
     langage: string;
-    vulnerable: { htmlColore: string };
-    corrige: { htmlColore: string };
+    vulnerable: { htmlColore: string; annotations: AnnotationLue[] };
+    corrige: { htmlColore: string; annotations: AnnotationLue[] };
   }[];
+}
+
+/**
+ * L'annotation TELLE QU'ELLE SORT du pipeline — lue en forme large, comme le quiz ci-dessous et
+ * pour la même raison (L-012) : décrire ici la forme d'`AnnotationLigne` ferait passer pour
+ * vérifié ce que ce spec doit constater à l'exécution.
+ */
+interface AnnotationLue {
+  lignes: number[];
+  texte: string;
 }
 
 interface SectionLue {
@@ -516,6 +526,130 @@ describe('pipeline de contenu — compilation Markdown', () => {
         expect(message).not.toBeNull();
         expect(message).toContain('quiz.json');
         expect(message).toContain('explication');
+      },
+      DELAI,
+    );
+
+    // ─── La PORTÉE des annotations (E2-ST4, lot A1) ───────────────────────────────
+    // 🔴 POURQUOI CES CAS VIVENT ICI, ET NON SOUS `__fixtures__/invalides/`. Ce dossier-là est la
+    // table câblée de `pipeline-contenu-validation.spec.ts`, dont le garde-fou de complétude exige
+    // une assertion par dossier : y déposer un cas destiné au COMPILATEUR ferait rougir le spec du
+    // VALIDATEUR pour une faute qui n'est pas la sienne (raison déjà écrite en tête de
+    // `leconAdHoc`). Le contrôle positif tourne donc là où il MORD : `npm test`, c'est-à-dire
+    // l'étape G-test de `ci.yml` et de `deploy.yml`.
+    //
+    // 🔴 ET POURQUOI CE CONTRÔLE EST AU COMPILATEUR. `ExempleCode` ne conserve pas le code brut :
+    // passé cette étape, plus personne ne peut recompter les lignes de l'extrait. Avant ce lot,
+    // `{lignes="42"}` sur un extrait de deux lignes sortait G-content VERT, et la leçon publiée
+    // annonçait « Ligne 42 : » devant un bloc qui n'a pas de ligne 42.
+
+    /** Deux lignes de PHP, encadrées d'une comparaison complète, portée paramétrable. */
+    function comparaisonAvecPortee(portee: string): string {
+      return [
+        ':::: comparaison',
+        `::: vulnerable {lignes="${portee}"}`,
+        '```php',
+        '$a = 1;',
+        '$b = 2;',
+        '```',
+        'La remarque qui porte la portée mise à l’épreuve.',
+        ':::',
+        '::: corrige',
+        '```php',
+        '$a = 1;',
+        '$b = 2;',
+        '```',
+        'Le correctif.',
+        ':::',
+        '::::',
+        '',
+      ].join('\n');
+    }
+
+    /**
+     * Insère la comparaison dans la leçon-témoin, juste avant « À toi de jouer ».
+     *
+     * L-010 : la mutation doit frapper SA cible. Sans le constat ci-dessous, un témoin dont le
+     * titre de section aurait changé rendrait ces cas verts (ou rouges) pour la mauvaise raison.
+     */
+    function leconAvecComparaison(nom: string, portee: string): string {
+      let vue = false;
+      const racine = leconAdHoc(nom, (source) => {
+        vue = source.includes('## À toi de jouer');
+        return source.replace(
+          '## À toi de jouer',
+          `${comparaisonAvecPortee(portee)}\n## À toi de jouer`,
+        );
+      });
+      expect(vue).toBe(true);
+      return racine;
+    }
+
+    it(
+      'accepte une portée MULTIPLE, et en fait UNE annotation à deux lignes — pas deux notes',
+      () => {
+        // LE CONTRÔLE POSITIF, et l'autre moitié de la pince : sans lui, tous les refus qui
+        // suivent seraient compatibles avec un compilateur qui refuserait TOUTE portée.
+        // Le second défaut du lot est ici : `{lignes="1,2"}` poussait auparavant le MÊME `texte`
+        // DEUX fois, donc la même phrase répétée sous deux étiquettes dans la leçon publiée.
+        const racine = leconAvecComparaison('portee-multiple', '1,2');
+        const resultat = compiler(racine, join(bacASable, 'portee-multiple.scss'));
+        const comparaison = tousLesBlocs(resultat.lecons[0]?.sections ?? []).find(
+          (bloc) => bloc.type === 'comparaison',
+        );
+
+        const annotations = comparaison?.exemples?.[0]?.vulnerable.annotations ?? [];
+        expect(annotations).toHaveLength(1);
+        expect(annotations[0]?.lignes).toEqual([1, 2]);
+        // Et le volet non annoté n'hérite de rien.
+        expect(comparaison?.exemples?.[0]?.corrige.annotations).toHaveLength(1);
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse une portée AU-DELÀ de l’extrait, en nommant le fichier, la valeur et le compte',
+      () => {
+        const racine = leconAvecComparaison('portee-hors-bornes', '3');
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        // NOMMER LE FICHIER est le point : la dette du lot D d'E2-ST3 était exactement un refus
+        // qui laissait le lecteur chercher lui-même la leçon en cause.
+        expect(message).toContain('lecon.md');
+        expect(message).toContain('lignes="3"');
+        expect(message).toContain('désigne la ligne 3');
+        expect(message).toContain("n'en compte que 2");
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse les cinq autres formes de portée hors contrat, chacune sur SA cause',
+      () => {
+        const cas: readonly { nom: string; portee: string; cause: RegExp }[] = [
+          // `Number('')` vaut 0 : l'ancien contrôle transformait cette coquille en « annotation
+          // sur le bloc entier », silencieusement.
+          { nom: 'portee-vide', portee: '1,,2', cause: /porte une valeur VIDE/ },
+          { nom: 'portee-doublon', portee: '1,1', cause: /désigne deux fois la ligne 1/ },
+          // 0 = le bloc ENTIER (convention d'E2-ST1) : le mêler à une ligne est contradictoire.
+          { nom: 'portee-zero-melange', portee: '0,2', cause: /mêle 0 et des numéros de ligne/ },
+          // 🔴 LES DEUX CAS CI-DESSOUS EXERCENT `!/^\d+$/`, QUE PERSONNE N'EXERÇAIT (constat de
+          // revue du lot A1 ; cousin de L-019, un garde-fou sans contrôle positif est une
+          // intention). Retirer cette regex laissait les vingt cas VERTS, alors que le JSDoc de
+          // `lirePortee` annonce `-1`, `1.5`, `1e2` et `0x2` refusés.
+          //   · `Number('0x2')` vaut 2 : la portée compilait EN SILENCE sur une autre ligne que
+          //     celle écrite — le pire des trois modes d'échec, parce que rien ne rougit ;
+          //   · `Number('-1')` vaut -1, et la borne d'existence ne l'attrape pas : `-1 > 2` est
+          //     faux. Sans la regex, la leçon publiée annoncerait « Ligne -1 : ».
+          { nom: 'portee-hexadecimale', portee: '0x2', cause: /« 0x2 » illisible/ },
+          { nom: 'portee-negative', portee: '-1', cause: /« -1 » illisible/ },
+        ];
+
+        for (const { nom, portee, cause } of cas) {
+          const message = messageDEchec(leconAvecComparaison(nom, portee));
+          expect(message, nom).not.toBeNull();
+          expect(message ?? '', nom).toMatch(cause);
+        }
       },
       DELAI,
     );

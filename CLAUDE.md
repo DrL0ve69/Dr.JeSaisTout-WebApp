@@ -55,11 +55,26 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ## ⏭️ REPRISE — état au 2026-08-18
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
-> CLOSE EN ENTIER** — lots A à E, PR **#17 verte, SonarCloud compris**, en attente de fusion par le
-> propriétaire.
-> **Le geste suivant : E2-ST4 — le bloc `comparaison`**, et il est **beaucoup plus petit que son
-> objectif écrit** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST4,
-> « Les deux décisions d'E2-ST4 » et son tableau de découpe (lots **A1, A2, B, C**).
+> CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 lot A1 CLOS.**
+> **Le geste suivant : E2-ST4 lot A2** — la sonde du sanitizer, PUIS le transformateur `line` :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST4, « Les deux décisions
+> d'E2-ST4 » et son tableau de découpe (lots **A1 ✅, A2, B, C**). Travail en cours sur la branche
+> `feat/e2-st4-comparaison`.
+>
+> **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
+> passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
+> décision E-2 fait bâtir à `ci.yml` l'artéfact depuis la **fixture témoin**, tandis que `deploy.yml`
+> garde la racine de **production** — or les huit specs du lot E visent
+> `/cours/securite-web/lecon-temoin/`, une route qui n'existe **que** dans l'artéfact de fixture. Le
+> vert de `ci.yml` masquait le trou parce qu'il regarde l'autre artéfact (**L-007**).
+> ⚠️ **Donc : tout spec e2e neuf qui vise la page de leçon DOIT appeler `exigerLaPageDeLecon(…)`**
+> (`e2e/aides/artefact-mesure.ts`) — il interroge le **disque**, pas le serveur (une 404 ne
+> distinguerait pas « artéfact de production » de « serveur cassé »), saute en imprimant ce qui n'a
+> pas été mesuré, et ce saut est tenu par un filet **hors de la suite e2e** : un fichier entièrement
+> sauté ne peut pas s'assertionner, c'est donc `src/workflows-github.spec.ts` qui exige que la
+> fixture de `ci.yml` porte une leçon **au slug exact** que ces specs cherchent.
+> Mesures attendues : **21 e2e / 0 sauté** sur l'artéfact fixture, **11 passés / 10 sautés** sur
+> l'artéfact de production.
 >
 > **🔵 LES DEUX DÉCISIONS D'E2-ST4, PRISES LE 2026-08-18, À NE PAS ROUVRIR.**
 > **ST4-1 · Il n'y a PAS de sélecteur de langage, et le nœud « onglets » du backlog est SANS OBJET.**
@@ -82,13 +97,25 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > Le delta réel : **(a)** ancrer les annotations à la ligne, **(b)** le contrôle de portée manquant,
 > **(c)** les 2 colonnes en large.
 >
-> 🔴 **Le constat qui ouvre le lot A1, vérifié sur le code** : `compiler-markdown.mjs` (~l. 691-699)
-> n'accepte qu'un entier `>= 0`, **sans plafond** — `lignes="42"` sur un extrait de 5 lignes sort
-> G-content **VERT**. `valider.mjs` (~l. 879-884) fait pourtant exactement ce contrôle pour
-> `ligneFautive`. Même famille que la dette du lot D, et même parade : l'invariant se tient **des
-> deux côtés**. ⚠️ `ExempleCode` **ne conserve pas le code brut** : rien en aval ne peut recompter
-> les lignes, donc le contrôle vit **dans le compilateur**. Second constat du même endroit :
-> `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois**.
+> ✅ **LOT A1 CLOS — ce qu'il a trouvé, et ce n'était pas ce qu'il cherchait.** La portée
+> `{lignes="…"}` n'avait aucun plafond (`lignes="42"` sur 5 lignes sortait vert) : corrigé, et
+> l'invariant est tenu **des deux côtés**. Mais le vrai défaut était ailleurs — **`lignes="1,,2"`,
+> un jeton VIDE entre deux virgules, devenait une valeur LÉGALE par coercition** : `Number('')` vaut
+> `0`, `Number.isInteger(0)` est vrai, et `0` signifie « le bloc entier ». Une coquille de frappe
+> changeait donc **silencieusement le sens** de l'annotation, et se publiait.
+> Le contrat est passé de `ligne: number` à **`lignes: number[]`** (une annotation portant plusieurs
+> lignes, au lieu de N notes au texte identique). ⚠️ `ExempleCode` **ne conserve pas le code brut** :
+> le contrôle de borne vit donc **dans le compilateur**, et le pendant côté application le déclare
+> **non prouvable** en toutes lettres — le déduire du balisage Shiki serait une garantie dérivée de
+> l'artéfact (S-005/S-009).
+> ⚠️ **Limite laissée en place et écrite, pour le lot B** : `lireExemple` joint toute la prose d'un
+> volet, donc `ExempleCode.annotations` ne porte plus que **0 ou 1** élément — alors que le type, le
+> `@if` et le `@for` en promettent N. Le lot B (annotations ancrées à la ligne) la fera sauter.
+> ⚠️ **`docs/contenu/pipeline-contenu.md` documentait une syntaxe MORTE** — et pire que périmée :
+> `langageDe` ne lit que le premier mot de la clôture, donc ` ```php vulnerable ligne=2 ` était
+> **ignoré en silence** et le bloc sortait en simple `code`. Un auteur suivant la doc aurait publié
+> une leçon sans côte-à-côte, tous gates verts. Réécrit — c'est le fichier depuis lequel
+> `professeur-web` écrit.
 > ⚠️ **Mesurer avant de concevoir** (lot A2) : on ne sait pas ce que le sanitizer d'Angular laisse
 > passer sur la sortie Shiki. `class` très probablement ; `data-*` et `id`, à **mesurer** — le
 > précédent du SVG (24 éléments → 0) interdit de le supposer.
@@ -120,6 +147,18 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **Chiffres de clôture (2026-08-18)** : **G-test 498 / 28 fichiers · G-e2e 21 · G-axe 4 fichiers,
 > 344 vérifications, 0 violation · G-build 12 hachages de style (fixture) / 9 (production), 1 de
 > script des deux côtés · `npm audit --omit=dev` 0.**
+>
+> **⚠️ TROISIÈME PIÈGE DU HARNAIS E2E, PAYÉ EN DIRECT AU LOT A1 — et il ment dans les DEUX sens.**
+> `playwright.config.ts` pose `reuseExistingServer: !CI`. Un `npx swa start` laissé en marche par un
+> run précédent est **réutilisé**, et il sert la politique CSP qu'il a lue à **son** démarrage :
+> reconstruire l'artéfact ne le lui apprend pas. Or changer un gabarit change l'identifiant du
+> composant, donc le contenu de son bloc `<style>`, donc son hachage. Constaté : une violation
+> `style-src-elem` parfaitement **reproductible** sur un dépôt sain — j'ai cru à une régression.
+> **Le sens inverse est le vrai danger** : un serveur démarré sur une politique plus permissive
+> rendrait **vert** exactement ce que ces specs existent pour attraper. `exigerCspServie` compare
+> désormais la CSP **servie** à celle de l'artéfact **sur le disque**, à l'octet près (contrôle
+> positif exécuté). En local, après tout rebâtissage : **arrêter le processus qui écoute le port
+> 4280** avant de relancer `npm run e2e`.
 >
 > **⚠️ LES DEUX PIÈGES QUE LE LOT E A CRÉÉS EN SE CORRIGEANT — à connaître avant d'écrire un e2e.**
 > **(a) Mutualiser une vérification DÉPLACE le risque** (**L-034**, née ici). `e2e/aides/` porte
@@ -190,7 +229,8 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
 > il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
 > **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
-> **Au 2026-08-18 : 498 tests / 28 fichiers · 21 e2e · axe 344 vérifications, 0 violation ·
+> **Au 2026-08-18 : 509 tests / 28 fichiers · 21 e2e (fixture) ou 11 + 10 sautés (production) ·
+> axe 344 vérifications, 0 violation ·
 > `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
 >

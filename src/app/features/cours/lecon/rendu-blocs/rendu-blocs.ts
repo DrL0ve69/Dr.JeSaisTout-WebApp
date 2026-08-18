@@ -31,9 +31,15 @@
 // contournement à trouver : c'est la raison pour laquelle `_mermaid-generee.scss`
 // accroche `svg.diagramme-mermaid` et ne dépend d'aucun balisage d'E2-ST2.
 //
-// ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT, écrites `&nbsp;` pour qu'on
-// les VOIE à la relecture (jamais U+202F ni U+2009, absentes de Fraunces comme
-// d'Inter) — `.claude/rules/contenu-pedagogique.md` §3.
+// ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT, écrites `&nbsp;` dans le
+// gabarit pour qu'on les VOIE à la relecture, et `'\u00A0'` (constante `INSECABLE`)
+// dans le TypeScript, où `no-irregular-whitespace` refuse la vraie — jamais U+202F ni
+// U+2009, absentes de Fraunces comme d'Inter (`.claude/rules/contenu-pedagogique.md` §3).
+//
+// E2-ST4 (lot A1) : `preparer()` refuse aussi une PORTÉE d'annotation malformée. Ce qu'il
+// peut et ne peut pas constater est écrit sur `fautePortee` — la borne « la ligne existe »
+// n'est PAS vérifiable ici, faute de code brut dans l'artéfact ; elle se tient au
+// compilateur (`lirePortee`).
 // =============================================================================
 
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
@@ -56,6 +62,100 @@ const TYPES_RENDUS = [
   'ancre-quiz',
   'ancre-simulation',
 ] as const;
+
+/** U+00A0 écrite en échappement : `no-irregular-whitespace` refuse la vraie dans un littéral. */
+const INSECABLE = '\u00A0';
+
+/**
+ * Ce que la page peut HONNÊTEMENT constater d'une portée d'annotation — et ce qu'elle ne peut pas.
+ *
+ * CE QU'ELLE CONSTATE (E2-ST4, lot A1) : la forme. Une portée vide, un `1.5`, un `-1`, un `NaN`,
+ * un doublon, ou un `0` mêlé à des numéros de ligne rendraient une étiquette absurde — « Ligne
+ * NaN : », « Ligne 1 et 1 : » — dans une leçon publiée, sans qu'aucun gate ne rougisse. Ces cas
+ * sont IMPOSSIBLES à la sortie du compilateur ; ce contrôle-ci couvre le seul qu'il ne couvre pas,
+ * celui d'un `lecons/<slug>.json` compilé par une AUTRE version du pipeline (même raison que le
+ * contrôle d'équivalent textuel des diagrammes, juste en dessous).
+ *
+ * 🔴 CE QU'ELLE NE PEUT PAS CONSTATER, ET IL FAUT LE DIRE : que la ligne 42 EXISTE dans l'extrait.
+ * `ExempleCode` ne conserve pas le code brut (`tools/content-pipeline/types.d.ts`) — la page ne
+ * voit que le HTML coloré. Le déduire du balisage de Shiki (compter les `class="line"`) ferait
+ * dériver une garantie de l'artéfact même qu'elle est censée contrôler, et cette garantie
+ * disparaîtrait en silence à la première évolution du rendu : c'est le patron que S-005 et S-009
+ * refusent. Cette borne se tient dans `lirePortee` (`compiler-markdown.mjs`) — le dernier endroit
+ * du pipeline où le code source est encore là — ou elle ne se tient pas.
+ *
+ * ⚠️ LE PARAMÈTRE EST `unknown`, ET C'EST LE CŒUR DU CONTRÔLE. Le seul cas réaliste d'un artéfact
+ * « d'une autre version du pipeline » est justement l'ANCIENNE forme `{ ligne: 1 }` d'avant E2-ST4 :
+ * `lignes` y vaut `undefined`. Typer ce paramètre `readonly number[]` faisait donc lever un
+ * `TypeError: Cannot read properties of undefined` — un plantage ANONYME sur le seul cas que le
+ * texte ci-dessus prétend couvrir, c'est-à-dire une justification plus large que la garantie
+ * appliquée (patron S-009 / L-008). La garde `Array.isArray` est en première ligne pour cette
+ * raison, et son message NOMME l'ancienne forme.
+ *
+ * @returns la faute constatée, ou `null` si la portée est bien formée
+ */
+function fautePortee(lignes: unknown): string | null {
+  if (!Array.isArray(lignes)) {
+    return (
+      '« lignes » absent ou non-tableau — « ligne » est l’ancienne forme, d’avant E2-ST4 ' +
+      `(reçu ${decrire(lignes)})`
+    );
+  }
+  const portee: readonly unknown[] = lignes;
+  if (portee.length === 0) return 'portée vide (attendu au moins un numéro, ou 0 pour le bloc)';
+  const horsContrat = portee.filter(
+    (ligne) => typeof ligne !== 'number' || !Number.isInteger(ligne) || ligne < 0,
+  );
+  if (horsContrat.length > 0) {
+    return `entiers >= 0 attendus — reçu ${horsContrat.map(decrire).join(', ')}`;
+  }
+  if (new Set(portee).size !== portee.length) {
+    return `ligne citée deux fois — ${portee.map(decrire).join(', ')}`;
+  }
+  if (portee.includes(0) && portee.length > 1) {
+    return `0 (le bloc entier) mêlé à des numéros de ligne — ${portee.map(decrire).join(', ')}`;
+  }
+  return null;
+}
+
+/**
+ * Rend une valeur hors contrat LISIBLE dans un message d'erreur — c'est la raison d'être du
+ * garde-fou, pas un détail de présentation. `String(null)` donne « null » mais `[null].join()` la
+ * chaîne VIDE, et un objet donne « [object Object] » : le message accuserait alors une portée
+ * fautive sans jamais dire ce qu'il a reçu. `JSON.stringify` restitue la forme ; les nombres
+ * passent à côté, parce que `NaN` et `Infinity` n'ont pas de forme JSON et sortiraient en « null »
+ * — précisément les deux valeurs qu'il faut pouvoir nommer.
+ */
+function decrire(valeur: unknown): string {
+  if (typeof valeur === 'number') return String(valeur);
+  return JSON.stringify(valeur) ?? String(valeur); // `undefined` n'a pas de forme JSON
+}
+
+/**
+ * Le refus d'une portée, TOUJOURS sous le même préambule — les trois gardes de `verifierPortees`
+ * passent par ici pour qu'un artéfact d'une autre version du pipeline se nomme de la même façon,
+ * qu'il ait perdu `exemples`, `annotations` ou `lignes`.
+ *
+ * @param ou la position fautive, déjà rédigée (« bloc n°2, paire n°1, volet vulnérable »)
+ */
+function erreurPortee(ou: string, faute: string): Error {
+  return new Error(
+    `RenduBlocs : portée d'annotation invalide (${ou}) — ${faute}. Le contrat est ` +
+      '`tools/content-pipeline/types.d.ts` ; la portée est produite par ' +
+      '`lirePortee` (`compiler-markdown.mjs`) — régénérer avec `npm run content:build`.',
+  );
+}
+
+/**
+ * « Ligne 3 », « Lignes 1 et 2 », « Lignes 1, 2 et 5 » — l'énumération française, avec « et »
+ * devant le dernier terme. Le pluriel suit le nombre d'ancres, sans quoi une portée multiple
+ * s'annoncerait au singulier.
+ */
+function enumererLignes(lignes: readonly number[]): string {
+  if (lignes.length === 1) return `Ligne ${String(lignes[0])}`;
+  const debut = lignes.slice(0, -1).join(', ');
+  return `Lignes ${debut} et ${String(lignes[lignes.length - 1])}`;
+}
 
 /** Étiquette visible d'un encadré. WCAG 1.4.1 : le genre de l'encadré ne peut pas
  * reposer sur sa seule couleur ni sur son seul style de trait — il est ÉCRIT. */
@@ -131,11 +231,7 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
                     <ul class="annotations">
                       @for (note of exemple.vulnerable.annotations; track $index) {
                         <li>
-                          @if (note.ligne > 0) {
-                            <b class="portee">Ligne {{ note.ligne }}&nbsp;:</b>
-                          } @else {
-                            <b class="portee">Ensemble du bloc&nbsp;:</b>
-                          }
+                          <b class="portee">{{ etiquettePortee(note) }}</b>
                           {{ note.texte }}
                         </li>
                       }
@@ -150,11 +246,7 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
                     <ul class="annotations">
                       @for (note of exemple.corrige.annotations; track $index) {
                         <li>
-                          @if (note.ligne > 0) {
-                            <b class="portee">Ligne {{ note.ligne }}&nbsp;:</b>
-                          } @else {
-                            <b class="portee">Ensemble du bloc&nbsp;:</b>
-                          }
+                          <b class="portee">{{ etiquettePortee(note) }}</b>
                           {{ note.texte }}
                         </li>
                       }
@@ -256,6 +348,18 @@ export class RenduBlocs {
     return ETIQUETTES_ENCADRE[variante];
   }
 
+  /**
+   * L'étiquette de portée d'une annotation : « Ensemble du bloc », « Ligne 3 », « Lignes 1 et 2 ».
+   *
+   * La portée est ÉCRITE, jamais seulement suggérée par une couleur ou une position — c'est ce qui
+   * rend l'annotation utilisable au lecteur d'écran comme à l'impression (WCAG 1.4.1). `[0]` ne
+   * s'affiche surtout pas « Ligne 0 » : 0 désigne le bloc entier, pas une ligne.
+   */
+  etiquettePortee(note: AnnotationLigne): string {
+    const libelle = note.lignes[0] === 0 ? 'Ensemble du bloc' : enumererLignes(note.lignes);
+    return `${libelle}${INSECABLE}:`;
+  }
+
   private preparer(bloc: BlocContenu, rang: number): BlocPrepare {
     const connus: readonly string[] = TYPES_RENDUS;
     if (!connus.includes(bloc.type)) {
@@ -265,6 +369,11 @@ export class RenduBlocs {
           '`tools/content-pipeline/types.d.ts` — un bloc non rendu serait un trou ' +
           'silencieux dans la leçon, on préfère casser la construction.',
       );
+    }
+
+    if (bloc.type === 'comparaison') {
+      this.verifierPortees(bloc, rang);
+      return bloc;
     }
 
     if (bloc.type !== 'mermaid') return bloc;
@@ -287,6 +396,45 @@ export class RenduBlocs {
       titreAccessible: bloc.titreAccessible,
       descriptionLongue: bloc.descriptionLongue,
     };
+  }
+
+  /**
+   * Refuse une portée d'annotation malformée, en NOMMANT le volet et la paire.
+   *
+   * Voir `fautePortee` ci-dessus pour ce que ce contrôle peut et ne peut pas constater : la FORME
+   * oui, l'EXISTENCE de la ligne dans l'extrait non — le code brut n'est pas dans l'artéfact.
+   */
+  private verifierPortees(
+    bloc: Extract<BlocContenu, { type: 'comparaison' }>,
+    rang: number,
+  ): void {
+    // ⚠️ LES DEUX `Array.isArray` CI-DESSOUS NE SONT PAS DE LA DÉFENSE DE PRINCIPE. Le cas que ce
+    // contrôle déclare couvrir est un `lecons/<slug>.json` compilé par une AUTRE version du
+    // pipeline : à ce moment-là le TYPE ment, par construction. Sans ces gardes, un artéfact où
+    // `exemples` ou `annotations` a changé de forme fait lever un `TypeError` anonyme depuis la
+    // boucle — le garde-fou censé nommer la faute plante sans la nommer (patron S-009 / L-008).
+    if (!Array.isArray(bloc.exemples)) {
+      throw erreurPortee(`bloc n°${rang + 1}`, '« exemples » absent ou non-tableau');
+    }
+    for (const [rangPaire, exemple] of bloc.exemples.entries()) {
+      const volets = [
+        ['vulnérable', exemple.vulnerable],
+        ['corrigé', exemple.corrige],
+      ] as const;
+      for (const [nomVolet, volet] of volets) {
+        const ou = `bloc n°${rang + 1}, paire n°${rangPaire + 1}, volet ${nomVolet}`;
+        // `volet?.` et pas `volet.` : un artéfact périmé peut avoir perdu le VOLET lui-même, et
+        // `undefined.annotations` relèverait le `TypeError` anonyme que cette garde existe pour
+        // supprimer — le défaut se serait juste déplacé d'un cran.
+        if (!Array.isArray(volet?.annotations)) {
+          throw erreurPortee(ou, '« annotations » absent ou non-tableau (ou volet absent)');
+        }
+        for (const note of volet.annotations) {
+          const faute = fautePortee(note.lignes);
+          if (faute !== null) throw erreurPortee(ou, faute);
+        }
+      }
+    }
   }
 }
 

@@ -387,6 +387,7 @@ describe('rigueur du compilateur', () => {
      * déplacé le risque : cette liste est l'endroit où on le rattrape.
      */
     const FICHIERS_EPINGLES = [
+      'e2e/aides/artefact-mesure.ts',
       'e2e/aides/hydratation.ts',
       'e2e/aides/indicateur-focus.ts',
       'e2e/aides/sonde-csp.ts',

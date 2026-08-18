@@ -657,8 +657,107 @@ function blocDeCloture(jeton, ctx) {
 }
 
 /**
+ * Lit la PORTÉE d'une annotation — la valeur de `{lignes="…"}` — et la confronte à l'extrait
+ * qu'elle désigne.
+ *
+ * 🔴 POURQUOI CE CONTRÔLE VIT ICI, ET NULLE PART AILLEURS (E2-ST4, lot A1). `ExempleCode` ne
+ * conserve PAS le code brut : l'artéfact ne porte que le HTML coloré. Aucun consommateur en aval
+ * — ni `lireLeconCompilee`, ni `RenduBlocs` — ne peut donc recompter les lignes de l'extrait pour
+ * savoir si la ligne 42 existe. Le compilateur est le dernier endroit du pipeline où la source
+ * est encore là ; s'il ne borne pas la portée, personne ne la bornera. Avant ce lot, `lignes="42"`
+ * sur un extrait de deux lignes sortait G-content VERT, et le rendu affichait « Ligne 42 : »
+ * devant un bloc qui n'a pas de ligne 42. C'est la même famille de défaut que la dette du lot D
+ * d'E2-ST3 : un invariant nécessaire au rendu, imposé d'un seul côté.
+ * `valider.mjs` fait exactement ce contrôle pour le `ligneFautive` d'une question
+ * `trouver-la-faille` (`verifierQuestionTrouverLaFaille`) — l'asymétrie n'avait pas de raison.
+ *
+ * CE QUI EST REFUSÉ, ET POURQUOI CHAQUE CAS COMPTE :
+ *   · une valeur vide (`lignes=""`, `lignes="1,,2"`) — `Number('')` vaut `0`, donc l'ancien code
+ *     transformait une coquille en « annotation sur le bloc entier », SANS RIEN DIRE ;
+ *   · autre chose qu'une suite de chiffres (`-1`, `1.5`, `1e2`, `0x2`) — `Number` les accepte
+ *     tous, `Number.isInteger` en laisse passer deux ;
+ *   · un numéro AU-DELÀ du nombre de lignes de l'extrait — le défaut nommé ci-dessus ;
+ *   · le même numéro deux fois (`lignes="1,1"`) — deux portées identiques dans une seule note ;
+ *   · `0` mêlé à des numéros (`lignes="0,2"`) — `0` désigne le bloc ENTIER (convention tranchée
+ *     en E2-ST1) ; l'annoncer avec une ligne précise est contradictoire, pas ambigu.
+ *
+ * Le message NOMME le fichier et la valeur fautive : la dette du lot D était précisément un refus
+ * qui laissait le lecteur chercher lui-même la leçon en cause.
+ *
+ * @param {string | undefined} brut valeur de `{lignes="…"}`, absente = le bloc entier
+ * @param {string} code contenu du bloc de code annoté, tel que markdown-it le rend
+ * @param {'vulnerable' | 'corrige'} nom volet annoté, pour nommer la faute
+ * @param {string} nomFichier fichier de contenu, pour nommer la faute
+ * @returns {number[]} portée triée, jamais vide — `[0]` = le bloc entier
+ */
+function lirePortee(brut, code, nom, nomFichier) {
+  // markdown-it termine TOUJOURS le contenu d'une clôture par un saut de ligne : le compter
+  // donnerait une ligne fantôme, et `lignes="3"` passerait sur un extrait de deux lignes.
+  const sansFin = code.replace(/\r?\n$/, '');
+  const nbLignes = sansFin === '' ? 0 : sansFin.split(/\r?\n/).length;
+  if (brut === undefined) return [0];
+
+  /** @type {number[]} */
+  const portee = [];
+  for (const jeton of brut.split(',')) {
+    const valeur = jeton.trim();
+    if (valeur === '') {
+      echec(`${nomFichier} : « lignes="${brut}" » sur « ::: ${nom} » porte une valeur VIDE`, [
+        'une virgule sans numéro derrière est une coquille, pas une portée',
+        '⚠️ `Number("")` vaut 0 : sans ce refus, la note basculerait en silence sur le bloc entier',
+      ]);
+    }
+    if (!/^\d+$/.test(valeur)) {
+      echec(`${nomFichier} : « lignes="${brut}" » sur « ::: ${nom} » — « ${valeur} » illisible`, [
+        'valeurs attendues : des entiers >= 0 séparés par des virgules, par exemple {lignes="1,2"}',
+        '0 désigne le bloc entier, et ne se combine avec aucun numéro de ligne',
+      ]);
+    }
+    const numero = Number(valeur);
+    if (numero > nbLignes) {
+      echec(
+        `${nomFichier} : « lignes="${brut}" » sur « ::: ${nom} » désigne la ligne ${numero}, ` +
+          `mais l'extrait n'en compte que ${nbLignes}`,
+        [
+          'la portée d’une annotation doit exister dans le code qu’elle annote',
+          'sinon la leçon publiée affiche « Ligne ' + String(numero) + ' : » devant un bloc qui n’a pas cette ligne',
+        ],
+      );
+    }
+    if (portee.includes(numero)) {
+      echec(
+        `${nomFichier} : « lignes="${brut}" » sur « ::: ${nom} » désigne deux fois la ligne ${numero}`,
+        ['chaque ligne de la portée ne se cite qu’une fois'],
+      );
+    }
+    portee.push(numero);
+  }
+  if (portee.includes(0) && portee.length > 1) {
+    echec(
+      `${nomFichier} : « lignes="${brut}" » sur « ::: ${nom} » mêle 0 et des numéros de ligne`,
+      [
+        '0 désigne le bloc ENTIER (convention d’E2-ST1) : il ne se combine avec rien',
+        'écrire {lignes="0"} pour le bloc entier, ou la liste des lignes visées',
+      ],
+    );
+  }
+  return [...portee].sort((a, b) => a - b);
+}
+
+/**
  * Lit un `::: vulnerable` ou `::: corrige` : exactement une clôture de code, plus une prose
  * facultative qui devient l'annotation.
+ *
+ * ⚠️ LIMITE CONNUE ET ASSUMÉE DEPUIS E2-ST4 (lot A1) : **0 ou 1 annotation par volet, jamais N.**
+ * Toute la prose du volet est JOINTE en un seul `texte` (le `.join(' ')` ci-dessous), et une seule
+ * `AnnotationLigne` est poussée. Le type `ExempleCode.annotations` est pourtant un tableau, et le
+ * rendu (gabarit inline de `rendu-blocs.ts` : `@if (…length > 0)` puis `@for`) sait déjà en
+ * afficher plusieurs — la capacité existe des deux côtés, seule cette fonction ne la produit pas.
+ * C'est voulu ici : la
+ * syntaxe actuelle n'offre qu'un `{lignes="…"}` par volet, donc une seule portée à attribuer.
+ * 🔴 C'EST LE **LOT B** (« annotations ancrées à la ligne ») QUI FERA SAUTER CETTE LIMITE : il lui
+ * faut plusieurs notes distinctes par volet, donc une syntaxe qui attache une portée à CHAQUE
+ * paragraphe. Écrit ici pour qu'il ne le découvre pas en chemin. Ne pas « corriger » avant lui.
  *
  * @param {readonly JetonMd[]} enfants
  * @param {JetonMd} ouverture
@@ -686,18 +785,15 @@ function lireExemple(enfants, ouverture, nom, ctx) {
   /** @type {AnnotationLigne[]} */
   const annotations = [];
   if (texte !== '') {
-    // `ligne: 0` = commentaire portant sur TOUT le bloc. C'est la valeur qu'E2-ST4 doit traiter à
-    // part : un numéro de ligne 0 n'existe pas dans un extrait, l'ambiguïté est donc exclue.
-    const lignes = (attributs['lignes'] ?? '0').split(',');
-    for (const brute of lignes) {
-      const numero = Number(brute.trim());
-      if (!Number.isInteger(numero) || numero < 0) {
-        echec(`${ctx.nomFichier} : « lignes="${attributs['lignes'] ?? ''}" » sur « ::: ${nom} »`, [
-          'valeurs attendues : des entiers positifs séparés par des virgules',
-        ]);
-      }
-      annotations.push({ ligne: numero, texte });
-    }
+    // UNE annotation portant PLUSIEURS lignes de portée, jamais N annotations identiques
+    // (E2-ST4, lot A1). Avant ce lot, `{lignes="1,2"}` poussait le MÊME `texte` deux fois : le
+    // rendu affichait la même phrase sous « Ligne 1 : » puis sous « Ligne 2 : », comme si
+    // l'auteur avait écrit deux commentaires. Or `lignes="1,2"` dit « cette remarque porte sur
+    // ces deux lignes-là » — une note, deux ancres. `lignes: [0]` = le bloc entier.
+    annotations.push({
+      lignes: lirePortee(attributs['lignes'], cloture.content, nom, ctx.nomFichier),
+      texte,
+    });
   } else if (attributs['lignes'] !== undefined) {
     echec(`${ctx.nomFichier} : « ::: ${nom} » annonce des lignes sans texte d'annotation`, [
       'ajouter le paragraphe qui explique la ligne désignée, ou retirer {lignes="…"}',

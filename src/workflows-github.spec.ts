@@ -303,6 +303,15 @@ describe('G-build de ci.yml ≡ `npm run build` déplié (décision E-2)', () =>
 // ⏳ À RETIRER AVEC LE HARNAIS, à la clôture d'E3-ST1 (backlog §E2-ST2, réserve 4).
 // =============================================================================
 
+/**
+ * Le slug de la leçon que les trois specs e2e de la page de leçon vont chercher.
+ *
+ * Écrit ici EN DUR, et c'est le point : ce fichier ne compile pas avec la suite e2e, donc il ne peut
+ * pas importer la constante. C'est exactement ce qu'on veut (L-012) — un test qui importerait la
+ * valeur qu'il contrôle ne prouverait que la cohérence d'un fichier avec lui-même.
+ */
+const SLUG_LECON_MESUREE_EN_E2E = 'lecon-temoin';
+
 describe('le harnais de leçon interactive (décision E-2)', () => {
   it('nomme dans ci.yml une racine de fixture qui porte vraiment une leçon', () => {
     const racine = /--racine\s+(\S+)/.exec(ci)?.[1];
@@ -319,6 +328,35 @@ describe('le harnais de leçon interactive (décision E-2)', () => {
       lecons.length,
       `ci.yml compile « ${racine ?? ''} », qui ne porte aucune « lecon.md » — la CI ne prerendrait plus de page de leçon`,
     ).toBeGreaterThan(0);
+  });
+
+  // 🔴 CE TEST FERME LE DERNIER TROU DU SAUT DE `e2e/aides/artefact-mesure.ts`, ET LUI SEUL LE PEUT.
+  // Depuis le déploiement rouge du 2026-08-18, les trois specs de la page de leçon se SAUTENT quand
+  // l'artéfact mesuré ne porte pas cette page — c'est ce qui rend `deploy.yml` (racine de production,
+  // `content/` vide) vert sans exiger que la fixture parte en ligne. Le saut est donc la seule chose
+  // qui les empêche d'être rouges partout ; il faut par symétrie quelque chose qui les empêche d'être
+  // SAUTÉS partout, et ce quelque chose ne peut pas vivre dans la suite e2e elle-même (un fichier
+  // entièrement sauté ne peut pas s'assertionner).
+  //
+  // Le test voisin exige que la racine de fixture porte UNE leçon, n'importe laquelle. Ça ne suffit
+  // pas : les specs visent une ROUTE, `/cours/securite-web/lecon-temoin/`, qui vient du nom du
+  // dossier. Renommer la fixture laisserait ce gate-là vert, `ci.yml` prerendrait toujours une page
+  // interactive — et les dix specs se sauteraient EN SILENCE des deux côtés, sans qu'un seul run ne
+  // rougisse. Le gate le plus vide du dépôt, déplacé d'un cran (L-005/L-014).
+  it('fait porter à la fixture de ci.yml la leçon dont les specs e2e attendent la ROUTE', () => {
+    const racine = /--racine\s+(\S+)/.exec(ci)?.[1] ?? '';
+    // Le slug est la moitié de fin du dossier `<nn>-<slug>`, et c'est lui qui devient la route.
+    const slugs = existsSync(racine)
+      ? readdirSync(racine, { withFileTypes: true })
+          .filter((entree) => entree.isDirectory() && existsSync(join(racine, entree.name, 'lecon.md')))
+          .map((entree) => entree.name.replace(/^\d+-/, ''))
+      : [];
+    expect(
+      slugs,
+      `la fixture « ${racine} » ne porte aucune leçon de slug « ${SLUG_LECON_MESUREE_EN_E2E} » — or c'est la route ` +
+        `que visent e2e/parcours-clavier-quiz, e2e/quiz-pre-hydratation et e2e/quiz-sous-csp. Ils se sauteraient ` +
+        `des DEUX côtés, en silence. Renommer la fixture impose de renommer la route dans les trois specs.`,
+    ).toContain(SLUG_LECON_MESUREE_EN_E2E);
   });
 
   it('passe dans ci.yml le compte de hachages de style épinglé, à la valeur près', () => {

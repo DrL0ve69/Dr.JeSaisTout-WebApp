@@ -67,6 +67,10 @@ import {
 } from './aides/indicateur-focus';
 
 import { attendreHydratation } from './aides/hydratation';
+import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+
+exigerLaPageDeLecon('le parcours clavier du quiz (8 arrêts, flèches, focus visible)');
+
 
 /** Voir l'en-tête de `quiz-pre-hydratation.spec.ts` : cette route vient de la fixture témoin. */
 const CHEMIN_LECON = '/cours/securite-web/lecon-temoin/';
