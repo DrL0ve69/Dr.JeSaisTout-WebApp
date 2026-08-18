@@ -383,3 +383,34 @@ systématiquement `crypto.randomUUID()`/`crypto.getRandomValues()`, même sans u
 apparent, dès que la valeur sert à distinguer des événements dans un gate de sécurité : un faux
 négatif s'y lit comme une preuve.
 **Réfs.** `e2e/aides/sonde-csp.ts`, `docs/agile/backlog-phase-1.md` §E2-ST3 lot E.
+
+## S-014 · La règle « analyser, jamais apparier par motif » vaut pour TOUTE chaîne qui contient une entrée — même un contrôle de conservation, même sur une sortie d'outil réputée sûre (A03/A05 · CWE-116, quatrième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]])
+
+**Symptôme.** `verifierAncres` (E2-ST4 lot A2, `compiler-markdown.mjs`) devait exiger qu'une ancre
+`class="line ancre-ligne-N"` soit posée sur chaque ligne du HTML produit par Shiki. Première
+écriture : une regex `\bligne-(\d+)\b` appliquée à la **chaîne HTML complète** — laquelle contient
+le **texte du code de l'auteur**, une entrée. `security-reviewer` a débranché le transformateur qui
+pose les ancres et rejoué le vrai Shiki : code neutre ⇒ rougit correctement ; le même code avec un
+commentaire `// voir ligne-1, ligne-2, ligne-3` ⇒ le garde-fou passe **vert avec zéro ancre posée**.
+L'entrée fournissait elle-même la preuve qu'on lui réclamait. Aggravant : le commentaire du code
+invoquait explicitement « patron S-003 » en commettant précisément la faute que S-003 nomme.
+**Ce que S-001/S-003/S-009 ne disaient pas encore.** Les trois précédents portaient sur un contenu
+**manifestement hostile** (SVG, HTML de contenu) — la lecture naturelle de « analyser plutôt que
+filtrer par motif » est une règle **anti-XSS**. Ici la chaîne analysée est une **sortie d'outil
+réputée sûre** (Shiki) et le motif cherché est **notre propre marqueur**, pas celui d'un attaquant :
+on croit donc être hors périmètre en écrivant « un simple contrôle de conservation ». La règle vaut
+en réalité dès qu'on **cherche un motif dans une chaîne qui contient une entrée**, quel que soit le
+but poursuivi — vérification de conservation comprise, pas seulement sanitisation.
+**Règle.** Sur toute chaîne structurée qui contient une entrée non fiable (y compris le texte d'un
+exemple de code d'une leçon), analyser l'arbre réel (jsdom, déjà dépendance du dépôt — patron de
+référence `rendre-mermaid.mjs::analyserSvg`) et confronter à un sélecteur/une structure
+**nominative** — jamais une regex sur la chaîne sérialisée, même pour un contrôle qui se veut
+seulement défensif ou seulement conservatoire. Corollaire à retenir : **un garde-fou dont l'entrée
+peut elle-même fabriquer la preuve qu'il exige n'est pas un garde-fou.** Renfort structurel : exiger
+une suite **ordonnée** (`1…N`, pas un `Set`) quand la propriété vérifiée est une couverture complète
+— un ensemble aurait laissé passer une base 0 ou un décalage. Et fournir un **contrôle positif
+exécutable** (HTML forgé, code de sortie attendu) plutôt qu'une conviction lue sur le code.
+**Réfs.** `tools/content-pipeline/compiler-markdown.mjs` (`verifierAncres`),
+`tools/content-pipeline/rendre-mermaid.mjs` (`analyserSvg`, patron de référence),
+`src/pipeline-contenu-compilation.spec.ts`, `.claude/rules/security.md` §4,
+`docs/agile/backlog-phase-1.md` §E2-ST4 lot A2.

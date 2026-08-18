@@ -213,13 +213,19 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
 
         @case ('comparaison') {
           <!--
-            RENDU PROVISOIRE, ASSUMÉ COMME TEL. Le composant complet est E2-ST4,
-            dont les onglets de langage sont un sous-projet d'accessibilité à part
-            entière (backlog §E2-ST4). On n'écrit donc ICI aucun rôle « tab » :
-            un motif ARIA à moitié posé dégrade l'accessibilité au lieu de
-            l'améliorer. La forme provisoire est simplement empilée, complète et
-            lisible sans JS — les deux volets sont dans le document, chacun avec
-            son étiquette écrite et ses annotations rattachées.
+            AUCUN SÉLECTEUR, AUCUN REPLIAGE — décision ST4-1 du 2026-08-18, et ce
+            n'est plus « provisoire en attendant les onglets ». Les exemples d'un
+            bloc comparaison sont des paires de vulnérabilités DISTINCTES (la
+            fixture témoin fait PHP/XSS puis C#/injection SQL) : des onglets « de
+            langage » cacheraient un exemple pédagogique entier derrière une
+            étiquette mensongère. Ni tablist ARIA, ni details name — et pas de
+            repliage non plus : un details fermé ne s'imprime pas, Safari ne le
+            trouve pas au Ctrl+F, et un accordéon exclusif peut finir avec zéro
+            exemple à l'écran.
+            Ce qui reste à faire ici est le lot B d'E2-ST4 : ancrer les
+            annotations à leur ligne (crochet ancre-ligne-N du HTML coloré,
+            mesuré par src/sonde-sanitizer-shiki.spec.ts), deux colonnes en
+            large, le sens jamais porté par la couleur seule.
           -->
           <div class="comparaison">
             @for (exemple of bloc.exemples; track $index) {

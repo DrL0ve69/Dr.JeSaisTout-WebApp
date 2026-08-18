@@ -86,6 +86,7 @@
  *   node tools/content-pipeline/compiler-markdown.mjs [--racine <dossier>] [--json]
  *                                                     [--css <fichier>] [--sans-css]
  */
+import { createRequire } from 'node:module';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -148,6 +149,14 @@ const THEME_SOMBRE = 'github-dark';
 
 /** Préfixe des classes de coloration. Court, sans collision possible avec le design system. */
 const PREFIXE_CLASSE = 'clr-';
+
+/**
+ * Préfixe de l'ANCRE DE LIGNE posée par le transformateur `line` (E2-ST4, lot A2) : la ligne 3
+ * d'un extrait sort en `class="line ancre-ligne-3"`. C'est le crochet auquel le lot B accrochera les
+ * annotations ancrées — et la raison pour laquelle c'est une CLASSE, et non `data-ligne` ni `id`,
+ * est MESURÉE : voir `transformateurLigne` plus bas et `src/sonde-sanitizer-shiki.spec.ts`.
+ */
+const PREFIXE_LIGNE = 'ancre-ligne-';
 
 /** Marqueur de doute du `professeur-web` — compté avant retrait, exigé absent après rendu. */
 const MARQUEUR_DOUTE = 'à-vérifier';
@@ -423,6 +432,172 @@ function ancrer(titre, dejaVues) {
  */
 
 /**
+ * Le transformateur `line` — pose sur CHAQUE ligne colorée l'ancre `ancre-ligne-N` (E2-ST4, lot A2).
+ *
+ * 🔴 POURQUOI UNE CLASSE, ET NON `data-ligne` NI `id` — C'EST MESURÉ, PAS PRÉFÉRÉ.
+ * `rendu-blocs.ts` pose `htmlColore` par `[innerHTML]`, SANS `bypassSecurityTrustHtml` : le
+ * sanitizer d'Angular passe donc dessus et retire EN SILENCE ce qui n'est pas dans sa liste
+ * blanche. `src/sonde-sanitizer-shiki.spec.ts` a monté cette sortie même dans un composant réel
+ * (Angular 22.1) et compté, sur trois lignes :
+ *
+ *     class 15 → 15 · tabindex 4 → 4 · aria-describedby 3 → 3 · aria-label 3 → 3
+ *     id 3 → 0 · data-ligne 3 → 0
+ *
+ * `data-ligne="3"` — le premier réflexe, et le plus lisible en CSS — aurait donné un artéfact
+ * parfaitement correct, une page prerendue SANS le moindre crochet, et aucun gate rouge : le HTML
+ * compilé porte l'attribut, seul le DOM ne l'a plus. La classe est le seul véhicule qui traverse.
+ * ⚠️ Corollaire pour le lot B : la CIBLE d'un `aria-describedby` ne peut pas vivre ici (son `id`
+ * serait effacé) — elle s'écrit dans le GABARIT de `rendu-blocs.ts`, qui ne traverse aucun
+ * sanitizer.
+ *
+ * @type {import('shiki').ShikiTransformer}
+ */
+const transformateurLigne = {
+  name: 'drjst-ancre-de-ligne',
+  line(noeud, numero) {
+    // `numero` est fourni par Shiki, en base 1 — la MÊME base que `{lignes="…"}` côté auteur.
+    this.addClassToHast(noeud, `${PREFIXE_LIGNE}${String(numero)}`);
+  },
+};
+
+/**
+ * Combien de lignes ce code compte-t-il ? UNE seule définition DANS CE FICHIER, deux appelants —
+ * et c'est le point : `lirePortee` s'en sert pour REFUSER `{lignes="6"}` sur un extrait de cinq
+ * lignes, et `verifierAncres` pour EXIGER qu'il y ait au moins autant d'ancres que de lignes. Deux
+ * comptages recopiés auraient pu diverger d'une ligne, et une portée acceptée se serait alors
+ * ancrée dans le vide — l'invariant du lot A1 tenu, le crochet du lot B absent, tous gates verts.
+ *
+ * ⚠️ IL EXISTE UN TROISIÈME COMPTAGE DANS LE PIPELINE, ET IL NE DIT PAS LA MÊME CHOSE (constat de
+ * revue, 2026-08-18). `verifierQuestionTrouverLaFaille` (`valider.mjs`) borne `ligneFautive` avec
+ * `code.split('\n').length` : ni retrait du saut final, ni `\r?`. Sur un `code` de quiz terminé
+ * par un saut de ligne, le validateur accepte donc `ligneFautive = N+1` — la ligne vide finale,
+ * que personne ne peut désigner. Non corrigé ICI À DESSEIN : resserrer un garde-fou du validateur
+ * demande sa fixture invalide et son assertion (le mécanisme de `__fixtures__/invalides/`), ce qui
+ * déborde du lot A2. Consigné comme dette dans le backlog §E2-ST4, à payer avec le lot B, qui
+ * touchera de toute façon aux deux côtés.
+ *
+ * Deux détails de la formule, parce qu'ils répondent à deux besoins différents : markdown-it
+ * termine TOUJOURS le contenu d'une clôture par un saut de ligne, et le compter donnerait une
+ * ligne fantôme — le `replace` le retire, et ne fait simplement RIEN sur le `code` d'un quiz, qui
+ * n'en a pas. Le `\r?`, lui, n'a rien à voir avec ça : il couvre les fins de ligne CRLF de ce
+ * poste (L-015).
+ *
+ * @param {string} code
+ * @returns {number}
+ */
+function compterLignes(code) {
+  const sansFin = code.replace(/\r?\n$/, '');
+  return sansFin === '' ? 0 : sansFin.split(/\r?\n/).length;
+}
+
+const requerir = createRequire(import.meta.url);
+
+/**
+ * La surface DOM que ce script s'autorise, déclarée explicitement — même patron que
+ * `rendre-mermaid.mjs` et `tools/a11y/verifier-axe.mjs`. jsdom ne publie pas de types, et
+ * `tsconfig.tools.json` n'a volontairement pas `lib: DOM` : un script Node n'a pas à pouvoir
+ * toucher un `document` global.
+ *
+ * @typedef {{ className: string }} ElementHtml
+ * @typedef {{ querySelectorAll(selecteur: string): Iterable<ElementHtml> }} DocumentHtml
+ * @type {new (source: string, options?: Record<string, unknown>) => { window: { document: DocumentHtml } }}
+ */
+const JSDOM = requerir('jsdom').JSDOM;
+
+/**
+ * CONTRÔLE DE CONSERVATION DES ANCRES DE LIGNE — le pendant du « zéro `style=` », pour l'autre
+ * transformateur. Une ancre manquante ne casse rien à la compilation : elle produit une leçon
+ * publiée où l'annotation du lot B ne désigne plus rien, sous des gates verts.
+ *
+ * 🔴 POURQUOI ON ANALYSE, ET POURQUOI UNE REGEX ÉTAIT ICI UN S-003 DE PLUS. La première écriture
+ * de ce contrôle cherchait `\bligne-(\d+)\b` dans la CHAÎNE `html` — laquelle contient le TEXTE
+ * du code de l'auteur. Un extrait dont un commentaire dit « voir ancre-ligne-1, ancre-ligne-2, ancre-ligne-3 »
+ * fournissait donc lui-même les ancres qu'on lui demandait, et le garde-fou passait vert
+ * transformateur débranché (mesuré en revue de sécurité, 2026-08-18). C'est le patron que le
+ * dépôt refuse pour la QUATRIÈME fois : sur un format structuré, on ANALYSE, puis on confronte à
+ * une liste blanche NOMINATIVE — jamais l'inverse. Le texte d'un `<span>` ne peut pas fabriquer
+ * un `<span>` : Shiki échappe « < », donc l'arbre, lui, ne ment pas.
+ *
+ * CE QUI EST EXIGÉ, ET C'EST PLUS QU'UNE PRÉSENCE :
+ *   · les lignes sont les `span.line` enfants du `<code>` d'un `<pre class="shiki">` — nommés,
+ *     pas cherchés n'importe où dans le document ;
+ *   · chacune porte EXACTEMENT une classe `ancre-ligne-N`, N en base 1 ;
+ *   · la suite relevée est `1, 2, … N` DANS L'ORDRE — un `Set` aurait laissé passer une base 0,
+ *     un décalage d'un cran ou une ligne dupliquée, qui feraient tous pointer `{lignes="3"}` sur
+ *     la mauvaise ligne, en silence ;
+ *   · et il y a au moins autant de lignes rendues que la source n'en compte (`compterLignes`),
+ *     sans quoi une portée acceptée par `lirePortee` s'ancrerait dans le vide.
+ *
+ * ⚠️ EXPORTÉ POUR ÊTRE MIS À L'ÉPREUVE, ET C'EST LA SEULE RAISON. Un garde-fou dont la seule
+ * preuve est une mutation faite à la main un jour donné n'a pas de contrôle positif : rien ne
+ * rougira le jour où quelqu'un l'affaiblira (L-019, et le constat de revue qui a fait naître cette
+ * ligne). `src/pipeline-contenu-compilation.spec.ts` l'appelle donc DIRECTEMENT, dans un processus
+ * fils, avec un HTML forgé sans ancre mais dont le TEXTE en cite — le contournement exact que la
+ * version par motif laissait passer — et exige le code de sortie 1.
+ *
+ * @param {string} html sortie de `codeToHtml`
+ * @param {string} code source colorée, pour compter ce qu'on attend
+ * @param {string} nomFichier fichier de contenu, pour nommer la faute
+ */
+export function verifierAncres(html, code, nomFichier) {
+  const attendues = compterLignes(code);
+  /** @type {{ window: { document: DocumentHtml } }} */
+  let dom;
+  try {
+    dom = new JSDOM(`<!doctype html><body>${html}</body>`);
+    // `NOSONAR` : S7718 réclame `error_`, contre la règle « français seulement ».
+  } catch (erreur) { // NOSONAR
+    return echec(`${nomFichier} : la sortie de la coloration n'est pas du HTML analysable`, [
+      String(erreur instanceof Error ? erreur.message : erreur),
+      'un garde-fou qui ne prouve pas avoir tout vu ne garde rien (S-003)',
+    ]);
+  }
+
+  /** @type {number[]} */
+  const relevees = [];
+  for (const ligne of dom.window.document.querySelectorAll('pre.shiki > code > span.line')) {
+    const ancres = ligne.className
+      .split(/\s+/)
+      .filter((classe) => classe.startsWith(PREFIXE_LIGNE))
+      .map((classe) => classe.slice(PREFIXE_LIGNE.length));
+    if (ancres.length !== 1 || !/^\d+$/.test(ancres[0] ?? '')) {
+      return echec(
+        `${nomFichier} : une ligne colorée porte ${String(ancres.length)} ancre(s) au lieu d'une ` +
+          `— classes : « ${ligne.className} »`,
+        [
+          'chaque ligne doit porter exactement une classe `ancre-ligne-N`, N en base 1',
+          'vérifier le transformateur `drjst-ancre-de-ligne` passé au rendu Shiki',
+        ],
+      );
+    }
+    relevees.push(Number(ancres[0]));
+  }
+
+  const attenduesEnOrdre = relevees.map((_ancre, index) => index + 1);
+  if (relevees.join(',') !== attenduesEnOrdre.join(',')) {
+    return echec(
+      `${nomFichier} : les ancres de ligne ne forment pas la suite 1…${String(relevees.length)} ` +
+        `— relevées : ${relevees.join(', ') || '(aucune)'}`,
+      [
+        'chaque ligne doit porter sa classe `ancre-ligne-N` : c’est le seul crochet qui survive au',
+        'sanitizer d’Angular (mesure : `src/sonde-sanitizer-shiki.spec.ts`)',
+        'vérifier que le transformateur `drjst-ancre-de-ligne` est bien passé au rendu Shiki',
+      ],
+    );
+  }
+  if (relevees.length < attendues) {
+    return echec(
+      `${nomFichier} : ${String(relevees.length)} ligne(s) ancrée(s) pour ${String(attendues)} ` +
+        'ligne(s) de source',
+      [
+        'une portée `{lignes="N"}` acceptée par `lirePortee` s’ancrerait alors dans le vide',
+        'les deux comptages viennent de `compterLignes` : leur écart vient du rendu, pas de la source',
+      ],
+    );
+  }
+}
+
+/**
  * @returns {Promise<Colorateur>}
  */
 async function creerColorateur() {
@@ -442,7 +617,7 @@ async function creerColorateur() {
         // afficherait du code clair.
         themes: { light: THEME_CLAIR, dark: THEME_SOMBRE },
         defaultColor: false,
-        transformers: [transformateur],
+        transformers: [transformateur, transformateurLigne],
       });
       // CONTRÔLE DE CONSERVATION (patron S-003) : on n'affirme pas que le transformateur a marché,
       // on le VÉRIFIE. Un `style=` survivant passerait le lint, passerait les tests, et ferait
@@ -453,6 +628,7 @@ async function creerColorateur() {
           'vérifier que `transformerStyleToClass` est bien passé au rendu Shiki',
         ]);
       }
+      verifierAncres(html, code, nomFichier);
       return html;
     },
     feuille() {
@@ -691,10 +867,11 @@ function blocDeCloture(jeton, ctx) {
  * @returns {number[]} portée triée, jamais vide — `[0]` = le bloc entier
  */
 function lirePortee(brut, code, nom, nomFichier) {
-  // markdown-it termine TOUJOURS le contenu d'une clôture par un saut de ligne : le compter
-  // donnerait une ligne fantôme, et `lignes="3"` passerait sur un extrait de deux lignes.
-  const sansFin = code.replace(/\r?\n$/, '');
-  const nbLignes = sansFin === '' ? 0 : sansFin.split(/\r?\n/).length;
+  // ⚠️ LE MÊME COMPTAGE QUE CELUI DES ANCRES (E2-ST4, lot A2). `compterLignes` est partagé avec le
+  // contrôle de conservation du colorateur, exprès : la borne « la ligne 3 existe » et l'ancre
+  // `ancre-ligne-3` doivent parler de la même ligne 3. Deux comptages recopiés auraient pu diverger d'un
+  // saut de ligne final, et une portée acceptée se serait ancrée dans le vide.
+  const nbLignes = compterLignes(code);
   if (brut === undefined) return [0];
 
   /** @type {number[]} */

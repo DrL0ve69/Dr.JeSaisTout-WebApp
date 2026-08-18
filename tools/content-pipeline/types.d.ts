@@ -63,7 +63,39 @@ interface AnnotationLigne {
  * une garantie dérivée de l'artéfact qu'elle contrôle — le patron que S-005 et S-009 refusent.
  */
 interface ExempleCode {
-  htmlColore: string; // Shiki, transformerStyleToClass — 0 attribut style=
+  // Shiki, `transformerStyleToClass` — 0 attribut `style=`. Chaque ligne y porte en plus son ANCRE
+  // `class="line ancre-ligne-N"`, N en base 1 (transformateur `drjst-ancre-de-ligne`, E2-ST4 lot A2) :
+  // c'est le crochet sur lequel le lot B accroche les annotations ancrées. Le compilateur ANALYSE
+  // sa sortie (jsdom, `pre.shiki > code > span.line`) et exige la suite `1…N` : un motif cherché
+  // dans la chaîne aurait pu être satisfait par le TEXTE du code de l'auteur (S-003 / S-009).
+  //
+  // 🔴 IL Y A UNE LIGNE DE PLUS QUE DANS LA SOURCE, ET LE LOT B DOIT LE SAVOIR AVANT D'APPARIER.
+  // Mesuré sur la fixture : un bloc de code du corps de leçon sort en `[1, 2, 3, 4]` pour TROIS
+  // lignes écrites — markdown-it termine le contenu d'une clôture par un saut de ligne, et Shiki
+  // en fait une dernière ligne VIDE, ancrée comme les autres. Le `code` d'une question de quiz,
+  // qui n'a pas ce saut, sort en `[1, 2, 3]` pour trois lignes. Règle exacte :
+  //
+  //     nombre d'éléments `.line` === compterLignes(code) + (code se termine par un saut ? 1 : 0)
+  //
+  // Cette ligne surnuméraire n'est ADRESSABLE PAR AUCUNE ANNOTATION : `lirePortee` borne toute
+  // portée à `compterLignes(code)`, donc `ancre-ligne-4` d'un extrait de trois lignes ne peut être
+  // cité par personne. Le compilateur ne l'interdit donc pas — il exige seulement que la suite
+  // soit continue et qu'il y ait AU MOINS autant d'ancres que de lignes de source. Un rendu qui
+  // apparierait « la Nième ligne rendue » à « la ligne N de la source » reste juste ; un rendu qui
+  // compterait les lignes rendues pour en déduire la longueur de l'extrait se tromperait d'un.
+  //
+  // ═══ POURQUOI UNE CLASSE, ET RIEN D'AUTRE — MESURÉ LE 2026-08-18, ANGULAR 22.1 ═════════════
+  // `src/sonde-sanitizer-shiki.spec.ts` a monté cette sortie même dans un composant qui la lie en
+  // `[innerHTML]`, comme `rendu-blocs.ts`, et a compté sur trois lignes :
+  //
+  //     class 15 → 15 · tabindex 4 → 4 · aria-describedby 3 → 3 · aria-label 3 → 3
+  //     id 3 → 0 · data-ligne 3 → 0
+  //
+  // `data-*` et `id` sont EFFACÉS par le sanitizer : la liste blanche d'Angular est nominative et
+  // ne connaît ni l'un ni l'autre. Un `data-ligne="3"` aurait donné un artéfact correct, une page
+  // sans crochet, et aucun gate rouge. Corollaire pour le lot B : `aria-describedby` traverse, mais
+  // la CIBLE du lien doit être écrite dans le GABARIT (son `id` serait effacé ici).
+  htmlColore: string;
   // ⚠️ 0 OU 1 ÉLÉMENT EN PRATIQUE — le type promet N, `lireExemple` n'en produit jamais deux.
   // Depuis E2-ST4 (lot A1), toute la prose d'un volet est JOINTE en un seul `texte` et poussée en
   // UNE annotation ; la syntaxe n'offre qu'un `{lignes="…"}` par volet, donc une seule portée à
@@ -242,7 +274,9 @@ type QuestionQuiz =
       // numérotation des lignes et du texte accessible ; `htmlColore` n'est que sa mise
       // en couleur, ajoutée au build (voir la note ci-dessus).
       code: string; // lignes séparées par `\n`, numérotation dès 1
-      htmlColore: string; // Shiki, transformerStyleToClass — 0 attribut style=
+      // Shiki, `transformerStyleToClass` — 0 attribut `style=`, et l'ancre `class="line ancre-ligne-N"`
+      // sur chaque ligne, comme pour `ExempleCode.htmlColore` (même colorateur, mêmes garanties).
+      htmlColore: string;
       ligneFautive: number; // désigne une ligne existante de `code` — vérifié par `valider.mjs`
       faille: string;
       explication: string;

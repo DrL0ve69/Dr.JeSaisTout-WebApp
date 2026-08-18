@@ -160,6 +160,74 @@ function htmlColores(lecon: LeconLue): string[] {
 }
 
 /**
+ * Les ancres de ligne d'un fragment coloré, DANS L'ORDRE — `[1, 2, 3]` pour trois lignes ancrées.
+ *
+ * 🔴 ON ANALYSE, ON NE CHERCHE PAS DE MOTIF, et ce n'est pas une préférence de style : la chaîne
+ * HTML contient le TEXTE du code de l'auteur, donc un motif `ligne-(\d+)` s'apparie aussi bien à
+ * un commentaire de leçon qu'à une vraie classe. C'est le défaut que la revue de sécurité a
+ * MESURÉ sur la première écriture de ce fichier (S-003 / S-009, quatrième récidive de la famille
+ * dans ce dépôt). Le texte d'un `<span>` ne peut pas fabriquer un `<span>` : l'arbre ne ment pas.
+ *
+ * `document` est celui de l'environnement de test — le même outil que le compilateur emploie côté
+ * Node (jsdom), pour poser exactement la même question.
+ */
+function ancresDe(html: string): (number | null)[] {
+  const porteur = document.createElement('div');
+  porteur.innerHTML = html;
+  // ⚠️ UNE ENTRÉE PAR LIGNE RENDUE, `null` COMPRIS — et non « la liste des ancres trouvées ».
+  // Un `flatMap` qui laisse tomber les lignes sans ancre rendrait `[1, 2]` sur un extrait de
+  // trois lignes dont la deuxième aurait perdu la sienne : la suite serait intacte, le trou
+  // invisible. La ligne muette doit apparaître dans la mesure pour pouvoir la faire rougir.
+  return [...porteur.querySelectorAll('pre.shiki > code > span.line')].map((ligne) => {
+    const ancres = [...ligne.classList].filter((classe) => /^ancre-ligne-\d+$/.test(classe));
+    return ancres.length === 1 ? Number(ancres[0]?.slice('ancre-ligne-'.length)) : null;
+  });
+}
+
+/**
+ * Appelle `verifierAncres` DU COMPILATEUR sur un HTML forgé, dans un processus fils, et rend son
+ * code de sortie et son compte-rendu.
+ *
+ * 🔴 POURQUOI CE DÉTOUR PLUTÔT QU'UNE ASSERTION DE PLUS SUR LA FIXTURE (constat de revue,
+ * 2026-08-18). Les tests d'ancres ci-dessous compilent une vraie leçon, transformateur BRANCHÉ :
+ * ils prouvent ce que `ancresDe` sait lire, pas ce que le compilateur sait REFUSER. La version
+ * par motif du garde-fou — celle qu'un texte de leçon citant « ancre-ligne-1, ancre-ligne-2 »
+ * suffisait à contenter — les aurait tous passés verts. Un garde-fou dont la seule preuve est une
+ * mutation faite à la main n'a pas de contrôle positif : c'est L-019, sur l'axe « le test vise le
+ * mauvais côté de la frontière ».
+ *
+ * Le processus fils est obligatoire, et pour la raison écrite en tête de fichier : ce spec ne peut
+ * pas `import` un `.mjs` du programme de l'outillage. Il ne l'est pas moins pour une autre raison —
+ * `verifierAncres` sort par `echec()`, donc par `process.exit(1)` : l'appeler en direct tuerait le
+ * lanceur de tests.
+ */
+function appelerVerifierAncres(html: string, code: string): { statut: number; sortie: string } {
+  const script = join(bacASable, 'appel-verifier-ancres.mjs');
+  writeFileSync(
+    script,
+    [
+      "import { pathToFileURL } from 'node:url';",
+      'const [, , chemin, html, code] = process.argv;',
+      'const module = await import(pathToFileURL(chemin).href);',
+      "module.verifierAncres(html, code, 'html-forgé.md');",
+    ].join('\n'),
+    'utf8',
+  );
+  try {
+    const sortie = execFileSync(process.execPath, [script, COMPILATEUR, html, code], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: DELAI,
+    });
+    return { statut: 0, sortie };
+  } catch (erreur) {
+    const echec = erreur as { status?: number; stderr?: string };
+    return { statut: echec.status ?? -1, sortie: echec.stderr ?? '' };
+  }
+}
+
+/**
  * Recopie la leçon-témoin dans un dossier JETABLE du bac à sable, en laissant muter chacun de
  * ses deux fichiers.
  *
@@ -317,6 +385,126 @@ describe('pipeline de contenu — compilation Markdown', () => {
         expect(question.htmlColore).toBeUndefined();
         expect(question.langage).toBeUndefined();
       }
+    });
+
+    it('ANCRE CHAQUE LIGNE — `ancre-ligne-1` … `ancre-ligne-N`, sans trou, dans TOUS les fragments colorés', () => {
+      // E2-ST4 (lot A2). C'est le crochet auquel le lot B accrochera ses annotations
+      // ancrées ; il est posé par le transformateur `drjst-ancre-de-ligne`, et c'est une
+      // CLASSE parce que `src/sonde-sanitizer-shiki.spec.ts` a mesuré que ni `id` ni
+      // `data-*` ne survivent au sanitizer d'Angular.
+      //
+      // ⚠️ CE QUE CE TEST AJOUTE AU CONTRÔLE DE CONSERVATION DU COMPILATEUR. Ce dernier
+      // exige les ancres à la COMPILATION, donc sur le chemin de `colorer` ; celui-ci les
+      // exige dans le JSON ÉMIS. Les deux ne disent pas la même chose : une étape d'émission
+      // qui rognerait le HTML (assainissement, troncature, réécriture) laisserait le premier
+      // vert. C'est le pendant exact de la garantie « zéro `style=` », vérifiée elle aussi
+      // des deux côtés.
+      const fragments = htmlColores(lecon);
+      expect(fragments.length).toBeGreaterThan(0);
+
+      for (const html of fragments) {
+        // Contrôle positif (L-019) : sans ligne, « aucun trou » serait vrai de rien.
+        expect(ancresDe(html).length).toBeGreaterThan(0);
+
+        // La suite attendue est 1, 2, … N — pas « au moins une ancre quelque part ».
+        // Une base 0, une base décalée d'un cran, ou une ligne sautée feraient toutes
+        // pointer `{lignes="3"}` sur la mauvaise ligne, EN SILENCE.
+        const ancres = ancresDe(html);
+        expect(ancres).toEqual(ancres.map((_ancre, index) => index + 1));
+      }
+    });
+
+    it('ANCRE — la ligne SURNUMÉRAIRE du corps de leçon est mesurée, pas supposée', () => {
+      // 🔴 CE QUE LE LOT B DOIT SAVOIR AVANT D'APPARIER (constat de revue, 2026-08-18).
+      // markdown-it termine le contenu d'une clôture par un saut de ligne, dont Shiki fait une
+      // dernière ligne VIDE, ancrée comme les autres : un bloc du CORPS porte donc une ancre de
+      // plus que la source n'a de lignes. Le `code` d'un quiz, qui n'a pas ce saut, n'en porte
+      // pas. La règle est écrite dans `types.d.ts` ; elle est ÉPINGLÉE ici, sans quoi elle se
+      // périmerait en silence à la première montée de markdown-it ou de Shiki (L-008).
+      const bloc = tousLesBlocs(lecon.sections).find((b) => b.type === 'code');
+      expect(bloc?.htmlColore).toBeDefined();
+      // 3 lignes écrites dans la fixture (« ```bash » … « ``` »), 4 ancres rendues.
+      expect(ancresDe(bloc?.htmlColore ?? '')).toEqual([1, 2, 3, 4]);
+
+      const faille = lecon.quiz.questions.find((q) => q.type === 'trouver-la-faille');
+      expect(faille?.code?.endsWith('\n')).toBe(false);
+      expect(ancresDe(faille?.htmlColore ?? '')).toEqual([1, 2, 3]);
+    });
+
+    it('ANCRE — le garde-fou du COMPILATEUR refuse un HTML dont seul le TEXTE cite des ancres', () => {
+      // 🔴 LE CONTRÔLE POSITIF DU CORRECTIF LUI-MÊME. C'est exactement l'entrée qui passait
+      // VERTE avant le 2026-08-18 : aucune ligne ancrée, mais un commentaire de code qui
+      // récite les ancres attendues. La version par motif y trouvait `ancre-ligne-1` et
+      // `ancre-ligne-2` et se déclarait satisfaite ; la version qui ANALYSE voit deux
+      // `span.line` sans classe d'ancre, et refuse.
+      const texte = '// voir ancre-ligne-1, ancre-ligne-2\n$x = 1;';
+      const sansAncre =
+        '<pre class="shiki"><code>' +
+        '<span class="line">// voir ancre-ligne-1, ancre-ligne-2</span>\n' +
+        '<span class="line">$x = 1;</span>' +
+        '</code></pre>';
+      const refus = appelerVerifierAncres(sansAncre, texte);
+      expect(refus.statut).toBe(1);
+      expect(refus.sortie).toContain('0 ancre(s)');
+
+      // CONTRE-ÉPREUVE, sans laquelle le refus ci-dessus serait compatible avec un garde-fou
+      // qui refuse TOUT : le même fragment, ancré, passe — code de sortie 0, rien sur stderr.
+      const avecAncre = sansAncre
+        .replace('<span class="line">//', '<span class="line ancre-ligne-1">//')
+        .replace('<span class="line">$x', '<span class="line ancre-ligne-2">$x');
+      const accepte = appelerVerifierAncres(avecAncre, texte);
+      expect(accepte.statut).toBe(0);
+
+      // Et le troisième cas, celui que le `Set` de la première écriture laissait passer :
+      // les ancres sont là, mais DÉCALÉES d'un cran. `{lignes="1"}` désignerait alors la
+      // deuxième ligne de l'extrait, en silence.
+      const decale = avecAncre
+        .replace('ancre-ligne-1', 'ancre-ligne-2')
+        .replace('ancre-ligne-2">$x', 'ancre-ligne-3">$x');
+      const refusDecale = appelerVerifierAncres(decale, texte);
+      expect(refusDecale.statut).toBe(1);
+      expect(refusDecale.sortie).toContain('ne forment pas la suite');
+      // `DELAI` explicite : ce test lance TROIS processus fils, dont chacun importe le
+      // compilateur — donc Shiki, Ajv et markdown-it. Sous la suite complète, les 5 s par
+      // défaut de Vitest ne suffisent pas, et l'échec ressemble alors à une régression du
+      // garde-fou alors qu'il n'a jamais eu le temps de répondre (L-035 : une prémisse de
+      // test fausse rougit sur un produit sain).
+    }, DELAI);
+
+    it('ANCRE — le TEXTE du code ne peut pas fabriquer une ancre (constat de revue, 2026-08-18)', () => {
+      // 🔴 CE QUE CE TEST EXISTE POUR EMPÊCHER. La première écriture du garde-fou du
+      // compilateur ET de l'assertion ci-dessus cherchait `ligne-(\d+)` par MOTIF dans la
+      // chaîne HTML — laquelle contient le texte du code de l'auteur. Un extrait dont un
+      // commentaire cite « ancre-ligne-1, ancre-ligne-2, ancre-ligne-3 » fournissait donc lui-même les ancres
+      // qu'on lui réclamait : les deux gates passaient verts, transformateur débranché
+      // (mesuré en revue de sécurité). C'est le patron S-003 / S-009, pour la quatrième fois.
+      // ⚠️ La substitution est ancrée par REGEX et non sur `'```bash\n'` : les fichiers de ce
+      // poste sont en CRLF (L-015), et un littéral en `\n` ne mute alors RIEN — le test serait
+      // passé sur une leçon sans leurre, donc sans rien prouver.
+      const racine = leconAdHoc('ancres-leurre', (source) =>
+        source.replace(
+          /```bash\r?\n/,
+          (fence) =>
+            `${fence}# leurre : class="line ancre-ligne-1" class="line ancre-ligne-2" class="line ancre-ligne-3"\n`,
+        ),
+      );
+      const { lecons } = compiler(racine, join(bacASable, 'ancres-leurre.scss'));
+      const html = htmlColores(lecons[0] as LeconLue).find((fragment) =>
+        fragment.includes('leurre'),
+      );
+
+      // CONTRÔLE POSITIF : le leurre est bien DANS le fragment mesuré, sous sa forme
+      // littérale. Sans lui, tout ce qui suit serait vrai d'un extrait ordinaire — et le
+      // test ne prouverait rien de ce qu'il annonce.
+      expect(html).toBeDefined();
+      expect(html).toContain('class="line ancre-ligne-1" class="line ancre-ligne-2"');
+
+      // Et pourtant les ancres relevées restent la suite des VRAIES lignes : le leurre en
+      // cite trois, l'extrait en compte cinq (la ligne du leurre comprise, plus la ligne
+      // vide finale de Shiki), et aucune ne se répète. On lit l'ARBRE, où le texte d'un
+      // `<span>` ne peut pas fabriquer un `<span>` (Shiki échappe « < »).
+      const ancres = ancresDe(html ?? '');
+      expect(ancres).toEqual([1, 2, 3, 4, 5]);
     });
 
     it("n'émet AUCUN attribut style= dans le HTML coloré", () => {

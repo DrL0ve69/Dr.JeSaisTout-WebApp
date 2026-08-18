@@ -201,16 +201,20 @@ describe('Sonde — le sanitizer d’Angular face à un SVG Mermaid', () => {
     const original = recenserOriginal();
     const { survivants } = await recenserApresSanitizer();
 
-    // Le compte-rendu chiffré — c'est LUI que `types.d.ts` cite. Il s'imprime à
-    // chaque exécution : une conclusion consignée sans son chiffre est une opinion.
+    // Le compte-rendu chiffré — le même que celui que `types.d.ts` cite. Il ne
+    // s'affiche qu'en cas d'échec (voir la note du `console.warn` ci-dessous) ;
+    // les chiffres, eux, sont tenus par les assertions de la fin du test.
     const lignes = ELEMENTS_ATTENDUS.map((nom) => {
       const avant = original.parElement.get(nom) ?? 0;
       const apres = survivants.parElement.get(nom) ?? 0;
       return `  ${nom.padEnd(10)} ${String(avant).padStart(3)} → ${String(apres).padStart(3)}`;
     });
-    // `console.warn` et non `console.info` : le lanceur de tests d'Angular 22
-    // n'affiche que stderr — un compte-rendu sur stdout serait AVALÉ, et une
-    // sonde muette ne prouve rien (L-005).
+    // ⚠️ CORRIGÉ LE 2026-08-18 (E2-ST4, lot A2), APRÈS MESURE : ce compte-rendu ne
+    // s'imprime PAS « à chaque exécution ». Le lanceur d'Angular 22 n'affiche le
+    // bloc stderr d'un fichier que si l'un de ses tests ÉCHOUE — sur un run vert,
+    // il est avalé, `console.warn` comme `console.info`. Il reste utile le jour où
+    // le tripwire mord ; ce qui PORTE la mesure, ce sont les assertions chiffrées
+    // ci-dessous, et elles seules.
     console.warn(
       [
         'Sonde sanitizer SVG — éléments avant → après `[innerHTML]` :',
