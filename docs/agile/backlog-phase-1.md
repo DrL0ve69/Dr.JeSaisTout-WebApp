@@ -1683,10 +1683,103 @@ de cours — le contenu d'un `<details>` fermé **ne s'imprime pas**, Safari ne 
 
 | Lot | Contenu | Gates | Statut |
 |---|---|---|---|
-| **A1** | Le contrôle de portée des annotations, **des deux côtés** (`compiler-markdown.mjs` + `resoudre-lecon.ts`) + fixture invalide exécutée par la CI. Traite aussi le doublon : `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois** | G-typage-outils, G-content, G-test | ⬜ |
+| **A1** | Le contrôle de portée des annotations, **des deux côtés** (`compiler-markdown.mjs` + `rendu-blocs.ts`) + fixture invalide exécutée par la CI. Traite aussi le doublon : `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois** | G-typage-outils, G-content, G-test | ✅ **clos le 2026-08-18** (`b0fc189`) |
 | **A2** | Sonde : **que survit-il au sanitizer d'Angular** sur la sortie Shiki (`class` oui ; `data-*`/`id` à mesurer — précédent SVG 24 éléments → 0) ; **mesurer avant de concevoir**, puis le transformateur `line` | G-test, G-content | ⬜ |
 | **B** | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, `.ligne-annotee` avec filet — le sens jamais porté par la couleur seule | G-lint, G-test, G-build | ⬜ |
 | **C** | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ⬜ |
+
+
+##### ✅ Clôture du lot A1 — 2026-08-18
+
+**Le défaut visé était réel, mais ce n'est pas le pire que le lot ait trouvé.** La portée n'avait
+aucun plafond (`lignes="42"` sur un extrait de 5 lignes sortait G-content vert) — corrigé, et
+l'invariant est tenu des deux côtés. 🔴 **Le vrai défaut : `lignes="1,,2"`.** Un jeton VIDE entre deux
+virgules devenait une valeur **légale par coercition** — `Number('')` vaut `0`, `Number.isInteger(0)`
+est vrai, et `0` signifie « le bloc entier ». Une coquille de frappe changeait donc **silencieusement
+le sens** de l'annotation, et se publiait.
+
+**Contrat modifié** : `ligne: number` → **`lignes: number[]`**. `{lignes="1,2"}` produit désormais UNE
+annotation portant deux lignes, au lieu de deux notes au texte identique. Aucun consommateur résiduel
+de l'ancienne forme (vérifié sur `src/`, `tools/`, `e2e/`, les specs, les schémas Ajv et la fixture).
+
+**Écart au plan, fondé** : le pendant côté application vit dans `RenduBlocs.preparer()` et non dans
+`resoudre-lecon.ts` — `lireLeconCompilee` est en réalité dans
+`src/app/features/cours/contenu-compile.ts`, qui **délègue explicitement le contenu des blocs** à
+`RenduBlocs` (L-016). Il n'y vérifie que la **forme** ; la **borne** y est déclarée **non prouvable**
+en toutes lettres, parce qu'`ExempleCode` ne porte pas le code brut — la déduire du balisage Shiki
+serait une garantie dérivée de l'artéfact (S-005/S-009).
+
+**Deux constats de revue Majeurs, corrigés par agent frais, chacun prouvé par mutation** :
+- le garde-fou **promettait plus qu'il n'appliquait** — il déclarait couvrir « un contenu compilé par
+  une autre version du pipeline », qui est précisément le seul cas où il levait un `TypeError`
+  anonyme. Garde `Array.isArray` sur les trois niveaux (`exemples`, `annotations`, `lignes`) ;
+  mutation : 1 rouge nommant le `TypeError`.
+- la validation de format `^\d+$` **n'était exercée par aucun test** (piège B / L-019) : la retirer
+  laissait les 20 tests verts, et `lignes="0x2"` compilait en ligne 2. Deux cas ajoutés, chacun tuant
+  le mutant **indépendamment**.
+
+**⚠️ Limite laissée en place et ÉCRITE, pour le lot B** : `lireExemple` joint toute la prose d'un
+volet, donc `ExempleCode.annotations` ne porte plus que **0 ou 1** élément — alors que le type, le
+`@if` et le `@for` en promettent N. Le lot B (annotations ancrées à la ligne) la fera sauter ; il ne
+doit pas la découvrir en chemin.
+
+**📄 Dette documentaire payée au passage, et elle était pire que « périmée ».**
+`docs/contenu/pipeline-contenu.md` décrivait une syntaxe morte depuis E2-ST1. Or `langageDe` ne lit
+que le **premier mot** de la clôture d'un bloc de code : le reste était donc **ignoré en silence**, et
+le bloc sortait en simple `code`. Un auteur suivant la doc aurait publié une leçon **sans
+côte-à-côte, tous gates verts**. C'est le fichier depuis lequel `professeur-web` écrit, et E3-ST1 est
+la prochaine leçon. Réécrit avec la forme réelle et les cinq refus.
+
+**Chiffres** : G-test **509 / 28 fichiers** · G-e2e **21** (artéfact fixture) · G-axe 344
+vérifications, 0 violation · G-lint, G-typage-outils, G-typage-e2e verts · `npm audit --omit=dev` **0**.
+
+##### 🔴 Le déploiement rouge du 2026-08-18, et le mécanisme qui le referme
+
+La PR #17 est passée **verte en CI** puis a rendu `deploy.yml` **rouge sur 10 tests e2e**, après
+fusion. Cause **structurelle** : la décision E-2 fait bâtir à `ci.yml` l'artéfact depuis la **fixture
+témoin**, tandis que `deploy.yml` garde la racine de **production** — or les huit specs du lot E
+visent `/cours/securite-web/lecon-temoin/`, une route qui n'existe **que** dans l'artéfact de
+fixture. Le vert de `ci.yml` masquait le trou parce qu'il regarde l'autre artéfact (**L-007** : un
+gate câblé dans un workflow et pas dans l'autre).
+
+Exiger cette page dans l'artéfact de production reviendrait à exiger que la fixture **parte en
+ligne** — ce que E-2 refuse. `e2e/aides/artefact-mesure.ts` interroge donc le **disque** (et non le
+serveur : une 404 ne distinguerait pas « artéfact de production » de « serveur cassé ») et saute les
+trois specs quand la page est absente, en **imprimant** ce qui n'a pas été mesuré, pourquoi, et la
+commande pour l'exercer en local.
+
+**🔴 Ce qui empêche le saut de tout avaler en silence vit HORS de la suite e2e**, et c'est le point :
+un fichier entièrement sauté ne peut pas s'assertionner. `src/workflows-github.spec.ts` exige donc
+que la fixture nommée par `ci.yml` porte une leçon **au slug exact** que ces specs cherchent. Le test
+voisin n'exigeait qu'« une leçon, n'importe laquelle » — insuffisant : renommer la fixture l'aurait
+laissé vert, `ci.yml` aurait toujours prerendu une page interactive, et les dix specs se seraient
+sautés **des deux côtés** sans qu'un seul run ne rougisse. Le slug y est écrit **en dur**, parce que
+ce fichier ne compile pas avec la suite e2e et ne peut donc pas importer la constante qu'il contrôle
+(**L-012**).
+
+| Artéfact | Ce qui le bâtit | Attendu |
+|---|---|---|
+| Fixture témoin | `ci.yml` | **21 e2e passés, 0 sauté** |
+| Production | `deploy.yml`, `npm run build` | **11 passés, 10 sautés, code 0** |
+
+**⏳ Péremption** : à la clôture d'E3-ST1, `content/` portera une vraie leçon, le saut ne se
+déclenchera plus jamais, et `e2e/aides/artefact-mesure.ts` se retire **avec** le harnais de fixture.
+
+##### ⚠️ Le piège de harnais payé en direct au lot A1 — il ment dans les DEUX sens
+
+`playwright.config.ts` pose `reuseExistingServer: !CI`. Un `npx swa start` laissé en marche par un run
+précédent est **réutilisé**, et il sert la politique CSP qu'il a lue à **son** démarrage :
+reconstruire l'artéfact ne le lui apprend pas. Or changer un gabarit change l'identifiant du
+composant, donc le contenu de son bloc `<style>`, donc son hachage. Constaté : une violation
+`style-src-elem` parfaitement **reproductible**, sur un dépôt sain, pendant que `npm run config:swa`
+sortait vert avec le bon compte.
+
+**Le sens inverse est le vrai danger** : un serveur démarré sur une politique plus **permissive**
+rendrait **vert** exactement ce que ces specs existent pour attraper. C'est la famille de **L-032**
+sur un axe neuf — l'émulateur implémente bien la directive, mais depuis un **instantané**.
+`exigerCspServie` compare donc la CSP **servie** à celle de l'artéfact **sur le disque**, à l'octet
+près. Contrôle positif exécuté : serveur démarré sur la config saine, artéfact muté ensuite ⇒ les
+deux tests rougissent sur le message de divergence, **avant** l'assertion trompeuse.
 
 Et deux constats à ne pas perdre, vérifiés sur le code :
 - 🔴 **Le contrôle de portée manque réellement** : `compiler-markdown.mjs` (~l. 691-699) n'accepte
