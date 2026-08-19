@@ -460,45 +460,48 @@ describe('câblage de `content:build`', () => {
         );
       });
 
-      it('installe le Chromium partagé AVANT elle, en DEUX moitiés et une seule fois chacune', () => {
+      it('installe le Chromium partagé AVANT elle, une seule fois, et SANS la moitié apt', () => {
         // `rendre-mermaid.mjs` impose le Chromium de Playwright à `mmdc`. Tant que
         // `content/` est vide, une installation restée près de G-e2e ne se voit
         // pas ; le jour où E3-ST1 publie sa première leçon à diagramme, les deux
         // workflows deviennent rouges. L'assertion « une seule fois » interdit de
         // « corriger » en dupliquant l'étape : ce serait deux installations payées.
         //
-        // 📐 SCINDÉE EN DEUX LE 2026-08-19, après la panne de la PR #22 : l'étape unique
-        // `--with-deps` cachait un `apt-get` en root ET un téléchargement de binaire, et quand
-        // elle a pendu, le journal ne disait pas laquelle des deux bloquait. Chaque moitié a
-        // maintenant son nom, son délai, et sa ligne ici.
+        // 📐 L'HISTOIRE DE CETTE ÉTAPE, EN DEUX TEMPS LE 2026-08-19, parce qu'elle explique
+        // pourquoi le test a cette forme-ci et pas une autre.
+        // (1) L'étape unique `playwright install --with-deps chromium` a PENDU (53 min, puis
+        //     12 min, contre 2 min 12 s pour le run entier la veille) sans écrire une ligne de
+        //     journal : impossible de savoir si c'était l'`apt-get` en root ou le téléchargement
+        //     du binaire. On l'a donc scindée en deux étapes nommées, avec un délai chacune.
+        // (2) Au run suivant, la scission a nommé son coupable : `apt` téléchargeait 21 Mo depuis
+        //     `azure.archive.ubuntu.com` à ~27 ko/s. Et le journal montrait que les bibliothèques
+        //     de Chromium étaient DÉJÀ sur le runner — les 21 Mo étaient neuf paquets de polices
+        //     non latines (japonais, thaï, chinois, cyrillique), qu'aucun rendu de ce site français
+        //     ne peint. La moitié apt a donc été retirée de la CI.
         //
-        // ⚠️ CE TEST A MORDU SA PROPRE ÉVOLUTION, et c'est la raison de la forme ci-dessous : le
-        // motif d'origine `/npm run e2e:install/` est un motif de SOUS-CHAÎNE — les deux moitiés
-        // le satisfont chacune, donc il en comptait deux et rougissait. On vise donc les deux
-        // scripts NOMMÉMENT, avec une fin de mot, plutôt qu'un préfixe qui les confond.
-        const moities = ['e2e:install:deps', 'e2e:install:navigateur'] as const;
-        for (const moitie of moities) {
-          const appels = [...contenu.matchAll(new RegExp(`npm run ${moitie}(?![:\\w-])`, 'g'))];
-          expect(appels, `« npm run ${moitie} » doit apparaître exactement une fois`).toHaveLength(
-            1,
-          );
-          expect(contenu.indexOf(`npm run ${moitie}`)).toBeLessThan(
-            contenu.indexOf(`npm run ${SCRIPT}`),
-          );
-        }
-
-        // Les dépendances système avant le binaire : l'ordre inverse marcherait par accident
-        // aujourd'hui, mais il n'a aucun sens à lire et masquerait la cause d'un futur échec apt.
-        expect(contenu.indexOf('npm run e2e:install:deps')).toBeLessThan(
-          contenu.indexOf('npm run e2e:install:navigateur'),
+        // CE QUE CE TEST TIENT MAINTENANT, et c'est le sens inverse du précédent : `install-deps`
+        // ne doit PAS revenir dans un workflow. Il ne s'agit pas d'un détail de performance —
+        // c'est un `apt-get` en ROOT sur le workflow qui détient le jeton de déploiement, et son
+        // retrait est écrit dans `deploy.yml` comme une moitié de dette de sécurité PAYÉE. Un
+        // retour silencieux rendrait ce commentaire faux (patron S-009).
+        const appels = [...contenu.matchAll(/npm run e2e:install:navigateur(?![:\w-])/g)];
+        expect(appels, '« npm run e2e:install:navigateur » doit apparaître exactement une fois').
+          toHaveLength(1);
+        expect(contenu.indexOf('npm run e2e:install:navigateur')).toBeLessThan(
+          contenu.indexOf(`npm run ${SCRIPT}`),
         );
 
-        // Et le script combiné n'est PAS appelé par un workflow : il n'existe que pour le
-        // développeur local, à qui une seule commande suffit. Un workflow qui y reviendrait
-        // reperdrait la distinction que cette scission vient d'acheter.
+        // Ni la moitié apt, ni le script combiné qui l'enchaîne : les deux ramèneraient
+        // l'`apt-get` en root dans la CI, l'un ouvertement, l'autre par la bande.
+        expect(
+          [...contenu.matchAll(/npm run e2e:install:deps(?![:\w-])/g)],
+          "un workflow rappelle `e2e:install:deps` : l'apt-get en root est de retour dans la CI, " +
+            'et le commentaire de `deploy.yml` qui le dit payé devient faux',
+        ).toHaveLength(0);
         expect(
           [...contenu.matchAll(/npm run e2e:install(?![:\w-])/g)],
-          'un workflow appelle le script combiné : la scission ne sert plus à rien',
+          'un workflow appelle le script combiné : il enchaîne `e2e:install:deps`, donc il ' +
+            "réintroduit l'apt-get en root",
         ).toHaveLength(0);
       });
     });

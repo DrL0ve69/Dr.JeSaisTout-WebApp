@@ -52,20 +52,43 @@ jobs:
       # aval ferait échouer la compilation, dans les DEUX workflows, sur un message parlant de
       # Playwright au milieu d'une étape de contenu. Coût net nul : c'est la même installation,
       # plus tôt. G-e2e n'appelle donc plus que `npm run e2e`.
-      # ⚠️ SCINDÉE EN DEUX LE 2026-08-19, ET LES DEUX MOITIÉS NE PENDENT PAS POUR LA MÊME RAISON.
+      # ⚠️ SCINDÉE EN DEUX LE 2026-08-19, PUIS AMPUTÉE DE SA MOITIÉ APT LE MÊME JOUR — et c'est la
+      # scission qui a permis de savoir laquelle amputer.
+      #
       # `playwright install --with-deps chromium` faisait DEUX choses sous un seul nom : un
-      # `apt-get install` en root (dépendances système, réseau vers les miroirs Ubuntu) puis un
-      # téléchargement de binaire depuis le CDN de Playwright. Quand l'étape a pendu, le journal
-      # n'a rien écrit du tout — impossible de dire LAQUELLE des deux était bloquée, donc
-      # impossible de choisir la parade. Deux étapes nommées, deux délais : le journal désigne
-      # maintenant le coupable tout seul.
-      # Les deux moitiés restent définies dans `package.json` (`e2e:install:deps` et
-      # `e2e:install:navigateur`), et `e2e:install` les enchaîne : le développeur local garde UNE
-      # commande, la CI en appelle deux, et il n'existe toujours qu'UNE définition de chacune.
-      - name: Installer les dépendances système du navigateur (apt, en root)
-        timeout-minutes: 5
-        run: npm run e2e:install:deps
-
+      # `apt-get install` en root (réseau vers les miroirs Ubuntu) puis un téléchargement de binaire
+      # depuis le CDN de Playwright. Quand l'étape a pendu — 53 min, puis 12 min, contre 2 min 12 s
+      # pour le run entier la veille — le journal n'avait rien écrit : impossible de dire laquelle
+      # des deux bloquait. Scindée, elle a nommé son coupable au run suivant.
+      #
+      # 📐 CE QUE LA MESURE A MONTRÉ (déploiement 32264319046, 2026-08-19) :
+      #   14:29:58  Get:2 fonts-ipafont-gothic (3 513 ko)
+      #   14:32:09  Get:3 fonts-freefont-ttf   (5 641 ko)   ← 2 min 11 s pour 3,5 Mo, ~27 ko/s
+      #   14:35:03  délai de 5 min dépassé
+      # `azure.archive.ubuntu.com` servait au ralenti. Et surtout, le journal listait ce qui restait
+      # à installer : les bibliothèques partagées de Chromium (`libxrandr2`, `libfontconfig1`,
+      # `libfreetype6`, `xvfb`…) étaient TOUTES déjà présentes sur l'image du runner — « already the
+      # newest version ». Les 21 Mo manquants étaient NEUF paquets, et les neuf sont des POLICES :
+      # `fonts-freefont-ttf`, `fonts-ipafont-gothic` (japonais), `fonts-tlwg-loma-otf` (thaï),
+      # `fonts-unifont`, `fonts-wqy-zenhei` (chinois), `xfonts-cyrillic`, `xfonts-encodings`,
+      # `xfonts-scalable`, `xfonts-utils`.
+      #
+      # DONC ON NE L'INSTALLE PLUS. Ce site est en français, ses diagrammes Mermaid aussi : aucun
+      # de ces jeux de glyphes n'est rendu par quoi que ce soit ici. On payait un téléchargement
+      # fragile de 21 Mo, EN ROOT, sur le workflow qui détient le jeton de déploiement, pour des
+      # polices que personne ne peint. Bénéfice de sécurité au passage : l'`apt-get` en root
+      # disparaît de la CI, ce qui retire l'un des deux risques hors du sceau d'artéfact décrits
+      # dans `deploy.yml`.
+      #
+      # ⚠️ CE QU'ON ACCEPTE EN ÉCHANGE, dit franchement : si une leçon future portait un diagramme
+      # avec des glyphes non latins (CJK, cyrillique, thaï), ils sortiraient en tofu (▯) dans le SVG
+      # rendu au build. Le jour où ça arrive, la parade est de réinstaller CES polices-là,
+      # nommément — pas de rétablir `--with-deps` en bloc. Et si l'image du runner cessait un jour
+      # de porter les bibliothèques de Chromium, Playwright échoue en le DISANT et en nommant
+      # `install-deps` : le mode d'échec reste lisible, il ne devient pas silencieux.
+      #
+      # `e2e:install:deps` reste défini dans `package.json` pour le développeur Linux sur machine
+      # nue, et `e2e:install` l'enchaîne toujours — c'est la CI, et elle seule, qui s'en passe.
       - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
         timeout-minutes: 5
         run: npm run e2e:install:navigateur

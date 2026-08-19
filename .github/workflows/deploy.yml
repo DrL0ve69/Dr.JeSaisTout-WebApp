@@ -100,24 +100,22 @@ jobs:
       # lot de dette sécurité qui précède E3-ST1 (backlog §E2, nœud 1), avec S-003 et la
       # vérification structurelle de la CSP. En attendant, le nom de l'étape de scellement dit sa
       # portée réduite, pour qu'on n'ait pas à lire ce commentaire pour la connaître.
-      # Scindée en deux le 2026-08-19, en miroir de `ci.yml` — raisonnement complet là-bas.
+      # Scindée en deux le 2026-08-19, puis amputée de sa moitié apt le même jour — mesure et
+      # raisonnement complets dans `ci.yml`, au-dessus de la même étape.
       #
-      # ⚠️ CE QUE LA SCISSION CHANGE POUR LA DETTE CI-DESSUS : elle la CARTOGRAPHIE, elle n'en paie
-      # aucune moitié. Les deux risques décrits plus haut ont maintenant chacun leur étape —
-      #   · `e2e:install:deps`       → l'`apt-get install` lancé en ROOT (paquets système) ;
-      #   · `e2e:install:navigateur` → le binaire téléchargé d'un CDN, HORS du contrôle
-      #     d'intégrité de `package-lock.json`, et ensuite EXÉCUTÉ dans ce job (par `mmdc` au
-      #     `content:build`, puis par Playwright à G-e2e).
-      # Les DEUX sont en amont du sceau, les DEUX restent à payer par le job propre du lot de dette
-      # pré-E3-ST1. Et si l'une des deux devait être traitée en premier, ce ne serait pas
-      # l'`apt-get` : lui vérifie au moins les signatures GPG des dépôts Ubuntu, là où le binaire
-      # CDN n'est protégé que par HTTPS. Nommer une seule moitié ici laisserait croire l'autre
-      # couverte (patron S-009 : une justification ne doit jamais promettre plus que ce qui est
-      # appliqué).
-      - name: Installer les dépendances système du navigateur (apt, en root)
-        timeout-minutes: 5
-        run: npm run e2e:install:deps
-
+      # ⚠️ CE QUE L'AMPUTATION CHANGE POUR LA DETTE CI-DESSUS, exactement — parce qu'elle en paie
+      # une moitié, et une seule. Le paragraphe ci-dessus décrit DEUX risques hors du sceau :
+      #   · l'`apt-get install` lancé en ROOT → **il n'existe plus dans ce workflow.** Les
+      #     bibliothèques de Chromium sont déjà sur l'image du runner (mesuré) ; les 21 Mo que la
+      #     commande téléchargeait étaient neuf paquets de POLICES non latines, qu'aucun rendu de ce
+      #     site ne peint. Cette moitié de la dette est donc RÉELLEMENT payée, pas déplacée.
+      #   · le binaire téléchargé d'un CDN, hors du contrôle d'intégrité de `package-lock.json`,
+      #     puis EXÉCUTÉ dans ce job (par `mmdc` au `content:build`, puis par Playwright à G-e2e)
+      #     → **il reste entier**, et c'était de toute façon le plus exposé des deux : apt vérifie
+      #     les signatures GPG des dépôts Ubuntu, ce binaire-ci n'a que HTTPS.
+      # Le job propre du lot de dette pré-E3-ST1 garde donc sa raison d'être, pour ce second risque.
+      # Ne pas relire ce bloc comme « la dette est réglée » (patron S-009 : une justification ne
+      # promet jamais plus que ce qui est appliqué).
       - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
         timeout-minutes: 5
         run: npm run e2e:install:navigateur
