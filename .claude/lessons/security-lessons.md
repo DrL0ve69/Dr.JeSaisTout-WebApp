@@ -414,3 +414,29 @@ exécutable** (HTML forgé, code de sortie attendu) plutôt qu'une conviction lu
 `tools/content-pipeline/rendre-mermaid.mjs` (`analyserSvg`, patron de référence),
 `src/pipeline-contenu-compilation.spec.ts`, `.claude/rules/security.md` §4,
 `docs/agile/backlog-phase-1.md` §E2-ST4 lot A2.
+
+## S-015 · Un garde-fou par motif peut échouer par SUR-refus — et sur ce dépôt, le contenu le plus certain de le déclencher est la leçon qui enseigne le motif surveillé, sans parade éditoriale possible (A05/CWE-116 · sur-refus, axe neuf sur la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]])
+
+**Symptôme.** Le garde-fou « zéro style en ligne » de `compiler-markdown.mjs` cherchait
+`/\sstyle\s*=/i` et `/<style[\s>]/i` dans la chaîne HTML produite par Shiki — laquelle contient le
+texte du code de l'auteur, une entrée. `security-reviewer` a reproduit : un exemple PHP contenant
+`$html = '<p style="color:red">';` fait échouer G-content, sur le message « la coloration a produit
+du style en ligne », alors que le style provient du **texte du code**, pas de Shiki. Shiki laisse
+les guillemets bruts dans le texte : le sur-refus n'est pas théorique.
+**Ce qui est neuf par rapport à [[S-014]].** S-001/S-003/S-009/S-014 portaient tous sur le
+**contournement** (une entrée hostile satisfait ou échappe au garde-fou). Ici le défaut va dans
+l'autre sens : le garde-fou refuse du contenu légitime — et pas n'importe lequel, la leçon qui
+**enseigne** le motif qu'il surveille, sur un site dont c'est la raison d'être. Et à la différence
+de [[S-011]] (même famille de collision contenu/garde-fou), **aucune parade éditoriale n'existe** :
+on ne met pas de guillemets typographiques dans un extrait de code, il doit rester copiable et
+exact. La seule issue apparente était donc de désarmer un contrôle de CSP sur le site qui
+l'enseigne — jonction S-011 × S-014, qui mérite d'être nommée pour être retrouvée.
+**Règle.** Sur un garde-fou de sortie dont l'entrée peut légitimement contenir le motif recherché
+**sans échappatoire éditoriale** (code source affiché tel quel, contrairement à une question de
+quiz), le seul correctif viable est de faire porter le contrôle sur la **structure réelle produite**
+(élément `<style>` réel, attribut `style` réel via jsdom — patron [[S-014]]), jamais sur le texte
+qui la contient. Ne pas confondre avec S-011 : là où S-011 accepte une parade côté rédaction, ici il
+n'y en a pas — la seule sortie est l'analyse structurelle. Vérifié par deux contrôles positifs, dont
+un appel direct de la fonction corrigée (`verifierZeroStyle`, exportée pour ça) sur du HTML forgé.
+**Réfs.** `tools/content-pipeline/compiler-markdown.mjs`, `.claude/rules/security.md` §4,
+`docs/agile/backlog-phase-1.md` §E2-ST4 lot B.

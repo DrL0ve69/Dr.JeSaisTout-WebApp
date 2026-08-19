@@ -1685,8 +1685,8 @@ de cours — le contenu d'un `<details>` fermé **ne s'imprime pas**, Safari ne 
 |---|---|---|---|
 | **A1** | Le contrôle de portée des annotations, **des deux côtés** (`compiler-markdown.mjs` + `rendu-blocs.ts`) + fixture invalide exécutée par la CI. Traite aussi le doublon : `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois** | G-typage-outils, G-content, G-test | ✅ **clos le 2026-08-18** (`b0fc189`) |
 | **A2** | Sonde : **que survit-il au sanitizer d'Angular** sur la sortie Shiki (`class` oui ; `data-*`/`id` à mesurer — précédent SVG 24 éléments → 0) ; **mesurer avant de concevoir**, puis le transformateur `line` | G-test, G-content | ✅ **clos le 2026-08-18** (`441af77`) |
-| **B** ⏭️ *(geste suivant)* | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, `.ligne-annotee` avec filet — le sens jamais porté par la couleur seule | G-lint, G-test, G-build | ⬜ |
-| **C** | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ⬜ |
+| **B** | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, numérotation CSS de toutes les lignes (le filet `.ligne-annotee` est retiré du périmètre) | G-lint, G-test, G-build | ✅ **clos le 2026-08-18** |
+| **C** ⏭️ *(geste suivant)* | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ⬜ |
 
 
 ##### ✅ Clôture du lot A1 — 2026-08-18
@@ -1781,6 +1781,70 @@ de ligne, le validateur accepte donc `ligneFautive = N+1`, la ligne vide finale 
 désigner dans l'interface. Non corrigé dans le lot A2 à dessein : resserrer ce garde-fou demande sa
 propre fixture invalide sous `__fixtures__/invalides/` et son assertion — le lot B touchera de toute
 façon aux deux côtés du comptage de lignes.
+
+##### ✅ Clôture du lot B — 2026-08-18
+
+**Deux décisions du propriétaire, prises le 2026-08-18, à ne pas rouvrir.**
+- **Le filet `.ligne-annotee` est RETIRÉ du périmètre**, remplacé par la **numérotation CSS de
+  toutes les lignes** (`counter-increment` + `::before`, feuille globale `src/styles/_code.scss`).
+  Écart assumé à la lettre du backlog, arbitré après la passe d'avocat du diable : un filet
+  **disparaît en `forced-colors: active`** et ne peut donc pas porter d'information ; il aurait été
+  le **3ᵉ trait vertical emboîté** ; il aurait exigé un contrat compilateur→CSS à quatre endroits
+  pour un seul consommateur ; et une ligne pouvant porter N notes, il aurait dit « il se passe
+  quelque chose ici », pas « cette note-ci ». La numérotation rend « Ligne 2 : » localisable pour
+  **toutes** les notes à la fois, sans toucher au compilateur.
+- **Syntaxe d'auteur : forme UNIQUE.** Un paragraphe = une note, `{lignes="…"}` **obligatoire en
+  tête** (`{lignes="0"}` = bloc entier). L'écriture d'avant (`{lignes}` posé sur le `:::` du volet)
+  **échoue en se nommant** (« clef inconnue »), elle ne se dégrade pas. La limite « 0 ou 1
+  annotation par volet » laissée par le lot A1 est **levée**.
+
+**Ce que les revues ont trouvé, et qui n'était pas ce qu'on cherchait.**
+- 🔴 **La dette du comptage de lignes avait CHANGÉ DE PLACE, pas disparu.** `compter-lignes.mjs`
+  a été créé avec « UNE définition, TROIS appelants » ; la revue en a trouvé un **quatrième**, côté
+  *rendu* : `quiz.ts` comptait `code.split('\n')`, produisant une **radio fantôme « Ligne N+1 »**
+  au libellé vide et une garde plus permissive que le validateur. Invisible parce qu'un composant
+  Angular ne peut pas importer un `.mjs` de `tools/` — la copie est structurellement nécessaire.
+  Nommée comme copie, pointeur vers la référence, et verrouillée par un test de parité
+  (`src/compter-lignes-parite.spec.ts`, 14 cas). Leçon **L-037**.
+- 🔴 **Le garde-fou « zéro style en ligne » aurait refusé la leçon qu'il protège.** Il cherchait
+  `/\sstyle\s*=/i` **dans la chaîne HTML, laquelle contient le texte du code de l'auteur** : un
+  exemple PHP `$html = '<p style="color:red">';` faisait échouer G-content sur un diagnostic faux —
+  sans parade éditoriale possible (le code doit rester copiable). Cinquième récidive de la famille
+  S-001/S-003/S-009/S-014, axe neuf : le **sur-refus**. Corrigé par analyse jsdom (attribut/élément
+  `style` réels), contrôle positif en appelant la fonction sur un HTML forgé (L-036). Leçon **S-015**.
+- 🔴 **Un arrêt de tabulation MORT par bloc de code, créé par le lot lui-même, invisible à tout
+  gate.** En remontant le défilement dans `div.defileur` et en retirant `overflow-x` de `.shiki`, le
+  `tabindex="0"` posé par Shiki sur `<pre>` est devenu inutile : la page témoin est passée de **8 à
+  16 arrêts**, dont 8 sans nom et sans rien à défiler — invisible parce que `focus-order-semantics`
+  est désactivée chez axe par défaut et `scrollable-region-focusable` est désactivée dans
+  `tools/a11y/verifier-axe.mjs` (jsdom ne calcule pas le débordement). Corrigé dans ce lot par un
+  transformateur Shiki qui retire le `tabindex` : mesuré **16 → 8**. Sonde
+  `src/sonde-sanitizer-shiki.spec.ts` mise à jour (`tabindex` 4 → 3, tripwire exact).
+
+**Pourquoi le défileur est passé dans le gabarit** (trouvaille de l'avocat du diable, avant toute
+ligne de code) : deux colonnes rendent le débordement horizontal systématique, et une région
+défilante **dans** l'`[innerHTML]` n'a aucun focusable — inatteignable au clavier (WCAG 2.1.1), sans
+qu'aucun gate ne rougisse. Le bloc de code y gagne aussi le nom accessible qu'il n'avait pas
+(`<figcaption>` + `aria-label`, `role="group"` et non `region`).
+
+**Dettes neuves, nommées et datées.**
+- **`--couleur-code-fond` → E6.** Le fond du bloc Shiki vient des thèmes github, généré dans un
+  fichier gitignoré — **hors du gate de contraste dès aujourd'hui**, aucune encre du bloc de code
+  mesurée. E6 (« Moniteur ambre ») devra de toute façon reprendre ce fond.
+- **→ lot C** : vérification Playwright des arrêts clavier (seul filet réel — G-axe ne voit ni
+  débordement, ni contraste, ni disposition) ; et l'**unicité inter-sections** des noms de
+  défileur — la page monte un composant par section, donc les compteurs de rang repartent de 1
+  (mesuré : 8 défileurs, 8 noms distincts, mais quatre « Code n°1 » que seul le langage sépare).
+  Lever ça demande l'identité de section en entrée.
+- ⚠️ Rappel pour le lot C : tout fichier neuf sous `e2e/` doit être inscrit dans
+  `src/configuration-typescript.spec.ts`, sinon G-test rougit — voulu (**L-034**).
+- Inchangée : la dette `quiz.scss` (+88 o), antérieure.
+
+**Chiffres de clôture, mesurés le 2026-08-18** — G-lint ✅ · `typecheck:tools` ✅ · **G-test
+566 / 30 fichiers, 0 échec** (509/28 avant le lot) · **G-e2e 21 passés / 0 sauté** (fixture),
+**11 passés / 10 sautés** (production) · **G-axe 4 pages / 344 vérifications, 0 violation**
+(fixture), 3 pages / 258 (production) · **G-build 12 hachages de style / 1 de script** (fixture),
+**9 / 1** (production) — inchangés · `npm audit --omit=dev` **0**.
 
 ##### 🔴 Le déploiement rouge du 2026-08-18, et le mécanisme qui le referme
 

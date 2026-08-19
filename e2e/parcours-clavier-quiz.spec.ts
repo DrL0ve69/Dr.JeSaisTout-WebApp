@@ -44,12 +44,21 @@
 // chose mesurée, et `:focus-visible` ne s'active pas de la même façon selon
 // l'origine du focus. On presse Tab.
 //
-// ⚠️ LE PRÉAMBULE DE LA PAGE N'EST PAS ÉPINGLÉ, ET C'EST DÉLIBÉRÉ. La leçon-témoin
-// place aujourd'hui 19 arrêts avant le quiz (liens de sommaire, `<summary>` de
-// description de diagramme, blocs de code défilables). Les épingler ferait rougir
-// ce fichier à chaque retouche du contenu de la fixture, pour une faute qui ne
-// serait pas la sienne. On tabule donc JUSQU'AU quiz, on imprime le compte au
-// journal, et on épingle ce qui appartient au quiz : ses huit arrêts, dans l'ordre.
+// ⚠️ LE PRÉAMBULE DE LA PAGE N'EST PAS ÉPINGLÉ, ET C'EST DÉLIBÉRÉ. Les arrêts qui
+// précèdent le quiz (liens de sommaire, `<summary>` de description de diagramme,
+// blocs de code défilables) appartiennent au CONTENU de la fixture : les épingler
+// ferait rougir ce fichier à chaque retouche de la leçon-témoin, pour une faute qui
+// ne serait pas la sienne. On tabule donc JUSQU'AU quiz, on imprime le compte au
+// journal (« … tabulation(s) avant le quiz », plus bas), et on épingle ce qui
+// appartient au quiz : ses huit arrêts, dans l'ordre.
+//
+// ⚠️ AUCUN CHIFFRE N'EST ÉCRIT ICI, ET C'EST UN CORRECTIF (revue du lot B, E2-ST4).
+// Ce commentaire annonçait « 19 arrêts », un compte devenu faux DEUX FOIS dans le
+// même lot — le rendu a ajouté un défileur nommé par bloc de code, puis le
+// compilateur a retiré le `tabindex` que Shiki posait sur chaque `<pre>`. Un nombre
+// qu'aucune assertion ne tient se périme sans rougir, et il se lit ensuite comme une
+// mesure. Le compte vivant est celui du JOURNAL, à chaque exécution ; s'il faut le
+// figer un jour, ce sera par une assertion, pas par une phrase.
 //
 // ⚠️ CE QUE CE FICHIER NE PROUVE PAS. `npx swa start` n'implémente pas
 // `trailingSlash` : rien ici ne dit quoi que ce soit de la politique de routage de

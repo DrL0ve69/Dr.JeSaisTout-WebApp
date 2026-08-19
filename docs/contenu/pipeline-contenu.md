@@ -85,30 +85,40 @@ n'est JAMAIS exécutable sur le site) :
 
 ````markdown
 :::: comparaison
-::: vulnerable {lignes="2"}
+::: vulnerable
 ```php
 $nom = $_GET['nom'];
 echo 'Bonjour ' . $nom;
 ```
-La valeur vient du client et atteint la page sans encodage : tout balisage qu'elle contient est
-interprété par le navigateur.
+{lignes="2"} La valeur vient du client et atteint la page sans encodage : tout balisage qu'elle
+contient est interprété par le navigateur.
 :::
 ::: corrige
 ```php
 $nom = $_GET['nom'];
 echo 'Bonjour ' . htmlspecialchars($nom, ENT_QUOTES, 'UTF-8');
 ```
-L'encodage à la sortie transforme le balisage en texte affiché.
+{lignes="0"} L'encodage à la sortie transforme le balisage en texte affiché, sans jamais supposer
+que l'entrée était propre.
+
+{lignes="2"} Une deuxième note peut porter sur une autre portée : chaque paragraphe qui suit le
+code est SA PROPRE annotation.
 :::
 ::::
 ````
 
 > 🔴 **La forme ci-dessus est la seule qui compile**, et elle est vérifiée sur la leçon-témoin
 > (`tools/content-pipeline/__fixtures__/temoin/cours/securite-web/01-lecon-temoin/lecon.md`, section
-> « Exemple complet »). La notation ` ```php vulnerable ligne=2 ` que ce document décrivait
-> jusqu'au 2026-08-18 n'a **jamais** été implémentée — et elle ne fait pas échouer le build : le
-> compilateur ne lit que le **premier mot** de la clôture (`langageDe`), donc `vulnerable ligne=2`
-> est **ignoré en silence** et le bloc sort en simple `code`, sans comparaison, sans annotation.
+> « Exemple complet »). La notation ` ```php vulnerable ligne=2 ` que ce document décrivait jusqu'au
+> 2026-08-18 n'a **jamais** été implémentée — le compilateur ne lit que le **premier mot** de la
+> clôture (`langageDe`), donc `vulnerable ligne=2` était **ignoré en silence**.
+> ⚠️ **Depuis le lot B (2026-08-18), l'écriture qui suit — `{lignes="…"}` posé sur le `:::`
+> lui-même — est elle aussi ABANDONNÉE, mais cette fois le build la REFUSE au lieu de l'ignorer :**
+> `::: vulnerable {lignes="2"}` échoue en nommant « clef inconnue », parce que `lireAttributs` lit
+> le conteneur avec une liste d'attributs fermée **désormais vide** (`lireExemple`,
+> `tools/content-pipeline/compiler-markdown.mjs`). Un auteur qui a lu une version antérieure de ce
+> document perd une passe complète, pas une leçon publiée sans comparaison. La portée se pose
+> maintenant **sur chaque paragraphe d'annotation**, pas sur le conteneur.
 > Le langage se met sur la clôture de code (jamais sur le `:::`), et la portée s'écrit `lignes`,
 > au pluriel, **entre guillemets droits**.
 
@@ -119,18 +129,34 @@ Ce qu'il faut savoir pour écrire un volet :
   ordre ; une comparaison peut en enchaîner plusieurs (deux langages, deux failles distinctes).
 - **Exactement une clôture de code par volet**, et son langage est un des six du contrat
   (`php`, `csharp`, `typescript`, `sql`, `bash`, `json`).
-- **La prose qui suit le code devient l'annotation** du volet. Sans prose, pas d'annotation — et
-  `{lignes="…"}` sans prose est un **refus** (une portée qui n'annote rien).
-  ⚠️ Toute la prose d'un volet est jointe en **une seule** note ; plusieurs notes distinctes par
-  volet arrivent avec le **lot B** d'E2-ST4.
+- **Un volet n'admet que sa clôture de code et des paragraphes** — dans cet ordre : la clôture
+  d'abord, les paragraphes d'annotation après. Un item de liste, une citation ou un titre glissé
+  dans un volet est un **refus** nommé (`lireExemple`) ; avant le lot B, leur balisage était
+  **jeté en silence** et le paragraphe lu comme une note ordinaire. Une note écrite **avant** le
+  bloc de code est également refusée — le gabarit de rendu place toujours le code, puis ses
+  annotations, jamais l'inverse.
+- **Chaque paragraphe qui suit le code est UNE annotation distincte**, et il doit **ouvrir** par sa
+  propre portée `{lignes="…"}` en tout début de paragraphe. ⚠️ Avant le lot B, toute la prose d'un
+  volet était jointe en une seule note ; ce n'est plus le cas — un volet peut désormais porter
+  autant d'annotations qu'il a de paragraphes. Une portée citée **au milieu** d'un paragraphe (par
+  exemple pour en parler dans le texte) reste du simple texte, jamais une annotation : la position
+  qui compte est le tout début du paragraphe (`lireNote`). Un paragraphe sans portée en tête, ou
+  qui ne porte que sa portée sans texte derrière, est un refus.
+- **L'ordre des notes d'un même volet est imposé, et jamais corrigé à ta place** : portées
+  croissantes par leur plus petite ligne, `{lignes="0"}` (le bloc entier) admis en tête. Deux notes
+  désordonnées font échouer le build en nommant les deux portées en cause. **Deux notes peuvent en
+  revanche citer la même ligne** — deux remarques distinctes sur une même ligne sont légitimes et
+  restent admises.
 - **`{langage="php"}` est accepté sur `comparaison`** : c'est alors une ASSERTION, vérifiée contre
   les blocs — elle échoue si elle les contredit. À omettre dès que les paires changent de langage.
 
-**Portée d'une annotation — `{lignes="…"}`.** `{lignes="1,2"}` dit « cette remarque porte sur ces
-deux lignes-là » : **une** note à deux ancres, rendue « Lignes 1 et 2 : ». Attribut **omis** =
-portée `[0]` = **le bloc entier**, rendu « Ensemble du bloc : ». Les numéros commencent à **1**.
+**Portée d'une annotation — `{lignes="…"}`.** `{lignes="1,2"}` dit « cette note porte sur ces deux
+lignes-là » : rendue « Lignes 1 et 2 : ». `{lignes="0"}` dit « cette note porte sur le bloc entier »,
+rendue « Ensemble du bloc : ». Les numéros de ligne commencent à **1**. ⚠️ Depuis le lot B, la
+portée n'a plus de valeur par défaut : elle est portée par CHAQUE note, pas par le conteneur, et
+une note sans `{lignes="…"}` en tête est un refus — il n'y a plus d'attribut « omis ».
 
-Les cinq écritures que le build **refuse** en nommant le fichier et la valeur (`lirePortee`,
+Les six écritures que le build **refuse** en nommant le fichier et la valeur (`lirePortee`,
 `tools/content-pipeline/compiler-markdown.mjs`) :
 
 | Écrit | Refusé parce que |
@@ -138,11 +164,14 @@ Les cinq écritures que le build **refuse** en nommant le fichier et la valeur (
 | `{lignes="3"}` sur un extrait de 2 lignes | la ligne n'existe pas — la leçon publiée annoncerait « Ligne 3 : » devant un bloc qui n'en a que deux |
 | `{lignes="1,,2"}`, `{lignes=""}` | valeur vide ; `Number("")` vaut `0`, la coquille basculerait en silence sur « le bloc entier » |
 | `{lignes="-1"}`, `{lignes="1.5"}`, `{lignes="1e2"}`, `{lignes="0x2"}` | seule une suite de chiffres est lue ; `Number` accepte les quatre, et `0x2` compilerait **silencieusement** en ligne 2 |
-| `{lignes="1,1"}` | la même ligne citée deux fois dans une seule note |
+| `{lignes="1,1"}` | la même ligne citée deux fois DANS UNE MÊME portée (deux notes distinctes citant chacune la ligne 1 restent admises) |
 | `{lignes="0,2"}` | `0` désigne le bloc ENTIER : il ne se combine avec aucun numéro de ligne |
+| `::: vulnerable {lignes="2"}` | l'ANCIENNE écriture (portée sur le conteneur) — `lireAttributs` refuse toute clef hors de sa liste fermée, désormais VIDE pour un volet |
 
-Et deux refus de forme, du même garde-fou : `{lignes=2}` sans guillemets, et `{ligne="2"}` au
-singulier (clef inconnue — les clefs sont en liste fermée, une faute de frappe ne se perd pas).
+Et trois refus de forme, du même garde-fou : `{lignes=2}` sans guillemets, `{ligne="2"}` au
+singulier (clef inconnue — les clefs sont en liste fermée, une faute de frappe ne se perd pas), et
+une note dont le `{lignes="…"}` n'est pas écrit **littéralement** en tête (un `\{lignes="1"\}`
+échappé, par exemple, reste du texte et fait échouer la note).
 
 > **Côté sortie (rien à écrire, mais bon à savoir).** Chaque ligne colorée porte son **ancre**
 > `class="line ancre-ligne-N"`, N en base **1** — la même base que `{lignes="…"}`. C'est ce qui permettra

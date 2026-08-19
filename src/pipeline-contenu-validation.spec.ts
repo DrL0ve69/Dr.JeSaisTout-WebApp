@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // POURQUOI CE TEST EXISTE — et pourquoi il est arrivé en retard.
 // `tools/content-pipeline/valider.mjs` porte un mode `--fixtures` qui est le
-// contrôle positif du garde-fou (L-019) : quatorze dossiers, une faute chacun, tous
+// contrôle positif du garde-fou (L-019) : quinze dossiers, une faute chacun, tous
 // attendus REFUSÉS. Ce mode était exact, exécutable à la main… et lancé par
 // PERSONNE — ni par un test, ni par un script npm, ni par un workflow. Or
 // `content/cours/securite-web` n'existe pas encore : l'étape de validation de
@@ -15,13 +15,13 @@
 // runner n'exécute est une intention, pas un gate. Ce fichier est le runner.
 //
 // LES TROIS CHOSES QU'IL PROUVE, et pourquoi aucune ne suffit seule :
-//   1. Les quatorze cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
+//   1. Les quinze cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
 //      un validateur qui refuserait TOUT.
 //   2. La leçon-témoin VALIDE passe, code 0. C'est l'autre moitié de la pince :
 //      ensemble, les deux prouvent que le garde-fou discrimine.
 //   3. Chaque refus porte la BONNE cause, cas par cas. Sans ce troisième point,
-//      quatorze refus pour une seule et même raison (un chemin introuvable, disons)
-//      seraient indistinguables de quatorze refus corrects.
+//      quinze refus pour une seule et même raison (un chemin introuvable, disons)
+//      seraient indistinguables de quinze refus corrects.
 //
 // LES CAUSES ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées de l'outil
 // qu'elles vérifient (L-012). Un test qui importe la constante dont il contrôle
@@ -41,7 +41,7 @@ const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const DOSSIER_INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
 const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
 
-/** Ajv compile ses schémas et quatorze racines : lent une fois, pas quatorze fois. */
+/** Ajv compile ses schémas et quinze racines : lent une fois, pas quinze fois. */
 const DELAI = 60_000;
 
 /**
@@ -98,6 +98,21 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     dossier: 'quiz-associer-gauche-indiscernable',
     cause: /« q4 » : « paires ».*ne diffèrent que par des blanches ou une normalisation Unicode/,
   },
+  // Quinzième cas (E2-ST4, lot B) : le TROISIÈME comptage de lignes du pipeline, qui ne disait pas
+  // la même chose que les deux autres. `verifierQuestionTrouverLaFaille` bornait `ligneFautive`
+  // avec `code.split('\n').length` — donc en comptant la chaîne vide qui suit le dernier saut de
+  // ligne. Sur un `code` de quiz terminé par un saut, il acceptait `ligneFautive = N+1` : la ligne
+  // VIDE finale, que le quiz affiche sans rien dedans et que personne ne peut désigner à l'écran.
+  // Le compilateur, lui, refusait déjà `{lignes="N+1"}` sur le même extrait (`lirePortee`), avec
+  // `compterLignes`. Aucun des deux n'était rouge, parce qu'ils ne se comparaient à rien : la
+  // divergence ne devient visible qu'en écrivant le cas. Les trois appelants partagent désormais
+  // `tools/content-pipeline/compter-lignes.mjs`, et ce cas est ce qui empêche la formule d'être
+  // recopiée une quatrième fois. Vérifié par mutation : rétablir `split` ici fait passer ce
+  // dossier de « refusé » à « accepté à tort », et c'est le spec qui le rapporte.
+  {
+    dossier: 'quiz-ligne-fautive-hors-extrait',
+    cause: /« q3 » : « ligneFautive » vaut 4 alors que « code » ne compte que 3 ligne\(s\)/,
+  },
 ];
 
 /**
@@ -130,18 +145,18 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les QUATORZE cas, et aucun ne manque à l’appel',
+    'traite les QUINZE cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('14 cas attendus INVALIDES');
-      expect(sortie).toContain('14/14 cas refusés avec une cause nommée');
+      expect(sortie).toContain('15 cas attendus INVALIDES');
+      expect(sortie).toContain('15/15 cas refusés avec une cause nommée');
     },
     DELAI,
   );
 
-  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Douze refus identiques
+  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Quinze refus identiques
   // passeraient l'assertion globale ci-dessus et échoueraient ici.
   for (const { dossier, cause } of CAS_ATTENDUS) {
     it(

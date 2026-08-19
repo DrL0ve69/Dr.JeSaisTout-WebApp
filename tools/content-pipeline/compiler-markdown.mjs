@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+﻿#!/usr/bin/env node
 /**
  * COMPILATEUR MARKDOWN → AST — E2-ST1, lot 2
  * =============================================================================
@@ -45,22 +45,30 @@
  *     markdown-it-container ferme sur le premier marqueur d'au moins la même longueur.
  *
  *         :::: comparaison
- *         ::: vulnerable {lignes="2"}
+ *         ::: vulnerable
  *         ```php
  *         …
  *         ```
- *         Texte de l'annotation portée par la ligne 2.
+ *         {lignes="0"} Ce que le volet montre dans son ensemble.
+ *
+ *         {lignes="2"} Texte de l'annotation portée par la ligne 2.
  *         :::
  *         ::: corrige
  *         ```php
  *         …
  *         ```
- *         Texte de l'annotation générale (ligne 0 = tout le bloc).
+ *         {lignes="1,2"} Une note peut porter sur plusieurs lignes.
  *         :::
  *         ::::
  *
  *     `{langage="php"}` est accepté sur `comparaison` : c'est alors une ASSERTION, vérifiée contre
- *     la langue réelle des clôtures. `{lignes="2,5"}` porte l'annotation sur ces lignes-là.
+ *     la langue réelle des clôtures.
+ *
+ *     ⚠️ LA PORTÉE S'ÉCRIT EN TÊTE DE CHAQUE NOTE, PLUS SUR LE CONTENEUR (E2-ST4, lot B1a). Dans
+ *     un volet, APRÈS la clôture de code, **chaque paragraphe est une annotation distincte** et
+ *     doit ouvrir par `{lignes="…"}` (`{lignes="0"}` = le bloc entier). L'ancienne écriture
+ *     `::: vulnerable {lignes="2"}` échoue désormais en se nommant — `lignes` n'est plus dans la
+ *     liste fermée des attributs du conteneur, et cette liste refuse toute clef inconnue.
  *   · Ancres d'exercice : un paragraphe valant exactement `[[quiz]]` ou `[[simulation]]`.
  *
  * DIAGRAMMES MERMAID : le bloc ` ```mermaid ` est reconnu mais son rendu appartient au LOT 3
@@ -96,6 +104,7 @@ import MarkdownIt from 'markdown-it';
 import conteneurPlugin from 'markdown-it-container';
 import { createHighlighter } from 'shiki';
 import { transformerStyleToClass } from '@shikijs/transformers';
+import { compterLignes } from './compter-lignes.mjs';
 
 /** @typedef {ReturnType<InstanceType<typeof MarkdownIt>['parse']>[number]} JetonMd */
 
@@ -160,6 +169,15 @@ const PREFIXE_LIGNE = 'ancre-ligne-';
 
 /** Marqueur de doute du `professeur-web` — compté avant retrait, exigé absent après rendu. */
 const MARQUEUR_DOUTE = 'à-vérifier';
+
+/**
+ * LISTE BLANCHE des jetons markdown-it admis dans un `::: vulnerable` / `::: corrige` (E2-ST4,
+ * lot B). Un volet porte exactement une clôture de code et N paragraphes d'annotation ; tout
+ * autre jeton (`bullet_list_open`, `blockquote_open`, `heading_open`, `table_open`…) y perdrait
+ * son balisage sans un mot, l'auteur croyant publier une liste et publiant de la prose.
+ * Nominative, et fermée : voir `lireExemple`.
+ */
+const JETONS_DE_VOLET = new Set(['paragraph_open', 'inline', 'paragraph_close', 'fence']);
 
 // ---------------------------------------------------------------------------
 // Échec — un seul point de sortie, un message qui nomme le fichier
@@ -440,7 +458,7 @@ function ancrer(titre, dejaVues) {
  * blanche. `src/sonde-sanitizer-shiki.spec.ts` a monté cette sortie même dans un composant réel
  * (Angular 22.1) et compté, sur trois lignes :
  *
- *     class 15 → 15 · tabindex 4 → 4 · aria-describedby 3 → 3 · aria-label 3 → 3
+ *     class 15 → 15 · tabindex 3 → 3 · aria-describedby 3 → 3 · aria-label 3 → 3
  *     id 3 → 0 · data-ligne 3 → 0
  *
  * `data-ligne="3"` — le premier réflexe, et le plus lisible en CSS — aurait donné un artéfact
@@ -461,34 +479,48 @@ const transformateurLigne = {
 };
 
 /**
- * Combien de lignes ce code compte-t-il ? UNE seule définition DANS CE FICHIER, deux appelants —
- * et c'est le point : `lirePortee` s'en sert pour REFUSER `{lignes="6"}` sur un extrait de cinq
- * lignes, et `verifierAncres` pour EXIGER qu'il y ait au moins autant d'ancres que de lignes. Deux
- * comptages recopiés auraient pu diverger d'une ligne, et une portée acceptée se serait alors
- * ancrée dans le vide — l'invariant du lot A1 tenu, le crochet du lot B absent, tous gates verts.
+ * Le transformateur `pre` — RETIRE le `tabindex="0"` que Shiki pose lui-même sur son `<pre>`
+ * (E2-ST4, lot B, constat de revue du 2026-08-18).
  *
- * ⚠️ IL EXISTE UN TROISIÈME COMPTAGE DANS LE PIPELINE, ET IL NE DIT PAS LA MÊME CHOSE (constat de
- * revue, 2026-08-18). `verifierQuestionTrouverLaFaille` (`valider.mjs`) borne `ligneFautive` avec
- * `code.split('\n').length` : ni retrait du saut final, ni `\r?`. Sur un `code` de quiz terminé
- * par un saut de ligne, le validateur accepte donc `ligneFautive = N+1` — la ligne vide finale,
- * que personne ne peut désigner. Non corrigé ICI À DESSEIN : resserrer un garde-fou du validateur
- * demande sa fixture invalide et son assertion (le mécanisme de `__fixtures__/invalides/`), ce qui
- * déborde du lot A2. Consigné comme dette dans le backlog §E2-ST4, à payer avec le lot B, qui
- * touchera de toute façon aux deux côtés.
+ * 🔴 POURQUOI ON LE RETIRE, ET POURQUOI SEULEMENT MAINTENANT. Ce `tabindex` était JUSTE tant que
+ * `overflow-x: auto` vivait sur `.shiki` : une région qui défile doit s'atteindre au clavier
+ * (WCAG 2.1.1), et le `<pre>` ÉTAIT cette région. Le lot B2 a remonté le défilement dans le
+ * gabarit de `rendu-blocs.ts` (`div.defileur`, `tabindex="0"`, `role="group"`, `aria-label`) et
+ * retiré `overflow-x` de `.shiki` — le `<pre>` n'a donc plus rien à faire défiler, et son
+ * `tabindex` est devenu un arrêt de tabulation MORT : atteignable, sans nom, sans rôle, sans
+ * effet. Mesuré dans l'artéfact prerendu de la leçon-témoin : 8 blocs de code, **16** arrêts
+ * (8 `.defileur` + 8 `pre[tabindex="0"]`), dont la moitié inutile — le clavier traversait chaque
+ * bloc DEUX fois.
  *
- * Deux détails de la formule, parce qu'ils répondent à deux besoins différents : markdown-it
- * termine TOUJOURS le contenu d'une clôture par un saut de ligne, et le compter donnerait une
- * ligne fantôme — le `replace` le retire, et ne fait simplement RIEN sur le `code` d'un quiz, qui
- * n'en a pas. Le `\r?`, lui, n'a rien à voir avec ça : il couvre les fins de ligne CRLF de ce
- * poste (L-015).
+ * ⚠️ AUCUN GATE NE POUVAIT LE VOIR, et c'est la raison pour laquelle il faut le tenir ici :
+ * `focus-order-semantics` est désactivée par défaut chez axe, et `scrollable-region-focusable`
+ * est désactivée dans `tools/a11y/verifier-axe.mjs` (jsdom ne calcule pas le débordement). Le
+ * filet est donc l'assertion « aucun `pre[tabindex]` » de
+ * `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.spec.ts` (côté rendu) et celle de
+ * `src/pipeline-contenu-compilation.spec.ts` (côté compilateur, sur la sortie réelle).
  *
- * @param {string} code
- * @returns {number}
+ * ⚠️ SI LE DÉFILEMENT REVENAIT UN JOUR SUR `.shiki`, CE TRANSFORMATEUR DEVIENDRAIT UNE FAUTE
+ * WCAG 2.1.1 — les deux vont ensemble, et c'est pourquoi
+ * `src/pipeline-contenu-compilation.spec.ts` interdit tout `overflow` dans la feuille générée.
+ *
+ * @type {import('shiki').ShikiTransformer}
  */
-function compterLignes(code) {
-  const sansFin = code.replace(/\r?\n$/, '');
-  return sansFin === '' ? 0 : sansFin.split(/\r?\n/).length;
-}
+const transformateurPre = {
+  name: 'drjst-pre-sans-tabindex',
+  pre(noeud) {
+    // `delete` et non `= undefined` : `hast-util-to-html` sérialise une propriété présente à
+    // `undefined` comme absente aujourd'hui, mais c'est un détail d'implémentation. L'absence de
+    // la clef, elle, est une garantie du modèle.
+    delete noeud.properties['tabindex'];
+  },
+};
+
+// ⚠️ `compterLignes` A DÉMÉNAGÉ (E2-ST4, lot B) — il vit dans `./compter-lignes.mjs`, importé en
+// tête de ce fichier. Il avait ici DEUX appelants (`lirePortee` et `verifierAncres`) ; il en a
+// désormais TROIS, le dernier étant `verifierQuestionTrouverLaFaille` de `valider.mjs`, qui
+// comptait autrement et acceptait de ce fait une `ligneFautive` d'une ligne de trop. La dette est
+// donc PAYÉE, et le module partagé est ce qui l'empêche de se reformer : la formule, et la raison
+// de chacun de ses deux détails, ne s'écrivent plus qu'à un seul endroit.
 
 const requerir = createRequire(import.meta.url);
 
@@ -498,11 +530,85 @@ const requerir = createRequire(import.meta.url);
  * `tsconfig.tools.json` n'a volontairement pas `lib: DOM` : un script Node n'a pas à pouvoir
  * toucher un `document` global.
  *
- * @typedef {{ className: string }} ElementHtml
+ * @typedef {{ className: string, tagName: string, outerHTML: string, hasAttribute(nom: string): boolean }} ElementHtml
  * @typedef {{ querySelectorAll(selecteur: string): Iterable<ElementHtml> }} DocumentHtml
  * @type {new (source: string, options?: Record<string, unknown>) => { window: { document: DocumentHtml } }}
  */
 const JSDOM = requerir('jsdom').JSDOM;
+
+/**
+ * Analyse un fragment HTML, ou fait échouer la construction en nommant le fichier.
+ *
+ * Partagé par les DEUX contrôles de conservation (`verifierZeroStyle`, `verifierAncres`) : un
+ * fragment illisible doit les faire échouer tous les deux de la même façon. Un garde-fou qui ne
+ * prouve pas avoir tout vu ne garde rien (S-003).
+ *
+ * @param {string} html fragment à analyser
+ * @param {string} nomFichier fichier de contenu, pour nommer la faute
+ * @returns {DocumentHtml}
+ */
+function analyserFragment(html, nomFichier) {
+  try {
+    // `NOSONAR` : S7718 réclame `error_`, contre la règle « français seulement ».
+    return new JSDOM(`<!doctype html><body>${html}</body>`).window.document;
+  } catch (erreur) { // NOSONAR
+    return echec(`${nomFichier} : la sortie de la coloration n'est pas du HTML analysable`, [
+      String(erreur instanceof Error ? erreur.message : erreur),
+      'un garde-fou qui ne prouve pas avoir tout vu ne garde rien (S-003)',
+    ]);
+  }
+}
+
+/**
+ * CONTRÔLE DE CONSERVATION « ZÉRO STYLE EN LIGNE » — le pendant de `verifierAncres`, pour
+ * `transformerStyleToClass`. La CSP du site est à hachages : un `style=` survivant serait refusé
+ * par le navigateur, et un `<style>` élargirait `style-src`.
+ *
+ * 🔴 POURQUOI ON ANALYSE — CINQUIÈME RÉCIDIVE DE LA FAMILLE S-001/S-003/S-009/S-014, et cette
+ * fois le défaut allait dans l'autre sens : le SUR-REFUS. La première écriture cherchait les
+ * motifs `/\sstyle\s*=/i` et `/<style[\s>]/i` dans la CHAÎNE `html` — laquelle contient le TEXTE
+ * du code de l'auteur, échappé par Shiki mais toujours là. Un exemple PHP parfaitement légitime,
+ * `$html = '<p style="color:red">';`, faisait donc échouer G-content sur un diagnostic FAUX
+ * (« la coloration a produit du style en ligne — vérifier `transformerStyleToClass` »), et sans
+ * parade éditoriale possible : on ne met pas de guillemets typographiques dans du code. C'est la
+ * leçon **XSS/CSP** qui ne se serait pas publiée, sur un site qui enseigne la CSP — donc la
+ * pression aurait été de DÉSARMER le garde-fou. Reproduit en revue le 2026-08-18.
+ *
+ * La règle du dépôt ne change pas de forme quand le sens du défaut change : sur un format
+ * structuré, on ANALYSE, puis on confronte à une liste blanche NOMINATIVE. Ici l'arbre tranche
+ * seul — le texte d'un `<span>` ne peut pas fabriquer un attribut, Shiki échappant « < ».
+ *
+ * CE QUI EST REFUSÉ, NOMMÉMENT : un élément `<style>` RÉEL, et tout élément portant un attribut
+ * `style` RÉEL. Ce que le code de l'auteur RACONTE ne compte pour rien.
+ *
+ * ⚠️ EXPORTÉ POUR ÊTRE MIS À L'ÉPREUVE, et c'est la seule raison (L-036) : un contrôle positif du
+ * correctif doit APPELER l'outil corrigé sur un HTML forgé, pas compiler autour de lui — compiler
+ * transformateur branché ne mesurerait que la lecture du spec, jamais la capacité de REFUS.
+ *
+ * @param {string} html sortie de `codeToHtml`
+ * @param {string} nomFichier fichier de contenu, pour nommer la faute
+ */
+export function verifierZeroStyle(html, nomFichier) {
+  const document = analyserFragment(html, nomFichier);
+
+  for (const element of document.querySelectorAll('style')) {
+    echec(`${nomFichier} : la coloration a produit un élément <style>`, [
+      `rencontré : « ${apercu(element.outerHTML)} »`,
+      'un <style> élargirait `style-src` — la CSP du site est à hachages',
+      'vérifier que `transformerStyleToClass` est bien passé au rendu Shiki',
+    ]);
+  }
+  for (const element of document.querySelectorAll('[style]')) {
+    echec(
+      `${nomFichier} : la coloration a produit un attribut style= sur <${element.tagName.toLowerCase()}>`,
+      [
+        `rencontré : « ${apercu(element.outerHTML)} »`,
+        'la CSP du site est à hachages — `style=` est refusé par le navigateur',
+        'vérifier que `transformerStyleToClass` est bien passé au rendu Shiki',
+      ],
+    );
+  }
+}
 
 /**
  * CONTRÔLE DE CONSERVATION DES ANCRES DE LIGNE — le pendant du « zéro `style=` », pour l'autre
@@ -541,21 +647,11 @@ const JSDOM = requerir('jsdom').JSDOM;
  */
 export function verifierAncres(html, code, nomFichier) {
   const attendues = compterLignes(code);
-  /** @type {{ window: { document: DocumentHtml } }} */
-  let dom;
-  try {
-    dom = new JSDOM(`<!doctype html><body>${html}</body>`);
-    // `NOSONAR` : S7718 réclame `error_`, contre la règle « français seulement ».
-  } catch (erreur) { // NOSONAR
-    return echec(`${nomFichier} : la sortie de la coloration n'est pas du HTML analysable`, [
-      String(erreur instanceof Error ? erreur.message : erreur),
-      'un garde-fou qui ne prouve pas avoir tout vu ne garde rien (S-003)',
-    ]);
-  }
+  const document = analyserFragment(html, nomFichier);
 
   /** @type {number[]} */
   const relevees = [];
-  for (const ligne of dom.window.document.querySelectorAll('pre.shiki > code > span.line')) {
+  for (const ligne of document.querySelectorAll('pre.shiki > code > span.line')) {
     const ancres = ligne.className
       .split(/\s+/)
       .filter((classe) => classe.startsWith(PREFIXE_LIGNE))
@@ -617,17 +713,13 @@ async function creerColorateur() {
         // afficherait du code clair.
         themes: { light: THEME_CLAIR, dark: THEME_SOMBRE },
         defaultColor: false,
-        transformers: [transformateur, transformateurLigne],
+        transformers: [transformateur, transformateurLigne, transformateurPre],
       });
-      // CONTRÔLE DE CONSERVATION (patron S-003) : on n'affirme pas que le transformateur a marché,
-      // on le VÉRIFIE. Un `style=` survivant passerait le lint, passerait les tests, et ferait
-      // rougir `generer-config-swa.mjs` bien plus tard — ou, pire, élargirait la CSP du site.
-      if (/\sstyle\s*=/i.test(html) || /<style[\s>]/i.test(html)) {
-        echec(`${nomFichier} : la coloration a produit du style en ligne`, [
-          'la CSP du site est à hachages — `style=` est refusé, `<style>` élargirait style-src',
-          'vérifier que `transformerStyleToClass` est bien passé au rendu Shiki',
-        ]);
-      }
+      // LES DEUX CONTRÔLES DE CONSERVATION (patron S-003/S-014) : on n'affirme pas que les
+      // transformateurs ont marché, on le VÉRIFIE — et par ANALYSE, jamais par motif. Les deux
+      // inspectent une chaîne qui contient le TEXTE du code de l'auteur : un motif y laisserait
+      // l'entrée fabriquer la preuve (ancres) ou fabriquer la faute (style en ligne).
+      verifierZeroStyle(html, nomFichier);
       verifierAncres(html, code, nomFichier);
       return html;
     },
@@ -657,8 +749,17 @@ function assemblerFeuille(classes) {
 
 ${classes}
 
+// ⚠️ AUCUN \`overflow-x\` ICI — RETIRÉ AU LOT B2 D'E2-ST4, ET IL NE DOIT PAS REVENIR.
+// Une région défilante doit être atteignable au clavier : c'est le conteneur qui défile
+// qui porte \`tabindex="0"\` et le nom accessible, et ce conteneur est écrit dans le GABARIT
+// de \`rendu-blocs.ts\` (\`.defileur\`), le seul endroit où un attribut survit — le sanitizer
+// d'Angular efface \`id\` et \`data-*\` du HTML injecté. Le remettre ici imbriquerait deux
+// défileurs : celui du gabarit ne recevrait plus rien à faire défiler, et le \`<pre>\`
+// intérieur deviendrait une région défilante SANS NOM ET INATTEIGNABLE au clavier — son
+// \`tabindex\` est retiré à la compilation depuis le lot B (\`drjst-pre-sans-tabindex\`),
+// précisément parce qu'il n'a plus rien à faire défiler (WCAG 2.1.1 / 2.4.6).
+// Épinglé par \`src/pipeline-contenu-compilation.spec.ts\`.
 .shiki {
-  overflow-x: auto;
   background-color: var(--shiki-light-bg);
 }
 
@@ -860,7 +961,13 @@ function blocDeCloture(jeton, ctx) {
  * Le message NOMME le fichier et la valeur fautive : la dette du lot D était précisément un refus
  * qui laissait le lecteur chercher lui-même la leçon en cause.
  *
- * @param {string | undefined} brut valeur de `{lignes="…"}`, absente = le bloc entier
+ * ⚠️ `brut` N'EST PLUS FACULTATIF DEPUIS LE LOT B1a. Il y avait ici un `if (brut === undefined)
+ * return [0]` — la portée par défaut du temps où `{lignes="…"}` était un attribut FACULTATIF du
+ * conteneur. Maintenant que chaque note doit ouvrir par sa portée, ce chemin n'était plus atteint,
+ * et le garder aurait laissé un futur appelant retomber en silence sur « le bloc entier ». Une
+ * valeur absente est désormais une valeur VIDE, donc un refus nommé.
+ *
+ * @param {string} brut valeur de `{lignes="…"}` lue en tête de la note
  * @param {string} code contenu du bloc de code annoté, tel que markdown-it le rend
  * @param {'vulnerable' | 'corrige'} nom volet annoté, pour nommer la faute
  * @param {string} nomFichier fichier de contenu, pour nommer la faute
@@ -872,7 +979,6 @@ function lirePortee(brut, code, nom, nomFichier) {
   // `ancre-ligne-3` doivent parler de la même ligne 3. Deux comptages recopiés auraient pu diverger d'un
   // saut de ligne final, et une portée acceptée se serait ancrée dans le vide.
   const nbLignes = compterLignes(code);
-  if (brut === undefined) return [0];
 
   /** @type {number[]} */
   const portee = [];
@@ -922,19 +1028,99 @@ function lirePortee(brut, code, nom, nomFichier) {
 }
 
 /**
- * Lit un `::: vulnerable` ou `::: corrige` : exactement une clôture de code, plus une prose
- * facultative qui devient l'annotation.
+ * La PORTÉE en tête d'une note, ancrée au DÉBUT de la chaîne — le `^` porte tout le garde-fou.
+ * `[ \t]*` mange la seule espace de séparation ; le texte de la note commence après.
+ */
+const MOTIF_PORTEE_EN_TETE = /^\{lignes="([^"]*)"\}[ \t]*/;
+
+/**
+ * Réduit un paragraphe à un aperçu d'une ligne, pour NOMMER la note fautive dans un message.
  *
- * ⚠️ LIMITE CONNUE ET ASSUMÉE DEPUIS E2-ST4 (lot A1) : **0 ou 1 annotation par volet, jamais N.**
- * Toute la prose du volet est JOINTE en un seul `texte` (le `.join(' ')` ci-dessous), et une seule
- * `AnnotationLigne` est poussée. Le type `ExempleCode.annotations` est pourtant un tableau, et le
- * rendu (gabarit inline de `rendu-blocs.ts` : `@if (…length > 0)` puis `@for`) sait déjà en
- * afficher plusieurs — la capacité existe des deux côtés, seule cette fonction ne la produit pas.
- * C'est voulu ici : la
- * syntaxe actuelle n'offre qu'un `{lignes="…"}` par volet, donc une seule portée à attribuer.
- * 🔴 C'EST LE **LOT B** (« annotations ancrées à la ligne ») QUI FERA SAUTER CETTE LIMITE : il lui
- * faut plusieurs notes distinctes par volet, donc une syntaxe qui attache une portée à CHAQUE
- * paragraphe. Écrit ici pour qu'il ne le découvre pas en chemin. Ne pas « corriger » avant lui.
+ * @param {string} texte
+ * @returns {string}
+ */
+function apercu(texte) {
+  const surUneLigne = texte.replace(/\s+/g, ' ').trim();
+  return surUneLigne.length > 60 ? `${surUneLigne.slice(0, 60)}…` : surUneLigne;
+}
+
+/**
+ * Lit UNE note d'un volet : un paragraphe qui OUVRE par sa portée `{lignes="…"}`.
+ *
+ * 🔴 POURQUOI ON LIT UN JETON, ET NON UNE CHAÎNE (S-014, quatrième récidive de la famille
+ * S-001/S-003/S-009, payée au lot A2). Le texte d'une note peut parfaitement CITER `{lignes="2"}`
+ * — une leçon qui enseigne cette syntaxe le fera. Balayer `jeton.content` à la recherche du motif
+ * laisserait donc l'ENTRÉE fabriquer la portée : « ne pas écrire {lignes="9"} au milieu » serait
+ * lu comme une annotation sur la ligne 9. La position de la portée est définie par la GRAMMAIRE de
+ * markdown-it, pas par une recherche : c'est le début du PREMIER enfant `text` du jeton `inline`
+ * du paragraphe. Un `{lignes="…"}` cité ailleurs n'est jamais à cette position, et reste du texte.
+ *
+ * Le contrôle `startsWith` qui suit ferme le dernier écart : `jeton.content` est la source BRUTE
+ * du paragraphe, `children[0].content` sa forme décodée. Un `\{lignes="1"\}` échappé par l'auteur
+ * donnerait un enfant qui commence par la portée sans que la source le fasse — la note serait
+ * alors refusée, jamais lue de travers.
+ *
+ * @param {JetonMd} jeton jeton `inline` du paragraphe
+ * @param {string} code contenu de la clôture annotée, pour borner la portée
+ * @param {'vulnerable' | 'corrige'} nom volet annoté, pour nommer la faute
+ * @param {Contexte} ctx
+ * @returns {AnnotationLigne}
+ */
+function lireNote(jeton, code, nom, ctx) {
+  const premier = jeton.children?.[0];
+  const trouve = premier?.type === 'text' ? MOTIF_PORTEE_EN_TETE.exec(premier.content) : null;
+  if (trouve === null) {
+    echec(
+      `${ctx.nomFichier} : une note de « ::: ${nom} » n'ouvre pas par {lignes="…"} — ` +
+        `« ${apercu(jeton.content)} »`,
+      [
+        'depuis E2-ST4 (lot B1a), CHAQUE paragraphe d’un volet est une annotation, et il doit',
+        'ouvrir par sa portée : {lignes="2"} Le texte…  ({lignes="0"} = le bloc entier)',
+        'un {lignes="…"} cité AU MILIEU du texte reste du texte — la portée se lit en tête, ou pas',
+      ],
+    );
+  }
+  const prefixe = trouve[0];
+  if (!jeton.content.startsWith(prefixe)) {
+    echec(
+      `${ctx.nomFichier} : la portée en tête d'une note de « ::: ${nom} » n'est pas écrite ` +
+        `telle quelle dans la source — « ${apercu(jeton.content)} »`,
+      ['écrire {lignes="…"} sans échappement ni balisage, en tout début de paragraphe'],
+    );
+  }
+  const texte = jeton.content.slice(prefixe.length).trim();
+  if (texte === '') {
+    echec(
+      `${ctx.nomFichier} : une note de « ::: ${nom} » ne porte que sa portée « ${prefixe.trim()} »`,
+      ['ajouter le texte qui explique la ou les lignes désignées, ou retirer le paragraphe'],
+    );
+  }
+  return { lignes: lirePortee(trouve[1] ?? '', code, nom, ctx.nomFichier), texte };
+}
+
+/**
+ * Lit un `::: vulnerable` ou `::: corrige` : exactement une clôture de code, puis N annotations —
+ * un paragraphe = UNE note, chacune ouvrant par sa propre portée.
+ *
+ * ✅ LA LIMITE « 0 OU 1 ANNOTATION PAR VOLET » DU LOT A1 EST TOMBÉE ICI (lot B1a). Elle venait du
+ * `.join(' ')` qui fondait toute la prose du volet en un seul `texte` : la syntaxe n'offrait qu'un
+ * `{lignes="…"}` par volet, donc une seule portée à attribuer. La portée est maintenant portée par
+ * la NOTE, plus par le conteneur — d'où la liste d'attributs autorisés VIDE ci-dessous.
+ *
+ * CE QUI EST REFUSÉ, ET POURQUOI :
+ *   · un paragraphe sans portée lisible en tête — la note s'ancrerait « quelque part », ou son
+ *     `{lignes="…"}` se publierait comme du texte littéral (`lireNote`) ;
+ *   · `::: vulnerable {lignes="2"}`, l'ANCIENNE écriture — `lireAttributs` refuse toute clef hors
+ *     de sa liste fermée, ici vide : la migration se voit, elle ne se dégrade pas en silence ;
+ *   · des notes DANS LE DÉSORDRE. Trier à la place de l'auteur réordonnerait sa prose et
+ *     publierait un texte qu'il n'a pas écrit dans cet ordre ; refuser nomme la faute. Deux notes
+ *     citant la MÊME ligne restent admises — deux remarques distinctes sur une même ligne sont
+ *     légitimes, et rien ici ne dédoublonne entre notes (`lirePortee` ne refuse le doublon qu'à
+ *     l'INTÉRIEUR d'une portée) ;
+ *   · tout jeton hors de `JETONS_DE_VOLET` — une liste, une citation, un titre. Ils étaient
+ *     ACCEPTÉS et leur balisage JETÉ en silence jusqu'au lot B ;
+ *   · une note écrite AVANT la clôture de code — le gabarit la rendrait APRÈS, donc ailleurs que
+ *     là où l'auteur l'a écrite.
  *
  * @param {readonly JetonMd[]} enfants
  * @param {JetonMd} ouverture
@@ -943,6 +1129,7 @@ function lirePortee(brut, code, nom, nomFichier) {
  * @returns {{ langage: Langage, exemple: ExempleCode }}
  */
 function lireExemple(enfants, ouverture, nom, ctx) {
+  const rangCloture = enfants.findIndex((j) => j.type === 'fence');
   const clotures = enfants.filter((j) => j.type === 'fence');
   const cloture = clotures[0];
   if (cloture === undefined || clotures.length !== 1) {
@@ -951,30 +1138,64 @@ function lireExemple(enfants, ouverture, nom, ctx) {
     ]);
   }
   const langage = langageDe(cloture, ctx);
-  const attributs = lireAttributs(ouverture.info, nom, ['lignes'], ctx.nomFichier);
-
-  const texte = enfants
-    .filter((j) => j.type === 'inline')
-    .map((j) => j.content.trim())
-    .filter((t) => t !== '')
-    .join(' ');
+  // LISTE FERMÉE VIDE, et c'est le mécanisme même de la migration : `lignes` a QUITTÉ les
+  // attributs du conteneur, donc `::: vulnerable {lignes="2"}` échoue en nommant la clef inconnue.
+  lireAttributs(ouverture.info, nom, [], ctx.nomFichier);
 
   /** @type {AnnotationLigne[]} */
   const annotations = [];
-  if (texte !== '') {
-    // UNE annotation portant PLUSIEURS lignes de portée, jamais N annotations identiques
-    // (E2-ST4, lot A1). Avant ce lot, `{lignes="1,2"}` poussait le MÊME `texte` deux fois : le
-    // rendu affichait la même phrase sous « Ligne 1 : » puis sous « Ligne 2 : », comme si
-    // l'auteur avait écrit deux commentaires. Or `lignes="1,2"` dit « cette remarque porte sur
-    // ces deux lignes-là » — une note, deux ancres. `lignes: [0]` = le bloc entier.
-    annotations.push({
-      lignes: lirePortee(attributs['lignes'], cloture.content, nom, ctx.nomFichier),
-      texte,
-    });
-  } else if (attributs['lignes'] !== undefined) {
-    echec(`${ctx.nomFichier} : « ::: ${nom} » annonce des lignes sans texte d'annotation`, [
-      'ajouter le paragraphe qui explique la ligne désignée, ou retirer {lignes="…"}',
-    ]);
+  for (const [rang, jeton] of enfants.entries()) {
+    // ⚠️ LISTE BLANCHE DE JETONS — même patron que `refuserJetonHorsPaire` un cran plus haut, et
+    // même raison (constat de revue du 2026-08-18, lot B). La boucle ne ramassait QUE les jetons
+    // `inline`, et ignorait tout le reste EN SILENCE : `- {lignes="2"} …` (item de liste) ou
+    // `> {lignes="2"} …` (citation) étaient acceptés, leur `inline` lu comme une note, et leur
+    // balisage JETÉ. L'auteur croyait publier une liste ou une citation ; il publiait de la prose,
+    // sous des gates verts. Un volet n'a de place que pour UNE clôture de code et des PARAGRAPHES.
+    if (!JETONS_DE_VOLET.has(jeton.type)) {
+      echec(`${ctx.nomFichier} : « ::: ${nom} » ne peut contenir que du code et des paragraphes`, [
+        `« ${jeton.type} » rencontré — attendu une clôture de code ou un paragraphe`,
+        'une liste, une citation ou un titre y perdrait son balisage en silence :',
+        'écrire chaque annotation en paragraphe simple, ouvert par sa portée {lignes="…"}',
+      ]);
+    }
+    if (jeton.type !== 'inline') continue;
+    // ⚠️ ET L'ORDRE, parce que le gabarit de `rendu-blocs.ts` place la `figure` PUIS la liste
+    // d'annotations : une note écrite AVANT la clôture serait rendue APRÈS elle. Déplacer la
+    // prose de l'auteur en silence est exactement ce que le refus du désordre (plus bas) existe
+    // pour empêcher — le compilateur ne réordonne pas, il nomme la faute.
+    if (rang < rangCloture) {
+      echec(
+        `${ctx.nomFichier} : une note de « ::: ${nom} » est écrite AVANT son bloc de code — ` +
+          `« ${apercu(jeton.content)} »`,
+        [
+          'le rendu place le code PUIS ses annotations : une note écrite avant serait déplacée',
+          'après lui, sans que rien ne le signale',
+          'déplacer ce paragraphe sous la clôture ```',
+        ],
+      );
+    }
+    annotations.push(lireNote(jeton, cloture.content, nom, ctx));
+  }
+
+  for (let rang = 1; rang < annotations.length; rang += 1) {
+    // La clef d'ordre est la PLUS PETITE ligne de la portée — `lirePortee` rend une liste triée,
+    // donc son premier élément. `[0]` (le bloc entier) vaut 0, et se place donc naturellement en
+    // tête : une note générale après une note de ligne est un désordre, pas un cas particulier.
+    const precedente = annotations[rang - 1]?.lignes[0] ?? 0;
+    const courante = annotations[rang]?.lignes[0] ?? 0;
+    if (courante < precedente) {
+      echec(
+        `${ctx.nomFichier} : les notes de « ::: ${nom} » ne suivent pas l'ordre des lignes — ` +
+          `« ${annotations[rang - 1]?.lignes.join(',') ?? ''} » puis ` +
+          `« ${annotations[rang]?.lignes.join(',') ?? ''} »`,
+        [
+          'les annotations d’un volet se lisent dans l’ordre du code : portées croissantes,',
+          '{lignes="0"} (le bloc entier) admis en tête',
+          '⚠️ le compilateur ne TRIE pas à ta place : réordonner ta prose publierait un texte que',
+          'tu n’as pas écrit dans cet ordre',
+        ],
+      );
+    }
   }
 
   return {

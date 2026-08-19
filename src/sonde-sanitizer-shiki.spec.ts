@@ -20,11 +20,24 @@
 // ═══ VERDICT, MESURÉ LE 2026-08-18 SUR ANGULAR 22.1 ═══════════════════════════
 //
 //     class             15 → 15   ✅   survit
-//     tabindex           4 →  4   ✅   survit (dont celui que Shiki pose sur <pre>)
+//     tabindex           3 →  3   ✅   survit (⚠️ voir la note de mise à jour ci-dessous)
 //     aria-describedby   3 →  3   ✅   survit
 //     aria-label         3 →  3   ✅   survit
 //     id                 3 →  0   ❌   EFFACÉ
 //     data-ligne         3 →  0   ❌   EFFACÉ
+//
+// ⚠️ MISE À JOUR DU 2026-08-18 (lot B, constat de revue) — LE CHIFFRE DE `tabindex`
+// A BOUGÉ, ET CE N'EST PAS UN ASSOUPLISSEMENT. Il valait « 4 → 4 » : les 3 que
+// cette sonde injecte par ligne, PLUS celui que Shiki posait lui-même sur son
+// `<pre>`. Ce dernier a été RETIRÉ à la compilation (transformateur
+// `drjst-pre-sans-tabindex`, `compiler-markdown.mjs`) parce que le lot B2 avait
+// remonté le défilement dans le gabarit (`div.defileur`) : le `<pre>` n'avait plus
+// rien à faire défiler et son `tabindex` était devenu un arrêt de tabulation MORT —
+// 16 arrêts au lieu de 8 sur la leçon-témoin prerendue. Le tripwire reste donc
+// exact : « 3 → 3 » est la mesure d'AUJOURD'HUI, et le `nbLignes` (et non
+// `nbLignes + 1`) du contrôle positif ci-dessous est ce qui prouve que le `<pre>`
+// n'en porte plus. Si Shiki, ou notre transformateur, en remettait un, ce fichier
+// rougit.
 //
 // 🔴 LE PRÉCÉDENT DU SVG AVAIT RAISON D'INTERDIRE DE SUPPOSER : `data-*` et `id`
 // ne survivent PAS. Le sanitizer d'Angular n'a pas de règle « les attributs de
@@ -92,7 +105,7 @@ const CANDIDATS = [
   'data-ligne', // sélecteur CSS lisible, sans analyse de chaîne de classes
   'aria-describedby', // le lien accessible lui-même, s'il survit
   'aria-label', // témoin ARIA : un nom accessible sur la ligne
-  'tabindex', // Shiki l'émet sur `<pre>` — la zone défilable au clavier en dépend
+  'tabindex', // témoin d'atteignabilité au clavier — et compteur du `<pre>` (voir l'en-tête)
 ] as const;
 
 /** Composant nu : rien d'autre que la liaison qu'écrit déjà `rendu-blocs.ts`. */
@@ -225,14 +238,21 @@ describe('Sonde — le sanitizer d’Angular face à la sortie de Shiki', () => 
     expect(brut).toContain('<span class="line ancre-ligne-1">');
     expect(brut).toContain('<span class="line ancre-ligne-3">');
 
-    // Le fragment enrichi porte bien UN attribut de chaque famille PAR LIGNE, et
-    // `tabindex` une fois de plus : celui que Shiki pose lui-même sur `<pre>`.
+    // Et le `<pre>` NE PORTE PLUS de `tabindex` — le transformateur
+    // `drjst-pre-sans-tabindex` le retire (lot B). C'est mesuré sur la sortie du
+    // compilateur RÉEL, donc ce n'est pas une recopie qui le dit.
+    expect(brut).not.toMatch(/<pre[^>]*\stabindex=/);
+
+    // Le fragment enrichi porte donc UN attribut de chaque famille PAR LIGNE, et
+    // `tabindex` EXACTEMENT `nbLignes` : c'était `nbLignes + 1` tant que Shiki
+    // laissait le sien sur `<pre>`. Ce « + 1 » disparu est l'arrêt de tabulation
+    // mort en moins.
     const avant = compterAvant(enrichi);
     expect(avant['id']).toBe(nbLignes);
     expect(avant['data-ligne']).toBe(nbLignes);
     expect(avant['aria-describedby']).toBe(nbLignes);
     expect(avant['aria-label']).toBe(nbLignes);
-    expect(avant['tabindex']).toBe(nbLignes + 1);
+    expect(avant['tabindex']).toBe(nbLignes);
     expect(avant['class']).toBeGreaterThan(nbLignes);
   });
 
@@ -264,7 +284,7 @@ describe('Sonde — le sanitizer d’Angular face à la sortie de Shiki', () => 
       'data-ligne': 3,
       'aria-describedby': 3,
       'aria-label': 3,
-      tabindex: 4,
+      tabindex: 3,
     });
     expect(apres).toEqual({
       class: 15,
@@ -272,7 +292,7 @@ describe('Sonde — le sanitizer d’Angular face à la sortie de Shiki', () => 
       'data-ligne': 0,
       'aria-describedby': 3,
       'aria-label': 3,
-      tabindex: 4,
+      tabindex: 3,
     });
   });
 

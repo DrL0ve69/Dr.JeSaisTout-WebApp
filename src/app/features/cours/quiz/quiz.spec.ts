@@ -815,6 +815,40 @@ describe('Quiz', () => {
       expect(groupe?.querySelector('pre')).toBeNull();
     });
 
+    it('🔴 un `code` terminé par un SAUT DE LIGNE ne rend AUCUNE radio surnuméraire', async () => {
+      // LE DÉFAUT QUE CETTE ASSERTION FERME (revue du lot B, E2-ST4). Ce composant
+      // découpait avec `question.code.split('\n')`, c'est-à-dire avec la formule que
+      // `tools/content-pipeline/compter-lignes.mjs` existe justement pour remplacer. Un
+      // `code` terminé par un saut — les auteurs en écrivent, la fixture
+      // `__fixtures__/invalides/quiz-ligne-fautive-hors-extrait` en est faite — rendait
+      // donc une ligne VIDE de plus : une radio « Ligne 3 » au `<code>` vide,
+      // SÉLECTIONNABLE et toujours fausse, sur un quiz que le build avait validé.
+      // ⚠️ Ce test regarde le DOM. La PARITÉ des deux formules — celle d'ici et celle du
+      // pipeline — se mesure ailleurs, sur un corpus : `src/compter-lignes-parite.spec.ts`.
+      const faille = Q_FAILLE as Extract<QuestionQuiz, { type: 'trouver-la-faille' }>;
+      const hote = await monter(quizDe({ ...faille, code: `${faille.code}\n` }));
+      const groupe = hote.querySelector('[id="quiz-faille-php"]');
+
+      const lignes = [...(groupe?.querySelectorAll('.code-numerote > li') ?? [])];
+      expect(lignes.length).toBe(2);
+      const boutons = radios(hote, 'quiz-faille-php');
+      expect(boutons.map((bouton) => bouton.value)).toEqual(['1', '2']);
+      // Aucun libellé de ligne VIDE : c'est la forme exacte qu'aurait prise la radio
+      // fantôme, et la seule qui distingue ce test d'un simple compte.
+      for (const ligne of lignes) {
+        expect((ligne.querySelector('code')?.textContent ?? '').length).toBeGreaterThan(0);
+      }
+      // Le `\r` d'un `quiz.json` enregistré sur ce poste ne doit pas non plus finir en
+      // queue de libellé (L-015) : `\r?` fait partie de la formule de référence.
+      const avecCrlf = await monter(
+        quizDe({ ...faille, id: 'faille-crlf', code: 'a;\r\nb;\r\n' }),
+      );
+      const lignesCrlf = [
+        ...avecCrlf.querySelectorAll('[id="quiz-faille-crlf"] .code-numerote > li code'),
+      ];
+      expect(lignesCrlf.map((c) => c.textContent)).toEqual(['a;', 'b;']);
+    });
+
     it('corrige la ligne désignée, et affiche faille, explication ET correction', async () => {
       const hote = await monter(quizDe(Q_FAILLE));
       await repondre(hote, 'quiz-faille-php', '1'); // la fautive est la 2

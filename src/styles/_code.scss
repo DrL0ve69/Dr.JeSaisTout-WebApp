@@ -1,0 +1,71 @@
+// =============================================================================
+// NUMÉROTATION DES LIGNES DE CODE — feuille GLOBALE (E2-ST4, lot B2)
+// -----------------------------------------------------------------------------
+// POURQUOI ELLE EST GLOBALE, ET POURQUOI CE N'EST PAS UN CONTOURNEMENT.
+// Le HTML coloré est posé par `[innerHTML]` dans `rendu-blocs.ts` : il ne porte
+// donc PAS l'attribut de portée d'Angular, et aucun sélecteur de
+// `rendu-blocs.scss` ne peut l'atteindre (voir l'en-tête de cette feuille-là).
+// Les seuls habillages possibles du code injecté sont les feuilles globales —
+// c'est déjà le cas de `_coloration-syntaxique-generee.scss` (`.shiki`) et de
+// `_mermaid-generee.scss` (`svg.diagramme-mermaid`). Celle-ci en est la
+// troisième, et la seule ÉCRITE À LA MAIN pour le code.
+//
+// CE QU'ELLE APPORTE. Les annotations d'un bloc `comparaison` s'annoncent
+// « Ligne 2 : … » (`etiquettePortee`, `rendu-blocs.ts`). Sans numéro à l'écran,
+// le lecteur compte les lignes à la main, à chaque note. La numérotation rend
+// TOUTES les notes localisables d'un regard, à la fois — un filet dessiné sur la
+// seule ligne annotée n'en aurait servi qu'une, et il aurait disparu en
+// `forced-colors: active`, où il n'a plus le droit de porter de l'information.
+//
+// AUCUNE PAIRE DE CONTRASTE NEUVE, DÉLIBÉRÉMENT. Le numéro n'a pas de `color` :
+// il hérite de l'encre du code, donc de la paire que `_coloration-syntaxique-generee.scss`
+// pose déjà (`--shiki-light` / `--shiki-dark` sur leur propre fond). Une encre
+// affaiblie pour « discrétion » serait une paire de plus à mesurer par
+// `tools/design/verifier-contrastes.mjs`, sur des fonds que ce gate ne connaît
+// pas — la discrétion ne vaut pas ça.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+// =============================================================================
+
+// Le compteur se remet à zéro par bloc : deux extraits d'une même leçon
+// commencent tous les deux à la ligne 1. Les sélecteurs sont les MÊMES que ceux
+// du contrôle de conservation des ancres (`verifierAncres`, `compiler-markdown.mjs`)
+// — si la structure de Shiki changeait, les deux rougiraient ensemble plutôt que
+// l'un en silence.
+pre.shiki > code {
+  counter-reset: ligne-de-code;
+}
+
+pre.shiki > code > span.line {
+  counter-increment: ligne-de-code;
+}
+
+pre.shiki > code > span.line::before {
+  display: inline-block;
+  // `--espace-4` (2rem) sert ici de GOUTTIÈRE, pas de marge : à la taille du
+  // code, il laisse la place de trois chiffres alignés à droite plus la
+  // respiration de `--espace-1`. Aucun jeton de largeur neuf pour ça.
+  inline-size: var(--espace-4);
+  padding-inline-end: var(--espace-1);
+  content: counter(ligne-de-code);
+  text-align: end;
+  // Le numéro n'est pas du code : il ne doit pas partir dans un copier-coller.
+  // (Chrome et Firefox n'emportent déjà pas le contenu généré ; ceci l'écrit.)
+  user-select: none;
+}
+
+// ⚠️ LA DERNIÈRE LIGNE D'UN BLOC DU CORPS EST UNE LIGNE FANTÔME. markdown-it
+// termine le contenu d'une clôture par un saut de ligne, dont Shiki fait une
+// dernière ligne VIDE, ancrée comme les autres : un extrait de 3 lignes sort en
+// `[1, 2, 3, 4]` (mesuré — `types.d.ts`, note d'`ExempleCode.htmlColore`, et
+// épinglé par `src/pipeline-contenu-compilation.spec.ts`). La numéroter
+// afficherait un numéro devant du vide.
+//
+// `:last-child` ET `:empty`, jamais l'un sans l'autre : une ligne vide AU MILIEU
+// d'un extrait — une respiration voulue par l'auteur — n'est pas `:last-child`,
+// elle garde donc son numéro, et l'appariement « Ligne 5 » ↔ 5ᵉ ligne reste vrai.
+// Un élément `display: none` n'incrémente aucun compteur ; comme il est le
+// dernier, cela ne décale rien.
+pre.shiki > code > span.line:last-child:empty {
+  display: none;
+}

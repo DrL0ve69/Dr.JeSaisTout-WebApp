@@ -71,6 +71,12 @@ import { join, relative, resolve, basename } from 'node:path';
 // typage résout alors l'espace de noms du module, non constructable (TS2351). L'export nommé
 // `Ajv` satisfait les deux — cousin de L-022 : ce qui tourne ne prouve pas ce qui type.
 import { Ajv } from 'ajv';
+// Le SEUL import que ce fichier fait au pipeline, et il est délibérément minuscule : un module
+// sans dépendance, qui ne porte qu'une formule de comptage. Le validateur tourne AVANT le
+// compilateur et ne doit pas en dépendre (`build.mjs` : valider, puis compiler) — importer
+// `compiler-markdown.mjs` pour cette fonction chargerait Shiki et markdown-it au démarrage du
+// validateur et inverserait la stratification du pipeline. Voir `compter-lignes.mjs`.
+import { compterLignes } from './compter-lignes.mjs';
 
 const RACINE_DEPOT = process.cwd();
 // Chemin CANONIQUE du cours, écrit en séparateurs POSIX : c'est celui du backlog (§E2-ST1, §E3) et
@@ -876,7 +882,14 @@ function verifierQuestionAssocier(q, id, signaler) {
  */
 function verifierQuestionTrouverLaFaille(q, id, signaler) {
   const code = typeof q['code'] === 'string' ? q['code'] : '';
-  const nbLignes = code.split('\n').length;
+  // 🔴 `compterLignes` PARTAGÉ, ET SURTOUT PAS `code.split('\n').length` (E2-ST4, lot B).
+  // C'est ce que cette ligne faisait jusqu'au 2026-08-18, et les deux comptages du pipeline
+  // avaient divergé d'une ligne : sur un `code` terminé par un saut de ligne, `split` compte la
+  // chaîne VIDE qui suit le dernier saut, donc ce garde-fou acceptait `ligneFautive = N+1` — une
+  // ligne que le quiz affiche vide et que personne ne peut désigner à l'écran. Le compilateur,
+  // lui, refusait déjà `{lignes="N+1"}` sur le même extrait. Aucun des deux n'était rouge : ils
+  // ne se comparaient à rien. Contrôle positif : `__fixtures__/invalides/quiz-ligne-fautive-hors-extrait`.
+  const nbLignes = compterLignes(code);
   const fautive = typeof q['ligneFautive'] === 'number' ? q['ligneFautive'] : 0;
   if (fautive > nbLignes) {
     signaler(

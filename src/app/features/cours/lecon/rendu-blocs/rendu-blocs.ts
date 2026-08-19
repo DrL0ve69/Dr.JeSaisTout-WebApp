@@ -26,7 +26,8 @@
 // L'encapsulation d'Angular tague les éléments écrits DANS le gabarit, pas ceux
 // qu'on injecte. La mise en forme de la prose, du code coloré (`.shiki`) et des
 // diagrammes vient donc des feuilles GLOBALES — `src/styles.scss`,
-// `src/styles/_coloration-syntaxique-generee.scss`, `src/styles/_mermaid-generee.scss`.
+// `src/styles/_coloration-syntaxique-generee.scss`, `src/styles/_code.scss`
+// (numérotation des lignes, E2-ST4 lot B2), `src/styles/_mermaid-generee.scss`.
 // Cette feuille-ci n'habille que les enveloppes écrites ci-dessous. Ce n'est pas un
 // contournement à trouver : c'est la raison pour laquelle `_mermaid-generee.scss`
 // accroche `svg.diagramme-mermaid` et ne dépend d'aucun balisage d'E2-ST2.
@@ -35,6 +36,15 @@
 // gabarit pour qu'on les VOIE à la relecture, et `'\u00A0'` (constante `INSECABLE`)
 // dans le TypeScript, où `no-irregular-whitespace` refuse la vraie — jamais U+202F ni
 // U+2009, absentes de Fraunces comme d'Inter (`.claude/rules/contenu-pedagogique.md` §3).
+//
+// 🔴 COLLISION S-011 — CE FICHIER PORTE DÉSORMAIS DU TEXTE D'AUTEUR, DONC LE MODE
+// D'ÉCHEC DE `quiz.ts`. Depuis le lot B d'E2-ST4, `annotations[].texte` est le seul
+// canal de prose d'un volet de comparaison ; une leçon sur le XSS y écrira un
+// gestionnaire d'événement entre guillemets, et le gate
+// `tools/deploiement/generer-config-swa.mjs` refuse cette séquence dans le HTML
+// prerendu (comme il refuse le style en ligne). La note complète, avec la liste des
+// deux motifs et la parade ÉDITORIALE, est posée dans le gabarit, au point exact qui
+// les produit — et mesurée à deux mains par `rendu-blocs.spec.ts`.
 //
 // E2-ST4 (lot A1) : `preparer()` refuse aussi une PORTÉE d'annotation malformée. Ce qu'il
 // peut et ne peut pas constater est écrit sur `fautePortee` — la borne « la ligne existe »
@@ -157,6 +167,28 @@ function enumererLignes(lignes: readonly number[]): string {
   return `Lignes ${debut} et ${String(lignes[lignes.length - 1])}`;
 }
 
+/**
+ * Étiquette écrite d'un bloc de code — la MÊME chaîne pour le `<figcaption>` qu'on VOIT et pour
+ * l'`aria-label` du défileur qu'on ENTEND (E2-ST4, lot B2). Deux littéraux séparés dans le gabarit
+ * dériveraient au premier changement de libellé, et c'est l'oreille qui perdrait.
+ */
+const ETIQUETTES_CODE: Record<'code' | 'vulnerable' | 'corrige', string> = {
+  code: 'Code',
+  vulnerable: 'Exemple vulnérable',
+  corrige: 'Correctif',
+};
+
+/** Le rang d'un bloc `code` ; `PAS_UN_EXEMPLE` distingue son espace de clefs de celui des paires. */
+const PAS_UN_EXEMPLE = -1;
+
+/**
+ * La clef d'une figure de code dans la table des rangs. Écrite une fois, appelée des deux côtés
+ * (construction et lecture) : deux gabarits de clef qui divergeraient rendraient la table muette.
+ */
+function clefDeRang(rangBloc: number, rangExemple: number): string {
+  return `${String(rangBloc)}:${String(rangExemple)}`;
+}
+
 /** Étiquette visible d'un encadré. WCAG 1.4.1 : le genre de l'encadré ne peut pas
  * reposer sur sa seule couleur ni sur son seul style de trait — il est ÉCRIT. */
 const ETIQUETTES_ENCADRE: Record<'attention' | 'note' | 'a-retenir', string> = {
@@ -193,7 +225,7 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
   // inconnu est traité AVANT le rendu, par `preparer()`, qui lève en nommant le
   // type. Un `@default` ici ne pourrait qu'être muet ou redondant.
   template: `
-    @for (bloc of blocsPrepares(); track $index) {
+    @for (bloc of blocsPrepares(); track $index; let rangBloc = $index) {
       @switch (bloc.type) {
         @case ('prose') {
           <!--
@@ -208,7 +240,39 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
         }
 
         @case ('code') {
-          <div class="code" [attr.data-langage]="bloc.langage" [innerHTML]="bloc.htmlColore"></div>
+          <!--
+            LE DÉFILEUR EST ÉCRIT ICI, PAS DANS LA FEUILLE GÉNÉRÉE — E2-ST4, lot B2.
+            Jusqu'ici overflow-x: auto vivait sur .shiki, donc sur le HTML INJECTÉ :
+            la région défilante n'avait ni nom ni existence dans le gabarit. On la
+            remonte dans le document, avec tabindex="0" (WCAG 2.1.1 — une région qui
+            défile doit s'atteindre au clavier) et un nom accessible (2.4.6).
+            ⚠️ LE NOM PASSE PAR aria-label, JAMAIS PAR aria-labelledby + id : une
+            leçon porte plusieurs blocs de code, et un identifiant qui se répète est
+            L-026. role="group" et non region : region est un point de repère, et
+            deux points de repère de même nom feraient rougir landmark-unique d'axe.
+            ⚠️ ET CE DÉFILEUR EST LE SEUL ARRÊT DE TABULATION DU BLOC. Shiki posait
+            lui-même tabindex="0" sur son pre : il y avait donc DEUX arrêts par bloc
+            — celui-ci, nommé et défilant, puis celui du pre, qui n'a plus rien à
+            faire défiler depuis que overflow-x a quitté .shiki. Mesuré dans
+            l'artéfact prerendu : 16 arrêts pour 8 blocs, dont 8 morts et sans nom.
+            Le compilateur le retire désormais (transformateur
+            drjst-pre-sans-tabindex, tools/content-pipeline/compiler-markdown.mjs),
+            et rendu-blocs.spec.ts tient l'invariant « aucun pre[tabindex] » — aucun
+            gate axe ne le voit (focus-order-semantics est désactivée par défaut,
+            scrollable-region-focusable l'est dans tools/a11y/verifier-axe.mjs).
+          -->
+          <figure class="bloc-code" [attr.data-langage]="bloc.langage">
+            <figcaption class="etiquette">
+              {{ etiquetteCode('code', bloc.langage, rangBloc) }}
+            </figcaption>
+            <div
+              class="defileur"
+              role="group"
+              tabindex="0"
+              [attr.aria-label]="etiquetteCode('code', bloc.langage, rangBloc)"
+              [innerHTML]="bloc.htmlColore"
+            ></div>
+          </figure>
         }
 
         @case ('comparaison') {
@@ -222,17 +286,55 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
             repliage non plus : un details fermé ne s'imprime pas, Safari ne le
             trouve pas au Ctrl+F, et un accordéon exclusif peut finir avec zéro
             exemple à l'écran.
-            Ce qui reste à faire ici est le lot B d'E2-ST4 : ancrer les
-            annotations à leur ligne (crochet ancre-ligne-N du HTML coloré,
-            mesuré par src/sonde-sanitizer-shiki.spec.ts), deux colonnes en
-            large, le sens jamais porté par la couleur seule.
+            E2-ST4 (lot B2) : les deux volets passent côte à côte SANS point de
+            bascule (auto-fit, cf. rendu-blocs.scss), et l'ordre du DOM est
+            l'ordre visuel — vulnérable puis correctif, aucun « order ». Ce qui
+            rend « Ligne 2 : » localisable d'un regard est la numérotation des
+            lignes, posée par la feuille GLOBALE src/styles/_code.scss : le HTML
+            coloré est injecté, aucune feuille de composant ne l'atteint.
           -->
           <div class="comparaison">
-            @for (exemple of bloc.exemples; track $index) {
+            @for (exemple of bloc.exemples; track $index; let rangExemple = $index) {
               <div class="paire">
                 <div class="volet volet-vulnerable">
-                  <p class="etiquette">Exemple vulnérable&nbsp;— {{ exemple.langage }}</p>
-                  <div class="code" [innerHTML]="exemple.vulnerable.htmlColore"></div>
+                  <!-- Même défileur nommé que le cas « code » ci-dessus, et pour les mêmes
+                       raisons. La légende porte l'étiquette écrite (troisième canal de
+                       WCAG 1.4.1) ET nomme la figure. -->
+                  <figure class="bloc-code">
+                    <figcaption class="etiquette">
+                      {{ etiquetteCode('vulnerable', exemple.langage, rangBloc, rangExemple) }}
+                    </figcaption>
+                    <div
+                      class="defileur"
+                      role="group"
+                      tabindex="0"
+                      [attr.aria-label]="
+                        etiquetteCode('vulnerable', exemple.langage, rangBloc, rangExemple)
+                      "
+                      [innerHTML]="exemple.vulnerable.htmlColore"
+                    ></div>
+                  </figure>
+                  <!--
+                    🔴 COLLISION S-011 — ET C'EST ICI QU'ELLE MORD DÉSORMAIS.
+                    Depuis le lot B, le texte d'une annotation est le SEUL canal de prose
+                    d'un volet : tout ce que l'auteur explique de son extrait passe par
+                    l'interpolation ci-dessous. Or le gate de déploiement
+                    tools/deploiement/generer-config-swa.mjs balaie le HTML PRERENDU et
+                    refuse DEUX séquences, toutes deux « espace + nom + égal + guillemet » :
+                    le style en ligne (attribut « style ») et tout gestionnaire d'événement
+                    en ligne (attribut commençant par « on »). L'interpolation d'Angular
+                    n'échappe que « & », « < » et « > » — jamais les guillemets. Une
+                    annotation de la leçon XSS qui écrit un gestionnaire entre guillemets
+                    arrive donc INTACTE dans la sortie et fait ÉCHOUER le build, sur un
+                    message parlant de CSP alors que la cause est un texte d'auteur.
+                    C'est fail-closed, donc sain. LA PARADE EST ÉDITORIALE (guillemets
+                    typographiques, entité) — jamais d'assouplir le gate ni d'exclure une
+                    page du balayage : ce site enseigne la CSP.
+                    Mesuré à deux mains dans rendu-blocs.spec.ts (la charge s'affiche
+                    ENTIÈRE sans qu'un seul nœud naisse, ET la séquence survit dans le HTML
+                    sérialisé). Même note, même liste, sur quiz.ts — l'autre site de texte
+                    d'auteur. Détail : S-011 dans .claude/lessons/security-lessons.md.
+                  -->
                   @if (exemple.vulnerable.annotations.length > 0) {
                     <ul class="annotations">
                       @for (note of exemple.vulnerable.annotations; track $index) {
@@ -246,8 +348,24 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
                 </div>
 
                 <div class="volet volet-corrige">
-                  <p class="etiquette">Correctif&nbsp;— {{ exemple.langage }}</p>
-                  <div class="code" [innerHTML]="exemple.corrige.htmlColore"></div>
+                  <figure class="bloc-code">
+                    <figcaption class="etiquette">
+                      {{ etiquetteCode('corrige', exemple.langage, rangBloc, rangExemple) }}
+                    </figcaption>
+                    <div
+                      class="defileur"
+                      role="group"
+                      tabindex="0"
+                      [attr.aria-label]="
+                        etiquetteCode('corrige', exemple.langage, rangBloc, rangExemple)
+                      "
+                      [innerHTML]="exemple.corrige.htmlColore"
+                    ></div>
+                  </figure>
+                  <!-- Collision S-011, à l'identique : voir la note du volet vulnérable
+                       ci-dessus. Le champ « correction » d'un quiz porte déjà le même
+                       risque, parce qu'il contient du CODE CORRIGÉ — donc des attributs
+                       parfaitement légitimes, guillemets compris. -->
                   @if (exemple.corrige.annotations.length > 0) {
                     <ul class="annotations">
                       @for (note of exemple.corrige.annotations; track $index) {
@@ -352,6 +470,78 @@ export class RenduBlocs {
   /** L'étiquette écrite d'un encadré — troisième canal de WCAG 1.4.1. */
   etiquetteEncadre(variante: 'attention' | 'note' | 'a-retenir'): string {
     return ETIQUETTES_ENCADRE[variante];
+  }
+
+  /**
+   * Le rang AFFICHÉ de chaque figure de code, calculé une fois pour tout le tableau reçu.
+   *
+   * 🔴 POURQUOI UN RANG, ET PAS SEULEMENT LE LANGAGE (revue du lot B, E2-ST4). Le nom était
+   * « Exemple vulnérable — php » : deux blocs du MÊME langage donnaient donc deux groupes
+   * HOMONYMES, indiscernables à l'oreille comme dans une liste de régions. La leçon-témoin y
+   * échappait par hasard — ses huit blocs sont de huit langages distincts —, et une leçon qui
+   * compare deux failles PHP est le cas normal, pas le cas tordu.
+   *
+   * DEUX COMPTEURS, PAS UN : les blocs `code` d'un côté, les PAIRES de `comparaison` de l'autre.
+   * Une paire porte deux figures (« Exemple vulnérable n°2 » et « Correctif n°2 ») que le genre
+   * distingue déjà, et qui se lisent ensemble : leur donner deux rangs différents ferait mentir
+   * l'appariement que la mise en page montre.
+   *
+   * ⚠️ CE QUE LE RANG NE REND PAS UNIQUE, ET IL FAUT LE DIRE — C'EST MESURÉ, PAS SUPPOSÉ. La page
+   * de leçon monte UN composant PAR SECTION (`lecon.ts`), et un encadré en remonte un enfant par
+   * récursion : les compteurs repartent donc de 1 à chaque instance. Mesure sur la leçon-témoin
+   * prerendue (2026-08-18, artéfact de fixture) : 8 défileurs, 8 noms distincts — mais QUATRE
+   * d'entre eux s'appellent « Code n°1 », et ce qui les sépare reste leur LANGAGE (bash, sql,
+   * typescript, json), pas leur rang. La portée réellement gagnée est donc le VOISINAGE : à
+   * l'intérieur d'une section — l'unité qu'un lecteur parcourt d'une traite, et la seule où deux
+   * figures se comparent — il n'y a plus d'homonyme, ce que la fixture montre sur ses deux paires
+   * (« n°1 » puis « n°2 »).
+   * Lever le reste demanderait que l'identité de la SECTION descende jusqu'ici, un input de plus à
+   * propager dans la récursion : hors du lot, et à trancher avec la forme du libellé, « Code
+   * n°2.1 » s'entendant mal. Constat laissé OUVERT, écrit ici pour ne pas se redécouvrir.
+   */
+  private readonly rangsDeCode = computed<ReadonlyMap<string, number>>(() => {
+    const rangs = new Map<string, number>();
+    let blocsDeCode = 0;
+    let paires = 0;
+    this.blocsPrepares().forEach((bloc, rangBloc) => {
+      if (bloc.type === 'code') {
+        blocsDeCode += 1;
+        rangs.set(clefDeRang(rangBloc, PAS_UN_EXEMPLE), blocsDeCode);
+      } else if (bloc.type === 'comparaison') {
+        bloc.exemples.forEach((_, rangExemple) => {
+          paires += 1;
+          rangs.set(clefDeRang(rangBloc, rangExemple), paires);
+        });
+      }
+    });
+    return rangs;
+  });
+
+  /**
+   * L'étiquette d'un bloc de code : « Exemple vulnérable n°2 — php ».
+   *
+   * Une seule méthode pour les deux emplois, et c'est le point : le `<figcaption>` VISIBLE et
+   * l'`aria-label` du défileur en sortent ensemble, donc ils ne peuvent pas se contredire. Le rang
+   * est donc VU autant qu'entendu — un numéro que seule l'oreille recevrait ferait diverger les
+   * deux canaux, ce que WCAG 2.5.3 (étiquette dans le nom) refuse.
+   */
+  etiquetteCode(
+    genre: 'code' | 'vulnerable' | 'corrige',
+    langage: Langage,
+    rangBloc: number,
+    rangExemple = PAS_UN_EXEMPLE,
+  ): string {
+    const rang = this.rangsDeCode().get(clefDeRang(rangBloc, rangExemple));
+    if (rang === undefined) {
+      // Impossible par construction : la table est bâtie du MÊME tableau que le gabarit parcourt.
+      // On lève quand même — un nom amputé de son rang serait le défaut d'origine, en silence.
+      throw new Error(
+        `RenduBlocs : aucun rang pour la figure de code (bloc n°${String(rangBloc + 1)}, ` +
+          `exemple n°${String(rangExemple + 1)}). La table des rangs et le gabarit ` +
+          'parcourent le même tableau — cet écart est un défaut de ce composant.',
+      );
+    }
+    return `${ETIQUETTES_CODE[genre]} n°${String(rang)}${INSECABLE}— ${langage}`;
   }
 
   /**

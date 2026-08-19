@@ -117,36 +117,40 @@ c'est la forme que le contrat appelle `comparaison`, et l'attribut `{langage="�
 volontairement omis puisqu'il porterait sur toutes les paires.
 
 :::: comparaison
-::: vulnerable {lignes="2"}
+::: vulnerable
 ```php
 $nom = $_GET['nom'];
 echo 'Bonjour ' . $nom;
 ```
-La valeur vient du client et atteint la page sans encodage : tout balisage qu'elle contient
-est interprété par le navigateur.
+{lignes="2"} La valeur vient du client et atteint la page sans encodage : tout balisage qu'elle
+contient est interprété par le navigateur.
 :::
 ::: corrige
 ```php
 $nom = $_GET['nom'];
 echo 'Bonjour ' . htmlspecialchars($nom, ENT_QUOTES, 'UTF-8');
 ```
-L'encodage à la sortie transforme le balisage en texte affiché, sans jamais supposer que
-l'entrée était propre.
+{lignes="0"} Deux notes de portées distinctes dans un même volet : c'est ce que le témoin doit
+exercer, sans quoi le chemin « N annotations » ne serait parcouru par aucun gate.
+
+{lignes="2"} L'encodage à la sortie transforme le balisage en texte affiché, sans jamais supposer
+que l'entrée était propre. Une note peut citer la syntaxe — {lignes="1"} écrit ici au milieu d'une
+phrase reste du texte, parce que la portée se lit en tête de paragraphe et nulle part ailleurs.
 :::
-::: vulnerable {lignes="1,2"}
+::: vulnerable
 ```csharp
 var requete = "SELECT * FROM Lecons WHERE Slug = '" + slug + "'";
 return await connexion.QueryAsync<Lecon>(requete);
 ```
-La concaténation fait du paramètre une partie de la requête : le client écrit du SQL.
+{lignes="1,2"} La concaténation fait du paramètre une partie de la requête : le client écrit du SQL.
 :::
 ::: corrige
 ```csharp
 const string requete = "SELECT * FROM Lecons WHERE Slug = @Slug";
 return await connexion.QueryAsync<Lecon>(requete, new { Slug = slug });
 ```
-Le paramètre voyage à côté de la requête, jamais dedans : sa valeur ne peut plus en changer
-la structure.
+{lignes="1"} Le paramètre voyage à côté de la requête, jamais dedans : sa valeur ne peut plus en
+changer la structure.
 :::
 ::::
 

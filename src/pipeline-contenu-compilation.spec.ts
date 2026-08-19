@@ -228,6 +228,45 @@ function appelerVerifierAncres(html: string, code: string): { statut: number; so
 }
 
 /**
+ * Appelle `verifierZeroStyle` du COMPILATEUR sur un HTML forgé, dans un processus fils.
+ *
+ * 🔴 MÊME RAISON QUE `appelerVerifierAncres`, ET C'EST L-036 MOT POUR MOT. Compiler une leçon
+ * transformateur BRANCHÉ ne mesurerait que ce que le spec sait lire, jamais ce que le garde-fou
+ * sait REFUSER : la version par MOTIF — celle qui faisait échouer G-content sur un exemple PHP
+ * contenant `style="…"` dans son TEXTE — passerait un tel test tout aussi verte. Le refus se
+ * prouve en appelant l'outil corrigé sur un HTML forgé, et en lisant son code de sortie.
+ *
+ * Le processus fils est obligatoire pour les deux raisons écrites en tête de fichier : ce spec ne
+ * peut pas `import` un `.mjs` du programme de l'outillage, et `verifierZeroStyle` sort par
+ * `echec()`, donc par `process.exit(1)` — l'appeler en direct tuerait le lanceur de tests.
+ */
+function appelerVerifierZeroStyle(html: string): { statut: number; sortie: string } {
+  const script = join(bacASable, 'appel-verifier-zero-style.mjs');
+  writeFileSync(
+    script,
+    [
+      "import { pathToFileURL } from 'node:url';",
+      'const [, , chemin, html] = process.argv;',
+      'const module = await import(pathToFileURL(chemin).href);',
+      "module.verifierZeroStyle(html, 'html-forgé.md');",
+    ].join('\n'),
+    'utf8',
+  );
+  try {
+    const sortie = execFileSync(process.execPath, [script, COMPILATEUR, html], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: DELAI,
+    });
+    return { statut: 0, sortie };
+  } catch (erreur) {
+    const echec = erreur as { status?: number; stderr?: string };
+    return { statut: echec.status ?? -1, sortie: echec.stderr ?? '' };
+  }
+}
+
+/**
  * Recopie la leçon-témoin dans un dossier JETABLE du bac à sable, en laissant muter chacun de
  * ses deux fichiers.
  *
@@ -514,6 +553,28 @@ describe('pipeline de contenu — compilation Markdown', () => {
       }
     });
 
+    it('ne pose AUCUN `tabindex` sur le `<pre>` — un seul arrêt de tabulation par bloc', () => {
+      // 🔴 LA RÉGRESSION QUE CE TEST FERME (revue du 2026-08-18, lot B). Shiki pose
+      // `tabindex="0"` sur son `<pre>`. C'était juste tant que `overflow-x: auto` vivait
+      // sur `.shiki` (WCAG 2.1.1 : une région qui défile s'atteint au clavier) ; le lot B2
+      // a remonté le défilement dans `div.defileur` du gabarit, et ce `tabindex` est devenu
+      // un arrêt MORT — atteignable, sans nom, sans rôle, sans effet. Mesuré dans l'artéfact
+      // prerendu de la leçon-témoin : 16 arrêts pour 8 blocs de code, dont 8 muets.
+      // ⚠️ AUCUN GATE NE LE VOYAIT : `focus-order-semantics` est désactivée par défaut chez
+      // axe, `scrollable-region-focusable` l'est dans `tools/a11y/verifier-axe.mjs`.
+      // Ici on mesure la sortie RÉELLE du compilateur ; le pendant côté rendu vit dans
+      // `rendu-blocs.spec.ts`, et le pendant côté DOM dans `sonde-sanitizer-shiki.spec.ts`.
+      const fragments = htmlColores(lecon);
+      expect(fragments.length).toBeGreaterThan(0); // contrôle positif (L-019)
+      for (const html of fragments) {
+        const porteur = document.createElement('div');
+        porteur.innerHTML = html;
+        // Contrôle positif par fragment : il y a bien un `<pre>` à interroger.
+        expect(porteur.querySelector('pre.shiki')).not.toBeNull();
+        expect(porteur.querySelectorAll('[tabindex]')).toHaveLength(0);
+      }
+    });
+
     it('définit dans la feuille générée TOUTES les classes que le HTML référence', () => {
       // Le pendant de l'assertion précédente : sortir la couleur en classes ne sert à rien si la
       // feuille qui les définit n'est pas écrite. Une classe manquante ne lève aucune erreur — le
@@ -525,6 +586,41 @@ describe('pipeline de contenu — compilation Markdown', () => {
       );
       expect(utilisees.size).toBeGreaterThan(0);
       expect([...utilisees].filter((classe) => !feuille.includes(`.${classe}{`))).toEqual([]);
+    });
+
+    it('n’impose AUCUN `overflow-x` sur `.shiki` — le défileur vit dans le GABARIT', () => {
+      // 🔴 E2-ST4, lot B2. Tant que `assemblerFeuille` posait `overflow-x: auto` sur
+      // `.shiki`, la région défilante ÉTAIT le HTML injecté par `[innerHTML]` : sans nom
+      // accessible, et impossible à en doter (le `id` d'un `aria-labelledby` y est effacé
+      // par le sanitizer — `src/sonde-sanitizer-shiki.spec.ts`). Elle est désormais
+      // l'enveloppe `.defileur` de `rendu-blocs.ts`, qui porte `tabindex="0"` et un
+      // `aria-label`. Le remettre ici imbriquerait DEUX défileurs, et celui du gabarit
+      // n'aurait plus rien à faire défiler — sans qu'aucun gate ne rougisse, la règle axe
+      // `scrollable-region-focusable` étant désactivée (jsdom ne calcule pas le débordement).
+      // Les commentaires sont retirés AVANT la mesure : la feuille en porte un qui NOMME
+      // la propriété bannie (c'est sa raison d'être). Le mot y est une explication ; ce
+      // qu'on interdit est une DÉCLARATION.
+      const regles = feuille.replaceAll(/^[ \t]*\/\/.*$/gm, '');
+      expect(regles).toContain('.shiki {'); // contrôle positif : la règle existe bien
+      expect(regles).not.toMatch(/overflow/);
+    });
+
+    it('ANCRE — la ligne FANTÔME est bien VIDE, ce que la feuille globale suppose', () => {
+      // `src/styles/_code.scss` masque la dernière ligne par `span.line:last-child:empty`.
+      // Ce sélecteur deviendrait MUET — donc un numéro devant du vide, en silence — le jour
+      // où Shiki y mettrait quoi que ce soit. On le mesure sur un extrait RÉELLEMENT compilé
+      // plutôt que sur la promesse de `types.d.ts`.
+      const bloc = tousLesBlocs(lecon.sections).find((b) => b.type === 'code');
+      const porteur = document.createElement('div');
+      porteur.innerHTML = bloc?.htmlColore ?? '';
+      const lignes = [...porteur.querySelectorAll('pre.shiki > code > span.line')];
+
+      expect(lignes).toHaveLength(4); // 3 lignes de source + la fantôme
+      const fantome = lignes[lignes.length - 1];
+      expect(fantome?.matches(':empty')).toBe(true);
+      // Contrôle positif : les lignes de code, elles, ne sont PAS vides — sans quoi
+      // « la dernière est vide » serait vrai d'un extrait entièrement vide.
+      expect(lignes.slice(0, -1).every((ligne) => !ligne.matches(':empty'))).toBe(true);
     });
 
     it('efface les marqueurs « à-vérifier » de la source — sur une leçon NON publiée', () => {
@@ -731,27 +827,41 @@ describe('pipeline de contenu — compilation Markdown', () => {
     // `{lignes="42"}` sur un extrait de deux lignes sortait G-content VERT, et la leçon publiée
     // annonçait « Ligne 42 : » devant un bloc qui n'a pas de ligne 42.
 
-    /** Deux lignes de PHP, encadrées d'une comparaison complète, portée paramétrable. */
-    function comparaisonAvecPortee(portee: string): string {
+    // ─── LA SYNTAXE À N NOTES PAR VOLET (E2-ST4, lot B1a) ─────────────────────────
+    // La portée a QUITTÉ le conteneur : elle s'écrit en tête de CHAQUE paragraphe du volet, et
+    // chaque paragraphe est une note distincte. Les cas ci-dessous exercent donc `lirePortee`
+    // à travers `lireNote`, plus à travers un attribut de `::: vulnerable`.
+
+    /**
+     * Deux lignes de PHP, encadrées d'une comparaison complète, NOTES paramétrables.
+     *
+     * @param notes paragraphes du volet vulnérable, écrits tels quels (séparés par une ligne vide)
+     */
+    function comparaisonAvecNotes(notes: readonly string[]): string {
       return [
         ':::: comparaison',
-        `::: vulnerable {lignes="${portee}"}`,
+        '::: vulnerable',
         '```php',
         '$a = 1;',
         '$b = 2;',
         '```',
-        'La remarque qui porte la portée mise à l’épreuve.',
+        ...notes.flatMap((note, rang) => (rang === 0 ? [note] : ['', note])),
         ':::',
         '::: corrige',
         '```php',
         '$a = 1;',
         '$b = 2;',
         '```',
-        'Le correctif.',
+        '{lignes="0"} Le correctif.',
         ':::',
         '::::',
         '',
       ].join('\n');
+    }
+
+    /** Le cas courant : UNE note, dont seule la portée varie. */
+    function comparaisonAvecPortee(portee: string): string {
+      return comparaisonAvecNotes([`{lignes="${portee}"} La remarque mise à l’épreuve.`]);
     }
 
     /**
@@ -760,18 +870,206 @@ describe('pipeline de contenu — compilation Markdown', () => {
      * L-010 : la mutation doit frapper SA cible. Sans le constat ci-dessous, un témoin dont le
      * titre de section aurait changé rendrait ces cas verts (ou rouges) pour la mauvaise raison.
      */
-    function leconAvecComparaison(nom: string, portee: string): string {
+    function leconAvecCorps(nom: string, corps: string): string {
       let vue = false;
       const racine = leconAdHoc(nom, (source) => {
         vue = source.includes('## À toi de jouer');
-        return source.replace(
-          '## À toi de jouer',
-          `${comparaisonAvecPortee(portee)}\n## À toi de jouer`,
-        );
+        return source.replace('## À toi de jouer', `${corps}\n## À toi de jouer`);
       });
       expect(vue).toBe(true);
       return racine;
     }
+
+    function leconAvecComparaison(nom: string, portee: string): string {
+      return leconAvecCorps(nom, comparaisonAvecPortee(portee));
+    }
+
+    /** Les annotations du volet VULNÉRABLE de la première comparaison compilée. */
+    function annotationsVulnerables(racine: string, nom: string): AnnotationLue[] {
+      const resultat = compiler(racine, join(bacASable, `${nom}.scss`));
+      const comparaison = tousLesBlocs(resultat.lecons[0]?.sections ?? []).find(
+        (bloc) => bloc.type === 'comparaison',
+      );
+      return comparaison?.exemples?.[0]?.vulnerable.annotations ?? [];
+    }
+
+    it(
+      'fait DEUX annotations de deux paragraphes, dans l’ordre du document',
+      () => {
+        // 🔴 LE CŒUR DU LOT B1a. Jusqu'ici, `lireExemple` JOIGNAIT toute la prose d'un volet
+        // (`.join(' ')`) et n'en poussait qu'UNE annotation : le type promettait N, le compilateur
+        // n'en produisait jamais deux. Rétablir ce `.join(' ')` doit rougir ICI.
+        const racine = leconAvecCorps(
+          'notes-multiples',
+          comparaisonAvecNotes([
+            '{lignes="0"} Ce que le volet montre dans son ensemble.',
+            '{lignes="2"} Et ce que fait précisément la seconde ligne.',
+          ]),
+        );
+
+        const annotations = annotationsVulnerables(racine, 'notes-multiples');
+        expect(annotations).toHaveLength(2);
+        expect(annotations[0]?.lignes).toEqual([0]);
+        expect(annotations[1]?.lignes).toEqual([2]);
+        // Les TEXTES sont distincts et débarrassés de leur portée : une note qui republierait
+        // « {lignes="2"} » en clair afficherait la syntaxe à l'apprenant.
+        expect(annotations[0]?.texte).toBe('Ce que le volet montre dans son ensemble.');
+        expect(annotations[1]?.texte).toBe('Et ce que fait précisément la seconde ligne.');
+      },
+      DELAI,
+    );
+
+    it(
+      'admet DEUX notes sur la MÊME ligne — deux remarques distinctes, aucun dédoublonnage',
+      () => {
+        const racine = leconAvecCorps(
+          'notes-meme-ligne',
+          comparaisonAvecNotes([
+            '{lignes="1"} La première remarque sur cette ligne.',
+            '{lignes="1"} La seconde, qui dit autre chose.',
+          ]),
+        );
+
+        const annotations = annotationsVulnerables(racine, 'notes-meme-ligne');
+        expect(annotations).toHaveLength(2);
+        expect(annotations.map((note) => note.lignes)).toEqual([[1], [1]]);
+      },
+      DELAI,
+    );
+
+    it(
+      'laisse LITTÉRAL un {lignes="…"} cité au milieu d’une note, sans le lire comme portée',
+      () => {
+        // 🔴 ANTI-S-014 — la quatrième récidive de la famille S-001/S-003/S-009 a été payée au lot
+        // A2 : un garde-fou dont l'ENTRÉE peut fabriquer la preuve qu'il exige n'est pas un
+        // garde-fou. Ici, l'entrée est la prose de l'auteur, et une leçon qui ENSEIGNE cette
+        // syntaxe la citera forcément. Un balayage de `jeton.content` à la recherche du motif
+        // lirait « 9 » — une ligne qui n'existe pas dans un extrait de deux lignes — ou pire,
+        // une ligne existante mais autre que celle voulue, EN SILENCE.
+        const racine = leconAvecCorps(
+          'note-citant-la-syntaxe',
+          comparaisonAvecNotes([
+            '{lignes="1"} Ne jamais écrire {lignes="9"} au milieu d’une phrase : la portée se lit ' +
+              'en tête de paragraphe, et {lignes="0"} ici n’en est pas une.',
+          ]),
+        );
+
+        const annotations = annotationsVulnerables(racine, 'note-citant-la-syntaxe');
+        expect(annotations).toHaveLength(1);
+        // La portée est celle de la TÊTE, jamais une des deux citées ensuite.
+        expect(annotations[0]?.lignes).toEqual([1]);
+        // Et les citations survivent telles quelles dans le texte publié.
+        expect(annotations[0]?.texte).toContain('{lignes="9"}');
+        expect(annotations[0]?.texte).toContain('{lignes="0"}');
+        expect(annotations[0]?.texte.startsWith('Ne jamais écrire')).toBe(true);
+
+        // L'AUTRE MOITIÉ DE LA PINCE, et la seule qui mord vraiment : un paragraphe SANS portée
+        // en tête, mais qui en CITE une. Un balayage non ancré la trouverait et se déclarerait
+        // satisfait — l'entrée aurait fabriqué la preuve exigée. Il doit être REFUSÉ.
+        const citante = leconAvecCorps(
+          'note-sans-portee-mais-citante',
+          comparaisonAvecNotes(['Une note qui parle de {lignes="2"} sans en porter en tête.']),
+        );
+        const message = messageDEchec(citante);
+        expect(message).not.toBeNull();
+        expect(message).toContain("n'ouvre pas par");
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse un paragraphe qui n’ouvre pas par {lignes="…"}, en citant la note',
+      () => {
+        const racine = leconAvecCorps(
+          'note-sans-portee',
+          comparaisonAvecNotes(['Une remarque écrite à l’ancienne, sans portée en tête.']),
+        );
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('lecon.md');
+        expect(message).toContain("n'ouvre pas par");
+        expect(message).toContain('Une remarque écrite à l’ancienne');
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse une portée en tête ILLISIBLE, sans la dégrader en portée par défaut',
+      () => {
+        // `{ligne="1"}` (singulier) : une coquille d'une lettre. Sans refus, elle deviendrait du
+        // texte publié — la syntaxe elle-même affichée à l'apprenant.
+        const racine = leconAvecCorps(
+          'note-portee-illisible',
+          comparaisonAvecNotes(['{ligne="1"} La coquille d’une seule lettre.']),
+        );
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain("n'ouvre pas par");
+        expect(message).toContain('{ligne="1"}');
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse des notes DANS LE DÉSORDRE, plutôt que de retrier la prose de l’auteur',
+      () => {
+        // Trier à la place de l'auteur publierait un texte dans un ordre qu'il n'a pas écrit —
+        // et un « corrige d'abord, explique ensuite » deviendrait l'inverse, sans un mot.
+        const racine = leconAvecCorps(
+          'notes-desordre',
+          comparaisonAvecNotes([
+            '{lignes="2"} La note de la seconde ligne, écrite en premier.',
+            '{lignes="1"} Puis celle de la première.',
+          ]),
+        );
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('lecon.md');
+        expect(message).toContain("ne suivent pas l'ordre des lignes");
+        expect(message).toContain('« 2 » puis « 1 »');
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse {lignes="0"} placé APRÈS une note de ligne — le bloc entier se présente en tête',
+      () => {
+        const racine = leconAvecCorps(
+          'note-zero-en-queue',
+          comparaisonAvecNotes([
+            '{lignes="1"} La note de la première ligne.',
+            '{lignes="0"} Et le propos général, relégué à la fin.',
+          ]),
+        );
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain("ne suivent pas l'ordre des lignes");
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse l’ANCIENNE écriture « ::: vulnerable {lignes="2"} », en nommant la clef',
+      () => {
+        // La migration doit se VOIR : `lignes` a quitté la liste fermée des attributs du
+        // conteneur, et cette liste refuse toute clef inconnue. Sans ce refus, une leçon écrite
+        // à l'ancienne compilerait avec sa portée SILENCIEUSEMENT PERDUE — le volet publié
+        // n'annoncerait plus aucune ligne, tous gates verts.
+        const racine = leconAvecCorps(
+          'ancienne-ecriture',
+          comparaisonAvecNotes(['{lignes="2"} La remarque.']).replace(
+            '::: vulnerable',
+            '::: vulnerable {lignes="2"}',
+          ),
+        );
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        expect(message).toContain('lecon.md');
+        expect(message).toContain('« lignes » inconnu');
+        expect(message).toContain('::: vulnerable');
+      },
+      DELAI,
+    );
 
     it(
       'accepte une portée MULTIPLE, et en fait UNE annotation à deux lignes — pas deux notes',
@@ -838,6 +1136,158 @@ describe('pipeline de contenu — compilation Markdown', () => {
           expect(message, nom).not.toBeNull();
           expect(message ?? '', nom).toMatch(cause);
         }
+      },
+      DELAI,
+    );
+
+    // ─── « ZÉRO STYLE EN LIGNE » — le garde-fou qui SUR-REFUSAIT (E2-ST4, lot B) ───
+    // Cinquième récidive de la famille S-001/S-003/S-009/S-014, le sens du défaut en moins :
+    // ici le motif ne laissait pas passer, il REFUSAIT à tort. Les deux tests ci-dessous sont
+    // la pince — l'un prouve qu'on n'accuse plus le texte de l'auteur, l'autre qu'on refuse
+    // toujours le balisage réel.
+
+    it(
+      'COMPILE un extrait dont le TEXTE contient `style="…"` — la leçon CSP doit pouvoir se publier',
+      () => {
+        // 🔴 LE CAS REPRODUIT EN REVUE. Le contrôle cherchait `/\sstyle\s*=/i` dans la CHAÎNE
+        // HTML, laquelle contient le code de l'auteur échappé par Shiki. Cet extrait — celui
+        // qu'une leçon XSS/CSP écrit naturellement — faisait donc échouer G-content sur un
+        // diagnostic FAUX (« la coloration a produit du style en ligne »), sans parade
+        // éditoriale possible : on ne met pas de guillemets typographiques dans du code.
+        const racine = leconAvecCorps(
+          'style-dans-le-texte',
+          [
+            ':::: comparaison',
+            '::: vulnerable',
+            '```php',
+            '$html = \'<p style="color:red">\' . $_GET[\'n\'] . \'</p>\';',
+            'echo $html;',
+            '```',
+            '{lignes="1"} Le style en ligne serait refusé par la CSP à hachages du site.',
+            ':::',
+            '::: corrige',
+            '```php',
+            '$html = \'<p class="alerte">\' . htmlspecialchars($_GET[\'n\']) . \'</p>\';',
+            'echo $html;',
+            '```',
+            '{lignes="1"} La couleur passe par une classe, la donnée par un encodage.',
+            ':::',
+            '::::',
+            '',
+          ].join('\n'),
+        );
+
+        const resultat = compiler(racine, join(bacASable, 'style-dans-le-texte.scss'));
+        const comparaison = tousLesBlocs(resultat.lecons[0]?.sections ?? []).find(
+          (bloc) => bloc.type === 'comparaison',
+        );
+        // CONTRÔLE POSITIF : la compilation a bien vu l'extrait litigieux — sans quoi ce test
+        // serait vert sur une leçon dont le `style="…"` aurait disparu (L-010).
+        const html = comparaison?.exemples?.[0]?.vulnerable.htmlColore ?? '';
+        // ⚠️ MESURÉ, PAS SUPPOSÉ : Shiki échappe « < » en `&#x3C;` et laisse les GUILLEMETS
+        // BRUTS dans le texte. La chaîne contient donc littéralement ` style="color:red"`,
+        // espace comprise — c'est-à-dire très exactement ce que l'ancien motif
+        // `/\sstyle\s*=/i` cherchait. Le sur-refus n'était pas théorique.
+        expect(html).toContain(' style="color:red"');
+        // Et l'ATTRIBUT, lui, n'existe pas : le texte est du texte.
+        const porteur = document.createElement('div');
+        porteur.innerHTML = html;
+        expect(porteur.querySelectorAll('[style]')).toHaveLength(0);
+      },
+      DELAI,
+    );
+
+    it(
+      'REFUSE un `style=` réellement ÉMIS dans le balisage, en nommant le fichier',
+      () => {
+        // L-036 : le refus se prouve en appelant l'outil corrigé sur un HTML FORGÉ. Compiler
+        // autour de lui mesurerait la lecture du spec, pas la capacité de refus.
+        const attribut =
+          '<pre class="shiki"><code><span class="line" style="color:#abb2bf">$a</span></code></pre>';
+        const refusAttribut = appelerVerifierZeroStyle(attribut);
+        expect(refusAttribut.statut).toBe(1);
+        expect(refusAttribut.sortie).toContain('html-forgé.md');
+        expect(refusAttribut.sortie).toContain('attribut style=');
+        expect(refusAttribut.sortie).toContain('<span>');
+
+        const balise = '<pre class="shiki"><style>.line{color:red}</style><code></code></pre>';
+        const refusBalise = appelerVerifierZeroStyle(balise);
+        expect(refusBalise.statut).toBe(1);
+        expect(refusBalise.sortie).toContain('html-forgé.md');
+        expect(refusBalise.sortie).toContain('élément <style>');
+
+        // CONTRE-ÉPREUVE, et c'est elle qui distingue « il refuse » de « il refuse TOUT » :
+        // le même balisage, avec `style="…"` dans le TEXTE échappé par Shiki, passe.
+        const sain =
+          '<pre class="shiki"><code><span class="line ancre-ligne-1">' +
+          '&#x3C;p style="color:red">&#x3C;/p></span></code></pre>';
+        expect(appelerVerifierZeroStyle(sain).statut).toBe(0);
+      },
+      DELAI,
+    );
+
+    // ─── UN VOLET N'AVALE PLUS LE BALISAGE DE L'AUTEUR (E2-ST4, lot B) ────────────
+    // La boucle de `lireExemple` ne ramassait que les jetons `inline` et ignorait tout le
+    // reste EN SILENCE. Deux conséquences, deux refus.
+
+    it(
+      'refuse une LISTE ou une CITATION dans un volet — leur balisage y était JETÉ en silence',
+      () => {
+        // 🔴 CE QUE ÇA PUBLIAIT : l'auteur écrit `- {lignes="2"} …`, markdown-it produit
+        // `bullet_list_open` / `list_item_open` / `paragraph_open` / `inline` / … ; la boucle
+        // ne gardait que l'`inline`, donc la note sortait en PROSE. L'auteur croyait publier
+        // une liste, il publiait autre chose, tous gates verts.
+        const cas: readonly { nom: string; note: string; jeton: string }[] = [
+          { nom: 'volet-liste', note: '- {lignes="2"} Une note en item de liste.', jeton: 'list' },
+          { nom: 'volet-citation', note: '> {lignes="2"} Une note en citation.', jeton: 'blockquote' },
+        ];
+
+        for (const { nom, note, jeton } of cas) {
+          const racine = leconAvecCorps(nom, comparaisonAvecNotes([note]));
+          const message = messageDEchec(racine);
+          expect(message, nom).not.toBeNull();
+          expect(message ?? '', nom).toContain('lecon.md');
+          expect(message ?? '', nom).toContain('que du code et des paragraphes');
+          // Le message NOMME ce qui a été rencontré — sans quoi l'auteur cherche à l'aveugle.
+          expect(message ?? '', nom).toContain(jeton);
+        }
+      },
+      DELAI,
+    );
+
+    it(
+      'refuse une note écrite AVANT son bloc de code — le rendu la déplacerait après',
+      () => {
+        // La boucle ramassait TOUT jeton `inline`, quelle que soit sa position, et le gabarit
+        // de `rendu-blocs.ts` place la `figure` PUIS la liste d'annotations : une note écrite
+        // au-dessus de la clôture se retrouvait EN DESSOUS dans la page. Déplacer la prose de
+        // l'auteur en silence est exactement ce que le refus du désordre existe pour empêcher.
+        const corps = [
+          ':::: comparaison',
+          '::: vulnerable',
+          '{lignes="1"} Une note écrite AVANT la clôture.',
+          '',
+          '```php',
+          '$a = 1;',
+          '$b = 2;',
+          '```',
+          ':::',
+          '::: corrige',
+          '```php',
+          '$a = 1;',
+          '$b = 2;',
+          '```',
+          '{lignes="0"} Le correctif.',
+          ':::',
+          '::::',
+          '',
+        ].join('\n');
+
+        const message = messageDEchec(leconAvecCorps('note-avant-code', corps));
+        expect(message).not.toBeNull();
+        expect(message).toContain('lecon.md');
+        expect(message).toContain('AVANT son bloc de code');
+        expect(message).toContain('Une note écrite AVANT la clôture.');
       },
       DELAI,
     );

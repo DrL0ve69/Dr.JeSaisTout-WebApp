@@ -205,3 +205,22 @@ $pile-code: ui-monospace, SFMono-Regular, 'Cascadia Mono', Consolas, 'Liberation
 // -----------------------------------------------------------------------------
 $largeur-lecture: 68ch; // longueur de ligne confortable pour un cours
 $largeur-page: 72rem;
+
+// Largeur MINIMALE d'un volet de comparaison avant que les deux exemples ne se
+// remettent l'un sous l'autre (E2-ST4, lot B2). En `ch` et non en `rem` parce que
+// le critère n'est PAS la largeur de l'écran : c'est une LARGEUR DE LECTURE, qui
+// suit la taille du texte. Sous cette largeur, un extrait PHP ou C# réaliste défile
+// horizontalement à chaque ligne, et deux colonnes qui défilent toutes les deux
+// sont pires qu'une seule qui ne défile pas. `auto-fit` s'en sert seul, sans point
+// de bascule.
+//
+// ⚠️ CE N'EST PAS « 62 CARACTÈRES DE CODE », ET LE COMMENTAIRE LE DISAIT (revue du
+// lot B). Une custom property est substituée telle quelle : le `ch` se résout donc
+// sur l'ÉLÉMENT QUI L'EMPLOIE — `.paire`, qui est en police de CORPS — et non dans
+// `--police-code`, dont le `0` est plus étroit. Le seuil réel vaut donc sensiblement
+// plus de caractères monospace que le nombre écrit ici. Le faire résoudre en police
+// de code demanderait un élément intermédiaire portant `font-family: var(--police-code)`
+// entre la grille et son critère : du balisage pour une mesure, pas un gain.
+// Ce qui vaut à cette unité son exemption G7 reste vrai — elle est TYPOGRAPHIQUE,
+// donc elle suit le texte, là où un point de bascule en `px` suivrait l'écran.
+$largeur-volet-min: 62ch;

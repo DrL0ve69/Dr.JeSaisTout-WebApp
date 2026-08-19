@@ -119,10 +119,16 @@
   // du TypeScript (`src/content-generated/carte-lecons.ts`) que le programme
   // applicatif compilera ensuite — un générateur de code non typé produirait du code
   // non compilable une étape trop tard, dans un message qui ne le nommerait pas.
+  // `compter-lignes.mjs` (E2-ST4, lot B) entre lui aussi dans le MÊME DIFF que sa création. Il
+  // est minuscule et sans dépendance, ce qui est exactement la raison de ne PAS l'oublier : c'est
+  // la seule définition du nombre de lignes d'un extrait, et ses trois appelants — deux dans le
+  // compilateur, un dans le validateur — bornent chacun un garde-fou dessus. Hors du programme,
+  // il serait le maillon non vérifié d'une chaîne dont tous les autres le sont.
   "include": [
     "tools/a11y/verifier-axe.mjs",
     "tools/content-pipeline/build.mjs",
     "tools/content-pipeline/compiler-markdown.mjs",
+    "tools/content-pipeline/compter-lignes.mjs",
     "tools/content-pipeline/generer-manifeste.mjs",
     "tools/content-pipeline/rendre-mermaid.mjs",
     "tools/content-pipeline/verifier-poids.mjs",
