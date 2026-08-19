@@ -375,13 +375,17 @@ describe('rigueur du compilateur', () => {
      * d'échec que le commentaire annonçait était donc réel, et le gate n'était pas
      * décoratif.
      *
-     * ⚠️ LES TROIS `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
+     * ⚠️ LES QUATRE `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
      * QUAND MÊME — c'est le point le plus important de cette liste depuis le lot E.
      * Ce sont eux qui portent désormais la MESURE elle-même : `indicateur-focus.ts`
-     * décide ce qu'est « un anneau de focus dessiné » pour deux fichiers,
+     * décide ce qu'est « un anneau de focus dessiné » pour trois fichiers,
      * `sonde-csp.ts` porte les trois collecteurs de violations et l'exigence de CSP
      * servie pour deux autres, `hydratation.ts` définit le point de départ commun
-     * de tout ce qui s'exécute sur la page de leçon. Un défaut de typage y serait
+     * de tout ce qui s'exécute sur la page de leçon, et `artefact-mesure.ts` décide
+     * si les specs de la page de leçon ont un SUJET — c'est lui qui les saute quand
+     * l'artéfact mesuré est celui de production, et un défaut chez lui rendrait ce
+     * saut universel ou nul sans qu'aucun appelant s'en aperçoive (le mode d'échec
+     * qui a rendu `deploy.yml` rouge sur dix specs, PR #17). Un défaut de typage y serait
      * strictement invisible depuis les specs qui les appellent, et il ferait passer
      * VERTS les gates les plus structurants du dépôt. Les mutualiser (L-016) a
      * déplacé le risque : cette liste est l'endroit où on le rattrape.
@@ -393,6 +397,7 @@ describe('rigueur du compilateur', () => {
       'e2e/aides/sonde-csp.ts',
       'e2e/bascule-theme.spec.ts',
       'e2e/cibles-pointeur.spec.ts',
+      'e2e/defileurs-clavier.spec.ts',
       'e2e/focus-visible.spec.ts',
       'e2e/navigation-clavier.spec.ts',
       'e2e/parcours-clavier-quiz.spec.ts',

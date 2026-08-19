@@ -36,6 +36,32 @@ import { Page, expect } from '@playwright/test';
 export const SELECTEUR_FOCALISABLES =
   'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex^="-"])';
 
+/**
+ * LA TOLÉRANCE SOUS-PIXEL DE `dansLaFenetre`, ET POURQUOI ELLE N'EST PAS UN SEUIL
+ * QUI GLISSE — née du lot C d'E2-ST4, mesurée, pas devinée.
+ *
+ * Quand une tabulation oblige le navigateur à défiler vers le BAS, Chromium aligne
+ * l'élément FLUSH sur le bord inférieur de la fenêtre (`kAlignToEdgeIfNeeded`) : la
+ * cible est donc `bottom === innerHeight` exactement. Mais il arrondit le décalage de
+ * défilement à un pixel entier, tandis que la mise en page garde des hauteurs
+ * FRACTIONNAIRES — les défileurs de code mesurent 66,53125 px et 46,0625 px. Le reste
+ * de la division déborde donc du bord de quelques CENTIÈMES de pixel : mesuré
+ * 0,422 px à 720 px de haut, 0,172 px à 800 px, sur des éléments que le navigateur
+ * venait précisément d'amener à l'écran.
+ *
+ * Sans cette tolérance, la comparaison exacte déclare « focalisé HORS de la fenêtre »
+ * un élément parfaitement visible, et le verdict CHANGE avec la hauteur de fenêtre —
+ * c'est-à-dire un rouge qui n'apprend rien, sur un produit sain (famille L-035). Le
+ * défaut dormait déjà dans les deux autres specs appelants : leurs arrêts sont plus
+ * petits, donc moins souvent fractionnaires, pas mieux protégés.
+ *
+ * UN PIXEL, ET PAS PLUS : la borne n'est pas un confort, elle vient de la cause —
+ * l'écart est le reste d'un arrondi au pixel entier, il est donc INFÉRIEUR À 1 par
+ * construction. Ce que 2.4.11 interdit (un indicateur masqué, ou hors de l'écran) se
+ * compte en dizaines de pixels et reste refusé.
+ */
+const TOLERANCE_SOUS_PIXEL = 1;
+
 /** L'état neutre d'un focalisable, relevé AVANT toute tabulation. */
 export interface EtatAuRepos {
   readonly contourStyle: string;
@@ -87,7 +113,7 @@ export async function releverEtatAuRepos(page: Page): Promise<readonly EtatAuRep
  * focalisable de la page (focus sorti sur `<body>`, ou dans la chrome du navigateur).
  */
 export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | null> {
-  return page.evaluate((selecteur) => {
+  return page.evaluate(([selecteur, tolerance]: readonly [string, number]) => {
     const focalisables = Array.from(document.querySelectorAll<HTMLElement>(selecteur));
     const actif = document.activeElement;
     if (!(actif instanceof HTMLElement)) {
@@ -120,11 +146,13 @@ export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | nu
       contourEpaisseur: Number.parseFloat(style.outlineWidth) || 0,
       contourCouleur: style.outlineColor,
       ombre: style.boxShadow,
+      // La tolérance est appliquée aux QUATRE bords : le même arrondi au pixel entier
+      // joue en haut et à gauche quand le défilement remonte. Voir TOLERANCE_SOUS_PIXEL.
       dansLaFenetre:
-        boite.top >= 0 &&
-        boite.left >= 0 &&
-        boite.bottom <= window.innerHeight &&
-        boite.right <= window.innerWidth,
+        boite.top >= -tolerance &&
+        boite.left >= -tolerance &&
+        boite.bottom <= window.innerHeight + tolerance &&
+        boite.right <= window.innerWidth + tolerance,
       boite: `${Math.round(boite.width)}×${Math.round(boite.height)} en (${Math.round(boite.left)}, ${Math.round(boite.top)})`,
       recouvertPar:
         auCentre === null
@@ -133,7 +161,7 @@ export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | nu
             ? null
             : `<${auCentre.tagName.toLowerCase()}>`,
     };
-  }, SELECTEUR_FOCALISABLES);
+  }, [SELECTEUR_FOCALISABLES, TOLERANCE_SOUS_PIXEL] as const);
 }
 
 /**
