@@ -136,6 +136,19 @@ de l'étape. Corollaire du même esprit que L-004 : on constate l'**effet**, pas
 **Réfs.** `.github/workflows/deploy.yml` étape « Vérifier les en-têtes servis » (branche
 `URL non fournie`) ; `docs/agile/backlog-phase-1.md` §E0-ST4.
 
+**Addendum (2026-08-19) — un run vert ne referme pas non plus une panne INTERMITTENTE.** Après
+correctif d'un job qui avait pendu (voir [[L-048]]), un run est repassé au vert en 21 s ; conclure
+« transitoire » sur ce seul run était faux — la même panne a récidivé au déploiement suivant (run
+GitHub `32264319046`). Un run vert prouve que la cause ne s'est pas manifestée **cette fois**, pas
+qu'elle est éteinte. Sur une panne intermittente, ce qui referme le constat est soit une **mesure de
+la cause** (journal lu ligne par ligne), soit un **mécanisme qui la rend structurellement
+impossible** (retirer la dépendance fragile) — jamais un seul succès rejoué. Axe distinct de la
+leçon d'origine (ici l'ambiguïté est l'**intermittence**, pas la **couverture** d'une porte de
+sortie silencieuse), gardé comme addendum plutôt que dupliqué.
+
+**Réfs addendum.** runs GitHub `32224090384` (blocage) et `32264319046` (récidive) ;
+`.github/workflows/ci.yml`.
+
 ---
 
 ## L-006 · Les annotations jaunes d'un run se traitent, elles ne se tolèrent pas
@@ -1283,6 +1296,52 @@ compte de livrables) à côté du « test du + » existant.
 
 **Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep, lots à 4-6 fiches) ;
 `.claude/rules/agent-context-budget.md` §0, §2.
+
+---
+
+## L-048 · Un job CI sans `timeout-minutes` ne rougit jamais quand il pend — il court jusqu'au plafond de six heures, et le mode d'échec est le SILENCE, pas le rouge
+
+**Symptôme.** Le 2026-08-19, l'étape « Installer le navigateur » de `ci.yml` a pendu 53 min sur un
+premier essai puis 12+ min sur un second, alors que le run entier tenait en 2 min 12 s la veille.
+Aucun des trois workflows du dépôt (`ci.yml`, `deploy.yml`, `infra.yml`) ne posait
+`timeout-minutes` sur ses jobs : un job pendu n'échoue pas, il continue jusqu'au plafond GitHub de
+**six heures**. Rien ne distingue « la CI travaille encore » de « la CI est morte » — le
+propriétaire a attendu 50 minutes un signal qui ne serait jamais venu.
+
+**Règle.** Poser `timeout-minutes` sur **chaque** job de **chaque** workflow, borné à un multiple
+raisonnable de la durée mesurée du run sain (ici : quelques minutes, pas des heures) — et faire
+tenir cette borne par un test qui l'exige, une absence de borne ne faisant rougir aucun run tant
+qu'elle n'est pas franchie. Même famille que [[L-008]]/[[L-016]] (une garantie qui n'existe nulle
+part d'exécutable ne protège rien) sur un axe neuf : ici ce n'est pas une contrepartie de
+conception qui manque, c'est une **borne de temps**.
+
+**Réfs.** `.github/workflows/ci.yml`, `deploy.yml`, `infra.yml` ; `src/workflows-github.spec.ts` ;
+runs GitHub `32224090384` (blocage) et `32264319046` (récidive au déploiement).
+
+---
+
+## L-049 · Une étape CI qui fait DEUX choses sous un seul nom est indiagnosticable quand elle pend — scinder est un acte de diagnostic, et le journal de la panne peut contenir sa propre parade
+
+**Symptôme.** `playwright install --with-deps chromium` combine un `apt-get` en root **et** un
+téléchargement de binaire CDN sous un seul nom d'étape. Quand elle a pendu (2026-08-19), le journal
+n'avait **rien écrit** : impossible de savoir laquelle des deux opérations bloquait. Scindée en deux
+étapes nommées, chacune avec son propre délai, le journal a nommé le coupable au run suivant :
+`azure.archive.ubuntu.com` servait 21 Mo à ~27 ko/s. Ce même journal contenait aussi la parade : les
+bibliothèques partagées de Chromium étaient déjà toutes présentes (« already the newest version »),
+et les 21 Mo lents n'étaient que **neuf paquets de polices non latines** (japonais, thaï, chinois,
+cyrillique) — inutiles sur un site français dont les diagrammes sont français. La dépendance flaky
+n'était pas seulement fragile, elle était superflue.
+
+**Règle.** Quand une étape opaque échoue ou pend, la **scinder en sous-étapes nommées** (chacune
+avec son délai, cf. [[L-048]]) est un geste de diagnostic, pas de cosmétique — un journal vide ne
+dit rien, un journal par sous-étape nomme le coupable. Et avant de fiabiliser une dépendance
+flaky (réessais, cache, délai plus long), **lire ce qu'elle apporte réellement** : la meilleure
+parade à un téléchargement fragile est souvent de constater qu'on n'en a pas besoin (ici : exclure
+les paquets de polices non nécessaires à un contenu francophone plutôt que blinder leur
+téléchargement).
+
+**Réfs.** `.github/workflows/ci.yml` (étape « Installer le navigateur ») ;
+`src/pipeline-contenu-orchestration.spec.ts` ; runs GitHub `32224090384` et `32264319046`.
 
 ---
 

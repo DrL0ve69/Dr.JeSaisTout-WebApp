@@ -56,15 +56,32 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
 > CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2, B, C — PR #18,
-> #19, #20, et la PR du lot C) **· E2-ST5 CLOSE EN ENTIER** (lots a, b1, b2, c1, c2, d).
-> **Le geste suivant : E2-ST6 — Sommaire du cours & progression** :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST6.
-> 🔴 **Son périmètre a CHANGÉ le 2026-08-19, à lire avant de commencer** : le propriétaire a décidé
-> d'un second cours publié (PHP, épic **E7**, §E7 du backlog) et d'un bloc D au cours de sécurité —
-> la phase 1 passe de 13 à 27 modules. E2-ST6 était conçue pour UN seul cours ; avec deux cours il
-> faut un **index de cours** et une progression indexée **par cours** dans `core/progression/`, pas
-> une progression globale à plat — changement de modèle de données à faire **avant** d'écrire le
-> composant, pas après. Détail : backlog §E7.
+> #19, #20, et la PR du lot C) **· E2-ST5 CLOSE ET FUSIONNÉE** (PR #22) **· E3-ST0 CLOSE ET
+> FUSIONNÉE** (PR #22) — **déploiement `main` VERT**.
+> **Le geste suivant : E2-ST6 — Sommaire du cours & progression.** 🔴 **Le plan v2 EST ÉCRIT, ne pas
+> le redériver** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST6, bloc
+> « 📐 Plan arrêté — 2026-08-19 (v2, après passe `devils-advocate`) ». **Le premier lot à lancer est
+> A1 (`ProgressionService` v2).** Trois décisions du propriétaire à ne pas rouvrir, détaillées dans
+> ce bloc : **D-1** brouillons masqués via un sélecteur unique `leconsPubliees` (sommaire, prev/next
+> ET prerender) · **D-2** `section` frontmatter OPTIONNEL (tout-ou-rien par sujet) · **D-3** AUCUNE
+> route neuve (ni `/cours`, ni `/cours/php` — généricité prouvée par test, pas par route). Le
+> périmètre reste celui décidé le 2026-08-19 : le propriétaire a un second cours publié (PHP, épic
+> **E7**, §E7 du backlog) et un bloc D au cours de sécurité — la phase 1 passe de 13 à 27 modules ;
+> la progression est indexée **par cours** (clef plate `sujet/slug`), pas à plat globalement.
+>
+> **🔴 DEUX SPECS E2E DE LA SIMULATION SONT INTERMITTENTS — à savoir AVANT de lire un G-e2e rouge.**
+> Constaté le 2026-08-19 sur la PR #25 (run `32282161844`) :
+> `e2e/parcours-clavier-simulation.spec.ts:210` et `e2e/simulation-mecanique.spec.ts:298` ont échoué
+> sur le **même symptôme — le repli n'a pas eu lieu** (`etat.courante` = 1 au lieu de 4 ; étapes
+> visibles `[1,2,4,5,6]` au lieu d'aucune). **Ce n'est pas une régression, et c'est prouvé sans
+> relance** : la PR #25 est la PR #24 **plus de la documentation seule**, code produit identique, et
+> le run de #24 était vert (48 e2e / 0 échec). Même code, deux résultats ⇒ intermittence.
+> ⚠️ Les deux specs appellent pourtant `attendreHydratation(page)` : l'hypothèse — **à vérifier, pas
+> à croire** — est que l'absence d'attributs `ngh` prouve l'hydratation des **vues**, pas que le
+> comportement d'un composant **paresseux** est armé (famille **L-033**). Détail, preuve et parade
+> pressentie : backlog §E2-ST5, « DETTE NEUVE … specs e2e de la simulation ».
+> **Ce que ça coûte** : G-e2e peut rougir sur une PR saine — donc la tentation de fusionner au rouge
+> « parce que c'est le flaky ». C'est ainsi qu'un gate meurt : la dette se paie avant E3-ST1.
 >
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
@@ -127,9 +144,16 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **Chiffres à la clôture d'E2-ST4 (2026-08-19)** : G-test **576/30**, G-e2e 29/0 sauté (fixture) et
 > 12 passés/17 sautés (production), G-axe 344 vérif./0 violation, G-build 12/1 hachages (fixture)
 > inchangés, `npm audit --omit=dev` 0.
-> **Chiffres à la clôture d'E2-ST5 (2026-08-19)** : G-test **657/32**, 0 échec, G-e2e **48 passés/0
+> **Chiffres à la clôture d'E2-ST5 (2026-08-19)** : G-test **661/32**, 0 échec, G-e2e **48 passés/0
 > sauté** (fixture) et 12 passés/36 sautés (production), G-axe 344 vérif./0 violation, G-build
 > production 9/9 hachages de style + 1 de script, fixture 13/13, `npm audit --omit=dev` 0.
+>
+> **🔧 Lot CI du 2026-08-19** : les trois workflows portent désormais un `timeout-minutes` par job
+> (un job pendu ne court plus jusqu'au plafond GitHub de 6 h) ; l'installation du navigateur est
+> scindée en **deux scripts npm** dont la CI n'appelle que `e2e:install:navigateur` — le
+> développeur local garde `npm run e2e:install` comme commande unique, qui enchaîne les deux
+> moitiés. ⚠️ **`npm run e2e:install:deps` ne doit jamais revenir dans un workflow** — un test
+> l'interdit. Détail et cause mesurée : backlog §E0-ST4, « Lot CI du 2026-08-19 ».
 >
 > ---
 >
