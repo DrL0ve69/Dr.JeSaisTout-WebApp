@@ -272,9 +272,17 @@ function fenetre(): Window {
 
 let fixture: ComponentFixture<Quiz>;
 
-async function monter(quiz: QuizCompile): Promise<HTMLElement> {
+/**
+ * Le sujet du cours par défaut des montages ci-dessous — E2-ST6, lot A2. La progression
+ * est indexée par le couple `(sujet, slug)` : `SUJET` et `QUIZ_*.lecon` composent donc
+ * ensemble la clef que les assertions relisent.
+ */
+const SUJET = 'securite-web';
+
+async function monter(quiz: QuizCompile, sujet = SUJET): Promise<HTMLElement> {
   fixture = TestBed.createComponent(Quiz);
   fixture.componentRef.setInput('quiz', quiz);
+  fixture.componentRef.setInput('sujet', sujet);
   await fixture.whenStable();
   return fixture.nativeElement as HTMLElement;
 }
@@ -424,6 +432,7 @@ function quizDe(question: QuestionQuiz): QuizCompile {
 function preparation(quiz: QuizCompile): () => unknown {
   const isole = TestBed.createComponent(Quiz);
   isole.componentRef.setInput('quiz', quiz);
+  isole.componentRef.setInput('sujet', SUJET);
   return () => isole.componentInstance.questionsPreparees();
 }
 
@@ -594,7 +603,7 @@ describe('Quiz', () => {
       await cliquerBouton(hote);
 
       const service = TestBed.inject(ProgressionService);
-      expect(service.estMaitrisee('injection-sql')).toBe(true);
+      expect(service.estMaitrisee(SUJET, 'injection-sql')).toBe(true);
 
       await cliquerBouton(hote); // « Recommencer »
 
@@ -603,7 +612,7 @@ describe('Quiz', () => {
       expect(radios(hote, 'quiz-injection').filter((radio) => radio.checked)).toEqual([]);
       // 🔴 La progression, elle, SURVIT : le service ne retient que le meilleur
       // score, et refaire un quiz ne doit pas coûter une maîtrise acquise.
-      expect(service.estMaitrisee('injection-sql')).toBe(true);
+      expect(service.estMaitrisee(SUJET, 'injection-sql')).toBe(true);
       // Et le focus ne retombe pas dans le vide.
       expect(document.activeElement).toBe(hote.querySelector('h3'));
     });
@@ -922,12 +931,12 @@ describe('Quiz', () => {
       await cliquerBouton(hote);
 
       const service = TestBed.inject(ProgressionService);
-      expect(service.etatDe('injection-sql')).toEqual({
+      expect(service.etatDe(SUJET, 'injection-sql')).toEqual({
         lue: true,
         meilleurScore: 5,
         totalQuestions: 5,
       });
-      expect(service.estMaitrisee('injection-sql')).toBe(true);
+      expect(service.estMaitrisee(SUJET, 'injection-sql')).toBe(true);
       expect(fenetre().localStorage.getItem(CLE_PROGRESSION)).not.toBeNull();
     });
 
@@ -940,7 +949,38 @@ describe('Quiz', () => {
       await cliquerBouton(hote);
 
       expect(fixture.componentInstance.score()).toBe(4);
-      expect(TestBed.inject(ProgressionService).etatDe('injection-sql').meilleurScore).toBe(4);
+      const service = TestBed.inject(ProgressionService);
+      expect(service.etatDe(SUJET, 'injection-sql').meilleurScore).toBe(4);
+    });
+
+    it('🔴 enregistre sous le sujet REÇU — deux cours, même slug, deux progressions', async () => {
+      // E2-ST6, lot A2. C'est le contrat que la clef composite `(sujet, slug)` existe pour
+      // tenir, et le seul test qui puisse le faire tomber : la phase 1 porte DEUX cours
+      // (sécurité web et PHP, §E7), et deux leçons de sujets différents peuvent partager un
+      // slug. Un `sujet` en dur dans le composant — ou pris à l'URL — resterait vert sur
+      // toutes les assertions ci-dessus, qui n'emploient qu'un seul sujet.
+      const service = TestBed.inject(ProgressionService);
+
+      // Cours n°1 : les trois bonnes réponses.
+      const cours1 = await monter(QUIZ_CORRIGEABLE, 'securite-web');
+      await repondre(cours1, 'quiz-injection', 'requete-preparee');
+      await repondre(cours1, 'quiz-csp', 'faux');
+      await repondre(cours1, 'quiz-entetes', 'sniff');
+      await cliquerBouton(cours1);
+
+      // Cours n°2 : MÊME slug de leçon, autre sujet, et une réponse fausse.
+      const cours2 = await monter(QUIZ_CORRIGEABLE, 'php');
+      await repondre(cours2, 'quiz-injection', 'liste-noire');
+      await repondre(cours2, 'quiz-csp', 'faux');
+      await repondre(cours2, 'quiz-entetes', 'sniff');
+      await cliquerBouton(cours2);
+
+      expect(service.etatDe('securite-web', 'injection-sql').meilleurScore).toBe(3);
+      expect(service.etatDe('php', 'injection-sql').meilleurScore).toBe(2);
+      // Les deux ne se mélangent pas, et la conséquence VISIBLE est la maîtrise : le
+      // sommaire du cours de sécurité allumera son module, celui de PHP non.
+      expect(service.estMaitrisee('securite-web', 'injection-sql')).toBe(true);
+      expect(service.estMaitrisee('php', 'injection-sql')).toBe(false);
     });
   });
 
@@ -1129,7 +1169,7 @@ describe('Quiz', () => {
 
       await cliquerBouton(hote);
       expect(fixture.componentInstance.score()).toBe(3);
-      expect(TestBed.inject(ProgressionService).estMaitrisee('injection-sql')).toBe(true);
+      expect(TestBed.inject(ProgressionService).estMaitrisee(SUJET, 'injection-sql')).toBe(true);
     });
 
     it('n’invente RIEN quand le DOM ne porte aucune coche, et n’écrase pas une réponse déjà saisie', async () => {
