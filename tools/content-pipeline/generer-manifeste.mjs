@@ -29,12 +29,44 @@
  * CE FICHIER N'A PAS DE LIGNE DE COMMANDE — délibérément. Il consomme un AST en mémoire
  * (`LeconCompilee[]`), que seul l'orchestrateur `build.mjs` possède après compilation. Une CLI
  * autonome devrait recompiler, donc dupliquer `build.mjs`.
+ *
+ * ─── 🔴 LE FILTRE DE PUBLICATION VIT ICI, À LA GÉNÉRATION — ET C'EST LE POINT ────────────────────
+ * « Ne pas prerendre » N'EST PAS « ne pas publier ». Jusqu'au 2026-08-19, ce générateur écrivait
+ * un `lecons/<slug>.json` pour CHAQUE leçon compilée : esbuild en faisait un chunk, servi en 200
+ * par l'hébergeur, et le routeur client rendait la leçon entière sur son URL non prerendue. Le
+ * texte d'une leçon non relue était donc PUBLIC, et son titre voyageait jusque dans le bundle
+ * initial (via la carte et le manifeste). Mesuré, reproduit — S-006 : tout fichier présent dans
+ * l'artéfact est servable, qu'un plan de routage le mentionne ou non.
+ *
+ * D'où la règle, FAIL-CLOSED : une leçon dont le `statut` n'est pas exactement `publiee` n'entre
+ * NI dans `lecons/<slug>.json`, NI dans `manifeste-routes.json`, NI dans `carte-lecons.ts`. Le
+ * drapeau `--inclure-brouillons` de `build.mjs` rétablit l'inclusion — pour `npm start` et la
+ * relecture éditoriale — et il est le SEUL moyen de l'obtenir : le défaut est fermé.
+ *
+ * UN SEUL POINT DE DÉCISION, appliqué en tête d'`ecrireContenuGenere` : les trois sorties dérivent
+ * de la MÊME liste retenue. Filtrer chaque sortie séparément aurait été trois occasions d'oublier
+ * la troisième — la faute exacte que ce correctif répare.
  */
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 /** Sous-dossier des leçons compilées, relatif au dossier de sortie. Cité tel quel dans la carte. */
 const DOSSIER_LECONS = 'lecons';
+
+/**
+ * LE SEUL MOT QUI PUBLIE — liste blanche NOMINATIVE d'un seul élément, jamais une liste noire des
+ * statuts à écarter. `verifiee` n'est PAS publiée : ce statut existe pour la relecture éditoriale,
+ * et une liste noire « brouillon » l'aurait laissée passer (le défaut valait identiquement pour
+ * elle). Un statut ajouté demain au schéma sera donc écarté par construction, jusqu'à ce qu'un
+ * humain décide le contraire.
+ *
+ * ⚠️ SA JUMELLE APPLICATIVE EST `leconsPubliees` (`src/app/features/cours/contenu-compile.ts`).
+ * Les deux ne peuvent pas s'importer — celle-ci vit dans le programme outillage, celle-là dans le
+ * bundle du navigateur. C'est `src/garde-fou-lecons-non-publiees.spec.ts` qui interdit qu'elles
+ * divergent : il fait bâtir la fixture par CE générateur, puis confronte la carte obtenue à
+ * `leconsPubliees` (L-016).
+ */
+const STATUT_PUBLIE = 'publiee';
 
 /** Nom du manifeste de routes. */
 const FICHIER_MANIFESTE = 'manifeste-routes.json';
@@ -93,15 +125,24 @@ export function ecrireAtomique(chemin, contenu) {
  */
 export function construireManifeste(lecons) {
   return lecons
-    .map((lecon) => ({
-      sujet: lecon.frontmatter.sujet,
-      slug: lecon.frontmatter.slug,
-      ordre: lecon.frontmatter.ordre,
-      titre: lecon.frontmatter.titre,
-      dureeEstimee: lecon.frontmatter.dureeEstimee,
-      niveau: lecon.frontmatter.niveau,
-      statut: lecon.frontmatter.statut,
-    }))
+    .map((lecon) => {
+      /** @type {EntreeManifesteRoutes} */
+      const entree = {
+        sujet: lecon.frontmatter.sujet,
+        slug: lecon.frontmatter.slug,
+        ordre: lecon.frontmatter.ordre,
+        titre: lecon.frontmatter.titre,
+        dureeEstimee: lecon.frontmatter.dureeEstimee,
+        niveau: lecon.frontmatter.niveau,
+        statut: lecon.frontmatter.statut,
+      };
+      // `section` est optionnelle (E2-ST6, lot B) : posée seulement quand la leçon la porte,
+      // jamais à `undefined`. Le manifeste est le SEUL porteur de cette valeur côté sommaire —
+      // celui-ci ne charge pas les `lecons/<slug>.json`, dont c'est tout l'intérêt (un index
+      // qui les lirait tous embarquerait le corps des 27 modules).
+      if (lecon.frontmatter.section !== undefined) entree.section = lecon.frontmatter.section;
+      return entree;
+    })
     .sort((a, b) => a.ordre - b.ordre || a.slug.localeCompare(b.slug, 'fr'));
 }
 
@@ -167,19 +208,52 @@ export const carteLecons: Record<string, ChargeurLecon> = {${
  */
 
 /**
+ * Sépare les leçons PUBLIÉES du reste — l'unique lecture de `statut` de ce module.
+ *
+ * Exportée pour être mise à l'épreuve : elle n'a qu'un appelant, `ecrireContenuGenere` ci-dessous.
+ * Un prédicat qui ne vit qu'à l'intérieur d'une fonction d'écriture ne s'éprouve qu'en relisant des
+ * fichiers sur disque, donc mal.
+ *
+ * @param {readonly LeconCompilee[]} lecons
+ * @returns {{ publiees: LeconCompilee[], nonPubliees: LeconCompilee[] }}
+ */
+export function separerPubliees(lecons) {
+  /** @type {LeconCompilee[]} */
+  const publiees = [];
+  /** @type {LeconCompilee[]} */
+  const nonPubliees = [];
+  for (const lecon of lecons) {
+    if (lecon.frontmatter.statut === STATUT_PUBLIE) publiees.push(lecon);
+    else nonPubliees.push(lecon);
+  }
+  return { publiees, nonPubliees };
+}
+
+/**
  * Écrit les trois sorties dans `dossierSortie`. Le dossier est supposé DÉJÀ PURGÉ par
  * l'orchestrateur : ce module ajoute, il n'efface pas.
  *
+ * ⚠️ LE FILTRE DE PUBLICATION S'APPLIQUE ICI, EN TÊTE, ET UNE SEULE FOIS — voir l'en-tête du
+ * fichier. Tout ce qui suit travaille sur `retenues` : les trois sorties ne peuvent donc pas se
+ * contredire sur ce qu'est une leçon publique.
+ *
  * @param {string} dossierSortie chemin absolu
  * @param {readonly LeconCompilee[]} lecons
- * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string }}
+ * @param {{ inclureBrouillons?: boolean }} [options] `inclureBrouillons` rétablit l'écriture des
+ *   leçons non publiées. DÉFAUT FERMÉ : sans ce drapeau, elles ne sont pas écrites du tout.
+ * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[] }}
  */
-export function ecrireContenuGenere(dossierSortie, lecons) {
-  const entrees = construireManifeste(lecons);
+export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
+  const inclureBrouillons = options.inclureBrouillons === true;
+  const { publiees, nonPubliees } = separerPubliees(lecons);
+  const retenues = inclureBrouillons ? [...lecons] : publiees;
+  const slugsNonPubliees = nonPubliees.map((lecon) => lecon.frontmatter.slug);
+
+  const entrees = construireManifeste(retenues);
 
   /** @type {Map<string, LeconCompilee>} */
   const parSlug = new Map();
-  for (const lecon of lecons) {
+  for (const lecon of retenues) {
     const slug = lecon.frontmatter.slug;
     if (parSlug.has(slug)) {
       echec(`deux leçons compilées portent le slug « ${slug} »`, [
@@ -210,5 +284,16 @@ export function ecrireContenuGenere(dossierSortie, lecons) {
   const carte = rendreCarteLecons(entrees);
   ecrireAtomique(join(dossierSortie, FICHIER_CARTE), carte);
 
-  return { entrees, fichiers, manifeste, carte };
+  return {
+    entrees,
+    fichiers,
+    manifeste,
+    carte,
+    // Les slugs réellement ÉCARTÉS (vide quand le drapeau est levé) et ceux réellement INCLUS
+    // alors qu'ils ne sont pas publiés. Les deux servent au journal de `build.mjs` : un filtre
+    // qui n'annonce pas ce qu'il a retiré — ni ce qu'il a laissé passer sur demande — est un
+    // filtre dont on découvre l'effet au déploiement (L-005).
+    ecartees: inclureBrouillons ? [] : slugsNonPubliees,
+    incluses: inclureBrouillons ? slugsNonPubliees : [],
+  };
 }

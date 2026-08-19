@@ -69,6 +69,48 @@ const STATUTS = ['brouillon', 'verifiee', 'publiee'] as const;
 export const NIVEAUX = ['maternelle', 'primaire', 'secondaire', 'cegep', 'universite'] as const;
 
 /**
+ * Les niveaux du contrat, rendus en français lisible.
+ *
+ * Le TYPE est `Record<Niveau, string>`, pas `Record<string, string>` : ajouter un
+ * niveau à `NIVEAUX` sans lui écrire d'étiquette française fait échouer la
+ * compilation, plutôt que d'afficher un identifiant technique en page.
+ *
+ * 🔴 IL N'EST PAS EXPORTÉ, et c'est délibéré : le seul chemin public est
+ * `niveauLisible()` ci-dessous. Une indexation directe — `NIVEAUX_LISIBLES[niveau]`
+ * sur un `niveau` de type `string` — rendrait la fonction héritée d'`Object.prototype`
+ * pour `'constructor'`, qu'un `??` ne rattraperait pas (même piège que
+ * `resoudre-lecon.ts`).
+ */
+const NIVEAUX_LISIBLES: Record<(typeof NIVEAUX)[number], string> = {
+  maternelle: 'Maternelle',
+  primaire: 'Primaire',
+  secondaire: 'Secondaire',
+  cegep: 'Cégep',
+  universite: 'Université',
+};
+
+/**
+ * Le niveau d'une leçon, en français — L'UNIQUE traduction du dépôt.
+ *
+ * Elle vit ICI, à côté de `NIVEAUX`, parce que DEUX pages l'affichent : la page de
+ * leçon et le sommaire du cours. Deux copies ont divergé une fois (L-016) — celle du
+ * sommaire était indexée sur `debutant`/`intermediaire`/`avance`, des clefs qui
+ * n'ont jamais existé dans le contrat, donc le repli était pris sur 100 % des lignes
+ * réelles et la page affichait « cegep ». Une seule définition, deux importateurs.
+ *
+ * La recherche passe par `NIVEAUX` (liste nominative) plutôt que par une indexation
+ * du dictionnaire : voir le commentaire de `NIVEAUX_LISIBLES`.
+ *
+ * Le repli sur la valeur brute reste : `lireManifeste` et `lireLeconCompilee`
+ * refusent déjà un niveau hors liste, donc ce cas est mort — mais un composant
+ * d'affichage ne lève pas.
+ */
+export function niveauLisible(niveau: string): string {
+  const connu = NIVEAUX.find((candidat) => candidat === niveau);
+  return connu === undefined ? niveau : NIVEAUX_LISIBLES[connu];
+}
+
+/**
  * Les `id` que la PAGE de leçon émet elle-même (`lecon.ts`). Une section ancrée
  * `titre-sommaire` produirait DEUX éléments de même `id` dans le document, donc un
  * `aria-labelledby` ambigu — un lecteur d'écran nommerait le repère avec le mauvais
@@ -229,6 +271,35 @@ function estTableauDeChaines(valeur: unknown): boolean {
 }
 
 /**
+ * Le chemin de lecture PROPRE à `section` — le seul champ OPTIONNEL du frontmatter
+ * (E2-ST6, décision D-2).
+ *
+ * POURQUOI IL NE PEUT PAS ENTRER DANS `FRONTMATTER_CHAINES` NI DANS LA BOUCLE DU
+ * MANIFESTE. Ces deux listes disent « obligatoire ET chaîne non vide » ; y ajouter
+ * `section` ferait échouer toute leçon d'un sujet non groupé, c'est-à-dire le cas
+ * NORMAL. Il lui faut donc sa propre règle, et elle a deux moitiés :
+ *   · ABSENT est légal — le sommaire rend alors une liste à plat ;
+ *   · PRÉSENT oblige à une chaîne non vide. `null`, `0`, `''` ou `'   '` sont
+ *     REFUSÉS et non traités comme « absent » : un champ posé à une valeur vide est
+ *     une régression du pipeline, pas une leçon sans section, et le confondre avec
+ *     l'absence rendrait un groupe au titre invisible dans la carte de parcours.
+ * Le TOUT-OU-RIEN par sujet, lui, n'est pas vérifié ici : il porte sur une
+ * collection, et c'est `valider.mjs` (`exigerSectionsToutOuRien`) qui le tient, au
+ * build, là où l'auteur voit encore ses fichiers.
+ *
+ * @param porteur l'objet à lire (une entrée de manifeste, ou un `frontmatter`)
+ * @param ou le préfixe du message d'échec, déjà écrit par l'appelant
+ * @param manques collecteur, muté sur place
+ */
+function verifierSectionOptionnelle(porteur: Objet, ou: string, manques: string[]): void {
+  const section = porteur['section'];
+  if (section === undefined) return;
+  if (!estChaineNonVide(section)) {
+    manques.push(`« ${ou} » : chaîne non vide attendue quand le champ est présent`);
+  }
+}
+
+/**
  * Interrompt en DISANT quoi et où. Un message qui se contente de « contenu
  * invalide » oblige le lecteur à refaire l'enquête que ce fichier vient de faire —
  * c'est la même exigence que les messages d'échec du pipeline (`build.mjs`).
@@ -285,6 +356,7 @@ export function lireManifeste(
     if (!NIVEAUX.some((connu) => connu === niveau)) {
       manques.push(`« niveau » : attendu ${NIVEAUX.join(' | ')}`);
     }
+    verifierSectionOptionnelle(brut, 'section', manques);
     if (manques.length > 0) refuser(`${provenance} (entrée n°${rang + 1})`, manques);
 
     entrees.push(brut as unknown as EntreeManifesteRoutes);
@@ -320,6 +392,48 @@ export const MANIFESTE_LECONS = new InjectionToken<readonly EntreeManifesteRoute
   'manifeste des leçons compilées',
   { providedIn: 'root', factory: () => manifesteLecons },
 );
+
+/**
+ * Les leçons VISIBLES DU PUBLIC — l'unique définition de « publiée » du dépôt.
+ *
+ * POURQUOI CE FILTRE N'EXISTE QU'ICI (décision D-1 du plan d'E2-ST6, 2026-08-19).
+ * QUATRE consommateurs applicatifs ont besoin de la même réponse, et ils n'ont pas
+ * le droit de diverger :
+ *   · le sommaire du cours    — un brouillon ne se liste pas ;
+ *   · la navigation prev/next — un brouillon ne s'atteint pas de proche en proche ;
+ *   · `parametresDePrerender` — sans lui, un brouillon resterait PRERENDU et
+ *     INDEXABLE, et la réserve (3) d'E2-ST2 ne serait fermée qu'en façade ;
+ *   · `resoudreLecon`         — sans lui, le routeur CLIENT rend la leçon entière sur
+ *     une URL non prerendue, sous le document 404 servi par l'hébergeur.
+ * Quatre recopies du même prédicat seraient un L-016 en puissance : la personne qui
+ * ajoutera un statut en oublierait une, et le trou serait silencieux.
+ *
+ * 🔴 ET UN CINQUIÈME POINT DE DÉCISION VIT HORS DE CE FICHIER — c'est lui qui compte.
+ * `tools/content-pipeline/generer-manifeste.mjs` (`separerPubliees`) décide si une
+ * leçon est ÉCRITE dans `src/content-generated/`. Aucun filtre applicatif ne peut le
+ * remplacer : « ne pas prerendre » n'est pas « ne pas publier », et jusqu'au
+ * 2026-08-19 le `lecons/<slug>.json` d'un brouillon devenait un chunk servi en 200,
+ * son texte téléchargeable et son titre présent dans le bundle initial (S-006). Les
+ * deux prédicats ne peuvent pas s'importer l'un l'autre — programmes distincts — et
+ * c'est `src/garde-fou-lecons-non-publiees.spec.ts` qui interdit qu'ils divergent.
+ *
+ * ⚠️ LA PREMIÈRE VERSION DE CE COMMENTAIRE ANNONÇAIT « TROIS CONSOMMATEURS », et il
+ * y en avait cinq : deux ne l'appelaient pas. C'est ainsi que le trou a survécu à
+ * l'écriture du lot — quand une promesse emploie « le site », « tout » ou « aucun »,
+ * le balayage doit couvrir exactement ce périmètre (S-010).
+ *
+ * `verifiee` N'EST PAS publiée. Ce statut existe pour la relecture éditoriale ; le
+ * seul mot qui met une leçon en ligne est `publiee`, et il se lit tel quel.
+ *
+ * Pure et paramétrée : elle reçoit le manifeste plutôt que de lire `manifesteLecons`,
+ * sinon elle serait intestable tant que `content/` est vide — même raison que le
+ * jeton `MANIFESTE_LECONS` ci-dessus (L-005).
+ */
+export function leconsPubliees(
+  entrees: readonly EntreeManifesteRoutes[],
+): readonly EntreeManifesteRoutes[] {
+  return entrees.filter((entree) => entree.statut === 'publiee');
+}
 
 // -----------------------------------------------------------------------------
 // Une leçon compilée
@@ -375,6 +489,7 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
     if (!NIVEAUX.some((connu) => connu === niveau)) {
       manques.push(`« frontmatter.niveau » : attendu ${NIVEAUX.join(' | ')}`);
     }
+    verifierSectionOptionnelle(frontmatter, 'frontmatter.section', manques);
   }
 
   // Hissé hors du bloc : l'espace de noms des `id` du document se compose ICI, et le quiz

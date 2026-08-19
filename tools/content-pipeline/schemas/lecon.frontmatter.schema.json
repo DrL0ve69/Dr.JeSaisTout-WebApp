@@ -34,6 +34,13 @@
       "$ref": "#/definitions/kebab",
       "description": "Cours auquel la leçon appartient (dossier sous content/cours/)."
     },
+    "section": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 60,
+      "pattern": "^\\S(?:[^\\n]*\\S)?$",
+      "description": "OPTIONNEL — le seul champ du frontmatter qui le soit. Titre du groupe de modules affiché par le sommaire du cours (« Fondamentaux », « Attaques classiques »…) ; c'est un LIBELLÉ, rendu tel quel, pas un identifiant. Aucune contrainte de contiguïté : deux leçons d'une même section n'ont pas à se suivre dans l'ordre. La règle qui l'accompagne ne peut PAS s'exprimer ici, parce qu'elle porte sur un sujet entier et non sur un fichier — « tout-ou-rien par sujet » vit dans valider.mjs (validerRacine)."
+    },
     "ordre": {
       "type": "integer",
       "minimum": 1,

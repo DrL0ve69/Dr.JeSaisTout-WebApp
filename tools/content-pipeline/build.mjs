@@ -35,8 +35,17 @@
  * n'est à rendre. On lit donc les sources, on cherche un bloc ` ```mermaid `, et on ne construit le
  * rendeur que s'il y en a au moins un.
  *
+ * ─── 🔴 `--inclure-brouillons` — LE SEUL MOYEN DE PUBLIER UNE LEÇON NON PUBLIÉE ────────────────
+ * Sans ce drapeau, une leçon dont le `statut` n'est pas `publiee` est COMPILÉE (elle doit l'être :
+ * c'est ainsi qu'on sait qu'elle est valide) mais n'est écrite NULLE PART dans `src/content-generated/`.
+ * Raison mesurée le 2026-08-19 : un `lecons/<slug>.json` écrit devient un chunk esbuild, servi en
+ * 200 par l'hébergeur et rendu par le routeur client sur son URL non prerendue — une leçon non
+ * relue, publique. Voir l'en-tête de `generer-manifeste.mjs`. Le drapeau existe pour `npm start`
+ * et la relecture éditoriale ; un artéfact bâti avec lui ne se déploie pas.
+ *
  * Usage :
  *   node tools/content-pipeline/build.mjs [--racine <dossier>] [--sortie <dossier>] [--css <fichier>]
+ *                                         [--inclure-brouillons]
  */
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -220,7 +229,7 @@ async function etapeCompiler(racineAbsolue) {
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {{ racine: string, racineExplicite: boolean, sortie: string, css: string }}
+ * @returns {{ racine: string, racineExplicite: boolean, sortie: string, css: string, inclureBrouillons: boolean }}
  */
 function lireArguments() {
   const args = process.argv.slice(2);
@@ -228,13 +237,20 @@ function lireArguments() {
   let racineExplicite = false;
   let sortie = SORTIE_PAR_DEFAUT;
   let css = CSS_PAR_DEFAUT;
+  let inclureBrouillons = false;
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
+    // Le SEUL drapeau booléen : il n'attend pas de valeur, et il se traite avant le contrôle
+    // ci-dessous, qui exige un chemin derrière chaque option.
+    if (arg === '--inclure-brouillons') {
+      inclureBrouillons = true;
+      continue;
+    }
     if (arg !== '--racine' && arg !== '--sortie' && arg !== '--css') {
       echec(`option inconnue : « ${String(arg)} »`, [
         'usage : node tools/content-pipeline/build.mjs [--racine <dossier>] [--sortie <dossier>]',
-        '                                             [--css <fichier>]',
+        '                                             [--css <fichier>] [--inclure-brouillons]',
       ]);
     }
     const valeur = args[i + 1];
@@ -248,11 +264,11 @@ function lireArguments() {
     else css = valeur;
     i += 1;
   }
-  return { racine, racineExplicite, sortie, css };
+  return { racine, racineExplicite, sortie, css, inclureBrouillons };
 }
 
 async function principal() {
-  const { racine, racineExplicite, sortie, css } = lireArguments();
+  const { racine, racineExplicite, sortie, css, inclureBrouillons } = lireArguments();
 
   const racineAbsolue = resolve(RACINE_DEPOT, racine);
   const sortieAbsolue = resolve(RACINE_DEPOT, sortie);
@@ -292,11 +308,27 @@ async function principal() {
   // ÉCRITURE INCONDITIONNELLE — c'est le cœur du lot. Voir l'en-tête : zéro leçon écrit quand même
   // la feuille, le manifeste et la carte, sinon `src/styles.scss` perd sa cible sur un clone frais.
   ecrireAtomique(cssAbsolu, feuille);
-  const { entrees } = ecrireContenuGenere(sortieAbsolue, lecons);
+  const { entrees, ecartees, incluses } = ecrireContenuGenere(sortieAbsolue, lecons, {
+    inclureBrouillons,
+  });
   etape(
     `4/5 sorties — ${afficher(cssAbsolu)} · ${entrees.length} entrée(s) de manifeste · ` +
       `carte de ${entrees.length} import(s) paresseux`,
   );
+  // LE FILTRE S'ANNONCE TOUJOURS, MÊME À ZÉRO (L-005) : un gate qui n'a rien retiré doit se voir
+  // dans le journal, sinon « aucun brouillon » et « filtre débranché » s'écrivent pareil.
+  etape(
+    `4/5 publication — ${ecartees.length} leçon(s) non publiée(s) écartée(s)` +
+      (ecartees.length > 0 ? ` : ${ecartees.join(', ')}` : ''),
+  );
+  if (incluses.length > 0) {
+    // Bruyant à dessein : cet artéfact porte des leçons que personne n'a décidé de publier.
+    console.warn(
+      `\n⚠️ content:build : --inclure-brouillons — ${incluses.length} leçon(s) NON PUBLIÉE(S) ` +
+        `écrite(s) dans l'artéfact : ${incluses.join(', ')}.\n` +
+        "   Cet artéfact est destiné à `npm start` et à la relecture éditoriale — il ne se déploie pas.\n",
+    );
+  }
 
   const { echecs } = verifierPoids(join(sortieAbsolue, 'lecons'));
   if (echecs > 0) {

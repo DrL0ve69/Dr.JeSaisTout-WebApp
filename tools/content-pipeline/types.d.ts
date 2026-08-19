@@ -448,6 +448,13 @@ interface LeconCompilee {
     titre: string;
     slug: string;
     sujet: string;
+    /**
+     * OPTIONNEL — libellé du groupe de modules affiché par le sommaire du cours.
+     * Le contrat est « tout-ou-rien PAR SUJET » (`valider.mjs`) : absent partout, ou
+     * présent sur toutes les leçons du sujet. Un groupement partiel laisserait des
+     * modules flotter hors de toute section — un défaut d'affichage silencieux.
+     */
+    section?: string;
     ordre: number;
     niveau: string;
     dureeEstimee: number;
@@ -471,6 +478,8 @@ interface LeconCompilee {
 interface EntreeManifesteRoutes {
   sujet: string;
   slug: string;
+  /** Voir `LeconCompilee['frontmatter'].section` — OPTIONNEL, tout-ou-rien par sujet. */
+  section?: string;
   ordre: number;
   titre: string;
   dureeEstimee: number;

@@ -2,6 +2,7 @@
 titre: 'Leçon-témoin grasse — tout le contrat du pipeline dans un fichier'
 slug: lecon-temoin
 sujet: securite-web
+section: Fondamentaux           # OPTIONNEL — tout-ou-rien par sujet : la leçon 02 en porte une aussi
 ordre: 1
 niveau: cegep
 duree-estimee: 12
@@ -13,8 +14,14 @@ prerequis: []
 fiches-sources:
   - web/securite/fondamentaux-securite-web.md
 cree: 2026-08-16
-maj: 2026-08-16
-statut: brouillon
+maj: 2026-08-19
+# 🔴 « publiee » DEPUIS E2-ST6 (lot B), et ce n'est pas cosmétique. La fixture porte désormais
+# DEUX leçons, dont la 02 est en « brouillon » : c'est ce contraste qui donne au masquage des
+# brouillons un cas à exercer (D-1). Si les deux étaient en brouillon, le sommaire de la fixture
+# listerait ZÉRO module et le prerender filtré n'écrirait AUCUNE page de leçon — donc toute la
+# suite e2e qui vise /cours/securite-web/lecon-temoin/ tomberait. Cette leçon DOIT rester publiée.
+# Aucun marqueur « à-vérifier: » dans ce fichier : le statut « publiee » les interdit.
+statut: publiee
 ---
 
 # Leçon-témoin grasse — tout le contrat du pipeline dans un fichier

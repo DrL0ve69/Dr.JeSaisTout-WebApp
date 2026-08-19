@@ -1,0 +1,82 @@
+{
+  "lecon": "avec-section",
+  "titre": "Quiz — leçon témoin",
+  "melanger": false,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Question témoin numéro 1 — que fait le validateur devant un champ inconnu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il ignore le champ et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le champ."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les schémas posent additionalProperties: false : un champ inconnu est une faute, pas une extension. Les réponses a et c décrivent des politiques permissives qui laisseraient passer une faute de frappe jusqu'en production.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Question témoin numéro 2 — que fait le validateur devant un champ inconnu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il ignore le champ et poursuit."
+        },
+        {
+          "id": "b",
+          "texte": "Il fait échouer la construction en nommant le champ."
+        },
+        {
+          "id": "c",
+          "texte": "Il écrit un avertissement dans le journal."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les schémas posent additionalProperties: false : un champ inconnu est une faute, pas une extension. Les réponses a et c décrivent des politiques permissives qui laisseraient passer une faute de frappe jusqu'en production.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "trouver-la-faille",
+      "consigne": "Repérer la ligne qui laisse une entrée du client se faire interpréter comme du balisage.",
+      "langage": "php",
+      "code": "$slug = $_GET['slug'];\necho \"<p>Leçon demandée : $slug</p>\";\n// entrées d'attaque typiques : <script>alert('XSS')</script>, <img src=x onerror=alert(1)>",
+      "ligneFautive": 2,
+      "faille": "XSS réfléchi par interpolation dans du HTML",
+      "explication": "La ligne 2 recopie la valeur du client au milieu d'un fragment HTML : le navigateur ne distingue pas la donnée du balisage qui l'entoure, donc une entrée qui contient des chevrons devient un élément à part entière. L'échappement à la SORTIE, dans le contexte HTML, est ce qui referme la faille — pas un filtrage des mots « script » à l'entrée, qu'une casse mixte ou un attribut d'événement contourne.",
+      "correction": "echo \"<p>Leçon demandée : \" . htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') . \"</p>\";",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associer chaque sortie du pipeline au rôle qu'elle joue pour l'application.",
+      "paires": [
+        { "gauche": "manifeste-routes.json", "droite": "la liste des routes à prerendre" },
+        { "gauche": "carte-lecons.ts", "droite": "le chargement paresseux d'une leçon" }
+      ],
+      "explication": "Chaque sortie a un consommateur distinct : le manifeste alimente le prerender et l'index du cours, la carte alimente la page de leçon. Les confondre revient à charger tout le contenu pour afficher un index.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Une leçon au statut « publiee » peut encore porter un marqueur « à-vérifier: ».",
+      "bonneReponse": false,
+      "justification": "Le marqueur signale une affirmation dont la théorie n'a pas été contre-vérifiée. Le laisser dans une leçon publiée reviendrait à publier un doute non tranché : le validateur le refuse.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

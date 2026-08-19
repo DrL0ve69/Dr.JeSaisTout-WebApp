@@ -21,6 +21,7 @@
  *   7. conteneurs `:::`             — liste FERMÉE
  *   8. `quiz.json`                  — obligatoire ; schéma + cohérences inter-champs
  *   9. `simulation.json`            — optionnel ; schéma + cohérences inter-champs
+ *  10. `section` tout-ou-rien       — à l'échelle du SUJET, après le passage de toutes les leçons
  *
  * POURQUOI DES RÈGLES « HORS SCHÉMA ».
  * JSON Schema décrit la forme d'UN document ; il ne sait pas comparer deux branches du même
@@ -1141,7 +1142,7 @@ function validerSimulationDeLecon(dossier, slug, anomalies) {
  * Valide UNE leçon (un dossier contenant `lecon.md`).
  *
  * @param {string} dossier chemin absolu du dossier de la leçon
- * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown }}
+ * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown }}
  */
 function validerLecon(dossier) {
   /** @type {Anomalie[]} */
@@ -1164,7 +1165,7 @@ function validerLecon(dossier) {
   const separation = MOTIF_FRONTMATTER.exec(texte);
   if (!separation) {
     signalerLecon('frontmatter absent ou non fermé — le fichier doit ouvrir par une ligne « --- »');
-    return { anomalies, slug: null, ordre: null, sujet: null };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null };
   }
 
   /** @type {Record<string, unknown>} */
@@ -1173,13 +1174,13 @@ function validerLecon(dossier) {
     frontmatter = analyserFrontmatter(separation[1] ?? '');
   } catch (e) {
     signalerLecon(e instanceof ErreurContenu ? e.message : String(e));
-    return { anomalies, slug: null, ordre: null, sujet: null };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null };
   }
 
   // --- 2. Schéma du frontmatter -------------------------------------------
   if (!validerFrontmatter(frontmatter)) {
     signalerLecon(`frontmatter : ${premiereErreurAjv(validerFrontmatter.errors)}`);
-    return { anomalies, slug: null, ordre: null, sujet: null };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null };
   }
 
   const slug = String(frontmatter['slug']);
@@ -1199,7 +1200,13 @@ function validerLecon(dossier) {
   // --- 9. simulation.json (optionnel) --------------------------------------
   validerSimulationDeLecon(dossier, slug, anomalies);
 
-  return { anomalies, slug, ordre: frontmatter['ordre'], sujet: frontmatter['sujet'] };
+  return {
+    anomalies,
+    slug,
+    ordre: frontmatter['ordre'],
+    sujet: frontmatter['sujet'],
+    section: frontmatter['section'],
+  };
 }
 
 /**
@@ -1270,6 +1277,71 @@ function exigerUniciteDansLaRacine(dejaVus, valeur, rel, decrire, anomalies) {
 }
 
 /**
+ * Exige le TOUT-OU-RIEN de `section` à l'échelle d'un SUJET (E2-ST6, décision D-2).
+ *
+ * `section` est optionnelle et sans contrainte de contiguïté : un sujet peut n'en porter aucune
+ * (le sommaire rend alors une liste ordonnée à plat), ou en porter partout (le sommaire groupe).
+ * Ce qui est refusé, c'est le MÉLANGE. Un groupement partiel ne casse rien au build : il produit
+ * une carte de parcours où certains modules flottent hors de toute section — un défaut
+ * d'AFFICHAGE silencieux, du genre que personne ne remarque avant de le voir en ligne. On le
+ * transforme donc en échec de construction, là où l'auteur a encore son fichier sous les yeux.
+ *
+ * POURQUOI LA RÈGLE VIT ICI ET NULLE PART AILLEURS. Ni le schéma JSON (qui ne voit qu'un fichier)
+ * ni `compilerLecon` (qui ne voit qu'une leçon) ne peuvent l'exprimer : elle porte sur la
+ * COLLECTION. `validerRacine` est la seule fonction du pipeline qui les recense toutes.
+ *
+ * POURQUOI LES FAUTIVES SONT CELLES QUI N'EN ONT PAS, ET POURQUOI ON NOMME AUSSI L'AUTRE CAMP.
+ * Dès qu'une leçon porte une section, l'auteur a décidé de grouper ce sujet ; les leçons sans
+ * section sont les oubliées. Le message cite le premier porteur — même raison que
+ * `exigerUniciteDansLaRacine` : on ne corrige pas un mélange en regardant seulement le fichier
+ * qui rougit, il faut voir de quelle décision il s'écarte.
+ *
+ * @param {ReadonlyMap<string, { avec: { rel: string, slug: string }[], sans: { rel: string, slug: string }[] }>} parSujet
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ */
+function exigerSectionsToutOuRien(parSujet, anomalies) {
+  for (const [sujet, groupes] of parSujet) {
+    const premierPorteur = groupes.avec[0];
+    if (premierPorteur === undefined || groupes.sans.length === 0) continue;
+    for (const orpheline of groupes.sans) {
+      anomalies.push({
+        fichier: `${orpheline.rel}/lecon.md`,
+        cause:
+          `la leçon « ${orpheline.slug} » n'a pas de « section » alors que « ${premierPorteur.slug} » ` +
+          `(${premierPorteur.rel}/lecon.md) en porte une — dans le sujet « ${sujet} », ` +
+          'le champ « section » est tout-ou-rien : soit toutes les leçons en portent une, soit aucune',
+      });
+    }
+  }
+}
+
+/**
+ * Range UNE leçon dans le relevé « porte une section / n'en porte pas » de son sujet.
+ *
+ * Extrait de `validerRacine` pour la garder sous le seuil de complexité cognitive : cette
+ * répartition est un geste à part, et la sortir la rend lisible sans changer ce qu'elle fait.
+ *
+ * ⚠️ SEULES LES LEÇONS AU FRONTMATTER VALIDE ENTRENT. `validerLecon` rend `slug: null` dès que le
+ * frontmatter est illisible ou refusé par le schéma ; y faire entrer une telle leçon ferait
+ * rapporter un mélange de sections sur un fichier dont la vraie faute est ailleurs, c'est-à-dire
+ * une SECONDE cause pour une seule anomalie — ce que le mode `--fixtures` interdit par contrat.
+ *
+ * @param {Map<string, { avec: { rel: string, slug: string }[], sans: { rel: string, slug: string }[] }>} parSujet
+ * @param {{ slug: string | null, sujet: unknown, section: unknown }} resultat sortie de `validerLecon`
+ * @param {string} rel chemin relatif du dossier de la leçon
+ */
+function releverSection(parSujet, resultat, rel) {
+  if (typeof resultat.sujet !== 'string' || resultat.slug === null) return;
+  let groupes = parSujet.get(resultat.sujet);
+  if (groupes === undefined) {
+    groupes = { avec: [], sans: [] };
+    parSujet.set(resultat.sujet, groupes);
+  }
+  const ou = resultat.section === undefined ? groupes.sans : groupes.avec;
+  ou.push({ rel, slug: resultat.slug });
+}
+
+/**
  * Valide toutes les leçons d'une racine.
  *
  * @param {string} racine chemin absolu
@@ -1286,6 +1358,14 @@ function validerRacine(racine) {
   const ordresVus = new Map();
   /** @type {Set<string>} */
   const sujets = new Set();
+  /**
+   * Les leçons de chaque sujet, réparties selon qu'elles portent une `section` ou non.
+   * Indexée par SUJET DÉCLARÉ, et non par racine : c'est le sujet qui définit le cours, donc
+   * la carte de parcours à grouper. (Une racine ne porte qu'un sujet — voir le contrôle
+   * `sujets.size > 1` plus bas — mais l'indexation reste celle du contrat, pas celle du disque.)
+   * @type {Map<string, { avec: { rel: string, slug: string }[], sans: { rel: string, slug: string }[] }>}
+   */
+  const sectionsParSujet = new Map();
 
   for (const dossier of dossiers) {
     const rel = relative(RACINE_DEPOT, dossier).replaceAll('\\', '/');
@@ -1314,7 +1394,10 @@ function validerRacine(racine) {
       );
     }
     if (typeof resultat.sujet === 'string') sujets.add(resultat.sujet);
+    releverSection(sectionsParSujet, resultat, rel);
   }
+
+  exigerSectionsToutOuRien(sectionsParSujet, anomalies);
 
   // Le `sujet` n'est PAS déduit du nom de la racine : celle-ci est paramétrable (`--racine`) et
   // vaut, pour les fixtures, un nom de cas de test. Ce qu'on peut exiger sans mentir, c'est que

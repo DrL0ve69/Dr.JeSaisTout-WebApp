@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // POURQUOI CE TEST EXISTE — et pourquoi il est arrivé en retard.
 // `tools/content-pipeline/valider.mjs` porte un mode `--fixtures` qui est le
-// contrôle positif du garde-fou (L-019) : quinze dossiers, une faute chacun, tous
+// contrôle positif du garde-fou (L-019) : seize dossiers, une faute chacun, tous
 // attendus REFUSÉS. Ce mode était exact, exécutable à la main… et lancé par
 // PERSONNE — ni par un test, ni par un script npm, ni par un workflow. Or
 // `content/cours/securite-web` n'existe pas encore : l'étape de validation de
@@ -15,13 +15,13 @@
 // runner n'exécute est une intention, pas un gate. Ce fichier est le runner.
 //
 // LES TROIS CHOSES QU'IL PROUVE, et pourquoi aucune ne suffit seule :
-//   1. Les quinze cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
+//   1. Les seize cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
 //      un validateur qui refuserait TOUT.
 //   2. La leçon-témoin VALIDE passe, code 0. C'est l'autre moitié de la pince :
 //      ensemble, les deux prouvent que le garde-fou discrimine.
 //   3. Chaque refus porte la BONNE cause, cas par cas. Sans ce troisième point,
-//      quinze refus pour une seule et même raison (un chemin introuvable, disons)
-//      seraient indistinguables de quinze refus corrects.
+//      seize refus pour une seule et même raison (un chemin introuvable, disons)
+//      seraient indistinguables de seize refus corrects.
 //
 // LES CAUSES ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées de l'outil
 // qu'elles vérifient (L-012). Un test qui importe la constante dont il contrôle
@@ -41,7 +41,15 @@ const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const DOSSIER_INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
 const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
 
-/** Ajv compile ses schémas et quinze racines : lent une fois, pas quinze fois. */
+/**
+ * La racine-témoin GRASSE : DEUX leçons, toutes deux porteuses d'une `section`. C'est la
+ * moitié « sections partout » du tout-ou-rien de la décision D-2 — `FIXTURE_VALIDE`, qui n'en
+ * porte aucune, en est la moitié « sections nulle part ». Sans les deux, « refuse le mélange »
+ * serait indistinguable de « refuse `section` » ou de « ignore `section` ».
+ */
+const FIXTURE_SECTIONS_PARTOUT = 'tools/content-pipeline/__fixtures__/temoin/cours/securite-web';
+
+/** Ajv compile ses schémas et seize racines : lent une fois, pas seize fois. */
 const DELAI = 60_000;
 
 /**
@@ -113,6 +121,20 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     dossier: 'quiz-ligne-fautive-hors-extrait',
     cause: /« q3 » : « ligneFautive » vaut 4 alors que « code » ne compte que 3 ligne\(s\)/,
   },
+  // Seizième cas (E2-ST6, lot B) : la PREMIÈRE règle de COLLECTION du validateur — et le premier
+  // dossier de fixture qui porte DEUX leçons, parce que sa faute n'est dans aucune des deux prise
+  // isolément. `section` est optionnelle (décision D-2) ; ce qui est refusé, c'est le MÉLANGE à
+  // l'intérieur d'un sujet. Sans ce cas, un groupement partiel compilerait, se prerendrait et se
+  // publierait : la carte de parcours laisserait simplement flotter quelques modules hors de toute
+  // section — un défaut d'AFFICHAGE, qu'aucun gate ne peut voir et que seul un œil remarque.
+  // L'assertion porte sur les DEUX slugs, pas sur le seul mot « section » : un message qui dirait
+  // « incohérence de section » sans nommer les fichiers renverrait l'auteur à une chasse manuelle
+  // dans un cours de 27 modules — et il resterait vert si le validateur nommait la mauvaise leçon.
+  {
+    dossier: 'frontmatter-section-partielle-dans-le-sujet',
+    cause:
+      /la leçon « sans-section » n'a pas de « section » alors que « avec-section » .*en porte une/,
+  },
 ];
 
 /**
@@ -145,13 +167,13 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les QUINZE cas, et aucun ne manque à l’appel',
+    'traite les SEIZE cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('15 cas attendus INVALIDES');
-      expect(sortie).toContain('15/15 cas refusés avec une cause nommée');
+      expect(sortie).toContain('16 cas attendus INVALIDES');
+      expect(sortie).toContain('16/16 cas refusés avec une cause nommée');
     },
     DELAI,
   );
@@ -169,7 +191,7 @@ describe('le contrôle positif du validateur de contenu', () => {
     );
   }
 
-  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un quinzième cas de fixture sans
+  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un seizième cas de fixture sans
   // écrire son assertion laisserait ce spec vert — et le nouveau cas ne serait
   // vérifié par personne, ce qui est exactement la faute que ce fichier répare.
   it('connaît TOUS les dossiers de fixtures — un cas ajouté sans assertion fait rougir', () => {
@@ -189,6 +211,22 @@ describe('l’autre moitié de la pince — le validateur ne refuse pas TOUT', (
       const { sortie, code } = lancer(['--racine', FIXTURE_VALIDE]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/1 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+
+  // ⚠️ CE TEST EST LA MOITIÉ QUI MANQUAIT AU CAS INVALIDE, et il en faut DEUX moitiés, pas une.
+  // Le seizième cas de fixture prouve que le MÉLANGE est refusé. Seul, il resterait vert sur un
+  // validateur qui refuserait `section` en toutes circonstances. C'est ce test-ci — deux leçons
+  // qui en portent une chacune, code 0 — qui rend ce contournement impossible. La moitié
+  // symétrique (« aucune section nulle part ») est le test ci-dessus : `temoin-minimal` n'en
+  // porte pas, et sort en code 0 lui aussi. Les trois ensemble décrivent le tout-ou-rien entier.
+  it(
+    'accepte DEUX leçons qui portent chacune une « section » — le tout-ou-rien satisfait',
+    () => {
+      const { sortie, code } = lancer(['--racine', FIXTURE_SECTIONS_PARTOUT]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/2 leçon\(s\) valides/);
     },
     DELAI,
   );
