@@ -544,6 +544,34 @@ prémisse factuelle est infirmée par la mesure ci-dessus — sa consigne pratiq
 bel et bien refusé, tandis qu'une écriture CSSOM passe, ce qui rend le geste imprévisible selon la
 forme employée)*, `docs/agile/backlog-phase-1.md` §E2-ST5 lot c2.
 
+## S-018 · Scinder/renommer une étape de CI CRÉE une affirmation de sécurité — sans contrôle sur le CORPS de ce qui s'exécute, le nom est une intention, pas un garde-fou (A08 · CICD-SEC, croisement [[S-002]]/[[S-009]])
+
+**Symptôme.** `deploy.yml` portait une étape « Installer le navigateur »
+(`playwright install --with-deps chromium`) qui cachait **deux** risques distincts hors du sceau
+d'artéfact : un `apt-get` en root, et un binaire téléchargé d'un CDN hors du contrôle d'intégrité de
+`package-lock.json`. En la scindant en deux scripts npm nommés (`e2e:install:deps` /
+`e2e:install:navigateur`), la note de dette du workflow a été réécrite pour dire que le risque
+portait désormais « NOMMÉMENT » sur `e2e:install:deps` — **faux et plus fort que la réalité** : les
+deux moitiés restaient hors sceau, et le binaire CDN (implicitement écarté) est le **plus exposé**
+des deux (`apt` vérifie au moins des signatures GPG, le CDN n'a que HTTPS). Patron [[S-009]] : un
+texte promettait plus que ce qui était appliqué.
+**Le défaut structurel derrière.** Rien n'empêchait de remettre `--with-deps` dans le script
+`e2e:install:navigateur` — le nom de l'étape aurait continué à jurer que l'`apt-get` en root n'y est
+pas, en silence, et **tous les gates seraient restés verts** : les workflows appellent des scripts
+npm, aucun test ne regardait ce que ces scripts *font*. Patron [[S-002]] transposé de la CSP à la
+CI : une propriété de sécurité comparée à un nom d'étape plutôt qu'à une valeur revue.
+**Règle.** Dès qu'un découpage, un renommage ou une séparation d'étapes **crée une affirmation de
+sécurité** (« ceci ne fait que X », « le risque Y est isolé dans cette étape »), épingler cette
+affirmation par un contrôle exécutable qui inspecte le **corps** de ce qui s'exécute — jamais
+seulement son nom ou son appelant. Un test qui épingle le corps d'un script npm par motif
+(`/^playwright install-deps\b/`, et l'absence de `--with-deps` dans l'autre) rend la promesse vraie
+**par construction**, vérifiable par mutation, plutôt que crue sur parole. Et une justification
+écrite ne promet jamais plus que ce que le code applique — la relire au même diff que le garde-fou
+qu'elle décrit ([[S-009]]).
+**Réfs.** `.github/workflows/deploy.yml`, `src/pipeline-contenu-orchestration.spec.ts`,
+`package.json` (`e2e:install:deps`, `e2e:install:navigateur`, `e2e:install`),
+`.claude/rules/security.md` §1/§3, `docs/agile/backlog-phase-1.md` §E2-ST6 (revue du 2026-08-19).
+
 ## S-017 · Une clé venue du contenu (`JSON.parse`) qui indexe un objet PAR CROCHETS peut remonter `Object.prototype` — un motif kebab-case ne l'exclut pas (A03 · CWE-1321, troisième occurrence sur ce dépôt)
 
 **Symptôme.** Constaté en revue du lot a d'E2-ST5 : `acteur.id` est validé par le motif kebab-case

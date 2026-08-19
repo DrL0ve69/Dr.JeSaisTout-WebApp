@@ -143,6 +143,34 @@
   résolu. Plus rien d'ouvert sur E0 : **prochaine étape E1-ST1** (jetons SCSS), dont les critères ont
   été chiffrés le 2026-08-04 — lire `docs/revue-plan-kb-2026-08-04.md` avant de commencer.
 
+#### 🔧 Lot CI du 2026-08-19 — pendaison de l'installation du navigateur, corrigée
+
+- **Incident.** L'étape « Installer le navigateur » de `ci.yml` a pendu **53 min** puis **12+ min**,
+  contre **2 min 12 s** pour le run entier la veille. **Aucun des trois workflows** ne déclarait
+  `timeout-minutes` — un job pendu court jusqu'au **plafond GitHub de 6 h** sans jamais rougir.
+  Runs `32224090384` (blocage) et `32264319046` (déploiement rouge, mais c'est ce run qui a livré
+  la mesure de la cause).
+- **Cause, mesurée, pas supposée** : `azure.archive.ubuntu.com` servait à **~27 ko/s** ; les
+  bibliothèques de Chromium étaient **déjà présentes** sur l'image du runner ; les **21 Mo**
+  effectivement téléchargés par `--with-deps` étaient **neuf paquets de polices non latines**
+  (japonais, thaï, chinois, cyrillique) — inutiles à un site en français.
+- **Trois PR, toutes fusionnées, déploiement vert** : **#23** — bornes `timeout-minutes` sur les
+  4 jobs des 3 workflows, et scission de l'installation du navigateur en **deux scripts npm**
+  (l'un pour les dépendances système, l'autre pour le seul binaire Playwright) · **#22** — clôture
+  E2-ST5 + E3-ST0 · **#24** — retrait de l'`apt-get` en root de la CI.
+- **Ce que ça paie** : l'`apt-get` en root **disparaît de la CI** — c'est **une des deux dettes**
+  situées hors du sceau d'artéfact de `deploy.yml` (§E1-ST2/E2, dette S-003 et suivantes),
+  **réellement payée**. **L'autre reste entière** : le binaire CDN de `mmdc`/Playwright, hors
+  `package-lock.json`, protégé par HTTPS seul puis exécuté sans vérification d'empreinte — le job
+  propre du lot de dette pré-E3-ST1 garde sa raison d'être. Ne pas laisser croire cette dette-là
+  réglée.
+- **Contrepartie assumée** : un futur diagramme Mermaid à glyphes non latins (japonais, thaï,
+  chinois, cyrillique) sortirait en **tofu** (glyphe manquant) ; la parade est de réinstaller
+  **ces polices-là, nommément**, jamais de rétablir `--with-deps` en bloc.
+- **Leçons nées** : **L-048**, **L-049**, **S-018**, plus **L-005 réaffûtée** (nouvel axe : un run
+  vert ne referme pas une panne **intermittente** — il faut avoir vu l'échec se reproduire pour se
+  fier au vert qui suit).
+
 ---
 
 ## E1 · Design system & app shell
@@ -1994,7 +2022,8 @@ contrôle positif — dette **S-016 payée**), **d** (clôture documentaire, cet
   vide, aucune simulation n'est rendue en production.
 - **Chiffres de clôture, mesurés et vérifiés indépendamment le 2026-08-19** :
   - **G-lint** : *All files pass linting*.
-  - **G-test** : **576 → 657 tests / 30 → 32 fichiers**, 0 échec.
+  - **G-test** : **576 → 661 tests / 30 → 32 fichiers**, 0 échec (4 assertions neuves ajoutées le
+    même jour par le lot CI ci-dessous — pas une régression).
   - **G-e2e** : **48 passés / 0 sauté** sur l'artéfact de **fixture** · **12 passés / 36 sautés** sur
     l'artéfact de **production** (chaque saut imprime sa raison via `exigerLaPageDeLecon`).
   - **G-axe** : 4 fichiers, **344 vérifications, 0 violation**.
@@ -2029,6 +2058,121 @@ contrôle positif — dette **S-016 payée**), **d** (clôture documentaire, cet
   deux injectent — **aucune feature n'importe une autre feature**. C'est la seule règle de l'état de
   l'art frontend 2026 qui manquait encore au dépôt ; détail dans
   `docs/architecture/stack-et-architecture.md`.
+
+#### 📐 Plan arrêté — 2026-08-19 (v2, après passe `devils-advocate`)
+
+> Objectif d'origine (13 modules, un seul cours) **replanifié** — deux cours (§E7), un index de
+> cours, une progression indexée **par cours**. Les deux tableaux « on prend / on refuse »
+> ci-dessus **font toujours foi**. Ce qui suit est le plan d'exécution, **agent frais par lot** ; il
+> est le brief direct de la prochaine session — ne pas le résumer, ne pas le rouvrir.
+
+**Décisions du propriétaire, prises le 2026-08-19 — NE PAS LES ROUVRIR**
+
+- **D-1 · Brouillons MASQUÉS du sommaire.** Masquage en UN SEUL point : un sélecteur
+  `leconsPubliees(manifeste)` dans `contenu-compile.ts` (filtre `statut === 'publiee'`), consommé
+  par le sommaire, par la navigation prev/next ET par `parametresDePrerender`. Sans ce troisième
+  consommateur, un brouillon resterait prerendu et indexable : la réserve (3) d'E2-ST2 ne serait
+  fermée qu'en façade. Trois recopies du filtre seraient un L-016 ; il n'y en a qu'une. La fixture
+  témoin gagne UNE leçon `statut: brouillon` pour que la règle soit exercée (L-019).
+- **D-2 · `section` : champ frontmatter OPTIONNEL**, pas obligatoire, pas de contrainte de
+  contiguïté. Règle « tout-ou-rien par sujet » dans `valider.mjs` : si une leçon d'un sujet porte
+  une section, toutes celles de ce sujet doivent en porter une. Le sommaire groupe quand les
+  sections existent, rend une liste ordonnée à plat sinon.
+- **D-3 · AUCUNE route neuve.** Ni `/cours`, ni `/cours/php` : une page prerendue et indexable qui
+  promet un cours inexistant est refusée. La généricité du composant se prouve par un test unitaire
+  le montant avec deux `sujet` distincts, via le jeton `MANIFESTE_LECONS`.
+
+**Ce que la passe adversariale a changé au plan v1**
+
+1. **Progression v2 SANS migration — GARDÉ**, et le pivot est VÉRIFIÉ, pas supposé : `content/` ne
+   porte qu'un `README.md`, `manifeste-routes.json` vaut `[]`, `src/content-generated/` est
+   gitignoré, et les seuls écrivains de progression sont `quiz.ts` et la page de leçon, tous deux
+   sur une route dont le prerender est alimenté par le manifeste. Aucun visiteur réel ne peut
+   détenir un enregistrement v1.
+2. **Clef de stockage PLATE, pas imbriquée.** `Record<"sujet/slug", EtatLecon>`, motif de clef
+   kebab/kebab, `VERSION_PROGRESSION = 2`. Une fois les compteurs sortis du service (point 3), plus
+   personne n'énumère par cours : l'imbrication n'achèterait qu'une validation à deux niveaux et un
+   cas mort (`{"php": {}}`). L'API publique reste `(sujet, slug)` — la composition de la clef est un
+   détail privé, testé. Bonus : le `/` rend une entrée v1 (`"xss"`) inéligible au motif — double
+   filet avec le rejet d'enveloppe.
+3. **Les compteurs SORTENT du service.** `etat()[sujet]` compterait les entrées de leçons renommées
+   ou retirées : un `12/13` deviendrait `14/13` sur la page qui existe pour mesurer l'avancement.
+   Dénominateur ET numérateur viennent du MANIFESTE : `Sommaire` itère `leconsPubliees` filtrées par
+   sujet et interroge `etatDe(sujet, slug)` module par module. `ProgressionService` perd
+   `nombreLues`/`nombreMaitrisees`.
+4. **Comportement NEUF à budgéter, absent du v1** : `marquerLue` n'a AUCUN appelant aujourd'hui, et
+   `quiz.ts` ne connaît PAS son `sujet` (`QuizCompile` ne porte que `lecon`). Il faut donc un input
+   `sujet` sur `Quiz`, passé par `rendu-blocs`, plus un appel neuf côté `lecon`.
+5. **Hydratation : gabarit invariant + test d'invariance.** AUCUNE `@if` sur l'état de progression
+   (badge toujours présent, `[class]` + texte liés) et un test unitaire comparant la structure DOM
+   entre état vide et état peuplé — un invariant assertable, contrairement à un timing. La SOURCE
+   des badges reste gated post-hydratation (`computed` sur un signal privé basculé en
+   `afterNextRender`) : sans gate, le premier rendu client différerait du DOM prerendu (L-033).
+6. **Spec d'architecture GARDÉ** (un ESLint `no-restricted-imports` matche le spécificateur écrit,
+   pas le chemin résolu ; `eslint-plugin-boundaries` serait une dépendance neuve pour une règle
+   unique ; G-test est câblé dans les deux workflows). Amendements : `ts.preProcessFile()`
+   (`importedFiles`) + `path.resolve`, ~50 lignes, pas d'analyseur de graphe maison ; granularité au
+   RÉPERTOIRE de sous-feature ; liste blanche nominative sur les arêtes RÉELLES
+   (`lecon/rendu-blocs` vers `quiz`, `lecon/rendu-blocs` vers `simulation`, tout vers
+   `cours/contenu-compile`).
+7. **Cinq épinglages de hachages CSP, pas trois** — le v1 en oubliait deux, et ce sont ceux de la
+   production : `ci.yml`, `deploy.yml`, `src/workflows-github.spec.ts`,
+   `tools/deploiement/generer-config-swa.mjs` (`NOMBRE_HACHAGES_STYLE_ATTENDU`),
+   `src/config-swa-provenance-style.spec.ts`. Consigne : **MESURER, JAMAIS PRÉDIRE** — le v1
+   annonçait que les comptes bougeraient alors que `Sommaire` remplace `PageAVenir` (un bloc part,
+   un arrive) : le delta plausible est 0, mais 0 se constate.
+8. **`PageAVenir` MEURT** : `app.routes.ts` est son dernier point de montage. Après la bascule,
+   `page-a-venir.{ts,scss,spec.ts}` est du code mort et `app.routes.spec.ts` (`routesAVenir`)
+   ÉCHOUE. À supprimer dans le même diff — pas à « corriger ».
+
+**Lots (agent frais chacun, dimensionnés pour finir sous ~120k)**
+
+- **A1 — ProgressionService v2.** `core/progression/progression.ts` (clef composite,
+  `VERSION_PROGRESSION = 2`, API `(sujet, slug)`, retrait des `computed` de comptage, commentaire
+  d'hydratation amendé — il recommande aujourd'hui l'anti-patron `isPlatformBrowser`) ·
+  `progression.spec.ts` réécrit (+ enveloppe v1 ignorée ; clef sans séparateur rejetée ; clef
+  `constructor/xss`). ~650 l. de source. Vérif : `npm run lint`, `npm test`.
+- **A2 — Les écrivains.** `quiz.ts` (+input `sujet`, `enregistrerQuiz(sujet, …)`) ·
+  `rendu-blocs.ts` (passe `sujet`) · `lecon.ts` (appel neuf `marquerLue`) + les trois specs.
+  Vérif : `npm run lint`, `npm test`.
+- **B — Pipeline `section` + fixture brouillon.** `schemas/lecon.frontmatter.schema.json` (`section`
+  optionnel) · compilateur · `generer-manifeste.mjs` · `types.d.ts` · `valider.mjs` (tout-ou-rien
+  par sujet, échec nommant les leçons fautives) · `contenu-compile.ts` · fixture témoin **+1 leçon
+  `brouillon`** · specs pipeline · `docs/contenu/pipeline-contenu.md`. ⚠️ La fixture change → les
+  chiffres G-e2e/G-axe fixture peuvent bouger : les RELEVER, pas les prédire.
+  Vérif : `npm run content:build`, `npm run typecheck:tools`, `npm test`.
+- **C1 — Composant Sommaire (aucun gate d'artéfact).** `contenu-compile.ts` : sélecteur
+  `leconsPubliees` exporté + spec · `features/cours/sommaire/sommaire.{ts,html,scss,spec.ts}` :
+  filtre par `data.sujet`, groupes par `section` ou liste plate, badge toujours présent (`computed`
+  gated `afterNextRender`), `dureeEstimee` par module + total, état vide « modules en préparation »,
+  jetons sémantiques seulement (tout écart = défaut G7) · specs : généricité à deux `sujet`,
+  invariance structurelle vide/peuplé, brouillon absent, liste plate sans sections.
+  Vérif : `npm run lint`, `npm test`.
+- **C2 — Bascule de route + épinglages MESURÉS.** `app.routes.ts` (Sommaire sur
+  `cours/securite-web` ; suppression de `PageAVenir`) · `app.routes.spec.ts` · `navigation-lecon.ts`
+  (`parametresDePrerender` et prev/next passent par `leconsPubliees`) + specs · puis MESURE :
+  `npm run build` (production) et build fixture, `npm run config:swa`, relever les comptes réels,
+  écrire les CINQ épinglages. Vérif : `npm run build`, `npm run config:swa` (code 0), `npm test`,
+  `npm run a11y:axe`.
+- **D — Règle d'architecture exécutable.** `src/regles-architecture.spec.ts` (~50 l.).
+  Indépendant, exécutable après C2. Vérif : `npm test`.
+- **E — e2e + clôture.** `e2e/sommaire.spec.ts` : (a) artéfact production → état vide ;
+  (b) artéfact fixture → 1 module listé sur 2, slug brouillon sans page (vérifié AU DISQUE, pas par
+  404) ; (c) « quiz témoin réussi → sommaire allumé », gardé par `exigerLaPageDeLecon` ·
+  inscription du fichier dans `src/configuration-typescript.spec.ts` (L-034) · en local : tuer le
+  processus du port 4280 avant `npm run e2e` · clôture doc : backlog §E2-ST6 ✅, réserve (3)
+  d'E2-ST2 FERMÉE avec la preuve (b), `stack-et-architecture.md` §7, bloc de reprise `CLAUDE.md`.
+
+**Ordre : A1 → A2 → B → C1 → C2 → D ∥ E.**
+
+**Risques résiduels**
+
+- Le plus probable : un des CINQ épinglages CSP oublié ou prédit — « mesurer avant d'écrire » est
+  dans le brief de C2, nommément.
+- La fixture à 2 leçons déplace des chiffres attendus ailleurs (e2e fixture, axe).
+- Le filtrage `publiee` au prerender contredit le commentaire « rien à filtrer ici » d'
+  `app.routes.server.ts` : C2 réécrit ce commentaire — un commentaire en retard sur le code est la
+  moitié d'un L-016.
 
 ---
 
