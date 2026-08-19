@@ -412,6 +412,37 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
       attendu: 'au moins deux acteurs',
     },
     {
+      // L'AUTRE BORNE DU MÊME CHAMP (`maxItems: 6`). Le plancher était tenu, le plafond
+      // non : la lecture était donc PLUS PERMISSIVE que l'écriture d'un côté seulement,
+      // exactement l'asymétrie que le commentaire du plancher existe pour refuser.
+      nom: 'une simulation à SEPT acteurs',
+      muter: (l) => {
+        const simulation = l.simulation as unknown as Record<string, unknown>;
+        const acteurs = [...(simulation['acteurs'] as readonly unknown[])];
+        while (acteurs.length < 7) {
+          acteurs.push({
+            id: `figurant-${acteurs.length}`,
+            libelle: `Un acteur de trop, n°${acteurs.length}`,
+            type: 'serveur',
+          });
+        }
+        simulation['acteurs'] = acteurs;
+      },
+      attendu: 'au plus six acteurs',
+    },
+    {
+      // LE SEUIL DES ÉTAPES EST CINQ, celui du schéma (`minItems: 5`), et il l'est ici
+      // AUSSI. Il ne valait qu'un `length === 0` : une simulation à deux étapes, que le
+      // build REFUSE, traversait cette frontière — un artéfact venu d'ailleurs passait
+      // donc sans contrôle sur un champ que le schéma borne.
+      nom: 'une simulation réduite à QUATRE étapes',
+      muter: (l) => {
+        const simulation = l.simulation as unknown as Record<string, unknown>;
+        simulation['etapes'] = (simulation['etapes'] as readonly unknown[]).slice(0, 4);
+      },
+      attendu: 'de cinq à douze étapes attendues, 4 trouvée(s)',
+    },
+    {
       // 🔴 LE PIÈGE DU PROTOTYPE (S-014 et voisins). `constructor` passe le kebab-case, et
       // `panneaux` est un `Record<idActeur, …>` issu d'un `JSON.parse` : au lot b,
       // `panneaux['constructor']` sur un objet sans cette clef rendrait

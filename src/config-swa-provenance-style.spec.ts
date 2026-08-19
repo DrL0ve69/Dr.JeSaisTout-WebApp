@@ -307,7 +307,10 @@ describe('le garde-fou de provenance de `style-src`', () => {
 // =============================================================================
 
 describe('le compte de hachages de style, paramétré au point d’appel', () => {
-  const AUTRE_COMPTE = NOMBRE_HACHAGES_ATTENDU + 3; // l'écart réel mesuré : 9 → 12 avec la page de leçon
+  // L'écart réel mesuré est 9 → 13 depuis E2-ST5 lot b2 (la page de leçon ajoute `lecon`, le
+  // rendeur de blocs, `quiz` et `simulation`). Ce nombre-ci n'a PAS à le suivre : l'artéfact
+  // exercé ci-dessous est fabriqué, et ce qu'on mesure est le drapeau, pas le contenu du site.
+  const AUTRE_COMPTE = NOMBRE_HACHAGES_ATTENDU + 3;
 
   it(
     `accepte ${AUTRE_COMPTE} blocs quand l’appel demande ${AUTRE_COMPTE} — et écrit les ${AUTRE_COMPTE} hachages`,

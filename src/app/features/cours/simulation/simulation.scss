@@ -56,9 +56,14 @@
 }
 
 // Tout ce qui peut recevoir le focus dessine le MÊME anneau, et la règle est écrite une
-// fois. La région et chaque étape sont CIBLABLES (`tabindex="-1"`) : la navigation de
-// fragment y pose le focus, et c'est le seul mécanisme d'annonce du composant — il n'y
-// a pas de région `aria-live`. G8 · WCAG 2.2 · 2.4.7 et 2.4.11.
+// fois. La région et chaque étape sont CIBLABLES (`tabindex="-1"`), et c'est le focus qui
+// y est posé qui ANNONCE le changement — il n'y a pas de région `aria-live`. G8 · WCAG 2.2 ·
+// 2.4.7 et 2.4.11.
+// ⚠️ QUI pose ce focus dépend de l'état de la page : le NAVIGATEUR avant hydratation (il
+// suit le `href`), puis `ViewportScroller.scrollToAnchor` — `RouterLink` annule la
+// navigation native une fois hydraté. Ce second chemin n'existe QUE parce que
+// `app.config.ts` pose `anchorScrolling: 'enabled'` (dépendance détaillée dans l'en-tête de
+// `simulation.ts`).
 .simulation,
 .etape,
 .lien {
@@ -76,8 +81,11 @@
 // -----------------------------------------------------------------------------
 // Les deux listes portent les mêmes boîtes : le bandeau dit QUI intervient, la scène
 // dit ce que chacun fait à CETTE étape. Le marqueur de liste est retiré parce que ni
-// l'une ni l'autre n'est une énumération ordonnée — c'est `<ul>` qui porte le sens
-// (« liste de 3 éléments »), pas la puce.
+// l'une ni l'autre n'est une énumération ordonnée.
+// ⚠️ `list-style: none` N'EST PAS UNE DÉCISION PUREMENT VISUELLE : Safari/VoiceOver RETIRE
+// le rôle « list » d'une liste ainsi stylée, et « liste de 3 éléments » ne serait plus
+// annoncé. C'est pourquoi le gabarit pose un `role="list"` EXPLICITE sur les quatre listes
+// du composant — ici, sur `.commandes`/`.liens-etapes` plus bas, et sur rien d'autre.
 .acteurs,
 .scene {
   display: grid;
@@ -133,6 +141,8 @@
   border-block-start: var(--filet-fin) solid var(--couleur-filet);
 }
 
+// Même remarque que pour `.acteurs`/`.scene` : `list-style: none` coûte le rôle « list »
+// dans Safari/VoiceOver, d'où le `role="list"` explicite du gabarit sur ces deux-là aussi.
 .commandes,
 .liens-etapes {
   display: flex;

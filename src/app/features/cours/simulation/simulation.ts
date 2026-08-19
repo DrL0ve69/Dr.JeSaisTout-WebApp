@@ -30,13 +30,22 @@
 // (`replie`, `courante`) ne pilote QUE des attributs, des classes et du TEXTE sur des
 // nœuds déjà prerendus.
 //
-// LA NAVIGATION DE FRAGMENT RESTE NATIVE — aucun `preventDefault()`, nulle part. Le lien
-// navigue réellement avant, pendant et après l'hydratation ; le gestionnaire ne fait
-// qu'ENREGISTRER l'intention. C'est aussi ce qui donne la gestion de focus gratuitement :
-// chaque étape porte `tabindex="-1"`, le navigateur y pose le focus, et c'est son NOM
-// ACCESSIBLE qui annonce le changement.
+// LA NAVIGATION DE FRAGMENT EST NATIVE TANT QUE LA PAGE N'EST PAS HYDRATÉE — et CE FICHIER
+// n'appelle `preventDefault()` nulle part. `RouterLink`, lui, LE FAIT : son `onClick` rend
+// `!isAnchorElement`, donc `false` sur un `<a>`, et Angular annule alors la navigation
+// native pour la refaire par le routeur. Ce qui pose le focus sur l'étape après hydratation
+// n'est donc PAS le navigateur : c'est `ViewportScroller.scrollToAnchor`, qui appelle
+// `focus({ preventScroll: true })` sur l'élément visé.
+// ⚠️ DÉPENDANCE NOMMÉE ICI PARCE QU'ELLE EST LE SEUL MÉCANISME D'ANNONCE DU COMPOSANT :
+// `scrollToAnchor` ne tourne QUE parce que `app.config.ts` pose
+// `withInMemoryScrolling({ anchorScrolling: 'enabled' })`. Chaque étape porte `tabindex="-1"`
+// et c'est son NOM ACCESSIBLE qui annonce le changement ; retirer cette option rendrait ce
+// composant muet APRÈS hydratation — avant elle, le navigateur suit le `href` et pose le
+// focus lui-même, donc aucun test de ce fichier ne rougirait. La mesure en navigateur
+// appartient au lot c1.
 // ⚠️ D'où l'ABSENCE DÉCIDÉE de région `aria-live` : elle ferait une DOUBLE annonce à
-// chaque pas. Ne pas en « ajouter une par prudence ».
+// chaque pas. Ne pas en « ajouter une par prudence » — l'état courant est exposé aux
+// technologies d'assistance par `aria-current="step"`, pas par une annonce.
 //
 // 🔴 `[routerLink]="[]" [fragment]="…"`, JAMAIS `href="#…"` (L-030, mesurée sur ce
 // dépôt). `index.html` pose un `<base href="/">` : un fragment NU se résout contre la
@@ -56,12 +65,25 @@
 // alors introuvable au Ctrl+F. Le contenu reste atteignable par la barre de liens, et
 // l'état de départ (tout déplié) n'est jamais quitté sans une action du lecteur.
 //
-// ⚠️ L-033 — `withNoIncrementalHydration()` est actif (`app.config.ts`), le rejeu
-// d'événements est PERDU. Le modèle C′ met ce composant à l'abri du piège principal :
-// il ne porte AUCUN champ à état (des liens, pas des cases à cocher), donc il n'y a
-// aucun état saisi dans le DOM à ré-amorcer, et rien qu'une première détection de
-// changements pourrait écraser. `hydrate` note quand même le passage, pour que « rien
-// ne se replie à l'hydratation » soit OBSERVABLE plutôt que promis (L-008).
+// 🔴 L-033 — `withNoIncrementalHydration()` est actif (`app.config.ts`), le rejeu
+// d'événements est PERDU, et CE COMPOSANT N'EN EST PAS DISPENSÉ. Il ne porte aucun champ de
+// saisie, mais il porte bien un état que le DOM accepte AVANT hydratation : LE FRAGMENT
+// D'URL. Le modèle C′ pose les liens d'étape dès le prerender ; un clic sur « Étape 5 »
+// pendant la fenêtre de pré-hydratation — ou un lien profond `…#simulation-etape-5` ouvert
+// directement — navigue NATIVEMENT, sans que le composant voie rien. Sans le ré-amorçage
+// ci-dessous, `courante` resterait à 1 : le lecteur serait à l'étape 5 pendant que la barre
+// désignerait l'étape 1 comme courante et que « Suivante : étape 2 » le renverrait EN
+// ARRIÈRE. D'où la lecture de `location.hash` dans l'`afterNextRender`.
+// ⚠️ CE RÉ-AMORÇAGE NE TOUCHE PAS `replie`, et ce n'est pas un oubli : le modèle C′ replie
+// au PREMIER GESTE du lecteur seulement. Un lien profond n'est pas un geste de repli, et
+// replier ici ferait disparaître M−1 étapes sous les yeux de qui vient d'arriver.
+// ⚠️ CE QUI EST PROUVÉ, ET CE QUI NE L'EST PAS (seconde moitié de L-033) : le test unitaire
+// prouve que la lecture est JUSTE, jamais qu'elle arrive à TEMPS — `afterNextRender` court
+// APRÈS la première détection de changements. C'est sans conséquence ici, parce que RIEN
+// dans ce composant n'écrit le fragment : aucune détection de changements ne peut l'écraser,
+// contrairement à la `value` d'un `<select>`. La mesure en navigateur appartient au lot c1.
+// `hydrate` note le passage, pour que « rien ne se replie à l'hydratation » soit OBSERVABLE
+// plutôt que promis (L-008).
 //
 // CE QUE CE COMPOSANT REFUSE, ET POURQUOI PERSONNE D'AUTRE NE LE FERA.
 // `tools/content-pipeline/types.d.ts` le dit en toutes lettres : les renvois de
@@ -179,9 +201,12 @@ const MOT_ACTEUR_DANGER = 'Danger — acteur exposé';
 const MOT_ETAPE_COURANTE = '\u00A0(étape courante)';
 
 /**
- * L'apparence d'un acteur, par `type`. Le `switch` est EXHAUSTIF sur l'union du contrat :
- * ajouter un sixième type au schéma sans lui écrire d'apparence fait échouer la
- * compilation, plutôt que d'afficher une boîte MUETTE pour un lecteur d'écran.
+ * L'apparence d'un acteur, par `type`. Le `switch` est EXHAUSTIF sur l'union du contrat, et
+ * c'est le `acteur.type satisfies never` de la branche `default` qui le TIENT : ajouter un
+ * sixième type à `ActeurSimulation` sans lui écrire d'apparence fait échouer la COMPILATION,
+ * plutôt que d'afficher une boîte MUETTE pour un lecteur d'écran. Sans lui, la phrase précédente serait
+ * une promesse plus forte que ce que le code applique (famille S-009) : le cast de la
+ * branche `default` suffit à faire accepter n'importe quel type par TypeScript.
  *
  * ⚠️ `attaquant` N'EST PAS UNE `personne` AU LIBELLÉ PARLANT — c'est un type à part
  * entière parce que les déroulés d'attaque du bloc A d'E3 font de l'opposition
@@ -201,9 +226,18 @@ function apparenceDe(acteur: ActeurSimulation): ApparenceActeur {
     case 'stockage':
       return { badge: '[#]', role: 'Stockage' };
     default: {
-      // Inatteignable selon le contrat — `lireLeconCompilee` refuse déjà un `type` hors
-      // de `TYPES_ACTEUR`. Le cas reste écrit : un artéfact compilé par une AUTRE version
-      // du pipeline doit casser la construction, pas rendre une boîte anonyme.
+      // 🔒 LA MOITIÉ COMPILÉE DE LA GARANTIE. Sur l'union du contrat, `acteur.type` est ici
+      // de type `never` ; l'annotation le VÉRIFIE, et c'est elle qui fait rougir `npm run
+      // build` le jour où un sixième type entre dans `ActeurSimulation` sans apparence.
+      // ⚠️ C'EST BIEN `acteur.type`, PAS `acteur` — mesuré : `ActeurSimulation` est UNE
+      // interface dont un champ est une union, pas une union d'interfaces. Un `switch` sur
+      // le champ ne rétrécit donc QUE le champ ; `acteur satisfies never` échouerait à la
+      // compilation TOUJOURS, sur un code parfaitement sain.
+      acteur.type satisfies never;
+      // LA MOITIÉ EXÉCUTÉE. Inatteignable selon le contrat — `lireLeconCompilee` refuse
+      // déjà un `type` hors de `TYPES_ACTEUR`. Le cas reste écrit : un artéfact compilé par
+      // une AUTRE version du pipeline doit casser la construction, pas rendre une boîte
+      // anonyme.
       const inconnu = acteur as { id?: unknown; type?: unknown };
       throw new Error(
         `Simulation : acteur « ${String(inconnu.id)} » de type inconnu ` +
@@ -245,8 +279,13 @@ function estRempli(valeur: unknown): boolean {
       <!--
         Le bandeau des acteurs : QUI intervient, une fois pour toute la simulation. Le
         badge est décoratif (aria-hidden) ; ce qui porte le sens est le rôle, ÉCRIT.
+        ⚠️ role="list" EXPLICITE, ICI ET SUR LES TROIS AUTRES LISTES DU GABARIT. Ce n'est
+        pas une redondance : Safari/VoiceOver RETIRE le rôle « list » d'une liste dont le
+        list-style vaut none, et simulation.scss le met à none sur les quatre. Sans cet
+        attribut, « liste de 3 éléments » ne serait jamais annoncé — la feuille de style
+        déciderait de la sémantique.
       -->
-      <ul class="acteurs">
+      <ul class="acteurs" role="list">
         @for (acteur of acteursPrepares(); track acteur.id) {
           <li class="acteur">
             <span class="badge" aria-hidden="true">{{ acteur.badge }}</span>
@@ -264,7 +303,7 @@ function estRempli(valeur: unknown): boolean {
         une cible réelle — et son libellé DIT le numéro visé, donc il ne ment pas.
       -->
       <nav class="barre" aria-label="Étapes de la simulation">
-        <ul class="commandes">
+        <ul class="commandes" role="list">
           <li>
             <a
               class="lien"
@@ -291,22 +330,30 @@ function estRempli(valeur: unknown): boolean {
         </ul>
 
         <!--
-          Le marqueur de l'étape courante est du TEXTE, pas une classe seule (WCAG 1.4.1),
-          et il vit DANS le lien : sa blanche insécable de tête est ce qui empêche le nom
-          accessible de se calculer en un seul mot (L-024). Pas d'aria-current en plus —
-          il ferait annoncer deux fois la même chose, exactement ce que l'absence de
-          région aria-live existe pour éviter.
+          L'ÉTAT COURANT PASSE PAR DEUX CANAUX, ET AUCUN DES DEUX N'EST FACULTATIF.
+          · Le canal MACHINE est aria-current="step" (WCAG 4.1.2) : un mot ÉCRIT est du
+            CONTENU, pas un état programmatiquement déterminable — rien ne le distingue
+            d'un titre d'étape qui contiendrait la même parenthèse, et aucune technologie
+            d'assistance ne peut proposer « aller à l'élément courant » sur du texte.
+          · Le canal VISUEL est le mot lui-même (WCAG 1.4.1 : indice non chromatique). Il
+            reste donc à l'écran, et son span est aria-hidden pour ne pas faire annoncer
+            deux fois la même chose — ce que l'absence de région aria-live existe pour
+            éviter. Sa blanche insécable de tête sépare le mot du libellé À L'ŒIL (L-024).
+          ⚠️ Le span est TOUJOURS présent, vide quand l'étape n'est pas la courante : un @if
+          créerait un nœud APRÈS l'hydratation, ce que la note de l'en-tête interdit.
         -->
-        <ol class="liens-etapes">
+        <ol class="liens-etapes" role="list">
           @for (etape of etapesPreparees(); track etape.numero) {
             <li>
               <a
                 class="lien"
                 [class.est-courante]="etape.numero === courante()"
+                [attr.aria-current]="etape.numero === courante() ? 'step' : null"
                 [routerLink]="[]"
                 [fragment]="etape.idDocument"
                 (click)="allerA(etape.numero)"
-                >{{ etape.libelleLien }}{{ etatDuLien(etape.numero) }}</a
+                >{{ etape.libelleLien
+                }}<span aria-hidden="true">{{ etatDuLien(etape.numero) }}</span></a
               >
             </li>
           }
@@ -341,7 +388,7 @@ function estRempli(valeur: unknown): boolean {
             <p class="fleche">{{ etape.fleche }}</p>
           }
 
-          <ul class="scene">
+          <ul class="scene" role="list">
             @for (boite of etape.boites; track boite.id) {
               <li class="boite" [class.est-actif]="boite.actif" [class.est-danger]="boite.danger">
                 <span class="badge" aria-hidden="true">{{ boite.badge }}</span>
@@ -425,6 +472,11 @@ export class Simulation {
       // (le prerender, un DOM détaché) ne doit rien enregistrer.
       const vue = this.document.defaultView;
       if (!vue) return;
+
+      // 🔴 L-033 — LE FRAGMENT EST L'ÉTAT SAISI DANS LE DOM (voir l'en-tête). On le relit
+      // au premier rendu client, avant tout le reste : c'est la seule chose que le lecteur
+      // ait pu changer sans que le composant l'apprenne.
+      this.amorcerDepuisLeFragment(vue.location.hash);
 
       const surImpression = (): void => {
         // Une impression ne doit jamais perdre M−1 étapes.
@@ -521,6 +573,31 @@ export class Simulation {
    * fin du repli.
    */
   signalerRevelation(numero: number): void {
+    this.courante.set(numero);
+  }
+
+  /**
+   * Ré-amorce l'étape courante depuis le fragment de l'URL (L-033 — voir l'en-tête).
+   * EXPOSÉE pour le test, appelée par le seul `afterNextRender`.
+   *
+   * Le fragment est confronté au PRÉFIXE importé de la frontière, jamais à une chaîne
+   * recopiée. Trois refus, et chacun laisse l'état INTACT plutôt que de deviner :
+   *   · un fragment qui vise autre chose (une ancre de section, une question du quiz) n'a
+   *     rien à dire sur cette simulation ;
+   *   · un numéro qui ne se réécrit pas À L'IDENTIQUE — `…-etape-007`, `…-etape-+1` —
+   *     ne désigne l'`id` d'AUCUNE étape du document ;
+   *   · un numéro hors des bornes désignerait une étape qui n'existe pas, et la barre
+   *     mentirait dans l'autre sens.
+   */
+  amorcerDepuisLeFragment(fragment: string): void {
+    const debut = `#${PREFIXE_ID_ETAPE}`;
+    if (!fragment.startsWith(debut)) return;
+
+    const reste = fragment.slice(debut.length);
+    const numero = Number(reste);
+    if (!Number.isInteger(numero) || String(numero) !== reste) return;
+    if (numero < 1 || numero > this.total()) return;
+
     this.courante.set(numero);
   }
 

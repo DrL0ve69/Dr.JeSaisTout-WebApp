@@ -581,11 +581,14 @@ function verifierEnveloppeDuQuiz(
  * invariant que le compilateur tient sur le dossier, redit ici PARCE QUE ce fichier lit un
  * artéfact qu'une autre version du pipeline a pu produire (voir `compterAncres`).
  *
- * CE QUI EST VÉRIFIÉ : qu'elle désigne CETTE leçon, qu'elle porte un titre, au moins deux
+ * CE QUI EST VÉRIFIÉ : qu'elle désigne CETTE leçon, qu'elle porte un titre, DE DEUX À SIX
  * acteurs aux `id` kebab-case UNIQUES et non hérités d'`Object.prototype`, de `type` pris
- * dans la liste NOMINATIVE, au libellé non vide, et au moins une étape dont le `numero` suit
- * la position (1-based), avec titre et narration non vides. Plus la collision d'`id` de
+ * dans la liste NOMINATIVE, au libellé non vide, et DE CINQ À DOUZE étapes dont le `numero`
+ * suit la position (1-based), avec titre et narration non vides. Plus la collision d'`id` de
  * document, que ni l'auteur ni le composant ne peuvent arbitrer seuls.
+ * ⚠️ LES QUATRE BORNES SONT CELLES DU SCHÉMA, à l'unité près. Une borne relâchée ici ferait
+ * une LECTURE plus permissive que l'ÉCRITURE : le build refuserait une simulation que cette
+ * frontière laisserait passer, donc un artéfact venu d'ailleurs traverserait sans contrôle.
  *
  * ⏭️ CE QUI RESTE AU LOT b : les champs d'`etatVisuel` (`acteurActif`, `fleche`, `panneaux`,
  * `surbrillance`). C'est le composant qui les lit, donc lui qui doit les refuser nommément —
@@ -656,6 +659,14 @@ function verifierEnveloppeDeLaSimulation(
         'raconte pas d’échange',
     );
   } else {
+    // LE PLAFOND EST SIX, repris du même `maxItems: 6` du schéma. Il tient pour la même
+    // raison que le plancher : sans lui, la lecture serait PLUS PERMISSIVE que l'écriture.
+    if (acteurs.length > 6) {
+      manques.push(
+        `« simulation.acteurs » : au plus six acteurs, ${acteurs.length} trouvés — au-delà, ` +
+          'la scène ne tient plus à l’écran et chaque étape en désigne moins qu’elle n’en montre',
+      );
+    }
     const identifiants: string[] = [];
     for (const [rang, acteur] of acteurs.entries()) {
       const ou = `« simulation.acteurs[${rang}] »`;
@@ -705,10 +716,20 @@ function verifierEnveloppeDeLaSimulation(
     manques.push('« simulation.etapes » : tableau attendu');
     return;
   }
-  if (etapes.length === 0) {
-    manques.push('« simulation.etapes » : au moins une étape attendue');
-    return;
+  // LES BORNES SONT CELLES DU SCHÉMA — `minItems: 5` / `maxItems: 12`
+  // (`simulation.schema.json`, `etapes.description`) et `types.d.ts` (« 5 à 12 »). Un
+  // `length !== 0` laisserait traverser cette frontière une simulation à deux étapes, que le
+  // build refuse : la lecture serait alors PLUS PERMISSIVE que l'écriture, exactement ce que
+  // ce fichier existe pour empêcher — et c'est le seuil `acteurs` ci-dessus, mot pour mot.
+  if (etapes.length < 5 || etapes.length > 12) {
+    manques.push(
+      `« simulation.etapes » : de cinq à douze étapes attendues, ${etapes.length} trouvée(s) — ` +
+        'en deçà le pas-à-pas ne déroule rien, au-delà la barre de liens devient illisible',
+    );
   }
+  // L'ARRÊT NE VAUT QUE POUR LE CAS DÉGÉNÉRÉ : hors bornes mais non vide, on continue, parce
+  // que les manques par étape nomment des champs que l'auteur devra corriger de toute façon.
+  if (etapes.length === 0) return;
 
   for (const [rang, etape] of etapes.entries()) {
     const ou = `« simulation.etapes[${rang}] »`;

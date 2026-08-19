@@ -199,6 +199,12 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             rendu — d'où un input requis plutôt qu'une liaison conditionnelle que la
             page aurait à deviner.
 
+            LA SIMULATION DESCEND DE LA MÊME FAÇON (E2-ST5, lot b2), et la page ne
+            regarde toujours pas ce qu'elle transmet : la simulation de la leçon
+            peut valoir « undefined » (une leçon qui ne décrit aucun flux n'a pas
+            de simulation.json), et c'est l'ancre — donc RenduBlocs — qui décide.
+            La liaison, elle, reste OBLIGATOIRE : l'oublier ne compile pas.
+
             LE DÉCALAGE DES FIGURES DESCEND AVEC LES BLOCS (E2-ST4, lot C1). Un
             RenduBlocs par section, donc autant de compteurs qui repartaient de 1 :
             « Code n°1 » quatre fois dans la leçon-témoin, mesuré. La page est le
@@ -208,6 +214,7 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
           <app-rendu-blocs
             [blocs]="section.blocs"
             [quiz]="lecon().quiz"
+            [simulation]="lecon().simulation"
             [decalage]="decalageDeSection(rangSection)"
           />
         </section>

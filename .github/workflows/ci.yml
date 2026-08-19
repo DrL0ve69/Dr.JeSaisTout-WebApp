@@ -118,14 +118,19 @@ jobs:
       # EN LIGNE restent le juge de la CSP réellement servie. L'écart entre les deux artéfacts est
       # assumé et nommé (backlog §E2-ST3, décision E-2).
       #
-      # 🔴 LE `--hachages-style 12` N'EST PAS UN DESSERRAGE. Le générateur compare le nombre de
+      # 🔴 LE `--hachages-style 13` N'EST PAS UN DESSERRAGE. Le générateur compare le nombre de
       # hachages de style à une valeur ÉPINGLÉE (égalité exacte, jamais « au moins »). Deux
       # artéfacts ⇒ deux comptes : 9 pour la production (défaut de `NOMBRE_HACHAGES_STYLE_ATTENDU`,
-      # employé par `deploy.yml`), 12 ici — les 3 de plus sont les blocs `<style>` des composants de
-      # la page de leçon (`lecon`, le rendeur de blocs, `quiz`), mesurés le 2026-08-18 et relus.
+      # employé par `deploy.yml`), 13 ici — les 4 de plus sont les blocs `<style>` des composants de
+      # la page de leçon (`lecon`, le rendeur de blocs, `quiz`, `simulation`). Les 3 premiers ont été
+      # mesurés le 2026-08-18 et relus ; le quatrième l'a été le 2026-08-19 (E2-ST5, lot b2), quand
+      # l'ancre `[[simulation]]` a cessé de rendre le vide — la page de leçon passe de 7 à 8 blocs
+      # `<style>`, et le bloc neuf commence par `.simulation[_ngcontent-…]`.
+      # ⚠️ LE COMPTE DE PRODUCTION NE BOUGE PAS, ET C'EST LE POINT : `content/` est vide, donc
+      # aucune simulation n'est rendue en ligne. Monter les deux rendrait `deploy.yml` ROUGE.
       # Un drapeau absent retombe sur 9 ; il n'existe aucune écriture qui TAISE le contrôle.
       # Changer ce nombre passe par `security-reviewer` PUIS l'édition, jamais l'inverse (S-002).
-      # Ce 12 est ÉPINGLÉ EN MIROIR dans `src/workflows-github.spec.ts`
+      # Ce 13 est ÉPINGLÉ EN MIROIR dans `src/workflows-github.spec.ts`
       # (`HACHAGES_STYLE_CI_ATTENDU`), comme le 9 l'est dans `config-swa-provenance-style.spec.ts` :
       # le bouger ici seul rougit G-test. Deux fichiers, donc une revue — c'est le but.
       #
@@ -143,7 +148,7 @@ jobs:
         run: |
           node tools/content-pipeline/build.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web
           node_modules/.bin/ng build
-          npm run config:swa -- --hachages-style 12
+          npm run config:swa -- --hachages-style 13
 
       # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de
       # `dist/dr-je-sais-tout/browser`. Il vient donc APRÈS G-build, qui produit l'artéfact.

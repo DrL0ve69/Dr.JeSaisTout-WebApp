@@ -33,6 +33,10 @@
 // `contenu-compile.ts` (L-012). Les chaînes `simulation` et `simulation-etape-` sont
 // donc littérales ci-dessous : un test qui importe la constante pour la comparer à
 // elle-même ne vérifie rien du contrat.
+// ⚠️ UNE SEULE EXCEPTION, ET ELLE VA DANS L'AUTRE SENS : `TYPES_ACTEUR` est importée pour
+// FABRIQUER une fixture, jamais pour servir de valeur attendue — les cinq rôles restent
+// écrits en dur. C'est ce qui fait rougir le test le jour où un sixième type entre dans la
+// liste nominative sans qu'on lui écrive d'apparence.
 //
 // LES FIXTURES SONT TYPÉES `SimulationCompilee` / `ActeurSimulation` / `EtapeSimulation`,
 // types AMBIANTS venus de `tools/content-pipeline/types.d.ts` : aucun `import`, aucune
@@ -43,6 +47,7 @@ import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
+import { TYPES_ACTEUR } from '../contenu-compile';
 import { Simulation } from './simulation';
 
 // -----------------------------------------------------------------------------
@@ -310,6 +315,30 @@ describe('Simulation', () => {
       expect(new Set(roles).size).toBe(roles.length);
     });
 
+    it('couvre l’union ENTIÈRE du contrat, pas seulement les cinq types écrits ici', async () => {
+      // LE PENDANT EXÉCUTÉ du `satisfies never` de la branche `default` d'`apparenceDe`.
+      // Les trois copies de la liste fermée sont ainsi tenues bout à bout : le schéma Ajv
+      // à `TYPES_ACTEUR` par `lecon.spec.ts`, `TYPES_ACTEUR` aux apparences PAR CE TEST, et
+      // l'union de `types.d.ts` au `switch` par le `satisfies` (à la COMPILATION).
+      // La fixture est FABRIQUÉE depuis `TYPES_ACTEUR` ; les rôles attendus, eux, restent
+      // écrits en dur. Un sixième type ajouté sans apparence rend donc ce test rouge de
+      // deux façons — le composant LÈVE, ou la liste comparée n'a plus la même longueur.
+      const acteurs = TYPES_ACTEUR.map((type, rang) => ({
+        id: `acteur-${rang + 1}`,
+        libelle: `Acteur n°${rang + 1}`,
+        type,
+      })) as ActeurSimulation[];
+
+      const hote = await monter(
+        simulationDe(acteurs, [etapeDe({ acteurActif: 'acteur-1' })]),
+      );
+
+      const roles = [...hote.querySelectorAll<HTMLElement>('ul.acteurs .role')].map(
+        (element) => element.textContent?.trim() ?? '',
+      );
+      expect(roles).toEqual(['Personne', 'Attaquant', 'Navigateur', 'Serveur', 'Stockage']);
+    });
+
     it('écrit le sens de la flèche EN MOTS, sans « → » ni SVG', async () => {
       const hote = await monter(SIMULATION_TEMOIN);
 
@@ -420,6 +449,47 @@ describe('Simulation', () => {
       expect(apres[1]).toContain('(étape courante)');
     });
 
+    it('expose l’étape courante AUX MACHINES par `aria-current`, en plus du mot', async () => {
+      // WCAG 4.1.2 : un mot ÉCRIT est du CONTENU, que rien ne distingue d'un titre d'étape
+      // contenant la même parenthèse. Sans cet attribut, l'état courant ne serait exposé
+      // par AUCUN canal machine — le composant n'a délibérément ni région `aria-live` ni
+      // marqueur de rechange.
+      const hote = await monter(SIMULATION_TEMOIN);
+      const liens = liensDEtape(hote);
+
+      expect(liens.map((lien) => lien.getAttribute('aria-current'))).toEqual([
+        'step',
+        null,
+        null,
+      ]);
+
+      // Le mot reste À L'ÉCRAN (WCAG 1.4.1, indice non chromatique) mais il est retiré à
+      // l'arbre d'accessibilité : sinon l'état serait annoncé DEUX fois.
+      const marqueur = liens[0]?.querySelector('span');
+      // U+00A0 en ÉCHAPPEMENT : `no-irregular-whitespace` refuse la vraie dans un littéral,
+      // et une espace ordinaire tapée ici ferait échouer la comparaison sur un caractère
+      // invisible (L-035 — une prémisse de test fausse rougit sur un produit sain).
+      expect(marqueur?.textContent).toBe('\u00A0(étape courante)');
+      expect(marqueur?.getAttribute('aria-hidden')).toBe('true');
+
+      // Le `<span>` existe sur CHAQUE lien dès le prerender, vide quand l'étape n'est pas
+      // la courante : un `@if` créerait un nœud APRÈS l'hydratation, et le bloc `<style>`
+      // qui l'accompagnerait ne serait pas dans la liste de hachages de la CSP servie.
+      expect(liens.every((lien) => lien.querySelector('span') !== null)).toBe(true);
+      expect(liens[1]?.querySelector('span')?.textContent).toBe('');
+
+      await cliquer(liens[1] as HTMLAnchorElement);
+
+      // La moitié de pince : l'attribut SUIT l'étape courante, il n'est pas figé au premier
+      // rendu — sans elle, « le premier lien porte `step` » serait vrai d'un composant qui
+      // ne le déplace jamais.
+      expect(liensDEtape(hote).map((lien) => lien.getAttribute('aria-current'))).toEqual([
+        null,
+        'step',
+        null,
+      ]);
+    });
+
     it('borne « précédente » et « suivante » sans jamais rendre un lien mort', async () => {
       const hote = await monter(SIMULATION_TEMOIN);
       const commandes = (): HTMLAnchorElement[] => [
@@ -462,6 +532,69 @@ describe('Simulation', () => {
       expect(masquees(hote)).toEqual([]);
       // L'étape courante ne bouge PAS : imprimer n'est pas recommencer.
       expect(fixture.componentInstance.etapeCourante()).toBe(2);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  describe('L-033 — le FRAGMENT est l’état que le DOM accepte avant hydratation', () => {
+    // Le composant ne porte aucun champ de saisie, mais un clic sur un lien d'étape
+    // ÉMIS PENDANT LA FENÊTRE DE PRÉ-HYDRATATION (ou un lien profond ouvert directement)
+    // navigue nativement sans qu'il le voie : sans ré-amorçage, la barre désignerait
+    // l'étape 1 pendant que le lecteur est à l'étape 3.
+    // ⚠️ CE QUI EST PROUVÉ ICI EST LA JUSTESSE DE LA LECTURE, PAS SON INSTANT : le TestBed
+    // n'a pas de DOM prerendu, et `afterNextRender` court après la première détection de
+    // changements (seconde moitié de L-033). C'est sans conséquence pour ce composant —
+    // rien en lui n'écrit le fragment — mais la mesure en navigateur reste au lot c1.
+    afterEach(() => {
+      fenetre().location.hash = '';
+    });
+
+    it('amorce l’étape courante sur le fragment ouvert en LIEN PROFOND', async () => {
+      fenetre().location.hash = '#simulation-etape-3';
+
+      const hote = await monter(SIMULATION_TEMOIN);
+
+      // Contrôle positif : le premier rendu client est bien passé — sans lui, tout ce qui
+      // suit serait mesuré sur un composant dont le code d'hydratation n'a jamais couru.
+      expect(fixture.componentInstance.hydrate()).toBe(true);
+      expect(fixture.componentInstance.etapeCourante()).toBe(3);
+      // Les deux canaux de l'étape courante suivent, et « Suivante » ne renvoie plus EN
+      // ARRIÈRE — c'est très exactement le défaut que ce ré-amorçage corrige.
+      expect(liensDEtape(hote)[2]?.getAttribute('aria-current')).toBe('step');
+      const commandes = [...hote.querySelectorAll<HTMLAnchorElement>('ul.commandes a')];
+      expect(commandes[1]?.textContent?.trim()).toBe('Suivante\u00A0: étape 3');
+      // …et RIEN n'est replié : un lien profond n'est pas un geste de repli (modèle C′).
+      expect(masquees(hote)).toEqual([]);
+      expect(fixture.componentInstance.estRepliee()).toBe(false);
+    });
+
+    it('IGNORE tout fragment qui ne désigne pas une étape de cette simulation', async () => {
+      const hote = await monter(SIMULATION_TEMOIN);
+      const instance = fixture.componentInstance;
+
+      for (const fragment of [
+        '', // aucune ancre du tout
+        '#titre-introduction', // une ancre de section écrite par l'auteur
+        '#simulation', // la RÉGION, pas une étape
+        '#question-1', // une question du quiz, même page
+        '#simulation-etape-', // le préfixe sans numéro
+        '#simulation-etape-0', // hors borne basse
+        '#simulation-etape-99', // hors borne haute
+        '#simulation-etape-007', // ne se réécrit pas à l'identique : aucun `id` du document
+        '#simulation-etape-2bis', // ni un entier, ni un `id` du document
+      ]) {
+        instance.amorcerDepuisLeFragment(fragment);
+        expect(instance.etapeCourante()).toBe(1);
+      }
+
+      // CONTRÔLE POSITIF, dans le même test (L-019) : sans lui, « rien n'a bougé » serait
+      // vrai d'une méthode qui ne fait jamais rien.
+      instance.amorcerDepuisLeFragment('#simulation-etape-2');
+      expect(instance.etapeCourante()).toBe(2);
+      // Et le refus laisse l'état INTACT — il ne le remet pas à 1 non plus.
+      instance.amorcerDepuisLeFragment('#simulation-etape-42');
+      expect(instance.etapeCourante()).toBe(2);
+      expect(masquees(hote)).toEqual([]);
     });
   });
 

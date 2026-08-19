@@ -30,6 +30,7 @@ import { join } from 'node:path';
 
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { compile } from 'sass';
 
 import { RenduBlocs, SANS_DECALAGE, cumulerFigures, type DecalageFigures } from './rendu-blocs';
@@ -272,6 +273,33 @@ const QUIZ: QuizCompile = {
   ],
 };
 
+/**
+ * La simulation que ce composant TRAVERSE — E2-ST5, lot b2. Même raisonnement que `QUIZ`
+ * ci-dessus : il ne la lit pas, il la passe à `Simulation`, qui valide les renvois de
+ * l'`etatVisuel` et la rend. Deux acteurs et une étape suffisent donc ici ; la couverture
+ * des cinq types d'acteur, du repli et des levées appartient à `simulation.spec.ts`.
+ *
+ * Le `titre` est ce qui permet d'affirmer que c'est bien CETTE simulation qui est rendue,
+ * et pas une coquille — sans lui, « un `app-simulation` existe » resterait vrai d'un
+ * composant lié à n'importe quoi (L-019).
+ */
+const SIMULATION: SimulationCompilee = {
+  lecon: 'lecon-de-passage',
+  titre: 'Une ancre de simulation rend la simulation de la leçon',
+  acteurs: [
+    { id: 'navigateur', libelle: 'Le navigateur de Camille', type: 'navigateur' },
+    { id: 'serveur', libelle: 'Le serveur du forum', type: 'serveur' },
+  ],
+  etapes: [
+    {
+      numero: 1,
+      titre: 'Le navigateur demande la page',
+      narration: 'Le navigateur envoie sa requête au serveur, qui lui répond la page.',
+      etatVisuel: { acteurActif: 'navigateur' },
+    },
+  ],
+};
+
 // -----------------------------------------------------------------------------
 // Outillage
 // -----------------------------------------------------------------------------
@@ -317,6 +345,7 @@ async function rendre(
   const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
   fixture.componentRef.setInput('blocs', blocs);
   fixture.componentRef.setInput('quiz', QUIZ);
+  fixture.componentRef.setInput('simulation', SIMULATION);
   if (decalage !== undefined) fixture.componentRef.setInput('decalage', decalage);
   await fixture.whenStable();
   return fixture.nativeElement as HTMLElement;
@@ -400,6 +429,15 @@ function sourceDuComposant(): string {
 // -----------------------------------------------------------------------------
 
 describe('RenduBlocs', () => {
+  // `provideRouter` est arrivé avec l'ancre de simulation (E2-ST5, lot b2) : `Simulation`
+  // emploie `routerLink` — jamais un `href="#…"` nu, qui se résoudrait contre le
+  // `<base href="/">` (L-030) — et la directive injecte `Router` et `ActivatedRoute`. Une
+  // table de routes VIDE suffit : ce qu'on mesure ici est le câblage du `@switch`, pas la
+  // navigation, qui appartient à `simulation.spec.ts`.
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+  });
+
   afterEach(() => {
     TestBed.resetTestingModule();
   });
@@ -1140,10 +1178,11 @@ describe('RenduBlocs', () => {
   });
 
   describe('ancres de quiz et de simulation', () => {
-    it('rend le QUIZ à son ancre, et rien du tout à celle de la simulation', async () => {
-      // E2-ST3, lot C. L'ancre du quiz porte désormais le composant ; celle de la
-      // simulation reste vide (E2-ST5), et un cadre « à venir » y ferait mentir la
-      // page. Les deux cas sont traités NOMMÉMENT dans le `@switch`, sans `@default`.
+    it('rend le QUIZ et la SIMULATION, chacun à SON ancre', async () => {
+      // E2-ST3 lot C pour le quiz, E2-ST5 lot b2 pour la simulation : les deux ancres
+      // portent désormais leur composant, et les deux cas sont traités NOMMÉMENT dans le
+      // `@switch`, sans `@default`. Ce test remplace celui qui exigeait « rien du tout »
+      // à l'ancre de simulation — c'est précisément ce que ce lot ferme.
       const rendu = await rendre([FIXTURES['ancre-quiz'], FIXTURES['ancre-simulation']]);
 
       const quiz = rendu.querySelector('app-quiz');
@@ -1151,6 +1190,55 @@ describe('RenduBlocs', () => {
       expect(quiz?.querySelector('h3')?.textContent).toContain('Quiz de la leçon de passage');
       // Ce qui prouve que c'est bien LE quiz reçu en entrée, et pas une coquille.
       expect(rendu.textContent).toContain('Une ancre de quiz rend le quiz de la leçon.');
+
+      const simulation = rendu.querySelector('app-simulation');
+      expect(simulation).not.toBeNull();
+      // Et la même preuve pour la simulation : son TITRE, qui ne vient que de l'entrée.
+      expect(simulation?.querySelector('h3')?.textContent).toContain(
+        'Une ancre de simulation rend la simulation de la leçon',
+      );
+      // Ce que seul le composant sait produire — le nom d'étape « N sur M » (L-024).
+      expect(simulation?.querySelector('h4')?.textContent).toContain('Étape 1 sur 1');
+    });
+
+    it('ne rend la simulation QU’UNE FOIS — sinon tous les `id` d’étape seraient dupliqués', async () => {
+      // Le pendant côté composant du compte d'ancres de `verifierEnveloppeSimulation` :
+      // deux rendus donneraient deux `#simulation` et deux `#simulation-etape-1`, donc des
+      // `id` dupliqués dans le document (L-026).
+      const rendu = await rendre([FIXTURES.prose, FIXTURES['ancre-simulation']]);
+      expect(rendu.querySelectorAll('app-simulation').length).toBe(1);
+      expect(rendu.querySelectorAll('[id="simulation"]').length).toBe(1);
+      expect(rendu.querySelectorAll('[id="simulation-etape-1"]').length).toBe(1);
+    });
+
+    it('rend la simulation d’une ancre IMBRIQUÉE dans un encadré — elle descend aussi', async () => {
+      // La récursion passe l'input : sans la liaison, l'ancre écrite dans un `::: note`
+      // ne compilerait pas (l'input requis manquerait).
+      const rendu = await rendre([
+        { type: 'encadre', variante: 'note', blocs: [{ type: 'ancre-simulation' }] },
+      ]);
+      expect(rendu.querySelectorAll('.encadre app-simulation').length).toBe(1);
+    });
+
+    it('🔴 LÈVE en le NOMMANT quand l’ancre est là sans simulation, au lieu d’un trou muet', () => {
+      // LE CAS QUE LE CONTRAT DÉCLARE IMPOSSIBLE, et qu'il faut donc écrire ici :
+      // `verifierEnveloppeSimulation` tient l'équivalence « simulation présente ⇔ une
+      // ancre », mais elle ne s'exerce que sur l'artéfact que ce composant REÇOIT. Un
+      // `lecons/<slug>.json` compilé par une autre version du pipeline peut porter l'ancre
+      // sans la donnée : un `@if` muet publierait alors une leçon dont la simulation a
+      // disparu sans un mot.
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [FIXTURES['ancre-simulation']]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('simulation', undefined);
+
+      expect(() => fixture.componentInstance.simulationDeLAncre()).toThrowError(
+        /ancre « \[\[simulation\]\] » sans simulation/,
+      );
+      // CONTRÔLE POSITIF (L-019) : la MÊME méthode rend bien la simulation quand elle est
+      // là — sans quoi « ça lève » resterait vrai d'une méthode qui lève toujours.
+      fixture.componentRef.setInput('simulation', SIMULATION);
+      expect(fixture.componentInstance.simulationDeLAncre().titre).toBe(SIMULATION.titre);
     });
 
     it('ne rend le quiz QU’UNE FOIS quand une seule ancre est présente', async () => {
@@ -1186,6 +1274,8 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelector('.comparaison')).not.toBeNull();
       expect(rendu.querySelector('.diagramme')).not.toBeNull();
       expect(rendu.querySelector('.encadre')).not.toBeNull();
+      expect(rendu.querySelector('app-quiz')).not.toBeNull();
+      expect(rendu.querySelector('app-simulation')).not.toBeNull();
     });
 
     it('ÉCHOUE en NOMMANT le type, sur un bloc que le contrat ne connaît pas', () => {
