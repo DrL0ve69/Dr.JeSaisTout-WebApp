@@ -2082,7 +2082,7 @@ E3-ST1, pas pendant.
 | ID | Module (`NN-slug`) | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|
 | E3-ST1 | `01-fondamentaux` — Fondamentaux de la sécurité web (faille/exploit/0-day, CVE/CWE, OWASP Top 10 2021 **et** 2025, kill chain, types de tests) | `fondamentaux-securite-web.md` | non — schéma kill chain statique | ⬜ |
-| E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV) ; quiz = les 6 mises en situation corrigées du cours (matière d'examen) | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ⬜ |
+| E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV). 🔴 **COMPLÉMENT PUR — corrigé le 2026-08-19** : la mention « quiz = les 6 mises en situation corrigées du cours (matière d'examen) » était **fausse**. Mesure : **0 occurrence** de CVSS/CVE/CWE/EPSS/KEV dans les **8 diaporamas publiés** et dans le **plan de cours officiel**. Rien de ce module n'est examinable ; il doit se présenter comme complément. *(Réserve : la mesure porte sur le texte extrait ; un sigle qui n'existerait que dans une image aurait échappé — 95 captures ont été ouvertes sans le rencontrer.)* | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ⬜ |
 | E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ⬜ |
 | E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ⬜ |
 | E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ⬜ |
@@ -2108,6 +2108,43 @@ E3-ST1, pas pendant.
 > Découpe budget : si un module + sa simulation menacent les 150k, scinder en (a) leçon+quiz via
 > `/lecon` puis (b) `simulation.json` + intégration par un agent frais. La colonne Simulation est
 > l'option à couper en premier en cas de retard (roadmap, chemin critique).
+
+### Bloc D — Serveur & exploitation *(décidé le 2026-08-19 · cible : après le bloc C)*
+
+> 🆕 **Pourquoi ce bloc existe.** La passe E3-ST0 a comparé le **plan de cours réel** de
+> 420-B10-HU aux 13 modules planifiés : sur les **10 séances de matière**, **6 n'avaient aucun
+> module** (séances 2, 3, 4, 5, 9, et 8 partiellement), et les **6 fiches KB correspondantes
+> étaient orphelines** — aucune sous-tâche d'E3 ne les citait. L'exigence du propriétaire (« rien
+> de la matière du cégep ne doit manquer du site ») n'était donc pas tenable avec les 13 modules.
+> **Décision du propriétaire, 2026-08-19, à ne pas rouvrir** : on garde les 13 modules OWASP tels
+> quels et on ouvre ce bloc, plutôt que de gonfler `13-durcissement-serveur` jusqu'à l'absorption.
+> Motif : la carte de parcours d'E2-ST6 doit refléter le cours, et un module obèse est le contraire
+> d'un jalon.
+>
+> **Ce bloc ne prend pas le chemin critique de mi-septembre** — il se livre après le bloc C.
+
+| ID | Module (`NN-slug`) | Séance du cours | Fiche KB source | Simulation | Statut |
+|---|---|---|---|---|---|
+| E3-ST14 | `14-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ⬜ |
+| E3-ST15 | `15-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
+| E3-ST16 | `16-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
+| E3-ST17 | `17-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
+| E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
+| E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
+
+> ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
+> **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un
+> titre, aucune image, et deux marqueurs `(TODO)` laissés par l'enseignant. Son plan annoncé
+> (diapositive 6) fait foi comme matière d'examen ; tout le reste de `17-utilisateurs-permissions`
+> est du **complément**, et doit se signaler comme tel.
+> **(2) 🔴 La séance 8 n'a AUCUNE source publiée — mesuré le 2026-08-19, pas supposé.** Ni
+> diaporama (cellule « Non disponible »), **ni énoncé d'exercice** : la page existe mais son contenu
+> est **vide** (longueur 0 via l'API WordPress du site). `19-services-web-https` est donc un module
+> de **complément intégral** — aucune matière d'examen ne peut en être tirée, et il doit le dire à
+> son lecteur. Revérifier le site avant de rédiger : l'enseignant publie en cours de session.
+> **(2 bis) Aucun corrigé n'est publié pour AUCUNE des 13 séances** du cours de sécurité (la colonne
+> « Corrigé » est un texte sans lien partout). Contrairement au cours de PHP, dont les corrigés sont
+> de vrais fichiers `.zip` — ne pas transposer l'hypothèse d'un cours à l'autre.
 
 ---
 
@@ -2273,6 +2310,60 @@ composants touchés est donc la mesure de santé du design system : à rapporter
      s'afficherait alors **sans styles**. Un lot qui réécrit tout le CSS est exactement le moment où
      cette option se fait perdre de vue.
 - **Sortie attendue** : ≤ 20 lignes, **des chiffres**, pas de logs collés.
+
+---
+
+## E7 · Second cours publié — « Développement d'application en PHP » (420-4P2-HU)
+
+> **Décision du propriétaire, 2026-08-19, à ne pas rouvrir.** Le cours de PHP suivi au cégep
+> (420-4P2-HU, enseignant Alexandre Mageau-Pétrin, automne 2026) devient un **second cours publié**
+> sur le site en phase 1 — et non une simple annexe de la KnowledgeBase. Motif : c'est de la
+> matière d'examen au même titre que le cours de sécurité, et les exemples de code du cours de
+> sécurité sont écrits en PHP.
+>
+> 🔴 **Le coût, dit franchement, parce qu'il a été accepté en connaissance de cause :** c'est un
+> **doublement du volume de contenu** à rédiger d'ici octobre. La phase 1 passe de 13 à **19 + 8 =
+> 27 modules**. L'échéance de mi-septembre (J4, bloc A du cours de sécurité) reste le chemin
+> critique et **ne se négocie pas** ; E7 se livre après. Si le calendrier dérape, **c'est E7 qui
+> ralentit**, module par module, jamais le bloc A.
+
+**Processus** : identique à E3 — skill **`/lecon`** (`professeur-web` → `verificateur-theorie`) à
+partir des fiches de `KnowledgeBase\web\php\`, fusionnées par la passe E3-ST0 du 2026-08-19.
+Livrable : `content/cours/php/NN-slug/`.
+
+| ID | Module (`NN-slug`) | Séance | Fiche KB source | Statut |
+|---|---|---|---|---|
+| E7-ST1 | `01-introduction-php` — Syntaxe de base, types, structures de contrôle, inclusion de fichiers | séance 1 | `php-fondamentaux.md` | ⬜ |
+| E7-ST2 | `02-superglobales-tableaux` — Variables, superglobales, tableaux, formulaires | séance 2 | `php-formulaires-superglobales.md` | ⬜ |
+| E7-ST3 | `03-librairie-standard` — Fonctions de la librairie standard, fichiers, journalisation | séance 3 | `php-librairie-standard.md` + `php-fichiers-journalisation.md` | ⬜ |
+| E7-ST4 | `04-poo` — Classes, héritage, interfaces, organisation d'un projet | séance 4 | `php-poo.md` + `php-organisation-projet.md` | ⬜ |
+| E7-ST5 | `05-base-de-donnees-pdo` — PDO, requêtes préparées, transactions | séance 5 | `php-base-de-donnees-pdo.md` | ⬜ |
+| E7-ST6 | `06-sessions-authentification` — Sessions PHP, authentification, `password_hash()` | séance 7 | `php-sessions-authentification.md` | ⬜ |
+| E7-ST7 | `07-deploiement` — Déploiement d'application, hébergement, domaine, HTTPS | séance 8 | `php-deploiement.md` + `php-hebergement-domaine-https.md` | ⬜ |
+| E7-ST8 | `08-laravel` — Introduction à Laravel | séance 10 | 🔴 **AUCUNE FICHE KB** | ⬜ |
+
+> ⚠️ **Trois constats de la passe E3-ST0, à traiter AVANT de rédiger.**
+> **(1) La séance 10 (Laravel) n'a ni diaporama publié ni fiche KB.** `E7-ST8` est donc **bloqué à
+> la source** : il lui faut d'abord une passe d'archivage (page d'exercice + documentation Laravel
+> officielle datée), sans quoi la leçon serait inventée. Ne pas le démarrer avec les sept autres.
+> **(2) Ce cours est le cours-frère du cours de sécurité, et il enseigne le langage AVANT d'en
+> enseigner les dangers.** Chaque module de PHP qui montre une pratique risquée (concaténation SQL,
+> sortie non échappée, hachage faible, `==` sur des chaînes) doit porter un encadré ⚠️ qui pointe
+> vers le module de sécurité correspondant. C'est le **pont pédagogique** entre les deux cours, et
+> c'est ce qui justifie de les publier ensemble plutôt que séparément.
+> **(3) `.claude/rules/security.md` s'applique intégralement** : du code PHP volontairement
+> vulnérable ne vit **que** dans un bloc d'exemple marqué, jamais dans du code exécuté par le site.
+
+**🔴 CONSÉQUENCE IMMÉDIATE SUR E2-ST6, qui n'est pas encore écrite — la traiter là-bas, pas ici.**
+La page sommaire et la carte de parcours ont été conçues pour **un** cours de 13 modules
+(`/cours/securite-web`). Avec deux cours, il faut un **niveau au-dessus** : un index des cours, et
+une progression indexée **par cours** dans `core/progression/`, pas une progression globale à plat.
+C'est un changement de **modèle de données de la progression**, pas un ajout d'écran — et il coûte
+beaucoup moins cher maintenant, avant qu'E2-ST6 existe, qu'après. La règle d'architecture d'E2-ST6
+tient inchangée : **aucune feature n'importe une autre feature**.
+
+**Gates** : identiques à E3 (G-lecon, G-build, G-axe sur la page prerendue) ; déploiement dès le
+gate vert, un module = une PR = une mise en ligne.
 
 ---
 
