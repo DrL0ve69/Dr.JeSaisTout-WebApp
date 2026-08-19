@@ -20,17 +20,32 @@
 //   · La VALIDATION. Les champs propres à chaque type lèvent en nommant la
 //     question. C'est le pendant de `verifierEnveloppeDuQuiz` (`contenu-compile.ts`),
 //     qui s'arrête, lui, à l'enveloppe.
-//   · LA COLLISION S-011, à deux mains et sur les QUATRE types (lot E-a) : la charge
-//     utile d'auteur s'affiche ENTIÈRE sans qu'un seul nœud n'en naisse, ET la
-//     séquence que `generer-config-swa.mjs` cherche survit dans le HTML sérialisé —
-//     COMPTÉE, jamais seulement « présente ». Les quatre types ont chacun leur `it()` :
-//     `choix-multiple` (`question`, `choix[].texte`), `vrai-faux` (`affirmation`,
-//     `justification`), `associer` (`gauche`, `droite`) et `trouver-la-faille`
-//     (`code`, `correction`). La couverture se COMPTE, elle ne se déclare pas : jusqu'au
-//     lot E-a cet en-tête annonçait quatre types pour deux `it()`, et un document de
-//     garde-fou qui promet plus que le garde-fou n'applique, c'est S-009.
-//     Si cette seconde main tombe un jour, c'est la note S-011 de `quiz.ts` qui doit
-//     partir dans le même diff — jamais le gate qui doit s'assouplir.
+//   · LA COLLISION S-011, à deux mains et sur les QUATRE types (lot E-a).
+//     MAIN 1 — la charge utile d'auteur s'affiche ENTIÈRE sans qu'un seul nœud n'en
+//     naisse. C'est l'assertion de SÉCURITÉ, et elle est intacte.
+//     MAIN 2 — RÉANCRÉE LE 2026-08-19, parce qu'elle était verte pour une raison
+//     DISPARUE. Elle disait « la séquence que `generer-config-swa.mjs` cherche survit
+//     dans le HTML sérialisé ». Le gate ne cherche plus rien de tel : le lot A de la
+//     dette sécurité pré-E3-ST1 a remplacé son balayage de TEXTE BRUT par un parse
+//     jsdom, donc il ne décide plus que sur des attributs réellement analysés et
+//     S-011 est REFERMÉE (mesuré : une page portant la charge en nœud texte sort en
+//     code 0, là où l'ancien gate sortait rouge). Ce que ces assertions mesurent
+//     ENCORE, et qui reste vrai : l'interpolation d'Angular échappe `<` et `>` — donc
+//     aucune balise ne peut s'ouvrir — mais PAS les guillemets, si bien que la charge
+//     d'auteur survit LITTÉRALEMENT dans le HTML prerendu. C'est exactement ce qui
+//     rendrait ROUGE, sur un dépôt SAIN, tout futur « contrôle de conservation » du
+//     gate bâti sur un motif de texte brut. Ces `it()` sont donc désormais le TÉMOIN
+//     DOCUMENTAIRE de la condition qui rendrait rouge tout retour au balayage brut,
+//     plus la preuve d'un refus. ⚠️ Et pas davantage : AUCUNE de ces assertions ne peut
+//     rougir si `generer-config-swa.mjs` revenait au balayage brut — c'est le BUILD qui
+//     rougirait. Les appeler « tripwire » promettrait un garde-fou là où il n'y a qu'un
+//     constat mesuré, c'est-à-dire un S-009 en miniature.
+//     Les quatre types ont chacun le leur : `choix-multiple` (`question`,
+//     `choix[].texte`), `vrai-faux` (`affirmation`, `justification`), `associer`
+//     (`gauche`, `droite`) et `trouver-la-faille` (`code`, `correction`). La couverture
+//     se COMPTE, elle ne se déclare pas : jusqu'au lot E-a cet en-tête annonçait quatre
+//     types pour deux `it()`, et un document de garde-fou qui promet plus que le
+//     garde-fou n'applique, c'est S-009.
 //
 // LES VALEURS ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées du composant
 // ni de `contenu-compile.ts` (L-012). Le préfixe `quiz-` est donc littéral
@@ -1289,14 +1304,15 @@ describe('Quiz', () => {
         expect(ligne.children.length).toBe(0);
       }
 
-      // 🔴 CE QUE L'ÉCHAPPEMENT NE FAIT PAS, et c'est mesuré ici pour que la note de
-      // `quiz.ts` cesse d'être une supposition : Angular échappe « < », donc aucune
-      // balise ne peut s'ouvrir — mais il n'échappe PAS les guillemets. La séquence
-      // que le gate `tools/deploiement/generer-config-swa.mjs` cherche dans le HTML
-      // prerendu (« espace + on…= + guillemet », et son jumeau pour le style en
-      // ligne) survit donc INTACTE au rendu. Le build échouerait, fail-closed, sur
-      // un message parlant de CSP. Si cette assertion tombe un jour, c'est que le
-      // mode d'échec a disparu : retirer la note de `quiz.ts` dans le même diff.
+      // 🔴 CE QUE L'ÉCHAPPEMENT NE FAIT PAS. Angular échappe « < », donc aucune balise
+      // ne peut s'ouvrir — mais il n'échappe PAS les guillemets, et la charge d'auteur
+      // survit donc LITTÉRALEMENT dans le HTML prerendu.
+      // ⚠️ CE QUE CETTE ASSERTION NE PROUVE PLUS depuis le lot A de la dette sécurité :
+      // que le build échouerait. Le gate ne balaie plus le texte brut, il analyse le
+      // DOM — un nœud texte ne produit aucun attribut, S-011 est refermée. L'assertion
+      // reste parce qu'elle est le TÉMOIN DOCUMENTAIRE de la condition qui rendrait
+      // rouge tout retour au balayage brut — elle ne peut pas rougir elle-même. Voir la
+      // note MAIN 2 de l'en-tête de ce fichier, et la note S-011 de `quiz.ts`.
       const html = groupe?.innerHTML ?? '';
       expect(html).toContain('&lt;img');
       expect(html).toContain(' onerror="');
@@ -1327,10 +1343,10 @@ describe('Quiz', () => {
         expect(span.children.length).toBe(0);
       }
 
-      // MAIN 2 — la séquence que `tools/deploiement/generer-config-swa.mjs` cherche dans
-      // le HTML prerendu survit INTACTE, parce qu'Angular n'échappe pas les guillemets.
-      // Si cette assertion tombe, c'est la note S-011 de `quiz.ts` qui doit partir dans
-      // le même diff — jamais le gate qui doit s'assouplir.
+      // MAIN 2 — la charge d'auteur survit INTACTE dans le HTML sérialisé, parce
+      // qu'Angular n'échappe pas les guillemets. TÉMOIN DOCUMENTAIRE de la condition qui
+      // rendrait rouge tout retour au balayage brut du gate, plus la preuve d'un refus
+      // (voir MAIN 2 en en-tête).
       const html = groupe?.innerHTML ?? '';
       expect(html).toContain('&lt;img');
       expect(html).toContain(' onerror="');
@@ -1383,7 +1399,8 @@ describe('Quiz', () => {
       expect(rendu?.children.length).toBe(0);
       exigerQu_aucunNoeudNeSoitNe(hote, groupe);
 
-      // MAIN 2 — les DEUX motifs du gate survivent dans le nœud texte.
+      // MAIN 2 — les DEUX séquences survivent LITTÉRALEMENT dans le nœud texte
+      // (témoin documentaire, voir MAIN 2 en en-tête : le gate ne les cherche plus).
       const html = groupe?.innerHTML ?? '';
       expect(html).toContain(' style="color:red"');
       expect(html).toContain(' onerror="…"');
@@ -1408,8 +1425,8 @@ describe('Quiz', () => {
         expect(libelle.children.length).toBe(0);
       }
 
-      // MAIN 2 — la séquence que `generer-config-swa.mjs` cherche survit INTACTE dans le
-      // HTML sérialisé. COMPTÉE, pas seulement présente : les `value` des radios sont des
+      // MAIN 2 — la charge d'auteur survit INTACTE dans le HTML sérialisé (témoin documentaire, voir
+      // MAIN 2 en en-tête). COMPTÉE, pas seulement présente : les `value` des radios sont des
       // `id` kebab-case, donc aucune occurrence ne peut venir d'un contexte d'attribut —
       // une occurrence de plus dirait qu'un site inattendu s'est mis à porter la charge.
       const html = groupe?.innerHTML ?? '';
@@ -1432,7 +1449,8 @@ describe('Quiz', () => {
       expect(groupe?.querySelector('.explication')?.children.length).toBe(0);
       exigerQu_aucunNoeudNeSoitNe(hote, groupe);
 
-      // MAIN 2 — comptée : une occurrence dans l'affirmation, une dans la justification.
+      // MAIN 2 — comptée : une occurrence dans l'affirmation, une dans la justification
+      // (témoin documentaire, voir MAIN 2 en en-tête).
       const html = groupe?.innerHTML ?? '';
       expect(html).toContain('&lt;img');
       expect(compterOccurrences(html, ' onerror="')).toBe(1);

@@ -72,11 +72,38 @@
  *     **S-011** montre qu'il en subit déjà. Éditer un `.scss` ne change **pas** le compte :
  *     l'objection qui écartait l'épinglage des valeurs ne s'applique pas à celui du nombre.
  *
- * ⚠️ ASYMÉTRIE ASSUMÉE ENTRE LES DEUX BRANCHES : les blocs `<style>` sont ANALYSÉS (jsdom, déjà
- * dépendance du dépôt), les balises `<script>` restent appariées par MOTIF. Ce n'est pas une
- * préférence : le trou de motif de la branche `<script>` est **S-003**, inscrit au backlog comme
- * lot autonome à payer avant E3-ST1. La branche `<style>` ci-dessous est le patron à y transposer,
- * pas un second motif à ajouter.
+ * ⚠️ TOUT EST ANALYSÉ — AUCUN MOTIF NE PEUT PLUS **AUTORISER** ; les deux motifs qui subsistent
+ * (`<script[\s>/]`, `<style[\s>/]`) ne servent qu'à COMPTER le brut, jamais à décider ce qui est
+ * **autorisé** ; un écart, lui, refuse en se nommant (lot A de la dette sécurité
+ * pré-E3-ST1, 2026-08-19 ; c'est la fermeture de **S-003** pour ce fichier).
+ * Chaque page est analysée UNE seule fois par jsdom, et le MÊME document sert aux trois contrôles :
+ * balises `<script>`, attributs de TOUS les éléments (`style`, `on…`), blocs `<style>`. Ce que les
+ * trois motifs retirés rataient — mesuré et reproduit, pas supposé :
+ *   · `<script data-x=a"b>alert(1)</script>` : UN guillemet non refermé (nombre IMPAIR) suffisait à
+ *     faire échouer la capture — le motif ne savait alterner que des runs cités complets. La balise
+ *     n'était donc NI hachée NI signalée : construction VERTE. Un analyseur HTML, lui, garde le `"`
+ *     dans la valeur non citée, ferme la balise au premier `>`, et le navigateur exécute le corps.
+ *     Mesuré : ancien motif 0 capture, jsdom 1 élément, corps `alert(1)`.
+ *   · `style='…'`, `style=…` sans guillemets, `STYLE=` : le motif ` style="` ne connaissait qu'une
+ *     des quatre écritures d'un même attribut.
+ *   · `onError='…'` : le motif ` (on[a-z]+)="` imposait à la fois le guillemet DOUBLE et la
+ *     minuscule — deux trous dans un garde-fou de six caractères.
+ * CE QUE ÇA GARANTIT : ce que le garde-fou refuse est ce qu'un analyseur HTML voit, et non ce que
+ * l'auteur d'un motif avait imaginé.
+ * CE QUE ÇA NE GARANTIT PAS, et il faut le dire (S-009) : que jsdom lise chaque octet comme tout
+ * navigateur. La parade N'EST PAS LA MÊME dans les trois branches, et il faut le décrire tel quel
+ * plutôt que promettre un dispositif uniforme :
+ *   · `<script>` et `<style>` — CONTRÔLE DE CONSERVATION. Le compte d'occurrences BRUTES
+ *     (`<script[\s>/]`, `<style[\s>/]`) est confronté au compte d'éléments ANALYSÉS ; tout écart
+ *     est une infraction NOMMÉE. L'inconnu est compté, pas seulement analysé.
+ *   · ATTRIBUTS (`style`, `on…`) — PAS de contrôle de conservation, et c'est un choix motivé : les
+ *     motifs bruts correspondants (` style=`, ` on…=`) compteraient aussi les NŒUDS TEXTE, donc la
+ *     leçon XSS qui affiche littéralement `onerror="alert(1)"` — ce serait rouvrir **S-011**, que
+ *     l'abandon du balayage de texte brut vient précisément de refermer. À la place, deux gestes
+ *     STRUCTURELS : le parcours descend dans `template.content` (que `querySelectorAll` ignore), et
+ *     toute construction capable de soustraire du contenu vif à l'analyseur — `<template>`,
+ *     `<noscript>`, `<iframe>`, l'attribut `shadowrootmode` — est refusée NOMINATIVEMENT. Détail et
+ *     mesure : `BALISES_MASQUANTES`, plus bas.
  */
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -171,8 +198,9 @@ const NOMBRE_HACHAGES_STYLE_ATTENDU = 10;
 
 /**
  * @typedef {{ name: string }} AttributHtml
- * @typedef {{ attributes: Iterable<AttributHtml>, getAttribute(nom: string): string | null, textContent: string | null, parentElement: { tagName: string } | null }} ElementHtml
- * @typedef {{ document: { querySelectorAll(selecteur: string): Iterable<ElementHtml> } }} FenetreHtml
+ * @typedef {{ tagName: string, attributes: Iterable<AttributHtml>, getAttribute(nom: string): string | null, textContent: string | null, outerHTML: string, parentElement: { tagName: string } | null, content?: DocumentHtml }} ElementHtml
+ * @typedef {{ querySelectorAll(selecteur: string): Iterable<ElementHtml> }} DocumentHtml
+ * @typedef {{ document: DocumentHtml }} FenetreHtml
  */
 
 const requerir = createRequire(import.meta.url);
@@ -198,60 +226,88 @@ const JSDOM = requerir('jsdom').JSDOM;
 const TYPES_INERTES = new Set(['application/json', 'application/ld+json']);
 
 /**
- * Découpe une liste d'attributs HTML en paires nom → valeur.
+ * Les constructions qui peuvent SOUSTRAIRE du contenu vif au parcours de l'analyseur — refusées
+ * NOMINATIVEMENT, avec la raison, parce qu'un contenu qu'on ne parcourt pas est un contenu qu'on
+ * ne peut pas refuser (`.claude/rules/security.md` §4 : tout ce qui est absent de la liste blanche
+ * échoue EN SE NOMMANT).
  *
- * POURQUOI UN VRAI DÉCOUPAGE PLUTÔT QU'UN `test()` SUR LA CHAÎNE BRUTE. Chercher la sous-chaîne
- * `id="init-theme"` dans les attributs laissait passer une valeur FORGÉE : dans
- * `<script data-x=" id=init-theme">`, la sous-chaîne est présente alors qu'aucun attribut `id`
- * n'existe. Le corps arbitraire était alors haché et autorisé. Deux revues indépendantes l'ont
- * reproduit sur l'artéfact (2026-08-08). Une liste blanche qui délivre un droit doit apparier des
- * jetons, jamais des sous-chaînes.
+ * POURQUOI CE REFUS PLUTÔT QU'UN COMPTAGE DU TEXTE BRUT. Le réflexe serait de compter les
+ * occurrences brutes de ` style=` / ` on…=` comme on le fait pour `<script` et `<style`. Ce serait
+ * **rouvrir S-011** : ces motifs comptent aussi les NŒUDS TEXTE, et la leçon XSS affiche
+ * littéralement `onerror="alert(1)"` dans son contenu pédagogique — construction rouge sur un
+ * dépôt sain, sur le site qui enseigne la CSP, avec la pression d'assouplissement que ça implique.
+ * Le refus ci-dessous porte sur une STRUCTURE, jamais sur du texte libre, donc il ne peut pas se
+ * former dans une phrase d'auteur.
  *
- * @param {string} chaine bloc d'attributs brut, tel que capturé entre `<script` et `>`
- * @returns {Map<string, string>} nom d'attribut en minuscules → valeur déguillemetée
+ * ET IL EST GRATUIT — mesuré le 2026-08-19 : les pages HTML de l'artéfact de production comme de
+ * l'artéfact de fixture (page de leçon interactive comprise) portent **zéro** occurrence de ces
+ * trois balises et de `shadowrootmode`. Angular n'en émet aucune. Le jour où le produit en aura
+ * réellement besoin, la construction rougira en NOMMANT la page — c'est exactement la revue qu'on
+ * veut à ce moment-là, pas un silence.
  */
-function attributs(chaine) {
-  /** @type {Map<string, string>} */
-  const paires = new Map();
-  const motif = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
-  for (const m of chaine.matchAll(motif)) {
-    // Le groupe 1 n'est pas optionnel dans le motif : une correspondance sans lui n'existe pas.
-    // `noUncheckedIndexedAccess` ne le sait pas, et on ne l'affirme pas par une assertion — on le
-    // vérifie. C'est la règle de ce fichier : l'inconnu est écarté, jamais supposé inoffensif.
-    const nom = m[1]?.toLowerCase();
-    if (nom === undefined) continue;
-    const brut = m[2] ?? '';
-    const valeur = /^["']/.test(brut) ? brut.slice(1, -1) : brut;
-    // PREMIER GAGNANT, comme l'analyseur HTML : sur un attribut répété, il retient la première
-    // occurrence et ignore les suivantes. Garder la dernière laissait
-    // `<script type="text/javascript" type="application/json">` passer pour inerte alors que le
-    // navigateur l'exécute.
-    if (!paires.has(nom)) paires.set(nom, valeur.trim());
+const BALISES_MASQUANTES = new Map([
+  [
+    'template',
+    'son contenu vit dans un fragment SÉPARÉ, invisible à `querySelectorAll` — et avec `shadowrootmode` il devient du DOM vif dans le navigateur',
+  ],
+  [
+    'noscript',
+    'le navigateur bascule en RAWTEXT quand le script est ACTIF, là où l’analyseur (script désactivé) y voit des éléments — divergence d’analyseurs, famille S-001',
+  ],
+  [
+    'iframe',
+    'un document imbriqué a sa PROPRE politique, et `srcdoc` transporte du balisage qu’aucun analyseur de la page ne parcourt',
+  ],
+]);
+
+/**
+ * Les attributs qui transforment un élément en RACINE D'ARBRE SÉPARÉ. Même raison que ci-dessus :
+ * `<template shadowrootmode="open">` est du contenu VIF dans un navigateur, et un shadow root ne
+ * se traverse pas depuis le document. `shadowroot` est l'ancienne orthographe de la proposition,
+ * gardée parce qu'un analyseur qui l'ignore n'empêche pas un navigateur de la comprendre.
+ */
+const ATTRIBUTS_MASQUANTS = new Set(['shadowrootmode', 'shadowroot']);
+
+/**
+ * Analyse une page de l'artéfact — UNE fois, pour les trois contrôles.
+ *
+ * ⚠️ MÉMOIRE DES CONTOURNEMENTS DÉJÀ PAYÉS EN REVUE SUR CE FICHIER. Cette fonction remplace un
+ * découpage d'attributs maison (`attributs()`), son contrôle de bonne formation
+ * (`MOTIF_ATTRIBUTS_BIEN_FORMES`) et le motif de capture des balises (`MOTIF_SCRIPT`). Les quatre
+ * pièges qu'ils avaient coûté ne disparaissent pas avec eux — ils sont désormais tenus par
+ * l'analyseur, et c'est CE qu'il faut relire avant d'être tenté de revenir à un motif :
+ *   · SOUS-CHAÎNE ≠ JETON (deux revues indépendantes, 2026-08-08). Chercher `id="init-theme"` dans
+ *     la chaîne d'attributs acceptait une valeur FORGÉE : `<script data-x=" id=init-theme">` porte
+ *     la sous-chaîne sans porter l'attribut. `getAttribute('id')` ne peut pas s'y tromper.
+ *   · PREMIER GAGNANT sur attribut répété. `<script type="text/javascript" type="application/json">`
+ *     est EXÉCUTÉ par le navigateur, qui retient la première occurrence ; garder la dernière le
+ *     faisait passer pour inerte. L'analyseur applique nativement la règle du navigateur.
+ *   · BACKTICKS. Sur `<script data-x=`type="application/json"`>`, le découpage maison croyait voir
+ *     un `type` inerte au milieu d'une valeur, là où le navigateur ne voit AUCUN `type` — et exécute.
+ *   · CASSE ET BLANCS. `<ScRiPt>` et `</script >` sont du script exécutable ; sans le drapeau `i`
+ *     et le `\s*`, le motif ne voyait pas la balise DU TOUT — ni hachée, ni signalée.
+ * Et le trou qui a motivé le lot A : `<script data-x=a"b>` — UN guillemet non refermé suffisait à
+ * faire échouer la capture, donc à rendre la balise invisible au garde-fou (S-003). Les trois
+ * premiers pièges ci-dessus étaient, eux, déjà REFUSÉS par l'ancien code : la refonte ne doit rien
+ * relâcher, et `src/config-swa-contournements.spec.ts` porte un cas exécutable pour chacun des
+ * trois (sous-chaîne, premier gagnant, backticks). Le quatrième — casse et blancs — y a lui aussi
+ * ses deux cas. Cette phrase se vérifie en comptant les `it()`, pas en se souvenant de l'intention :
+ * jusqu'au 2026-08-19 elle promettait « cas par cas » avec UN seul des trois au harnais, ce qui est
+ * exactement le S-009 que ce fichier passe son temps à dénoncer.
+ *
+ * Renvoie une UNION plutôt qu'un document éventuellement vide : un `catch` qui rendrait un document
+ * sans élément ferait passer une page illisible pour une page propre — fail-open exact.
+ *
+ * @param {string} html contenu brut du fichier de l'artéfact
+ * @returns {{ document: DocumentHtml, erreur?: undefined } | { document?: undefined, erreur: string }}
+ */
+function analyserPage(html) {
+  try {
+    return { document: new JSDOM(html).window.document };
+  } catch (erreur) { // NOSONAR — nom français, voir `rendre-mermaid.mjs`
+    return { erreur: String(erreur instanceof Error ? erreur.message : erreur) };
   }
-  return paires;
 }
-
-/**
- * Le bloc d'attributs est-il ENTIÈREMENT analysable par `attributs()` ?
- *
- * `attributs()` glane des paires là où il en trouve ; il ne se plaint pas de ce qu'il n'a pas su
- * lire. Sur `<script data-x=`type="application/json"`>`, il croyait donc voir un `type` inerte au
- * milieu d'une valeur à backticks là où le navigateur ne voit aucun `type` — et exécute. On exige
- * ici que TOUT le bloc corresponde à une suite d'attributs bien formés : ce qui n'est pas compris
- * devient une infraction, jamais un laissez-passer. C'est la règle générale de ce fichier —
- * échouer sur l'inconnu plutôt que le supposer inoffensif.
- */
-const MOTIF_ATTRIBUTS_BIEN_FORMES =
-  /^(?:\s+[a-zA-Z_:][-a-zA-Z0-9_:.]*(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s*\/?$/;
-
-/**
- * Balises `<script>` d'une page, avec leurs attributs découpés et leur corps.
- * Le groupe d'attributs accepte les valeurs citées contenant un `>` — sinon la balise serait
- * coupée au mauvais endroit et son corps mal lu.
- */
-// Drapeau `i` et `</script\s*>` : `<ScRiPt>` et `</script >` sont du script exécutable pour un
-// navigateur. Sans eux, la balise n'était pas vue du tout — donc ni hachée ni signalée.
-const MOTIF_SCRIPT = /<script((?:"[^"]*"|'[^']*'|[^>"'])*)>([\s\S]*?)<\/script\s*>/gi;
 
 /**
  * Hache le contenu d'un élément comme le fait un navigateur.
@@ -288,6 +344,48 @@ function decrireAttributs(element) {
     })
     .join(' ');
   return rendu || '(aucun attribut)';
+}
+
+/**
+ * Parcourt TOUS les éléments d'un arbre, `<template>` compris.
+ *
+ * `querySelectorAll('*')` ne descend PAS dans `template.content` : le contenu d'un `<template>` vit
+ * dans un `DocumentFragment` séparé. C'est exactement le trou qui a fait sortir en code 0, SANS
+ * message, un `<template shadowrootmode="open"><img src=x onerror="alert(1)"></template>` — du DOM
+ * vif dans un navigateur qui sait lire le shadow DOM déclaratif. Le refus nominatif de
+ * `BALISES_MASQUANTES` suffirait à le rougir ; on descend quand même, pour que ce refus ne soit pas
+ * le SEUL filet et que la cause imprimée nomme aussi l'attribut fautif.
+ *
+ * ⚠️ LA DESCENTE EST NOMINATIVE — `<template>` et rien d'autre — et ce n'est PAS de la coquetterie
+ * de style : `element.content` existe aussi sur `<meta name="viewport" content="…">`, où c'est une
+ * CHAÎNE. Un `if (element.content)` fait donc planter le générateur sur l'artéfact réel dès la
+ * première balise `<meta>` porteuse de l'attribut — mesuré le 2026-08-19, en écrivant ce correctif.
+ * Le nom d'une propriété DOM n'atteste de rien ; le nom de la BALISE, si.
+ *
+ * @param {DocumentHtml} racine document ou fragment à parcourir
+ * @returns {Generator<ElementHtml>} chaque élément, une fois, dans l'ordre du document
+ */
+function* tousLesElements(racine) {
+  for (const element of racine.querySelectorAll('*')) {
+    yield element;
+    if (element.tagName.toLowerCase() === 'template' && element.content !== undefined) {
+      yield* tousLesElements(element.content);
+    }
+  }
+}
+
+/**
+ * Aperçu tronqué du balisage d'un élément, pour que le message d'infraction NOMME la construction
+ * refusée. Sans lui, deux `<noscript>` différents produiraient la même ligne et personne ne saurait
+ * lequel corriger. Blancs repliés (un `<template>` peut s'étaler sur dix lignes), longueur bornée
+ * (même geste que `decrireAttributs`).
+ *
+ * @param {ElementHtml} element
+ * @returns {string} balisage replié, tronqué à 80 caractères
+ */
+function apercuBalisage(element) {
+  const replie = (element.outerHTML ?? '').replace(/\s+/g, ' ').trim();
+  return replie.length > 80 ? `${replie.slice(0, 80)}…` : replie;
 }
 
 /**
@@ -552,36 +650,115 @@ for (const page of pages) {
   const html = readFileSync(page, 'utf8');
   const nom = relative(ARTEFACT, page);
 
-  for (const m of html.matchAll(/ (on[a-z]+)="/g)) {
-    infractions.push(`${nom} : gestionnaire d’événement inline « ${m[1]} » — bloqué par script-src`);
+  // --- UN SEUL PARSE PAR PAGE, TROIS CONTRÔLES -------------------------------------------------
+  // Un motif regex ne voit pas ce que le navigateur voit : `<STYLE>`, `<style ng-app-id='ng'>`, un
+  // attribut dont la valeur contient un `>`, un guillemet orphelin qui fait rater la balise
+  // ENTIÈRE… — et une balise ratée par le garde-fou est une balise que rien ne signale (S-003).
+  // jsdom est déjà une dépendance du dépôt et applique les règles d'analyse du navigateur : on
+  // parse UNE fois, puis on confronte à des listes blanches nominatives. C'est la règle de
+  // `.claude/rules/security.md` §4 sur les formats structurés, et le patron de `rendre-mermaid.mjs`.
+  const analyse = analyserPage(html);
+  if (analyse.document === undefined) {
+    infractions.push(`${nom} : page HTML non analysable (${analyse.erreur}) — refusée par principe`);
+    continue;
+  }
+  const pageDom = analyse.document;
+
+  // --- (a) Attributs de TOUS les éléments : `style` et `on…` -----------------------------------
+  // L'analyseur a déjà décidé ce qui EST un attribut : `style='…'`, `style=…` sans guillemets,
+  // `STYLE=` et `onError=` arrivent ici sous leur forme normalisée (nom en minuscules), là où les
+  // deux motifs remplacés n'en connaissaient qu'une écriture chacun.
+  //
+  // CE QUI TIENT LA COMPLÉTUDE DE CETTE BRANCHE (elle n'a pas de compte de brut, et c'est motivé
+  // en tête de `BALISES_MASQUANTES`) : le parcours descend dans `template.content`, que
+  // `querySelectorAll` ignore, ET toute construction capable de soustraire du contenu vif à un
+  // analyseur de la page est refusée NOMINATIVEMENT. Les quatre divergences connues — shadow DOM
+  // déclaratif, `<noscript>` en RAWTEXT quand le script est actif, `srcdoc`, `<template>` — sont
+  // donc couvertes DEUX fois plutôt qu'une.
+  /** @type {string[]} */
+  const porteursDeStyle = [];
+  for (const element of tousLesElements(pageDom)) {
+    const balise = element.tagName.toLowerCase();
+    const raisonMasquante = BALISES_MASQUANTES.get(balise);
+    if (raisonMasquante !== undefined) {
+      infractions.push(
+        `${nom} : construction « <${balise}> » refusée — ${raisonMasquante} ; ce que le garde-fou ne parcourt pas, il ne peut pas le refuser : ${apercuBalisage(element)}`,
+      );
+    }
+    for (const attribut of element.attributes) {
+      const nomAttribut = attribut.name.toLowerCase();
+      if (nomAttribut === 'style') porteursDeStyle.push(`<${balise}>`);
+      else if (ATTRIBUTS_MASQUANTS.has(nomAttribut)) {
+        infractions.push(
+          `${nom} : attribut « ${nomAttribut} » sur <${balise}> — il ouvre un arbre SÉPARÉ (shadow DOM déclaratif) que rien ne parcourt depuis le document`,
+        );
+      }
+      // Tout nom qui COMMENCE par `on` : la liste des gestionnaires s'allonge à chaque version de
+      // la plateforme, et un nom inconnu qui en a la forme se refuse plutôt que se suppose inoffensif.
+      else if (nomAttribut.startsWith('on')) {
+        infractions.push(
+          `${nom} : gestionnaire d’événement inline « ${nomAttribut} » sur <${balise}> — bloqué par script-src`,
+        );
+      }
+    }
+  }
+  if (porteursDeStyle.length) {
+    const cites = porteursDeStyle.slice(0, 5).join(' ');
+    const reste = porteursDeStyle.length > 5 ? ' …' : '';
+    infractions.push(
+      `${nom} : ${porteursDeStyle.length} attribut(s) style inline (${cites}${reste}) — bloqué(s) par style-src (les hachages ne couvrent pas les attributs)`,
+    );
+  }
+
+  // --- (b) Balises <script> --------------------------------------------------------------------
+  const scripts = [...pageDom.querySelectorAll('script')];
+
+  // CONTRÔLE DE CONSERVATION (S-003), jumeau de celui des blocs <style> plus bas : « je refuse tout
+  // ce que je vois » ne protège rien si voir peut échouer en silence. Même ancrage `<script` +
+  // délimiteur de nom de balise (blanc, `/` ou `>`) : ce sont exactement les caractères qui
+  // terminent un nom de balise pour le tokeniseur HTML, donc aucune vraie balise ne peut y échapper
+  // (pas de fail-open) alors qu'un `<script-exemple>` — nom d'élément personnalisé parfaitement
+  // légal dans une leçon — en sort. Un écart n'est pas forcément dangereux : il est NON COMPRIS.
+  //
+  // ⚠️ CE MESSAGE ACCUSE LA CSP POUR DES CAUSES QUI SONT SOUVENT ÉDITORIALES — les connaître évite
+  // la pression d'assouplissement décrite en S-011. Écarts possibles, exactement les mêmes que ceux
+  // recensés pour le jumeau `<style>` plus bas :
+  //   · un `<script` dans un commentaire HTML ;
+  //   · un `<script` dans un `<template>` inerte ;
+  //   · un `<script` dans la chaîne d'un script ;
+  //   · un `<script ` dans une VALEUR D'ATTRIBUT — et celui-là n'est PAS théorique ici : la
+  //     sérialisation HTML n'échappe pas `<` dans une valeur d'attribut, et du TEXTE D'AUTEUR
+  //     atteint bien des attributs (`bloc.titreAccessible`, `etape.nom`, `module.nomAccessible`).
+  //     Charge mesurée : `<p aria-label="diagramme : injection d'un <script> dans le DOM">` donne 1
+  //     occurrence brute pour 0 élément, donc code 1 sur un dépôt SAIN. Faux positif LÉGITIME et
+  //     conservé — rien ne garantit que tous les analyseurs lisent cette valeur comme celui-ci.
+  // 🔴 LA PARADE EST ÉDITORIALE, JAMAIS UN ASSOUPLISSEMENT DU COMPTE : on écrit « la balise script »
+  // ou `‹script›` dans la leçon. Relâcher ce compte pour publier, c'est précisément la pression
+  // S-011, sur un site qui enseigne la CSP.
+  const occurrencesScript = (html.match(/<script[\s>/]/gi) ?? []).length;
+  if (occurrencesScript !== scripts.length) {
+    infractions.push(
+      `${nom} : ${occurrencesScript} occurrence(s) brute(s) de « <script » pour ${scripts.length} élément(s) <script> vu(s) par l’analyseur — écart refusé (le garde-fou doit prouver qu’il a TOUT vu)`,
+    );
   }
 
   let scriptsAutorises = 0;
-  for (const m of html.matchAll(MOTIF_SCRIPT)) {
-    // Les deux groupes du motif sont obligatoires : une correspondance qui n'en porterait pas est
-    // impossible. On l'écarte quand même plutôt que de l'affirmer par une assertion — même règle
-    // que `attributs()` : ce qui n'est pas compris est refusé, jamais supposé inoffensif.
-    const attributsBruts = m[1];
-    const corps = m[2];
-    if (attributsBruts === undefined || corps === undefined) {
-      infractions.push(`${nom} : balise <script> illisible — refusée par principe`);
-      continue;
-    }
-    if (!MOTIF_ATTRIBUTS_BIEN_FORMES.test(attributsBruts)) {
-      infractions.push(`${nom} : balise <script> aux attributs non analysables — refusée par principe`);
-      continue;
-    }
-    const attrs = attributs(attributsBruts);
-    const type = (attrs.get('type') ?? '').toLowerCase();
-    if (!corps.trim() || attrs.has('src') || TYPES_INERTES.has(type)) continue;
+  for (const script of scripts) {
+    const corps = script.textContent ?? '';
+    const type = (script.getAttribute('type') ?? '').trim().toLowerCase();
+    if (!corps.trim() || script.getAttribute('src') !== null || TYPES_INERTES.has(type)) continue;
 
     // Le script d'initialisation du thème est le SEUL inline exécutable admis. Deux conditions
     // CUMULATIVES : le bon `id` ET le contenu exact déjà revu. L'`id` seul ne suffit pas — il est
     // choisi par celui qui produit l'artéfact, donc il n'atteste de rien.
-    if (attrs.get('id') === ID_SCRIPT_AUTORISE) {
+    if (script.getAttribute('id') === ID_SCRIPT_AUTORISE) {
       // Compté ici, avant la comparaison de hachage : un script présent mais modifié doit produire
       // le message « il a changé », pas « il est absent ».
       scriptsAutorises += 1;
+      // `textContent` est le corps tel que l'analyseur l'a construit — fins de ligne déjà
+      // normalisées, comme côté navigateur. C'est le texte que la CSP hache, et le hachage épinglé
+      // ci-dessus n'a pas bougé en passant de la sous-chaîne brute à `textContent` (assertionné par
+      // `src/config-swa-contournements.spec.ts`, pas supposé).
       const hachage = hacher(corps);
       if (hachage === HACHAGE_SCRIPT_ATTENDU) hachagesScript.add(hachage);
       else infractions.push(`${nom} : le script « ${ID_SCRIPT_AUTORISE} » a changé — ${hachage}, attendu ${HACHAGE_SCRIPT_ATTENDU}`);
@@ -598,27 +775,8 @@ for (const page of pages) {
     );
   }
 
-  if (/ style="/.test(html)) {
-    const n = (html.match(/ style="/g) || []).length;
-    infractions.push(`${nom} : ${n} attribut(s) style inline — bloqué(s) par style-src (les hachages ne couvrent pas les attributs)`);
-  }
-
-  // --- Blocs <style> : ANALYSÉS, puis confrontés à une provenance nominative -------------------
-  // Un motif regex ne verrait pas ce que le navigateur voit : `<STYLE>`, `<style ng-app-id='ng'>`,
-  // un attribut dont la valeur contient un `>`… autant de blocs qu'un motif rate ou découpe mal —
-  // et un bloc raté par le garde-fou est un bloc que rien ne signale (S-003). jsdom est déjà une
-  // dépendance du dépôt et applique les mêmes règles d'analyse que le navigateur : on parse, puis
-  // on confronte à la liste blanche. C'est la règle de `.claude/rules/security.md` §4 sur les
-  // formats structurés, et le patron de `rendre-mermaid.mjs`.
-  /** @type {ElementHtml[]} */
-  let blocsStyle = [];
-  try {
-    blocsStyle = [...new JSDOM(html).window.document.querySelectorAll('style')];
-  } catch (erreur) { // NOSONAR — nom français, voir `rendre-mermaid.mjs`
-    infractions.push(
-      `${nom} : page HTML non analysable (${String(erreur instanceof Error ? erreur.message : erreur)}) — refusée par principe`,
-    );
-  }
+  // --- (c) Blocs <style> : confrontés à une provenance nominative ------------------------------
+  const blocsStyle = [...pageDom.querySelectorAll('style')];
 
   // CONTRÔLE DE CONSERVATION (S-003) : « je refuse tout ce que je vois » ne protège rien si voir
   // peut échouer en silence. On compte les occurrences BRUTES de la structure ciblée et on exige

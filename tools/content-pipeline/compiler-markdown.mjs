@@ -12,7 +12,9 @@
  * soit :
  *
  *   1. ZÉRO attribut `style=` dans le HTML produit. La CSP du site est à HACHAGES :
- *      `tools/deploiement/generer-config-swa.mjs` refuse tout ` style="` de l'artéfact (les
+ *      `tools/deploiement/generer-config-swa.mjs` ANALYSE l'artéfact (jsdom, lot A de la dette
+ *      sécurité pré-E3-ST1) et refuse tout attribut `style` quelle qu'en soit l'écriture — le
+ *      refus est donc plus LARGE que l'ancien motif ` style="` qui figurait ici (les
  *      hachages ne couvrent pas les attributs de style) et hache tout bloc `<style>` dans un
  *      `style-src` GLOBAL AU SITE. Un `<pre>` coloré en styles en ligne casserait donc le build —
  *      ou, pire, élargirait la CSP de tout le site à la palette d'un bloc de code. D'où Shiki +
