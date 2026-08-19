@@ -4,8 +4,8 @@
 // Les assertions d'E0-ST4 sur la page « chantier » (« Dr. Je-Sais-Tout » dans un
 // `<h1>`, « sécurité des applications web » dans le texte) ont disparu d'ici
 // VOLONTAIREMENT : ce composant ne rend plus de contenu. Ces mêmes vérifications
-// vivent maintenant là où le contenu vit — `page-a-venir.spec.ts` pour la page,
-// `app.routes.spec.ts` pour le `<h1>` unique de chaque route.
+// vivent maintenant là où le contenu vit — `accueil.spec.ts` pour la page d'entrée
+// et `app.routes.spec.ts` pour le `<h1>` unique de chaque route.
 //
 // Ce que ce fichier tient, et que rien d'autre ne peut tenir :
 //  · les REPÈRES de la coquille — un `header`, un `main`, un `footer`, un seul de

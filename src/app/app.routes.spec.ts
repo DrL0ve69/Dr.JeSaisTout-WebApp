@@ -4,14 +4,16 @@
 // -----------------------------------------------------------------------------
 // Ce que ce fichier protège, et qu'aucun autre ne peut protéger :
 //
-//  · `PageAVenir` LÈVE quand `data.titre` manque. C'est un bon réflexe, mais il
-//    ne se déclenche qu'au RENDU de la route fautive : sans ce fichier, la seule
-//    chose qui l'attraperait serait `npm run build` (le prerender), c'est-à-dire
-//    le gate le plus lent de la chaîne. Ici, c'est rouge en deux secondes.
 //  · CHAQUE PAGE A UN TITRE DE DOCUMENT. Un `title:` oublié laisse le titre de la
 //    page PRÉCÉDENTE dans l'onglet après une navigation cliente — WCAG 2.4.2
 //    décroche sans que rien ne soit visible à l'écran.
-//  · UN SEUL `<h1>` PAR PAGE, et il n'est pas vide (WCAG 1.3.1 / 2.4.6).
+//  · UN SEUL `<h1>` PAR PAGE, et il n'est pas vide (WCAG 1.3.1 / 2.4.6). C'est le
+//    seul garde-fou qui reste sur ce point depuis E2-ST6, et c'est voulu : le test
+//    `routesAVenir` qui vivait ici vérifiait qu'une route de `PageAVenir` portait
+//    bien son `data.titre` — un composant supprimé avec ce lot, et une donnée de
+//    route que plus AUCUNE route ne porte. Chaque page écrit désormais son `<h1>`
+//    dans son gabarit ; ce qui reste à garder n'est plus le câblage, c'est
+//    l'EFFET, et le groupe « rendu réel » ci-dessous le mesure sur le DOM.
 //  · LA 404 EST LA MÊME DES DEUX CÔTÉS. `404` (chemin littéral, réellement
 //    prerendu en `404/index.html`) et `**` (filet client) doivent monter le MÊME
 //    composant : SWA réécrit une URL inconnue vers `404/index.html`, où le routeur
@@ -32,7 +34,6 @@ import { Route, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
 import { routes } from './app.routes';
-import { PageAVenir } from './core/layout/page-a-venir/page-a-venir';
 
 /** Le nom du site, écrit à la main : chaque onglet doit l'identifier. */
 const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
@@ -79,18 +80,21 @@ describe('table de routes', () => {
       expect(routes.filter((route) => typeof route.title === 'function').length).toBe(1);
     });
 
-    it('donne un `data.titre` non vide à toute route servie par `PageAVenir`', () => {
-      // C'est LA donnée dont dépend le `<h1>` de la page. Les routes de la 404
-      // n'en portent pas, et c'est correct : `PageIntrouvable` ne lit RIEN de la
-      // route — son titre est écrit dans son gabarit, précisément pour rendre la
-      // même chose depuis ses deux points de montage.
-      const routesAVenir = routes.filter((route) => route.component === PageAVenir);
-      const sansTitreDeData = routesAVenir
-        .filter((route) => !estChaineNonVide(route.data?.['titre']))
-        .map(nommer);
+    it('ne fait dépendre AUCUN `<h1>` d’un `data` de route', () => {
+      // Ce test REMPLACE `routesAVenir`, supprimé avec `PageAVenir` (E2-ST6). Il
+      // ne garde pas la même chose, et c'est le point : l'ancien vérifiait qu'une
+      // route de placeholder portait bien le `data.titre` dont son `<h1>`
+      // dépendait ; celui-ci verrouille la propriété qui a rendu ce couplage
+      // inutile — plus aucune route ne transmet de contenu de page. Un `data`
+      // réintroduit ici serait soit lu par un composant (retour du `<h1>` vide en
+      // silence), soit lu par personne (du code mort qu'une revue prendrait pour
+      // un contrat). Les deux se corrigent au même endroit : le gabarit.
+      const avecData = routes.filter((route) => route.data !== undefined).map(nommer);
 
-      expect(routesAVenir.length).toBeGreaterThan(0);
-      expect(sansTitreDeData).toEqual([]);
+      expect(avecData).toEqual([]);
+      // Contrôle positif (L-019) : sans lui, ce filtre resterait vert sur une
+      // table vide, ou sur une table dont plus aucune entrée n'est une route.
+      expect(routes.length).toBeGreaterThan(0);
     });
 
     it('monte le MÊME composant sur `404` et sur `**`', () => {

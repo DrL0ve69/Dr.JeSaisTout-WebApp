@@ -1,0 +1,199 @@
+// =============================================================================
+// Sommaire — carte de parcours d'un cours
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+//
+// CONFINEMENT DES CONTRASTES, comme `carte-cours.scss`. Le sommaire ne pose que
+// deux fonds : `--couleur-surface` (la page, hérité) et `--couleur-surface-creuse`
+// (la ligne d'un module). Les seules encres employées dessus sont celles dont la
+// paire est DÉJÀ mesurée par `tools/design/verifier-contrastes.mjs` — `encre`,
+// `encre-secondaire`, `encre-tertiaire`, `encre-filigrane` (grand texte seul),
+// `accent`, `filet`, `filet-fort`, `focus`. Zéro paire nouvelle introduite ici,
+// donc zéro entrée à ajouter au gate.
+//
+// 🔴 L'ÉTAT D'UN MODULE N'EST PAS PORTÉ PAR LA COULEUR (WCAG 1.4.1), ET IL NE
+// L'EST MÊME PAS PARTIELLEMENT. Le badge porte le MOT (« À commencer », « Lu »,
+// « Maîtrisé ») ; ce qui varie en plus est le STYLE du trait (pointillé → plein →
+// épais) et le poids de l'encre, deux propriétés qui survivent au contraste forcé
+// et au daltonisme.
+//
+// POURQUOI AUCUN VERT POUR « MAÎTRISÉ », ALORS QUE LA PAIRE EXISTE. C'est
+// délibéré : `--couleur-ok-corrige` est la signature pédagogique « code corrigé »
+// du site (pendant de `--couleur-danger-vuln`), et la direction visuelle
+// « Moniteur ambre » (D-1) rappelle que cette seule signature chromatique ne doit
+// pas être diluée par un usage d'interface. Même raisonnement que le tampon
+// « chantier » de `carte-cours.scss`, qui s'interdit le rouge. Si la bascule E6
+// veut colorer la maîtrise, c'est UNE ligne à changer ici — et une paire à faire
+// entrer dans la table de mesure.
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+// --- État vide : la seule chose que le visiteur voit jusqu'à E3-ST1 ----------
+.vide {
+  color: var(--couleur-encre-tertiaire);
+  font-style: italic;
+}
+
+// --- Résumé du cours : compteurs et durée totale ------------------------------
+// Les chiffres CHANGENT après l'hydratation (gate L-033). Aucun `aria-live` :
+// l'annonce se déclencherait à chaque chargement de page sans que le visiteur ait
+// rien fait, ce qui est du bruit, pas de l'information.
+.resume {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1) var(--espace-3);
+  margin-block-end: var(--espace-4);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+// --- Groupes de sections ------------------------------------------------------
+.groupe + .groupe {
+  margin-block-start: var(--espace-6);
+}
+
+.titre-section {
+  margin-block-end: var(--espace-3);
+}
+
+.modules {
+  margin: 0;
+  padding: 0;
+
+  // Les puces sont retirées parce que le numéro de module est DESSINÉ. Le
+  // gabarit rétablit `role="list"` — voir son commentaire.
+  list-style: none;
+}
+
+// --- Une ligne de module ------------------------------------------------------
+.module {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1) var(--espace-3);
+  align-items: center;
+  justify-content: space-between;
+
+  // G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
+  // (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien, et
+  // deviennent rigoureusement identiques en contraste forcé.
+  border: var(--filet-fin) solid var(--couleur-filet);
+  border-radius: var(--rayon-carte);
+  background-color: var(--couleur-surface-creuse);
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+.module + .module {
+  margin-block-start: var(--espace-2);
+}
+
+// Le lien occupe toute la ligne utile : la cible de pointage dépasse largement
+// les 44 px de la barre du projet (WCAG 2.2 · 2.5.8 n'en exige que 24).
+.lien {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--espace-3);
+  align-items: center;
+  min-block-size: var(--espace-6);
+  padding: var(--espace-2) var(--espace-3);
+  color: var(--couleur-encre);
+  text-decoration: none;
+
+  @include m.focus-visible;
+
+  &:hover .titre {
+    color: var(--couleur-accent);
+    text-decoration: underline;
+  }
+}
+
+// Numéro de module en filigrane. `--taille-xl` n'est pas un choix esthétique :
+// la paire `encre-filigrane` / `surface-creuse` n'est mesurée qu'au seuil
+// « grand-texte » (≥ 31,25 px), qui est exactement ce palier. La descendre
+// invaliderait la mesure.
+.numero {
+  flex: 0 0 auto;
+  color: var(--couleur-encre-filigrane);
+  font-size: var(--taille-xl);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.titre {
+  font-weight: var(--graisse-titre);
+}
+
+// --- Métadonnées de droite : badge d'état, durée, niveau ----------------------
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1) var(--espace-2);
+  align-items: center;
+  margin: 0;
+  padding-inline: var(--espace-3);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
+}
+
+.duree,
+.niveau {
+  white-space: nowrap;
+}
+
+// Le badge d'état. Toujours présent — c'est la moitié « gabarit invariant » du
+// gate d'hydratation. Sa forme au repos est celle de « non commencé », parce que
+// c'est ce que le HTML prerendu contient toujours.
+.badge {
+  padding: var(--espace-0-5) var(--espace-2);
+  border: var(--filet-fin) dashed var(--couleur-filet);
+  border-radius: var(--rayon-pastille);
+  color: var(--couleur-encre-tertiaire);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+// « Lu » : le trait se ferme, l'encre monte d'un cran.
+.etat-lu .badge {
+  border-style: solid;
+  border-color: var(--couleur-filet-fort);
+  color: var(--couleur-encre-secondaire);
+}
+
+// « Maîtrisé » : le trait s'épaissit et l'encre atteint le corps de texte. C'est
+// la seule ligne à toucher si E6 décide de colorer la maîtrise.
+.etat-maitrise .badge {
+  border-width: var(--filet-moyen);
+  border-style: solid;
+  border-color: var(--couleur-encre);
+  color: var(--couleur-encre);
+}
+
+// La marge gauche du module reprend le même gradient de trait : redondance
+// volontaire, elle rend l'avancement lisible d'un coup d'œil sur la colonne,
+// sans jamais être la SEULE porteuse de l'information.
+.etat-lu {
+  border-inline-start: var(--filet-moyen) solid var(--couleur-filet-fort);
+}
+
+.etat-maitrise {
+  border-inline-start: var(--filet-marge) solid var(--couleur-encre);
+}

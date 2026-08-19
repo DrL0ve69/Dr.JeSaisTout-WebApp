@@ -28,9 +28,13 @@
 //  2. avec le défaut `unmatchedInputBehavior: 'alwaysUndefined'`, un
 //     `input.required()` n'échoue PAS bruyamment — le routeur appelle
 //     `setInput(nom, undefined)` sans condition (même fichier) — donc un
-//     `data.titre` oublié rendrait un `<h1>` vide en silence, exactement ce que
-//     la garde de `PageAVenir` existe pour empêcher.
-// `PageAVenir` lit donc `ActivatedRoute.snapshot` lui-même : rien à câbler ici.
+//     `input` manquant serait rendu comme du vide, en silence, au lieu d'échouer
+//     bruyamment à l'endroit du câblage fautif.
+// CE QUE ÇA IMPOSE AUX ROUTES, ET C'EST LA SEULE CONSÉQUENCE À RETENIR : un
+// composant monté par le routeur ne reçoit AUCUN input. Un composant qui en exige
+// un — `Sommaire` et son `sujet` — n'est donc jamais monté directement : la route
+// monte un adaptateur mince qui fixe la valeur dans son gabarit
+// (`page-sommaire-securite-web.ts`). Rien à câbler ici.
 //
 // ⚠️ `withNoIncrementalHydration()` EST UN ARBITRAGE, PAS UNE OPTION DÉCORATIVE —
 // ne pas le « nettoyer ». `provideClientHydration()` seul active l'hydratation

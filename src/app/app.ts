@@ -2,12 +2,14 @@
 // App — la COQUILLE du site : lien d'évitement, en-tête, `<main>`, pied de page
 // -----------------------------------------------------------------------------
 // Ce composant ne rend plus aucun contenu depuis E1-ST2 : la page « chantier »
-// d'E0-ST4 qui vivait ici est devenue `core/layout/page-a-venir`, alimentée par les
-// `data` des routes. Ce qui reste est la structure commune à toutes les pages.
+// d'E0-ST4 qui vivait ici est partie dans un composant de page, et ces pages sont
+// depuis devenues les vraies (`Accueil` en E1-ST3, le sommaire du cours en
+// E2-ST6). Ce qui reste est la structure commune à toutes les pages.
 //
 // C'EST LA COQUILLE QUI PORTE L'UNIQUE `<main>`, et c'est un contrat entre les
-// lots d'E1-ST2 : aucun des composants de page (`PageAVenir`, `PageIntrouvable`)
-// n'en émet, et l'en-tête comme le pied émettent déjà leur propre repère
+// lots d'E1-ST2 : aucun composant de page (`Accueil`, `PageSommaireSecuriteWeb`,
+// `Lecon`, `PageIntrouvable`) n'en émet, et l'en-tête comme le pied émettent déjà
+// leur propre repère
 // (`<header>`, `<footer role="contentinfo">`) — les envelopper une seconde fois
 // dupliquerait `banner` et `contentinfo`. Porter le `<main>` ici plutôt que dans
 // chaque page tient l'invariant utile : un `<main>` et un seul, toujours présent,

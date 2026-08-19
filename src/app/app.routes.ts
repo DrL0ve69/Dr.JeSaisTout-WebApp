@@ -1,9 +1,10 @@
 // =============================================================================
 // Les routes publiques du site — E1-ST2, mises à jour par E1-ST3
 // -----------------------------------------------------------------------------
-// Quatre routes. `/` est désormais la VRAIE page d'accueil (`Accueil`, E1-ST3) ;
-// `PageAVenir` ne sert plus qu'au sommaire du cours, en attendant le moteur de
-// contenu (E2), et `PageIntrouvable` sert les deux entrées de la 404.
+// Cinq routes. `/` est la VRAIE page d'accueil (`Accueil`, E1-ST3) ;
+// `cours/securite-web` est le VRAI sommaire du cours depuis E2-ST6 (le
+// placeholder `PageAVenir` a été supprimé avec ce lot, faute de point de montage) ;
+// et `PageIntrouvable` sert les deux entrées de la 404.
 //
 // POURQUOI `Accueil` EST IMPORTÉE DIRECTEMENT, sans `loadComponent`. Le site est
 // entièrement prerendu (`outputMode: "static"`) : le HTML de `/` est déjà écrit
@@ -42,19 +43,24 @@
 // `titreDeDocument`, et il n'y a aucune classe à écrire. Une `TitleStrategy` maison
 // n'ajouterait ici qu'un point de passage supplémentaire à tester.
 //
-// PAS DE `withComponentInputBinding()` (raisonnement complet dans `app.config.ts`,
-// rappel dans l'en-tête de `PageAVenir`) : ces routes alimentent le composant par
-// `data`, qu'il lit lui-même sur `ActivatedRoute.snapshot`.
+// PAS DE `withComponentInputBinding()` — raisonnement complet dans
+// `app.config.ts`, et c'est une décision de SÉCURITÉ, pas un oubli de câblage.
+// Conséquence directe pour toute route ajoutée ici : un composant routé ne reçoit
+// AUCUN input du routeur. `Sommaire` déclare pourtant `sujet` en
+// `input.required<string>()` ; il n'est donc pas monté directement, mais à travers
+// `PageSommaireSecuriteWeb`, un adaptateur qui fixe le sujet dans son gabarit —
+// donc à la compilation, hors de portée de toute URL. Le détail est en tête de
+// `page-sommaire-securite-web.ts` ; le mode d'échec qu'il évite est silencieux
+// (`unmatchedInputBehavior: 'alwaysUndefined'` ne fait pas lever un input requis).
 //
-// LES `data.titre` NE SONT PAS FACULTATIFS — POUR LES ROUTES DE `PageAVenir`.
-// `Accueil`, elle, écrit son `<h1>` dans son propre gabarit : le bloc `data` de la
-// route `/` a été RETIRÉ avec E1-ST3 plutôt que laissé à ne servir personne (du
-// code mort silencieux, que la revue suivante prendrait pour un contrat).
-// `PageAVenir.titre()` LÈVE une
-// exception si `data.titre` manque, est vide, ou n'est pas une chaîne — donc le
-// prerender de la route fautive fait échouer `npm run build` au lieu de livrer un
-// `<h1>` vide en silence. `app.routes.spec.ts` tient la même promesse côté tests,
-// route par route.
+// PLUS AUCUNE ROUTE NE PORTE DE `data`, ET C'EST VOULU. Chaque composant de page
+// écrit son `<h1>` dans son propre gabarit — `Accueil` depuis E1-ST3,
+// `PageSommaireSecuriteWeb` depuis E2-ST6, `PageIntrouvable` depuis toujours. Le
+// `data` du sommaire a été retiré AVEC son lecteur plutôt que laissé à ne servir
+// personne : du code mort silencieux, que la revue suivante prendrait pour un
+// contrat. Un titre littéral de gabarit n'a pas de champ à oublier, donc pas de
+// `<h1>` vide possible ; `app.routes.spec.ts` le vérifie sur le DOM rendu, route
+// littérale par route littérale.
 //
 // ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT (jamais U+202F ni U+2009,
 // absentes de Fraunces comme d'Inter) — `.claude/rules/contenu-pedagogique.md` §3.
@@ -79,7 +85,6 @@
 
 import { Routes } from '@angular/router';
 
-import { PageAVenir } from './core/layout/page-a-venir/page-a-venir';
 import { PageIntrouvable } from './core/layout/page-introuvable/page-introuvable';
 import { manifesteLecons } from './features/cours/contenu-compile';
 import { titreDeDocument } from './features/cours/lecon/navigation-lecon';
@@ -93,13 +98,23 @@ export const routes: Routes = [
     title: 'Dr. Je-Sais-Tout — cours public de sécurité des applications web',
   },
   {
+    // LE SOMMAIRE DU COURS. Chemin LITTÉRAL, donc prerendu en fichier : la carte
+    // de parcours est lisible sans JavaScript, badges « à commencer » compris —
+    // c'est l'état que le gate d'hydratation de `Sommaire` fige (L-033).
+    //
+    // ELLE EST PARESSEUSE, comme la page de leçon et contrairement à `Accueil`.
+    // Le sommaire tire `Sommaire`, sa feuille de style et le service de
+    // progression ; les faire entrer dans le bundle initial les ferait payer à
+    // tout visiteur de l'accueil, qui n'ouvre pas forcément le cours.
+    //
+    // C'est `PageSommaireSecuriteWeb` qui est montée, pas `Sommaire` : voir
+    // l'en-tête (absence de `withComponentInputBinding()`).
     path: 'cours/securite-web',
-    component: PageAVenir,
+    loadComponent: () =>
+      import('./features/cours/sommaire/page-sommaire-securite-web').then(
+        (module) => module.PageSommaireSecuriteWeb,
+      ),
     title: 'Sommaire du cours — Dr. Je-Sais-Tout',
-    data: {
-      titre: 'Sécurité des applications web',
-      description: 'Le sommaire des treize modules arrive avec le moteur de contenu (E2).',
-    },
   },
   {
     // LA PAGE DE LEÇON. Elle vient APRÈS le chemin littéral `cours/securite-web`
@@ -113,7 +128,11 @@ export const routes: Routes = [
     path: 'cours/securite-web/:slug',
     loadComponent: () => import('./features/cours/lecon/lecon').then((module) => module.Lecon),
     resolve: { lecon: resoudreLecon },
-    title: (route) => titreDeDocument(manifesteLecons, route.paramMap.get('slug') ?? ''),
+    // Le sujet est en dur, comme dans `app.routes.server.ts` : c'est le cours que
+    // le `path` ci-dessus nomme déjà, pas une seconde source de vérité. Sans lui,
+    // le titre pourrait venir d'une leçon d'un AUTRE cours.
+    title: (route) =>
+      titreDeDocument(manifesteLecons, 'securite-web', route.paramMap.get('slug') ?? ''),
   },
   {
     // Chemin littéral → réellement prerendu en `404/index.html`. C'est LUI que

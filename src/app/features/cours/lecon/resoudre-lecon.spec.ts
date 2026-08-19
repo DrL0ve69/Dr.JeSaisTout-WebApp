@@ -36,10 +36,20 @@ import {
 } from '@angular/router';
 
 import { type ChargeurLecon } from '../../../../content-generated/carte-lecons';
+import { MANIFESTE_LECONS } from '../contenu-compile';
 import { CARTE_LECONS, resoudreLecon } from './resoudre-lecon';
 
 const SLUG_CONNU = 'lecon-connue';
 const SLUG_MALFORME = 'lecon-malformee';
+
+/**
+ * Un slug PRÉSENT dans la carte mais NON PUBLIÉ au manifeste — le cas de défense en
+ * profondeur ajouté le 2026-08-19. Il ne devrait plus exister dans un artéfact bâti par
+ * défaut (`generer-manifeste.mjs` ne l'écrit pas) ; il reproduit ici ce qui reste possible :
+ * un artéfact bâti avec `--inclure-brouillons`, un `content-generated/` non purgé, une carte
+ * éditée à la main.
+ */
+const SLUG_NON_PUBLIE = 'lecon-en-chantier';
 
 /**
  * Une leçon minimale mais CONFORME : un champ oublié ou un statut hors union
@@ -96,7 +106,49 @@ const LECON_VALIDE = {
 const CARTE_DE_TEST: Record<string, ChargeurLecon> = {
   [SLUG_CONNU]: () => Promise.resolve({ default: LECON_VALIDE }),
   [SLUG_MALFORME]: () => Promise.resolve({ default: { frontmatter: {}, sections: [] } }),
+  // Le chargeur du non-publié LÈVE : le résolveur doit refuser AVANT de l'appeler, donc avant
+  // que le navigateur ne télécharge le chunk. Un refus qui n'interviendrait qu'après aurait
+  // déjà servi le texte de la leçon — c'est tout le défaut mesuré le 2026-08-19.
+  [SLUG_NON_PUBLIE]: () => {
+    throw new Error('le chargeur d’une leçon non publiée ne doit JAMAIS être appelé');
+  },
 };
+
+/**
+ * Le manifeste de test — jumeau de la carte, et il en est la CONTREPARTIE : c'est lui qui
+ * décide ce qui est publié. `MANIFESTE_LECONS` vaut `[]` dans le dépôt (jusqu'à E3-ST1) ;
+ * sans injection, tout slug serait refusé et les tests ci-dessous seraient verts pour la
+ * mauvaise raison (L-005).
+ */
+const MANIFESTE_DE_TEST: EntreeManifesteRoutes[] = [
+  {
+    sujet: 'securite-web',
+    slug: SLUG_CONNU,
+    ordre: 1,
+    titre: 'Une leçon de test',
+    dureeEstimee: 20,
+    niveau: 'cegep',
+    statut: 'publiee',
+  },
+  {
+    sujet: 'securite-web',
+    slug: SLUG_MALFORME,
+    ordre: 2,
+    titre: 'Une leçon au JSON hors contrat',
+    dureeEstimee: 20,
+    niveau: 'cegep',
+    statut: 'publiee',
+  },
+  {
+    sujet: 'securite-web',
+    slug: SLUG_NON_PUBLIE,
+    ordre: 3,
+    titre: 'Une leçon que personne n’a décidé de publier',
+    dureeEstimee: 20,
+    niveau: 'cegep',
+    statut: 'brouillon',
+  },
+];
 
 /** Une route porteuse d'un `:slug`, réduite à ce que `resoudreLecon` lit vraiment. */
 function routePourSlug(slug: string): ActivatedRouteSnapshot {
@@ -126,8 +178,50 @@ describe('resoudreLecon — le choix du chargeur', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: CARTE_LECONS, useValue: CARTE_DE_TEST }],
+      providers: [
+        provideRouter([]),
+        { provide: CARTE_LECONS, useValue: CARTE_DE_TEST },
+        { provide: MANIFESTE_LECONS, useValue: MANIFESTE_DE_TEST },
+      ],
     });
+  });
+
+  it('REFUSE une leçon présente dans la carte mais NON PUBLIÉE au manifeste', async () => {
+    // CONTRÔLE POSITIF DU DANGER (L-010) : le slug est bel et bien chargeable — c'est
+    // exactement la situation qui rendait publique une leçon non relue.
+    expect(Object.hasOwn(CARTE_DE_TEST, SLUG_NON_PUBLIE)).toBe(true);
+
+    // Et le chargeur LÈVE : si la redirection n'avait lieu qu'après l'`await`, ce test
+    // échouerait sur l'exception au lieu de passer. Le refus précède donc bien le
+    // téléchargement du chunk.
+    expect(cibleDe(await resoudre(SLUG_NON_PUBLIE))).toBe('/404');
+  });
+
+  it('REFUSE aussi une leçon `verifiee` — le seul mot qui publie est `publiee`', async () => {
+    // Le statut de relecture éditoriale n'est pas une mise en ligne. Le prédicat vient de
+    // `leconsPubliees`, pas d'une recopie locale : ce test l'exerce sur le second statut non
+    // publié, celui qu'une liste noire « brouillon » aurait laissé passer.
+    TestBed.resetTestingModule();
+    const relue: EntreeManifesteRoutes[] = [
+      {
+        sujet: 'securite-web',
+        slug: SLUG_NON_PUBLIE,
+        ordre: 1,
+        titre: 'Une leçon relue mais pas publiée',
+        dureeEstimee: 20,
+        niveau: 'cegep',
+        statut: 'verifiee',
+      },
+    ];
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: CARTE_LECONS, useValue: CARTE_DE_TEST },
+        { provide: MANIFESTE_LECONS, useValue: relue },
+      ],
+    });
+
+    expect(cibleDe(await resoudre(SLUG_NON_PUBLIE))).toBe('/404');
   });
 
   it('REDIRIGE un slug hérité de `Object.prototype` plutôt que d’appeler la fonction héritée', async () => {
