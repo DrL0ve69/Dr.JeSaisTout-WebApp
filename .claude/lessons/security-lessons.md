@@ -572,6 +572,43 @@ qu'elle décrit ([[S-009]]).
 `package.json` (`e2e:install:deps`, `e2e:install:navigateur`, `e2e:install`),
 `.claude/rules/security.md` §1/§3, `docs/agile/backlog-phase-1.md` §E2-ST6 (revue du 2026-08-19).
 
+## S-019 · Sur un site prerendu, « ne pas prerendre » n'est PAS « ne pas publier » — un filtre de visibilité doit couvrir génération, mise en artéfact ET rendu client (A01/A05 · croisement [[S-006]]/[[S-010]])
+
+**Symptôme.** E2-ST6 devait masquer les leçons `statut: brouillon`. Un sélecteur unique
+`leconsPubliees()` a bien été écrit et branché sur trois consommateurs (sommaire, prev/next,
+`parametresDePrerender`) — le prerender était donc correctement filtré, `ng build` annonçant
+« Prerendered 4 static routes » sans `lecon-brouillon/index.html` sur disque. La leçon restait
+pourtant **publique** par deux chemins que le sélecteur ne couvrait pas : (1) **mise en artéfact** —
+`rendreCarteLecons` recevait le manifeste entier et `ecrireContenuGenere` écrivait `lecons/<slug>.json`
+pour **toutes** les leçons, brouillon compris, qu'esbuild empaquetait en chunk public servi 200 ; (2)
+**rendu client** — `resoudreLecon` n'appelait jamais le sélecteur, la clef étant une propriété propre
+de `carteLecons` : navigation Chromium sur l'URL de la leçon brouillon → 404 côté serveur mais le
+routeur **rendait la leçon entière** (`<h1>` compris), sans erreur.
+**Pourquoi le trou a survécu à l'écriture.** Le commentaire du sélecteur promettait « l'**unique**
+définition de « publiée » du dépôt » et énumérait trois consommateurs — il y en avait **cinq**. La
+promesse d'exhaustivité était fausse et **aucun test ne la tenait**.
+**Croisement explicite.** C'est la jonction de deux leçons déjà écrites, sur un axe qu'aucune des
+deux ne couvre seule — le **rendu client** d'une application prerendue : [[S-006]] établit que tout
+fichier présent dans l'artéfact est servable qu'un plan de routage le mentionne ou non (la moitié
+« artéfact » du constat ci-dessus, cas n°1) ; [[S-010]] établit qu'une promesse « unique »/« tout »
+doit être vérifiée contre le périmètre qu'elle énonce, avec contrôle positif (la moitié « promesse
+fausse », le décompte 3 ≠ 5 ci-dessus). Ni l'une ni l'autre ne nomme le **routeur côté client** comme
+un point de décision distinct de la génération de pages — c'est l'apport propre de cette entrée.
+**Règle.** Filtrer à la **génération**, jamais seulement à la consommation ; drapeau explicite pour un
+futur mode éditorial, défaut **fermé** (fail-closed). Avant d'écrire une promesse d'exhaustivité,
+**recenser tous les points de décision** puis poser un garde-fou exécutable qui la tient — ici :
+`Object.keys(carteLecons) ⊆ leconsPubliees(manifeste)`, avec contrôle positif sur une fixture portant
+un brouillon. La vérification qui fait foi est **live** : `grep` sur `dist/` **et** une navigation
+réelle sur l'URL — un obstacle levé n'est pas une directive appliquée ([[L-004]]), et une lecture de
+code n'aurait rien vu ici (elle n'a effectivement rien vu). Gravité : le contenu exposé est une leçon
+**non relue** par le `verificateur-theorie`, sur un site dont la règle n°1 est de n'enseigner jamais
+du faux — le même défaut vaut identiquement pour `statut: verifiee`.
+**⏳ Statut.** Correctif en cours d'application dans un lot séparé au moment où cette leçon est
+écrite ; la fermeture (garde-fou câblé + mesure live des trois chemins) reste à constater par le fil
+principal, pas encore vérifiée ici.
+**Réfs.** `docs/agile/backlog-phase-1.md` §E2-ST6, `.claude/rules/security.md` §4,
+`.claude/rules/contenu-pedagogique.md` §1/§6 (fiabilité du contenu publié).
+
 ## S-017 · Une clé venue du contenu (`JSON.parse`) qui indexe un objet PAR CROCHETS peut remonter `Object.prototype` — un motif kebab-case ne l'exclut pas (A03 · CWE-1321, troisième occurrence sur ce dépôt)
 
 **Symptôme.** Constaté en revue du lot a d'E2-ST5 : `acteur.id` est validé par le motif kebab-case

@@ -4,14 +4,23 @@
 > finir sa tâche **dans sa smart zone**. Au-delà, la qualité chute *et* chaque token relu est refacturé.
 > Cousine de `.claude/rules/budget-free-tier.md` (axe **argent**) — celle-ci est l'axe **contexte**.
 >
-> **Plafonds :** **150k visé · 200k toléré · 250k maximum absolu, à éviter.**
+> **Plafonds — RESSERRÉS par le propriétaire le 2026-08-19 :** **120k visé · 150k = le gros
+> maximum · 200k exceptionnel et à justifier.** L'ancien barème (150 visé / 200 toléré / 250
+> absolu) est **PÉRIMÉ** : 250k n'est plus une valeur admissible, et 200k n'est plus « toléré »
+> mais **exceptionnel**, c'est-à-dire qu'un dépassement se **motive dans le rapport de clôture**.
 > C'est **par agent**, pas par tâche : trois agents à 120k valent mieux qu'un à 300k.
+>
+> **Un dépassement est un défaut de BRIEF, jamais un défaut d'agent.** Un sous-agent ne peut pas se
+> `/compact` lui-même : son isolation vient **entièrement** du périmètre qu'on lui a donné. Quand
+> un agent déborde, c'est le coordinateur qui a mal découpé — c'est donc le BRIEF qui change, pas
+> l'agent qui « fait attention ».
 >
 > **Nuance KB (à lire avec les plafonds).** La « zone intelligente » d'un agent se dégrade bien
 > avant les plafonds : ~**100–140k** selon la KB
 > (`KnowledgeBase/ai/agents/claude-code/methode-travail.md` — « 1 ticket = 1 fenêtre de contexte »).
 > Les seuils ci-dessus sont donc des **plafonds d'alerte**, pas des cibles : dimensionner chaque lot
-> pour **finir sous ~120k** ; 150k = signal de découpe manquée, 200k+ = post-mortem du brief.
+> pour **finir sous ~120k** ; 150k = signal de découpe manquée, 200k = post-mortem du brief, écrit
+> dans le rapport.
 
 ---
 

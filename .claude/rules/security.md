@@ -101,6 +101,15 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
 - [ ] **Un garde-fou doit vivre sur le CHEMIN RÉELLEMENT EXÉCUTÉ.** Un contrôle qui n'existe que
       dans un harnais de ligne de commande que ni la CI ni les développeurs n'appellent ne garde
       rien ; idem pour un chemin de **cache** qui court-circuite la vérification. Détail : S-003.
+- [ ] **🔴 UN FILTRE DE VISIBILITÉ DE CONTENU SE PROUVE À TROIS ENDROITS, PAS À UN** (**S-019**,
+      constaté le 2026-08-19 sur E2-ST6). Sur un site prerendu, « ne pas prerendre » n'est **pas**
+      « ne pas publier ». Un sélecteur branché sur la seule **génération de pages** laisse deux
+      chemins ouverts : la **mise en artéfact** (un `.json` de contenu devient un chunk servi 200,
+      cf. **S-006**) et le **rendu client** (le routeur monte la page malgré une 404 du serveur).
+      Recenser les points de décision **avant** d'écrire la promesse « unique définition de X » —
+      le lot fautif en annonçait trois, il y en avait cinq (**S-010**) — et poser un **garde-fou
+      exécutable** avec contrôle positif. ⚠️ **La vérification qui fait foi est LIVE** : un `grep`
+      sur `dist/` **et** une navigation réelle sur l'URL. Une lecture de code n'a rien vu ici.
 - [ ] **Aucune donnée personnelle collectée en phase 1** : pas de formulaire qui persiste un email/nom
       sans une raison documentée et un consentement — le site n'a pas de compte, il ne doit pas non
       plus accumuler de PII incidentelle (analytics respectueux de la vie privée si utilisés, pas de
