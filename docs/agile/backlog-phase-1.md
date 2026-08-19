@@ -1976,6 +1976,33 @@ Et deux constats à ne pas perdre, vérifiés sur le code :
 - **Fichiers** : `src/app/features/cours/simulation/`, schéma JSON associé.
 - **Gates** : G-lint, G-test, G-build, G-axe.
 
+**⏭️ État d'avancement au 2026-08-19** — branche `feat/e2-st5-lot-a`, **non fusionnée**. Pas de
+bascule ⬜→✅ : la clôture de la sous-tâche est le lot d.
+- **Lots livrés** : **a** (transport de `simulation.json` jusqu'à la frontière de typage, commit
+  `ee91e5d`) et **b1** (le `SimulationComponent`, modèle **C′**, commit `fa30352`).
+- **Restent** : **b2** (câbler `app-simulation` dans `rendu-blocs.ts` et `lecon.ts`, relever
+  `anyComponentStyle` de 4 Ko à 6 Ko dans `angular.json`, puis **mesurer** le compte de hachages de
+  style et le reporter dans `ci.yml` + `src/workflows-github.spec.ts`) · **c1** (e2e mécanique +
+  clavier + axe) · **c2** (CSP `style-src` + le contrôle positif manquant de la dette S-016) ·
+  **d** (clôture documentaire).
+- **⚠️ Trois avertissements pour qui reprend** :
+  1. **`NOMBRE_HACHAGES_STYLE_ATTENDU = 9` dans `tools/deploiement/generer-config-swa.mjs` NE BOUGE
+     PAS**, et `deploy.yml` non plus : `content/` est vide, aucune simulation n'est rendue en
+     production. Seul `ci.yml` (artéfact de fixture) passe de 12 à la valeur **mesurée**. Monter les
+     deux rendrait `deploy.yml` rouge.
+  2. Le lot b2 modifie le gabarit de `rendu-blocs.ts`, ce qui change l'**identifiant** du composant
+     donc la **valeur** de ses hachages de style (le compte, lui, ne bouge pas). Tout `npx swa start`
+     resté en marche servira l'ancienne CSP et produira une violation `style-src-elem`
+     **reproductible sur un dépôt sain** — tuer le processus qui écoute le **port 4280** avant tout
+     `npm run e2e`.
+  3. Le lot b1 **n'a pas encore été revu**. Un point est explicitement soumis à la revue par son
+     auteur : le marqueur d'étape courante est un **texte** (`(étape courante)`) et non
+     `aria-current`, pour ne pas doubler l'annonce — à trancher en revue.
+- **Décisions du propriétaire à ne pas rouvrir** : modèle **C′** (liens d'étape présents dès le
+  prerender, repli au premier geste seulement) ; budget `anyComponentStyle` **relevé une fois pour
+  `quiz.scss` et `simulation.scss`**, ce qui paie la dette des 88 o ouverte depuis E2-ST4 ; type
+  d'acteur **`attaquant`** ajouté à l'énumération fermée.
+
 ### E2-ST6 — Sommaire du cours & progression *(= la « carte de parcours »)*
 - **Objectif** : page `/cours/securite-web` : les 13 modules dans l'ordre de lecture (sections Fondations / Attaques / Identités & données / Hébergement), état par module (non commencé / lu / quiz réussi) depuis `localStorage`, temps de lecture estimé.
 - **Fichiers** : `src/app/features/cours/sommaire/`, `src/app/core/progression/`.
