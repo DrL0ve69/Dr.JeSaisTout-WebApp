@@ -670,7 +670,12 @@ describe('rendu de la page', () => {
     expect(noms.length).toBeGreaterThan(1); // contrôle positif : on a bien regardé plusieurs figures
     expect(new Set(noms).size, noms.join(' · ')).toBe(noms.length);
     // Et un seul « n°1 » par genre : c'est la continuité, pas seulement l'unicité.
-    expect(noms.filter((nom) => nom.startsWith('Code n°1'))).toHaveLength(1);
+    // ⚠️ LE SÉPARATEUR FAIT PARTIE DU MOTIF, ET C'EST LE POINT (revue du lot C1). `startsWith('Code
+    // n°1')` attrape aussi « Code n°10 », « Code n°12 »… : le jour où une leçon porte dix blocs de
+    // code, ce filtre en compterait plusieurs et ce test rougirait sur un PRODUIT SAIN — L-035, sur
+    // le fichier même dont l'en-tête l'invoque. L'espace du séparateur est U+00A0 et passe par
+    // `INSECABLE` : tapée littéralement, elle est refusée par `no-irregular-whitespace`.
+    expect(noms.filter((nom) => nom.startsWith(`Code n°1${INSECABLE}—`))).toHaveLength(1);
   });
 
   it('n’affiche AUCUNE voisine quand la leçon est seule au manifeste', async () => {

@@ -242,19 +242,31 @@ export interface DecalageFigures {
  * Le décalage neutre : rien n'a encore été numéroté. C'est la valeur par défaut de l'input
  * `decalage`, donc ce qui garde `RenduBlocs` montable SEUL (ses specs, et tout futur appelant qui
  * ne rendrait qu'un fragment).
+ *
+ * `Object.freeze` et pas seulement `readonly` : `readonly` n'existe qu'à la compilation, alors que
+ * cet objet est PARTAGÉ par toutes les instances qui ne lient pas l'input. Une écriture accidentelle
+ * (ou du JavaScript non typé, `Lecon` amorçant son cumul dessus) déplacerait la numérotation de
+ * toute la page. Gelé, elle lève en `strict` au lieu de contaminer en silence.
  */
-export const SANS_DECALAGE: DecalageFigures = { blocsDeCode: 0, paires: 0 };
+export const SANS_DECALAGE: DecalageFigures = Object.freeze({ blocsDeCode: 0, paires: 0 });
 
 /**
  * LE parcours des figures de code — écrit UNE fois, appelé par TOUS ceux qui numérotent (L-037).
  *
  * ⚠️ RECENSEMENT DES APPELANTS, parce que « une définition, N appelants » n'est vrai que si les N
- * ont été comptés (L-037, née d'un quatrième appelant resté à compter les lignes à la main) :
- *   1. `Lecon` (`lecon.ts`) — le décalage de chaque SECTION, cumulé sur celles qui la précèdent ;
- *   2. la récursion du cas `encadre` ci-dessous — le décalage de chaque encadré ENFANT ;
- *   3. `tableDesRangs` — les rangs affichés, via le visiteur.
- * Aucun quatrième au 2026-08-19 : `app-rendu-blocs` n'est monté qu'à ces deux endroits (mesuré par
- * recherche sur le sélecteur). Un cinquième site de comptage rouvrirait exactement le défaut que ce
+ * ont été comptés (L-037, née d'un quatrième appelant resté à compter les lignes à la main). Les
+ * TROIS sites d'appel, et ce sont bien des appels — pas des consommateurs de leur résultat :
+ *   1. `Lecon.decalagesDesSections` (`lecon.ts`) — le décalage de chaque SECTION, cumulé sur celles
+ *      qui la précèdent ;
+ *   2. l'AUTO-RÉCURSION du cas `encadre` ci-dessous — la descente dans les blocs d'un encadré ;
+ *   3. `tableDesRangs` — les rangs affichés ET la table des décalages d'encadrés, via le visiteur.
+ * ⚠️ Le cas `encadre` du GABARIT n'est PAS un quatrième appelant : il ne compte rien, il CONSOMME
+ * `decalagesDesEncadres` (remplie en 3) via `decalageDeLEncadre`. L'écrire comme un appelant ferait
+ * chercher un site de comptage là où il n'y en a pas, et manquer celui qui existe — soit très
+ * exactement le mode d'échec que L-037 existe pour fermer.
+ * Aucun quatrième au 2026-08-19 : `app-rendu-blocs` n'est monté qu'à deux endroits (`lecon.ts` et
+ * le gabarit ci-dessous, mesuré par recherche sur le sélecteur), et `cumulerFigures` n'est appelée
+ * qu'aux trois sites listés. Un quatrième site de comptage rouvrirait exactement le défaut que ce
  * lot ferme — les compteurs qui repartent de 1.
  *
  * LE COMPTAGE DESCEND DANS LES ENCADRÉS, et c'est le cas qu'on oublie : un bloc `code` niché dans
@@ -284,7 +296,14 @@ export function cumulerFigures(
       const paires = Array.isArray(bloc.exemples) ? bloc.exemples.length : 0;
       cumul = { blocsDeCode: cumul.blocsDeCode, paires: cumul.paires + paires };
     } else if (bloc.type === 'encadre') {
-      cumul = cumulerFigures(bloc.blocs, cumul);
+      // MÊME GARDE, MÊME RAISON QUE `exemples` CI-DESSUS (revue du lot C1). Le raisonnement valait
+      // mot pour mot pour `bloc.blocs`, et la garde manquait : `contenu-compile.ts` ne valide que
+      // `section.blocs` et délègue explicitement le CONTENU des blocs à ce composant, donc un
+      // encadré sans `blocs` faisait lever un `Cannot read properties of undefined (reading
+      // 'forEach')` depuis `Lecon.decalagesDesSections` — sans nommer ni le fichier ni le bloc.
+      // Ne pas descendre est le bon repli ICI : ce n'est pas à un compteur d'échouer, c'est à
+      // `preparer()` de NOMMER l'encadré fautif, ce qu'il fait maintenant (patron S-009 / L-008).
+      cumul = Array.isArray(bloc.blocs) ? cumulerFigures(bloc.blocs, cumul) : cumul;
     }
   });
   return cumul;
@@ -692,6 +711,20 @@ export class RenduBlocs {
     if (bloc.type === 'comparaison') {
       this.verifierPortees(bloc, rang);
       return bloc;
+    }
+
+    // LE GARDE-FOU QUI NOMME (revue du lot C1). `cumulerFigures` se contente de ne pas descendre
+    // dans un encadré sans `blocs` — c'est ici que le défaut se dit, avec le rang du bloc, comme
+    // `verifierPortees` le fait pour une comparaison. Sans ces deux moitiés, un artéfact compilé
+    // par une autre version du pipeline se manifesterait par un `TypeError` anonyme, ici ou dans
+    // l'input `[blocs]` de l'enfant.
+    if (bloc.type === 'encadre' && !Array.isArray(bloc.blocs)) {
+      throw new Error(
+        `RenduBlocs : encadré sans liste de blocs (bloc n°${rang + 1}, variante ` +
+          `« ${bloc.variante} »). Le contrat est \`tools/content-pipeline/types.d.ts\` : ` +
+          '`blocs` est requis, un tableau vide compris. Un encadré vide de contrat vient ' +
+          "d'un artéfact compilé par une autre version du pipeline — reconstruire `content:build`.",
+      );
     }
 
     if (bloc.type !== 'mermaid') return bloc;

@@ -946,6 +946,20 @@ describe('RenduBlocs', () => {
       blocs: [FIXTURES.code],
     };
 
+    /**
+     * Le MÊME cas pour l'autre compteur — celui des PAIRES.
+     *
+     * 🔴 Il manquait (revue du lot C1) : aucun test ne faisait passer une `comparaison` par la
+     * récursion, donc remplacer `avant` par `{ …, paires: 0 }` dans `decalagesDesEncadres`
+     * survivait à toute la suite, et rendait « Exemple vulnérable n°1 » au milieu d'une leçon.
+     * Deux compteurs séparés, c'est deux fois le même risque : chacun veut son cas niché.
+     */
+    const ENCADRE_AVEC_COMPARAISON: BlocContenu = {
+      type: 'encadre',
+      variante: 'note',
+      blocs: [FIXTURES.comparaison],
+    };
+
     it('part de n°1 quand le composant est monté SEUL (décalage par défaut neutre)', async () => {
       // L'input est OPTIONNEL, et sa valeur par défaut est ce qui garde ce composant montable hors
       // d'une leçon. Ce test ne pose donc AUCUN décalage — il mesure le défaut, pas le harnais.
@@ -955,7 +969,12 @@ describe('RenduBlocs', () => {
         `Code n°1${INSECABLE}— php`,
         `Code n°2${INSECABLE}— php`,
       ]);
-      expect(SANS_DECALAGE).toEqual({ blocsDeCode: 0, paires: 0 });
+      // ⚠️ PAS `toEqual({ blocsDeCode: 0, paires: 0 })` : comparer une constante à sa propre
+      // définition est une tautologie (L-012) — la vraie preuve du défaut neutre est au-dessus, ce
+      // sont les noms rendus avec l'input NON POSÉ. Ce qui vaut d'être mesuré ici est ce que le
+      // typage ne tient pas : `readonly` disparaît à la compilation, alors que cet objet est
+      // PARTAGÉ par toutes les instances non liées. Gelé, une écriture à distance lève.
+      expect(Object.isFrozen(SANS_DECALAGE)).toBe(true);
     });
 
     it('reprend la numérotation LÀ OÙ le décalage la laisse, sur les deux compteurs', async () => {
@@ -978,10 +997,19 @@ describe('RenduBlocs', () => {
       expect(legendes).toEqual(noms);
     });
 
-    it('🔴 compte un bloc de code NICHÉ dans un encadré — sinon la suite répète son numéro', async () => {
-      // LE CAS QU'ON OUBLIE, et le seul que la fixture témoin ne porte pas : la récursion. Sans
-      // propagation du décalage à l'enfant, le bloc niché s'appelle « Code n°1 » et celui qui SUIT
-      // s'appelle « Code n°1 » lui aussi — deux homonymes stricts dans la même section.
+    it('🔴 DESCEND dans l’encadré pour compter — sinon la suite répète son numéro', async () => {
+      // 🔴 CE QUE CETTE ASSERTION ATTRAPE, EXACTEMENT (revue du lot C1 — le commentaire d'origine
+      // s'annonçait comme « le filet de la récursion », ce qui promettait deux fois plus qu'il ne
+      // tenait). La mutation qu'elle tue est la DESCENTE : retirer la branche `encadre` de
+      // `cumulerFigures` (rendu-blocs.ts, `cumul = cumulerFigures(bloc.blocs, cumul)`) fait que le
+      // bloc niché ET celui qui SUIT s'appellent tous deux « Code n°1 » — deux homonymes stricts.
+      // ⚠️ CE QUI LUI ÉCHAPPAIT, ET POURQUOI. La PROPAGATION — `[decalage]="decalageDeLEncadre(…)"`
+      // dans le gabarit — était couverte par COMPENSATION, pas par mesure : à décalage d'entrée
+      // NUL, un enfant qui repart de zéro repart au même endroit que le décalage qu'on lui refuse,
+      // donc les quatre assertions restaient vertes la liaison retirée. C'est le test voisin
+      // (« propage le décalage D'ENTRÉE… ») qui la tenait, et lui seul — d'où le risque de le voir
+      // supprimer un jour comme « redondant ». La MAIN 2 ci-dessous le double : à décalage non nul,
+      // la compensation n'a plus lieu, et ce test-ci attrape désormais les DEUX mutations.
       const rendu = await rendre([ENCADRE_AVEC_CODE, CODE_PHP_BIS]);
 
       const noms = nomsDesDefileurs(rendu);
@@ -989,6 +1017,14 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelectorAll('.encadre .defileur')).toHaveLength(1);
       expect(noms).toEqual([`Code n°1${INSECABLE}— php`, `Code n°2${INSECABLE}— php`]);
       expect(new Set(noms).size, noms.join(' · ')).toBe(2);
+
+      // MAIN 2 — le même cas, décalage NON NUL : la descente et la propagation deviennent
+      // discernables (sans propagation, le niché retomberait à « Code n°1 »).
+      const decale = await rendre([ENCADRE_AVEC_CODE, CODE_PHP_BIS], { blocsDeCode: 5, paires: 0 });
+      expect(nomsDesDefileurs(decale)).toEqual([
+        `Code n°6${INSECABLE}— php`,
+        `Code n°7${INSECABLE}— php`,
+      ]);
     });
 
     it('propage le décalage D’ENTRÉE jusque dans les encadrés', async () => {
@@ -998,6 +1034,36 @@ describe('RenduBlocs', () => {
         `Code n°6${INSECABLE}— php`,
         `Code n°7${INSECABLE}— php`,
       ]);
+    });
+
+    it('🔴 compte les PAIRES à travers la récursion, pas seulement les blocs `code`', async () => {
+      // 🔴 LE TROU DE COUVERTURE DU LOT C1 (revue). `decalagesDesEncadres` porte DEUX compteurs et
+      // un seul était exercé à travers un encadré. Mutation qui survivait aux 574 tests :
+      //   decalagesDesEncadres.set(rangBloc, { blocsDeCode: avant.blocsDeCode, paires: 0 })
+      // → l'exemple niché redevient « Exemple vulnérable n°1 » au milieu d'une leçon, et le suivant
+      // reste n°4 : ni doublon ni trou visible sur les blocs `code`, donc rien pour rougir.
+      const rendu = await rendre([ENCADRE_AVEC_COMPARAISON, FIXTURES.comparaison], {
+        blocsDeCode: 0,
+        paires: 2,
+      });
+
+      const noms = nomsDesDefileurs(rendu);
+      // CONTRÔLE POSITIF (L-019) : quatre volets, deux par paire — sinon « les noms sont continus »
+      // serait vrai d'un rendu qui n'aurait affiché aucune paire.
+      expect(noms).toHaveLength(4);
+      expect(rendu.querySelectorAll('.encadre .defileur')).toHaveLength(2);
+      expect(noms).toEqual([
+        `Exemple vulnérable n°3${INSECABLE}— php`,
+        `Correctif n°3${INSECABLE}— php`,
+        `Exemple vulnérable n°4${INSECABLE}— php`,
+        `Correctif n°4${INSECABLE}— php`,
+      ]);
+
+      // Le rang est VU autant qu'entendu (WCAG 2.5.3) — même méthode des deux côtés.
+      const legendes = [...rendu.querySelectorAll('figcaption.etiquette')].map(
+        (l) => l.textContent?.trim() ?? '',
+      );
+      expect(legendes).toEqual(noms);
     });
 
     it('cumulerFigures — UNE définition, et elle DESCEND dans les encadrés', () => {
@@ -1147,6 +1213,35 @@ describe('RenduBlocs', () => {
       };
 
       await expect(rendre([encadre])).rejects.toThrowError(/video-360/);
+    });
+
+    it('🔴 NOMME l’encadré dont la liste de blocs manque, au lieu d’un `TypeError` anonyme', () => {
+      // ASYMÉTRIE DE GARDE CORRIGÉE (revue du lot C1). `cumulerFigures` gardait déjà
+      // `bloc.exemples` d'une comparaison, avec un raisonnement écrit — la page de leçon compte sur
+      // des blocs BRUTS (`contenu-compile.ts` ne valide que `section.blocs` et délègue leur contenu
+      // à ce composant), donc un champ disparu doit se NOMMER, pas lever anonymement. Le même
+      // raisonnement valait mot pour mot pour `bloc.blocs`, et la garde manquait : l'encadré faisait
+      // lever « Cannot read properties of undefined (reading 'forEach') » depuis
+      // `Lecon.decalagesDesSections`, sans dire ni quel fichier ni quel bloc.
+      const ampute = {
+        type: 'encadre',
+        variante: 'note',
+      } as unknown as BlocContenu;
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [FIXTURES.prose, ampute]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+
+      // Il dit QUOI, OÙ, et ce n'est PAS un `TypeError` — c'est tout l'objet de la garde.
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/liste de blocs/);
+      expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/n°2/);
+      expect(() => fixture.componentInstance.blocsPrepares()).not.toThrowError(TypeError);
+
+      // Et le COMPTEUR ne lève plus du tout sur ce bloc : c'est `preparer()` qui parle, pas lui.
+      // Sans la garde de `cumulerFigures`, ce même appel jetterait un `TypeError` anonyme.
+      expect(cumulerFigures([FIXTURES.code, ampute], SANS_DECALAGE)).toEqual({
+        blocsDeCode: 1,
+        paires: 0,
+      });
     });
 
     it('accepte un tableau VIDE sans rien rendre ni lever', async () => {
