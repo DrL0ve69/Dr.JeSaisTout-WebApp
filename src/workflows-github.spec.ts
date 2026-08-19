@@ -38,15 +38,20 @@
 // =============================================================================
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { parse } from 'yaml';
 
 /** Forme minimale attendue — on ne modélise que ce qu'on vérifie. */
 interface WorkflowAnalyse {
   name?: string;
   on?: unknown;
-  jobs?: Record<string, { steps?: unknown[] }>;
+  jobs?: Record<string, { steps?: unknown[]; 'timeout-minutes'?: unknown }>;
 }
+
+/** Plafond de panne admissible pour un job, en minutes. Aucun job du dépôt n'approche cette
+ * durée — le run nominal de `ci.yml` tient en ~2 min — mais un plafond n'est pas une cible : il
+ * borne le SILENCE, pas le travail. Au-delà, on ne borne plus rien d'utile. */
+const PLAFOND_TIMEOUT_MINUTES = 60;
 
 const WORKFLOWS = [
   '.github/workflows/ci.yml',
@@ -62,6 +67,21 @@ describe('les workflows GitHub', () => {
     for (const chemin of WORKFLOWS) {
       expect(existsSync(chemin), `${chemin} est listé mais absent du dépôt`).toBe(true);
     }
+
+    // 🔴 LA MOITIÉ QUI MANQUAIT, et sans elle le titre de ce test était FAUX. Vérifier que chaque
+    // chemin listé existe ne prouve que le sens « liste → disque » ; le sens qui compte est
+    // l'autre. Un quatrième workflow déposé dans le dossier n'était couvert par RIEN — ni par ce
+    // gate, ni par celui des `timeout-minutes` ci-dessous, qui n'itère que sur cette liste en dur.
+    // La promesse « aucun workflow ne vit hors de ce gate » se serait donc démentie toute seule au
+    // premier fichier neuf, en silence (famille S-010 : portée promise ≠ portée balayée).
+    const surLeDisque = readdirSync('.github/workflows')
+      .filter((fichier) => /\.ya?ml$/.test(fichier))
+      .sort();
+    expect(
+      surLeDisque,
+      'un workflow vit dans `.github/workflows/` sans être listé dans WORKFLOWS : il échappe à ' +
+        'tous les gates de ce fichier',
+    ).toEqual(WORKFLOWS.map((chemin) => basename(chemin)).sort());
   });
 
   for (const chemin of WORKFLOWS) {
@@ -97,6 +117,43 @@ describe('les workflows GitHub', () => {
             true,
           );
           expect((job.steps ?? []).length, `le job « ${nom} » n'a aucune étape`).toBeGreaterThan(0);
+        }
+      });
+
+      // ⏱️ NÉ D'UNE PANNE RÉELLE, le 2026-08-19 (PR #22). L'étape d'installation du navigateur a
+      // pendu : 53 min sur un essai, 12+ min sur le suivant, contre 2 min 12 s pour le run ENTIER
+      // la veille. Aucun des trois workflows ne déclarait `timeout-minutes` — un job pendu court
+      // donc jusqu'au plafond GitHub de six heures.
+      //
+      // CE QUE CE TEST MORD, ET POURQUOI IL EST ICI PLUTÔT QU'EN COMMENTAIRE. Le défaut ne rend
+      // aucun run rouge : il rend un run ÉTERNEL. Rien ne le signale, ni au moment où on retire
+      // la clef, ni au moment où on ajoute un job neuf sans elle — et c'est le mode d'échec le
+      // plus coûteux du dépôt, parce qu'il consomme du temps HUMAIN (l'auteur attend un signal
+      // qui ne viendra pas) et non de la machine. C'est très exactement la famille L-008/L-016 :
+      // une garantie qui ne vit que dans un commentaire ne garantit rien. Elle vit donc ici.
+      //
+      // Le plafond haut est volontaire : ce test n'arbitre PAS la bonne durée de chaque job (elle
+      // dépend de ce qu'il fait), il refuse l'ABSENCE de borne et les valeurs qui n'en sont pas.
+      it('borne chacun de ses jobs par un « timeout-minutes » — aucun run ne peut pendre en silence', () => {
+        const jobs = analyse.jobs ?? {};
+        // Filet propre (L-019) : sans lui, un fichier sans `jobs:` ferait passer ce test avec une
+        // boucle VIDE — vert en n'ayant mesuré aucun job. Le test frère plus haut l'attraperait,
+        // mais un contrôle ne délègue pas sa propre validité à son voisin.
+        expect(Object.keys(jobs).length, `${chemin} n'expose aucun job à borner`).toBeGreaterThan(0);
+        for (const [nom, job] of Object.entries(jobs)) {
+          const delai = job['timeout-minutes'];
+          expect(
+            delai,
+            `le job « ${nom} » de ${chemin} n'a pas de « timeout-minutes » : pendu, il courrait ` +
+              `six heures sans jamais rougir (incident du 2026-08-19)`,
+          ).toBeTypeOf('number');
+          expect(delai as number, `« timeout-minutes » du job « ${nom} » doit être positif`).
+            toBeGreaterThan(0);
+          expect(
+            delai as number,
+            `« timeout-minutes » du job « ${nom} » dépasse ${PLAFOND_TIMEOUT_MINUTES} min : ce ` +
+              `n'est plus une borne de panne`,
+          ).toBeLessThanOrEqual(PLAFOND_TIMEOUT_MINUTES);
         }
       });
     });

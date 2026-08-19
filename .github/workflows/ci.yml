@@ -19,6 +19,16 @@ jobs:
   gates:
     name: lint · test · build · audit
     runs-on: ubuntu-latest
+    # 🔴 LE FILET DE TEMPS DU JOB — né d'un incident, pas d'une précaution théorique.
+    # Le 2026-08-19, l'étape d'installation du navigateur a PENDU : 53 min sur le premier essai,
+    # puis 12+ min sur le second, là où le run entier tenait en 2 min 12 s la veille. Aucun
+    # workflow du dépôt ne portait de `timeout-minutes` : un job pendu court donc jusqu'au plafond
+    # GitHub de SIX HEURES, et la PR reste « en cours » sans jamais rougir. Le mode d'échec n'est
+    # pas le temps perdu par la machine (le dépôt est public, les minutes sont gratuites) — c'est
+    # le SILENCE : rien ne distingue « la CI travaille » de « la CI est morte », et l'humain qui
+    # attend son gate vert n'a aucun signal pour trancher. 25 min laisse ~10× la marge du run
+    # nominal ; au-delà, c'est une panne, et une panne doit se NOMMER.
+    timeout-minutes: 25
     steps:
       # Majeures épinglées sur des actions qui tournent en Node 24 (checkout ≥ v5, setup-node ≥ v5).
       # En v4 elles ciblaient Node 20, déprécié : les runners les forçaient déjà en 24 avec un
@@ -42,8 +52,23 @@ jobs:
       # aval ferait échouer la compilation, dans les DEUX workflows, sur un message parlant de
       # Playwright au milieu d'une étape de contenu. Coût net nul : c'est la même installation,
       # plus tôt. G-e2e n'appelle donc plus que `npm run e2e`.
+      # ⚠️ SCINDÉE EN DEUX LE 2026-08-19, ET LES DEUX MOITIÉS NE PENDENT PAS POUR LA MÊME RAISON.
+      # `playwright install --with-deps chromium` faisait DEUX choses sous un seul nom : un
+      # `apt-get install` en root (dépendances système, réseau vers les miroirs Ubuntu) puis un
+      # téléchargement de binaire depuis le CDN de Playwright. Quand l'étape a pendu, le journal
+      # n'a rien écrit du tout — impossible de dire LAQUELLE des deux était bloquée, donc
+      # impossible de choisir la parade. Deux étapes nommées, deux délais : le journal désigne
+      # maintenant le coupable tout seul.
+      # Les deux moitiés restent définies dans `package.json` (`e2e:install:deps` et
+      # `e2e:install:navigateur`), et `e2e:install` les enchaîne : le développeur local garde UNE
+      # commande, la CI en appelle deux, et il n'existe toujours qu'UNE définition de chacune.
+      - name: Installer les dépendances système du navigateur (apt, en root)
+        timeout-minutes: 5
+        run: npm run e2e:install:deps
+
       - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
-        run: npm run e2e:install
+        timeout-minutes: 5
+        run: npm run e2e:install:navigateur
 
       # LE PIPELINE DE CONTENU, ET IL VIENT AVANT G-LINT — pas par élégance.
       # `src/styles.scss` fait `@use` sur `styles/coloration-syntaxique-generee`, une feuille

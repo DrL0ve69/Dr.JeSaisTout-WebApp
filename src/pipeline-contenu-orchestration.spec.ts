@@ -398,6 +398,49 @@ describe('câblage de `content:build`', () => {
     expect(build.indexOf(`run ${SCRIPT}`)).toBeLessThan(build.indexOf('ng build'));
   });
 
+  // =============================================================================
+  // LE CORPS DES DEUX MOITIÉS D'INSTALLATION — parce qu'un NOM n'est pas un garde-fou.
+  // -----------------------------------------------------------------------------
+  // La scission du 2026-08-19 fait porter à `deploy.yml` une affirmation de SÉCURITÉ par un nom
+  // d'étape : « les dépendances système (apt, en root) » d'un côté, « le navigateur » de l'autre,
+  // et le commentaire du workflow cartographie la dette de sceau d'artéfact sur cette base.
+  //
+  // Or rien, jusqu'ici, n'empêchait de remettre `--with-deps` dans la moitié « navigateur ». Le
+  // `apt-get` en root reviendrait alors dans une étape dont le NOM jure qu'il n'y est pas, le
+  // commentaire de `deploy.yml` deviendrait faux en silence, et TOUS les gates resteraient verts :
+  // les workflows appellent des scripts npm, et personne ne regardait ce que ces scripts font.
+  // C'est le patron S-002 — une autorisation qui se compare à une intention plutôt qu'à une valeur
+  // revue. On épingle donc les CORPS, pas seulement les appels.
+  // =============================================================================
+  it('définit les deux moitiés d’installation sans que l’une empiète sur l’autre', () => {
+    const deps = manifeste.scripts?.['e2e:install:deps'] ?? '';
+    const navigateur = manifeste.scripts?.['e2e:install:navigateur'] ?? '';
+    const combine = manifeste.scripts?.['e2e:install'] ?? '';
+
+    expect(deps, '`e2e:install:deps` doit installer les dépendances système, et rien d’autre').
+      toMatch(/^playwright install-deps\b/);
+    expect(navigateur, '`e2e:install:navigateur` doit installer le binaire').toMatch(
+      /^playwright install\b(?!-deps)/,
+    );
+
+    // LE CŒUR DE CE TEST. `--with-deps` dans la moitié « navigateur » y ferait rentrer l'`apt-get`
+    // en root que son nom exclut — et c'est exactement la régression que le nom ne peut pas voir.
+    expect(
+      navigateur,
+      '`e2e:install:navigateur` ne doit PAS porter `--with-deps` : ce serait l’apt-get en root ' +
+        'de retour dans l’étape dont le nom promet le contraire (deploy.yml en dépend)',
+    ).not.toContain('--with-deps');
+
+    // Le combiné reste la commande UNIQUE du développeur local (CLAUDE.md §Commandes, et les
+    // messages d'erreur de `rendre-mermaid.mjs` la nomment). Il doit enchaîner les deux moitiés —
+    // sinon un clone frais installerait la moitié de ce dont il a besoin.
+    expect(combine).toContain('run e2e:install:deps');
+    expect(combine).toContain('run e2e:install:navigateur');
+    expect(combine.indexOf('run e2e:install:deps')).toBeLessThan(
+      combine.indexOf('run e2e:install:navigateur'),
+    );
+  });
+
   for (const workflow of WORKFLOWS) {
     describe(workflow, () => {
       const contenu = readFileSync(join('.github', 'workflows', workflow), 'utf8');
@@ -417,17 +460,46 @@ describe('câblage de `content:build`', () => {
         );
       });
 
-      it('installe le Chromium partagé AVANT elle, et une seule fois', () => {
+      it('installe le Chromium partagé AVANT elle, en DEUX moitiés et une seule fois chacune', () => {
         // `rendre-mermaid.mjs` impose le Chromium de Playwright à `mmdc`. Tant que
         // `content/` est vide, une installation restée près de G-e2e ne se voit
         // pas ; le jour où E3-ST1 publie sa première leçon à diagramme, les deux
         // workflows deviennent rouges. L'assertion « une seule fois » interdit de
         // « corriger » en dupliquant l'étape : ce serait deux installations payées.
-        const appels = [...contenu.matchAll(/npm run e2e:install/g)];
-        expect(appels).toHaveLength(1);
-        expect(contenu.indexOf('npm run e2e:install')).toBeLessThan(
-          contenu.indexOf(`npm run ${SCRIPT}`),
+        //
+        // 📐 SCINDÉE EN DEUX LE 2026-08-19, après la panne de la PR #22 : l'étape unique
+        // `--with-deps` cachait un `apt-get` en root ET un téléchargement de binaire, et quand
+        // elle a pendu, le journal ne disait pas laquelle des deux bloquait. Chaque moitié a
+        // maintenant son nom, son délai, et sa ligne ici.
+        //
+        // ⚠️ CE TEST A MORDU SA PROPRE ÉVOLUTION, et c'est la raison de la forme ci-dessous : le
+        // motif d'origine `/npm run e2e:install/` est un motif de SOUS-CHAÎNE — les deux moitiés
+        // le satisfont chacune, donc il en comptait deux et rougissait. On vise donc les deux
+        // scripts NOMMÉMENT, avec une fin de mot, plutôt qu'un préfixe qui les confond.
+        const moities = ['e2e:install:deps', 'e2e:install:navigateur'] as const;
+        for (const moitie of moities) {
+          const appels = [...contenu.matchAll(new RegExp(`npm run ${moitie}(?![:\\w-])`, 'g'))];
+          expect(appels, `« npm run ${moitie} » doit apparaître exactement une fois`).toHaveLength(
+            1,
+          );
+          expect(contenu.indexOf(`npm run ${moitie}`)).toBeLessThan(
+            contenu.indexOf(`npm run ${SCRIPT}`),
+          );
+        }
+
+        // Les dépendances système avant le binaire : l'ordre inverse marcherait par accident
+        // aujourd'hui, mais il n'a aucun sens à lire et masquerait la cause d'un futur échec apt.
+        expect(contenu.indexOf('npm run e2e:install:deps')).toBeLessThan(
+          contenu.indexOf('npm run e2e:install:navigateur'),
         );
+
+        // Et le script combiné n'est PAS appelé par un workflow : il n'existe que pour le
+        // développeur local, à qui une seule commande suffit. Un workflow qui y reviendrait
+        // reperdrait la distinction que cette scission vient d'acheter.
+        expect(
+          [...contenu.matchAll(/npm run e2e:install(?![:\w-])/g)],
+          'un workflow appelle le script combiné : la scission ne sert plus à rien',
+        ).toHaveLength(0);
       });
     });
   }

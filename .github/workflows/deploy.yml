@@ -50,6 +50,9 @@ jobs:
   gates:
     name: gates (sans secret)
     runs-on: ubuntu-latest
+    # Même filet que dans `ci.yml`, et pour la même panne du 2026-08-19 : ce job porte l'étape
+    # d'installation du navigateur qui a pendu, à l'identique. Raisonnement complet là-bas.
+    timeout-minutes: 25
     steps:
       # Majeures épinglées sur des actions qui tournent en Node 24 (checkout ≥ v5, setup-node ≥ v5).
       # En v4 elles ciblaient Node 20, déprécié : les runners les forçaient déjà en 24 avec un
@@ -97,8 +100,27 @@ jobs:
       # lot de dette sécurité qui précède E3-ST1 (backlog §E2, nœud 1), avec S-003 et la
       # vérification structurelle de la CSP. En attendant, le nom de l'étape de scellement dit sa
       # portée réduite, pour qu'on n'ait pas à lire ce commentaire pour la connaître.
+      # Scindée en deux le 2026-08-19, en miroir de `ci.yml` — raisonnement complet là-bas.
+      #
+      # ⚠️ CE QUE LA SCISSION CHANGE POUR LA DETTE CI-DESSUS : elle la CARTOGRAPHIE, elle n'en paie
+      # aucune moitié. Les deux risques décrits plus haut ont maintenant chacun leur étape —
+      #   · `e2e:install:deps`       → l'`apt-get install` lancé en ROOT (paquets système) ;
+      #   · `e2e:install:navigateur` → le binaire téléchargé d'un CDN, HORS du contrôle
+      #     d'intégrité de `package-lock.json`, et ensuite EXÉCUTÉ dans ce job (par `mmdc` au
+      #     `content:build`, puis par Playwright à G-e2e).
+      # Les DEUX sont en amont du sceau, les DEUX restent à payer par le job propre du lot de dette
+      # pré-E3-ST1. Et si l'une des deux devait être traitée en premier, ce ne serait pas
+      # l'`apt-get` : lui vérifie au moins les signatures GPG des dépôts Ubuntu, là où le binaire
+      # CDN n'est protégé que par HTTPS. Nommer une seule moitié ici laisserait croire l'autre
+      # couverte (patron S-009 : une justification ne doit jamais promettre plus que ce qui est
+      # appliqué).
+      - name: Installer les dépendances système du navigateur (apt, en root)
+        timeout-minutes: 5
+        run: npm run e2e:install:deps
+
       - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
-        run: npm run e2e:install
+        timeout-minutes: 5
+        run: npm run e2e:install:navigateur
 
       # Même étape que dans ci.yml, au même rang, et AVANT G-lint (L-007 : un gate câblé dans un
       # seul workflow n'est pas câblé). `src/styles.scss` fait `@use` sur une feuille GITIGNORÉE que
@@ -238,6 +260,12 @@ jobs:
     name: déploiement · vérification en ligne
     needs: gates
     runs-on: ubuntu-latest
+    # Filet plus large que celui de `gates`, et c'est délibéré : ce job ATTEND un effet distant.
+    # SWA répond 200 pendant ~30-60 s AVANT d'appliquer `staticwebapp.config.json` (L-004), donc
+    # les vérifications en ligne réessaient par construction. 30 min laisse la marge à ces
+    # attentes tout en gardant un plafond très en deçà des six heures de GitHub — c'est le job qui
+    # détient le jeton SWA, celui où un blocage silencieux se remarque le plus tard.
+    timeout-minutes: 30
     steps:
       # Le dépôt est nécessaire à l'action de déploiement, qui lit le contexte du dépôt en plus
       # du dossier à téléverser. `persist-credentials: false` : rien ici ne parle à git, le jeton
