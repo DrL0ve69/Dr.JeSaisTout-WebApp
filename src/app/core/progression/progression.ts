@@ -33,11 +33,28 @@
 // ligne. Au prerender, l'état est **vide**, et c'est exactement ce que le HTML
 // livré doit contenir : le même fichier est servi à tout le monde.
 //
+// L'ÉTAT EST INDEXÉ PAR COURS, PAS À PLAT. La phase 1 porte DEUX cours (sécurité
+// web et PHP, §E7), et l'avancement doit être ADRESSABLE PAR COURS : l'API publique
+// de ce service parle en `(sujet, slug)`, et le sommaire l'interroge module par
+// module, pour un cours à la fois. Le slug seul ne suffirait donc pas comme clef.
+// ⚠️ CE N'EST PAS parce que deux slugs pourraient se heurter : `generer-manifeste.mjs`
+// REFUSE au build deux leçons de même slug, tous sujets confondus (fail-closed) — une
+// version antérieure de ce commentaire l'affirmait, et c'était faux. Mais cette
+// unicité est un invariant du PIPELINE, relâchable un jour d'une décision de contenu ;
+// un contrat de STOCKAGE, lui, survit aux données déjà écrites chez le visiteur et ne
+// doit dépendre d'aucun invariant d'un autre programme.
+// La clef de stockage est donc **composite et plate** — `"sujet/slug"`. Plate et
+// non imbriquée parce que plus personne n'énumère par cours (voir le retrait des
+// compteurs, plus bas) : l'imbrication n'achèterait qu'une validation à deux
+// niveaux et un cas mort (`{"php": {}}`). La composition de la clef est un
+// **détail privé** : l'API publique parle en `(sujet, slug)`, et rien de ce qui
+// est exporté ici ne laisse fuir le séparateur.
+//
 // Comportement vérifié par `progression.spec.ts`.
 // =============================================================================
 
 import { isPlatformBrowser } from '@angular/common';
-import { DOCUMENT, PLATFORM_ID, Service, computed, inject, signal } from '@angular/core';
+import { DOCUMENT, PLATFORM_ID, Service, inject, signal } from '@angular/core';
 
 /** Clé de stockage. Préfixe `drjst-` commun à tout le site (cf. `CLE_THEME`). */
 export const CLE_PROGRESSION = 'drjst-progression';
@@ -50,8 +67,17 @@ export const CLE_PROGRESSION = 'drjst-progression';
  * devine à quelle forme j'ai affaire ». Une enveloppe d'une version inconnue est
  * **ignorée**, jamais devinée : mieux vaut repartir à zéro que réafficher un
  * avancement faux. À incrémenter dès que la forme de `EtatLecon` change.
+ *
+ * **2 — passage à la clef composite `"sujet/slug"` (E2-ST6, 2026-08-19).** Il n'y
+ * a **AUCUN code de migration depuis la v1**, et c'est un choix mesuré, pas un
+ * oubli : au moment du pivot, `content/` ne portait qu'un `README.md`,
+ * `manifeste-routes.json` valait `[]`, et les seuls écrivains de progression
+ * (le quiz et la page de leçon) vivent sur une route dont le prerender est
+ * alimenté par ce manifeste. Aucune page capable d'écrire un enregistrement v1
+ * n'a donc jamais été servie à un visiteur réel : il n'y a rien à migrer, et
+ * écrire une migration invérifiable serait du code mort qui ment.
  */
-export const VERSION_PROGRESSION = 1;
+export const VERSION_PROGRESSION = 2;
 
 /**
  * Part de bonnes réponses à partir de laquelle un quiz est « réussi », donc le
@@ -76,10 +102,14 @@ export interface EtatLecon {
   readonly totalQuestions: number;
 }
 
-/** L'état complet : un enregistrement indexé par slug de leçon. */
+/**
+ * L'état complet : un enregistrement **plat**, indexé par la clef composite
+ * `"sujet/slug"`. La forme de cette clef ne se compose et ne se relit qu'ici ;
+ * aucun appelant n'a à la connaître.
+ */
 export type Progression = Readonly<Record<string, EtatLecon>>;
 
-/** Forme réellement écrite sur le disque du visiteur. */
+/** Forme réellement écrite sur le disque du visiteur — enveloppe versionnée. */
 interface EnveloppeStockee {
   readonly version: number;
   readonly lecons: Progression;
@@ -88,17 +118,60 @@ interface EnveloppeStockee {
 const ETAT_VIERGE: EtatLecon = { lue: false, meilleurScore: 0, totalQuestions: 0 };
 
 /**
- * Le slug est une clef d'objet ET une valeur relue du stockage : on le contraint
- * au même motif que le schéma de contenu (`quiz.schema.json` §identifiant). Une
- * clef arbitraire venue d'un stockage réécrit n'entre pas dans l'état.
+ * Motif d'UN segment de clef — le `sujet` comme le `slug`.
  *
- * **Exporté pour être CONFRONTÉ au schéma**, pas par commodité : `progression.spec.ts`
- * lit `quiz.schema.json` au disque et compare les deux motifs. Sans cela, le
- * commentaire ci-dessus serait une promesse invérifiable — exactement la faute
- * L-016 (« un commentaire qui cite un fichier doit pointer vers du réel »).
+ * Ces deux valeurs composent une clef d'objet ET reviennent du stockage : on les
+ * contraint au même motif kebab que le schéma de contenu — `quiz.schema.json`
+ * §identifiant pour le slug, `lecon.frontmatter.schema.json` §kebab pour le
+ * sujet. Une clef arbitraire venue d'un stockage réécrit n'entre pas dans l'état.
+ *
+ * **Exporté pour être CONFRONTÉ aux schémas**, pas par commodité :
+ * `progression.spec.ts` lit les DEUX fichiers au disque et compare les motifs.
+ * Sans cela, le commentaire ci-dessus serait une promesse invérifiable —
+ * exactement la faute L-016 (« un commentaire qui cite un fichier doit pointer
+ * vers du réel »).
  */
-export const MOTIF_SLUG_LECON = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const MOTIF_SLUG = MOTIF_SLUG_LECON;
+export const MOTIF_SEGMENT_PROGRESSION = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * Séparateur de la clef composite. **Privé, et il doit le rester** : c'est ce qui
+ * garantit que la forme de la clef reste un détail d'implémentation. Le `/` est
+ * choisi parce qu'aucun segment kebab ne peut le contenir — la décomposition est
+ * donc sans ambiguïté — et parce qu'il rend au passage toute clef v1 (`"xss"`,
+ * sans séparateur) inéligible : second filet, sous le rejet d'enveloppe.
+ */
+const SEPARATEUR_CLEF = '/';
+
+/**
+ * Compose la clef d'une leçon, ou `null` si l'un des deux segments est refusé.
+ *
+ * **Porte d'entrée UNIQUE de la validation** : `sujet` et `slug` passent par le
+ * même contrôle en liste blanche, et rien n'entre dans l'état sans être passé par
+ * ici. Un `sujet` invalide est donc ignoré exactement comme un `slug` invalide.
+ */
+function composerClef(sujet: string, slug: string): string | null {
+  if (!MOTIF_SEGMENT_PROGRESSION.test(sujet)) return null;
+  if (!MOTIF_SEGMENT_PROGRESSION.test(slug)) return null;
+  return `${sujet}${SEPARATEUR_CLEF}${slug}`;
+}
+
+/**
+ * Valide UNE clef relue du stockage, en la faisant **repasser par `composerClef`**
+ * plutôt qu'en lui appliquant un second motif recopié.
+ *
+ * Deux motifs à maintenir en parallèle divergent ; ici, il n'y en a qu'un, et le
+ * contrôle est une liste blanche par reconstruction : la clef n'est acceptée que
+ * si elle est **exactement** ce que le service aurait écrit. Tout le reste — un
+ * `"xss"` v1 sans séparateur, un `"a/b/c"`, un `"__proto__/xss"` — sort par le
+ * même `null`.
+ */
+function clefRelue(clef: string): string | null {
+  const morceaux = clef.split(SEPARATEUR_CLEF);
+  if (morceaux.length !== 2) return null;
+  const [sujet, slug] = morceaux;
+  if (sujet === undefined || slug === undefined) return null;
+  return composerClef(sujet, slug);
+}
 
 /** Entier positif ou nul — `NaN`, `Infinity` et les décimaux sont refusés. */
 function estCompteur(valeur: unknown): valeur is number {
@@ -134,25 +207,38 @@ function lireEtatLecon(valeur: unknown): EtatLecon | null {
 export class ProgressionService {
   private readonly document = inject(DOCUMENT);
 
-  // `isPlatformBrowser` plutôt qu'`afterNextRender` : la carte de parcours
-  // s'étiquette dès l'injection ; un état chargé après la première peinture
-  // afficherait « non commencé » sur des modules déjà lus.
+  // POURQUOI `isPlatformBrowser` AU CONSTRUCTEUR, ET CE QUE ÇA N'AUTORISE PAS.
+  // Le service lit le stockage dès sa construction parce que la valeur doit être
+  // DISPONIBLE tôt : un consommateur ne doit pas avoir à attendre pour savoir où
+  // en est le visiteur.
+  //
+  // ⚠️ Ce n'est PAS un permis de peindre cet état au premier rendu client. La
+  // version précédente de ce commentaire disait « la carte de parcours
+  // s'étiquette dès l'injection » — c'est l'anti-patron exact de la leçon L-033 :
+  // rendre l'avancement au premier rendu ferait diverger le DOM client du HTML
+  // prerendu, qui est le MÊME fichier pour tout le monde et donc toujours vide.
+  //
+  // La frontière est donc : **ce service EXPOSE l'état, le CONSOMMATEUR gate son
+  // AFFICHAGE**. Le composant `Sommaire` (E2-ST6 lot C1) lit `etatDe(...)` à
+  // travers un `computed` adossé à un signal privé basculé en `afterNextRender`,
+  // et garde un gabarit invariant (badge toujours présent, jamais de `@if` sur
+  // l'état). Aucune de ces deux garanties n'est tenue ici : ce fichier ne promet
+  // que de fournir une valeur juste, tôt.
   private readonly estNavigateur = isPlatformBrowser(inject(PLATFORM_ID));
 
   private readonly etat = signal<Progression>({});
 
-  /** L'avancement complet, en lecture seule. */
+  /** L'avancement complet, en lecture seule. Clefs `"sujet/slug"`. */
   readonly progression = this.etat.asReadonly();
 
-  /** Nombre de leçons ouvertes au moins une fois. */
-  readonly nombreLues = computed(
-    () => Object.values(this.etat()).filter((etat) => etat.lue).length,
-  );
-
-  /** Nombre de leçons dont le quiz est réussi — la « maîtrise ». */
-  readonly nombreMaitrisees = computed(
-    () => Object.values(this.etat()).filter((etat) => this.estMaitrise(etat)).length,
-  );
+  // PAS DE COMPTEURS ICI — retrait délibéré (E2-ST6, 2026-08-19).
+  // `nombreLues` et `nombreMaitrisees` comptaient les entrées de `etat()`, donc
+  // AUSSI celles des leçons renommées ou retirées depuis. Sur la page même qui
+  // existe pour mesurer l'avancement, un « 12/13 » serait devenu « 14/13 ».
+  // Numérateur ET dénominateur viennent désormais du MANIFESTE : `Sommaire`
+  // itère les leçons publiées du sujet et interroge `etatDe(sujet, slug)` module
+  // par module. Le service ne sait pas quelles leçons existent — c'est le
+  // manifeste qui le sait, et lui seul.
 
   constructor() {
     if (!this.estNavigateur) {
@@ -161,25 +247,38 @@ export class ProgressionService {
     this.etat.set(this.lireStockage());
   }
 
-  /** L'état d'une leçon — toujours défini, « vierge » si elle est inconnue. */
-  etatDe(slug: string): EtatLecon {
-    return this.etat()[slug] ?? ETAT_VIERGE;
+  /**
+   * L'état d'une leçon — toujours défini, « vierge » si elle est inconnue, si le
+   * `sujet` est invalide ou si le `slug` l'est.
+   *
+   * `Object.hasOwn` plutôt qu'un simple accès indexé : l'état est un objet
+   * littéral, donc porteur du prototype d'`Object`. Une clef héritée
+   * (`constructor`, `toString`) ne peut de toute façon PAS être composée — elle
+   * n'a pas de séparateur — mais le garde-fou ne repose pas sur ce raisonnement,
+   * il vérifie la propriété.
+   */
+  etatDe(sujet: string, slug: string): EtatLecon {
+    const clef = composerClef(sujet, slug);
+    if (clef === null) return ETAT_VIERGE;
+    const etat = this.etat();
+    return Object.hasOwn(etat, clef) ? (etat[clef] ?? ETAT_VIERGE) : ETAT_VIERGE;
   }
 
   /** `true` si le quiz de cette leçon a été réussi au moins une fois. */
-  estMaitrisee(slug: string): boolean {
-    return this.estMaitrise(this.etatDe(slug));
+  estMaitrisee(sujet: string, slug: string): boolean {
+    return this.estMaitrise(this.etatDe(sujet, slug));
   }
 
   /**
    * Marque une leçon comme lue. Idempotent, et **jamais dégradant** : rouvrir une
    * leçon ne remet aucun score à zéro.
    */
-  marquerLue(slug: string): void {
-    if (!MOTIF_SLUG.test(slug)) return;
-    const actuel = this.etatDe(slug);
+  marquerLue(sujet: string, slug: string): void {
+    const clef = composerClef(sujet, slug);
+    if (clef === null) return;
+    const actuel = this.etatDe(sujet, slug);
     if (actuel.lue) return;
-    this.ecrire(slug, { ...actuel, lue: true });
+    this.ecrire(clef, { ...actuel, lue: true });
   }
 
   /**
@@ -194,21 +293,22 @@ export class ProgressionService {
    * **ignoré** : il vient forcément d'un défaut d'appelant, et écrire un chiffre
    * faux serait pire que ne rien écrire.
    */
-  enregistrerQuiz(slug: string, score: number, total: number): void {
-    if (!MOTIF_SLUG.test(slug)) return;
+  enregistrerQuiz(sujet: string, slug: string, score: number, total: number): void {
+    const clef = composerClef(sujet, slug);
+    if (clef === null) return;
     if (!estCompteur(score) || !estCompteur(total) || total === 0 || score > total) return;
 
-    const actuel = this.etatDe(slug);
+    const actuel = this.etatDe(sujet, slug);
     // Comparaison en PART, pas en nombre brut : un quiz peut gagner ou perdre des
     // questions entre deux versions de la leçon, et 4/5 vaut mieux que 5/10.
     const partActuelle = actuel.totalQuestions === 0 ? -1 : actuel.meilleurScore / actuel.totalQuestions;
     if (score / total <= partActuelle) {
       // Pas mieux qu'avant : on ne retient rien du quiz, mais la leçon est lue.
-      this.marquerLue(slug);
+      this.marquerLue(sujet, slug);
       return;
     }
 
-    this.ecrire(slug, { lue: true, meilleurScore: score, totalQuestions: total });
+    this.ecrire(clef, { lue: true, meilleurScore: score, totalQuestions: total });
   }
 
   /**
@@ -232,8 +332,12 @@ export class ProgressionService {
     return etat.meilleurScore / etat.totalQuestions >= SEUIL_REUSSITE;
   }
 
-  private ecrire(slug: string, etat: EtatLecon): void {
-    const suivant: Progression = { ...this.etat(), [slug]: etat };
+  /**
+   * `clef` est toujours une clef **déjà composée** par `composerClef` : cette
+   * méthode n'est jamais un point d'entrée pour une valeur non validée.
+   */
+  private ecrire(clef: string, etat: EtatLecon): void {
+    const suivant: Progression = { ...this.etat(), [clef]: etat };
     this.etat.set(suivant);
     this.memoriser(suivant);
   }
@@ -267,11 +371,15 @@ export class ProgressionService {
     const lecons = enveloppe.lecons;
     if (typeof lecons !== 'object' || lecons === null) return {};
 
+    // `Object.entries` ne rend que les propriétés PROPRES et énumérables : rien
+    // du prototype n'entre ici. Chaque clef repasse ensuite par `clefRelue`, donc
+    // par la même liste blanche que l'écriture.
     const valides: Record<string, EtatLecon> = {};
-    for (const [slug, valeur] of Object.entries(lecons)) {
-      if (!MOTIF_SLUG.test(slug)) continue;
+    for (const [brute, valeur] of Object.entries(lecons)) {
+      const clef = clefRelue(brute);
+      if (clef === null) continue;
       const etat = lireEtatLecon(valeur);
-      if (etat !== null) valides[slug] = etat;
+      if (etat !== null) valides[clef] = etat;
     }
     return valides;
   }
