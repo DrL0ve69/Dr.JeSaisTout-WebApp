@@ -23,6 +23,11 @@ jobs:
   valider:
     name: format · validation
     runs-on: ubuntu-latest
+    # Filet posé en même temps que ceux de `ci.yml` et `deploy.yml` (incident du 2026-08-19), pour
+    # qu'AUCUN workflow du dépôt ne puisse plus pendre six heures en silence. Ce job ne fait que
+    # `fmt -check` et `validate` — il n'a aucune raison de dépasser la minute ; 10 min est déjà
+    # une marge généreuse, et ce n'est pas une cible mais un plafond de panne.
+    timeout-minutes: 10
     steps:
       # Même raison que dans ci.yml : majeures qui tournent en Node 24 (setup-terraform v4 =
       # portage Node 24, aucune autre rupture).
