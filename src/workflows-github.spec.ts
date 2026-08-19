@@ -190,14 +190,23 @@ describe('les workflows GitHub', () => {
  * ne faisait rougir personne — alors que c'est exactement l'écriture qui autorise un hachage de
  * style NON REVU, au moment de pression maximale (build rouge, cf. S-011). Le voici.
  *
- * 📈 12 → 13 le 2026-08-19 (E2-ST5, lot b2). Le hachage de plus est le bloc `<style>` du
+ * 📈 13 → 14 le 2026-08-19 (E2-ST6, lot C2c). Le hachage de plus vient de la BASCULE DE ROUTE :
+ * `PageAVenir` fournissait UN bloc `<style>` sur `cours/securite-web` ; il est remplacé par DEUX
+ * — l'adaptateur de route `PageSommaireSecuriteWeb` (`.page`, 362 o) et le composant `Sommaire`
+ * (`.vide`, 3 216 o). Net +1, et les deux ont été NOMMÉS avant d'être épinglés (mesure du
+ * 2026-08-19 : 14 blocs distincts sur l'artéfact de fixture, 10 sur celui de production). Le
+ * compte de hachages de SCRIPT reste à 1. ⚠️ La fixture porte pourtant DEUX leçons depuis le lot
+ * B : la seconde est en `statut: brouillon` et n'est PAS prerendue (`leconsPubliees` filtre
+ * `parametresDePrerender`), donc elle n'apporte aucun bloc.
+ *
+ * 📈 12 → 13 le 2026-08-19 (E2-ST5, lot b2). Le hachage de plus était le bloc `<style>` du
  * `SimulationComponent`, apparu quand l'ancre `[[simulation]]` a cessé de rendre le vide. Il a été
  * NOMMÉ avant d'être épinglé : la page de leçon de la fixture passe de 7 à 8 blocs `<style>`, et
  * le treizième bloc distinct de l'artéfact commence par `.simulation[_ngcontent-…]`. Aucune des
  * quatre autres pages prerendues n'a bougé, et le compte de hachages de SCRIPT reste à 1.
  * `NOMBRE_HACHAGES_STYLE_ATTENDU` (production, 9) ne bouge PAS : `content/` est vide, donc aucune
  * simulation n'est rendue en ligne. */
-const HACHAGES_STYLE_CI_ATTENDU = 13;
+const HACHAGES_STYLE_CI_ATTENDU = 14;
 
 /** Racine du cours réel. Tant qu'elle ne porte aucune leçon, le harnais de fixture est légitime. */
 const RACINE_COURS_PRODUCTION = 'content/cours/securite-web';

@@ -196,7 +196,7 @@ jobs:
         run: |
           node tools/content-pipeline/build.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web
           node_modules/.bin/ng build
-          npm run config:swa -- --hachages-style 13
+          npm run config:swa -- --hachages-style 14
 
       # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de
       # `dist/dr-je-sais-tout/browser`. Il vient donc APRÈS G-build, qui produit l'artéfact.

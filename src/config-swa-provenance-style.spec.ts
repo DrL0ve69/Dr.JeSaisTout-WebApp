@@ -78,7 +78,7 @@ const SCRIPT_THEME = (() => {
  * endroit revu quand le compte change. Un composant neuf porteur de styles rougit donc ici aussi,
  * une fois, et c'est la revue qu'on veut ; éditer un `.scss` existant ne change rien au compte.
  */
-const NOMBRE_HACHAGES_ATTENDU = 9;
+const NOMBRE_HACHAGES_ATTENDU = 10;
 
 /** Autant de blocs Angular conformes, tous de contenus DISTINCTS — le générateur dédoublonne. */
 function blocsAngular(nombre: number): string[] {
