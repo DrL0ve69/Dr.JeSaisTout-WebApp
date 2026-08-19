@@ -67,9 +67,11 @@
 // n'EXERCE ces directives. Aucune page n'est réellement encadrée dans une iframe
 // tierce, aucune sous-ressource en http:// n'est demandée depuis la page servie en
 // https://. On vérifie que la politique est ÉCRITE et SERVIE, jamais qu'un
-// navigateur l'a APPLIQUÉE sur ces points précis — la seule directive dont
-// l'application effective soit prouvée est `script-src`, par le contrôle positif de
-// `bascule-theme.spec.ts`. Les deux vérifications restent complémentaires : celle-ci
+// navigateur l'a APPLIQUÉE sur ces points précis — les seules directives dont
+// l'application effective soit prouvée sont `script-src` (contrôle positif de
+// `bascule-theme.spec.ts` et de `quiz-sous-csp.spec.ts`) et, depuis E2-ST5 lot c2,
+// `style-src` (`e2e/simulation-sous-csp.spec.ts`, qui mesure l'EFFET et non
+// l'événement — dette S-016). Les deux vérifications restent complémentaires : celle-ci
 // presse des touches sans TLS, celle-là lit des en-têtes réels sans presser quoi
 // que ce soit.
 //

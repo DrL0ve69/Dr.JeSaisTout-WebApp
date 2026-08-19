@@ -380,12 +380,17 @@ describe('rigueur du compilateur', () => {
      * d'échec que le commentaire annonçait était donc réel, et le gate n'était pas
      * décoratif.
      *
-     * ⚠️ LES QUATRE `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
+     * ⚠️ LES CINQ `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
      * QUAND MÊME — c'est le point le plus important de cette liste depuis le lot E.
      * Ce sont eux qui portent désormais la MESURE elle-même : `indicateur-focus.ts`
      * décide ce qu'est « un anneau de focus dessiné » pour trois fichiers,
-     * `sonde-csp.ts` porte les trois collecteurs de violations et l'exigence de CSP
-     * servie pour deux autres, `hydratation.ts` définit le point de départ commun
+     * `sonde-csp.ts` porte les trois collecteurs de violations, l'exigence de CSP
+     * servie ET — depuis E2-ST5 lot c2 — le contrôle positif de `style-src`, dont
+     * un défaut de typage rendrait muette la seule preuve que cette directive
+     * REFUSE réellement (dette S-016), `simulation.ts` porte les sélecteurs, les comptes
+     * MESURÉS sur la fixture (6 étapes, 9 liens) et la lecture d'état des deux specs
+     * de la simulation — un compte faux y rendrait « la vue s'est repliée » vert sans
+     * repli, `hydratation.ts` définit le point de départ commun
      * de tout ce qui s'exécute sur la page de leçon, et `artefact-mesure.ts` décide
      * si les specs de la page de leçon ont un SUJET — c'est lui qui les saute quand
      * l'artéfact mesuré est celui de production, et un défaut chez lui rendrait ce
@@ -399,6 +404,7 @@ describe('rigueur du compilateur', () => {
       'e2e/aides/artefact-mesure.ts',
       'e2e/aides/hydratation.ts',
       'e2e/aides/indicateur-focus.ts',
+      'e2e/aides/simulation.ts',
       'e2e/aides/sonde-csp.ts',
       'e2e/bascule-theme.spec.ts',
       'e2e/cibles-pointeur.spec.ts',
@@ -406,8 +412,11 @@ describe('rigueur du compilateur', () => {
       'e2e/focus-visible.spec.ts',
       'e2e/navigation-clavier.spec.ts',
       'e2e/parcours-clavier-quiz.spec.ts',
+      'e2e/parcours-clavier-simulation.spec.ts',
       'e2e/quiz-pre-hydratation.spec.ts',
       'e2e/quiz-sous-csp.spec.ts',
+      'e2e/simulation-mecanique.spec.ts',
+      'e2e/simulation-sous-csp.spec.ts',
       'e2e/skip-link.spec.ts',
       'playwright.config.ts',
     ] as const;

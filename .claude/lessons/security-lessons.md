@@ -463,35 +463,86 @@ un appel direct de la fonction corrigée (`verifierZeroStyle`, exportée pour ç
 **Réfs.** `tools/content-pipeline/compiler-markdown.mjs`, `.claude/rules/security.md` §4,
 `docs/agile/backlog-phase-1.md` §E2-ST4 lot B.
 
-## S-016 · Un collecteur de `securitypolicyviolation` mesure « rien d'observable par CET événement », pas « rien de bloqué » — une écriture CSSOM refusée peut ne jamais l'émettre (A05 · faux négatif d'instrument, cousin de [[S-005]]/[[S-013]])
+## S-016 · Un collecteur de `securitypolicyviolation` mesure « rien d'observable par CET événement », pas « rien de bloqué » — et la portée réelle de `style-src` n'est pas celle qu'on croit (A05 · faux négatif d'instrument, cousin de [[S-005]]/[[S-013]])
 
-**Symptôme.** Mesuré le 2026-08-19 (E2-ST4 lot C) sous CSP réellement servie (`npx swa start` +
-Chromium réel) : une écriture de style par **CSSOM** (`el.style.top = '-200px'`,
-`el.style.setProperty(…, 'important')`) est acceptée dans le DOM (l'attribut `style` se relit
-intact), **jamais appliquée** (`getComputedStyle` rend la valeur d'origine, y compris sur `<body>`),
-et n'émet **ni** événement `securitypolicyviolation` **ni** message de console. La politique mord,
-en silence.
-**Pourquoi ce n'est pas déjà couvert.** [[S-005]] établit que `style-src` est la directive mouvante
-de ce dépôt (dérivée de l'artéfact, contrairement à `script-src`) — vrai sur l'axe *contenu de la
-liste blanche*, muet sur l'axe *observabilité*. `e2e/aides/sonde-csp.ts` porte un contrôle positif
-mais **seulement pour `script-src`** (script inline injecté → violation captée) : rien n'atteste que
-`style-src` soit observable par le même mécanisme, et la mesure d'aujourd'hui montre le contraire. Un
-collecteur d'événements ne mesure donc pas « la CSP n'a rien bloqué » mais « la CSP n'a rien bloqué
-**que cet événement sache signaler** » — distinction de la même famille que [[L-005]] (un run vert
-ne prouve pas qu'une vérification a tourné) et [[L-019]]/[[S-013]] (une sonde a besoin d'un contrôle
-positif propre à ce qu'elle prétend mesurer).
-**Règle.** Ne jamais présumer qu'une directive CSP est observable par `securitypolicyviolation` sans
-contrôle positif **dédié à cette directive** — le contrôle positif de `script-src` ne vaut pas
-preuve pour `style-src`. Sur ce dépôt, `style-src` doit se vérifier par un second canal, structurel :
-`getComputedStyle` après une écriture CSSOM délibérée (contrôle positif d'application, pas
-d'événement) — « 0 violation collectée » ne doit jamais, seul, clore un ticket touchant `style-src`.
-**Dette nommée pour `e2e/aides/sonde-csp.ts` :** ajouter un contrôle positif « écriture CSSOM
-refusée » (assertion sur `getComputedStyle`, pas sur un événement) distinct de celui de
-`script-src`, documentant explicitement que `style-src` peut bloquer sans jamais lever
-`securitypolicyviolation`.
-**Réfs.** `e2e/aides/sonde-csp.ts`, `e2e/quiz-sous-csp.spec.ts`, `e2e/bascule-theme.spec.ts`,
-`src/configuration-typescript.spec.ts`, `.claude/rules/security.md` §1,
-`docs/agile/backlog-phase-1.md` §E2-ST4 lot C.
+> **✅ DETTE PAYÉE le 2026-08-19 (E2-ST5, lot c2)** — par `exigerStyleSrcApplique` /
+> `mesurerStyleSrc` dans `e2e/aides/sonde-csp.ts`, exercées par
+> `e2e/simulation-sous-csp.spec.ts` sur la page de leçon, simulation actionnée, sous la CSP
+> réellement servie. **La règle de la leçon tient ; sa PRÉMISSE FACTUELLE était fausse et est
+> corrigée ci-dessous.**
+
+**Symptôme d'origine (2026-08-19, E2-ST4 lot C).** Sous CSP réellement servie, une écriture de
+style par CSSOM (`el.style.top = '-200px'`) semblait acceptée dans le DOM, jamais appliquée, sans
+événement `securitypolicyviolation` ni message de console. D'où la crainte : « la politique mord en
+silence, un collecteur d'événements ne le verra pas ».
+
+**🔴 CE QUE LA MESURE DU LOT c2 A ÉTABLI — la prémisse était un ARTEFACT DE PROPRIÉTÉ.** Quatre
+écritures distinctes, même page, même politique servie, `npx swa start` + Chromium réel :
+
+| Canal | Effet (`getComputedStyle`) | Événement |
+|---|---|---|
+| `<style>` inline non haché inséré par la page | **refusé** | `style-src-elem ← inline` ✅ |
+| `element.setAttribute('style', '…')` | **refusé** (l'attribut se relit intact) | `style-src-attr ← inline` ✅ |
+| `element.style.setProperty(…)` | **appliqué** | aucun — *et c'est normal* |
+| `element.style.cssText = …` / `element.style.paddingTop = …` | **appliqués** | aucun |
+| `<link rel="stylesheet">` de **même origine** (`'self'`) | **appliqué** | aucun |
+
+La frontière n'est donc **pas** « CSSOM contre attribut » mais **« écriture propriété par propriété
+contre ANALYSE d'un texte de déclaration »** : `style-src-attr` gouverne le *parsing* de l'attribut
+`style`, pas les accesseurs de `CSSStyleDeclaration`. Et **les deux canaux réellement refusés SONT
+rapportés** par `securitypolicyviolation`.
+**Pourquoi la mesure d'origine a conclu l'inverse** : `el.style.top = '-200px'` portait sur un
+élément en **position statique**, où `top` n'a aucun effet visuel. Rejouée au lot c2, la valeur est
+bel et bien appliquée (`getComputedStyle` rend `-200px`). Le même mode d'échec a mordu **une
+seconde fois pendant l'écriture du correctif** : la sonde employait d'abord `outline-offset`, que
+Chromium résout à `0px` tant que `outline-style` vaut `none` — les trois canaux rendaient alors la
+même valeur, et les deux refus se seraient lus comme des succès. **Une propriété témoin doit se
+RÉSOUDRE inconditionnellement** (`padding-top` a été retenue) — sans quoi on mesure la propriété,
+pas la politique.
+
+**⚠️ CE QUI RESTE VRAI, ET QUI EST LA LEÇON.** La règle ne change pas d'un mot : **ne jamais
+présumer qu'une directive CSP est observable par `securitypolicyviolation` sans contrôle positif
+DÉDIÉ à cette directive** — le contrôle positif de `script-src` ne vaut pas preuve pour `style-src`.
+Ce qui a changé, c'est que la question est maintenant **tranchée par une mesure** au lieu d'être
+tranchée par une inférence. Et l'inférence était fausse **dans les deux sens** : elle accusait le
+navigateur d'être muet là où il parle, et elle laissait croire qu'un canal était fermé alors qu'il
+est **hors périmètre**.
+
+**🔴 LA PORTÉE RÉELLE DE LA PROTECTION, À ÉCRIRE PARTOUT OÙ ON LA CITE.** `style-src` **n'empêche
+pas** un script déjà en cours d'exécution de restyler la page ; il ferme l'**INJECTION** de style —
+un `<style>` ou un `style="…"` glissé dans du contenu. C'est exactement la surface d'un site de
+contenu compilé, donc exactement la bonne protection ici — mais l'écrire comme « la CSP interdit
+tout style dynamique » serait une garantie surestimée, famille [[S-009]].
+
+**Forme du contrôle positif, et pourquoi celle-là.** Il **mesure l'EFFET, pas l'événement** —
+`getComputedStyle` est le seul instrument qu'une politique ne peut pas rendre muet. Et c'est une
+**pince** ([[L-019]]) : quatre canaux, même déclaration, même page — deux doivent être refusés, le
+canal `'self'` doit **passer** (sans lui, « la valeur n'a pas bougé » serait indiscernable d'un
+témoin jamais inséré), le canal CSSOM est mesuré pour **écrire la portée** au lieu de la supposer.
+Deux détails payés en direct : le canal autorisé sert de **barrière de temps** (l'événement `load`
+d'un `<link>` **précède** l'application de la feuille de ~25 ms — relever trop tôt rendrait « refusé »
+sur un canal autorisé), et il passe par `page.route` plutôt que par un fichier écrit dans `dist/`,
+que `deploy.yml` scelle par empreintes sha256.
+
+**Mutations exécutées (pas raisonnées), 2026-08-19.** (a) hachage du bloc sondé ajouté à `style-src`
+→ le contrôle rougit sur le canal élément (`13px` au lieu de `0px`) ; (b) `'unsafe-hashes'` + hachage
+de la déclaration → il rougit sur le canal attribut ; (c) hachage de la feuille `.simulation` retiré
+de la directive → l'énumération des blocs de la page rougit sur 3 orphelins. Un `'unsafe-inline'` nu,
+lui, est arrêté **plus tôt**, par `exigerCspServie`.
+
+**Ce qui reste ouvert.** Le contrôle vit sur la page de leçon de la **fixture**, servie par
+`npx swa start` **en HTTP sur localhost** : il ne dit rien de `frame-ancestors`, de HSTS ni
+d'`upgrade-insecure-requests`, inobservables là (voir l'en-tête de `playwright.config.ts`), et il
+n'est **pas** rejoué en ligne par `deploy.yml`, qui vérifie la politique **écrite** et non son
+application.
+
+**Réfs.** `e2e/aides/sonde-csp.ts` (`mesurerStyleSrc`, `exigerStyleSrcApplique`),
+`e2e/simulation-sous-csp.spec.ts`, `src/configuration-typescript.spec.ts` (épinglage L-034),
+`.claude/rules/security.md` §1, `.claude/lessons/lessons-learned.md` **L-041** *(à corriger : sa
+prémisse factuelle est infirmée par la mesure ci-dessus — sa consigne pratique, « ne déplacer aucun
+élément par le style dans un spec », reste bonne, mais pour une autre raison : un `style="…"` est
+bel et bien refusé, tandis qu'une écriture CSSOM passe, ce qui rend le geste imprévisible selon la
+forme employée)*, `docs/agile/backlog-phase-1.md` §E2-ST5 lot c2.
 
 ## S-017 · Une clé venue du contenu (`JSON.parse`) qui indexe un objet PAR CROCHETS peut remonter `Object.prototype` — un motif kebab-case ne l'exclut pas (A03 · CWE-1321, troisième occurrence sur ce dépôt)
 

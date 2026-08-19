@@ -291,3 +291,329 @@ function exigerPolitiqueDeLArtefactCourant(politiqueServie: string): void {
     'la CSP SERVIE diffère de celle de l’artéfact présent sur le disque. La cause de loin la plus probable : un `npx swa start` d’un run précédent est encore en marche et sert la politique qu’il a lue à SON démarrage (`reuseExistingServer: !CI` dans `playwright.config.ts`). Arrêter le processus qui écoute le port, puis relancer. Tant qu’il tourne, ce gate mesure une politique qui n’est plus celle du site',
   ).toBe(attendue);
 }
+
+// =============================================================================
+// LE CONTRÔLE POSITIF DE `style-src` — dette S-016, payée ici (E2-ST5, lot c2)
+// -----------------------------------------------------------------------------
+// ON MESURE L'EFFET, PAS L'ÉVÉNEMENT — et c'est ce choix qui a permis de corriger
+// la prémisse même de la dette. `getComputedStyle` est le seul instrument qu'une
+// politique ne peut pas rendre muet : une déclaration refusée ne peint rien, et
+// cela se lit, qu'un événement soit émis ou non.
+//
+// 🔴 CE QUE LA MESURE DU 2026-08-19 A ÉTABLI, ET QUI CORRIGE L-041 / S-016.
+// Ces deux leçons annonçaient qu'« une écriture CSSOM de `style` est acceptée dans
+// le DOM mais jamais appliquée, sans violation ni message ». Mesuré ici, sur la
+// page de leçon, sous la CSP réellement servie, quatre écritures distinctes :
+//   · `element.style.setProperty(…)`      → APPLIQUÉE   (aucun événement — normal)
+//   · `element.style.cssText = …`         → APPLIQUÉE
+//   · `element.style.paddingTop = …`      → APPLIQUÉE
+//   · `element.setAttribute('style', …)`  → REFUSÉE, et `style-src-attr` EST émis
+// La frontière n'est donc pas « CSSOM contre attribut » mais « écriture PROPRIÉTÉ
+// PAR PROPRIÉTÉ contre ANALYSE d'un texte de déclaration » : `style-src-attr`
+// gouverne le parsing de l'attribut, pas les accesseurs de `CSSStyleDeclaration`.
+// ⚠️ CONSÉQUENCE DE SÉCURITÉ, À NE PAS PERDRE : cette CSP n'empêche PAS un script
+// déjà exécuté de restyler la page. Ce qu'elle ferme, c'est l'INJECTION de style
+// (un `<style>` ou un `style="…"` glissé dans du contenu) — ce qui est exactement
+// la surface d'un site de contenu, et exactement ce que cette sonde exerce.
+// ⚠️ ET POURQUOI L-041 A CONCLU L'INVERSE : sa mesure était `el.style.top =
+// '-200px'` sur un élément en position STATIQUE, où `top` n'a aucun effet visuel.
+// Rejoué ici : la valeur est bel et bien appliquée (`getComputedStyle` rend
+// `-200px`) — c'était un artefact de propriété, pas un refus. Même famille que le
+// piège `outline-offset` documenté plus bas : deux fois le même mode d'échec.
+//
+// ⚠️ C'EST UNE PINCE, PAS UN CONSTAT D'ABSENCE (L-019). « La valeur n'a pas bougé »
+// est exactement ce que produirait un sélecteur mal écrit, une propriété mal
+// choisie ou un témoin jamais inséré dans le document. Les quatre canaux sont donc
+// exercés dans la MÊME page, avec la MÊME déclaration :
+//   · canal ÉLÉMENT   — un `<style>` inline non haché                    → REFUSÉ
+//   · canal ATTRIBUT  — `setAttribute('style', …)`                       → REFUSÉ
+//   · canal AUTORISÉ  — une feuille de MÊME ORIGINE (`style-src 'self'`) → APPLIQUÉE
+//   · canal CSSOM     — `element.style.setProperty(…)`                   → APPLIQUÉ,
+//     hors du périmètre de la directive : il est mesuré pour que la portée réelle
+//     de la protection soit ÉCRITE, jamais supposée.
+// Sans les deux derniers, ce module ne mesurerait rien ; sans les deux premiers, il
+// ne garderait rien. C'est aussi ce qui distingue « la politique bloque » de « la
+// politique bloque TOUT » : elle discrimine, et le canal autorisé le prouve.
+//
+// ⚠️ LE TROISIÈME CANAL PASSE PAR `page.route`, ET C'EST DÉLIBÉRÉ. La feuille
+// témoin n'existe pas dans l'artéfact — l'y écrire depuis un spec modifierait
+// `dist/`, que `deploy.yml` scelle par empreintes sha256. Son URL est néanmoins
+// celle de l'origine servie : du point de vue de la CSP, c'est bien `'self'` qui
+// est exercé, la ressource étant décidée juste après, au niveau réseau.
+// =============================================================================
+
+/**
+ * La propriété témoin, et pourquoi celle-ci.
+ *
+ * `padding-top` n'est **pas héritée** (une valeur venue d'un ancêtre ne peut donc
+ * pas fabriquer un faux « appliqué »), sa valeur initiale est `0px`, et sa valeur
+ * RÉSOLUE est toujours une longueur en pixels — quel que soit le reste du style de
+ * l'élément.
+ *
+ * 🔴 CE DERNIER POINT N'EST PAS DÉCORATIF, ET IL A ÉTÉ PAYÉ EN DIRECT (2026-08-19).
+ * La première écriture de cette sonde employait `outline-offset`, choisi pour la
+ * même raison de non-héritage. Chromium résout `outline-offset` à `0px` **tant que
+ * `outline-style` vaut `none`** : les TROIS canaux rendaient alors `0px`, y compris
+ * celui qui avait bel et bien chargé sa feuille. Les deux refus se seraient donc lus
+ * comme des succès si l'assertion de l'instrument (le canal autorisé, plus bas)
+ * n'avait pas été écrite EN PREMIER — c'est exactement le mode d'échec L-019 que
+ * cette pince existe pour attraper, et il s'est produit dès le premier run.
+ */
+const PROPRIETE_TEMOIN = 'padding-top';
+
+/** La valeur que les trois canaux tentent d'écrire. Volontairement improbable. */
+const VALEUR_TEMOIN = '13px';
+
+/** Ce que la propriété vaut quand la déclaration n'a PAS pris. */
+const VALEUR_INITIALE = '0px';
+
+/** Une classe par canal : sans cela, la feuille autorisée verdirait aussi les deux autres témoins. */
+const CLASSES_TEMOIN = {
+  element: 'drjst-temoin-style-element',
+  attribut: 'drjst-temoin-style-attribut',
+  autorise: 'drjst-temoin-style-autorise',
+  cssom: 'drjst-temoin-style-cssom',
+} as const;
+
+/**
+ * L'URL de la feuille témoin — de même origine, donc couverte par `style-src 'self'`.
+ * Le préfixe `__` la rend reconnaissable dans un journal réseau et ne peut entrer en
+ * collision avec aucune route du site.
+ */
+const URL_FEUILLE_TEMOIN = '/__sonde-style-src.css';
+
+/** Ce que les trois canaux ont produit, tel quel — l'appelant assertionne. */
+export interface MesureStyleSrc {
+  /** La valeur calculée AVANT toute injection : la référence de la comparaison. */
+  readonly initiale: string;
+  /** Après l'insertion d'un `<style>` inline non haché. */
+  readonly elementNonHache: string;
+  /** Après un `setAttribute('style', …)` — le canal que `style-src-attr` gouverne. */
+  readonly attributEnLigne: string;
+  /** Ce que l'attribut `style` PORTE après cette écriture — le DOM l'accepte (S-016). */
+  readonly attributRelu: string;
+  /**
+   * Après un `element.style.setProperty(…)` — HORS du périmètre de la directive.
+   * Mesuré pour écrire la portée réelle de la protection, jamais pour la supposer.
+   */
+  readonly cssomPropriete: string;
+  /** Après le chargement d'une feuille de même origine portant la MÊME déclaration. */
+  readonly feuilleAutorisee: string;
+  /** `chargée` ou `refusée` : l'événement du `<link>`, pour distinguer les causes d'un échec. */
+  readonly etatFeuilleAutorisee: string;
+  /** Millisecondes écoulées entre l'événement `load` du `<link>` et son effet peint. */
+  readonly delaiApplication: number;
+}
+
+/**
+ * 🔴 LA BARRIÈRE DE TEMPS, ET POURQUOI ELLE EXISTE — mesurée le 2026-08-19.
+ *
+ * L'événement `load` d'un `<link rel="stylesheet">` inséré dynamiquement précède
+ * l'application de la feuille : `lien.sheet.cssRules` porte déjà la règle, le
+ * sélecteur correspond bien à l'élément, et `getComputedStyle` rend encore la
+ * valeur d'origine pendant quelques dizaines de millisecondes. Constaté ici :
+ * lecture immédiate après `load` → `0px` ; lecture 25 ms plus tard → `13px`.
+ *
+ * ⚠️ CE N'EST PAS UN CONFORT, C'EST LA CONDITION DE VALIDITÉ DES DEUX AUTRES
+ * CANAUX. Sans attente, « la déclaration refusée n'a pas pris » serait
+ * indiscernable de « la mesure est arrivée trop tôt » — le test aurait été vert
+ * pour la mauvaise raison, sur un dépôt sain comme sur un dépôt permissif. La
+ * feuille autorisée est le canal le plus LENT des trois (elle passe par le
+ * réseau) : quand SON effet est visible, les deux canaux synchrones ont
+ * nécessairement eu le temps de s'appliquer s'ils l'avaient pu. C'est elle qui
+ * sert de barrière, et c'est pour cela que les trois valeurs sont relevées
+ * seulement après.
+ */
+const DELAI_APPLICATION_MS = 2_000;
+
+/** Le pas de scrutation de cette barrière. */
+const PAS_SCRUTATION_MS = 25;
+
+/**
+ * Exerce les trois canaux de `style-src` sur la page COURANTE et rend les mesures.
+ *
+ * Ne laisse rien derrière elle : les trois témoins, le bloc refusé et le `<link>`
+ * sont retirés du document une fois les valeurs relevées, pour que l'appelant
+ * puisse continuer d'actionner la page sur un DOM inchangé.
+ */
+export async function mesurerStyleSrc(page: Page): Promise<MesureStyleSrc> {
+  await page.route(URL_FEUILLE_TEMOIN, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/css',
+      body: `.${CLASSES_TEMOIN.autorise}{${PROPRIETE_TEMOIN}:${VALEUR_TEMOIN}}`,
+    });
+  });
+
+  return page.evaluate(
+    async ([propriete, valeur, classes, urlFeuille, delaiMax, pas]: readonly [
+      string,
+      string,
+      typeof CLASSES_TEMOIN,
+      string,
+      number,
+      number,
+    ]) => {
+      const creerTemoin = (classe: string): HTMLElement => {
+        const temoin = document.createElement('span');
+        temoin.className = classe;
+        // Hors de l'arbre d'accessibilité : la mesure ne doit pas ajouter de contenu
+        // à une page dont un autre gate (axe) compte les éléments.
+        temoin.setAttribute('aria-hidden', 'true');
+        document.body.append(temoin);
+        return temoin;
+      };
+
+      const lire = (element: Element): string =>
+        getComputedStyle(element).getPropertyValue(propriete).trim();
+
+      const temoinElement = creerTemoin(classes.element);
+      const temoinAttribut = creerTemoin(classes.attribut);
+      const temoinAutorise = creerTemoin(classes.autorise);
+      const temoinCssom = creerTemoin(classes.cssom);
+
+      const initiale = lire(temoinElement);
+
+      // 1. CANAL ÉLÉMENT. Le bloc est créé PAR LA PAGE et inséré dans le document :
+      //    c'est un nœud comme un autre, soumis à `style-src-elem`. Rien n'est
+      //    falsifié — si la politique servie autorisait l'inline, il s'appliquerait.
+      const bloc = document.createElement('style');
+      bloc.textContent = `.${classes.element}{${propriete}:${valeur}}`;
+      document.head.append(bloc);
+
+      // 2. CANAL ATTRIBUT — celui que `style-src-attr` gouverne RÉELLEMENT. Le
+      //    navigateur ANALYSE le texte de la déclaration : c'est cette analyse qui
+      //    est refusée. On relève tout de suite ce que le DOM PORTE, car c'est la
+      //    moitié qui trompe (S-016) : l'attribut se relit intact, donc un test qui
+      //    se contenterait de le relire conclurait « appliqué ».
+      temoinAttribut.setAttribute('style', `${propriete}:${valeur}`);
+      const attributRelu = temoinAttribut.getAttribute('style') ?? '';
+
+      // 2 bis. CANAL CSSOM — HORS PÉRIMÈTRE, et c'est le constat qui corrige L-041.
+      //    Une écriture propriété par propriété n'est pas soumise à la directive :
+      //    elle s'applique. La mesurer, c'est écrire la portée de la protection au
+      //    lieu de la supposer.
+      temoinCssom.style.setProperty(propriete, valeur);
+
+      // 3. CANAL AUTORISÉ. La même déclaration, par une feuille de même origine.
+      //    C'est la moitié de la pince qui prouve que l'instrument MESURE — et c'est
+      //    aussi la BARRIÈRE DE TEMPS des deux autres (voir `DELAI_APPLICATION_MS`).
+      const lien = document.createElement('link');
+      lien.rel = 'stylesheet';
+      lien.href = urlFeuille;
+      const etatFeuilleAutorisee = await new Promise<string>((resoudre) => {
+        lien.addEventListener('load', () => resoudre('chargée'), { once: true });
+        lien.addEventListener('error', () => resoudre('refusée'), { once: true });
+        document.head.append(lien);
+      });
+
+      // On attend l'EFFET, pas l'événement : `load` précède l'application. La sortie
+      // par expiration est volontaire et non silencieuse — elle rend la valeur telle
+      // qu'elle est, et c'est l'assertion de l'appelant qui tranche.
+      const depart = performance.now();
+      let delaiApplication = -1;
+      while (performance.now() - depart < delaiMax) {
+        if (lire(temoinAutorise) !== initiale) {
+          delaiApplication = Math.round(performance.now() - depart);
+          break;
+        }
+        await new Promise((resoudre) => setTimeout(resoudre, pas));
+      }
+
+      // Les trois relevés se font APRÈS la barrière : les deux canaux synchrones ont
+      // donc eu, eux aussi, tout le temps de s'appliquer s'ils l'avaient pu.
+      const elementNonHache = lire(temoinElement);
+      const attributEnLigne = lire(temoinAttribut);
+      const feuilleAutorisee = lire(temoinAutorise);
+      const cssomPropriete = lire(temoinCssom);
+
+      for (const noeud of [
+        temoinElement,
+        temoinAttribut,
+        temoinAutorise,
+        temoinCssom,
+        bloc,
+        lien,
+      ]) {
+        noeud.remove();
+      }
+
+      return {
+        initiale,
+        elementNonHache,
+        attributEnLigne,
+        attributRelu,
+        feuilleAutorisee,
+        etatFeuilleAutorisee,
+        delaiApplication,
+        cssomPropriete,
+      };
+    },
+    [
+      PROPRIETE_TEMOIN,
+      VALEUR_TEMOIN,
+      CLASSES_TEMOIN,
+      URL_FEUILLE_TEMOIN,
+      DELAI_APPLICATION_MS,
+      PAS_SCRUTATION_MS,
+    ] as const,
+  );
+}
+
+/**
+ * Exige que `style-src` soit RÉELLEMENT APPLIQUÉ sur la page courante — la dette
+ * S-016 en un appel.
+ *
+ * L'ORDRE DES ASSERTIONS EST LE CŒUR DU CONTRÔLE : l'instrument est prouvé AVANT
+ * qu'on conclue quoi que ce soit d'un refus. Un `expect` sur « rien n'a bougé »
+ * placé en tête ferait passer pour une preuve exactement ce qu'un témoin jamais
+ * inséré produirait.
+ *
+ * @returns la mesure, pour que l'appelant l'imprime au journal (L-005).
+ */
+export async function exigerStyleSrcApplique(page: Page): Promise<MesureStyleSrc> {
+  const mesure = await mesurerStyleSrc(page);
+
+  expect(
+    mesure.initiale,
+    `le témoin ne part pas de « ${VALEUR_INITIALE} » pour « ${PROPRIETE_TEMOIN} » : une règle du site écrit désormais cette propriété, la comparaison qui suit ne distinguerait plus « appliqué » de « refusé »`,
+  ).toBe(VALEUR_INITIALE);
+
+  // 1. L'INSTRUMENT MESURE. Sans cette ligne, tout le reste serait vrai d'un
+  //    sélecteur mal écrit ou d'un témoin absent du document (L-019).
+  expect(
+    mesure.feuilleAutorisee,
+    `la MÊME déclaration servie par une feuille de même origine ne s’applique pas (« ${mesure.etatFeuilleAutorisee} », après ${String(DELAI_APPLICATION_MS)} ms d’attente) : soit \`style-src\` ne porte plus \`'self'\` — le site serait alors sans styles —, soit cette sonde ne mesure rien et les refus constatés plus bas ne prouveraient rien`,
+  ).toBe(VALEUR_TEMOIN);
+
+  // 2. LE CANAL ÉLÉMENT EST REFUSÉ, ET LE REFUS EST EFFECTIF — pas rapporté.
+  expect(
+    mesure.elementNonHache,
+    'un `<style>` inline NON HACHÉ inséré par la page a été APPLIQUÉ : `style-src` autorise l’inline (ou la politique servie est en `report-only`). C’est la directive DÉRIVÉE de l’artéfact (S-005) — sans ce contrôle, elle pouvait devenir permissive sans qu’aucun gate ne rougisse',
+  ).toBe(VALEUR_INITIALE);
+
+  // 3. LE CANAL ATTRIBUT AUSSI — c'est `style-src-attr`, la surface d'un `style="…"`
+  //    injecté dans du contenu. Les deux moitiés comptent : le DOM ACCEPTE
+  //    l'attribut (donc un test qui se contenterait de le relire conclurait
+  //    « appliqué » — la moitié qui trompe, S-016), et la peinture ne suit PAS.
+  expect(
+    mesure.attributRelu,
+    'l’attribut `style` ne porte plus la déclaration écrite : Chromium refuse désormais l’écriture elle-même, et non plus seulement son application. Relire S-016 avant d’ajuster — c’est une bonne nouvelle, pas un échec du site',
+  ).toContain(VALEUR_TEMOIN);
+  expect(
+    mesure.attributEnLigne,
+    'un `style="…"` posé par `setAttribute` a été APPLIQUÉ : `style-src` porte `unsafe-inline` ou `unsafe-hashes`, ou la politique n’est pas appliquée. C’est la surface exacte d’une injection de style dans du contenu',
+  ).toBe(VALEUR_INITIALE);
+
+  // 4. LA PORTÉE DE LA PROTECTION, ÉCRITE ET NON SUPPOSÉE. Une écriture propriété
+  //    par propriété n'est pas gouvernée par la directive et s'applique. Ce n'est
+  //    PAS un défaut du site : la CSP ferme l'INJECTION de style, pas le restylage
+  //    par un script qui s'exécute déjà légitimement. L'assertion existe pour que
+  //    personne ne lise « style-src » comme une garantie plus large qu'elle n'est.
+  expect(
+    mesure.cssomPropriete,
+    'un `element.style.setProperty(…)` ne s’applique plus : le périmètre de `style-src-attr` s’est élargi aux accesseurs de `CSSStyleDeclaration`. Bonne nouvelle à consigner (S-016), pas un échec — mais toute prose du dépôt qui décrit ce canal doit être relue',
+  ).toBe(VALEUR_TEMOIN);
+
+  return mesure;
+}
