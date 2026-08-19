@@ -793,7 +793,7 @@ sans S-007/S-008 · (d) S-003 · (e) typage 34 / 35 erreurs sur les deux gates d
 | E2-ST2 | Rendu des leçons (page leçon + routage) | ✅ |
 | E2-ST3 | `QuizComponent` + score localStorage | ✅ |
 | E2-ST4 | `CodeCompareComponent` | ✅ |
-| E2-ST5 | `SimulationComponent` | ⬜ |
+| E2-ST5 | `SimulationComponent` | ✅ |
 | E2-ST6 | Page sommaire du cours + progression localStorage | ⬜ |
 
 #### ✅ Nœuds d'ouverture d'E2 — TRANCHÉS par le propriétaire le 2026-08-16
@@ -1976,32 +1976,34 @@ Et deux constats à ne pas perdre, vérifiés sur le code :
 - **Fichiers** : `src/app/features/cours/simulation/`, schéma JSON associé.
 - **Gates** : G-lint, G-test, G-build, G-axe.
 
-**⏭️ État d'avancement au 2026-08-19** — branche `feat/e2-st5-lot-a`, **non fusionnée**. Pas de
-bascule ⬜→✅ : la clôture de la sous-tâche est le lot d.
-- **Lots livrés** : **a** (transport de `simulation.json` jusqu'à la frontière de typage, commit
-  `ee91e5d`) et **b1** (le `SimulationComponent`, modèle **C′**, commit `fa30352`).
-- **Restent** : **b2** (câbler `app-simulation` dans `rendu-blocs.ts` et `lecon.ts`, relever
-  `anyComponentStyle` de 4 Ko à 6 Ko dans `angular.json`, puis **mesurer** le compte de hachages de
-  style et le reporter dans `ci.yml` + `src/workflows-github.spec.ts`) · **c1** (e2e mécanique +
-  clavier + axe) · **c2** (CSP `style-src` + le contrôle positif manquant de la dette S-016) ·
-  **d** (clôture documentaire).
-- **⚠️ Trois avertissements pour qui reprend** :
-  1. **`NOMBRE_HACHAGES_STYLE_ATTENDU = 9` dans `tools/deploiement/generer-config-swa.mjs` NE BOUGE
-     PAS**, et `deploy.yml` non plus : `content/` est vide, aucune simulation n'est rendue en
-     production. Seul `ci.yml` (artéfact de fixture) passe de 12 à la valeur **mesurée**. Monter les
-     deux rendrait `deploy.yml` rouge.
-  2. Le lot b2 modifie le gabarit de `rendu-blocs.ts`, ce qui change l'**identifiant** du composant
-     donc la **valeur** de ses hachages de style (le compte, lui, ne bouge pas). Tout `npx swa start`
-     resté en marche servira l'ancienne CSP et produira une violation `style-src-elem`
-     **reproductible sur un dépôt sain** — tuer le processus qui écoute le **port 4280** avant tout
-     `npm run e2e`.
-  3. Le lot b1 **n'a pas encore été revu**. Un point est explicitement soumis à la revue par son
-     auteur : le marqueur d'étape courante est un **texte** (`(étape courante)`) et non
-     `aria-current`, pour ne pas doubler l'annonce — à trancher en revue.
-- **Décisions du propriétaire à ne pas rouvrir** : modèle **C′** (liens d'étape présents dès le
-  prerender, repli au premier geste seulement) ; budget `anyComponentStyle` **relevé une fois pour
-  `quiz.scss` et `simulation.scss`**, ce qui paie la dette des 88 o ouverte depuis E2-ST4 ; type
-  d'acteur **`attaquant`** ajouté à l'énumération fermée.
+**✅ CLOSE EN ENTIER (2026-08-19)** — tous les lots livrés : **a** (transport de `simulation.json`
+jusqu'à la frontière de typage, commit `ee91e5d`), **b1** (le `SimulationComponent`, modèle **C′**,
+commit `fa30352`), **b2** (câblage de `app-simulation` dans `rendu-blocs.ts`/`lecon.ts`, budget
+`anyComponentStyle` relevé), **c1** (e2e mécanique + clavier + axe), **c2** (CSP `style-src` et son
+contrôle positif — dette **S-016 payée**), **d** (clôture documentaire, cette passe).
+- **Décisions prises pendant le lot, à ne pas rouvrir** : modèle **C′** (liens d'étape présents dès
+  le prerender, repli au premier geste seulement) ; type d'acteur **`attaquant`** ajouté à
+  l'énumération fermée ; budget `anyComponentStyle` **relevé de 4 Ko à 6 Ko**, ce qui paie du même
+  coup la dette des 88 o de `quiz.scss` ouverte depuis E2-ST4 (zéro avertissement de budget dans les
+  deux builds) ; **`aria-current="step"`** retenu contre le marqueur purement textuel (le mot
+  « (étape courante) » est du contenu, pas un état programmatiquement déterminable — WCAG 4.1.2), le
+  texte visible restant sous `aria-hidden`.
+- **Compte de hachages de style** : `ci.yml` (artéfact de **fixture**) passe de 12 à **13**, reporté
+  aussi dans `src/workflows-github.spec.ts`. `NOMBRE_HACHAGES_STYLE_ATTENDU = 9` dans
+  `tools/deploiement/generer-config-swa.mjs` et `deploy.yml` **n'ont pas bougé** : `content/` est
+  vide, aucune simulation n'est rendue en production.
+- **Chiffres de clôture, mesurés et vérifiés indépendamment le 2026-08-19** :
+  - **G-lint** : *All files pass linting*.
+  - **G-test** : **576 → 657 tests / 30 → 32 fichiers**, 0 échec.
+  - **G-e2e** : **48 passés / 0 sauté** sur l'artéfact de **fixture** · **12 passés / 36 sautés** sur
+    l'artéfact de **production** (chaque saut imprime sa raison via `exigerLaPageDeLecon`).
+  - **G-axe** : 4 fichiers, **344 vérifications, 0 violation**.
+  - **G-build** : production **9 hachages de style / 9 attendus / 1 de script** · fixture **13 / 13**.
+  - **G-audit** : `npm audit --omit=dev` → **0 vulnérabilité**.
+- **Dettes NEUVES ouvertes** : le contrôle positif CSP de `style-src` vit **en HTTP sur localhost** —
+  `frame-ancestors`, HSTS et `upgrade-insecure-requests` restent **inobservables** par ce contrôle et
+  il **n'est pas rejoué en ligne** par `deploy.yml` · **L-041 était fausse** (sa prémisse était
+  l'inverse de la réalité mesurée) ; sa réécriture est en cours ailleurs, à ne pas relire ici.
 
 ### E2-ST6 — Sommaire du cours & progression *(= la « carte de parcours »)*
 - **Objectif** : page `/cours/securite-web` : les 13 modules dans l'ordre de lecture (sections Fondations / Attaques / Identités & données / Hébergement), état par module (non commencé / lu / quiz réussi) depuis `localStorage`, temps de lecture estimé.

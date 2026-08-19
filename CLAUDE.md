@@ -56,9 +56,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
 > CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2, B, C — PR #18,
-> #19, #20, et la PR du lot C).
-> **Le geste suivant : E2-ST5 — `SimulationComponent`** :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST5.
+> #19, #20, et la PR du lot C) **· E2-ST5 CLOSE EN ENTIER** (lots a, b1, b2, c1, c2, d).
+> **Le geste suivant : E2-ST6 — Sommaire du cours & progression** :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST6.
+> 🔴 **Son périmètre a CHANGÉ le 2026-08-19, à lire avant de commencer** : le propriétaire a décidé
+> d'un second cours publié (PHP, épic **E7**, §E7 du backlog) et d'un bloc D au cours de sécurité —
+> la phase 1 passe de 13 à 27 modules. E2-ST6 était conçue pour UN seul cours ; avec deux cours il
+> faut un **index de cours** et une progression indexée **par cours** dans `core/progression/`, pas
+> une progression globale à plat — changement de modèle de données à faire **avant** d'écrire le
+> composant, pas après. Détail : backlog §E7.
 >
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
@@ -118,9 +124,12 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > sécurité** : le contrôle positif CSP (`e2e/aides/sonde-csp.ts`) ne couvre que `script-src` ;
 > `style-src` (la directive la plus mouvante) n'a **aucun** contrôle positif prouvant qu'il bloque
 > réellement (voir **S-016**).
-> **Chiffres (2026-08-19)** : G-test **576/30**, G-e2e 29/0 sauté (fixture) et 12 passés/17 sautés
-> (production), G-axe 344 vérif./0 violation, G-build 12/1 hachages (fixture) inchangés,
-> `npm audit --omit=dev` 0.
+> **Chiffres à la clôture d'E2-ST4 (2026-08-19)** : G-test **576/30**, G-e2e 29/0 sauté (fixture) et
+> 12 passés/17 sautés (production), G-axe 344 vérif./0 violation, G-build 12/1 hachages (fixture)
+> inchangés, `npm audit --omit=dev` 0.
+> **Chiffres à la clôture d'E2-ST5 (2026-08-19)** : G-test **657/32**, 0 échec, G-e2e **48 passés/0
+> sauté** (fixture) et 12 passés/36 sautés (production), G-axe 344 vérif./0 violation, G-build
+> production 9/9 hachages de style + 1 de script, fixture 13/13, `npm audit --omit=dev` 0.
 >
 > ---
 >
