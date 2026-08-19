@@ -189,29 +189,68 @@ describe("l'orchestrateur du pipeline de contenu", () => {
     let execution: Execution;
 
     beforeAll(() => {
-      execution = lancer(['--racine', RACINE_TEMOIN, '--sortie', sortie, '--css', css]);
+      // 🔴 `--inclure-brouillons` : ce bloc mesure la COMPILATION et l'ÉCRITURE de deux
+      // leçons — deux sections distinctes, deux statuts, un import littéral par slug. Depuis
+      // le correctif du 2026-08-19, un bâtissage par défaut n'écrit rien d'une leçon non
+      // publiée : ce bloc n'aurait plus qu'une leçon à observer, et la moitié de ses
+      // assertions deviendraient vraies du vide. On demande donc l'artéfact « d'auteur ».
+      // Que le DÉFAUT soit fermé — et qu'il le reste — est tenu par un fichier dont c'est le
+      // seul objet, contrôle positif compris : `src/garde-fou-lecons-non-publiees.spec.ts`.
+      execution = lancer([
+        '--racine',
+        RACINE_TEMOIN,
+        '--sortie',
+        sortie,
+        '--css',
+        css,
+        '--inclure-brouillons',
+      ]);
     }, DELAI);
 
-    it('compile la leçon sans échouer', () => {
+    it('compile les DEUX leçons sans échouer', () => {
       // `diagnostic()` D'ABORD : sur un clone sans Chromium, c'est lui qui nomme
       // `npm run e2e:install` au lieu d'afficher « expected -1 to be 0 ».
       expect(diagnostic(execution)).toBe('');
       expect(execution.code).toBe(0);
-      expect(execution.journal).toContain('1 leçon(s) compilée(s)');
+      expect(execution.journal).toContain('2 leçon(s) compilée(s)');
     });
 
-    it('inscrit la leçon au manifeste, avec ses métadonnées et rien de plus', () => {
+    it('inscrit les leçons au manifeste, avec leurs métadonnées et rien de plus', () => {
       // Le contrôle positif du test « manifeste vide » ci-dessus : si le générateur
       // n'écrivait jamais rien, les deux blocs seraient verts. Ici, il DOIT écrire.
-      const manifeste: { slug: string; ordre: number; sujet: string }[] = JSON.parse(
+      const manifeste: { slug: string; ordre: number; sujet: string; statut: string }[] = JSON.parse(
         readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8'),
       );
-      expect(manifeste).toHaveLength(1);
+      expect(manifeste).toHaveLength(2);
       expect(manifeste[0]?.slug).toBe('lecon-temoin');
       expect(manifeste[0]?.sujet).toBe('securite-web');
       // AUCUN champ `factice` : la leçon-témoin vit hors de `content/`, la protection
       // est physique et non déclarative (objection S6 du plan d'E2-ST1).
       expect(Object.keys(manifeste[0] ?? {})).not.toContain('factice');
+
+      // 🔴 LE CONTRASTE DE STATUT EST LA RAISON D'ÊTRE DE LA SECONDE LEÇON (E2-ST6, D-1).
+      // Le masquage des brouillons vit en un seul point (`leconsPubliees`), consommé par le
+      // sommaire, par prev/next ET par le prerender. Tant que la fixture n'avait qu'une leçon —
+      // et en `brouillon`, qui plus est — « masquer les brouillons » et « ne rien masquer »
+      // produisaient le même artéfact : la règle n'était exercée par aucun runner (L-019).
+      // Ramener les deux au même statut rendrait tout le lot C1/C2/E vert pour rien.
+      expect(manifeste[0]?.statut).toBe('publiee');
+      expect(manifeste[1]?.slug).toBe('lecon-brouillon');
+      expect(manifeste[1]?.statut).toBe('brouillon');
+    });
+
+    it('transporte la « section » de chaque leçon jusqu’au manifeste', () => {
+      // `section` est OPTIONNELLE (E2-ST6, D-2) et le manifeste est son SEUL porteur côté
+      // sommaire : celui-ci ne charge pas les `lecons/<slug>.json`, dont c'est tout l'intérêt.
+      // Une valeur perdue en chemin ne casserait donc rien de visible au build — elle ferait
+      // simplement retomber la carte de parcours en liste plate, silencieusement.
+      // Les DEUX valeurs sont assertées, et elles DIFFÈRENT : un générateur qui recopierait la
+      // section de la première leçon sur toutes les autres passerait une assertion unique.
+      const manifeste: { section?: string }[] = JSON.parse(
+        readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8'),
+      );
+      expect(manifeste[0]?.section).toBe('Fondamentaux');
+      expect(manifeste[1]?.section).toBe('Approfondissements');
     });
 
     it('écrit un import dynamique LITTÉRAL par slug — le point de coupe d’esbuild', () => {
@@ -227,6 +266,12 @@ describe("l'orchestrateur du pipeline de contenu", () => {
 
     it('écrit un JSON par leçon, et la carte pointe bien dessus', () => {
       expect(existsSync(join(sortie, 'lecons', 'lecon-temoin.json'))).toBe(true);
+      // ⚠️ CE `true` NE VAUT QUE PARCE QUE CE BLOC BÂTIT AVEC `--inclure-brouillons`.
+      // Un brouillon est toujours COMPILÉ — c'est ainsi qu'on sait qu'il est valide — mais il
+      // n'est plus ÉCRIT par défaut depuis le 2026-08-19 : le fichier deviendrait un chunk
+      // servi en 200, donc le texte d'une leçon non relue, public (S-006). L'écriture est
+      // désormais l'exception, demandée par un drapeau, et destinée à `npm start`.
+      expect(existsSync(join(sortie, 'lecons', 'lecon-brouillon.json'))).toBe(true);
     });
 
     it('imprime la table des poids, même quand aucun seuil n’est franchi (L-005)', () => {
@@ -251,7 +296,19 @@ describe("l'orchestrateur du pipeline de contenu", () => {
     let blocs: BlocLu[];
 
     beforeAll(() => {
-      execution = lancer(['--racine', RACINE_DIAGRAMMES, '--sortie', sortie, '--css', css]);
+      // `--inclure-brouillons` : cette fixture est en `statut: brouillon` et ce bloc lit son
+      // `lecons/diagrammes.json`, que le filtre de publication n'écrit plus par défaut depuis
+      // le 2026-08-19. Le drapeau garde le sujet du bloc — l'unicité des identifiants de SVG —
+      // au lieu de le faire dépendre d'un champ de frontmatter qui ne le concerne pas.
+      execution = lancer([
+        '--racine',
+        RACINE_DIAGRAMMES,
+        '--sortie',
+        sortie,
+        '--css',
+        css,
+        '--inclure-brouillons',
+      ]);
       if (execution.code === 0) {
         blocs = svgDeLaLecon(join(sortie, 'lecons', 'diagrammes.json'));
       }

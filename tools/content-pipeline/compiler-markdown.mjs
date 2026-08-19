@@ -1976,6 +1976,15 @@ export function compilerLecon(dossier, outils) {
     sections,
     quiz: compilerQuiz(dossier, slug, outils.colorateur),
   };
+  // `section` est le SEUL champ optionnel du frontmatter (E2-ST6, lot B). Même geste que la
+  // simulation ci-dessous : recopié seulement s'il est là, jamais posé à `undefined`. Le schéma
+  // a déjà refusé une valeur vide ou entourée de blanches ; ici, on ne fait que transporter.
+  // La règle « tout-ou-rien par sujet » n'appartient PAS à ce fichier : elle porte sur toutes
+  // les leçons d'un sujet, que `compilerLecon` — qui n'en voit qu'une — ne peut pas comparer.
+  // Elle vit dans `valider.mjs` (`validerRacine`), qui les recense toutes.
+  if (donnees['section'] !== undefined) {
+    compilee.frontmatter.section = String(donnees['section']);
+  }
   // Recopiée seulement si elle existe : le contrat la déclare optionnelle, et `undefined`
   // disparaîtrait de toute façon à la sérialisation JSON — même geste que `quiz.melanger`.
   if (simulation !== null) compilee.simulation = simulation;

@@ -19,10 +19,20 @@
 //
 // ✅ C'EST FAIT (E2-ST2, lot B) — la route paramétrée est ci-dessous, en
 // `RenderMode.Prerender`, avec son `getPrerenderParams()`. Le paragraphe qui suit
-// est conservé parce qu'il dit POURQUOI, et parce que chacune de ses contraintes
-// tient encore : ne pas filtrer, ne pas retomber sur `Client`, garder l'entrée
-// AVANT le `**`. Le manifeste vaut `[]` tant que `content/` est vide (jusqu'à
-// E3-ST1) : zéro leçon prerendue est alors le résultat NORMAL, pas une panne.
+// est conservé parce qu'il dit POURQUOI, et parce que ses contraintes de FORME
+// tiennent encore : ne pas retomber sur `Client`, garder l'entrée AVANT le `**`.
+// Le manifeste vaut `[]` tant que `content/` est vide (jusqu'à E3-ST1) : zéro
+// leçon prerendue est alors le résultat NORMAL, pas une panne.
+//
+// 🔴 CE QUI A CHANGÉ DEPUIS (E2-ST6, lot C2) : « rien à filtrer » N'EST PLUS VRAI.
+// Le paragraphe ci-dessous raisonnait sur la seule leçon FACTICE, et sa conclusion
+// tient toujours de ce côté-là — la leçon-témoin du pipeline vit hors de
+// `content/`, donc hors de portée du build de production. Mais un second motif
+// d'exclusion est apparu, et lui vit DANS `content/` : le `statut`. Une leçon en
+// `brouillon` prerendue serait une page publique et indexable. Le manifeste entier
+// est donc toujours passé à `parametresDePrerender`, qui en écarte les non-publiées
+// via `leconsPubliees` — décision D-1 d'E2-ST6, raisonnement dans
+// `navigation-lecon.ts`.
 //
 // ⚠️ CE QU'E2-ST2 DEVAIT FAIRE, sans quoi AUCUNE leçon ne serait prerendue — le
 // site perdrait sa lisibilité sans JS sur l'essentiel de son contenu :
@@ -60,12 +70,21 @@ import { parametresDePrerender } from './features/cours/lecon/navigation-lecon';
 export const serverRoutes: ServerRoute[] = [
   {
     // AVANT le `**`, sans quoi elle ne serait jamais atteinte (voir l'en-tête).
-    // `getPrerenderParams` rend UN objet par entrée du manifeste, sans filtrage :
-    // le raisonnement est dans `navigation-lecon.ts`, et il tient à ce que la
-    // leçon-témoin du pipeline vit hors de `content/`.
+    // `getPrerenderParams` rend UN objet par leçon PUBLIÉE — le manifeste ENTIER
+    // entre, `parametresDePrerender` écarte les `brouillon`/`verifiee` en passant
+    // par `leconsPubliees` (E2-ST6, décision D-1). Le filtre reste là-bas et pas
+    // ici : UNE SEULE PORTE, celle que le sommaire et la navigation prev/next
+    // franchissent aussi. Un filtre posé au point d'appel en ferait une deuxième,
+    // qu'on oublierait d'aligner (L-016).
     path: 'cours/securite-web/:slug',
     renderMode: RenderMode.Prerender,
-    getPrerenderParams: () => Promise.resolve(parametresDePrerender(manifesteLecons)),
+    // 🔴 LE SUJET EST ÉCRIT EN DUR, ET C'EST LA MÊME VÉRITÉ QUE LE `path` CI-DESSUS,
+    // pas une seconde source : cette route prerende le cours de sécurité, et rien
+    // d'autre. Sans cet argument, `parametresDePrerender` balaierait le manifeste
+    // ENTIER — deux cours en phase 1 — et écrirait `/cours/securite-web/<slug PHP>/`
+    // sur le disque : une page livrée et indexable sous l'URL d'un autre cours.
+    getPrerenderParams: () =>
+      Promise.resolve(parametresDePrerender(manifesteLecons, 'securite-web')),
   },
   {
     path: '**',

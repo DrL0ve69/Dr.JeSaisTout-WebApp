@@ -621,6 +621,31 @@ export class Quiz implements OnInit {
    */
   readonly quiz = input.required<QuizCompile>();
 
+  /**
+   * Le SUJET du cours auquel appartient cette leçon — E2-ST6, lot A2.
+   *
+   * 🔴 POURQUOI IL ARRIVE PAR UN INPUT, ET NON PAR L'URL. La progression est indexée
+   * par le couple `(sujet, slug)` depuis le lot A1 (`core/progression/progression.ts`) :
+   * la phase 1 porte deux cours (sécurité web et PHP), et deux leçons de sujets
+   * différents peuvent partager un slug. Or `QuizCompile` ne porte que `lecon` (le
+   * slug) — le sujet n'est nulle part dans ce contrat, et il n'est pas non plus un
+   * paramètre de la route (`cours/securite-web/:slug` : le sujet est en dur dans le
+   * chemin). La source de vérité est donc `frontmatter.sujet` du contenu compilé, que
+   * `Lecon` lit et fait descendre par `RenduBlocs` jusqu'ici.
+   *
+   * ⚠️ ET SURTOUT PAS DEPUIS `ActivatedRoute`. Un segment d'URL est une entrée non
+   * fiable ; celui-ci composerait une CLEF DE STOCKAGE. La règle du dépôt est déjà
+   * écrite en tête de `lecon.ts` (« aucun segment d'URL n'est réaffiché ») et
+   * `composerClef` refuse de toute façon ce qui n'est pas kebab-case — mais un refus
+   * silencieux au fond du service perdrait la progression sans un mot, là où la
+   * provenance compilée la rend juste par construction.
+   *
+   * REQUIS pour la même raison que `quiz` : un input optionnel laisserait la
+   * progression s'écrire sous un sujet vide sur une leçon publiée, sans qu'aucun gate
+   * ne rougisse. Requis, l'oubli de la liaison ne compile pas.
+   */
+  readonly sujet = input.required<string>();
+
   private readonly titreElement = viewChild<ElementRef<HTMLElement>>('titre');
   private readonly resumeElement = viewChild<ElementRef<HTMLElement>>('regionResume');
 
@@ -815,7 +840,9 @@ export class Quiz implements OnInit {
    */
   corriger(): void {
     this.reponsesCorrigees.set(new Map(this.reponses()));
-    this.progression.enregistrerQuiz(this.quiz().lecon, this.score(), this.total());
+    // `(sujet, slug)` et non le seul slug : la clef de progression est composite
+    // depuis le lot A1 d'E2-ST6 — deux cours, deux leçons homonymes possibles.
+    this.progression.enregistrerQuiz(this.sujet(), this.quiz().lecon, this.score(), this.total());
 
     // Le focus va sur le résumé, pas sur le bouton : celui-ci vient d'être remplacé
     // par « Recommencer », et un focus perdu retomberait sur `<body>` (WCAG 2.4.3).

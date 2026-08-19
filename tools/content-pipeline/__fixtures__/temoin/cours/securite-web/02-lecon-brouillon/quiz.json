@@ -1,0 +1,52 @@
+{
+  "lecon": "lecon-brouillon",
+  "titre": "Quiz — leçon-témoin brouillon",
+  "melanger": false,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Où le masquage des leçons « brouillon » est-il décidé, selon la décision D-1 ?",
+      "choix": [
+        { "id": "a", "texte": "Dans chaque vue qui liste des leçons, séparément." },
+        { "id": "b", "texte": "En un seul sélecteur, consommé par toutes les vues et par le prerender." },
+        { "id": "c", "texte": "Nulle part : les brouillons ne sont jamais compilés." }
+      ],
+      "bonneReponse": "b",
+      "explication": "Un filtre recopié dans chaque consommateur est la faute L-016 : la troisième copie oubliée laisse un brouillon prerendu et indexable. La réponse a décrit exactement cette recopie ; la réponse c décrit un pipeline qui refuserait de compiler un brouillon, alors qu'il le compile — c'est sa PUBLICATION qui est retenue, pas sa compilation.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "Masquer un brouillon du sommaire suffit à le rendre non public.",
+      "bonneReponse": false,
+      "justification": "Une page prerendue existe sur le disque même si aucun lien n'y mène : elle répond à son URL et un moteur d'indexation peut la trouver. Le filtre doit donc porter aussi sur les paramètres de prerender.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Le champ « section » du frontmatter est obligatoire.",
+      "bonneReponse": false,
+      "justification": "Il est optionnel : un sujet peut n'en porter aucune, et le sommaire rend alors une liste ordonnée à plat. Ce qui est refusé, c'est le mélange à l'intérieur d'un même sujet.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q4",
+      "type": "vrai-faux",
+      "affirmation": "Deux leçons d'une même section doivent se suivre dans l'ordre du cours.",
+      "bonneReponse": false,
+      "justification": "Aucune contrainte de contiguïté n'est posée : le regroupement se fait sur la valeur du champ, pas sur la position. Exiger la contiguïté obligerait à renuméroter un cours entier pour déplacer un module d'un groupe à l'autre.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Une règle de masquage qu'aucun contenu ne met en défaut est déjà un garde-fou.",
+      "bonneReponse": false,
+      "justification": "Tant qu'aucune leçon « brouillon » n'existe dans la racine compilée, « masquer les brouillons » et « ne rien masquer » produisent le même résultat : le test est vert des deux côtés. C'est la leçon L-019 du dépôt, et la raison d'être de ce dossier.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

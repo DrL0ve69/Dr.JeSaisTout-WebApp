@@ -11,12 +11,21 @@
 // pour lui faire LEVER une exception, ce que le navigateur fait réellement en
 // navigation privée ou au dépassement de quota.
 //
+// ⚠️ CLEF COMPOSITE `"sujet/slug"` (v2, E2-ST6). Sa composition est un détail
+// PRIVÉ du service : l'API publique parle en `(sujet, slug)`. Ces tests écrivent
+// donc la clef en toutes lettres UNIQUEMENT quand ils jouent le rôle du disque
+// (`poserStockage`) ou celui de l'inspecteur (`lireStockage`) — jamais pour
+// appeler le service. C'est ce qui rend la forme de la clef vérifiable sans la
+// rendre publique.
+//
 // ⚠️ UN TEST QUI IMPORTE LA CONSTANTE QU'IL VÉRIFIE NE VÉRIFIE RIEN DU CONTRAT
-// (L-012). Le groupe « contrat » plus bas ne compare donc pas `MOTIF_SLUG_LECON`
-// à lui-même : il le confronte à L'AUTRE EXTRÉMITÉ — le motif `identifiant` de
-// `tools/content-pipeline/schemas/quiz.schema.json`, lu au disque. Si le schéma
-// de contenu autorisait un jour des slugs que ce service rejette, la progression
-// de ces leçons serait perdue **en silence** ; c'est ce test qui rougit.
+// (L-012). Le groupe « contrat » plus bas ne compare donc pas
+// `MOTIF_SEGMENT_PROGRESSION` à lui-même : il le confronte à L'AUTRE EXTRÉMITÉ —
+// le motif `identifiant` de `tools/content-pipeline/schemas/quiz.schema.json` et
+// le motif `kebab` de `lecon.frontmatter.schema.json` (celui qui gouverne
+// `sujet`), tous deux lus au disque. Si un schéma de contenu autorisait un jour
+// des identifiants que ce service rejette, la progression de ces leçons serait
+// perdue **en silence** ; c'est ce test qui rougit.
 // =============================================================================
 
 import { readFileSync } from 'node:fs';
@@ -27,11 +36,15 @@ import { TestBed } from '@angular/core/testing';
 
 import {
   CLE_PROGRESSION,
-  MOTIF_SLUG_LECON,
+  MOTIF_SEGMENT_PROGRESSION,
   ProgressionService,
   SEUIL_REUSSITE,
   VERSION_PROGRESSION,
 } from './progression';
+
+/** Les deux sujets réels de la phase 1 — un cours de sécurité, un cours de PHP. */
+const SECURITE = 'securite-web';
+const PHP = 'php';
 
 function fenetre(): Window {
   const vue = document.defaultView;
@@ -72,15 +85,11 @@ describe('ProgressionService', () => {
 
   describe('état initial', () => {
     it('démarre vide quand rien n’est stocké', () => {
-      const s = service();
-
-      expect(s.progression()).toEqual({});
-      expect(s.nombreLues()).toBe(0);
-      expect(s.nombreMaitrisees()).toBe(0);
+      expect(service().progression()).toEqual({});
     });
 
     it('rend un état « vierge » pour une leçon inconnue, jamais `undefined`', () => {
-      expect(service().etatDe('04-xss')).toEqual({
+      expect(service().etatDe(SECURITE, '04-xss')).toEqual({
         lue: false,
         meilleurScore: 0,
         totalQuestions: 0,
@@ -90,13 +99,58 @@ describe('ProgressionService', () => {
     it('relit une enveloppe valide', () => {
       poserStockage({
         version: VERSION_PROGRESSION,
-        lecons: { '04-xss': { lue: true, meilleurScore: 4, totalQuestions: 5 } },
+        lecons: { 'securite-web/04-xss': { lue: true, meilleurScore: 4, totalQuestions: 5 } },
       });
 
-      const s = service();
+      expect(service().etatDe(SECURITE, '04-xss')).toEqual({
+        lue: true,
+        meilleurScore: 4,
+        totalQuestions: 5,
+      });
+    });
+  });
 
-      expect(s.etatDe('04-xss')).toEqual({ lue: true, meilleurScore: 4, totalQuestions: 5 });
-      expect(s.nombreLues()).toBe(1);
+  // ---------------------------------------------------------------------------
+  // CLEF COMPOSITE — la raison d'être de la v2
+  // ---------------------------------------------------------------------------
+  describe('clef composite « sujet/slug »', () => {
+    it('n’écrase PAS un même slug d’un autre cours', () => {
+      const s = service();
+      s.enregistrerQuiz(SECURITE, '01-fondamentaux', 5, 5);
+      s.enregistrerQuiz(PHP, '01-fondamentaux', 1, 5);
+
+      expect(s.estMaitrisee(SECURITE, '01-fondamentaux')).toBe(true);
+      expect(s.estMaitrisee(PHP, '01-fondamentaux')).toBe(false);
+      expect(s.etatDe(PHP, '01-fondamentaux').meilleurScore).toBe(1);
+    });
+
+    it('écrit sur disque une clef « sujet/slug », et une seule par leçon', () => {
+      service().enregistrerQuiz(SECURITE, '04-xss', 4, 5);
+
+      expect(lireStockage()).toEqual({
+        version: VERSION_PROGRESSION,
+        lecons: { 'securite-web/04-xss': { lue: true, meilleurScore: 4, totalQuestions: 5 } },
+      });
+    });
+
+    it.each([
+      ['un sujet vide', ''],
+      ['un sujet avec une barre oblique', 'cours/securite-web'],
+      ['un sujet en majuscules', 'Securite-Web'],
+      ['une remontée de chemin', '../../etc'],
+      ['un sujet accentué', 'sécurité'],
+    ])('ignore %s exactement comme un slug invalide', (_cas, sujet) => {
+      const s = service();
+      s.enregistrerQuiz(sujet, '04-xss', 5, 5);
+      s.marquerLue(sujet, '04-xss');
+
+      expect(s.progression()).toEqual({});
+      expect(s.etatDe(sujet, '04-xss')).toEqual({
+        lue: false,
+        meilleurScore: 0,
+        totalQuestions: 0,
+      });
+      expect(lireStockage()).toBeNull();
     });
   });
 
@@ -111,14 +165,38 @@ describe('ProgressionService', () => {
     it('ignore une enveloppe d’une version inconnue plutôt que de la deviner', () => {
       poserStockage({
         version: VERSION_PROGRESSION + 1,
-        lecons: { '04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 } },
+        lecons: { 'securite-web/04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 } },
       });
 
       expect(service().progression()).toEqual({});
     });
 
+    it('IGNORE une enveloppe v1 — aucune migration, et le contrôle est POSITIF', () => {
+      // Contrôle positif : les entrées sont PARFAITEMENT bien formées au sens de
+      // la v1 (clef slug nue, valeurs valides). Si l'état ressort vide, c'est le
+      // rejet de version qui a mordu — pas une entrée mal écrite par le test.
+      // Aucun visiteur réel ne peut détenir un tel enregistrement (au pivot,
+      // `content/` ne portait aucune leçon), d'où l'absence délibérée de code de
+      // migration : ce test verrouille ce choix contre une réintroduction.
+      poserStockage({
+        version: 1,
+        lecons: {
+          '04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 },
+          '03-injection': { lue: true, meilleurScore: 4, totalQuestions: 5 },
+        },
+      });
+
+      const s = service();
+
+      expect(s.progression()).toEqual({});
+      expect(s.etatDe(SECURITE, '04-xss').lue).toBe(false);
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(false);
+    });
+
     it('ignore une enveloppe SANS version — une forme non versionnée n’est pas la nôtre', () => {
-      poserStockage({ lecons: { '04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 } } });
+      poserStockage({
+        lecons: { 'securite-web/04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 } },
+      });
 
       expect(service().progression()).toEqual({});
     });
@@ -135,27 +213,84 @@ describe('ProgressionService', () => {
       poserStockage({
         version: VERSION_PROGRESSION,
         lecons: {
-          '03-injection': { lue: true, meilleurScore: 5, totalQuestions: 5 },
-          '04-xss': entree,
+          'securite-web/03-injection': { lue: true, meilleurScore: 5, totalQuestions: 5 },
+          'securite-web/04-xss': entree,
         },
       });
 
       const s = service();
 
-      expect(s.etatDe('03-injection').meilleurScore).toBe(5);
-      expect(s.etatDe('04-xss')).toEqual({ lue: false, meilleurScore: 0, totalQuestions: 0 });
+      expect(s.etatDe(SECURITE, '03-injection').meilleurScore).toBe(5);
+      expect(s.etatDe(SECURITE, '04-xss')).toEqual({
+        lue: false,
+        meilleurScore: 0,
+        totalQuestions: 0,
+      });
     });
 
-    it('rejette une clef qui n’est pas un slug valide', () => {
+    it.each([
+      ['une clef SANS séparateur (l’ancienne forme v1)', 'xss'],
+      ['une clef à trois segments', 'cours/securite-web/04-xss'],
+      ['une remontée de chemin', '../../etc/passwd'],
+      ['une clef en majuscules', 'Securite-Web/04-XSS'],
+      ['un séparateur sans sujet', '/04-xss'],
+      ['un séparateur sans slug', 'securite-web/'],
+      ['une clef `__proto__`', '__proto__/04-xss'],
+    ])('rejette %s SANS perdre les entrées valides', (_cas, clef) => {
       poserStockage({
         version: VERSION_PROGRESSION,
         lecons: {
-          '../../etc/passwd': { lue: true, meilleurScore: 1, totalQuestions: 1 },
-          'Slug Majuscule': { lue: true, meilleurScore: 1, totalQuestions: 1 },
+          'securite-web/03-injection': { lue: true, meilleurScore: 5, totalQuestions: 5 },
+          [clef]: { lue: true, meilleurScore: 1, totalQuestions: 1 },
         },
       });
 
-      expect(service().progression()).toEqual({});
+      const s = service();
+
+      expect(Object.keys(s.progression())).toEqual(['securite-web/03-injection']);
+    });
+
+    it('ne se laisse PAS empoisonner par la clef `constructor/xss`', () => {
+      // `constructor` est un segment kebab parfaitement légal : la clef est donc
+      // ACCEPTÉE, et c'est correct — un cours pourrait s'appeler ainsi. Ce qui
+      // est vérifié ici, c'est qu'elle reste une entrée ordinaire : elle ne
+      // touche pas le prototype de l'état, et elle ne rend pas « connue » une
+      // leçon qui ne l'est pas.
+      poserStockage({
+        version: VERSION_PROGRESSION,
+        lecons: { 'constructor/xss': { lue: true, meilleurScore: 1, totalQuestions: 1 } },
+      });
+
+      const s = service();
+      const etat = s.progression();
+
+      expect(s.etatDe('constructor', 'xss')).toEqual({
+        lue: true,
+        meilleurScore: 1,
+        totalQuestions: 1,
+      });
+      expect(Object.getPrototypeOf(etat)).toBe(Object.prototype);
+      expect(({} as Record<string, unknown>)['xss']).toBeUndefined();
+      // Aucune autre leçon n'est devenue « connue » au passage.
+      expect(s.etatDe(SECURITE, 'xss').lue).toBe(false);
+      expect(s.etatDe('constructor', '04-xss').lue).toBe(false);
+    });
+
+    it('ne rend JAMAIS une propriété héritée du prototype de l’état', () => {
+      // Sans clef composite, `etatDe('constructor')` rendait la FONCTION
+      // `Object`. Avec le séparateur, aucune clef d'un seul segment n'est
+      // composable — et `etatDe` vérifie en plus la propriété propre.
+      const s = service();
+      s.enregistrerQuiz(SECURITE, '04-xss', 5, 5);
+
+      for (const herite of ['constructor', 'toString', 'hasOwnProperty', 'valueOf']) {
+        expect(s.etatDe(herite, herite)).toEqual({
+          lue: false,
+          meilleurScore: 0,
+          totalQuestions: 0,
+        });
+        expect(s.estMaitrisee(herite, herite)).toBe(false);
+      }
     });
 
     it('ne lève pas quand `localStorage` est inaccessible (navigation privée)', () => {
@@ -171,29 +306,33 @@ describe('ProgressionService', () => {
   describe('marquerLue', () => {
     it('marque, persiste, et reste idempotent', () => {
       const s = service();
-      s.marquerLue('04-xss');
-      s.marquerLue('04-xss');
+      s.marquerLue(SECURITE, '04-xss');
+      s.marquerLue(SECURITE, '04-xss');
 
-      expect(s.etatDe('04-xss').lue).toBe(true);
-      expect(s.nombreLues()).toBe(1);
+      expect(s.etatDe(SECURITE, '04-xss').lue).toBe(true);
+      expect(Object.keys(s.progression())).toEqual(['securite-web/04-xss']);
       expect(lireStockage()).toEqual({
         version: VERSION_PROGRESSION,
-        lecons: { '04-xss': { lue: true, meilleurScore: 0, totalQuestions: 0 } },
+        lecons: { 'securite-web/04-xss': { lue: true, meilleurScore: 0, totalQuestions: 0 } },
       });
     });
 
     it('ne dégrade JAMAIS un score déjà acquis', () => {
       const s = service();
-      s.enregistrerQuiz('04-xss', 5, 5);
-      s.marquerLue('04-xss');
+      s.enregistrerQuiz(SECURITE, '04-xss', 5, 5);
+      s.marquerLue(SECURITE, '04-xss');
 
-      expect(s.etatDe('04-xss')).toEqual({ lue: true, meilleurScore: 5, totalQuestions: 5 });
-      expect(s.estMaitrisee('04-xss')).toBe(true);
+      expect(s.etatDe(SECURITE, '04-xss')).toEqual({
+        lue: true,
+        meilleurScore: 5,
+        totalQuestions: 5,
+      });
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(true);
     });
 
     it('refuse un slug invalide', () => {
       const s = service();
-      s.marquerLue('../secret');
+      s.marquerLue(SECURITE, '../secret');
 
       expect(s.progression()).toEqual({});
     });
@@ -202,26 +341,34 @@ describe('ProgressionService', () => {
   describe('enregistrerQuiz', () => {
     it('enregistre un résultat et marque la leçon lue', () => {
       const s = service();
-      s.enregistrerQuiz('04-xss', 4, 5);
+      s.enregistrerQuiz(SECURITE, '04-xss', 4, 5);
 
-      expect(s.etatDe('04-xss')).toEqual({ lue: true, meilleurScore: 4, totalQuestions: 5 });
+      expect(s.etatDe(SECURITE, '04-xss')).toEqual({
+        lue: true,
+        meilleurScore: 4,
+        totalQuestions: 5,
+      });
     });
 
     it('ne retient que le MEILLEUR score — un second essai raté ne fait rien perdre', () => {
       const s = service();
-      s.enregistrerQuiz('04-xss', 5, 5);
-      s.enregistrerQuiz('04-xss', 1, 5);
+      s.enregistrerQuiz(SECURITE, '04-xss', 5, 5);
+      s.enregistrerQuiz(SECURITE, '04-xss', 1, 5);
 
-      expect(s.etatDe('04-xss').meilleurScore).toBe(5);
-      expect(s.estMaitrisee('04-xss')).toBe(true);
+      expect(s.etatDe(SECURITE, '04-xss').meilleurScore).toBe(5);
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(true);
     });
 
     it('compare en PART et non en nombre brut — 4/5 bat 5/10', () => {
       const s = service();
-      s.enregistrerQuiz('04-xss', 5, 10);
-      s.enregistrerQuiz('04-xss', 4, 5);
+      s.enregistrerQuiz(SECURITE, '04-xss', 5, 10);
+      s.enregistrerQuiz(SECURITE, '04-xss', 4, 5);
 
-      expect(s.etatDe('04-xss')).toEqual({ lue: true, meilleurScore: 4, totalQuestions: 5 });
+      expect(s.etatDe(SECURITE, '04-xss')).toEqual({
+        lue: true,
+        meilleurScore: 4,
+        totalQuestions: 5,
+      });
     });
 
     it.each([
@@ -231,7 +378,7 @@ describe('ProgressionService', () => {
       ['un score négatif', -1, 5],
     ])('ignore un appel incohérent : %s', (_cas, score, total) => {
       const s = service();
-      s.enregistrerQuiz('04-xss', score, total);
+      s.enregistrerQuiz(SECURITE, '04-xss', score, total);
 
       expect(s.progression()).toEqual({});
     });
@@ -243,40 +390,39 @@ describe('ProgressionService', () => {
 
       const s = service();
 
-      expect(() => s.enregistrerQuiz('04-xss', 5, 5)).not.toThrow();
-      expect(s.etatDe('04-xss').meilleurScore).toBe(5);
+      expect(() => s.enregistrerQuiz(SECURITE, '04-xss', 5, 5)).not.toThrow();
+      expect(s.etatDe(SECURITE, '04-xss').meilleurScore).toBe(5);
     });
   });
 
   describe('maîtrise', () => {
     it('n’est jamais acquise sans quiz — la lecture seule ne suffit pas', () => {
       const s = service();
-      s.marquerLue('04-xss');
+      s.marquerLue(SECURITE, '04-xss');
 
-      expect(s.estMaitrisee('04-xss')).toBe(false);
-      expect(s.nombreMaitrisees()).toBe(0);
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(false);
     });
 
     it('s’acquiert exactement AU seuil, pas seulement au-dessus', () => {
       const s = service();
       // 8/10 = 0,8 = SEUIL_REUSSITE : la borne est incluse.
-      s.enregistrerQuiz('04-xss', Math.round(SEUIL_REUSSITE * 10), 10);
+      s.enregistrerQuiz(SECURITE, '04-xss', Math.round(SEUIL_REUSSITE * 10), 10);
 
-      expect(s.estMaitrisee('04-xss')).toBe(true);
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(true);
     });
 
     it('ne s’acquiert pas juste en dessous du seuil', () => {
       const s = service();
-      s.enregistrerQuiz('04-xss', Math.round(SEUIL_REUSSITE * 10) - 1, 10);
+      s.enregistrerQuiz(SECURITE, '04-xss', Math.round(SEUIL_REUSSITE * 10) - 1, 10);
 
-      expect(s.estMaitrisee('04-xss')).toBe(false);
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(false);
     });
   });
 
   describe('reinitialiser', () => {
     it('vide l’état ET le stockage', () => {
       const s = service();
-      s.enregistrerQuiz('04-xss', 5, 5);
+      s.enregistrerQuiz(SECURITE, '04-xss', 5, 5);
       s.reinitialiser();
 
       expect(s.progression()).toEqual({});
@@ -286,12 +432,12 @@ describe('ProgressionService', () => {
 
   describe('persistance entre deux instances', () => {
     it('ce qui est écrit par une instance est relu par la suivante', () => {
-      service().enregistrerQuiz('04-xss', 4, 5);
+      service().enregistrerQuiz(SECURITE, '04-xss', 4, 5);
 
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({});
 
-      expect(service().etatDe('04-xss')).toEqual({
+      expect(service().etatDe(SECURITE, '04-xss')).toEqual({
         lue: true,
         meilleurScore: 4,
         totalQuestions: 5,
@@ -312,7 +458,7 @@ describe('ProgressionService', () => {
       // prerender, le HTML servi à TOUT LE MONDE porterait l'avancement d'un seul.
       poserStockage({
         version: VERSION_PROGRESSION,
-        lecons: { '04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 } },
+        lecons: { 'securite-web/04-xss': { lue: true, meilleurScore: 5, totalQuestions: 5 } },
       });
       const espion = vi.spyOn(fenetre().localStorage, 'getItem');
 
@@ -326,9 +472,9 @@ describe('ProgressionService', () => {
       const espion = vi.spyOn(fenetre().localStorage, 'setItem');
 
       const s = service();
-      s.enregistrerQuiz('04-xss', 5, 5);
+      s.enregistrerQuiz(SECURITE, '04-xss', 5, 5);
 
-      expect(s.estMaitrisee('04-xss')).toBe(true);
+      expect(s.estMaitrisee(SECURITE, '04-xss')).toBe(true);
       expect(espion).not.toHaveBeenCalled();
     });
   });
@@ -336,19 +482,35 @@ describe('ProgressionService', () => {
   // ---------------------------------------------------------------------------
   // CONTRAT — confronté à l'autre extrémité, jamais à lui-même (L-012)
   // ---------------------------------------------------------------------------
-  describe('contrat du slug', () => {
-    it('accepte exactement les slugs que le schéma de contenu autorise', () => {
-      const schema = JSON.parse(
-        readFileSync(
-          join(process.cwd(), 'tools', 'content-pipeline', 'schemas', 'quiz.schema.json'),
-          'utf8',
-        ),
-      ) as { definitions: { identifiant: { pattern: string } } };
+  describe('contrat des segments de clef', () => {
+    function lireSchema(nom: string): unknown {
+      return JSON.parse(
+        readFileSync(join(process.cwd(), 'tools', 'content-pipeline', 'schemas', nom), 'utf8'),
+      );
+    }
+
+    it('accepte exactement les SLUGS que le schéma de quiz autorise', () => {
+      const schema = lireSchema('quiz.schema.json') as {
+        definitions: { identifiant: { pattern: string } };
+      };
 
       const motifDuSchema = schema.definitions.identifiant.pattern;
 
       expect(motifDuSchema).toBeTypeOf('string');
-      expect(MOTIF_SLUG_LECON.source).toBe(motifDuSchema);
+      expect(MOTIF_SEGMENT_PROGRESSION.source).toBe(motifDuSchema);
+    });
+
+    it('accepte exactement les SUJETS que le frontmatter de leçon autorise', () => {
+      // `sujet` est un `$ref` vers `#/definitions/kebab` dans ce schéma : c'est
+      // donc ce motif-là qui gouverne le premier segment de la clef.
+      const schema = lireSchema('lecon.frontmatter.schema.json') as {
+        properties: { sujet: { $ref: string } };
+        definitions: { kebab: { pattern: string } };
+      };
+
+      expect(schema.properties.sujet.$ref).toBe('#/definitions/kebab');
+      expect(schema.definitions.kebab.pattern).toBeTypeOf('string');
+      expect(MOTIF_SEGMENT_PROGRESSION.source).toBe(schema.definitions.kebab.pattern);
     });
   });
 });

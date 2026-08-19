@@ -8,10 +8,10 @@ pas le code.
 > ### 🔒 Qui exécute ce contrôle, et pourquoi ce n'est PAS une étape de CI
 >
 > Le gate est **`src/pipeline-contenu-validation.spec.ts`**, donc **G-test** — qui tourne déjà dans
-> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **15/15 refus** et vérifie
-> que **chaque cas est refusé sur SA cause propre** : quinze refus pour une seule et même raison (un
-> chemin introuvable, disons) seraient sinon indistinguables de quinze refus corrects. Il porte en
-> plus un **garde-fou de complétude** — ajouter un seizième dossier ici sans écrire son assertion
+> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **16/16 refus** et vérifie
+> que **chaque cas est refusé sur SA cause propre** : seize refus pour une seule et même raison (un
+> chemin introuvable, disons) seraient sinon indistinguables de seize refus corrects. Il porte en
+> plus un **garde-fou de complétude** — ajouter un dix-septième dossier ici sans écrire son assertion
 > fait ROUGIR le spec.
 >
 > N'ajoutez donc **pas** d'étape `content:valider:fixtures` aux workflows : elle ferait tourner la
@@ -34,6 +34,14 @@ raison. Ces cas sont le contre-poison.
 faute : c'est ce qui permet d'exiger que la cause imprimée soit la BONNE, pas seulement qu'une
 cause existe.
 
+⚠️ **Un dossier ≠ une leçon.** `frontmatter-section-partielle-dans-le-sujet` en porte **deux**, et
+c'est nécessaire : sa faute n'est dans aucun des deux fichiers pris isolément — elle est la
+RELATION entre eux (l'un porte une `section`, l'autre non). Une faute de collection ne peut pas
+s'écrire dans un fichier unique ; c'est aussi pourquoi la règle ne vit ni dans le schéma JSON ni
+dans le compilateur, mais dans `validerRacine`, seule fonction du pipeline qui recense toutes les
+leçons d'un sujet. Les deux leçons de ce cas sont par ailleurs valides : l'unique anomalie
+rapportée est bien celle-là.
+
 | Dossier | Faute injectée | Règle qui doit mordre |
 |---|---|---|
 | `quiz-moins-de-cinq-questions` | 4 questions | `quiz.schema.json` → `minItems: 5` |
@@ -51,6 +59,7 @@ cause existe.
 | `quiz-question-identifiant-repete` | deux questions au même `id` (`q1`) | unicité des `id` de question hors schéma |
 | `quiz-associer-gauche-indiscernable` | deux `gauche` que seule une U+00A0 sépare (q4) | unicité de `gauche` sur clef **normalisée** |
 | `quiz-ligne-fautive-hors-extrait` | `code` terminé par un saut de ligne + `ligneFautive: 4` (q3) | borne de `ligneFautive` sur `compterLignes` **partagé** |
+| `frontmatter-section-partielle-dans-le-sujet` | **deux** leçons, dont une seule porte `section` | tout-ou-rien de `section` par sujet, hors schéma (D-2) |
 
 ⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** : `##` suivi
 de trois espaces, **ligne 39 du fichier** (que le validateur rapporte comme « corps ligne 21 » — il

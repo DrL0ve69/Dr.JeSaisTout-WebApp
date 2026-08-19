@@ -1,0 +1,76 @@
+<!--
+  Sommaire — carte de parcours d'un cours.
+
+  🔴 GABARIT INVARIANT SUR LA PROGRESSION (L-033). Les DEUX seuls `@if` de ce
+  fichier portent sur le MANIFESTE (liste vide, section présente), jamais sur
+  l'avancement du visiteur : le manifeste est identique au prerender et dans le
+  navigateur, donc ces branches ne peuvent pas diverger. Le badge d'état, lui,
+  est TOUJOURS rendu — seuls sa classe et son texte changent, ensemble.
+
+  Ne pas « améliorer » en masquant le badge des modules non commencés : ce serait
+  exactement le décalage d'hydratation que ce lot existe pour éviter.
+-->
+<div class="sommaire">
+  @if (nombreModules() === 0) {
+    <p class="vide">Modules en préparation.</p>
+  } @else {
+    <p class="resume">
+      <!--
+        Les trois comptes arrivent DÉJÀ ACCORDÉS (`accorder`, dans le composant).
+        Ne pas « corriger » le pluriel ici avec un `@if` : il porterait sur la
+        progression, donc il romprait l'invariance structurelle exigée par L-033.
+      -->
+      <span class="chiffre">{{ libelleModules() }}</span>
+      <span class="chiffre">{{ dureeTotale() }} de lecture</span>
+      <span class="chiffre">{{ libelleMaitrises() }}</span>
+      <span class="chiffre">{{ libelleCommences() }}</span>
+    </p>
+
+    @for (groupe of groupes(); track groupe.cle) {
+      <div class="groupe">
+        @if (groupe.section; as titreSection) {
+          <h2 class="titre-section">{{ titreSection }}</h2>
+        }
+
+        <!--
+          `role="list"` est REDONDANT et pourtant nécessaire : la feuille de
+          style retire les puces (`list-style: none`) parce que le numéro de
+          module est dessiné, et VoiceOver/Safari cesse alors d'annoncer la liste
+          comme une liste. Le rôle explicite rétablit la sémantique perdue.
+        -->
+        <ol class="modules" role="list">
+          @for (module of groupe.modules; track module.slug) {
+            <li
+              class="module"
+              [class.etat-non-commence]="module.etat === 'non-commence'"
+              [class.etat-lu]="module.etat === 'lu'"
+              [class.etat-maitrise]="module.etat === 'maitrise'"
+            >
+              <!--
+                `aria-label` porte l'`ordre` DE LA LEÇON, que la sémantique de liste
+                n'annonce pas ici : `list-style: none` fait dire une position d'index
+                (« 4 sur 4 »), qui se désynchronise du numéro dessiné dès qu'un
+                brouillon est intercalé. Le nom contient le titre visible entier —
+                WCAG 2.5.3. Détail : `nomAccessible`, dans le composant.
+              -->
+              <a
+                class="lien"
+                [routerLink]="['/cours', module.sujet, module.slug]"
+                [attr.aria-label]="module.nomAccessible"
+              >
+                <span class="numero" aria-hidden="true">{{ module.ordre }}</span>
+                <span class="titre">{{ module.titre }}</span>
+              </a>
+
+              <p class="meta">
+                <span class="badge">{{ module.libelleEtat }}</span>
+                <span class="duree">{{ module.duree }}</span>
+                <span class="niveau">{{ module.niveau }}</span>
+              </p>
+            </li>
+          }
+        </ol>
+      </div>
+    }
+  }
+</div>

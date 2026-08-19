@@ -20,9 +20,12 @@
 // E2-ST6, et un composant qui la porterait « en prévision » serait du code mort
 // que personne n'oserait retirer.
 //
-// `mentionChantier` EST UNE DETTE DATÉE, pas un ornement : tant que le cours
-// mène à `PageAVenir`, la carte doit le dire, sinon l'appel à l'action ment. Elle
-// se retire quand la première leçon est publiée (rappel posé en E2-ST2).
+// `mentionChantier` EST UNE DETTE DATÉE, pas un ornement : tant qu'aucune leçon
+// n'est publiée, le sommaire du cours n'affiche que « Modules en préparation »
+// (`sommaire.html`) et la carte doit le dire, sinon l'appel à l'action ment. Elle
+// se retire le jour de la première leçon publiée — E3-ST1 — et ce jour-là
+// SEULEMENT : la bascule d'E2-ST6, qui a remplacé le placeholder par le vrai
+// sommaire, ne l'a PAS rendue caduque (rappel repris en E6-ST4).
 //
 // ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT, écrites `&nbsp;` pour
 // qu'on les VOIE à la relecture (jamais U+202F ni U+2009, absentes de Fraunces

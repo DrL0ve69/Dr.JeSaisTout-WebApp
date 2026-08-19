@@ -822,7 +822,7 @@ sans S-007/S-008 · (d) S-003 · (e) typage 34 / 35 erreurs sur les deux gates d
 | E2-ST3 | `QuizComponent` + score localStorage | ✅ |
 | E2-ST4 | `CodeCompareComponent` | ✅ |
 | E2-ST5 | `SimulationComponent` | ✅ |
-| E2-ST6 | Page sommaire du cours + progression localStorage | ⬜ |
+| E2-ST6 | Page sommaire du cours + progression localStorage | ✅ |
 
 #### ✅ Nœuds d'ouverture d'E2 — TRANCHÉS par le propriétaire le 2026-08-16
 
@@ -1317,7 +1317,15 @@ erroné ou périmé ; il ne faut pas le reproduire dans un tableau futur.
 - **Les 3 réserves de clôture d'E2-ST2** : les réserves (1) et (2) sont **levées** par le harnais
   de fixture et le lot E — G-axe et G-e2e ont vu une page de leçon interactive, et la CSP y a été
   mesurée servie **et** appliquée. La réserve (3) — une leçon en `statut: brouillon` serait
-  prerendue publique et indexable — **reste entière** et se lève en clôture d'E3-ST1.
+  prerendue publique et indexable — **✅ FERMÉE à la clôture d'E2-ST6 (2026-08-19)**, mais **pas
+  par le chemin prévu** : filtrer le seul prerender ne suffisait pas, la leçon restait publique par
+  le chunk d'artéfact et par le rendu client. Correctif : filtrage à la **génération** du manifeste
+  (`generer-manifeste.mjs`), drapeau `--inclure-brouillons` défaut fermé, refus dans
+  `resoudreLecon` avant tout `await chargeur()`, garde-fou exécutable
+  `src/garde-fou-lecons-non-publiees.spec.ts`. Preuve live : `grep -rl "lecon-brouillon" dist/` vide
+  · navigation Chromium sur `/cours/securite-web/lecon-brouillon/` → `{"statutHttp":404,"appLecon":0}`
+  · contrôle positif `/cours/securite-web/lecon-temoin/` → 200. Détail : §E2-ST6 ci-dessous, leçon
+  **S-019**.
 
 **Pourquoi A d'abord, et pas le composant** : c'est le lot qui crée `core/progression/`, donc celui
 où se **gagne ou se perd** la règle « aucune feature n'importe une autre feature »
@@ -2196,6 +2204,61 @@ flaky ». C'est le mécanisme par lequel un gate meurt.
   d'E2-ST2 FERMÉE avec la preuve (b), `stack-et-architecture.md` §7, bloc de reprise `CLAUDE.md`.
 
 **Ordre : A1 → A2 → B → C1 → C2 → D ∥ E.**
+
+#### ✅ CLÔTURE — 2026-08-19
+
+**E2-ST6 CLOSE EN ENTIER. E2 est donc CLOS en entier.**
+
+**Chiffres de clôture (tous mesurés, aucun prédit)** : G-lint 0 erreur · G-typage-outils 0 erreur ·
+G-test **744 tests / 36 fichiers / 0 échec** (était 661/32 à E2-ST5) · G-build production 3 routes
+prerendues, **10** hachages de style (était 9), 1 de script · G-build fixture 4 routes prerendues,
+**14** hachages de style (était 13), 1 de script · G-axe 3 fichiers, 258 vérifications, 0
+violation · G-e2e fixture **50 passés / 1 sauté / 0 échec** · G-e2e production **13 passés / 38
+sautés / 0 échec** · `npm audit --omit=dev` **0**.
+
+**Épinglages CSP mesurés, pas prédits** : le plan pariait sur un delta de 0 côté style ; la mesure
+donne **+1 des deux côtés** — `PageAVenir` fournissait un seul bloc `<style>` sur
+`cours/securite-web`, remplacé par deux (`PageSommaireSecuriteWeb` `.page` 362 o, `Sommaire` `.vide`
+3 216 o). Les 10 blocs de production ont été énumérés et nommés un par un avant épinglage (S-005).
+Le compte de hachages de script reste à 1 des deux côtés.
+
+**Livré** : `ProgressionService` v2 (clef composite `sujet/slug`, `VERSION_PROGRESSION = 2`,
+compteurs retirés au profit du manifeste) · écrivains `quiz`/`rendu-blocs`/`lecon` avec `sujet`
+pris du frontmatter · `section` frontmatter optionnel + règle tout-ou-rien par sujet dans
+`valider.mjs` · fixture témoin à 2 leçons dont une `brouillon` · sélecteur unique `leconsPubliees`
+· composant `Sommaire` générique (groupé par section ou liste plate) + adaptateur de route
+`PageSommaireSecuriteWeb` · `PageAVenir` supprimé · règle d'architecture exécutable
+(`src/regles-architecture.spec.ts`) · `e2e/sommaire.spec.ts`.
+
+**Dette neuve, non traitée volontairement** :
+1. Flash d'état sur navigation cliente (SPA) — le gate d'hydratation de `Sommaire` est par instance,
+   pas par cycle de vie de l'app ; parade proposée : signal `hydratationTerminee` posé une fois dans
+   `core/`. Non bloquant, visible.
+2. Granularité de la liste blanche d'architecture (`src/regles-architecture.spec.ts`, 7 paires dont
+   5 le long de l'axe de confinement) — parade proposée : critère de préfixe qui la ramènerait à 2
+   entrées ; `core/` est actuellement hors corpus (une arête `core → features` serait invisible).
+3. 🔴 **Troisième occurrence d'intermittence e2e, symptôme nouveau** : `e2e/quiz-pre-hydratation.spec.ts:234`
+   a échoué une fois en suite complète (`document.ok()` faux — la page de leçon n'était pas servie),
+   puis passé seul en 2,1 s, puis passé en suite complète au run suivant. Contrairement aux deux
+   spécs déjà connues (`parcours-clavier-simulation.spec.ts:210`,
+   `simulation-mecanique.spec.ts:298`, repli d'hydratation absent), ici c'est une **requête HTTP**
+   qui échoue. Même dossier de dette, à payer **avant E3-ST1**.
+4. Réserves antérieures inchangées : budget `quiz.scss` (dépassement de 88 o), lot de dette
+   sécurité avant E3-ST1 (S-003, garde-fou `style='…'`, CSP servie vérifiée structurellement,
+   portée du sceau d'artéfact, épinglage du tag `Azure/static-web-apps-deploy@v1`).
+
+**Enseignement du lot** : 744 tests, lint, axe et build étaient tous verts sur du code qui (a)
+publiait une leçon brouillon, (b) aurait affiché l'identifiant technique `cegep` en vitrine dès la
+première leçon publiée, (c) aurait pu laisser publier une leçon PHP sous une URL de sécurité. Le
+seul test dédié au (b) employait une fixture à trois valeurs (`debutant/intermediaire/avance`)
+absentes du contrat réel — un gate vert certifiant l'inverse de la réalité (**L-054**).
+
+**Leçons écrites ce cycle** : L-050, L-051, L-052, L-053, L-054, L-055, S-019 (`.claude/lessons/`).
+
+**Suite** : E2 clos en entier ; E3-ST0 déjà close. Ordre révisé (D-3 bascule 2026-08-17) :
+E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B/C → E4 → E5. Geste suivant : **E3 bloc A — première
+leçon publiée**, précédé du lot de dette sécurité pré-E3-ST1 (point 4 ci-dessus) et de la dette
+d'intermittence e2e (point 3).
 
 **Risques résiduels**
 

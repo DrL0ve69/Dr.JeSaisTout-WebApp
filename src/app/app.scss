@@ -2,9 +2,9 @@
 // Coquille applicative — layout seulement (E1-ST2)
 // -----------------------------------------------------------------------------
 // Ce fichier portait la page « chantier » d'E0-ST4. Tout son vocabulaire visuel
-// (tampon, encart réglé, filet) a migré dans `core/layout/page-a-venir/
-// page-a-venir.scss`, où il appartient : la coquille ne rend aucun contenu, elle
-// place l'en-tête, le contenu et le pied.
+// (tampon, encart réglé, filet) a migré dans les feuilles des composants de PAGE
+// (`accueil.scss`, `page-introuvable.scss`), où il appartient : la coquille ne
+// rend aucun contenu, elle place l'en-tête, le contenu et le pied.
 //
 // ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
 // `:root`) : un style de composant est une unité de compilation séparée, il
@@ -18,9 +18,9 @@
 // La grille de coquille. `1fr` sur la rangée du milieu + `100dvh` de hauteur
 // minimale = le pied de page reste EN BAS DE L'ÉCRAN sur une page courte (la 404,
 // notamment) sans jamais être poussé hors de vue sur une page longue. C'est aussi
-// la raison pour laquelle `page-a-venir.scss` a délibérément abandonné le
-// `min-height: 100dvh` de l'ancienne page : deux plein-écrans empilés
-// repousseraient le pied sous la ligne de flottaison à chaque route.
+// la raison pour laquelle AUCUNE feuille de page ne reprend le
+// `min-height: 100dvh` de l'ancienne page « chantier » : deux plein-écrans
+// empilés repousseraient le pied sous la ligne de flottaison à chaque route.
 //
 // Le lien d'évitement est `position: fixed`, donc hors flux : il ne crée aucune
 // rangée et les trois rangées correspondent bien à en-tête / contenu / pied.
@@ -92,7 +92,8 @@
 // Contenu
 // -----------------------------------------------------------------------------
 // Le `<main>` ne fixe NI largeur NI rembourrage : chaque page décide de sa mesure
-// (`page-a-venir.scss` se borne à `--largeur-lecture` et se centre lui-même).
+// (`page-sommaire-securite-web.scss` se borne à `--largeur-lecture` et se centre
+// lui-même).
 // Imposer ici une largeur obligerait une future page pleine largeur — un schéma
 // de leçon, une simulation — à la défaire.
 //

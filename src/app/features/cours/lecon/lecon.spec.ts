@@ -54,6 +54,7 @@ import {
   lireLeconCompilee,
   lireManifeste,
 } from '../contenu-compile';
+import { ProgressionService } from '../../../core/progression/progression';
 import { Lecon } from './lecon';
 import {
   construireSommaire,
@@ -150,6 +151,17 @@ beforeAll(() => {
       sortie,
       '--css',
       join(BAC, '_coloration.scss'),
+      // 🔴 LE DRAPEAU EST ICI POUR QUE `manifesteReel` PORTE LES DEUX STATUTS.
+      // Depuis le correctif du 2026-08-19, un bâtissage PAR DÉFAUT n'écrit plus rien
+      // d'une leçon non publiée : le manifeste témoin ne porterait alors qu'une seule
+      // entrée, et les assertions de `parametresDePrerender` et de `voisinesDe` sur
+      // données RÉELLES deviendraient vraies du vide (le filtre appliqué deux fois est
+      // idempotent, donc silencieux). On demande donc explicitement l'artéfact
+      // « d'auteur » — celui que le filtre de génération est censé refuser au public —
+      // pour que les filtres APPLICATIFS aient encore un brouillon à écarter.
+      // Que le bâtissage par défaut, lui, n'en écrive aucun est tenu ailleurs, et par
+      // un fichier dont c'est le seul objet : `src/garde-fou-lecons-non-publiees.spec.ts`.
+      '--inclure-brouillons',
     ],
     { encoding: 'utf8', cwd: process.cwd() },
   );
@@ -180,12 +192,47 @@ function lecon(): LeconCompilee {
   return leconReelle;
 }
 
+/**
+ * UN manifeste, DEUX cours — la forme que la phase 1 aura dès que §E7 publiera sa
+ * première leçon de PHP.
+ *
+ * 🔴 LES DEUX COURS SONT ENTRELACÉS, ET C'EST TOUT L'ENJEU. Groupés (les deux
+ * leçons de sécurité côte à côte), un filtre absent laisserait quand même
+ * `voisinesDe('xss').suivante` tomber sur `injection-sql` : le test serait vert sur
+ * un produit cassé. Entrelacés, la voisine immédiate de `xss` DANS LE MANIFESTE est
+ * une leçon de PHP — le filtre est alors la seule chose qui puisse rendre la bonne
+ * réponse, exactement comme le brouillon posé au MILIEU distingue « filtrer avant »
+ * de « filtrer après ».
+ *
+ * Les trois entrées sont PUBLIÉES : ce jeu de données mesure le sujet, et rien
+ * d'autre. Le statut a ses propres cas, juste à côté.
+ */
+function manifesteDeuxCours(): EntreeManifesteRoutes[] {
+  const premiere = manifesteReel[0];
+  if (premiere === undefined) throw new Error('manifeste vide');
+  return [
+    { ...premiere, sujet: 'securite-web', slug: 'xss', ordre: 1, titre: 'Le XSS', statut: 'publiee' },
+    { ...premiere, sujet: 'php', slug: 'variables', ordre: 2, titre: 'Les variables', statut: 'publiee' },
+    {
+      ...premiere,
+      sujet: 'securite-web',
+      slug: 'injection-sql',
+      ordre: 3,
+      titre: 'L’injection SQL',
+      statut: 'publiee',
+    },
+  ];
+}
+
 describe('page de leçon — la fixture elle-même', () => {
   // CE GROUPE EST LE CONTRÔLE POSITIF DE TOUS LES AUTRES (L-019). Sans lui, un
   // sommaire imbriqué « correct » sur une leçon sans aucune section de niveau 3
   // serait vert en ne prouvant rien.
-  it('compile UNE leçon, avec des sections de niveau 2 ET de niveau 3', () => {
-    expect(manifesteReel).toHaveLength(1);
+  it('compile DEUX leçons, la première avec des sections de niveau 2 ET de niveau 3', () => {
+    // Depuis E2-ST6 (lot B), la racine-témoin porte DEUX leçons : la grasse (`publiee`) et une
+    // maigre en `brouillon`, qui donne au masquage des brouillons un cas qu'un runner exécute
+    // vraiment (L-019). `slugTemoin` reste la PREMIÈRE — c'est elle que ce fichier monte.
+    expect(manifesteReel).toHaveLength(2);
     expect(slugTemoin).not.toBe('');
 
     const niveaux = lecon().sections.map((section) => section.niveau);
@@ -235,6 +282,21 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
     const rendue = lireLeconCompilee(leconBrute, 'contrôle positif');
     expect(rendue.frontmatter.slug).toBe(slugTemoin);
     expect(rendue.sections.length).toBeGreaterThan(1);
+    // La fixture porte bien une `section` — sans quoi la mutation « section présente mais
+    // vide » ci-dessous mesurerait l'inertie du validateur, pas sa portée (L-010/L-019).
+    expect(rendue.frontmatter.section).toBe('Fondamentaux');
+  });
+
+  it('ACCEPTE une leçon SANS « section » — le champ est optionnel (D-2)', () => {
+    // La moitié qu'aucune mutation ne peut couvrir : les cas de la table ci-dessous prouvent
+    // tous un REFUS. Sans ce test, `section` pourrait être devenue obligatoire à la lecture
+    // sans que rien ne le dise — et toute leçon d'un sujet non groupé, c'est-à-dire le cas
+    // NORMAL, ferait échouer le prerender de sa page.
+    const sansSection = copie(lecon());
+    delete (sansSection.frontmatter as unknown as Record<string, unknown>)['section'];
+
+    const rendue = lireLeconCompilee(sansSection, 'contrôle positif');
+    expect(rendue.frontmatter.section).toBeUndefined();
   });
 
   /**
@@ -249,6 +311,18 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
         (l.frontmatter as unknown as Record<string, unknown>)['statut'] = 'publié';
       },
       attendu: 'frontmatter.statut',
+    },
+    {
+      // `section` est OPTIONNELLE (E2-ST6, D-2) : ABSENTE est légal — le test dédié plus bas en
+      // est le contrôle positif. PRÉSENTE mais vide ne l'est pas, et c'est le seul cas que ce
+      // rétrécissement peut trancher : `null`, `''` ou des blanches sont une régression du
+      // pipeline, pas une leçon sans section. Les confondre rendrait un groupe au titre
+      // invisible dans la carte de parcours, sans qu'aucun gate ne rougisse.
+      nom: 'une section présente mais vide',
+      muter: (l) => {
+        (l.frontmatter as unknown as Record<string, unknown>)['section'] = '  ';
+      },
+      attendu: 'frontmatter.section',
     },
     {
       nom: 'une durée passée en chaîne',
@@ -589,7 +663,31 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
 describe('lecture du manifeste', () => {
   it('ACCEPTE le manifeste réellement écrit par le pipeline', () => {
     const entrees = lireManifeste(copie(manifesteReel), 'contrôle positif');
-    expect(entrees.map((entree) => entree.slug)).toEqual([slugTemoin]);
+    // Les deux slugs sont écrits EN DUR, pas dérivés de `manifesteReel` : un test qui se
+    // compare à la donnée dont il vérifie la lecture ne prouve que `x === x` (L-012).
+    expect(entrees.map((entree) => entree.slug)).toEqual(['lecon-temoin', 'lecon-brouillon']);
+    // `section` traverse bien la frontière de typage (E2-ST6, lot B) — elle est OPTIONNELLE,
+    // donc `lireManifeste` a son propre chemin de lecture pour elle. Une valeur perdue ici
+    // ferait retomber la carte de parcours en liste plate, sans qu'aucun gate ne rougisse.
+    expect(entrees.map((entree) => entree.section)).toEqual(['Fondamentaux', 'Approfondissements']);
+  });
+
+  it('ACCEPTE une entrée SANS « section » — le champ est optionnel (D-2)', () => {
+    // L'autre moitié de la pince du test ci-dessus. Sans elle, `section` pourrait être devenue
+    // obligatoire dans `lireManifeste` sans que rien ne le dise : tout sujet non groupé — le cas
+    // NORMAL, et celui de `content/` jusqu'à E3-ST1 — lèverait au chargement du module.
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    const sansSection: Record<string, unknown> = { ...premiere };
+    delete sansSection['section'];
+
+    const entrees = lireManifeste([sansSection], 'contrôle positif');
+    expect(entrees[0]?.section).toBeUndefined();
+
+    // Et le refus reste FERMÉ : PRÉSENT mais vide n'est pas « absent », c'est une régression du
+    // pipeline — un groupe au titre invisible dans la carte de parcours.
+    expect(() => lireManifeste([{ ...premiere, section: '   ' }], 'négatif')).toThrow(/section/);
+    expect(() => lireManifeste([{ ...premiere, section: null }], 'négatif')).toThrow(/section/);
   });
 
   it('REFUSE un statut inconnu et un tri cassé', () => {
@@ -614,29 +712,71 @@ describe('lecture du manifeste', () => {
 });
 
 describe('getPrerenderParams — les slugs à prerendre', () => {
-  it('rend EXACTEMENT les slugs du manifeste, dans son ordre', () => {
+  it('rend EXACTEMENT les slugs PUBLIÉS, dans l’ordre du manifeste', () => {
     const premiere = manifesteReel[0];
     if (premiere === undefined) throw new Error('manifeste vide');
-    const trois = [
-      { ...premiere, slug: 'introduction', ordre: 1 },
-      { ...premiere, slug: 'injection-sql', ordre: 2 },
-      { ...premiere, slug: 'sessions', ordre: 3 },
+    // Annotées : sans le type, TypeScript élargit `statut` en `string` et le jeu de
+    // données ne serait plus un manifeste.
+    const trois: EntreeManifesteRoutes[] = [
+      { ...premiere, slug: 'introduction', ordre: 1, statut: 'publiee' },
+      { ...premiere, slug: 'injection-sql', ordre: 2, statut: 'publiee' },
+      { ...premiere, slug: 'sessions', ordre: 3, statut: 'publiee' },
     ];
 
-    expect(parametresDePrerender(trois)).toEqual([
+    expect(parametresDePrerender(trois, 'securite-web')).toEqual([
       { slug: 'introduction' },
       { slug: 'injection-sql' },
       { slug: 'sessions' },
     ]);
     // Et sur le manifeste RÉEL, pour que ce test ne vive pas que sur des données
-    // fabriquées : un slug, celui de la leçon-témoin compilée.
-    expect(parametresDePrerender(manifesteReel)).toEqual([{ slug: slugTemoin }]);
+    // fabriquées : la racine-témoin porte DEUX leçons, `lecon-temoin` en `publiee` et
+    // `lecon-brouillon` en `brouillon` — seule la première se prerende.
+    // 🔴 C'EST L'ASSERTION QUI FERME LA RÉSERVE (3) D'E2-ST2 : ce qui n'est pas ici ne
+    // devient pas un `index.html` déployé, donc pas une page publique et indexable.
+    expect(parametresDePrerender(manifesteReel, 'securite-web')).toEqual([{ slug: 'lecon-temoin' }]);
+  });
+
+  it('ÉCARTE tout statut qui n’est pas `publiee` — `verifiee` comprise', () => {
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    const melange: EntreeManifesteRoutes[] = [
+      { ...premiere, slug: 'brouillonne', ordre: 1, statut: 'brouillon' },
+      { ...premiere, slug: 'relue', ordre: 2, statut: 'verifiee' },
+      { ...premiere, slug: 'en-ligne', ordre: 3, statut: 'publiee' },
+    ];
+
+    // `verifiee` est un statut de relecture éditoriale, pas une mise en ligne : la
+    // laisser passer publierait une leçon que personne n'a décidé de publier.
+    expect(parametresDePrerender(melange, 'securite-web')).toEqual([{ slug: 'en-ligne' }]);
   });
 
   it('rend `[]` sur un manifeste vide — l’état du dépôt jusqu’à E3-ST1', () => {
     // C'est ce cas qui doit NE PAS faire échouer `npm run build` : zéro leçon
     // prerendue est un résultat, pas une panne.
-    expect(parametresDePrerender([])).toEqual([]);
+    expect(parametresDePrerender([], 'securite-web')).toEqual([]);
+  });
+
+  it('n’écrit AUCUN slug d’un autre cours sous l’URL de celui-ci', () => {
+    // 🔴 LE DÉFAUT QUE CE TEST GARDE, ET QUE L'UNICITÉ DES SLUGS NE RÈGLE PAS.
+    // Cette fonction alimente le `getPrerenderParams()` de la route
+    // `cours/securite-web/:slug` : chaque slug rendu devient un `index.html` ÉCRIT
+    // SOUS CE CHEMIN. Sans le filtre de sujet, `variables` (PHP) produirait
+    // `/cours/securite-web/variables/index.html` — page livrée et indexable sous
+    // l'URL du mauvais cours, pendant que `/cours/php/variables` répondrait 404.
+    // `generer-manifeste.mjs` refuse bien deux leçons de même slug tous sujets
+    // confondus, mais un slug unique dit QUELLE leçon on désigne, jamais SOUS
+    // QUELLE URL on l'écrit.
+    const deuxCours = manifesteDeuxCours();
+
+    expect(parametresDePrerender(deuxCours, 'securite-web')).toEqual([
+      { slug: 'xss' },
+      { slug: 'injection-sql' },
+    ]);
+    // Et le sens réciproque, qui prouve que le filtre discrimine au lieu de tout
+    // jeter : la route de PHP, le jour où elle existera, n'aura que ses leçons.
+    expect(parametresDePrerender(deuxCours, 'php')).toEqual([{ slug: 'variables' }]);
+    // Un sujet qu'aucune leçon ne porte ne récupère rien « par défaut ».
+    expect(parametresDePrerender(deuxCours, 'reseaux')).toEqual([]);
   });
 });
 
@@ -677,38 +817,139 @@ describe('voisines et titre de document', () => {
     const premiere = manifesteReel[0];
     if (premiere === undefined) throw new Error('manifeste vide');
     return [
-      { ...premiere, slug: 'avant', ordre: 1, titre: 'La leçon qui précède' },
-      { ...premiere, slug: slugTemoin, ordre: 2 },
-      { ...premiere, slug: 'apres', ordre: 3, titre: 'La leçon qui suit' },
+      { ...premiere, slug: 'avant', ordre: 1, titre: 'La leçon qui précède', statut: 'publiee' },
+      { ...premiere, slug: slugTemoin, ordre: 2, statut: 'publiee' },
+      { ...premiere, slug: 'apres', ordre: 3, titre: 'La leçon qui suit', statut: 'publiee' },
     ];
   }
 
   it('donne les deux voisines au milieu du cours', () => {
-    const voisines = voisinesDe(troisEntrees(), slugTemoin);
+    const voisines = voisinesDe(troisEntrees(), 'securite-web', slugTemoin);
     expect(voisines.precedente?.slug).toBe('avant');
     expect(voisines.suivante?.slug).toBe('apres');
   });
 
   it('n’invente aucune voisine aux extrémités', () => {
     const entrees = troisEntrees();
-    expect(voisinesDe(entrees, 'avant').precedente).toBeNull();
-    expect(voisinesDe(entrees, 'avant').suivante?.slug).toBe(slugTemoin);
-    expect(voisinesDe(entrees, 'apres').suivante).toBeNull();
+    expect(voisinesDe(entrees, 'securite-web', 'avant').precedente).toBeNull();
+    expect(voisinesDe(entrees, 'securite-web', 'avant').suivante?.slug).toBe(slugTemoin);
+    expect(voisinesDe(entrees, 'securite-web', 'apres').suivante).toBeNull();
     // Slug hors manifeste : deux absences, pas une exception.
-    expect(voisinesDe(entrees, 'inconnu')).toEqual({ precedente: null, suivante: null });
+    expect(voisinesDe(entrees, 'securite-web', 'inconnu')).toEqual({
+      precedente: null,
+      suivante: null,
+    });
+  });
+
+  it('NE DÉBORDE PAS sur le cours voisin, même entrelacé dans le manifeste', () => {
+    // 🔴 LE PENDANT DE « SAUTE UN BROUILLON AU MILIEU », pour l'autre filtre. Le
+    // manifeste porte `xss` (sécurité), puis `variables` (PHP), puis `injection-sql`
+    // (sécurité) : sans filtre de sujet, la « leçon suivante » du XSS serait une leçon
+    // de PHP, affichée sous un lien `/cours/securite-web/variables` qui répond 404.
+    const deuxCours = manifesteDeuxCours();
+
+    expect(voisinesDe(deuxCours, 'securite-web', 'xss').suivante?.slug).toBe('injection-sql');
+    expect(voisinesDe(deuxCours, 'securite-web', 'injection-sql').precedente?.slug).toBe('xss');
+    // Aux extrémités DU COURS, pas du manifeste.
+    expect(voisinesDe(deuxCours, 'securite-web', 'xss').precedente).toBeNull();
+    expect(voisinesDe(deuxCours, 'securite-web', 'injection-sql').suivante).toBeNull();
+    // Et le sens réciproque : la leçon de PHP n'a pas de voisine de sécurité.
+    expect(voisinesDe(deuxCours, 'php', 'variables')).toEqual({
+      precedente: null,
+      suivante: null,
+    });
+    // Un slug du BON manifeste mais du MAUVAIS cours n'est pas un point de départ.
+    expect(voisinesDe(deuxCours, 'securite-web', 'variables')).toEqual({
+      precedente: null,
+      suivante: null,
+    });
+  });
+
+  it('SAUTE un brouillon posé au MILIEU, au lieu d’interrompre le cours', () => {
+    // 🔴 L'ASSERTION QUI DISTINGUE « FILTRER AVANT » DE « FILTRER APRÈS ». Aux
+    // extrémités, les deux implémentations coïncident ; c'est au MILIEU qu'elles
+    // divergent — filtrer après le calcul du rang rendrait `null` ici, c'est-à-dire un
+    // parcours qui s'arrête net sur une leçon que le lecteur n'est pas censé savoir
+    // exister. Le cours doit rester CONTINU : `avant` et `apres` sont voisines.
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    const avecBrouillonAuMilieu: EntreeManifesteRoutes[] = [
+      { ...premiere, slug: 'avant', ordre: 1, titre: 'La leçon qui précède', statut: 'publiee' },
+      { ...premiere, slug: 'en-chantier', ordre: 2, titre: 'Pas prête', statut: 'brouillon' },
+      { ...premiere, slug: 'apres', ordre: 3, titre: 'La leçon qui suit', statut: 'publiee' },
+    ];
+
+    expect(voisinesDe(avecBrouillonAuMilieu, 'securite-web', 'avant').suivante?.slug).toBe('apres');
+    expect(voisinesDe(avecBrouillonAuMilieu, 'securite-web', 'apres').precedente?.slug).toBe(
+      'avant',
+    );
+
+    // Et le brouillon lui-même n'a pas de place dans la séquence : il n'est pas un
+    // point de départ vers ses anciennes voisines.
+    expect(voisinesDe(avecBrouillonAuMilieu, 'securite-web', 'en-chantier')).toEqual({
+      precedente: null,
+      suivante: null,
+    });
+  });
+
+  it('n’atteint PAS une leçon `verifiee` de proche en proche', () => {
+    // Même barre que le prerender : `verifiee` n'est pas `publiee` (contrôle positif du
+    // filtre sur le second statut non publié, celui qu'on oublie).
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    const deux: EntreeManifesteRoutes[] = [
+      { ...premiere, slug: 'en-ligne', ordre: 1, titre: 'Publiée', statut: 'publiee' },
+      { ...premiere, slug: 'relue', ordre: 2, titre: 'Relue mais pas publiée', statut: 'verifiee' },
+    ];
+
+    expect(voisinesDe(deux, 'securite-web', 'en-ligne').suivante).toBeNull();
   });
 
   it('compose le titre d’onglet à partir du MANIFESTE, jamais du slug', () => {
-    const titre = titreDeDocument(manifesteReel, slugTemoin);
+    const titre = titreDeDocument(manifesteReel, 'securite-web', slugTemoin);
     expect(titre).toContain(manifesteReel[0]?.titre ?? '');
     expect(titre).toContain('Dr. Je-Sais-Tout');
 
     // 🔴 Un slug forgé ne se réaffiche PAS, même en repli.
     const forge = 'votre-compte-est-compromis-appelez-le-1-800-000-0000';
-    const repli = titreDeDocument(manifesteReel, forge);
+    const repli = titreDeDocument(manifesteReel, 'securite-web', forge);
     expect(repli).not.toContain('1-800');
     expect(repli).not.toContain('compromis');
     expect(repli).toContain('Dr. Je-Sais-Tout');
+  });
+
+  it('ne titre PAS une page de sécurité avec le titre d’une leçon d’un autre cours', () => {
+    // Le titre d'onglet ne filtre pas le STATUT (voir le test suivant), mais il filtre
+    // le COURS : nommé avec le titre d'une leçon de PHP, l'onglet ne décrirait plus son
+    // document (WCAG 2.4.2) et énoncerait une confusion que la table de routes n'a pas.
+    const deuxCours = manifesteDeuxCours();
+
+    expect(titreDeDocument(deuxCours, 'securite-web', 'xss')).toContain('Le XSS');
+    // Le slug existe — dans l'AUTRE cours. On tombe donc sur le repli générique, pas
+    // sur « Les variables ».
+    const repli = titreDeDocument(deuxCours, 'securite-web', 'variables');
+    expect(repli).not.toContain('Les variables');
+    expect(repli).toContain('Sécurité des applications web');
+    // Et le sens réciproque, qui prouve que le filtre discrimine au lieu de tout jeter.
+    expect(titreDeDocument(deuxCours, 'php', 'variables')).toContain('Les variables');
+  });
+
+  it('nomme AUSSI une leçon non publiée — le titre décrit la page à l’écran', () => {
+    // Décision d'E2-ST6, lot C2 : `leconsPubliees` garde ce que le public ATTEINT (URL
+    // prerendue, lien de sommaire, voisine). Un titre d'onglet ne fait atteindre personne :
+    // il nomme un document DÉJÀ rendu — en `npm start`, ou à la relecture éditoriale.
+    // Le filtrer y donnerait un onglet générique au-dessus d'un `<h1>` qui dit autre chose,
+    // soit un échec de WCAG 2.4.2 pour zéro gain. Ce test ÉPINGLE ce choix : s'il rougit,
+    // c'est qu'on a étendu le filtre par symétrie plutôt que par raisonnement.
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    const brouillon: EntreeManifesteRoutes[] = [
+      { ...premiere, slug: 'en-chantier', titre: 'Une leçon en chantier', statut: 'brouillon' },
+    ];
+
+    expect(titreDeDocument(brouillon, 'securite-web', 'en-chantier')).toContain(
+      'Une leçon en chantier',
+    );
   });
 });
 
@@ -733,12 +974,25 @@ describe('rendu de la page', () => {
     });
     const harnais = await RouterTestingHarness.create();
     await harnais.navigateByUrl(url);
+    // 🔴 ON ATTEND LA STABILITÉ, PAS SEULEMENT LA NAVIGATION (E2-ST6, lot A2). La page
+    // marque la leçon lue depuis un `effect` gardé par `afterNextRender` : ces deux
+    // mécanismes courent APRÈS la détection de changements que `navigateByUrl` déclenche.
+    // Sans cette attente, le test observerait une progression vide sur un produit sain
+    // (L-035 : une prémisse de test fausse rougit sur un produit sain).
+    await harnais.fixture.whenStable();
     const rendu = harnais.routeNativeElement;
     if (rendu === null) throw new Error('la page de leçon n’a pas été montée');
     return rendu;
   }
 
+  beforeEach(() => {
+    // La progression s'écrit dans `localStorage` : sans ce ménage, un test relirait
+    // l'avancement écrit par son voisin.
+    document.defaultView?.localStorage.clear();
+  });
+
   afterEach(() => {
+    document.defaultView?.localStorage.clear();
     // Les balises OpenGraph sont posées sur le VRAI `document` : sans ce ménage,
     // un test lirait celles du test précédent.
     for (const balise of document.querySelectorAll(
@@ -746,6 +1000,45 @@ describe('rendu de la page', () => {
     )) {
       balise.remove();
     }
+  });
+
+  it('🔴 marque la leçon LUE, sous le couple `(sujet, slug)` DU FRONTMATTER', async () => {
+    // E2-ST6, lot A2 — le premier et unique appelant de `marquerLue`. Avant ce lot, la
+    // méthode existait sans appelant : du code mort qui promettait une fonctionnalité
+    // inexistante, et une carte de parcours qui n'aurait jamais su qu'une leçon a été
+    // ouverte.
+    const { sujet, slug } = lecon().frontmatter;
+
+    // 🔴 L'URL PORTE UN AUTRE SLUG QUE LE FRONTMATTER, ET C'EST LE CŒUR DU TEST. Le
+    // `resolve` rend la même leçon quoi qu'il arrive : si la page composait sa clef de
+    // progression à partir du segment d'URL — une entrée non fiable —, l'avancement
+    // s'écrirait sous le slug forgé. La règle du dépôt est l'inverse (voir l'en-tête de
+    // `lecon.ts`), et elle se mesure ici.
+    const forge = 'slug-forge-par-un-tiers';
+    expect(forge).not.toBe(slug); // contrôle positif : l'écart existe bien
+    await monter(manifesteReel, `/cours/securite-web/${forge}`);
+
+    const service = TestBed.inject(ProgressionService);
+    expect(service.etatDe(sujet, slug).lue).toBe(true);
+    expect(service.etatDe(sujet, forge).lue).toBe(false);
+    // Et le sujet compte autant que le slug : la clef est composite depuis le lot A1.
+    expect(service.etatDe('php', slug).lue).toBe(false);
+  });
+
+  it('n’écrit RIEN de plus que « lue » — aucun score n’est inventé à l’ouverture', async () => {
+    // L'autre moitié de la pince. Sans elle, « la leçon est lue » resterait vrai d'une
+    // page qui marquerait aussi une maîtrise que personne n'a gagnée — or un module se
+    // marque maîtrisé sur un quiz réussi, jamais sur une page ouverte.
+    const { sujet, slug } = lecon().frontmatter;
+    await monter(manifesteReel);
+
+    const service = TestBed.inject(ProgressionService);
+    expect(service.etatDe(sujet, slug)).toEqual({
+      lue: true,
+      meilleurScore: 0,
+      totalQuestions: 0,
+    });
+    expect(service.estMaitrisee(sujet, slug)).toBe(false);
   });
 
   it('rend UN `h1` non vide, les repères et les objectifs de la leçon', async () => {
@@ -903,9 +1196,15 @@ describe('rendu de la page', () => {
   });
 
   it('n’affiche AUCUNE voisine quand la leçon est seule au manifeste', async () => {
-    // Le manifeste réel n'a qu'une entrée : première ET dernière du cours. Aucun
-    // lien ne doit être rendu — un voisin manquant n'est pas un lien mort.
-    const rendu = await monter(manifesteReel);
+    // Une leçon seule est première ET dernière du cours : aucun lien ne doit être rendu — un
+    // voisin manquant n'est pas un lien mort.
+    // ⚠️ LE MANIFESTE EST RÉDUIT À LA MAIN, ET IL DOIT L'ÊTRE (E2-ST6, lot B). Ce test lisait
+    // `manifesteReel`, en s'appuyant sur le fait que la racine-témoin n'avait qu'une leçon —
+    // une prémisse de FIXTURE, pas une propriété du produit. Elle a cessé d'être vraie le jour
+    // où la fixture en a gagné une seconde, et le test a rougi sur un produit sain (L-035).
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    const rendu = await monter([premiere]);
     expect(rendu.querySelector('nav.voisines')).toBeNull();
   });
 

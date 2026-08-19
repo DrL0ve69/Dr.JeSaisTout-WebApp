@@ -30,9 +30,11 @@ import { join } from 'node:path';
 
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { compile } from 'sass';
 
+import { Quiz } from '../../quiz/quiz';
 import { RenduBlocs, SANS_DECALAGE, cumulerFigures, type DecalageFigures } from './rendu-blocs';
 
 /**
@@ -259,6 +261,13 @@ const COMPARAISON_CHARGE_S011: BlocContenu = {
  * le valide et le rend (E2-ST3, lot C). Une seule question suffit donc ici — la
  * couverture des quatre types appartient à `quiz.spec.ts`, pas à ce fichier.
  */
+/**
+ * Le SUJET que ce composant traverse, au même titre que le quiz (E2-ST6, lot A2). Il
+ * n'en fait rien non plus — la vérification qu'il ARRIVE bien jusqu'au quiz est plus bas,
+ * dans le groupe « ancre de quiz ».
+ */
+const SUJET = 'securite-web';
+
 const QUIZ: QuizCompile = {
   lecon: 'lecon-de-passage',
   titre: 'Quiz de la leçon de passage',
@@ -345,6 +354,7 @@ async function rendre(
   const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
   fixture.componentRef.setInput('blocs', blocs);
   fixture.componentRef.setInput('quiz', QUIZ);
+  fixture.componentRef.setInput('sujet', SUJET);
   fixture.componentRef.setInput('simulation', SIMULATION);
   if (decalage !== undefined) fixture.componentRef.setInput('decalage', decalage);
   await fixture.whenStable();
@@ -561,6 +571,7 @@ describe('RenduBlocs', () => {
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [FIXTURES.mermaid]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
       await fixture.whenStable();
 
       const hote = fixture.nativeElement as HTMLElement;
@@ -599,6 +610,7 @@ describe('RenduBlocs', () => {
         { type: 'mermaid', svg: SVG_MERMAID, titreAccessible: '  ', descriptionLongue: 'x' },
       ]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
 
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/1\.1\.1/);
     });
@@ -721,6 +733,7 @@ describe('RenduBlocs', () => {
         comparaisonAvec([{ lignes: [1, 1], texte: 'Deux fois la même ligne.' }]),
       ]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
 
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/deux fois/);
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
@@ -743,6 +756,7 @@ describe('RenduBlocs', () => {
         const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
         fixture.componentRef.setInput('blocs', [comparaisonAvec([{ lignes, texte: 'Note.' }])]);
         fixture.componentRef.setInput('quiz', QUIZ);
+        fixture.componentRef.setInput('sujet', SUJET);
         expect(() => fixture.componentInstance.blocsPrepares(), lignes.join('|')).toThrowError(
           cause,
         );
@@ -762,6 +776,7 @@ describe('RenduBlocs', () => {
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [comparaisonAvec(ancienneForme)]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
 
       // Le message, pas seulement le fait de lever : « ligne » nommée comme l'ancienne forme…
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
@@ -786,6 +801,7 @@ describe('RenduBlocs', () => {
         comparaisonAvec([{ lignes: [...horsContrat], texte: 'Note.' }]),
       ]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
 
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(
         /reçu null, \{"ligne":1\}/,
@@ -1230,6 +1246,7 @@ describe('RenduBlocs', () => {
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [FIXTURES['ancre-simulation']]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
       fixture.componentRef.setInput('simulation', undefined);
 
       expect(() => fixture.componentInstance.simulationDeLAncre()).toThrowError(
@@ -1257,6 +1274,39 @@ describe('RenduBlocs', () => {
         { type: 'encadre', variante: 'note', blocs: [{ type: 'ancre-quiz' }] },
       ]);
       expect(rendu.querySelectorAll('.encadre app-quiz').length).toBe(1);
+    });
+
+    it('🔴 fait DESCENDRE le `sujet` jusqu’au quiz, au premier niveau comme sous un encadré', async () => {
+      // E2-ST6, lot A2. Ce composant ne fait que TRANSPORTER le sujet — donc rien de ce
+      // qu'il rend ne le montre, et un oubli de la liaison dans la récursion ne se verrait
+      // nulle part à l'écran. Ce qui le rendrait visible, c'est le quiz écrivant sa
+      // progression sous une clef fausse, trois couches plus loin. On mesure donc la valeur
+      // REÇUE par le composant `Quiz` lui-même, aux deux profondeurs.
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [
+        { type: 'encadre', variante: 'note', blocs: [{ type: 'ancre-quiz' }] },
+      ]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
+      fixture.componentRef.setInput('simulation', SIMULATION);
+      await fixture.whenStable();
+
+      const quizNiches = fixture.debugElement.queryAll(By.directive(Quiz));
+      expect(quizNiches).toHaveLength(1);
+      expect((quizNiches[0]?.componentInstance as Quiz).sujet()).toBe(SUJET);
+
+      // CONTRÔLE POSITIF (L-019) : le même sujet, au PREMIER niveau, arrive tout autant —
+      // sans quoi l'assertion ci-dessus resterait vraie d'un composant qui poserait une
+      // constante à la place de son input.
+      const autre: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      autre.componentRef.setInput('blocs', [FIXTURES['ancre-quiz']]);
+      autre.componentRef.setInput('quiz', QUIZ);
+      autre.componentRef.setInput('sujet', 'php');
+      autre.componentRef.setInput('simulation', SIMULATION);
+      await autre.whenStable();
+
+      const quizRacine = autre.debugElement.queryAll(By.directive(Quiz));
+      expect((quizRacine[0]?.componentInstance as Quiz).sujet()).toBe('php');
     });
   });
 
@@ -1287,6 +1337,7 @@ describe('RenduBlocs', () => {
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [FIXTURES.prose, inconnu]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
 
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/carrousel-3d/);
       // Et il dit OÙ : « bloc n°2 », pas « un bloc quelque part ».
@@ -1320,6 +1371,7 @@ describe('RenduBlocs', () => {
       const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
       fixture.componentRef.setInput('blocs', [FIXTURES.prose, ampute]);
       fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
 
       // Il dit QUOI, OÙ, et ce n'est PAS un `TypeError` — c'est tout l'objet de la garde.
       expect(() => fixture.componentInstance.blocsPrepares()).toThrowError(/liste de blocs/);

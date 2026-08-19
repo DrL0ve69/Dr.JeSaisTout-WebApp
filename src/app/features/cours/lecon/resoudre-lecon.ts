@@ -12,10 +12,33 @@
 //
 // CE QUE CETTE FONCTION FAIT, DANS L'ORDRE :
 //   1. lit le `:slug` de la route ;
-//   2. cherche son CHARGEUR dans `carte-lecons.ts` (généré) ;
-//   3. slug inconnu ⇒ redirige vers `/404` (voir plus bas) ;
-//   4. `await` le chargeur — un `import()` littéral, donc un chunk par leçon ;
-//   5. RÉTRÉCIT le `unknown` du module en `LeconCompilee` (`lireLeconCompilee`).
+//   2. exige que ce slug soit PUBLIÉ au manifeste (`leconsPubliees`) ;
+//   3. cherche son CHARGEUR dans `carte-lecons.ts` (généré) ;
+//   4. slug non publié ou inconnu ⇒ redirige vers `/404` (voir plus bas) ;
+//   5. `await` le chargeur — un `import()` littéral, donc un chunk par leçon ;
+//   6. RÉTRÉCIT le `unknown` du module en `LeconCompilee` (`lireLeconCompilee`).
+//
+// 🔴 POURQUOI LE CONTRÔLE DE PUBLICATION EST ICI, ET POURQUOI IL EST *AVANT* LA
+// CARTE. Le vrai rempart est en amont : depuis le 2026-08-19, une leçon non publiée
+// n'a plus ni `lecons/<slug>.json`, ni entrée de carte, ni entrée de manifeste
+// (`generer-manifeste.mjs`, drapeau `--inclure-brouillons`). Ce contrôle-ci est la
+// DÉFENSE EN PROFONDEUR : il ferme le cas où un chunk survivrait au filtre — un
+// artéfact bâti avec le drapeau et déployé par erreur, un `content-generated/` non
+// purgé, une carte éditée à la main. Et il est placé AVANT le chargeur parce qu'un
+// `await chargeur()` déclencherait le téléchargement du chunk de la leçon non
+// publiée : refuser après l'avoir servi ne refuserait rien.
+//
+// LE PRÉDICAT EST `leconsPubliees`, PAS UNE RECOPIE DE `statut === 'publiee'`. C'est
+// l'unique définition de « publiée » du dépôt (`contenu-compile.ts`) ; une seconde
+// copie ici serait la cinquième, et c'est précisément la dispersion des points de
+// décision qui a laissé ce trou survivre à l'écriture d'E2-ST6 (S-010).
+//
+// ⚠️ IL N'Y A DONC PAS DE PRÉVISUALISATION D'AUTEUR AUJOURD'HUI, ET C'EST VOULU.
+// Bâtir avec `--inclure-brouillons` remet le chunk et l'entrée de manifeste en
+// place, mais ce résolveur refuse quand même : le manifeste dit `brouillon`. Le jour
+// où la relecture éditoriale aura besoin d'une prévisualisation, elle devra se
+// déclarer — une route ou un mode EXPLICITE. Une prévisualisation qui fonctionne
+// parce qu'un contrôle manque est exactement la façon dont ce défaut est né.
 //
 // 🔴 POURQUOI `Object.hasOwn` ET NON `carteLecons[slug]` TOUT COURT. La carte est un
 // objet littéral : elle hérite de `Object.prototype`. Un slug forgé valant
@@ -46,7 +69,7 @@ import { InjectionToken, inject } from '@angular/core';
 import { RedirectCommand, Router, type ResolveFn } from '@angular/router';
 
 import { carteLecons, type ChargeurLecon } from '../../../../content-generated/carte-lecons';
-import { lireLeconCompilee } from '../contenu-compile';
+import { MANIFESTE_LECONS, leconsPubliees, lireLeconCompilee } from '../contenu-compile';
 
 /** La route littérale réellement prerendue en `404/index.html` (cf. `app.routes.ts`). */
 const ROUTE_404 = '/404';
@@ -73,7 +96,15 @@ export const CARTE_LECONS = new InjectionToken<Record<string, ChargeurLecon>>(
 export const resoudreLecon: ResolveFn<LeconCompilee> = async (route) => {
   const routeur = inject(Router);
   const carte = inject(CARTE_LECONS);
+  const publiees = leconsPubliees(inject(MANIFESTE_LECONS));
   const slugDemande = route.paramMap.get('slug') ?? '';
+
+  // PUBLIÉE D'ABORD — avant même de regarder la carte, donc avant tout téléchargement.
+  // La comparaison porte sur un TABLEAU : aucune indexation, donc aucune surface
+  // `Object.prototype` à refermer ici (voir plus bas pour la carte, qui en a une).
+  if (!publiees.some((entree) => entree.slug === slugDemande)) {
+    return new RedirectCommand(routeur.parseUrl(ROUTE_404));
+  }
 
   // Propriété PROPRE uniquement — voir l'en-tête (héritage de `Object.prototype`).
   if (!Object.hasOwn(carte, slugDemande)) {

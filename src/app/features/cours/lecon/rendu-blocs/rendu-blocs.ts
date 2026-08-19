@@ -20,7 +20,8 @@
 // postérieure du pipeline fait donc ÉCHOUER le prerender, en nommant le type fautif
 // et la position du bloc — au lieu de laisser un trou silencieux dans une leçon
 // publiée. C'est le comportement voulu : le rendu a lieu au build, l'échec casse le
-// build (même principe que la garde de `PageAVenir` sur `data.titre`).
+// build (même principe que les autres gates du dépôt : jamais une page vide sans
+// bruit).
 //
 // ⚠️ LES STYLES DE `rendu-blocs.scss` N'ATTEIGNENT PAS LE HTML LIÉ EN `[innerHTML]`.
 // L'encapsulation d'Angular tague les éléments écrits DANS le gabarit, pas ceux
@@ -520,6 +521,11 @@ interface TableDesRangs {
                  cohérence de contenu-compile.ts compte récursivement, donc une
                  seconde ancre cachée dans un encadré fait échouer la lecture de
                  l'artéfact au lieu de dupliquer tous les id d'étape.
+                 LE SUJET DESCEND AVEC LE QUIZ (E2-ST6, lot A2), et pour la
+                 même raison : une ancre écrite dans un encadré rend le même
+                 quiz, qui doit donc écrire sa progression sous la même clef
+                 (sujet, slug). Le perdre ici rendrait la maîtrise d'une
+                 leçon dépendante de l'endroit où son auteur a posé l'ancre.
                  LE DÉCALAGE DESCEND AUSSI (E2-ST4, lot C1) : sans lui, les
                  compteurs de l'enfant repartiraient de 1 et un bloc de code
                  niché s'appellerait « Code n°1 » au milieu de la leçon. Il est
@@ -528,6 +534,7 @@ interface TableDesRangs {
             <app-rendu-blocs
               [blocs]="bloc.blocs"
               [quiz]="quiz()"
+              [sujet]="sujet()"
               [simulation]="simulation()"
               [decalage]="decalageDeLEncadre(rangBloc)"
             />
@@ -540,8 +547,13 @@ interface TableDesRangs {
             choisie dans son corps de leçon. Le bloc lui-même ne porte AUCUNE
             donnée — c'est une ancre, pas un conteneur ; le quiz voyage dans
             LeconCompilee.quiz et traverse ce composant par un input requis.
+            E2-ST6 (lot A2) : le SUJET traverse de la même façon, parce que la
+            progression est indexée par le couple (sujet, slug) et que
+            QuizCompile ne porte que le slug. Il vient du frontmatter compilé
+            (Lecon), jamais de l'URL — voir la note de l'input « sujet » de
+            quiz.ts.
           -->
-          <app-quiz [quiz]="quiz()" />
+          <app-quiz [quiz]="quiz()" [sujet]="sujet()" />
         }
 
         @case ('ancre-simulation') {
@@ -581,6 +593,22 @@ export class RenduBlocs {
    * à l'appelant : il a toujours la valeur sous la main.
    */
   readonly quiz = input.required<QuizCompile>();
+
+  /**
+   * Le SUJET du cours auquel appartient la leçon rendue — E2-ST6, lot A2.
+   *
+   * Ce composant n'en fait RIEN : il le fait seulement traverser, jusqu'à `app-quiz`
+   * et jusqu'à ses propres enfants de récursion. C'est du transport, pas de la
+   * donnée de rendu — le quiz en a besoin parce que la progression est indexée par
+   * le couple `(sujet, slug)` depuis le lot A1 et que `QuizCompile` ne porte que le
+   * slug (`tools/content-pipeline/types.d.ts`).
+   *
+   * REQUIS pour la même raison que `quiz`, et pas d'un cran de moins : un défaut
+   * silencieux ferait écrire la progression sous une clef fausse — donc une maîtrise
+   * acquise que le sommaire n'allumerait jamais, sans qu'aucun gate ne rougisse.
+   * L'appelant l'a toujours sous la main (`frontmatter().sujet`).
+   */
+  readonly sujet = input.required<string>();
 
   /**
    * La simulation de la leçon — E2-ST5, lot b2. LIAISON REQUISE, VALEUR OPTIONNELLE.

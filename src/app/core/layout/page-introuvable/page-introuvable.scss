@@ -1,11 +1,12 @@
-// Page 404 — même famille visuelle que la page « à venir », fichier DISTINCT.
+// Page 404 — le dernier « feuillet de carnet » du site.
 //
-// Oui, une partie de ces règles ressemble à `page-a-venir.scss`. C'est assumé :
-// ce sont deux composants, et un mixin « feuillet de carnet » extrait à partir de
-// deux exemplaires serait une abstraction prématurée — elle figerait la 404 et la
-// page d'attente ensemble alors que la première survit à E2 et la seconde non.
-// La règle du dépôt : un peu de SCSS qui se ressemble vaut mieux qu'un contrat
-// commun inventé trop tôt.
+// Ces règles ressemblaient à celles de `page-a-venir.scss`, et le commentaire
+// disait pourquoi on ne les avait PAS mutualisées : un mixin extrait de deux
+// exemplaires aurait figé ENSEMBLE la 404 et une page d'attente dont on savait
+// qu'elle ne survivrait pas à E2. C'est exactement ce qui est arrivé — le
+// placeholder est mort avec E2-ST6, la 404 est restée. La règle du dépôt vaut
+// donc encore : un peu de SCSS qui se ressemble vaut mieux qu'un contrat commun
+// inventé trop tôt.
 //
 // ⚠️ On n'`@use` QUE `mixins` (qui n'émet aucun CSS tant qu'aucun mixin n'est
 // appelé). `themes` émettrait le bloc `:root` et dupliquerait tous les jetons

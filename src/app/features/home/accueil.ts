@@ -23,9 +23,10 @@
 // apparaître dans les feuilles de cette page — elle désynchroniserait le parcours
 // visuel du parcours clavier et du parcours vocal.
 //
-// PAS DE `data` DE ROUTE ICI, contrairement à `PageAVenir`. Cette page écrit son
-// `<h1>` elle-même : le bloc `data` de la route `''` a donc été RETIRÉ
-// (décision 5), plutôt que laissé en place à ne servir personne.
+// PAS DE `data` DE ROUTE ICI. Cette page écrit son `<h1>` elle-même : le bloc
+// `data` de la route `''` a donc été RETIRÉ (décision 5), plutôt que laissé en
+// place à ne servir personne. C'est devenu la règle de toute la table de routes
+// depuis E2-ST6 — `app.routes.spec.ts` la verrouille.
 //
 // ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT, écrites `&nbsp;` pour
 // qu'on les VOIE à la relecture (jamais U+202F ni U+2009, absentes de Fraunces

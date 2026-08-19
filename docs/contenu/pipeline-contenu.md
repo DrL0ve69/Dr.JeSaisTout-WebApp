@@ -49,6 +49,7 @@ content/
 titre: "XSS — Cross-Site Scripting"
 slug: xss                        # unique dans le sujet, kebab-case, sans le préfixe nn
 sujet: securite-web              # dossier de premier niveau sous content/
+section: "Attaques classiques"   # OPTIONNEL — le SEUL champ qui le soit ; voir la note ci-dessous
 ordre: 4                         # position dans le cours (= le nn du dossier)
 niveau: cegep                    # maternelle | primaire | secondaire | cegep | universite
 duree-estimee: 45                # minutes de lecture + exercices
@@ -65,6 +66,30 @@ maj: 2026-08-03
 statut: brouillon                # brouillon | verifiee | publiee
 ---
 ```
+
+#### `section` — le seul champ OPTIONNEL (E2-ST6, décision D-2)
+
+C'est le **libellé du groupe de modules** qu'affiche le sommaire du cours (« Fondamentaux »,
+« Attaques classiques »…) : un titre rendu tel quel, pas un identifiant. Trois règles, et rien
+d'autre :
+
+- **Optionnel.** Un sujet qui n'en porte aucune est parfaitement valide ; le sommaire rend alors
+  une liste ordonnée à plat.
+- **Tout-ou-rien par SUJET.** Si **une** leçon d'un sujet porte une `section`, **toutes** celles
+  de ce sujet doivent en porter une. *Pourquoi :* un groupement partiel ne casse rien au build —
+  il produit une carte de parcours où quelques modules flottent hors de toute section, c'est-à-dire
+  un défaut d'affichage silencieux que personne ne voit avant la mise en ligne. La règle vit dans
+  `tools/content-pipeline/valider.mjs` (`exigerSectionsToutOuRien`), parce qu'elle porte sur une
+  **collection** : ni le schéma JSON ni le compilateur ne voient plus d'une leçon à la fois.
+  L'échec **nomme** la leçon fautive et celle qui porte déjà une section.
+- **Aucune contrainte de contiguïté.** Deux leçons d'une même section n'ont pas à se suivre :
+  le regroupement se fait sur la **valeur** du champ, jamais sur la position. Exiger la contiguïté
+  obligerait à renuméroter un cours entier pour déplacer un module d'un groupe à l'autre.
+
+Le champ traverse toute la chaîne — schéma → compilateur → `manifeste-routes.json` →
+`types.d.ts` → `src/app/features/cours/contenu-compile.ts`, où il a son **propre chemin de
+lecture** : absent est légal, présent oblige à une chaîne non vide (`null`, `''` ou des blanches
+sont **refusés**, jamais assimilés à « absent »).
 
 ### Structure du corps (sections dans cet ordre)
 

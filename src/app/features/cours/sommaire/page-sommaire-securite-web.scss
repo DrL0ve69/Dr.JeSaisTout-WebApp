@@ -1,0 +1,35 @@
+// Page du sommaire de « Sécurité des applications web ».
+//
+// Cette feuille ne concerne QUE l'en-tête de la page (titre, chapô) : la carte de
+// parcours porte la sienne (`sommaire.scss`). Aucune règle ne descend dans
+// `app-sommaire` — un adaptateur de route qui restylerait son enfant annulerait
+// la généricité que ce découpage existe pour préserver.
+//
+// Aucun `@use` : ce fichier n'appelle aucun mixin, et surtout jamais `themes`,
+// qui émettrait le bloc `:root` et dupliquerait tous les jetons dans le CSS de ce
+// composant (un style de composant est une unité de compilation séparée).
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+// Aucune paire de contraste NEUVE : le chapô emploie `--couleur-encre-secondaire`
+// sur `--couleur-surface` (héritée de la page), déjà mesurée par
+// `tools/design/verifier-contrastes.mjs`.
+
+:host {
+  display: block;
+  padding: var(--espace-6) var(--espace-3);
+}
+
+.page {
+  max-width: var(--largeur-lecture);
+  margin-inline: auto;
+}
+
+.titre {
+  margin-block-end: var(--espace-2);
+}
+
+.chapo {
+  margin-block-end: var(--espace-6);
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-m);
+}

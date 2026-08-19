@@ -160,10 +160,14 @@ const PARENTS_STYLE_ADMIS = new Set(['head', 'body']);
  * prerendue (état du dépôt jusqu'à E3-ST1). Il est la valeur PAR DÉFAUT, celle qu'emploient
  * `npm run build` en local et `deploy.yml`. La CI, elle, construit le même artéfact depuis la
  * FIXTURE TÉMOIN pour que les gates voient une page de leçon interactive (décision E-2 du lot E) :
- * son artéfact porte trois blocs de plus, et elle passe donc `--hachages-style` — voir juste
+ * son artéfact porte quatre blocs de plus, et elle passe donc `--hachages-style` — voir juste
  * en dessous. Un drapeau absent retombe ICI : jamais sur « pas de vérification ».
  */
-const NOMBRE_HACHAGES_STYLE_ATTENDU = 9;
+// 📈 9 → 10 le 2026-08-19 (E2-ST6) : `PageAVenir` (un bloc) cède `cours/securite-web` à
+// l'adaptateur `PageSommaireSecuriteWeb` (`.page`) ET au composant `Sommaire` (`.vide`). Les dix
+// blocs ont été énumérés et nommés un par un avant cet épinglage (S-005 : la liste blanche reste
+// NOMINATIVE, jamais dérivée de l'artéfact).
+const NOMBRE_HACHAGES_STYLE_ATTENDU = 10;
 
 /**
  * @typedef {{ name: string }} AttributHtml

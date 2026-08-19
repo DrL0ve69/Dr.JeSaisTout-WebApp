@@ -443,6 +443,20 @@ sur un format structuré) est traité dans `security-lessons.md`.
 
 **Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` ; `types.d.ts` ; branche `feat/e2-st1-pipeline-contenu`.
 
+**Addendum (E2-ST6) — la promesse mensongère n'est pas toujours une citation de fichier, elle peut
+être l'affirmation d'un COMPORTEMENT que le code voisin interdit.** `progression.ts` justifiait sa
+clef de stockage composite par « deux leçons de sujets différents peuvent partager un slug » — or
+`generer-manifeste.mjs:258` **refuse ce cas au build**, fail-closed : le cas que le commentaire
+prétend gérer ne peut structurellement jamais se produire. La décision (clef composite) reste bonne,
+sa justification écrite est fausse. Coût identique à l'addendum d'origine : le prochain lecteur
+raisonne sur une garantie inexistante. **Règle étendue** : un commentaire qui sert de justification
+ne se vérifie pas seulement en confirmant qu'un fichier/une section **existe** — il se vérifie en
+confirmant que le **comportement** qu'il affirme est bien celui que le reste du système applique
+(ici : tenter de reproduire le cas invoqué contre le garde-fou voisin, pas seulement lire son nom).
+
+**Réfs addendum.** `src/app/**/progression.ts` ; `tools/content-pipeline/generer-manifeste.mjs:258` ;
+E2-ST6.
+
 ---
 
 ## L-017 · Un octet NUL dans un fichier source le rend « binaire » pour grep/ripgrep, qui le sautent EN SILENCE
@@ -1342,6 +1356,153 @@ téléchargement).
 
 **Réfs.** `.github/workflows/ci.yml` (étape « Installer le navigateur ») ;
 `src/pipeline-contenu-orchestration.spec.ts` ; runs GitHub `32224090384` et `32264319046`.
+
+---
+
+## L-050 · Un gate d'architecture livré ROUGE dans le même lot qui crée la première violation reste rouge en silence tant que chaque agent ne lance que SON spec
+
+**Symptôme.** `src/regles-architecture.spec.ts` (le gate « aucune feature n'importe une autre
+feature », posé par la bascule D-4/E6) a été livré **rouge** dans le lot même qui a créé l'arête
+`cours/sommaire → cours` : le composant de sommaire l'a introduite, mais le gate ne la connaissait
+pas encore et l'a signalée comme violation. Il est resté rouge pendant **deux lots** sans qu'aucun
+agent ne le remarque, parce que chaque agent, respectant son budget de contexte, ne lançait que
+**son propre** spec — jamais `npm test` en entier. Le mode d'échec n'est pas le rouge : c'est le
+**silence** d'un rouge que personne ne regarde. Le risque symétrique et pire : le premier agent qui
+le rencontre est tenté d'assouplir la règle d'architecture plutôt que de comprendre pourquoi elle
+mord, ce qui viderait le gate de son sens au moment précis où il vient de naître.
+
+**Règle.** Tout gate neuf **d'architecture ou de portée** (pas seulement un gate de contenu/build)
+doit être **vu échouer une fois puis passer une fois** dans le lot même qui l'introduit — un
+contrôle positif ET négatif exercés au même moment que la création du gate, jamais après coup. Et
+tant qu'un gate transversal (qui peut être cassé par un lot qui ne le sait pas toucher) vient d'être
+posé, le fil principal (pas chaque agent isolé) lance la suite complète après **chaque** lot qui
+touche à la surface qu'il garde, jusqu'à ce que deux ou trois lots consécutifs le laissent vert sans
+intervention. Cousine de [[L-005]] (un run vert ne prouve pas qu'une vérification a tourné) et de
+[[L-019]] (un contrôle négatif seul ne prouve rien sans contrôle positif) sur un axe neuf : ici ce
+n'est ni l'ambiguïté d'un vert ni l'absence de contrôle positif qui est en cause, mais le **moment**
+où le contrôle positif doit être exercé — au lot de naissance du gate, pas plus tard.
+
+**Réfs.** `src/regles-architecture.spec.ts` ; E2-ST6 (Sommaire du cours & progression), composant
+`cours/sommaire`.
+
+---
+
+## L-051 · `ng test --include=<glob>` restreint les specs exécutées, jamais le TYPECHECK — un lot qui change une signature publique ne compile son propre spec qu'une fois les appelants du lot suivant compilent aussi
+
+**Symptôme.** Le compilateur Angular type-vérifie **tout le programme** avant de lancer quoi que ce
+soit, `--include` ne filtrant que la sélection des specs à *exécuter*. Un lot d'E2-ST6 qui changeait
+une signature publique (service de progression) restait donc rouge même en ciblant son propre spec
+via `--include`, tant que les appelants d'un lot **suivant**, pas encore écrits/alignés, ne
+compilaient pas. L'agent a d'abord conclu à tort que son propre lot était en faute.
+
+**Règle.** Sur ce dépôt, `ng test --include=<glob>` ne dispense jamais de la compilation de
+l'ensemble du programme — un lot qui change une signature publique consommée ailleurs peut rester
+rouge pour une raison hors de son périmètre. Parade validée : appliquer un correctif d'arité
+**temporaire** aux appelants non encore alignés, mesurer que le lot propre passe, puis
+`git checkout --` sur les fichiers hors périmètre — mais **seulement** sur des fichiers qu'on n'a
+soi-même pas modifiés, sous peine de répéter [[L-038]] (`git checkout --` sur un arbre sale efface
+le travail non commité). Corollaire mesuré au passage : `--include="…/dossier/**"` ramasse aussi les
+fichiers **source** comme suites de test (« No test suite found ») — viser nommément les
+`*.spec.ts`.
+
+**Réfs.** E2-ST6, lot du service de progression ; [[L-038]].
+
+---
+
+## L-052 · Isoler un spec Angular hors du builder officiel exige `--globals` — les globals de test viennent du builder, pas d'un `vitest.config.ts`
+
+**Symptôme.** `npx vitest run <spec>` seul échoue avec `describe is not defined` sur ce dépôt : il
+n'y a pas de `vitest.config.ts` à la racine, les globals (`describe`, `it`, `expect`…) sont fournis
+par le builder `@angular/build:unit-test` (`npm test`), pas par Vitest en configuration autonome.
+
+**Règle.** Pour isoler un spec Vitest en dehors de `npm test`/`ng test` sur ce dépôt, appeler
+`npx vitest run --globals <spec>` — jamais `npx vitest run <spec>` seul.
+
+**Réfs.** E2-ST6 (isolation d'un spec pendant un diagnostic).
+
+---
+
+## L-053 · Une fixture partagée entre specs est un contrat implicite — ajouter une donnée peut casser des assertions hors du périmètre du lot qui l'ajoute
+
+**Symptôme.** Ajouter une deuxième leçon à la fixture témoin (pour tester le sommaire multi-leçons
+d'E2-ST6) a cassé 4 assertions de `lecon.spec.ts`, hors périmètre du lot : elles posaient « la
+fixture ne porte qu'une leçon » comme prémisse implicite, jamais écrite. Même famille que [[L-035]]
+(une prémisse de test fausse rougit sur un produit sain) : ici la prémisse fausse ne tenait pas dans
+le spec qui a changé le produit, mais dans un spec **voisin**, silencieux sur sa propre dépendance à
+la forme de la fixture partagée.
+
+**Règle.** Avant d'enrichir une fixture partagée (ajouter une leçon, un module, une entrée), chercher
+qui d'autre la consomme (`Grep` sur son chemin) et vérifier si un compte, un ordre ou une unicité y
+est présumé sans être énoncé — traiter ça comme une extension de [[L-035]], pas comme un cas neuf :
+fusionné ici plutôt que dupliqué.
+
+**Réfs.** `lecon.spec.ts` ; fixture témoin (`tools/content-pipeline/__fixtures__/temoin/…`) ;
+E2-ST6 ; [[L-035]].
+
+---
+
+## L-054 · Une fixture de test qui alimente un champ soumis à une ÉNUMÉRATION de schéma avec une valeur HORS CONTRAT certifie l'inverse de la réalité
+
+**Symptôme.** `sommaire.spec.ts` alimentait son manifeste avec `niveau: 'debutant' |
+'intermediaire' | 'avance'` — trois valeurs **absentes** de l'énumération réelle du contrat
+(`maternelle|primaire|secondaire|cegep|universite`). Le test nommé « rend le niveau en français,
+jamais la valeur de schéma brute » passait **vert** sur des données qui ne peuvent jamais exister en
+production, pendant que le composant réel était **cassé sur 100 % des lignes réelles** — il aurait
+affiché la valeur brute `cegep` en vitrine dès la première leçon publiée. Le seul gate dédié à ce
+défaut certifiait donc l'**inverse** de la réalité, et aucun gate futur ne l'aurait attrapé : le
+champ est typé `string` dans `types.d.ts`, le typage ne pouvait rien dire. **Répété deux fois dans
+le même lot** — même valeur fantôme reprise dans `page-sommaire-securite-web.spec.ts`, copiée d'un
+spec à l'autre sans que la seconde occurrence ne soit questionnée.
+
+**Règle.** Une fixture de test qui alimente un champ soumis à une énumération de schéma doit
+employer une valeur **de cette énumération**, jamais une valeur plausible inventée — et cette
+contrainte se **vérifie** (comparer aux valeurs réelles du schéma/contrat au moment d'écrire la
+fixture, ou faire porter un type dérivé du schéma sur la fixture elle-même plutôt qu'un `string`
+libre), elle ne se relit pas à l'œil. Cousine de [[L-010]] (un test de mutation doit vérifier qu'il
+a frappé sa cible) et de [[L-012]] (un test qui importe la constante qu'il vérifie ne vérifie rien
+du contrat) : ici l'axe est un troisième — une fixture peut être **syntaxiquement valide et
+sémantiquement fausse**, hors du domaine de valeurs que le vrai contrat autorise, sans qu'aucun
+typage large (`string`) ne le signale.
+
+**Réfs.** `sommaire.spec.ts` ; `page-sommaire-securite-web.spec.ts` ; contrat de schéma (énumération
+`niveau`) ; E2-ST6.
+
+---
+
+## L-055 · `PLATFORM_ID: 'server'` NE FERME PLUS `afterNextRender` depuis Angular ≥ 19 — le drapeau consulté est le global `ngServerMode`, pas le jeton de plateforme
+
+**Symptôme.** Mesuré dans `core.mjs` : `afterNextRender` teste
+`if (typeof ngServerMode !== 'undefined' && ngServerMode) return NOOP_AFTER_RENDER_REF` — le
+drapeau réellement consulté est le **global `ngServerMode`**, plus l'injection de `PLATFORM_ID`. Un
+test qui pose `PLATFORM_ID: 'server'` en croyant simuler le contexte de prerender voit le
+`afterNextRender` du composant s'exécuter **quand même**, et rougit sur un composant sain — variante
+de [[L-035]] (une prémisse de test fausse rougit sur un produit sain), où la prémisse fausse porte
+ici sur le **mécanisme de simulation de plateforme** lui-même.
+
+**Règle.** Pour simuler réellement le contexte serveur/prerender face à `afterNextRender` sur ce
+dépôt (Angular 22), poser `globalThis.ngServerMode = true` avant le test et le **retirer en
+`finally`** — `PLATFORM_ID: 'server'` seul ne suffit plus depuis Angular ≥ 19. Rattaché au dossier
+[[L-033]] (hydratation/pré-hydratation d'Angular sur ce dépôt) : même terrain, piège voisin.
+
+**Réfs.** `core.mjs` (bibliothèque Angular, mesure directe du drapeau) ; E2-ST6 ; [[L-033]] ;
+[[L-035]].
+
+---
+
+**Addendum à [[L-047]] (2026-08-19, répétition constatée en E2-ST6).** La même faute de
+dimensionnement s'est reproduite **deux fois dans la même session**, mais sur un axe différent de
+son origine (E3-ST0, corpus de diaporamas) : ici les briefs étaient dimensionnés au **nombre de
+livrables** (« 3 composants + 3 specs ») plutôt qu'au **volume de source à lire**, et deux agents ont
+dépassé le plafond (**207k** et **234k**) — un lot « 3 composants + 3 specs » dont un seul spec fait
+1119 lignes n'est pas un petit lot. Contre-preuve dans la même session : dès que les briefs suivants
+ont porté des **plages de lignes exactes** au lieu du fichier entier, les agents sont retombés à
+**112k** et **117k**. Ne se fusionne pas en une leçon neuve — L-047 couvrait déjà le principe
+(volume de source, pas compte de livrables) ; cet addendum étend le constat au cas où la « source »
+lourde est un fichier du dépôt lui-même (un spec existant volumineux), pas un corpus externe.
+**⚠️ Seuils à jour, plus stricts depuis le 2026-08-19** (`.claude/rules/agent-context-budget.md`,
+`~/.claude/CLAUDE.md`) : **120k visé / 150k gros maximum / 200k exceptionnel à justifier** — les
+chiffres antérieurs (150k/200k/250k) cités ailleurs dans ce fichier sont désormais **périmés**, ne
+pas les reproduire dans une leçon neuve.
 
 ---
 

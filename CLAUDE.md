@@ -54,22 +54,23 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-19
 >
-> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
-> CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2, B, C — PR #18,
-> #19, #20, et la PR du lot C) **· E2-ST5 CLOSE ET FUSIONNÉE** (PR #22) **· E3-ST0 CLOSE ET
-> FUSIONNÉE** (PR #22) — **déploiement `main` VERT**.
-> **Le geste suivant : E2-ST6 — Sommaire du cours & progression.** 🔴 **Le plan v2 EST ÉCRIT, ne pas
-> le redériver** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST6, bloc
-> « 📐 Plan arrêté — 2026-08-19 (v2, après passe `devils-advocate`) ». **Le premier lot à lancer est
-> A1 (`ProgressionService` v2).** Trois décisions du propriétaire à ne pas rouvrir, détaillées dans
-> ce bloc : **D-1** brouillons masqués via un sélecteur unique `leconsPubliees` (sommaire, prev/next
-> ET prerender) · **D-2** `section` frontmatter OPTIONNEL (tout-ou-rien par sujet) · **D-3** AUCUNE
-> route neuve (ni `/cours`, ni `/cours/php` — généricité prouvée par test, pas par route). Le
-> périmètre reste celui décidé le 2026-08-19 : le propriétaire a un second cours publié (PHP, épic
-> **E7**, §E7 du backlog) et un bloc D au cours de sécurité — la phase 1 passe de 13 à 27 modules ;
-> la progression est indexée **par cours** (clef plate `sujet/slug`), pas à plat globalement.
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées, la 3ᵉ FERMÉE
+> à E2-ST6) · E2-ST3 CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2,
+> B, C — PR #18, #19, #20, et la PR du lot C) **· E2-ST5 CLOSE ET FUSIONNÉE** (PR #22) **· E3-ST0
+> CLOSE ET FUSIONNÉE** (PR #22) **· E2-ST6 CLOSE** (sommaire du cours + progression, PR à surveiller
+> — voir §E2-ST6 du backlog) — **E2 est donc CLOS EN ENTIER**.
+> **Le geste suivant : E3 bloc A — la première leçon publiée**, précédé du **lot de dette sécurité
+> pré-E3-ST1** (S-003, garde-fou `style='…'`, CSP servie vérifiée structurellement, portée du sceau
+> d'artéfact, épinglage de `Azure/static-web-apps-deploy@v1`) et de la **dette d'intermittence e2e**
+> (trois specs, détail juste en dessous). Ordre révisé (D-3 bascule 2026-08-17) : E2 → E3-ST0 → E3
+> bloc A → E6 → E3 blocs B/C → E4 → E5.
+> **Chiffres à la clôture d'E2-ST6 (2026-08-19)** : G-test **744/36**, 0 échec, G-e2e **50 passés/1
+> sauté** (fixture) et 13 passés/38 sautés (production), G-axe 258 vérif./0 violation, G-build
+> production 10/1 hachages de style/script (était 9), fixture 14/1 (était 13), `npm audit --omit=dev`
+> 0. Détail complet, dette neuve et leçons (L-050 à L-055, S-019) : backlog §E2-ST6, bloc « ✅
+> CLÔTURE — 2026-08-19 ».
 >
-> **🔴 DEUX SPECS E2E DE LA SIMULATION SONT INTERMITTENTS — à savoir AVANT de lire un G-e2e rouge.**
+> **🔴 TROIS SPECS E2E SONT INTERMITTENTS — à savoir AVANT de lire un G-e2e rouge.**
 > Constaté le 2026-08-19 sur la PR #25 (run `32282161844`) :
 > `e2e/parcours-clavier-simulation.spec.ts:210` et `e2e/simulation-mecanique.spec.ts:298` ont échoué
 > sur le **même symptôme — le repli n'a pas eu lieu** (`etat.courante` = 1 au lieu de 4 ; étapes
@@ -80,6 +81,10 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > à croire** — est que l'absence d'attributs `ngh` prouve l'hydratation des **vues**, pas que le
 > comportement d'un composant **paresseux** est armé (famille **L-033**). Détail, preuve et parade
 > pressentie : backlog §E2-ST5, « DETTE NEUVE … specs e2e de la simulation ».
+> **Constat neuf à la clôture d'E2-ST6** : `e2e/quiz-pre-hydratation.spec.ts:234` a lui aussi échoué
+> une fois en suite complète — mais sur un symptôme **différent** (une requête HTTP en échec,
+> `document.ok()` faux, pas un comportement de composant), puis passé seul et en suite complète au
+> run suivant. Même dossier de dette (backlog §E2-ST6, « ✅ CLÔTURE », point 3).
 > **Ce que ça coûte** : G-e2e peut rougir sur une PR saine — donc la tentation de fusionner au rouge
 > « parce que c'est le flaky ». C'est ainsi qu'un gate meurt : la dette se paie avant E3-ST1.
 >

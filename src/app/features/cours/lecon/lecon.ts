@@ -7,8 +7,14 @@
 // Elle ne charge RIEN et ne parse RIEN — le Markdown est devenu du HTML au build,
 // et le rendu des blocs appartient à `RenduBlocs`.
 //
-// ELLE LIT `route.data` EN FLUX, PAS `route.snapshot`. Différence avec
-// `PageAVenir`, et elle est structurelle : les liens « leçon précédente /
+// LA SEULE CHOSE QU'ELLE ÉCRIT HORS D'ELLE-MÊME EST L'AVANCEMENT (E2-ST6, lot A2) :
+// `ProgressionService.marquerLue(sujet, slug)`, « cette leçon a été ouverte ». Le
+// couple vient du FRONTMATTER compilé, jamais de l'URL, et l'appel est gardé par
+// l'hydratation — le pourquoi de l'emplacement est écrit au constructeur.
+//
+// ELLE LIT `route.data` EN FLUX, PAS `route.snapshot`, et la différence est
+// structurelle — un `snapshot` suffirait sur une page montée par un chemin
+// littéral, jamais ici : les liens « leçon précédente /
 // suivante » mènent d'une leçon à l'autre, c'est-à-dire à la MÊME configuration de
 // route avec un autre paramètre. Angular réutilise alors l'instance du composant au
 // lieu de la recréer : un `snapshot` lu une fois resterait figé sur la leçon
@@ -42,12 +48,27 @@
 // (`.claude/rules/contenu-pedagogique.md` §3).
 // =============================================================================
 
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Meta } from '@angular/platform-browser';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
-import { MANIFESTE_LECONS, NIVEAUX, lireLeconCompilee } from '../contenu-compile';
+import { ProgressionService } from '../../../core/progression/progression';
+// Alias : le composant expose déjà un signal `niveauLisible` au gabarit — deux
+// noms identiques dans la même portée se liraient mal, sans être ambigus.
+import {
+  MANIFESTE_LECONS,
+  lireLeconCompilee,
+  niveauLisible as libelleDuNiveau,
+} from '../contenu-compile';
 import {
   construireSommaire,
   lienVersLecon,
@@ -62,26 +83,6 @@ import {
   cumulerFigures,
   type DecalageFigures,
 } from './rendu-blocs/rendu-blocs';
-
-/**
- * Les niveaux du frontmatter, rendus en français lisible.
- *
- * Le TYPE est `Record<Niveau, string>`, pas `Record<string, string>` : ajouter un
- * niveau au contrat sans lui écrire d'étiquette française fait échouer la
- * compilation, plutôt que d'afficher un identifiant technique en page. Et la
- * recherche passe par `NIVEAUX` (liste nominative) plutôt que par une indexation
- * directe du dictionnaire : `NIVEAUX_LISIBLES['constructor']` rendrait la fonction
- * héritée d'`Object.prototype`, qu'un `??` ne rattraperait pas — même piège que
- * `resoudre-lecon.ts`. `lireLeconCompilee` refuse déjà un niveau hors liste ; ceci
- * en est la conséquence, pas le doublon.
- */
-const NIVEAUX_LISIBLES: Record<(typeof NIVEAUX)[number], string> = {
-  maternelle: 'Maternelle',
-  primaire: 'Primaire',
-  secondaire: 'Secondaire',
-  cegep: 'Cégep',
-  universite: 'Université',
-};
 
 /** Le nom du site, tel qu'il apparaît dans les métadonnées OpenGraph. */
 const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
@@ -205,6 +206,13 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             de simulation.json), et c'est l'ancre — donc RenduBlocs — qui décide.
             La liaison, elle, reste OBLIGATOIRE : l'oublier ne compile pas.
 
+            LE SUJET DESCEND AVEC LE QUIZ (E2-ST6, lot A2), et il vient du
+            FRONTMATTER — jamais de l'URL, conformément à la note 🔴 de l'en-tête
+            de ce fichier. La route est cours/securite-web/:slug — le sujet n'y
+            est même pas un paramètre, il est en dur dans le chemin. Le quiz en a
+            besoin parce que la progression est indexée par le couple
+            (sujet, slug) et que QuizCompile ne porte que le slug.
+
             LE DÉCALAGE DES FIGURES DESCEND AVEC LES BLOCS (E2-ST4, lot C1). Un
             RenduBlocs par section, donc autant de compteurs qui repartaient de 1 :
             « Code n°1 » quatre fois dans la leçon-témoin, mesuré. La page est le
@@ -214,6 +222,7 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
           <app-rendu-blocs
             [blocs]="section.blocs"
             [quiz]="lecon().quiz"
+            [sujet]="frontmatter().sujet"
             [simulation]="lecon().simulation"
             [decalage]="decalageDeSection(rangSection)"
           />
@@ -252,6 +261,20 @@ export class Lecon {
   private readonly route = inject(ActivatedRoute);
   private readonly metadonnees = inject(Meta);
   private readonly manifeste = inject(MANIFESTE_LECONS);
+  private readonly progression = inject(ProgressionService);
+
+  /**
+   * `false` jusqu'à ce que le premier rendu CLIENT ait eu lieu — la frontière que
+   * `progression.ts` nomme : « ce service EXPOSE l'état, le CONSOMMATEUR gate son
+   * écriture comme son affichage ».
+   *
+   * Ce n'est pas la garde de plateforme (le service en a déjà une, et `afterNextRender`
+   * ne court jamais au prerender) : c'est la garde d'HYDRATATION. Marquer la leçon lue
+   * pendant que le DOM prerendu est encore en train d'être adopté écrirait dans
+   * `localStorage` au milieu de l'hydratation, sur une page dont le HTML est le MÊME
+   * fichier pour tout le monde (L-033).
+   */
+  private readonly rendueAuClient = signal(false);
 
   /**
    * Les `data` de la route, EN FLUX. `requireSync` est légitime : `ActivatedRoute`
@@ -301,14 +324,16 @@ export class Lecon {
     construireSommaire(this.sections()),
   );
 
-  /** Les voisines, cherchées avec le slug DU FRONTMATTER — jamais celui de l'URL. */
-  readonly voisines = computed<Voisines>(() => voisinesDe(this.manifeste, this.frontmatter().slug));
+  /**
+   * Les voisines, cherchées avec le sujet ET le slug DU FRONTMATTER — jamais ceux de
+   * l'URL. Le sujet borne le parcours à SON cours : sans lui, la « leçon suivante »
+   * du dernier module déborderait sur le cours voisin, sous une URL qui répond 404.
+   */
+  readonly voisines = computed<Voisines>(() =>
+    voisinesDe(this.manifeste, this.frontmatter().sujet, this.frontmatter().slug),
+  );
 
-  readonly niveauLisible = computed(() => {
-    const niveau = this.frontmatter().niveau;
-    const connu = NIVEAUX.find((candidat) => candidat === niveau);
-    return connu === undefined ? niveau : NIVEAUX_LISIBLES[connu];
-  });
+  readonly niveauLisible = computed(() => libelleDuNiveau(this.frontmatter().niveau));
 
   /**
    * La description partagée par la balise `description` et par OpenGraph. Elle est
@@ -335,7 +360,7 @@ export class Lecon {
     // `updateTag` REMPLACE la balise existante : passer d'une leçon à l'autre met à
     // jour la description, il ne l'empile pas.
     effect(() => {
-      const { titre, slug } = this.frontmatter();
+      const { titre, sujet, slug } = this.frontmatter();
       const description = this.description();
 
       this.metadonnees.updateTag({ name: 'description', content: description });
@@ -344,9 +369,38 @@ export class Lecon {
       this.metadonnees.updateTag({ property: 'og:site_name', content: NOM_DU_SITE });
       this.metadonnees.updateTag({ property: 'og:title', content: titre });
       this.metadonnees.updateTag({ property: 'og:description', content: description });
-      // 🔴 Le slug vient du FRONTMATTER, jamais de l'URL : une `og:url` bâtie sur le
-      // segment reçu ferait publier au site l'adresse qu'un tiers a forgée.
-      this.metadonnees.updateTag({ property: 'og:url', content: urlDeLecon(slug) });
+      // 🔴 Le sujet et le slug viennent du FRONTMATTER, jamais de l'URL : une
+      // `og:url` bâtie sur les segments reçus ferait publier au site l'adresse
+      // qu'un tiers a forgée.
+      this.metadonnees.updateTag({ property: 'og:url', content: urlDeLecon(sujet, slug) });
+    });
+
+    // « La page de leçon a été ouverte » — E2-ST6, lot A2. Premier et unique appelant
+    // de `marquerLue`.
+    //
+    // 🔴 POURQUOI UN `effect` GARDÉ PAR `afterNextRender`, ET NON L'UN DES DEUX SEUL.
+    // · Pas dans un `computed` : un calcul ne doit avoir aucun effet de bord, et un
+    //   `computed` que personne ne consomme n'est jamais évalué (L-018) — la lecture
+    //   ne serait enregistrée qu'au hasard des consommateurs.
+    // · Pas dans le corps du constructeur : il s'exécute AUSSI au prerender, et il
+    //   s'exécute AVANT l'hydratation au navigateur (L-033). La garde de plateforme du
+    //   service empêcherait l'écriture, pas l'incohérence de moment.
+    // · Pas dans `afterNextRender` SEUL : ce composant est RÉUTILISÉ d'une leçon à
+    //   l'autre (voir l'en-tête — même configuration de route, autre paramètre), et
+    //   `afterNextRender` ne court qu'une fois par instance. La leçon suivante ne
+    //   serait jamais marquée lue. C'est très exactement le défaut que la lecture de
+    //   `route.data` EN FLUX existe pour éviter, un cran plus loin.
+    // L'`effect` suit donc le frontmatter, et `rendueAuClient` le tient fermé
+    // jusqu'au premier rendu client. `marquerLue` est idempotent : rouvrir une leçon
+    // ne dégrade aucun score, et un effet qui se rejoue ne coûte rien.
+    afterNextRender(() => {
+      this.rendueAuClient.set(true);
+    });
+
+    effect(() => {
+      if (!this.rendueAuClient()) return;
+      const { sujet, slug } = this.frontmatter();
+      this.progression.marquerLue(sujet, slug);
     });
   }
 
@@ -370,8 +424,14 @@ export class Lecon {
     return decalage;
   }
 
-  /** Les commandes de `routerLink` vers une leçon voisine. */
+  /**
+   * Les commandes de `routerLink` vers une leçon voisine.
+   *
+   * Le sujet vient du frontmatter de la leçon AFFICHÉE, et c'est correct : `voisinesDe`
+   * ne rend que des voisines du même cours, donc un lien construit ainsi ne peut pas
+   * désigner l'URL d'un autre cours.
+   */
   lienVers(slug: string): string[] {
-    return lienVersLecon(slug);
+    return lienVersLecon(this.frontmatter().sujet, slug);
   }
 }
