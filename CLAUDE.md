@@ -52,14 +52,13 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
-> ## ⏭️ REPRISE — état au 2026-08-18
+> ## ⏭️ REPRISE — état au 2026-08-19
 >
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées) · E2-ST3
-> CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 lots A1, A2 et B CLOS** (PR #18, #19, #20).
-> **Le geste suivant : E2-ST4 lot C** — vérification jetable (G-axe, G-e2e clavier sous CSP réelle,
-> `config:swa`) :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST4, tableau de découpe
-> (lots **A1 ✅, A2 ✅, B ✅, C**).
+> CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2, B, C — PR #18,
+> #19, #20, et la PR du lot C).
+> **Le geste suivant : E2-ST5 — `SimulationComponent`** :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E2-ST5.
 >
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
@@ -97,33 +96,31 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > Le delta réel : **(a)** ancrer les annotations à la ligne, **(b)** le contrôle de portée manquant,
 > **(c)** les 2 colonnes en large.
 >
-> ✅ **LOT A1 CLOS.** Le contrat est passé de `ligne: number` à **`lignes: number[]`** — le vrai
-> défaut trouvé était `lignes="1,,2"` (jeton VIDE légal par coercition, `Number('')` = `0` = « bloc
-> entier »), pas le plafond manquant qu'on cherchait. `docs/contenu/pipeline-contenu.md` documentait
-> une syntaxe **morte** (`langageDe` ignorait tout sauf le premier mot) — réécrit.
-> ✅ **LOT A2 CLOS.** Sonde mesurée : le sanitizer d'Angular laisse passer `class` mais **efface
-> `id` et `data-*`** (3 → 0, comme le SVG) — donc l'ancre de ligne est `class="ancre-ligne-N"`,
-> jamais un `data-*`. Deux récidives S-001/S-003/S-009 (**S-014**) et L-036 corrigées au passage.
->
-> ✅ **LOT B CLOS — deux décisions du propriétaire, à ne pas rouvrir.** **(1)** Le filet
-> `.ligne-annotee` est **retiré du périmètre**, remplacé par une **numérotation CSS de toutes les
-> lignes** (`_code.scss`) : un filet disparaît en `forced-colors: active` et ne peut donc pas porter
-> l'information seul. **(2)** Syntaxe d'auteur à **forme unique** : `{lignes="…"}` obligatoire en
-> tête d'un paragraphe-note, l'ancienne écriture échoue en se nommant plutôt que de se dégrader.
-> **Trois constats de revue 🔴, tous corrigés dans le lot** : (a) la dette du comptage de lignes
-> avait **changé de place**, pas disparu — un 4ᵉ appelant (`quiz.ts`) comptait encore à la main,
-> corrigé + verrouillé par `src/compter-lignes-parite.spec.ts` (**L-037**) ; (b) le garde-fou « zéro
-> style en ligne » cherchait un **motif** dans le HTML — donc dans le **texte du code de l'auteur** —
-> et aurait refusé un exemple PHP légitime citant `style="…"` ; 5ᵉ récidive de la famille
-> S-001/S-003/S-009/S-014, axe neuf : le **sur-refus** (**S-015**, jsdom) ; (c) le lot a
-> **lui-même créé** un `tabindex` mort par bloc de code en déplaçant le défilement dans le gabarit
-> (8 → 16 arrêts), invisible à axe (règles désactivées) — corrigé par transformateur Shiki, mesuré
-> 16 → 8.
-> **Dette neuve → E6** : `--couleur-code-fond` vient des thèmes github (fichier gitignoré), **hors
-> du gate de contraste** dès aujourd'hui. **→ lot C** : arrêts clavier en Playwright (seul filet
-> réel) et unicité inter-sections des noms de défileur.
-> **Chiffres (2026-08-18)** : G-test **566/30**, G-e2e 21/0 sauté (fixture), G-axe 344 vérif./0
-> violation, G-build 12/1 hachages (fixture) inchangés, `npm audit --omit=dev` 0.
+> ✅ **E2-ST4 CLOSE EN ENTIER (lots A1, A2, B, C).** Lots A1/A2/B : contrat `lignes: number[]`
+> (le vrai défaut était `lignes="1,,2"`, jeton VIDE légal par coercition) ; ancre de ligne en
+> `class="ancre-ligne-N"` (le sanitizer d'Angular efface `id`/`data-*`, S-014) ; numérotation CSS de
+> toutes les lignes plutôt qu'un filet `.ligne-annotee` (invisible en `forced-colors: active`) ;
+> syntaxe d'auteur à forme unique `{lignes="…"}`.
+> **Lot C — décision du propriétaire, à ne pas rouvrir : numérotation des figures de code CONTINUE
+> sur toute la page** (compteurs `code`/`paires` distincts mais non réinitialisés par section).
+> Trois constats à retenir de toutes les revues du sous-lot : **(1)** une mutation survivait aux 573
+> tests — le compteur `paires` n'était jamais exercé à travers la récursion (**L-039**) ; **(2)** un
+> test vert **par compensation** — son commentaire l'annonçait comme filet de la récursion, la
+> mutation correspondante le laissait vert parce que le harnais travaillait à un décalage neutre
+> (0) où la descente compense exactement la propagation absente ; **(3)** ⚠️ **la CSP servie bloque
+> une écriture CSSOM `style` SANS lever d'événement `securitypolicyviolation`** — l'attribut se
+> relit dans le DOM, `getComputedStyle` ne bouge pas : un contrôle positif e2e bâti sur l'événement
+> serait un no-op silencieux accusant le produit (**L-041**/**S-016**, à relire avant tout nouveau
+> spec e2e qui teste un refus de style).
+> **Dettes neuves → E6** : `--couleur-code-fond` vient des thèmes github (fichier gitignoré), hors
+> du gate de contraste ; huit `tabindex="0"` posés par le lot B sont **sans emploi à 1280 px**
+> (aucun défileur ne déborde à cette largeur — bruit clavier, pas un échec WCAG). **Dette neuve →
+> sécurité** : le contrôle positif CSP (`e2e/aides/sonde-csp.ts`) ne couvre que `script-src` ;
+> `style-src` (la directive la plus mouvante) n'a **aucun** contrôle positif prouvant qu'il bloque
+> réellement (voir **S-016**).
+> **Chiffres (2026-08-19)** : G-test **576/30**, G-e2e 29/0 sauté (fixture) et 12 passés/17 sautés
+> (production), G-axe 344 vérif./0 violation, G-build 12/1 hachages (fixture) inchangés,
+> `npm audit --omit=dev` 0.
 >
 > ---
 >

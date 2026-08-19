@@ -847,6 +847,20 @@ gardée.
 **Réfs.** `e2e/aides/indicateur-focus.ts`, `sonde-csp.ts`, `hydratation.ts` ; `tsconfig.e2e.json` ;
 branche `feat/e2-st3-lot-e` ; cousines [[L-014]], [[L-016]], [[L-020]].
 
+**Addendum (E2-ST4 lot C) — l'épinglage de typage ne couvre que l'axe TYPAGE, pas l'axe
+COMPORTEMENT.** `indicateur-focus.ts` a reçu une tolérance d'un pixel (justifiée). Mais sa fonction
+`dansLaFenetre` n'était lue qu'en `.toBe(true)` par ses trois appelants : rien ne prouvait qu'elle
+savait encore répondre `false`. Seul un des quatre modules de `e2e/aides/` était couvert sur cet
+axe — `sonde-csp.ts` exige par écrit un contrôle positif de ses appelants, les trois autres non.
+**Règle étendue** : un module mutualisé qui se desserre (tolérance, seuil, marge) doit livrer, dans
+le **même diff**, un contrôle positif prouvant qu'il refuse encore un cas hors tolérance — l'épinglage
+au programme de typage ([[L-014]]/[[L-020]]) protège contre un défaut de **signature**, pas contre un
+module qui compile juste et ne sait plus jamais dire non. Réflexe à ajouter à la question de L-034 :
+« ce module peut-il encore répondre `false`/refuser, et un appelant le vérifie-t-il ? »
+
+**Réfs addendum.** `e2e/aides/indicateur-focus.ts` (`dansLaFenetre`) ; `e2e/aides/sonde-csp.ts`
+(patron de référence) ; branche `feat/e2-st4-lot-c`.
+
 ---
 
 ## L-035 · Un chiffre mesuré dans un périmètre ne se réemploie pas dans un autre périmètre sans être remesuré — et un test qui exige une sortie doit d'abord vérifier que l'entrée choisie la PRODUIT
@@ -869,6 +883,17 @@ comportement. Cousine de [[L-019]] (contrôle positif) sur un axe amont : ici c'
 test**, pas l'instrument de mesure, qui est fausse.
 
 **Réfs.** E2-ST3 lot E-c1 ; `e2e/parcours-clavier-quiz.spec.ts` ; `e2e/quiz-pre-hydratation.spec.ts`.
+
+**Addendum (E2-ST4 lot C).** Même famille, deux variantes neuves sur U+00A0. (1) Le libellé rendu
+d'un bloc de code (« Code n°1 — bash ») contient U+00A0 entre le numéro et le tiret ; une espace
+**ordinaire** tapée dans l'assertion d'un spec fait rougir un produit parfaitement sain — l'espace
+attendue n'est PAS celle qu'on tape par réflexe au clavier. (2) Un `node -e` employé pour **écrire**
+un fichier de spec a converti les échappements ` ` en **vrais caractères** U+00A0 dans le
+fichier sur disque — ce qu'ESLint `no-irregular-whitespace` refuse ensuite en lecture, sur un
+fichier qu'on croyait porter un échappement inoffensif. Corollaire : toute assertion qui touche un
+libellé produit doit **copier** l'U+00A0 depuis sa source (ou l'écrire en ` ` dans un littéral,
+jamais recopié tel quel par un outil qui l'interprète), et un script générateur de fichier source
+doit être relu pour ce qu'il écrit **au disque**, pas pour ce qu'il affiche à l'écran.
 
 ---
 
@@ -947,6 +972,77 @@ propre sur le fichier visé, ne jamais `git checkout -- <fichier>` — copier le
 un arbre sale ne distingue pas « ce que je viens de muter » de « ce que je n'ai pas encore commité ».
 
 **Réfs.** branche `feat/e2-st4-lot-b`, correctifs de revue du lot B.
+
+---
+
+## L-039 · Un test de mutation à une valeur NEUTRE mesure l'identité, pas le mécanisme qu'il prétend couvrir — et un commentaire `🔴` peut nommer le mauvais défaut voisin
+
+**Symptôme.** Un test de E2-ST4 lot C portait un commentaire `🔴` l'annonçant comme le filet de la
+**propagation** d'un décalage de numérotation. La mutation correspondante restait **verte** : le test
+fermait en réalité la **descente**, pas la **propagation**. Cause exacte : le harnais travaillait à
+un décalage **neutre** (0), la seule valeur où la descente compense exactement l'absence de
+propagation — le test mesurait donc une tautologie sans le savoir. Corollaire trouvé dans le même
+lot : deux compteurs séparés (`lignes`, `paires`) portaient chacun leur propre cas limite ; le jumeau
+non testé laissait vivre une mutation qui aurait renuméroté les exemples d'une leçon publiée.
+
+**Règle.** (1) Vérifier qu'une mutation rougit **ne suffit pas** — il faut vérifier **quelle**
+mutation précise elle attrape, en confrontant le commentaire `🔴` au mécanisme réellement frappé
+(prolongement direct de [[L-010]] sur un axe neuf : la mutation a bien frappé sa cible, mais la
+cible n'était pas celle annoncée). (2) Un test qui prétend couvrir une **propagation** doit travailler
+à une valeur **non neutre** — à la valeur neutre, un mécanisme absent et un mécanisme présent
+produisent la même sortie. (3) « Deux compteurs séparés » veut dire « deux fois le même cas limite à
+écrire », jamais un seul test partagé par accident.
+
+**Réfs.** E2-ST4 lot C ; compteurs `lignes`/`paires` de `compter-lignes.mjs` (cf. [[L-037]]) ;
+revue `code-reviewer`, branche `feat/e2-st4-lot-c`.
+
+---
+
+## L-040 · Le titre d'un test est lu par la CI, l'en-tête ne l'est par personne — un titre qui affirme un ABSOLU ne peut pas se contenter d'une condition structurelle
+
+**Symptôme.** Un test s'appelait « AUCUN arrêt mort dans un bloc de code », mais définissait « mort »
+**structurellement** (absence de contenu défilable au sens du DOM à une largeur de test) — par
+construction, il ne pouvait pas voir un arrêt mort **fonctionnel**. À 1280 px, la largeur réellement
+servie, huit régions portaient un `tabindex="0"` sans rien à faire défiler : mort au sens fonctionnel,
+invisible au test qui se croyait exhaustif sur la base de son propre titre.
+
+**Règle.** Un titre de test qui affirme un absolu (« AUCUN », « TOUJOURS », « JAMAIS ») doit soit
+couvrir réellement cet absolu, soit se retitrer sur la condition qu'il vérifie vraiment — jamais
+l'inverse (garder le titre large et espérer qu'un commentaire nuance, cf. [[L-016]]/[[L-008]]).
+Correctif retenu, à reproduire : retitrer sur la revendication réelle **et** faire *imprimer* le fait
+mesuré au journal de test (répond à [[L-005]] : un vert n'est plus ambigu si le journal porte le
+chiffre), plutôt que de le figer dans un commentaire que personne ne relit. Cousine de [[L-018]] (une
+assertion vérifie ce qu'elle vérifie, pas ce que son nom suggère) sur l'axe **titre** plutôt que
+l'axe **portée**.
+
+**Réfs.** E2-ST4 lot C ; test des arrêts clavier des défileurs de bloc de code, largeur 1280 px ;
+branche `feat/e2-st4-lot-c`.
+
+---
+
+## L-041 · Sous la CSP servie, une écriture CSSOM de `style` est acceptée dans le DOM mais jamais APPLIQUÉE — sans violation, sans message console. Dans un spec de ce dépôt, on ne déplace RIEN par le style
+
+**Symptôme.** Un brief proposait de pousser un élément hors de la fenêtre visible par CSSOM
+(`el.style.top = '-200px'`), en supposant qu'une écriture CSSOM échappe à `style-src`. **C'est faux,
+et mesuré** : sous la CSP servie par ce dépôt, Chromium **accepte** l'écriture dans l'attribut
+`style` (il se relit intact au DOM) et **refuse de l'appliquer** — `getComputedStyle` rend la valeur
+d'origine, y compris sur `<body>`, y compris via `setProperty(…, 'important')` — **sans** émettre
+`securitypolicyviolation` ni le moindre message de console. Un test bâti sur cette hypothèse aurait
+été un **no-op silencieux accusant le produit** d'un défaut qu'il n'a pas.
+
+**Règle.** Dans un spec de ce dépôt, **ne jamais déplacer un élément par une écriture de style**
+(CSSOM ou attribut) pour simuler un état — la CSP stricte rend l'effet invisible sans le signaler,
+ce qui est le pire des deux mondes pour un test (ni erreur, ni effet). Utiliser le **défilement**
+réel (`scrollIntoView`, `scrollTo`) pour chasser un élément hors champ, qui est de toute façon le
+vrai mode d'échec WCAG 2.4.11 visé ici. Cousine de [[L-019]] (un contrôle négatif seul ne prouve rien
+sans contrôle positif) sur un axe neuf : ici l'absence de violation ne prouve même pas que
+l'instrument a tenté quelque chose de mesurable.
+
+**Réfs.** E2-ST4 lot C ; garde-fous CSP `style-src` (`.claude/rules/security.md` §1) ; branche
+`feat/e2-st4-lot-c`. **⚠️ Signalé au `security-mentor`** : ce comportement de la CSP (écriture CSSOM
+acceptée en DOM, jamais appliquée, sans violation rapportée) est un fait exploitable/déroutant sur
+l'axe sécurité autant que sur l'axe test — à évaluer pour une entrée `S-0xx` dans
+`security-lessons.md`, cette leçon-ci ne couvrant que l'angle méthode de test.
 
 ---
 
