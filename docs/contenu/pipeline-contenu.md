@@ -303,7 +303,7 @@ composant Angular sait rendre (acteurs, panneaux, flèche active).
   "lecon": "xss",
   "titre": "Déroulé d'une attaque XSS stockée",
   "acteurs": [                             // les colonnes/boîtes du rendu
-    { "id": "attaquant", "libelle": "Attaquant", "type": "personne" },
+    { "id": "attaquant", "libelle": "Attaquant", "type": "attaquant" },
     { "id": "serveur",   "libelle": "Serveur web", "type": "serveur" },
     { "id": "base",      "libelle": "Base de données", "type": "stockage" },
     { "id": "victime",   "libelle": "Victime", "type": "personne" }
@@ -326,6 +326,71 @@ composant Angular sait rendre (acteurs, panneaux, flèche active).
   ]
 }
 ```
+
+### Ce que le pipeline en émet
+
+Comme le quiz, la simulation voyage **dans la leçon** : elle sort en `LeconCompilee.simulation`,
+dans le même `lecons/<slug>.json` que le corps, et s'affiche à l'ancre `[[simulation]]`. Pas de
+fichier séparé, pas d'import paresseux dédié.
+
+Elle est passée **fidèlement** : rien n'est ajouté (aucun `htmlColore` — le `code` d'un panneau se
+rend en **texte brut monospace**, par interpolation, comme le rendu `comparaison` ; Shiki tourne au
+build et ne part jamais au navigateur, la CSP du site étant à hachages) et rien n'est retiré. Le compilateur
+**revalide** `simulation.json` contre le même schéma et revérifie que `simulation.lecon` égale le
+`slug` du frontmatter — il s'exécute aussi hors de `npm run content:build`, là où `valider.mjs` n'a
+pas tourné.
+
+⚠️ **Le champ est OPTIONNEL** (`simulation?`), à la différence de `quiz` : une leçon qui ne décrit
+aucun flux n'a pas de `simulation.json`, et le contrat n'invente pas de simulation vide.
+
+### 🔴 Deux motifs qui font ÉCHOUER LE BUILD s'ils atteignent le HTML prerendu
+
+`tools/deploiement/generer-config-swa.mjs` balaie les pages produites et refuse **deux** motifs —
+` style="` et ` on<événement>="` (`onerror=`, `onclick=`, `onload=`…). L'interpolation d'Angular
+n'échappe que `&`, `<` et `>` : **les guillemets droits et le `=` arrivent intacts** dans la sortie.
+Or l'exemple canonique d'une simulation est une **attaque XSS** — c'est-à-dire précisément le texte
+qui contient ces motifs. Une `narration`, un `fleche.libelle`, un `panneaux.texte` ou un
+`panneaux.code` portant `<img src=x onerror="alert(1)">` ou `<div style="…">` fera **échouer
+`npm run build` sur un message qui accuse la CSP**, au moment exact de publier la leçon XSS. Le
+garde-fou est *fail-closed*, donc sain : on ne l'assouplit pas sur un site qui enseigne la CSP.
+
+**La parade est éditoriale, et seulement pour la prose** (`narration`, `titre`, `libelle`,
+`panneaux.texte`) : guillemets **typographiques** (`onerror=«…»`), entité (`onerror=&quot;…&quot;`),
+ou reformulation sans guillemet autour de la valeur. **Elle ne s'applique PAS à `panneaux.code`** —
+on ne met pas de guillemets typographiques dans du code destiné à être lu et copié : un panneau qui
+doit montrer un gestionnaire en ligne entre guillemets droits se rend en **bloc `comparaison` de la
+leçon**, pas dans la simulation. Voir `.claude/lessons/security-lessons.md` **S-011** et **S-015**.
+
+### La règle « ancre ⇔ fichier »
+
+L'optionalité porte sur la **paire**, jamais sur l'une de ses moitiés. `compilerLecon` fait
+**échouer le build** dès que les deux ne s'accordent pas :
+
+| `simulation.json` | ancres `[[simulation]]` dans le corps | verdict |
+|---|---|---|
+| absent | 0 | ✅ leçon sans simulation |
+| absent | ≥ 1 | ❌ ancre orpheline — un trou dans la page |
+| présent | 0 | ❌ donnée livrée, affichée nulle part |
+| présent | 1 | ✅ |
+| présent | ≥ 2 | ❌ simulation rendue plusieurs fois, `id` d'étape dupliqués |
+
+Le comptage est **récursif** : une ancre écrite dans un conteneur `::: note` compte comme les
+autres. Le contrôle vit dans `compilerLecon` parce que c'est la seule fonction qui voit à la fois le
+**dossier** (présence du fichier) et l'**AST** (compte exact des ancres) — `valider.mjs` ne lit que
+la source, et y chercher un motif serait le patron de liste noire que
+[`.claude/rules/security.md`](../../.claude/rules/security.md) §4 interdit. Il est **redit** à la
+lecture de l'artéfact par `lireLeconCompilee`
+(`src/app/features/cours/contenu-compile.ts`) : un invariant qui n'existe qu'au compilateur n'est
+pas tenu à la lecture d'un JSON produit par une autre version du pipeline.
+
+### Les `id` de document de la simulation
+
+La région porte l'`id` `simulation` (`ID_SIMULATION`) et l'étape `numero: N` est rendue sous
+`simulation-etape-N` (`PREFIXE_ID_ETAPE`) — les deux constantes sont exportées par
+`src/app/features/cours/contenu-compile.ts`, jamais recopiées en chaînes dans un composant. Elles
+partagent l'espace de noms du document avec les **ancres de section** que l'auteur choisit
+librement : `lireLeconCompilee` **refuse nominativement** une leçon dont une ancre vaudrait
+`simulation` ou `simulation-etape-<n>` alors qu'une simulation est présente.
 
 ## Correspondance modules ↔ fiches KB (cours « Sécurité des applications web »)
 

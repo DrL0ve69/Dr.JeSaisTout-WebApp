@@ -104,6 +104,8 @@ interface LeconLue {
   frontmatter: Record<string, unknown>;
   sections: SectionLue[];
   quiz: QuizLu;
+  /** Optionnel au contrat (E2-ST5, lot a) — lu en forme LARGE, pour la raison ci-dessus. */
+  simulation?: Record<string, unknown>;
 }
 
 /** Un dossier jetable par exécution : les sorties générées ne doivent jamais toucher `src/`. */
@@ -278,11 +280,15 @@ function appelerVerifierZeroStyle(html: string): { statut: number; sortie: strin
  * @param nom sous-dossier du bac à sable — un par cas, pour qu'aucun n'hérite du voisin
  * @param corps transforme le `lecon.md` du témoin ; absent = copie conforme
  * @param quiz mute le `quiz.json` déjà parsé ; `null` = ne pas écrire de quiz du tout
+ * @param simulation contenu de `simulation.json` ; absent = ne pas en écrire du tout, ce qui
+ *   est l'état de la leçon-témoin minimale (elle n'en porte pas, et n'en portera pas : c'est
+ *   ce qui la garde valide sous la règle « ancre ⇔ fichier » d'E2-ST5)
  */
 function leconAdHoc(
   nom: string,
   corps?: (source: string) => string,
   quiz?: ((donnees: Record<string, unknown>) => void) | null,
+  simulation?: Record<string, unknown>,
 ): string {
   const racine = join(bacASable, nom);
   const dossier = join(racine, '01-temoin');
@@ -297,6 +303,10 @@ function leconAdHoc(
     ) as Record<string, unknown>;
     quiz?.(donnees);
     writeFileSync(join(dossier, 'quiz.json'), JSON.stringify(donnees, null, 2), 'utf8');
+  }
+
+  if (simulation !== undefined) {
+    writeFileSync(join(dossier, 'simulation.json'), JSON.stringify(simulation, null, 2), 'utf8');
   }
 
   return racine;
@@ -544,7 +554,12 @@ describe('pipeline de contenu — compilation Markdown', () => {
       // `<span>` ne peut pas fabriquer un `<span>` (Shiki échappe « < »).
       const ancres = ancresDe(html ?? '');
       expect(ancres).toEqual([1, 2, 3, 4, 5]);
-    });
+      // `DELAI` explicite, pour la raison DÉJÀ écrite au test précédent : ce cas lance un
+      // processus fils qui importe le compilateur, donc Shiki, Ajv et markdown-it. Les 5 s par
+      // défaut de Vitest ne suffisent pas sous la suite complète — l'oubli s'est vu à
+      // E2-ST5 (lot a), quand la même suite a gagné quelques compilations de plus, et
+      // l'échec ressemblait à une régression du garde-fou (L-035).
+    }, DELAI);
 
     it("n'émet AUCUN attribut style= dans le HTML coloré", () => {
       for (const html of htmlColores(lecon)) {
@@ -1291,5 +1306,251 @@ describe('pipeline de contenu — compilation Markdown', () => {
       },
       DELAI,
     );
+
+    // ═══ LA SIMULATION ET SON ANCRE (E2-ST5, lot a) ═════════════════════════════════════════
+    // 🔴 POURQUOI CES CAS VIVENT ICI, ET NON SOUS `__fixtures__/invalides/`. Raison déjà écrite
+    // deux fois dans ce fichier (en tête de `leconAdHoc`, et au-dessus des cas de portée) :
+    // `__fixtures__/invalides/` est la table CÂBLÉE de `pipeline-contenu-validation.spec.ts`,
+    // dont le garde-fou de complétude exige une assertion par dossier ET dont le compte de cas
+    // est écrit en dur. Y déposer un cas destiné au COMPILATEUR ferait rougir le spec du
+    // VALIDATEUR pour une faute qui n'est pas la sienne — `valider.mjs` ne lit aucune ancre et
+    // ACCEPTERAIT les quatre cas ci-dessous. Le contrôle positif tourne donc là où il MORD :
+    // `npm test`, c'est-à-dire l'étape G-test de `ci.yml` et de `deploy.yml`.
+    describe('la simulation et son ancre', () => {
+      /**
+       * Une simulation VALIDE, reprise de la leçon-témoin complète — donc du seul
+       * `simulation.json` réel du dépôt — et réappariée au slug de la témoin minimale.
+       *
+       * On la lit sur disque plutôt que de la retaper : une simulation écrite à la main dans ce
+       * spec dériverait du schéma sans que rien ne le dise, et les cas d'échec ci-dessous
+       * rougiraient alors sur la MAUVAISE cause (L-035).
+       */
+      function simulationValide(): Record<string, unknown> {
+        const source = JSON.parse(
+          readFileSync(
+            join(
+              'tools/content-pipeline/__fixtures__/temoin/cours/securite-web/01-lecon-temoin',
+              'simulation.json',
+            ),
+            'utf8',
+          ),
+        ) as Record<string, unknown>;
+        // L-010 : la mutation doit frapper SA cible. Sans ce constat, un jour où la témoin
+        // complète changerait de slug, l'appariement se ferait au petit bonheur.
+        expect(source['lecon']).toBe('lecon-temoin');
+        source['lecon'] = 'temoin';
+        return source;
+      }
+
+      /**
+       * La fin de ligne RÉELLE du fichier lu.
+       *
+       * ⚠️ L-015 : les fichiers de ce dépôt sont en CRLF sur ce poste. Une insertion écrite en
+       * `\n` en dur produirait un corps aux fins de ligne mêlées, et un repère cherché en
+       * `'\n[[quiz]]\n'` ne s'apparierait à RIEN — une prémisse de test fausse qui rougit sur
+       * un produit sain (L-035). Mesuré ici plutôt que supposé.
+       */
+      function finDeLigne(source: string): string {
+        return source.includes('\r\n') ? '\r\n' : '\n';
+      }
+
+      /** Insère `[[simulation]]` juste après l'ancre `[[quiz]]` du corps, `combien` fois. */
+      function corpsAvecAncres(combien: number): (source: string) => string {
+        return (source) => {
+          // L-010, encore : le témoin doit vraiment porter l'ancre qu'on prend pour repère.
+          expect(source).toContain('[[quiz]]');
+          const eol = finDeLigne(source);
+          const ajout = Array.from(
+            { length: combien },
+            () => `${eol}${eol}[[simulation]]`,
+          ).join('');
+          return source.replace('[[quiz]]', `[[quiz]]${ajout}`);
+        };
+      }
+
+      it(
+        'ÉMET la simulation, fidèle à la source, quand le fichier ET l’ancre sont là',
+        () => {
+          const source = simulationValide();
+          const racine = leconAdHoc('simulation-emise', corpsAvecAncres(1), undefined, source);
+          const resultat = compiler(racine, join(bacASable, 'simulation-emise.scss'));
+          const lecon = resultat.lecons[0];
+          expect(lecon).toBeDefined();
+
+          // FIDÈLE : rien n'est ajouté (aucun `htmlColore` inventé sur le `code` d'un panneau),
+          // rien n'est retiré (pas d'équivalent de `ficheSource` ici). L'égalité PROFONDE est
+          // l'assertion, pas un échantillon de champs — c'est elle qui attrape un champ perdu.
+          expect(lecon?.simulation).toEqual(source);
+
+          // Et le corps porte bien le bloc où le composant du lot b viendra se brancher :
+          // sans cette assertion, « la simulation est émise » serait vrai d'une page qui ne
+          // l'affiche nulle part, c'est-à-dire du défaut même que ce lot ferme.
+          const ancres = tousLesBlocs(lecon?.sections ?? []).filter(
+            (bloc) => bloc.type === 'ancre-simulation',
+          );
+          expect(ancres).toHaveLength(1);
+        },
+        DELAI,
+      );
+
+      it(
+        'n’INVENTE aucune simulation quand la leçon n’en porte pas',
+        () => {
+          // L'autre moitié de la pince : le champ est OPTIONNEL, et son absence doit rester une
+          // absence — pas un objet vide que le composant du lot b aurait à distinguer.
+          const racine = leconAdHoc('simulation-absente');
+          const resultat = compiler(racine, join(bacASable, 'simulation-absente.scss'));
+          const lecon = resultat.lecons[0];
+          expect(lecon).toBeDefined();
+          expect(lecon?.simulation).toBeUndefined();
+          expect(JSON.stringify(lecon)).not.toContain('"simulation"');
+        },
+        DELAI,
+      );
+
+      it(
+        'REFUSE une ancre « [[simulation]] » sans simulation.json — l’ancre orpheline',
+        () => {
+          // Le cas qui compilait AVANT ce lot, et rendait un trou silencieux dans la page.
+          const racine = leconAdHoc('simulation-ancre-orpheline', corpsAvecAncres(1));
+          const message = messageDEchec(racine);
+          expect(message).not.toBeNull();
+          expect(message).toContain('lecon.md');
+          expect(message).toContain('[[simulation]]');
+          expect(message).toContain('1 ancre(s)');
+          expect(message).toContain('0 attendue(s)');
+          expect(message).toContain('aucun « simulation.json »');
+        },
+        DELAI,
+      );
+
+      it(
+        'REFUSE un simulation.json sans ancre — de la donnée livrée, affichée nulle part',
+        () => {
+          const racine = leconAdHoc(
+            'simulation-sans-ancre',
+            undefined,
+            undefined,
+            simulationValide(),
+          );
+          const message = messageDEchec(racine);
+          expect(message).not.toBeNull();
+          expect(message).toContain('lecon.md');
+          expect(message).toContain('0 ancre(s)');
+          expect(message).toContain('1 attendue(s)');
+          expect(message).toContain('ne s’afficherait nulle part');
+        },
+        DELAI,
+      );
+
+      it(
+        'REFUSE DEUX ancres « [[simulation]] » — la simulation rendue deux fois',
+        () => {
+          const racine = leconAdHoc(
+            'simulation-deux-ancres',
+            corpsAvecAncres(2),
+            undefined,
+            simulationValide(),
+          );
+          const message = messageDEchec(racine);
+          expect(message).not.toBeNull();
+          expect(message).toContain('2 ancre(s)');
+          expect(message).toContain('1 attendue(s)');
+          expect(message).toContain('id » d’étape dupliqués');
+        },
+        DELAI,
+      );
+
+      it(
+        'REFUSE une SECONDE ancre cachée dans un encadré — le cas qui EXIGE la récursion',
+        () => {
+          // 🔴 LE TEST DE MUTATION DU LOT, ET IL EST À UN DÉCALAGE NON NEUTRE (L-039).
+          // La leçon porte UNE ancre de premier niveau ET une seconde dans un `::: note`,
+          // avec un `simulation.json` — donc UNE ancre attendue.
+          //   · récursion PRÉSENTE  → compte 2 ≠ 1 → REFUS, et ce test passe ;
+          //   · récursion RETIRÉE   → compte 1 = 1 → la leçon est ACCEPTÉE, ce test rougit.
+          // Le point à ne pas manquer : si la même leçon n'avait PAS de `simulation.json`
+          // (0 attendue), les deux versions refuseraient — 2 ≠ 0 comme 1 ≠ 0 — et un test qui
+          // se contenterait d'exiger un refus serait vert PAR COMPENSATION, exactement le
+          // défaut que L-039 a payé au lot C. C'est la présence du fichier qui rend la valeur
+          // non neutre, et le compte EXACT ci-dessous qui le constate.
+          let vue = false;
+          const racine = leconAdHoc(
+            'simulation-ancre-en-encadre',
+            (source) => {
+              vue = source.includes('::: note') && source.includes('[[quiz]]');
+              const eol = finDeLigne(source);
+              return corpsAvecAncres(1)(source).replace(
+                '::: note',
+                `::: note${eol}${eol}[[simulation]]${eol}`,
+              );
+            },
+            undefined,
+            simulationValide(),
+          );
+          expect(vue).toBe(true);
+
+          const message = messageDEchec(racine);
+          expect(message).not.toBeNull();
+          // Le compte doit être EXACT : « 1 » prouverait que la récursion n'a pas eu lieu.
+          expect(message).toContain('2 ancre(s)');
+          expect(message).toContain('1 attendue(s)');
+        },
+        DELAI,
+      );
+
+      it(
+        'REFUSE une simulation appariée à une autre leçon, en citant les deux slugs',
+        () => {
+          // Le pendant exact du contrôle que `compilerQuiz` fait sur `quiz.lecon`. Une
+          // simulation mal appariée s'attacherait en silence à la mauvaise leçon.
+          const source = simulationValide();
+          source['lecon'] = 'une-autre-lecon';
+          const racine = leconAdHoc(
+            'simulation-mal-appariee',
+            corpsAvecAncres(1),
+            undefined,
+            source,
+          );
+          const message = messageDEchec(racine);
+          expect(message).not.toBeNull();
+          expect(message).toContain('simulation.json');
+          expect(message).toContain('une-autre-lecon');
+          // ⚠️ LE SLUG DE LA LEÇON S'ASSERTE SUR LA LIGNE DE DÉTAIL, PAS SUR « temoin » SEUL.
+          // Le chemin du fichier fautif (`…/simulation-mal-appariee/01-temoin/simulation.json`)
+          // contient déjà « temoin » : un `toContain('temoin')` resterait vert le jour où le
+          // message cesserait de citer le frontmatter, alors que le titre de ce test affirme
+          // qu'il cite LES DEUX slugs (L-040).
+          expect(message).toContain('le frontmatter déclare « temoin »');
+        },
+        DELAI,
+      );
+
+      it(
+        'REFUSE une simulation hors schéma, en citant le fichier et le champ',
+        () => {
+          // Le compilateur REVALIDE : il s'exécute aussi hors de `build.mjs` — cette ligne de
+          // commande en est la preuve vivante — là où `valider.mjs` n'a pas tourné.
+          const source = simulationValide();
+          const etapes = source['etapes'] as Record<string, unknown>[];
+          const premiere = etapes[0];
+          if (premiere === undefined) throw new Error('la simulation témoin est vide');
+          expect(typeof premiere['narration']).toBe('string');
+          delete premiere['narration'];
+
+          const racine = leconAdHoc(
+            'simulation-hors-schema',
+            corpsAvecAncres(1),
+            undefined,
+            source,
+          );
+          const message = messageDEchec(racine);
+          expect(message).not.toBeNull();
+          expect(message).toContain('simulation.json');
+          expect(message).toContain('narration');
+        },
+        DELAI,
+      );
+    });
   });
 });

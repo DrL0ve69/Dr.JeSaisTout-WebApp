@@ -223,6 +223,7 @@ function compilerSchema(nom) {
 
 const validerFrontmatter = compilerSchema('lecon.frontmatter.schema.json');
 const validerQuiz = compilerSchema('quiz.schema.json');
+const validerSimulation = compilerSchema('simulation.schema.json');
 
 /**
  * Ramène `cree`/`maj` au `YYYY-MM-DD` du schéma.
@@ -1738,23 +1739,100 @@ function emettreQuestion(question, colorateur, nomFichier) {
 }
 
 /**
- * Compte les ancres `[[quiz]]` d'une liste de blocs, ENCADRÉS COMPRIS.
+ * Compte les ancres d'un type donné dans une liste de blocs, ENCADRÉS COMPRIS.
  *
  * La récursion n'est pas une précaution : `construireBlocs` descend dans le contenu de
  * chaque `::: note` / `::: attention` / `::: a-retenir`, donc une ancre y produit bien un
- * bloc `ancre-quiz` — invisible à un `flatMap` de premier niveau. Voir le contrôle qui
- * appelle cette fonction pour ce que ce trou coûtait.
+ * bloc d'ancre — invisible à un `flatMap` de premier niveau. Voir les contrôles qui
+ * appellent cette fonction pour ce que ce trou coûtait.
+ *
+ * UNE SEULE FONCTION POUR LES DEUX ANCRES (E2-ST5, lot a), et c'est délibéré : deux
+ * recopies auraient été deux mécanismes de descente à éprouver séparément, dont le second
+ * serait resté non exercé — la moitié exacte du constat L-039 (« deux compteurs séparés
+ * veut dire deux fois le même cas limite à écrire »). Ici il n'y a qu'une descente, et
+ * elle est exercée par les cas de `[[quiz]]` ET par ceux de `[[simulation]]`.
+ *
+ * ⚠️ ELLE EST EXPORTÉE EXPRÈS POUR ÊTRE MISE À L'ÉPREUVE, comme `verifierAncres` — et pas
+ * parce qu'un autre module du pipeline l'appellerait. Il existe une SECONDE copie de cette
+ * descente sur le chemin de la LECTURE de l'artéfact (`compterAncres`,
+ * `src/app/features/cours/contenu-compile.ts`), et un pointeur croisé ne suffit pas :
+ * `src/compter-ancres-parite.spec.ts` fait compter le MÊME corpus aux deux et exige
+ * l'égalité (L-037 — pointeur ET test de parité). Le mode de divergence qu'il attrape est
+ * silencieux : le jour où un `BlocContenu` neuf portera des `blocs` imbriqués, une descente
+ * mise à jour d'un seul côté ferait SOUS-COMPTER l'autre, et le côté qui sous-compte trouve
+ * son compte juste — aucun gate ne rougirait (L-034).
  *
  * @param {readonly BlocContenu[]} blocs
+ * @param {'ancre-quiz' | 'ancre-simulation'} type
  * @returns {number}
  */
-function compterAncresQuiz(blocs) {
+export function compterAncres(blocs, type) {
   let total = 0;
   for (const bloc of blocs) {
-    if (bloc.type === 'ancre-quiz') total += 1;
-    else if (bloc.type === 'encadre') total += compterAncresQuiz(bloc.blocs);
+    if (bloc.type === type) total += 1;
+    else if (bloc.type === 'encadre') total += compterAncres(bloc.blocs, type);
   }
   return total;
+}
+
+/**
+ * Lit `simulation.json` s'il existe, le revalide et l'émet en `SimulationCompilee`.
+ *
+ * POURQUOI `null` PLUTÔT QU'UN ÉCHEC QUAND LE FICHIER MANQUE — la seule différence de fond
+ * avec `compilerQuiz`. `valider.mjs` (§9) n'exige `simulation.json` d'aucune leçon : une
+ * leçon qui ne décrit aucun flux n'en a pas, et `LeconCompilee.simulation` est optionnel.
+ * L'absence est donc un RÉSULTAT, pas une anomalie — c'est l'appelant qui la confronte au
+ * nombre d'ancres du corps.
+ *
+ * POURQUOI CE FICHIER REVALIDE UNE SIMULATION QUE `valider.mjs` A DÉJÀ ACCEPTÉE : même
+ * raison que `compilerQuiz`, mot pour mot. `compilerRacine` s'exécute aussi HORS de
+ * `build.mjs` — la ligne de commande de ce fichier, et les specs qui compilent des
+ * fixtures — là où le validateur n'a pas tourné. Un générateur ne suppose pas qu'un
+ * garde-fou d'amont s'est exécuté.
+ *
+ * CE QU'IL REVÉRIFIE HORS SCHÉMA, ET C'EST TOUT : `simulation.lecon === frontmatter.slug`.
+ * Invariante de l'ÉMISSION, comme pour le quiz — une simulation mal appariée s'attacherait
+ * en silence à la mauvaise leçon. Les cohérences internes (`numero` séquentiel, renvois
+ * vers un acteur déclaré, unicité des `id` d'acteur) restent la propriété de `valider.mjs`
+ * (`verifierSimulationHorsSchema`) : les dupliquer ici ferait deux vérités qui
+ * divergeraient au premier ajustement (L-016).
+ *
+ * RIEN N'EST AJOUTÉ NI RETIRÉ à l'émission : pas de `htmlColore` (le `code` d'un panneau
+ * est court, sa coloration appartiendra au composant du lot b) et pas d'équivalent de
+ * `ficheSource` à retirer. La sortie est donc la source, telle quelle.
+ *
+ * @param {string} dossier chemin absolu du dossier de la leçon
+ * @param {string} slug le `slug` du frontmatter, déjà validé
+ * @returns {SimulationCompilee | null} `null` si la leçon n'en porte pas
+ */
+function compilerSimulation(dossier, slug) {
+  const chemin = join(dossier, 'simulation.json');
+  if (!existsSync(chemin)) return null;
+
+  const nomFichier = afficher(chemin);
+
+  let donnees;
+  try {
+    donnees = JSON.parse(readFileSync(chemin, 'utf8'));
+  } catch (e) {
+    echec(`${nomFichier} : JSON illisible`, [e instanceof Error ? e.message : String(e)]);
+  }
+
+  if (!validerSimulation(donnees)) {
+    echec(`${nomFichier} : simulation refusée par le schéma`, [
+      premiereErreurAjv(validerSimulation.errors),
+    ]);
+  }
+  const simulation = /** @type {SimulationCompilee} */ (donnees);
+
+  if (simulation.lecon !== slug) {
+    echec(`${nomFichier} : simulation appariée à la mauvaise leçon`, [
+      `« lecon » vaut « ${String(simulation.lecon)} », le frontmatter déclare « ${slug} »`,
+      'une simulation mal appariée s’afficherait sous une autre leçon sans qu’aucune page ne le signale',
+    ]);
+  }
+
+  return simulation;
 }
 
 /**
@@ -1823,7 +1901,8 @@ export function compilerLecon(dossier, outils) {
   // document, c'est-à-dire très exactement ce que le paragraphe ci-dessus promet
   // d'empêcher. `encadre` est le seul bloc qui en imbrique d'autres (`comparaison`
   // porte des `exemples`, pas des blocs).
-  const ancresQuiz = compterAncresQuiz(sections.flatMap((section) => section.blocs));
+  const blocsDuCorps = sections.flatMap((section) => section.blocs);
+  const ancresQuiz = compterAncres(blocsDuCorps, 'ancre-quiz');
   if (ancresQuiz !== 1) {
     echec(`${nomFichier} : le corps porte ${ancresQuiz} ancre(s) « [[quiz]] », une seule attendue`, [
       ancresQuiz === 0
@@ -1835,7 +1914,51 @@ export function compilerLecon(dossier, outils) {
 
   const slug = String(donnees['slug']);
 
-  return {
+  // ═══ LA SIMULATION ET SON ANCRE VONT PAR PAIRE (E2-ST5, lot a) ═══════════════════════════
+  // `simulation.json` est OPTIONNEL — mais l'optionalité porte sur la PAIRE, pas sur chacune
+  // de ses moitiés. Les deux dissociations sont des échecs silencieux symétriques :
+  //   · fichier SANS ancre  → de la donnée compilée, livrée dans le chunk de la leçon, et
+  //     affichée NULLE PART. Aucun gate ne rougit ; seul un œil qui connaît le fichier
+  //     source verrait qu'il manque quelque chose à la page ;
+  //   · ancre SANS fichier  → un trou dans le corps, là où l'auteur a écrit `[[simulation]]`
+  //     en croyant y placer quelque chose. C'est le cas qui compilait AVANT ce lot ;
+  //   · DEUX ancres         → la même simulation rendue deux fois, donc `ID_SIMULATION` et
+  //     tous les `PREFIXE_ID_ETAPE + N` dupliqués dans le document (cf. `contenu-compile.ts`).
+  //
+  // LE CONTRÔLE VIT ICI, ET NULLE PART AILLEURS DANS LE PIPELINE. `compilerLecon` est la
+  // seule fonction qui voit à la fois le DOSSIER (donc la présence du fichier) et l'AST
+  // (donc le compte EXACT des ancres). `valider.mjs` ne lit aucune ancre : il devrait
+  // deviner par motif qu'un `[[simulation]]` n'est ni dans un bloc de code clôturé ni dans
+  // un commentaire retiré — une liste de motifs sur un format structuré est le patron que ce
+  // dépôt a déjà payé quatre fois (S-001, S-003, S-009, S-014).
+  //
+  // 🔴 LE COMPTE EST RÉCURSIF, POUR LA RAISON ÉCRITE PLUS HAUT SUR `[[quiz]]` : une ancre
+  // dans un `::: note` produit un `ancre-simulation` imbriqué, invisible à un balayage de
+  // premier niveau. `compterAncres` porte cette descente une seule fois pour les deux ancres.
+  const simulation = compilerSimulation(dossier, slug);
+  const ancresSimulation = compterAncres(blocsDuCorps, 'ancre-simulation');
+  const ancresAttendues = simulation === null ? 0 : 1;
+  if (ancresSimulation !== ancresAttendues) {
+    let cause;
+    if (simulation === null) {
+      cause =
+        'aucun « simulation.json » à côté de cette leçon — l’ancre laisserait un trou dans la page';
+    } else if (ancresSimulation === 0) {
+      cause =
+        '« simulation.json » existe mais ne s’afficherait nulle part — ajouter un paragraphe valant exactement « [[simulation]] »';
+    } else {
+      cause =
+        'la même simulation serait rendue plusieurs fois, donc ses « id » d’étape dupliqués dans le document';
+    }
+    echec(
+      `${nomFichier} : le corps porte ${ancresSimulation} ancre(s) « [[simulation]] », ` +
+        `${ancresAttendues} attendue(s)`,
+      [cause, 'gabarit : docs/contenu/pipeline-contenu.md §Schéma simulation.json'],
+    );
+  }
+
+  /** @type {LeconCompilee} */
+  const compilee = {
     frontmatter: {
       titre: String(donnees['titre']),
       slug,
@@ -1853,6 +1976,10 @@ export function compilerLecon(dossier, outils) {
     sections,
     quiz: compilerQuiz(dossier, slug, outils.colorateur),
   };
+  // Recopiée seulement si elle existe : le contrat la déclare optionnelle, et `undefined`
+  // disparaîtrait de toute façon à la sérialisation JSON — même geste que `quiz.melanger`.
+  if (simulation !== null) compilee.simulation = simulation;
+  return compilee;
 }
 
 /**

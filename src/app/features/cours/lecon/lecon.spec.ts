@@ -45,9 +45,12 @@ import { RouterTestingHarness } from '@angular/router/testing';
 
 import {
   ANCRES_RESERVEES,
+  ID_SIMULATION,
   MANIFESTE_LECONS,
   NIVEAUX,
+  PREFIXE_ID_ETAPE,
   PREFIXE_ID_QUESTION,
+  TYPES_ACTEUR,
   lireLeconCompilee,
   lireManifeste,
 } from '../contenu-compile';
@@ -106,6 +109,30 @@ const INSECABLE = '\u00A0';
 /** Copie profonde d'une valeur JSON — pour muter une fixture sans contaminer les voisines. */
 function copie<T>(valeur: T): T {
   return JSON.parse(JSON.stringify(valeur)) as T;
+}
+
+/**
+ * Compte les ancres d'un type dans TOUTE la leçon, encadrés compris.
+ *
+ * ⚠️ LA RÉCURSION N'EST PAS DÉCORATIVE ICI NON PLUS. Ce compte sert de CONTRÔLE POSITIF aux
+ * mutations d'ancre ci-dessous, et il mire deux compteurs qui descendent, eux, dans les
+ * `::: note`. Un balayage de premier niveau donnerait 0 le jour où la fixture témoin
+ * déplacerait son ancre dans un encadré : le contrôle positif rougirait sur un produit sain,
+ * et la prémisse fausse serait celle du test (L-035). La parité des DEUX copies de
+ * production, elle, est tenue par `src/compter-ancres-parite.spec.ts`.
+ */
+function compterAncresDeLaLecon(
+  lecon: LeconCompilee,
+  type: 'ancre-quiz' | 'ancre-simulation',
+): number {
+  const descendre = (blocs: readonly BlocContenu[]): number =>
+    blocs.reduce(
+      (total, bloc) =>
+        total +
+        (bloc.type === type ? 1 : bloc.type === 'encadre' ? descendre(bloc.blocs) : 0),
+      0,
+    );
+  return lecon.sections.reduce((total, section) => total + descendre(section.blocs), 0);
 }
 
 beforeAll(() => {
@@ -182,6 +209,24 @@ describe('page de leçon — la fixture elle-même', () => {
     const quiz = lecon().quiz;
     expect(quiz.lecon).toBe(slugTemoin);
     expect(quiz.questions.length).toBeGreaterThan(0);
+  });
+
+  it('porte la simulation de la leçon, appariée à son slug (E2-ST5, lot a)', () => {
+    // CONTRÔLE POSITIF de toutes les mutations de simulation ci-dessous (L-019). Le champ
+    // est OPTIONNEL au contrat : sans cette assertion, chacune d'elles serait verte sur une
+    // leçon-témoin qui n'en porterait aucune — un `undefined` muté reste un `undefined`.
+    const simulation = lecon().simulation;
+    expect(simulation).toBeDefined();
+    expect(simulation?.lecon).toBe(slugTemoin);
+    expect(simulation?.acteurs.length).toBeGreaterThan(1);
+    expect(simulation?.etapes.length).toBeGreaterThan(1);
+
+    // Et l'autre moitié de la paire : le corps porte bien l'ancre où elle s'affichera.
+    // ⚠️ LA DESCENTE EST RÉCURSIVE, comme les DEUX compteurs que ce contrôle positif mire.
+    // Un `flatMap` de premier niveau compterait 0 le jour où la fixture témoin déplacerait
+    // son `[[simulation]]` dans un `::: note` : ce contrôle positif rougirait sur un produit
+    // parfaitement sain, et c'est la prémisse du test qui serait fausse (L-035).
+    expect(compterAncresDeLaLecon(lecon(), 'ancre-simulation')).toBe(1);
   });
 });
 
@@ -328,6 +373,130 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
       },
       attendu: 'une seule attendue',
     },
+    // ─── L'enveloppe de la simulation (E2-ST5, lot a) ─────────────────────────
+    // Le champ est OPTIONNEL, à la différence de `quiz` : ce qui est tenu ici n'est
+    // pas sa présence mais la COHÉRENCE de la paire « champ ⇔ ancre », plus la forme
+    // de ce que le composant du lot b recevra. Les champs d'`etatVisuel`, eux, ne
+    // sont PAS ici — ils appartiennent à ce composant (même partage que le quiz).
+    {
+      nom: 'une simulation appariée à une autre leçon que la sienne',
+      muter: (l) => {
+        (l.simulation as unknown as Record<string, unknown>)['lecon'] = 'une-autre-lecon';
+      },
+      attendu: 'simulation.lecon',
+    },
+    {
+      nom: 'un acteur dont le `type` sort de la liste nominative',
+      muter: (l) => {
+        (l.simulation?.acteurs[0] as unknown as Record<string, unknown>)['type'] = 'robot';
+      },
+      attendu: 'simulation.acteurs[0] ».type',
+    },
+    {
+      nom: 'deux acteurs qui partagent le même `id`',
+      muter: (l) => {
+        const acteurs = l.simulation?.acteurs ?? [];
+        (acteurs[1] as unknown as Record<string, unknown>)['id'] = acteurs[0]?.id;
+      },
+      attendu: 'deux acteurs partagent le même',
+    },
+    {
+      // LE SEUIL EST DEUX, celui du schéma (`minItems: 2`), et il l'est ici AUSSI. Une
+      // simulation à un acteur ne raconte aucun échange : la laisser traverser la
+      // frontière rendrait la LECTURE plus permissive que l'écriture.
+      nom: 'une simulation réduite à UN SEUL acteur',
+      muter: (l) => {
+        const simulation = l.simulation as unknown as Record<string, unknown>;
+        simulation['acteurs'] = (simulation['acteurs'] as readonly unknown[]).slice(0, 1);
+      },
+      attendu: 'au moins deux acteurs',
+    },
+    {
+      // 🔴 LE PIÈGE DU PROTOTYPE (S-014 et voisins). `constructor` passe le kebab-case, et
+      // `panneaux` est un `Record<idActeur, …>` issu d'un `JSON.parse` : au lot b,
+      // `panneaux['constructor']` sur un objet sans cette clef rendrait
+      // `Object.prototype.constructor` — une fonction, donc une valeur *truthy* qui
+      // traverserait un `@if (panneau)` pour peindre un panneau vide. On refuse la clef à
+      // la FRONTIÈRE, une fois, plutôt que d'espérer la parade dans chaque consommateur.
+      nom: 'un acteur dont l’`id` est une propriété héritée d’`Object.prototype`',
+      muter: (l) => {
+        (l.simulation?.acteurs[0] as unknown as Record<string, unknown>)['id'] = 'constructor';
+      },
+      attendu: 'hérité d’« Object.prototype »',
+    },
+    {
+      // Le `numero` devient l'`id` de document de l'étape (`PREFIXE_ID_ETAPE`) : une
+      // séquence qui ne suit pas la position ferait deux étapes au même `id`, ou un
+      // lien de la barre d'étapes qui ne mène nulle part.
+      nom: 'un `numero` d’étape qui ne suit pas sa position',
+      muter: (l) => {
+        (l.simulation?.etapes[1] as unknown as Record<string, unknown>)['numero'] = 7;
+      },
+      attendu: 'simulation.etapes[1] ».numero',
+    },
+    {
+      // La narration est l'équivalent textuel de l'état visuel (WCAG 1.1.1) : une
+      // étape muette ne raconterait rien à qui ne voit pas le dessin.
+      nom: 'une étape dont la narration est vide',
+      muter: (l) => {
+        (l.simulation?.etapes[0] as unknown as Record<string, unknown>)['narration'] = '   ';
+      },
+      attendu: 'simulation.etapes[0] ».narration',
+    },
+    {
+      // L'ANCRE ORPHELINE — la moitié du défaut que le compilateur ne voyait pas avant
+      // ce lot. Le champ disparaît, le corps garde son `[[simulation]]` : la page
+      // porterait un trou là où l'auteur croyait avoir placé le pas-à-pas.
+      nom: 'une simulation retirée alors que le corps garde son ancre',
+      muter: (l) => {
+        delete (l as unknown as Record<string, unknown>)['simulation'];
+      },
+      attendu: 'aucune « simulation » dans cette leçon',
+    },
+    {
+      // L'autre moitié : de la donnée livrée dans le chunk, affichée nulle part.
+      nom: 'un corps privé de son ancre « [[simulation]] »',
+      muter: (l) => {
+        for (const section of l.sections) {
+          (section as unknown as Record<string, unknown>)['blocs'] = section.blocs.filter(
+            (bloc) => bloc.type !== 'ancre-simulation',
+          );
+        }
+      },
+      attendu: 'la simulation ne serait rendue nulle part',
+    },
+    {
+      // 🔴 LE CAS QUI EXIGE LA RÉCURSION à la frontière, et il est à un décalage NON
+      // NEUTRE (L-039) : la simulation est PRÉSENTE, donc UNE ancre est attendue. Un
+      // balayage de premier niveau compterait 1, trouverait le compte juste et
+      // laisserait passer — ici on exige que le compte soit 2.
+      nom: 'une SECONDE ancre « [[simulation]] » cachée dans un encadré',
+      muter: (l) => {
+        const premiere = l.sections[0] as unknown as Record<string, unknown>;
+        premiere['blocs'] = [
+          ...(premiere['blocs'] as readonly unknown[]),
+          { type: 'encadre', variante: 'note', blocs: [{ type: 'ancre-simulation' }] },
+        ];
+      },
+      attendu: '2 ancre(s) « [[simulation]] » dans le corps, 1 attendue(s)',
+    },
+    {
+      // La collision d'`id` de document : l'auteur choisit ses ancres sans rien savoir
+      // de la simulation, et `ancre: 'simulation'` est un choix parfaitement naturel
+      // pour la section qui présente le pas-à-pas.
+      nom: "une ancre de section qui prend l'`id` de la RÉGION de simulation",
+      muter: (l) => {
+        (l.sections[0] as unknown as Record<string, unknown>)['ancre'] = ID_SIMULATION;
+      },
+      attendu: `« ${ID_SIMULATION} » est déjà pris par une ancre de section`,
+    },
+    {
+      nom: "une ancre de section qui prend l'`id` d'une ÉTAPE",
+      muter: (l) => {
+        (l.sections[0] as unknown as Record<string, unknown>)['ancre'] = `${PREFIXE_ID_ETAPE}2`;
+      },
+      attendu: `« ${PREFIXE_ID_ETAPE}2 » est déjà pris par une ancre de section`,
+    },
   ];
 
   for (const cas of mutations) {
@@ -364,6 +533,25 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
       .enum;
 
     expect([...NIVEAUX]).toEqual(enumeration);
+  });
+
+  it('tient `TYPES_ACTEUR` collé à l’énumération du SCHÉMA de simulation', () => {
+    // Même patron, même raison que `NIVEAUX` ci-dessus (L-016) : la liste nominative de
+    // `contenu-compile.ts` reprend celle de `simulation.schema.json`, écrite à deux
+    // endroits parce que le schéma Ajv appartient au programme de l'outillage et n'a rien
+    // à faire dans le bundle du navigateur. Ce test est ce qui interdit qu'elles divergent
+    // en silence — un `type` accepté ici mais inconnu du composant du lot b donnerait une
+    // boîte MUETTE pour un lecteur d'écran, sans qu'aucun gate ne rougisse.
+    const schema: unknown = JSON.parse(
+      readFileSync('tools/content-pipeline/schemas/simulation.schema.json', 'utf8'),
+    );
+    const enumeration = (
+      schema as {
+        properties: { acteurs: { items: { properties: { type: { enum: string[] } } } } };
+      }
+    ).properties.acteurs.items.properties.type.enum;
+
+    expect([...TYPES_ACTEUR]).toEqual(enumeration);
   });
 });
 
@@ -622,6 +810,11 @@ describe('rendu de la page', () => {
       htmlColore: '<pre class="shiki"><code><span class="line">echo $x;</span></code></pre>',
     });
     const surMesure = copie(lecon()) as unknown as Record<string, unknown>;
+    // Cette leçon de mesure réécrit ses sections, donc perd l'ancre `[[simulation]]` de la
+    // témoin. Le champ part avec elle : depuis E2-ST5 (lot a), `lireLeconCompilee` exige que
+    // les deux moitiés de la paire s'accordent, et une simulation sans ancre serait refusée —
+    // à juste titre, ce n'est pas ce que ce test mesure.
+    delete surMesure['simulation'];
     surMesure['sections'] = [
       { titre: 'Première', ancre: 'premiere-mesure', niveau: 2, blocs: [bloc()] },
       // La section du milieu niche son bloc dans un ENCADRÉ : le comptage doit y descendre,
