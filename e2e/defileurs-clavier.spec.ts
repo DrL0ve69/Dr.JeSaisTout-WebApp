@@ -41,19 +41,27 @@
 // référence de WCAG 1.4.10 (Redistribution), donc la plus étroite que ce site
 // promette de servir, et celle où le débordement est maximal.
 //
-// 🔴 SEPT SUR HUIT, ET LE HUITIÈME EST NOMMÉ — le constat le plus important de ce
-// fichier, à ne pas lire comme une tolérance. `Exemple vulnérable n°1 — php` ne
-// déborde À AUCUNE LARGEUR : ses deux lignes font 20 et 23 caractères, donc son
-// contenu tient dans la boîte la plus étroite que la mise en page sache produire
-// (mesuré : `scrollWidth` 221 = `clientWidth` 221 à 320 px). Son `tabindex="0"` est
-// donc, dans CETTE fixture, un arrêt qui n'a rien à faire défiler — exactement le
-// genre d'arrêt que le lot B a passé son temps à retirer. Ce n'est pas un défaut du
-// composant : le gabarit est prerendu, il ne peut pas savoir à quelle largeur il
-// sera lu, et poser le `tabindex` en JavaScript après coup rouvrirait L-033 (un
-// arrêt qui apparaît après l'hydratation). C'est un constat à porter à la clôture du
-// lot C, et il est ÉPINGLÉ ci-dessous par son nom : si un neuvième bloc cessait de
-// déborder, ou si celui-ci se mettait à déborder, le test rougit et quelqu'un
-// relira cette note plutôt que d'en hériter en silence.
+// 🔴 SEPT SUR HUIT À 320 PX — ET HUIT SUR HUIT À LA LARGEUR RÉELLEMENT SERVIE.
+// Le constat le plus important de ce fichier, et il se lit dans cet ordre-là.
+//   • À 320 px, `Exemple vulnérable n°1 — php` ne déborde À AUCUNE LARGEUR : ses
+//     deux lignes font 20 et 23 caractères, donc son contenu tient dans la boîte la
+//     plus étroite que la mise en page sache produire (mesuré : `scrollWidth` 221 =
+//     `clientWidth` 221). Il est ÉPINGLÉ nommément plus bas : si un neuvième bloc
+//     cessait de déborder, ou si celui-ci se mettait à déborder, le test rougit.
+//   • 🔴 MAIS À 1280 PX — la fenêtre par défaut du projet, celle qu'un visiteur de
+//     bureau reçoit — la sonde ci-dessus dit ZÉRO défileur débordant : les HUIT
+//     portent alors un `tabindex="0"` sans rien à faire défiler. Ce n'est pas une
+//     exception nommée, c'est le cas GÉNÉRAL de la largeur la plus fréquente, et
+//     l'écrire dans un commentaire ne le rendait observable nulle part (famille
+//     L-008/L-018, une garantie surestimée). D'où le `describe` « largeur par
+//     défaut » en bas de fichier : il n'assertionne rien et IMPRIME le compte à
+//     chaque run — le journal fait foi (L-005), la dette se relit au lieu de dormir.
+// Ce n'est pas un échec WCAG (2.1.1 n'exige pas qu'un arrêt serve à quelque chose),
+// et ce n'est pas un défaut du composant : le gabarit est prerendu, il ne peut pas
+// savoir à quelle largeur il sera lu, et poser le `tabindex` en JavaScript après
+// coup rouvrirait L-033 (un arrêt qui apparaît après l'hydratation). C'est
+// exactement la classe de bruit clavier que le lot B a passé son temps à retirer,
+// et c'est un constat à porter à la clôture du lot C.
 //
 // ⚠️ CE QUE CE FICHIER NE PROUVE PAS. `npx swa start` n'implémente pas
 // `trailingSlash` : rien ici ne dit quoi que ce soit de la politique de routage de
@@ -210,7 +218,17 @@ async function tabulerJusquAuDefileurSuivant(page: Page, sens: 'Tab' | 'Shift+Ta
   );
 }
 
-test('le parcours au clavier compte exactement huit défileurs, et AUCUN arrêt mort dans un bloc de code', async ({
+/**
+ * ⚠️ CE QUE CE TEST REVENDIQUE, EXACTEMENT — le titre a été resserré en revue du
+ * lot C. Il mesure UN SEUL FOCALISABLE PAR FIGURE DE CODE, c'est-à-dire la
+ * non-régression du 16 → 8 du lot B. La définition d'« arrêt mort » qu'il emploie est
+ * STRUCTURELLE (`dansUneFigureDeCode && !estDefileur`) : par construction, il ne peut
+ * pas voir un arrêt mort FONCTIONNEL — un défileur qui n'a rien à faire défiler en
+ * est un, et à 1280 px il y en a huit. L'ancien titre (« AUCUN arrêt mort dans un
+ * bloc de code ») promettait donc un absolu que la mesure ne couvre pas ; le
+ * `describe` de la largeur par défaut, en bas de fichier, imprime le reste.
+ */
+test('le parcours au clavier compte exactement huit défileurs, et UN SEUL focalisable par figure de code', async ({
   page,
 }) => {
   await page.goto(CHEMIN_LECON);
@@ -218,14 +236,17 @@ test('le parcours au clavier compte exactement huit défileurs, et AUCUN arrêt 
 
   const arrets = await parcourirToutLeDocument(page);
   const defileurs = arrets.filter((arret) => arret.estDefileur);
-  const morts = arrets.filter((arret) => arret.dansUneFigureDeCode && !arret.estDefileur);
+  // « En trop » et non « mort » : le critère est STRUCTUREL — un focalisable posé
+  // dans une figure de code sans être son défileur. Un défileur qui n'a rien à faire
+  // défiler n'entre pas dans ce compte, et c'est le `describe` du bas qui l'imprime.
+  const enTrop = arrets.filter((arret) => arret.dansUneFigureDeCode && !arret.estDefileur);
 
   // Le journal fait foi (L-005) : le compte total appartient au CONTENU de la
   // fixture et n'est donc pas épinglé (même réserve que le préambule de
   // `parcours-clavier-quiz.spec.ts`) — mais il s'imprime, parce qu'un écart s'y lit.
   console.log(
     `Défileurs — parcours complet : ${String(arrets.length)} arrêt(s) de tabulation, ` +
-      `dont ${String(defileurs.length)} défileur(s) et ${String(morts.length)} arrêt(s) ` +
+      `dont ${String(defileurs.length)} défileur(s) et ${String(enTrop.length)} arrêt(s) ` +
       'dans une figure de code sans être le défileur.',
   );
 
@@ -234,9 +255,11 @@ test('le parcours au clavier compte exactement huit défileurs, et AUCUN arrêt 
   // son `tabindex` sous un autre nom, chaque figure rendrait DEUX arrêts — un nommé
   // et défilant, un muet et inerte — et c'est cette ligne, seule, qui le dirait.
   expect(
-    morts.map((arret) => arret.description),
-    'un arrêt de tabulation est posé dans une figure de code sans être son défileur : ' +
-      'arrêt mort, sans nom et sans rien à faire défiler (le défaut du lot B, 16 arrêts pour 8 blocs)',
+    enTrop.map((arret) => arret.description),
+    'une figure de code porte DEUX focalisables : un arrêt de tabulation y est posé sans être ' +
+      'son défileur — sans nom et sans rien à faire défiler (le défaut du lot B, 16 arrêts pour ' +
+      '8 blocs). Ce test compte les focalisables PAR FIGURE ; il ne dit rien de savoir si un ' +
+      'défileur a quelque chose à faire défiler (voir le describe « largeur par défaut »)',
   ).toEqual([]);
 
   expect(
@@ -268,6 +291,15 @@ test('les huit défileurs portent un nom accessible non vide, et ces noms sont D
     .evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
 
   console.log(`Défileurs — noms accessibles relevés : ${noms.map((nom) => `« ${nom ?? '(null)'} »`).join(', ')}`);
+
+  // LA GARDE « VERT ET VIDE », EN TÊTE — c'était le seul test des six à en manquer
+  // (constat de revue du lot C). À zéro défileur relevé, les deux boucles ci-dessous
+  // ne tournent pas et `new Set([]).size === 0` satisfait l'unicité : le test passait
+  // vert en ne prouvant rien. L'égalité finale l'aurait bien attrapé, mais elle est
+  // en BAS de fichier, après tout ce qui se serait tu.
+  expect(noms.length, 'aucun défileur relevé : le test serait vert et vide').toBe(
+    NOMS_ATTENDUS.length,
+  );
 
   // 4.1.2 — un `role="group"` sans nom accessible est un groupe anonyme : le lecteur
   // d'écran annonce « groupe » et rien d'autre.
@@ -469,12 +501,81 @@ test('aucun piège du focus : Maj+Tab remonte les huit défileurs en miroir', as
     ).toBe(nomAttendu);
   }
 
-  // Et on ressort par le haut : Maj+Tab depuis le premier défileur remonte dans le
-  // sommaire de la leçon, il ne rebondit pas dans les blocs de code.
+  // Et on ressort par le haut : Maj+Tab depuis le premier défileur remonte VERS UN
+  // AUTRE FOCALISABLE DE LA PAGE, hors des figures de code — il ne rebondit pas dans
+  // les blocs.
+  //
+  // ⚠️ LE NON-NUL D'ABORD, ET C'EST TOUT L'OBJET DU CORRECTIF DE REVUE. `apres` vaut
+  // `null` quand le focus a quitté le document (chrome du navigateur) : le
+  // `?? false` d'origine transformait donc cette sortie-là en « pas de piège »,
+  // c'est-à-dire en assertion vraie PAR ACCIDENT (L-018). Une remontée hors du
+  // document ne prouve rien sur le parcours de la page.
   await page.keyboard.press('Shift+Tab');
   const apres = await decrireArretCourant(page);
   expect(
-    apres?.dansUneFigureDeCode ?? false,
-    'Maj+Tab depuis le premier défileur reste dans une figure de code — piège du focus (WCAG 2.1.2)',
+    apres,
+    'Maj+Tab depuis le premier défileur a fait sortir le focus du DOCUMENT : la remontée dans ' +
+      'la page n’est pas prouvée, et l’assertion suivante serait vraie par accident',
+  ).not.toBeNull();
+  expect(
+    apres?.dansUneFigureDeCode ?? true,
+    `Maj+Tab depuis le premier défileur reste dans une figure de code ` +
+      `(${apres?.description ?? ''}) — piège du focus (WCAG 2.1.2)`,
   ).toBe(false);
+  console.log(`Défileurs — sortie par le haut : ${apres?.description ?? '(focus hors du document)'}`);
+});
+
+// =============================================================================
+// LA LARGEUR PAR DÉFAUT — une MESURE IMPRIMÉE, aucune assertion
+// -----------------------------------------------------------------------------
+// POURQUOI CE BLOC N'ASSERTIONNE RIEN, ET POURQUOI IL EXISTE QUAND MÊME.
+// Le fait à rendre observable : à 1280 px — la fenêtre par défaut du projet, donc la
+// largeur réellement servie à un visiteur de bureau — AUCUN des huit défileurs ne
+// déborde. Les huit portent alors un `tabindex="0"` qui ne fait défiler rien.
+//
+// L'assertionner serait une faute : ce n'est pas un échec WCAG (2.1.1 n'exige pas
+// qu'un arrêt serve à quelque chose), le composant prerendu ne PEUT pas connaître la
+// largeur de lecture, et poser le `tabindex` en JavaScript après coup rouvrirait
+// L-033. Un rouge permanent ici ne se corrigerait qu'en affaiblissant le test — le
+// mode d'échec exact que l'en-tête de ce fichier décrit pour l'assertion inverse.
+//
+// Mais le laisser en COMMENTAIRE était le défaut relevé en revue : un lecteur de
+// journal CI concluait « zéro arrêt mort » pendant que le produit en avait huit à la
+// largeur par défaut (famille L-008/L-018). Ici, la dette s'imprime à chaque run —
+// le journal fait foi (L-005) — et elle changera de valeur toute seule le jour où la
+// mise en page ou le contenu de la fixture bougera.
+// =============================================================================
+test.describe('la largeur par défaut — la dette imprimée, pas assertionnée', () => {
+  test.use({ viewport: { width: 1280, height: 720 } });
+
+  test('combien de défileurs n’ont rien à faire défiler à 1280 px (mesure au journal)', async ({
+    page,
+  }) => {
+    await page.goto(CHEMIN_LECON);
+    await attendreHydratation(page);
+
+    const mesures = await page.locator('.defileur').evaluateAll((elements) =>
+      elements.map((element) => ({
+        nom: element.getAttribute('aria-label') ?? '(sans nom)',
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+      })),
+    );
+
+    const sansEmploi = mesures.filter((mesure) => mesure.scrollWidth <= mesure.clientWidth);
+
+    console.log(
+      `Défileurs — largeur par défaut (1280 px) : ${String(sansEmploi.length)} défileur(s) sur ` +
+        `${String(mesures.length)} ne débordent PAS, donc autant de tabindex="0" sans rien à ` +
+        'faire défiler. Constat porté à la clôture du lot C — pas un échec WCAG, pas une ' +
+        'régression : la classe de bruit clavier que le lot B a retirée, revenue par la mise en page.',
+    );
+    for (const mesure of mesures) {
+      console.log(
+        `  • « ${mesure.nom} » — scrollWidth ${String(mesure.scrollWidth)} / ` +
+          `clientWidth ${String(mesure.clientWidth)} → ` +
+          `${mesure.scrollWidth > mesure.clientWidth ? 'déborde' : 'TIENT DANS SA BOÎTE'}`,
+      );
+    }
+  });
 });

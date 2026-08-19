@@ -340,10 +340,15 @@ describe('rigueur du compilateur', () => {
   // L-014 : un tsconfig rigoureux, un script npm, les DEUX workflows qui
   // l'appellent — et rien, nulle part, qui asserte ce qu'il vérifie RÉELLEMENT.
   // Vider ou repointer son `include` laisse `tsc -p tsconfig.e2e.json` sortir en 0
-  // sur ZÉRO fichier : les huit specs qui portent tout le clavier, tout le focus et
-  // la seule mesure de CSP à l'exécution du dépôt — plus les trois modules d'aide
-  // où cette mesure vit désormais — cesseraient d'être typés sans qu'aucun run ne
-  // rougisse. Le bloc ci-dessous est calqué sur celui du programme
+  // sur ZÉRO fichier : les specs qui portent tout le clavier, tout le focus et la
+  // seule mesure de CSP à l'exécution du dépôt — plus les modules d'aide où cette
+  // mesure vit désormais — cesseraient d'être typés sans qu'aucun run ne rougisse.
+  // ⚠️ AUCUN NOMBRE DANS CETTE PROSE, ET C'EST DÉLIBÉRÉ (constat de revue du lot C,
+  // E2-ST4) : elle en portait deux, tous deux périmés dès l'entrée du spec suivant,
+  // et ils avaient survécu à la correction du paragraphe voisin. La SOURCE DE
+  // VÉRITÉ est `FICHIERS_EPINGLES` ci-dessous et son assertion miroir
+  // (`toHaveLength(FICHIERS_EPINGLES.length)`), qui rougit toute seule.
+  // Le bloc ci-dessous est calqué sur celui du programme
   // outillage, pour la même raison et avec la même exigence de bout en bout : le
   // périmètre est épinglé NOMMÉMENT, le script npm vise bien ce tsconfig, et les
   // deux workflows appellent bien ce script.
