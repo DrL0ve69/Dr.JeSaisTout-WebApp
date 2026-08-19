@@ -226,6 +226,15 @@ Elle devient concrète immédiatement : **E2-ST3** (le quiz) écrit la progressi
 sommaire) la lit. C'est le premier couple de features du dépôt à partager un état — donc le premier
 endroit où la règle se gagne ou se perd.
 
+**✅ Depuis la clôture d'E2-ST6 (2026-08-19), la règle n'est plus une intention : elle est
+EXÉCUTABLE.** `src/regles-architecture.spec.ts` traverse les imports réels (`ts.preProcessFile()` +
+`path.resolve`) et confronte les arêtes constatées à une liste blanche nominative
+(`lecon/rendu-blocs → quiz`, `lecon/rendu-blocs → simulation`, tout vers
+`cours/contenu-compile`) ; ce spec est câblé dans G-test des deux workflows. Dette connue : la
+granularité est par paire d'unités (7 paires, dont 5 le long de l'axe de confinement plutôt que de
+vraies traversées) et `core/` reste hors du corpus analysé — une arête `core → features` y serait
+invisible.
+
 ### Phase 2 — ajout de l'API .NET
 
 ```mermaid
