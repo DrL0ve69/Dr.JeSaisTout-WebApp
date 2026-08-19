@@ -418,6 +418,7 @@ describe('rigueur du compilateur', () => {
       'e2e/simulation-mecanique.spec.ts',
       'e2e/simulation-sous-csp.spec.ts',
       'e2e/skip-link.spec.ts',
+      'e2e/sommaire.spec.ts',
       'playwright.config.ts',
     ] as const;
 
