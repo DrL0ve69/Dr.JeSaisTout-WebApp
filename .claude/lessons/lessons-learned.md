@@ -368,6 +368,20 @@ que la commande a fait ce qu'elle annonce.
 **Réfs addendum.** fixtures `.md` et helpers de `tools/content-pipeline/` (E2-ST5 lots a/b1) ;
 `.claude/rules/contenu-pedagogique.md` §3.
 
+**Addendum (E3-ST0) — troisième variante, côté `bash` plutôt que côté fichier : `$VAR` dans un
+`node -e "…"` est expansé par le SHELL avant que node ne le voie.** Un script d'écriture de registre
+lancé en `node -e "…"` depuis bash portait `'$d'` : le shell l'a résolu en chaîne **vide** avant que
+node n'exécute quoi que ce soit, et un ternaire côté node a silencieusement pris l'autre branche —
+résultat un TSV bien formé, sans erreur, avec une colonne de dates **vide**. Seule une relecture du
+fichier écrit au disque (pas le code de retour du process) l'a montré. Règle commune aux trois
+variantes : sur ce poste, toute transformation de texte (fin de ligne, espace spéciale, ou
+interpolation de variable dans un `-e`) se vérifie en **relisant le résultat au disque**. Corollaire
+propre à celle-ci : jamais de `node -e "…"` avec des `$variables` shell en guillemets doubles —
+écrire un fichier de script (`node script.js`) dès qu'une variable doit y entrer.
+
+**Réfs addendum 2.** passe de fusion KB E3-ST0 (registre de progression) ; cousine directe des deux
+variantes ci-dessus.
+
 ---
 
 ## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
@@ -1126,6 +1140,94 @@ commentaire.
 
 **Réfs.** garde-fou de portée du sanitizer (grep `bypassSecurityTrust*` sur `src/**`) ;
 `src/app/features/cours/quiz/quiz.ts` (le patron qui évite déjà de nommer) ; branche E2-ST5 lots a/b1.
+
+---
+
+## L-044 · Une garde d'exhaustivité `satisfies never` se pose sur le DISCRIMINANT, jamais sur l'objet — une interface à champ union n'est pas une union d'interfaces
+
+**Symptôme.** Une revue a prescrit `acteur satisfies never` dans la branche `default` d'un `switch`
+censé fermer l'exhaustivité sur les types d'acteur d'une simulation. Ça ne compile jamais :
+`ActeurSimulation` est une **interface à champ union** (`{ type: 'a' | 'b' | …, … }`), pas une
+**union discriminée d'interfaces** — un `switch (acteur.type)` ne rétrécit que le **champ** `type`,
+jamais l'objet entier, qui reste `ActeurSimulation` de bout en bout. La forme juste est
+`acteur.type satisfies never`. Le piège : devant l'erreur de compilation, le réflexe naturel est de
+**retirer la garde**, ce qui restaure exactement le défaut d'origine — un commentaire qui promet une
+exhaustivité que le code n'applique plus (famille S-009).
+
+**Règle.** Avant de poser `x satisfies never` en branche `default`, vérifier si le type de `x` est
+une **union discriminée** (le `switch` rétrécit `x` lui-même) ou une **interface à champ union** (le
+`switch` ne rétrécit que le champ) — dans le second cas, la garde se pose sur `x.champDiscriminant`,
+jamais sur `x`. Contrôle positif à deux sondes, à répéter pour toute garde de ce genre : le nombre de
+cas actuel compile à 0 erreur, un cas neuf ajouté au type produit `TS1360` **à la ligne de la
+garde**. Cousine de [[L-013]] (seule une sonde bidirectionnelle fait foi) sur l'axe TypeScript.
+
+**Réfs.** `SimulationComponent`, modèle `ActeurSimulation` ; branche E2-ST5 lot b1.
+
+---
+
+## L-045 · Un périmètre de lot qui EXCLUT un gate ne peut pas voir les régressions que ce gate attrape ailleurs sur la page
+
+**Symptôme.** Le lot b2 (E2-ST5) a inséré `SimulationComponent` entre le quiz et le pied de page —
+son brief excluait explicitement G-e2e du périmètre du lot (sortie lourde, cf.
+`.claude/rules/agent-context-budget.md` §4). Conséquence non vue avant le lot **suivant** :
+l'assertion « Tab après *Corriger* → lien GitHub » de `e2e/parcours-clavier-quiz.spec.ts` est passée
+**rouge sur un dépôt sain**, parce que l'ordre de tabulation est une propriété de la **page**, pas du
+composant inséré — et personne n'avait de gate actif pour le voir au moment de l'insertion.
+
+**Règle.** Câbler un composant nouveau **dans** une page existante est un changement qui touche
+structurellement les voisins de tabulation, de focus et d'ordre DOM de **tout** ce qui l'entoure —
+même quand le lot qui l'exécute a, à raison, sorti G-e2e complet de son périmètre pour tenir son
+budget de contexte. Le geste : le lot d'insertion lance au minimum les specs e2e **du fichier
+voisin le plus proche** (ici `parcours-clavier-quiz.spec.ts`) avant de clore, même si la suite
+complète reste pour un agent de vérification séparé. Cousine de [[L-035]] (une prémisse de test
+fausse rougit sur un produit sain) sur un axe inverse : ici c'est le **produit** qui a changé sous
+un test resté juste, faute d'avoir été rejoué au bon moment.
+
+**Réfs.** `e2e/parcours-clavier-quiz.spec.ts` ; `SimulationComponent`, câblage de page ; branche
+E2-ST5 lot b2.
+
+---
+
+## L-046 · Un contrôle d'exhaustivité ne vaut que pour le CORPUS qu'on lui a donné — il conclura à l'absence chaque fois qu'une source légitime manque, même sur un fait exact
+
+**Symptôme.** Deux passes de vérification indépendantes de la fusion KB (E3-ST0) ont signalé des
+dates d'évaluation et un titre de séance comme « absents du plan de cours, à retirer ». Les deux
+avaient raison sur leur **mesure** (le fait n'était bien pas dans le `.docx` du plan) et tort sur
+leur **conclusion** : ces faits vivaient sur la **page web du cours**, une source qu'aucune des deux
+passes n'avait reçue. Le correctif « évident » (retirer ce qui semble non sourcé) aurait supprimé
+trois dates exactes.
+
+**Règle.** Un contrôle d'exhaustivité/de sourçage n'a de sens que relatif à un **corpus déclaré** —
+avant de lancer une passe de vérification qui peut conclure à une absence, **inventorier
+explicitement les sources dans le brief** (toutes, pas seulement la plus évidente), et faire écrire
+la source retenue dans le document vérifié pour qu'une passe suivante ne re-signale pas le même
+« manque ». « Absent du corpus qu'on m'a donné » et « faux » sont deux conclusions différentes ;
+un vérificateur qui les confond sur-corrige. Cousine de [[L-029]] (un contrôle positif ne prouve que
+les chemins qu'il contient) sur l'axe **sourçage** plutôt que **cas de test**.
+
+**Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep) ; dates d'évaluation et titre de
+séance retrouvés sur la page web du cours plutôt que dans le plan `.docx`.
+
+---
+
+## L-047 · Le budget de contexte d'une passe de fusion/synthèse se dimensionne au VOLUME DE SOURCE à lire, jamais au nombre de livrables promis
+
+**Symptôme.** Des lots de fusion KB annoncés « 4 fiches » et « 6 fiches » ont fini à 250k, 244k, 277k
+et 249k tokens — au-delà du maximum absolu de `.claude/rules/agent-context-budget.md` §0 — parce que
+la variable qui pilotait réellement le coût était le **corpus source** : 230 à 298 diapositives, et
+jusqu'à 47 captures d'écran ouvertes **une par une**. Les lots dimensionnés par corpus plutôt que par
+compte de fiches (23 diapositives, 2 fiches) ont fini à 113k et 105k — sous le seuil visé.
+
+**Règle.** Pour une passe de fusion/synthèse/lecture de source externe (diaporamas, captures, PDF),
+le découpage en lots (§2 de `.claude/rules/agent-context-budget.md`) se fait sur le **volume à
+lire** (nombre de diapositives, de pages, d'images à ouvrir), jamais sur le nombre de livrables
+attendus en sortie — deux livrables peuvent cacher 300 diapositives, ou vingt. Avant de brief er un
+lot de fusion, compter le corpus source de chaque fiche visée et répartir en conséquence. **Signal
+pour `.claude/rules/agent-context-budget.md`** : ajouter ce critère de découpe (volume de source, pas
+compte de livrables) à côté du « test du + » existant.
+
+**Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep, lots à 4-6 fiches) ;
+`.claude/rules/agent-context-budget.md` §0, §2.
 
 ---
 
