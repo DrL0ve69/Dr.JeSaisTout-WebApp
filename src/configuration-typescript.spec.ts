@@ -340,10 +340,15 @@ describe('rigueur du compilateur', () => {
   // L-014 : un tsconfig rigoureux, un script npm, les DEUX workflows qui
   // l'appellent — et rien, nulle part, qui asserte ce qu'il vérifie RÉELLEMENT.
   // Vider ou repointer son `include` laisse `tsc -p tsconfig.e2e.json` sortir en 0
-  // sur ZÉRO fichier : les huit specs qui portent tout le clavier, tout le focus et
-  // la seule mesure de CSP à l'exécution du dépôt — plus les trois modules d'aide
-  // où cette mesure vit désormais — cesseraient d'être typés sans qu'aucun run ne
-  // rougisse. Le bloc ci-dessous est calqué sur celui du programme
+  // sur ZÉRO fichier : les specs qui portent tout le clavier, tout le focus et la
+  // seule mesure de CSP à l'exécution du dépôt — plus les modules d'aide où cette
+  // mesure vit désormais — cesseraient d'être typés sans qu'aucun run ne rougisse.
+  // ⚠️ AUCUN NOMBRE DANS CETTE PROSE, ET C'EST DÉLIBÉRÉ (constat de revue du lot C,
+  // E2-ST4) : elle en portait deux, tous deux périmés dès l'entrée du spec suivant,
+  // et ils avaient survécu à la correction du paragraphe voisin. La SOURCE DE
+  // VÉRITÉ est `FICHIERS_EPINGLES` ci-dessous et son assertion miroir
+  // (`toHaveLength(FICHIERS_EPINGLES.length)`), qui rougit toute seule.
+  // Le bloc ci-dessous est calqué sur celui du programme
   // outillage, pour la même raison et avec la même exigence de bout en bout : le
   // périmètre est épinglé NOMMÉMENT, le script npm vise bien ce tsconfig, et les
   // deux workflows appellent bien ce script.
@@ -375,13 +380,17 @@ describe('rigueur du compilateur', () => {
      * d'échec que le commentaire annonçait était donc réel, et le gate n'était pas
      * décoratif.
      *
-     * ⚠️ LES TROIS `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
+     * ⚠️ LES QUATRE `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
      * QUAND MÊME — c'est le point le plus important de cette liste depuis le lot E.
      * Ce sont eux qui portent désormais la MESURE elle-même : `indicateur-focus.ts`
-     * décide ce qu'est « un anneau de focus dessiné » pour deux fichiers,
+     * décide ce qu'est « un anneau de focus dessiné » pour trois fichiers,
      * `sonde-csp.ts` porte les trois collecteurs de violations et l'exigence de CSP
      * servie pour deux autres, `hydratation.ts` définit le point de départ commun
-     * de tout ce qui s'exécute sur la page de leçon. Un défaut de typage y serait
+     * de tout ce qui s'exécute sur la page de leçon, et `artefact-mesure.ts` décide
+     * si les specs de la page de leçon ont un SUJET — c'est lui qui les saute quand
+     * l'artéfact mesuré est celui de production, et un défaut chez lui rendrait ce
+     * saut universel ou nul sans qu'aucun appelant s'en aperçoive (le mode d'échec
+     * qui a rendu `deploy.yml` rouge sur dix specs, PR #17). Un défaut de typage y serait
      * strictement invisible depuis les specs qui les appellent, et il ferait passer
      * VERTS les gates les plus structurants du dépôt. Les mutualiser (L-016) a
      * déplacé le risque : cette liste est l'endroit où on le rattrape.
@@ -393,6 +402,7 @@ describe('rigueur du compilateur', () => {
       'e2e/aides/sonde-csp.ts',
       'e2e/bascule-theme.spec.ts',
       'e2e/cibles-pointeur.spec.ts',
+      'e2e/defileurs-clavier.spec.ts',
       'e2e/focus-visible.spec.ts',
       'e2e/navigation-clavier.spec.ts',
       'e2e/parcours-clavier-quiz.spec.ts',

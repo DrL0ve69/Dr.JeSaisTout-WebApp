@@ -791,8 +791,8 @@ sans S-007/S-008 · (d) S-003 · (e) typage 34 / 35 erreurs sur les deux gates d
 |---|---|---|
 | E2-ST1 | Pipeline build `content/` → HTML/JSON + routes prerendues | ✅ |
 | E2-ST2 | Rendu des leçons (page leçon + routage) | ✅ |
-| E2-ST3 | `QuizComponent` + score localStorage | ⬜ |
-| E2-ST4 | `CodeCompareComponent` | ⬜ |
+| E2-ST3 | `QuizComponent` + score localStorage | ✅ |
+| E2-ST4 | `CodeCompareComponent` | ✅ |
 | E2-ST5 | `SimulationComponent` | ⬜ |
 | E2-ST6 | Page sommaire du cours + progression localStorage | ⬜ |
 
@@ -1686,7 +1686,7 @@ de cours — le contenu d'un `<details>` fermé **ne s'imprime pas**, Safari ne 
 | **A1** | Le contrôle de portée des annotations, **des deux côtés** (`compiler-markdown.mjs` + `rendu-blocs.ts`) + fixture invalide exécutée par la CI. Traite aussi le doublon : `lignes="1,2"` pousse aujourd'hui **la même annotation deux fois** | G-typage-outils, G-content, G-test | ✅ **clos le 2026-08-18** (`b0fc189`) |
 | **A2** | Sonde : **que survit-il au sanitizer d'Angular** sur la sortie Shiki (`class` oui ; `data-*`/`id` à mesurer — précédent SVG 24 éléments → 0) ; **mesurer avant de concevoir**, puis le transformateur `line` | G-test, G-content | ✅ **clos le 2026-08-18** (`441af77`) |
 | **B** | Le rendu enrichi : annotations ancrées à la ligne, 2 colonnes en large, numérotation CSS de toutes les lignes (le filet `.ligne-annotee` est retiré du périmètre) | G-lint, G-test, G-build | ✅ **clos le 2026-08-18** |
-| **C** ⏭️ *(geste suivant)* | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ⬜ |
+| **C** | Vérification jetable : G-axe, G-e2e clavier sous CSP réelle, `config:swa` (aucun hachage neuf attendu) | tous | ✅ **clos le 2026-08-19** |
 
 
 ##### ✅ Clôture du lot A1 — 2026-08-18
@@ -1835,7 +1835,9 @@ qu'aucun gate ne rougisse. Le bloc de code y gagne aussi le nom accessible qu'il
   débordement, ni contraste, ni disposition) ; et l'**unicité inter-sections** des noms de
   défileur — la page monte un composant par section, donc les compteurs de rang repartent de 1
   (mesuré : 8 défileurs, 8 noms distincts, mais quatre « Code n°1 » que seul le langage sépare).
-  Lever ça demande l'identité de section en entrée.
+  Lever ça demande l'identité de section en entrée. **Levé au lot C** : la numérotation des
+  figures de code est devenue **continue sur toute la page** — voir la clôture du lot C
+  ci-dessous.
 - ⚠️ Rappel pour le lot C : tout fichier neuf sous `e2e/` doit être inscrit dans
   `src/configuration-typescript.spec.ts`, sinon G-test rougit — voulu (**L-034**).
 - Inchangée : la dette `quiz.scss` (+88 o), antérieure.
@@ -1845,6 +1847,70 @@ qu'aucun gate ne rougisse. Le bloc de code y gagne aussi le nom accessible qu'il
 **11 passés / 10 sautés** (production) · **G-axe 4 pages / 344 vérifications, 0 violation**
 (fixture), 3 pages / 258 (production) · **G-build 12 hachages de style / 1 de script** (fixture),
 **9 / 1** (production) — inchangés · `npm audit --omit=dev` **0**.
+
+##### ✅ Clôture du lot C — 2026-08-19
+
+**La décision du propriétaire, prise le 2026-08-19, à ne pas rouvrir.** La numérotation des figures
+de code devient **CONTINUE sur toute la page** (les compteurs `code` et `paires` restent distincts
+l'un de l'autre, mais chacun ne repart plus jamais à 1 à chaque section ni à chaque encadré). Les
+alternatives « titre de section dans le nom » et « ne rien faire » ont été écartées. Le constat
+laissé **ouvert** par le lot B (« quatre Code n°1 que seul le langage sépare ») est donc **levé**.
+
+**Ce que les revues ont trouvé, et qui n'était pas ce qu'on cherchait.**
+- 🔴 **Une mutation survivait aux 573 tests.** Le compteur `paires` n'était jamais exercé **à
+  travers la récursion** : remettre son décalage à zéro dans un encadré ne faisait rougir aucun
+  test, et aurait renuméroté les exemples au milieu d'une leçon publiée (« Exemple vulnérable n°1 »
+  en plein corps de texte). Test ajouté, mutation prouvée (1 échec nommé sur 576).
+- 🔴 **Un test vert par COMPENSATION.** Le commentaire `🔴` d'un test l'annonçait comme le filet de
+  la récursion ; la mutation correspondante le laissait vert, parce que le harnais travaillait à la
+  valeur **neutre** (décalage 0) où la descente compense exactement la propagation absente. Il
+  fermait un défaut **voisin** de celui qu'il annonçait. → **L-039**.
+- 🔴 **Les huit `tabindex` du lot B sont sans emploi à la largeur réellement servie.** Sonde sur
+  8 largeurs : à **1280 / 1024 / 768 px, AUCUN** des huit défileurs ne déborde (la colonne de prose
+  fait 635-686 px, plus large que toute ligne de code de la fixture) ; 640 → 2, 480 → 6,
+  400/360/320 → 7. Le lot B a retiré huit arrêts morts posés par Shiki et en a créé huit autres par
+  une autre porte. **Ce n'est pas un échec WCAG** (aucun critère n'interdit un focalisable qui ne
+  défile pas), c'est du bruit clavier. Dette ci-dessous.
+- 🔴 **Un titre de test affirmait un absolu que sa mesure ne couvrait pas** (« AUCUN arrêt mort »,
+  défini structurellement, donc aveugle à l'arrêt mort *fonctionnel*) : un lecteur de log CI
+  concluait « zéro » pendant que le produit en avait huit. Retitré, et le fait est désormais
+  **imprimé au journal** à chaque run plutôt que figé dans un commentaire. → **L-040**.
+- 🔴 **Sous la CSP servie, on ne déplace rien par le style — et ça ne se voit pas.** Une écriture
+  CSSOM (`el.style.top = …`) est **acceptée dans le DOM** (l'attribut se relit) et **jamais
+  appliquée** (`getComputedStyle` rend la valeur d'origine), **sans** `securitypolicyviolation` ni
+  message de console. Un contrôle positif bâti là-dessus aurait été un **no-op silencieux accusant
+  le produit**. Parade employée : chasser l'élément **par le défilement**. → **L-041** et **S-016**.
+- Le module mutualisé `e2e/aides/indicateur-focus.ts` a reçu une **tolérance d'un pixel** (justifiée
+  et jugée correcte : Chromium aligne l'élément focalisé *flush* sur le bord et arrondit le
+  défilement à l'entier ; dépassements mesurés 0,422 px et 0,172 px sur un élément parfaitement
+  visible). Ce qui manquait n'était pas la borne mais **la preuve de refus** : `dansLaFenetre`
+  n'était lu qu'en `.toBe(true)` par ses trois appelants, **rien ne prouvait qu'il savait encore
+  répondre `false`**. Contrôle positif ajouté (par les **deux** bords), `TOLERANCE_SOUS_PIXEL`
+  exporté et épinglé `<= 1`, comparaisons rendues **strictes**, tolérance **ramenée au seul axe
+  vertical** — le seul mesuré. → addendum **L-034**.
+
+**Dettes neuves, nommées et datées.**
+1. **→ E6 · Huit `tabindex="0"` sans emploi à 1280 px.** Le `tabindex` est inconditionnel dans le
+   gabarit ; le rendre conditionnel au débordement est **impossible au prerender** (le gabarit
+   ignore la largeur de lecture) et le poser après hydratation **rouvrirait L-033**. E6 (« Moniteur
+   ambre ») reprend de toute façon l'apparence du bloc de code : à trancher là, avec
+   `--couleur-code-fond` (déjà consignée). Le fait est **imprimé à chaque run e2e**, il ne se
+   perdra pas.
+2. **→ dette de sécurité · contrôle positif `style-src` dans `e2e/aides/sonde-csp.ts`.** Le
+   contrôle positif existant porte sur `script-src` (script inline injecté → violation captée) ;
+   **rien n'atteste que `style-src` soit observable de la même façon**, et la mesure ci-dessus
+   montre qu'il bloque **sans lever d'événement**. « 0 violation collectée » ne prouve donc rien
+   pour cette directive — or c'est **la plus mouvante** (+3 hachages au lot E). Forme attendue :
+   écriture CSSOM + assertion `getComputedStyle`, sans dépendre d'un événement. Voir **S-016**.
+3. Inchangée : `quiz.scss` dépasse son budget de **88 o** (4,09 Ko / 4,00 Ko), antérieure au lot.
+
+**Chiffres de clôture, mesurés le 2026-08-19 par le fil principal** (vérification indépendante,
+après les trois agents) — G-lint ✅ · **G-test 576 / 30 fichiers, 0 échec** (566/30 avant le lot) ·
+**G-e2e 29 passés / 0 sauté** (artéfact de fixture) et **12 passés / 17 sautés, code 0** (artéfact
+de production) · **G-axe 4 pages / 344 vérifications / 0 violation** · **G-build 12 hachages de
+style / 1 de script** (fixture), inchangés · `npm audit --omit=dev` **0**.
+
+**E2-ST4 est CLOSE EN ENTIER** (lots A1, A2, B, C).
 
 ##### 🔴 Le déploiement rouge du 2026-08-18, et le mécanisme qui le referme
 

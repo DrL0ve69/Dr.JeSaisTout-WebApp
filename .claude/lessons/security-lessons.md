@@ -440,3 +440,33 @@ n'y en a pas — la seule sortie est l'analyse structurelle. Vérifié par deux 
 un appel direct de la fonction corrigée (`verifierZeroStyle`, exportée pour ça) sur du HTML forgé.
 **Réfs.** `tools/content-pipeline/compiler-markdown.mjs`, `.claude/rules/security.md` §4,
 `docs/agile/backlog-phase-1.md` §E2-ST4 lot B.
+
+## S-016 · Un collecteur de `securitypolicyviolation` mesure « rien d'observable par CET événement », pas « rien de bloqué » — une écriture CSSOM refusée peut ne jamais l'émettre (A05 · faux négatif d'instrument, cousin de [[S-005]]/[[S-013]])
+
+**Symptôme.** Mesuré le 2026-08-19 (E2-ST4 lot C) sous CSP réellement servie (`npx swa start` +
+Chromium réel) : une écriture de style par **CSSOM** (`el.style.top = '-200px'`,
+`el.style.setProperty(…, 'important')`) est acceptée dans le DOM (l'attribut `style` se relit
+intact), **jamais appliquée** (`getComputedStyle` rend la valeur d'origine, y compris sur `<body>`),
+et n'émet **ni** événement `securitypolicyviolation` **ni** message de console. La politique mord,
+en silence.
+**Pourquoi ce n'est pas déjà couvert.** [[S-005]] établit que `style-src` est la directive mouvante
+de ce dépôt (dérivée de l'artéfact, contrairement à `script-src`) — vrai sur l'axe *contenu de la
+liste blanche*, muet sur l'axe *observabilité*. `e2e/aides/sonde-csp.ts` porte un contrôle positif
+mais **seulement pour `script-src`** (script inline injecté → violation captée) : rien n'atteste que
+`style-src` soit observable par le même mécanisme, et la mesure d'aujourd'hui montre le contraire. Un
+collecteur d'événements ne mesure donc pas « la CSP n'a rien bloqué » mais « la CSP n'a rien bloqué
+**que cet événement sache signaler** » — distinction de la même famille que [[L-005]] (un run vert
+ne prouve pas qu'une vérification a tourné) et [[L-019]]/[[S-013]] (une sonde a besoin d'un contrôle
+positif propre à ce qu'elle prétend mesurer).
+**Règle.** Ne jamais présumer qu'une directive CSP est observable par `securitypolicyviolation` sans
+contrôle positif **dédié à cette directive** — le contrôle positif de `script-src` ne vaut pas
+preuve pour `style-src`. Sur ce dépôt, `style-src` doit se vérifier par un second canal, structurel :
+`getComputedStyle` après une écriture CSSOM délibérée (contrôle positif d'application, pas
+d'événement) — « 0 violation collectée » ne doit jamais, seul, clore un ticket touchant `style-src`.
+**Dette nommée pour `e2e/aides/sonde-csp.ts` :** ajouter un contrôle positif « écriture CSSOM
+refusée » (assertion sur `getComputedStyle`, pas sur un événement) distinct de celui de
+`script-src`, documentant explicitement que `style-src` peut bloquer sans jamais lever
+`securitypolicyviolation`.
+**Réfs.** `e2e/aides/sonde-csp.ts`, `e2e/quiz-sous-csp.spec.ts`, `e2e/bascule-theme.spec.ts`,
+`src/configuration-typescript.spec.ts`, `.claude/rules/security.md` §1,
+`docs/agile/backlog-phase-1.md` §E2-ST4 lot C.

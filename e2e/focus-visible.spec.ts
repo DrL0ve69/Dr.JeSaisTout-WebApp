@@ -40,13 +40,16 @@
 // d'E2-ST3 : `parcours-clavier-quiz.spec.ts` applique la MÊME barre aux huit arrêts
 // du quiz, et deux copies de « un anneau est dessiné » auraient été libres de
 // diverger en silence (L-016). Ce fichier garde ce qui lui est propre — la page
-// mesurée et son compte d'arrêts épinglé.
+// mesurée, son compte d'arrêts épinglé, et depuis le lot C d'E2-ST4 le CONTRÔLE
+// POSITIF de la mesure mutualisée (deuxième test, en bas de fichier) : la seule
+// preuve du dépôt que `dansLaFenetre` sache encore répondre `false`.
 // =============================================================================
 
 import { expect, test } from '@playwright/test';
 
 import {
   MesureFocus,
+  TOLERANCE_SOUS_PIXEL,
   exigerIndicateurVisible,
   journaliserMesures,
   mesurerArretFocalise,
@@ -123,4 +126,168 @@ test("chaque arrêt de tabulation porte un indicateur de focus calculé, et il n
 
     exigerIndicateurVisible(mesure, repos);
   }
+});
+
+// =============================================================================
+// CONTRÔLE POSITIF — la mesure sait-elle encore REFUSER ? (L-019, L-034, L-036)
+// -----------------------------------------------------------------------------
+// LE TROU QUE CE TEST FERME, TROUVÉ EN REVUE DU LOT C D'E2-ST4. `dansLaFenetre`
+// n'est lu qu'en `.toBe(true)` par ses TROIS appelants (`focus-visible.spec.ts`,
+// `parcours-clavier-quiz.spec.ts`, `defileurs-clavier.spec.ts`) : rien, nulle part,
+// ne prouvait qu'il sache encore répondre `false`. Un module de mesure qui a perdu
+// sa capacité de refus rend tous ses appelants VERTS — et c'était le seul des quatre
+// `e2e/aides/*.ts` dans ce cas (`sonde-csp.ts` exige par écrit un contrôle positif
+// de ses appelants, et deux specs le portent nommément). L-034 demande « ce module
+// peut-il, seul, faire passer un test vert à tort ? » : seul l'axe TYPAGE était
+// gardé, par `src/configuration-typescript.spec.ts`, et c'est l'axe COMPORTEMENT
+// qui vient d'être desserré par la tolérance sous-pixel.
+//
+// POURQUOI SUR « / » ET NON SUR LA PAGE DE LEÇON : « / » existe dans les DEUX
+// artéfacts (fixture et production), ce test n'est donc jamais sauté. Le seul
+// endroit du dépôt où la capacité de refus est prouvée ne doit pas dépendre d'une
+// fixture qui se retire à la clôture d'E3-ST1.
+//
+// 🔴 ON POUSSE L'ÉLÉMENT HORS DE LA FENÊTRE EN FAISANT DÉFILER LE DOCUMENT, ET
+// SÛREMENT PAS EN LUI POSANT UN STYLE — MESURÉ, PAS SUPPOSÉ. La voie « écrire
+// `element.style.top` par le CSSOM » a été essayée d'abord, sur la promesse
+// courante qu'une mutation du CSSOM échappe à `style-src`. ELLE EST FAUSSE ICI, et
+// le constat est net : sous la CSP servie du dépôt (`style-src 'self' <hachages>`,
+// sans `'unsafe-inline'`), Chromium ACCEPTE l'écriture dans le DOM — l'attribut se
+// relit, `style="opacity: 0.5;"` — et REFUSE DE L'APPLIQUER : `getComputedStyle`
+// rend la valeur d'origine, y compris sur `<body>`, y compris avec `!important`, et
+// SANS émettre d'événement `securitypolicyviolation` ni de message de console. Un
+// déplacement par style aurait donc été un no-op SILENCIEUX — c'est-à-dire un
+// contrôle positif qui accuse le produit d'un défaut de son propre instrument
+// (le mode d'échec du `MutationObserver` d'E1, qui rapportait son plantage comme une
+// violation de CSP). ⚠️ À retenir hors de ce fichier : dans un spec de ce dépôt, on
+// ne bouge RIEN par le style — ni `element.style`, ni `setProperty(…, 'important')`,
+// ni un `<style>` injecté (celui-là refusé bruyamment, faute de hachage).
+//
+// Le défilement, lui, ne touche à aucune feuille de style, et il reproduit le vrai
+// mode d'échec de 2.4.11 que l'en-tête de ce fichier nomme : « hors de la fenêtre
+// après un défilement ». `prefers-reduced-motion: reduce` est actif dans le harnais,
+// donc `scroll-behavior: smooth` est neutralisé et le défilement est instantané —
+// la boîte est quand même RELUE avant de conclure (L-021 : on ne lit pas une valeur
+// dans la microseconde qui suit le geste, on la constate).
+// =============================================================================
+test('CONTRÔLE POSITIF — `dansLaFenetre` sait encore répondre faux, par le haut comme par le bas', async ({
+  page,
+}) => {
+  // LA BORNE, ÉPINGLÉE. La tolérance sous-pixel est le desserrage qui rend ce
+  // contrôle nécessaire ; l'élargir au-delà du pixel (donc au-delà du reste d'un
+  // arrondi au pixel entier) cesserait d'être une correction de mesure pour devenir
+  // une indulgence sur 2.4.11. Cette ligne le fait rougir.
+  expect(
+    TOLERANCE_SOUS_PIXEL,
+    'la tolérance sous-pixel de `dansLaFenetre` a dépassé 1 px : ce n’est plus le reste ' +
+      'd’un arrondi au pixel entier, c’est une tolérance sur WCAG 2.4.11',
+  ).toBeLessThanOrEqual(1);
+
+  await page.goto('/');
+
+  // La page doit être plus haute que la fenêtre, sinon il n'y a rien à faire défiler
+  // et les deux volets ci-dessous seraient verts sans avoir rien déplacé.
+  const marge = await page.evaluate(
+    () => document.documentElement.scrollHeight - window.innerHeight,
+  );
+  expect(
+    marge,
+    'la page « / » tient entièrement dans la fenêtre : ce contrôle positif n’a plus de course ' +
+      'de défilement, il ne pousserait plus rien hors de l’écran',
+  ).toBeGreaterThan(200);
+
+  /** La boîte de l'élément qui a le focus MAINTENANT, relue au navigateur. */
+  const boiteDuFocalise = async (): Promise<{ top: number; bottom: number; fenetre: number }> =>
+    page.evaluate(() => {
+      const actif = document.activeElement;
+      if (!(actif instanceof HTMLElement)) {
+        throw new Error('le focus a quitté la page pendant le contrôle positif');
+      }
+      const boite = actif.getBoundingClientRect();
+      return { top: boite.top, bottom: boite.bottom, fenetre: window.innerHeight };
+    });
+
+  // ---------------------------------------------------------------------------
+  // (a) PAR LE HAUT — le logotype de l'en-tête, chassé au-dessus de la fenêtre
+  // ---------------------------------------------------------------------------
+  // Deux Tab : le lien d'évitement, puis le logotype. Ce dernier est en flux normal
+  // dans un en-tête `position: static` (mesuré), donc le défilement l'emporte
+  // vraiment — le lien d'évitement, lui, est `fixed` et ne bougerait pas d'un pixel.
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+
+  const auDepart = await mesurerArretFocalise(page);
+  expect(auDepart, 'la deuxième tabulation n’a posé le focus sur aucun focalisable de « / »').not.toBeNull();
+  expect(
+    auDepart?.dansLaFenetre ?? false,
+    `l’arrêt de départ est déjà HORS de la fenêtre (${auDepart?.bords ?? ''}) : le contrôle ` +
+      'positif ne prouverait rien, puisqu’il n’aurait rien fait basculer',
+  ).toBe(true);
+  console.log(`Contrôle positif — départ DANS la fenêtre : ${auDepart?.bords ?? ''}`);
+
+  await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+  });
+
+  // L'INSTRUMENT D'ABORD. Sans cette attente, un défilement resté animé ferait
+  // échouer l'assertion suivante avec un message qui accuse le PRODUIT.
+  await expect
+    .poll(async () => (await boiteDuFocalise()).bottom, {
+      message:
+        'le défilement n’a pas chassé l’arrêt focalisé au-dessus de la fenêtre : l’instrument ' +
+        'du contrôle positif n’a rien déplacé, ce n’est pas un constat sur le produit',
+    })
+    .toBeLessThan(0);
+
+  const parLeHaut = await mesurerArretFocalise(page);
+  expect(parLeHaut, 'le focus a quitté la page pendant le défilement vers le bas').not.toBeNull();
+  console.log(`Contrôle positif — chassé par le HAUT : ${parLeHaut?.bords ?? ''}`);
+  expect(
+    parLeHaut?.dansLaFenetre ?? true,
+    `un focalisable entièrement AU-DESSUS de la fenêtre est encore déclaré « dans la fenêtre » ` +
+      `(${parLeHaut?.bords ?? ''}) : \`dansLaFenetre\` ne refuse plus rien, et les trois specs ` +
+      'qui l’exigent `true` passeraient verts sur un indicateur de focus invisible (WCAG 2.4.11)',
+  ).toBe(false);
+
+  // ---------------------------------------------------------------------------
+  // (b) PAR LE BAS — le dernier arrêt de la page, laissé sous la fenêtre
+  // ---------------------------------------------------------------------------
+  // Le second bord, parce que les deux comparaisons sont écrites séparément dans
+  // `dansLaFenetre` : l'une peut parfaitement survivre à la disparition de l'autre.
+  await page.goto('/');
+  for (let n = 0; n < ARRETS_ATTENDUS; n++) {
+    await page.keyboard.press('Tab');
+  }
+
+  const dernier = await mesurerArretFocalise(page);
+  expect(dernier, 'le dernier arrêt de « / » n’est pas un focalisable mesurable').not.toBeNull();
+  expect(
+    dernier?.dansLaFenetre ?? false,
+    `le dernier arrêt est déjà HORS de la fenêtre (${dernier?.bords ?? ''}) — la tabulation ne ` +
+      'l’a donc pas amené à l’écran, et le basculement à prouver n’en serait pas un',
+  ).toBe(true);
+
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
+
+  await expect
+    .poll(async () => {
+      const boite = await boiteDuFocalise();
+      return boite.top - boite.fenetre;
+    }, {
+      message:
+        'le retour en haut de page n’a pas laissé l’arrêt focalisé sous la fenêtre : ' +
+        'l’instrument du contrôle positif n’a rien déplacé',
+    })
+    .toBeGreaterThan(0);
+
+  const parLeBas = await mesurerArretFocalise(page);
+  expect(parLeBas, 'le focus a quitté la page pendant le retour en haut').not.toBeNull();
+  console.log(`Contrôle positif — laissé sous le BAS : ${parLeBas?.bords ?? ''}`);
+  expect(
+    parLeBas?.dansLaFenetre ?? true,
+    `un focalisable entièrement SOUS la fenêtre est encore déclaré « dans la fenêtre » ` +
+      `(${parLeBas?.bords ?? ''}) : la comparaison du bord inférieur ne refuse plus rien`,
+  ).toBe(false);
 });

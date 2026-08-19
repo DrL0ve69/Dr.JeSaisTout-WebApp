@@ -36,6 +36,45 @@ import { Page, expect } from '@playwright/test';
 export const SELECTEUR_FOCALISABLES =
   'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex^="-"])';
 
+/**
+ * LA TOLÉRANCE SOUS-PIXEL VERTICALE DE `dansLaFenetre`, ET POURQUOI ELLE N'EST PAS
+ * UN SEUIL QUI GLISSE — née du lot C d'E2-ST4, mesurée, pas devinée.
+ *
+ * Quand une tabulation oblige le navigateur à défiler vers le BAS, Chromium aligne
+ * l'élément FLUSH sur le bord inférieur de la fenêtre (`kAlignToEdgeIfNeeded`) : la
+ * cible est donc `bottom === innerHeight` exactement. Mais il arrondit le décalage de
+ * défilement à un pixel entier, tandis que la mise en page garde des hauteurs
+ * FRACTIONNAIRES — les défileurs de code mesurent 66,53125 px et 46,0625 px. Le reste
+ * de la division déborde donc du bord de quelques CENTIÈMES de pixel : mesuré
+ * 0,422 px à 720 px de haut, 0,172 px à 800 px, sur des éléments que le navigateur
+ * venait précisément d'amener à l'écran.
+ *
+ * Sans cette tolérance, la comparaison exacte déclare « focalisé HORS de la fenêtre »
+ * un élément parfaitement visible, et le verdict CHANGE avec la hauteur de fenêtre —
+ * c'est-à-dire un rouge qui n'apprend rien, sur un produit sain (famille L-035). Le
+ * défaut dormait déjà dans les deux autres specs appelants : leurs arrêts sont plus
+ * petits, donc moins souvent fractionnaires, pas mieux protégés.
+ *
+ * ⚠️ DEUX RESSERREMENTS DEMANDÉS EN REVUE, ET APPLIQUÉS — le commentaire promettait
+ * plus strict que le code, et la borne était généralisée à des bords jamais mesurés.
+ *  1. LA COMPARAISON EST STRICTE (`>` / `<`), plus `>=` / `<=`. L'écart est le RESTE
+ *     d'un arrondi au pixel entier : il vit dans [0 ; 1[, donc exactement 1,000 px
+ *     n'est pas un reste d'arrondi, c'est un autre phénomène — et il doit rougir.
+ *     Le code dit désormais ce que le commentaire disait déjà (« INFÉRIEUR À 1 »).
+ *  2. ELLE NE S'APPLIQUE QU'À L'AXE VERTICAL, le seul où la cause ait été mesurée.
+ *     Le dépôt interdit un défilement horizontal du document (la prose est bornée,
+ *     les blocs de code défilent DANS leur région) : l'arrondi de défilement ne se
+ *     produit donc pas sur `left`/`right`, et une tolérance y aurait été un
+ *     raisonnement, pas une mesure. Les quatre bords sont IMPRIMÉS à chaque run
+ *     (champ `bords`), de sorte que la marge horizontale reste observable — y
+ *     compris à 320 px, où l'anneau frôle le bord.
+ *
+ * Ce que 2.4.11 interdit (un indicateur masqué, ou hors de l'écran) se compte en
+ * dizaines de pixels et reste refusé. La borne est ÉPINGLÉE `<= 1` par le contrôle
+ * positif de `focus-visible.spec.ts` : l'élargir fait rougir un gate.
+ */
+export const TOLERANCE_SOUS_PIXEL = 1;
+
 /** L'état neutre d'un focalisable, relevé AVANT toute tabulation. */
 export interface EtatAuRepos {
   readonly contourStyle: string;
@@ -55,6 +94,16 @@ export interface MesureFocus {
   readonly ombre: string;
   readonly dansLaFenetre: boolean;
   readonly boite: string;
+  /**
+   * Les QUATRE bords face à ceux de la fenêtre, au centième de pixel — le chiffre
+   * qu'il a fallu instrumenter à la main pour diagnostiquer le lot C d'E2-ST4
+   * (0,422 px de dépassement). Sans lui, `boite` seule (arrondie) ne dit ni de
+   * combien un élément déborde, ni par quel bord : le prochain diagnostic
+   * repartirait de zéro, et « la tolérance est-elle bornée ? » resterait une
+   * question non observable. Aucune assertion n'en dépend — il sert le journal et
+   * le message d'échec de 2.4.11.
+   */
+  readonly bords: string;
   /** `null` = rien ne recouvre ; sinon, la balise du coupable. */
   readonly recouvertPar: string | null;
 }
@@ -87,7 +136,7 @@ export async function releverEtatAuRepos(page: Page): Promise<readonly EtatAuRep
  * focalisable de la page (focus sorti sur `<body>`, ou dans la chrome du navigateur).
  */
 export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | null> {
-  return page.evaluate((selecteur) => {
+  return page.evaluate(([selecteur, tolerance]: readonly [string, number]) => {
     const focalisables = Array.from(document.querySelectorAll<HTMLElement>(selecteur));
     const actif = document.activeElement;
     if (!(actif instanceof HTMLElement)) {
@@ -113,6 +162,9 @@ export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | nu
     const texte =
       (actif.textContent ?? '').trim() || (actif.closest('label')?.textContent ?? '').trim();
 
+    /** Deux décimales, virgule décimale française : ces chiffres sont lus par un humain. */
+    const centieme = (valeur: number): string => valeur.toFixed(2).replace('.', ',');
+
     return {
       index,
       description: `${actif.tagName.toLowerCase()} « ${texte.replace(/\s+/g, ' ').slice(0, 60) || '(sans texte)'} »`,
@@ -120,12 +172,21 @@ export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | nu
       contourEpaisseur: Number.parseFloat(style.outlineWidth) || 0,
       contourCouleur: style.outlineColor,
       ombre: style.boxShadow,
+      // La tolérance ne joue que sur l'axe VERTICAL — le seul où l'arrondi du
+      // décalage de défilement ait été mesuré — et STRICTEMENT : un reste d'arrondi
+      // vit dans [0 ; 1[, donc 1,000 px exactement est un autre phénomène et doit
+      // rougir. Les bords gauche/droit sont comparés sans indulgence. Voir
+      // TOLERANCE_SOUS_PIXEL.
       dansLaFenetre:
-        boite.top >= 0 &&
+        boite.top > -tolerance &&
         boite.left >= 0 &&
-        boite.bottom <= window.innerHeight &&
+        boite.bottom < window.innerHeight + tolerance &&
         boite.right <= window.innerWidth,
       boite: `${Math.round(boite.width)}×${Math.round(boite.height)} en (${Math.round(boite.left)}, ${Math.round(boite.top)})`,
+      bords:
+        `top ${centieme(boite.top)} · left ${centieme(boite.left)} · ` +
+        `bottom ${centieme(boite.bottom)} / innerHeight ${String(window.innerHeight)} · ` +
+        `right ${centieme(boite.right)} / innerWidth ${String(window.innerWidth)}`,
       recouvertPar:
         auCentre === null
           ? 'rien (point hors de tout élément)'
@@ -133,7 +194,7 @@ export async function mesurerArretFocalise(page: Page): Promise<MesureFocus | nu
             ? null
             : `<${auCentre.tagName.toLowerCase()}>`,
     };
-  }, SELECTEUR_FOCALISABLES);
+  }, [SELECTEUR_FOCALISABLES, TOLERANCE_SOUS_PIXEL] as const);
 }
 
 /**
@@ -160,7 +221,9 @@ export function exigerIndicateurVisible(mesure: MesureFocus, repos: EtatAuRepos)
 
   expect(
     mesure.dansLaFenetre,
-    `${mesure.description} : focalisé HORS de la fenêtre (boîte ${mesure.boite}) — l'anneau existe mais personne ne le voit`,
+    `${mesure.description} : focalisé HORS de la fenêtre (boîte ${mesure.boite} ; ` +
+      `bords ${mesure.bords} ; tolérance verticale STRICTE < ${String(TOLERANCE_SOUS_PIXEL)} px) — ` +
+      "l'anneau existe mais personne ne le voit",
   ).toBe(true);
 
   expect(
@@ -175,7 +238,10 @@ export function journaliserMesures(titre: string, mesures: readonly MesureFocus[
   for (const mesure of mesures) {
     console.log(
       `  • ${mesure.description} — contour ${mesure.contourStyle} ${mesure.contourEpaisseur}px ${mesure.contourCouleur}` +
-        ` · ombre ${mesure.ombre} · boîte ${mesure.boite}`,
+        ` · ombre ${mesure.ombre} · boîte ${mesure.boite}` +
+        // Les quatre bords au centième : c'est ici que la marge réelle face à la
+        // fenêtre devient observable, sur l'axe horizontal comme sur le vertical.
+        `\n      ${mesure.bords}`,
     );
   }
 }
