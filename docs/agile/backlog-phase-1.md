@@ -2077,6 +2077,29 @@ E3-ST1, pas pendant.
 - **Découpe budget** : deux URL = potentiellement beaucoup de matériel. Un agent = un cours. Si le
   cours de sécurité seul dépasse, découper par bloc de modules.
 
+> #### 💸 Dette née de la passe E3-ST0 — scission des fiches, mesurée le 2026-08-19
+>
+> `KnowledgeBase/CONVENTIONS.md` l. 74 : « **au-delà de ~500 lignes, scinder en sous-fiches liées ;
+> la fiche mère devient un sommaire avec liens relatifs** ». **22 fiches dépassent ce seuil**, les
+> plus lourdes étant `administration-serveur-linux.md` (1096), `exercices-corriges-poo-application.md`
+> (1057), `exercices-corriges-langage.md` (981) et `automatisation-surveillance-cron.md` (792).
+>
+> **La scission n'a PAS été faite, et c'est délibéré** — pas un oubli : jusqu'à cinq agents écrivaient
+> en parallèle dans ces deux dossiers, et découper une fiche **déplace les ancres** que d'autres
+> fiches référencent par lien relatif. Le coût d'une collision dépassait le bénéfice.
+>
+> ⚠️ **Le seuil était déjà franchi AVANT cette passe** : `csrf.md` (559) et
+> `inclusion-fichiers-ssrf.md` (513) n'ont été touchées par aucun agent. La passe a aggravé une
+> dette existante, elle ne l'a pas créée — la traiter comme un lot propre, pas comme une retouche
+> d'E3-ST0.
+>
+> **Lot à ouvrir, dimensionné** : une fiche mère = un sommaire, une sous-fiche par séance de cours.
+> À faire **quand plus aucun agent n'écrit dans la KnowledgeBase**, avec un contrôle d'ancres avant
+> et après (un des agents de cette passe en a écrit un et l'a exécuté : 0 ancre cassée — le
+> réemployer plutôt qu'en réinventer un). **Aucune urgence** : la KB est un intrant de rédaction, pas
+> un livrable publié — mais c'est une condition de lisibilité pour le `professeur-web`, qui devra
+> lire ces fiches en entier pour écrire les leçons, sous budget de contexte.
+
 ### Bloc A — Fondations & familles d'attaques *(cible : en ligne mi-septembre, J4)*
 
 | ID | Module (`NN-slug`) | Fiche KB source | Simulation | Statut |
@@ -2088,6 +2111,39 @@ E3-ST1, pas pendant.
 | E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ⬜ |
 | E3-ST6 | `06-controle-acces` — Contrôle d'accès, IDOR, élévation de privilèges, mass assignment | `controle-acces-idor.md` | **oui** : IDOR par manipulation d'identifiant | ⬜ |
 | E3-ST7 | `07-inclusion-ssrf` — Path traversal, LFI/RFI, SSRF (métadonnées cloud) | `inclusion-fichiers-ssrf.md` | **oui** : SSRF vers l'endpoint de métadonnées | ⬜ |
+
+> ### 📊 Recensement de provenance — mesuré le 2026-08-19, à la clôture d'E3-ST0
+>
+> Chaque fiche source porte désormais des marqueurs **ligne à ligne** : **📘 Cours** (matière
+> d'examen) · **🧩 Complément KB** (pas exigible). Le compte ci-dessous dit, pour chaque module
+> planifié, **combien de sa matière vient réellement du cours du cégep**. Il change ce qu'un module
+> doit annoncer à son lecteur — et il n'était pas connu quand les 13 modules ont été écrits.
+>
+> | Fiche source | 📘 | 🧩 | Lecture |
+> |---|---|---|---|
+> | `securite-base-de-donnees.md` | 11 | 11 | la mieux couverte : comptes, privilèges, phpMyAdmin et les 7 exercices sont du cours |
+> | `xss-cross-site-scripting.md` | 10 | 17 | le principe, la démo stockée et `htmlspecialchars` sont du cours ; taxonomie, DOM, CSP, DOMPurify non |
+> | `injection.md` | 7 | 19 | seules les diapos 8-19 sont du cours ; UNION, blind, stacked, XXE, OS, NoSQL sont du complément |
+> | `stockage-mots-de-passe.md` | 6 | 18 | |
+> | `fondamentaux-securite-web.md` | 6 | 32 | seuls CIA et la chaîne d'outils viennent du cours |
+> | `panorama-menaces.md` | 6 | 14 | le panorama des 8 familles ; le détail par famille non |
+> | `authentification-failles.md` | 5 | 8 | |
+> | `sessions-cookies-securite.md` | 3 | 7 | seule l'expiration de session (diapos 86-99) est du cours |
+> | `controle-acces-idor.md` | 2 | 10 | |
+> | **`evaluation-vulnerabilites-cvss.md`** | **0** | 21 | 🔴 CVSS/CVE/CWE/EPSS/KEV : **0 occurrence** dans les 8 diaporamas et le plan de cours |
+> | **`jwt-securite.md`** | **0** | 15 | 🔴 **aucun mot du sujet** dans le millésime 2026 du cours |
+> | **`en-tetes-securite-http.md`** | **0** | 11 | 🔴 fiche née d'une absence : la séance 8 n'a aucun support publié |
+>
+> **🔴 Conséquence, à traiter à la rédaction et non à la relecture.** Trois modules planifiés —
+> **E3-ST2** (`02-evaluation-cvss`), **E3-ST12** (`12-jwt`) et **E3-ST19** (`19-services-web-https`) —
+> n'ont **aucune** matière issue du cours. Ils restent utiles et restent au plan : le site n'est pas
+> qu'un miroir du cégep. Mais ils doivent **le dire à leur lecteur**, faute de quoi ils lui font
+> réviser pour un examen une matière que son enseignant n'évaluera pas — l'échec exact que la
+> section 6 de `.claude/rules/contenu-pedagogique.md` existe pour empêcher.
+>
+> **À l'inverse**, `fondamentaux-securite-web.md` (6 📘 / 32 🧩) est le piège symétrique : la fiche
+> est massivement du complément alors que le module **E3-ST1** ouvre le cours et *paraît* être la
+> matière de la séance 1. C'est le module où le marquage compte le plus.
 
 ### Bloc B — Identités & données *(cible : ~12 octobre, J5)*
 
