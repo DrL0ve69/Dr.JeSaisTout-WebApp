@@ -15,6 +15,16 @@
 > dans chaque session/sous-agent ; lire l'entrée complète d'une leçon dont la zone touche la tâche en
 > cours **avant** d'y toucher. Ce fichier est distinct de `.claude/lessons/security-lessons.md`
 > (`S-0xx`), réservé aux leçons de sécurité.
+>
+> **Avant d'entrer une leçon : une mesure CONTRÔLÉE, pas une observation isolée.** (2026-08-19,
+> né d'un correctif de [[L-041]], qui affirmait pendant plusieurs sessions une cause inverse de la
+> réalité, tirée d'une seule observation non contrôlée.) Une entrée fausse est **plus coûteuse**
+> qu'aucune entrée : elle est injectée à chaque session et fait raisonner juste sur des faits faux,
+> et personne ne la remet en doute puisqu'elle a l'autorité du fichier. Avant d'écrire une leçon
+> tirée d'un seul comportement observé (« ça n'a pas marché », « rien n'a bougé »,
+> « c'est accepté/refusé ») : reproduire avec au moins **une variante de contrôle positif** qui
+> prouve que l'instrument/la propriété testés peuvent effectivement bouger dans l'autre sens — sinon
+> marquer l'entrée `à confirmer` dans son titre plutôt que l'affirmer comme un fait.
 
 ---
 
@@ -352,6 +362,36 @@ configuration, et tout générateur qui hache du contenu texte.
 **Réfs.** `.github/workflows/ci.yml` ; `tools/deploiement/generer-config-swa.mjs` ;
 `src/init-theme.spec.ts` ; branche `chore/tsconfig-strict`.
 
+**Addendum (E2-ST5 lots a/b1) — le piège CRLF mord aussi les FIXTURES `.md` et les repères de
+test.** Un repère écrit en dur dans un test (`'\n[[quiz]]\n'`) ne s'appariait à rien contre une
+fixture `.md` en CRLF sur ce poste — même faute que la regex ancrée, sur un axe neuf : ici c'est un
+littéral de comparaison, pas une regex. Les helpers de test mesurent désormais la fin de ligne
+réelle du fichier plutôt que de supposer `\n`. **Deuxième variante, sur les commandes de ce poste :**
+`sed 's/…/ /'` ne produit **pas** U+00A0 — GNU sed interprète `\u` côté remplacement comme
+« mettre en majuscule le caractère suivant » et avale la séquence en silence ; il faut `\x5cu00A0`.
+Sur un dépôt dont `.claude/rules/contenu-pedagogique.md` §3 impose U+00A0 et interdit U+202F/U+2009,
+une substitution qui produit silencieusement un **autre** caractère (ou rien) est un risque de
+contenu, pas seulement de test. Règle commune aux deux : sur ce poste, **toute** transformation de
+fin de ligne ou d'espace spéciale se vérifie en relisant le résultat au disque, jamais en supposant
+que la commande a fait ce qu'elle annonce.
+
+**Réfs addendum.** fixtures `.md` et helpers de `tools/content-pipeline/` (E2-ST5 lots a/b1) ;
+`.claude/rules/contenu-pedagogique.md` §3.
+
+**Addendum (E3-ST0) — troisième variante, côté `bash` plutôt que côté fichier : `$VAR` dans un
+`node -e "…"` est expansé par le SHELL avant que node ne le voie.** Un script d'écriture de registre
+lancé en `node -e "…"` depuis bash portait `'$d'` : le shell l'a résolu en chaîne **vide** avant que
+node n'exécute quoi que ce soit, et un ternaire côté node a silencieusement pris l'autre branche —
+résultat un TSV bien formé, sans erreur, avec une colonne de dates **vide**. Seule une relecture du
+fichier écrit au disque (pas le code de retour du process) l'a montré. Règle commune aux trois
+variantes : sur ce poste, toute transformation de texte (fin de ligne, espace spéciale, ou
+interpolation de variable dans un `-e`) se vérifie en **relisant le résultat au disque**. Corollaire
+propre à celle-ci : jamais de `node -e "…"` avec des `$variables` shell en guillemets doubles —
+écrire un fichier de script (`node script.js`) dès qu'une variable doit y entrer.
+
+**Réfs addendum 2.** passe de fusion KB E3-ST0 (registre de progression) ; cousine directe des deux
+variantes ci-dessus.
+
 ---
 
 ## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
@@ -634,6 +674,24 @@ automatiques ne pouvait voir : ils vérifient tous des contrats, aucun ne **rega
 
 **Réfs.** `src/styles/_mixins.scss` (`@mixin filet-horizontal`, l'avertissement en tête) ;
 `docs/agile/backlog-phase-1.md` §E1-ST3, lot C.
+
+**Addendum (2026-08-19, E2-ST5 lot c2) — le pendant côté PROPRIÉTÉ TÉMOIN, pas seulement côté
+rendu.** Deux occurrences mesurées dans un même épisode CSP : une sonde écrivait `top` sur un
+élément en `position: static` (où `top` n'a structurellement aucun effet), puis, en corrigeant,
+`outline-offset` sur un élément dont `outline-style` valait `none` (Chromium le résout à `0px` tant
+que le contour n'existe pas) — les deux fois, « aucun changement observé » était **ambigu** entre
+« refusé par une politique » et « cette propriété-là n'avait de toute façon aucune prise ici ».
+**Règle.** Toute sonde qui lit une propriété calculée (CSS, géométrie, attribut, focus) pour prouver
+qu'**autre chose** a été refusé ou appliqué doit d'abord garantir que cette propriété **bouge** en
+l'absence de tout refus — sinon on mesure l'inertie de la propriété choisie, pas la politique
+testée. Choisir une propriété qui se résout **inconditionnellement** dans l'état où on l'interroge
+(ex. `padding-top` plutôt que `top` hors positionnement, un contour déjà visible plutôt
+qu'`outline-offset` seul). Cousine directe de [[L-010]] (un test de mutation doit vérifier qu'il a
+frappé sa cible) et de [[L-013]] (seule une sonde bidirectionnelle fait foi) : ici l'axe est le
+*choix de la propriété observée*, pas la mutation ni la config. Détail de l'épisode d'origine :
+[[L-041]] (CSP `style-src`) et `.claude/lessons/security-lessons.md` **S-016**.
+
+**Réfs addendum.** `e2e/aides/sonde-csp.ts` ; branche E2-ST5 lot c2.
 
 ---
 
@@ -956,6 +1014,32 @@ vérifier avant d'être écrit, pas seulement une promesse qualitative.
 **Réfs.** `tools/content-pipeline/compter-lignes.mjs` ; `src/app/features/cours/quiz/quiz.ts` ;
 revue `code-reviewer`, branche `feat/e2-st4-lot-b`.
 
+**⚠️ Addendum (E2-ST5 lots a/b1) — DEUXIÈME occurrence du même geste, même verdict que [[L-023]].**
+`compterAncres` a été dupliquée entre `tools/content-pipeline/compiler-markdown.mjs` et
+`src/app/features/cours/contenu-compile.ts`, avec un pointeur croisé écrit dans **les deux** JSDoc —
+mais sans le test de parité que cette leçon prescrit. Le mode de divergence est concret : un
+`BlocContenu` neuf portant des `blocs` enfants au-delà d'`encadre` ferait sous-compter **un seul**
+des deux côtés, qui deviendrait VERT en se comparant à lui-même — [[L-034]] à la lettre. Deux
+exemplaires de patron existaient déjà dans le dépôt (`src/compter-lignes-parite.spec.ts`,
+`src/clef-indiscernable-parite.spec.ts`) et n'ont pas été copiés spontanément. **La leçon écrite ne
+suffit plus pour ce geste non plus : dès qu'un commentaire dit « en double de X, et c'est voulu »,
+le geste suivant doit être de créer `*-parite.spec.ts`, jamais de finir la phrase.** Signal pour
+`.claude/rules/` : un gate exécutable est possible ici — grep les commentaires JSDoc/`.mjs`/`.ts`
+qui déclarent une duplication volontaire (« dupliqué depuis », « copie voulue », pointeur croisé) et
+exiger qu'un fichier `*-parite.spec.ts` existe pour la paire citée.
+
+**Nuance trouvée en corrigeant celle-ci — le corpus de parité ne s'épure pas pour faire passer le
+test.** Sur les entrées hostiles (`blocs` absent, `null`, un nombre), les deux implémentations de
+`compterAncres` divergent **légitimement** : le compilateur a le droit de lever, la frontière Angular
+doit rendre 0 sans lever. Retirer ces cas du corpus de parité aurait donné une parité vraie sur un
+corpus mutilé. Ils ont été gardés et assertés comme **asymétrie de contrat**, avec leur propre
+contrôle positif. Règle générale : quand deux implémentations d'une même règle divergent
+volontairement sur une classe d'entrées, cette classe s'asserte comme **divergence attendue** — on
+ne l'exclut pas du corpus, sinon le test vert ne couvre plus le cas qui l'a rendu intéressant.
+
+**Réfs addendum.** `tools/content-pipeline/compiler-markdown.mjs`, `src/app/features/cours/contenu-compile.ts`
+(`compterAncres`) ; revue `code-reviewer`, branche E2-ST5 lots a/b1.
+
 ---
 
 ## L-038 · Défaire une mutation de test par `git checkout -- <fichier>` sur un arbre SALE efface aussi le travail non commité de ce fichier
@@ -1020,29 +1104,185 @@ branche `feat/e2-st4-lot-c`.
 
 ---
 
-## L-041 · Sous la CSP servie, une écriture CSSOM de `style` est acceptée dans le DOM mais jamais APPLIQUÉE — sans violation, sans message console. Dans un spec de ce dépôt, on ne déplace RIEN par le style
+## L-041 · Sous la CSP servie, l'écriture CSSOM de propriété par propriété (`.style.top`, `.setProperty`, `.cssText`) est APPLIQUÉE sans violation — seuls `setAttribute('style', …)` et un `<style>` inline non haché sont refusés, et ces deux-là sont rapportés. Dans un spec de ce dépôt, on ne déplace RIEN par une écriture d'attribut/bloc `style`, mais l'écriture CSSOM reste un canal ouvert
 
-**Symptôme.** Un brief proposait de pousser un élément hors de la fenêtre visible par CSSOM
-(`el.style.top = '-200px'`), en supposant qu'une écriture CSSOM échappe à `style-src`. **C'est faux,
-et mesuré** : sous la CSP servie par ce dépôt, Chromium **accepte** l'écriture dans l'attribut
-`style` (il se relit intact au DOM) et **refuse de l'appliquer** — `getComputedStyle` rend la valeur
-d'origine, y compris sur `<body>`, y compris via `setProperty(…, 'important')` — **sans** émettre
-`securitypolicyviolation` ni le moindre message de console. Un test bâti sur cette hypothèse aurait
-été un **no-op silencieux accusant le produit** d'un défaut qu'il n'a pas.
+> **🔴 CORRIGÉE le 2026-08-19 (E2-ST5, lot c2).** La version d'origine de cette leçon affirmait la
+> cause **inverse** de la réalité mesurée : elle disait qu'une écriture CSSOM était acceptée en DOM
+> mais jamais appliquée, sans violation. C'était un **artefact de la propriété sondée**
+> (`top` sur un élément `position: static`, où `top` n'a structurellement aucun effet), pas un
+> comportement de la CSP — rejouée avec une propriété qui se résout inconditionnellement
+> (`padding-top`), l'écriture CSSOM **s'applique bel et bien**. Détail de la mesure contradictoire :
+> `.claude/lessons/security-lessons.md` **S-016** (source de vérité pour l'axe sécurité — ne pas la
+> redupliquer ici).
 
-**Règle.** Dans un spec de ce dépôt, **ne jamais déplacer un élément par une écriture de style**
-(CSSOM ou attribut) pour simuler un état — la CSP stricte rend l'effet invisible sans le signaler,
-ce qui est le pire des deux mondes pour un test (ni erreur, ni effet). Utiliser le **défilement**
-réel (`scrollIntoView`, `scrollTo`) pour chasser un élément hors champ, qui est de toute façon le
-vrai mode d'échec WCAG 2.4.11 visé ici. Cousine de [[L-019]] (un contrôle négatif seul ne prouve rien
-sans contrôle positif) sur un axe neuf : ici l'absence de violation ne prouve même pas que
-l'instrument a tenté quelque chose de mesurable.
+**Symptôme d'origine (faux, gardé pour mémoire du piège).** Un brief proposait de pousser un élément
+hors de la fenêtre visible par CSSOM (`el.style.top = '-200px'`), en supposant qu'une écriture CSSOM
+échappe à `style-src`. La première mesure semblait confirmer une conclusion **encore plus étrange** —
+« accepté en DOM, jamais appliqué, sans violation » — et c'est CETTE conclusion qui était fausse : le
+témoin choisi (`top` sur du `position: static`) ne pouvait jamais bouger, CSP ou pas.
 
-**Réfs.** E2-ST4 lot C ; garde-fous CSP `style-src` (`.claude/rules/security.md` §1) ; branche
-`feat/e2-st4-lot-c`. **⚠️ Signalé au `security-mentor`** : ce comportement de la CSP (écriture CSSOM
-acceptée en DOM, jamais appliquée, sans violation rapportée) est un fait exploitable/déroutant sur
-l'axe sécurité autant que sur l'axe test — à évaluer pour une entrée `S-0xx` dans
-`security-lessons.md`, cette leçon-ci ne couvrant que l'angle méthode de test.
+**Ce que la mesure du lot c2 établit (juste).** Deux canaux distincts, deux comportements distincts :
+(1) `setAttribute('style', '…')` et un `<style>` inline non haché sont **refusés** (l'effet
+n'apparaît jamais dans `getComputedStyle`) **et rapportés** (`style-src-attr`/`style-src-elem`
+via `securitypolicyviolation`) ; (2) `element.style.setProperty(…)` / `.cssText` / une propriété CSSOM
+directe sont **appliqués**, sans aucun événement — la directive `style-src` gouverne l'**analyse d'un
+texte de déclaration**, pas les accesseurs de `CSSStyleDeclaration`.
+
+**Règle.** Dans un spec de ce dépôt, **ne jamais déplacer un élément par `setAttribute('style', …)`
+ou un `<style>` inline** pour simuler un état sous la CSP servie — c'est bien bloqué, mais un test
+qui espérait un déplacement s'y casserait pour la bonne raison. À l'inverse, **une écriture CSSOM
+directe (`.style.propriete = …`) N'EST PAS bloquée par cette CSP** : ne pas s'appuyer dessus comme
+contre-exemple de sécurité, et utiliser le **défilement** réel (`scrollIntoView`, `scrollTo`) pour
+chasser un élément hors champ dans un test WCAG 2.4.11 — c'est de toute façon le vrai mode d'échec
+visé. Cousine de [[L-019]] (un contrôle négatif seul ne prouve rien sans contrôle positif) : la
+version d'origine de cette leçon-même en était la victime — un « rien observé » pris pour un refus
+de politique plutôt que pour l'inertie d'une propriété mal choisie.
+
+**Conséquence de sécurité, à retenir de l'épisode.** `style-src` ferme l'**injection** de style (un
+`<style>`/`style="…"` glissé dans du contenu) — exactement la surface d'un site de contenu compilé —
+mais **ne ferme pas** le restylage d'un script **déjà en cours d'exécution** via les accesseurs
+CSSOM. Écrire « la CSP interdit tout style dynamique » serait une garantie surestimée (famille S-009).
+Détail et mesures : S-016.
+
+**Sur le choix de la propriété témoin de la sonde** (`top` en `position: static`, puis
+`outline-offset` sans `outline-style`, tous deux structurellement inertes ici — indépendamment de
+toute CSP) : voir **[[L-025]]**, qui porte désormais cette règle sous un titre qui ne nomme pas la
+CSP, pour rester trouvable par une sonde de contraste/géométrie/focus qui n'a rien à voir avec ce
+dossier.
+
+**Réfs.** E2-ST4 lot C (mesure d'origine, fausse) ; E2-ST5 lot c2 (mesure correctrice) ;
+`e2e/aides/sonde-csp.ts` (`exigerStyleSrcApplique`/`mesurerStyleSrc`) ;
+`e2e/simulation-sous-csp.spec.ts` ; `.claude/lessons/security-lessons.md` **S-016** ; garde-fous CSP
+`style-src` (`.claude/rules/security.md` §1) ; branches `feat/e2-st4-lot-c` et `feat/e2-st5-lot-c2`.
+
+---
+
+## L-042 · Un test qui lance un processus fils sans délai explicite hérite du délai par défaut du runner — une marge qui rétrécit à chaque test ajouté ailleurs, et le lot qui la fait déborder n'est pas celui qui l'a écrite
+
+**Symptôme.** Un test préexistant de `src/pipeline-contenu-compilation.spec.ts` (« le TEXTE du code
+ne peut pas fabriquer une ancre ») lance un processus fils **sans `DELAI` explicite** — alors que son
+voisin immédiat documente déjà ce piège et pose un délai. Le test était sain, le produit aussi : il a
+expiré au bout de 5 s (délai par défaut de Vitest) seulement une fois la suite alourdie par le lot
+a d'E2-ST5, qui n'a rien changé à ce fichier. Un test rouge sur un produit sain, imputable à un lot
+qui n'y touche pas.
+
+**Règle.** Tout test qui lance un processus fils (`execFileSync`, `spawnSync`…) pose un **délai
+explicite**, jamais le défaut du runner — le défaut est une ressource partagée par toute la suite, et
+elle rétrécit à mesure que le dépôt grossit. Copier le patron du voisin qui le fait déjà plutôt que
+de le découvrir à l'échéance. Cousine de [[L-005]]/[[L-032]] sur un axe neuf : ici ce n'est pas un
+outil qui masque une directive, c'est un **budget de temps implicite** que personne n'a nommé.
+
+**Réfs.** `src/pipeline-contenu-compilation.spec.ts` ; branche E2-ST5 lots a/b1.
+
+---
+
+## L-043 · Un garde-fou qui balaie du texte source ne distingue pas un USAGE d'une MENTION — nommer l'interdiction dans un commentaire déclenche l'interdiction
+
+**Symptôme.** Le garde-fou de portée du sanitizer interdit toute occurrence de `bypassSecurityTrust*`
+dans `src/**` non-spec. En écrivant l'en-tête d'un composant, formuler l'interdiction en la nommant
+(« jamais `bypassSecurityTrust*` ici ») **fait rougir G-test** — le grep du garde-fou ne sait pas
+qu'une mention en commentaire n'est pas un appel. Le composant a dû formuler l'interdiction sans
+prononcer le nom, comme `quiz.ts` le fait déjà.
+
+**Règle.** Sur ce dépôt, tout garde-fou qui balaie un **motif de texte** (pas un AST) dans du code
+source traite une mention et un usage identiquement — le savoir avant d'écrire un commentaire qui cite
+la chose interdite : reformuler sans le nom exact (paraphrase, ou pointeur vers le fichier qui porte
+déjà la règle) plutôt que découvrir le rougissement après coup. Cousine de la famille sécurité
+« liste noire de motifs sur un format structuré » (S-001/S-003/S-009/S-014,
+`.claude/rules/security.md` §4), mais sur un axe non sécuritaire : ici le garde-fou est correct dans
+son intention, c'est son **support** (texte brut plutôt qu'AST) qui ne sait pas lire l'intention d'un
+commentaire.
+
+**Réfs.** garde-fou de portée du sanitizer (grep `bypassSecurityTrust*` sur `src/**`) ;
+`src/app/features/cours/quiz/quiz.ts` (le patron qui évite déjà de nommer) ; branche E2-ST5 lots a/b1.
+
+---
+
+## L-044 · Une garde d'exhaustivité `satisfies never` se pose sur le DISCRIMINANT, jamais sur l'objet — une interface à champ union n'est pas une union d'interfaces
+
+**Symptôme.** Une revue a prescrit `acteur satisfies never` dans la branche `default` d'un `switch`
+censé fermer l'exhaustivité sur les types d'acteur d'une simulation. Ça ne compile jamais :
+`ActeurSimulation` est une **interface à champ union** (`{ type: 'a' | 'b' | …, … }`), pas une
+**union discriminée d'interfaces** — un `switch (acteur.type)` ne rétrécit que le **champ** `type`,
+jamais l'objet entier, qui reste `ActeurSimulation` de bout en bout. La forme juste est
+`acteur.type satisfies never`. Le piège : devant l'erreur de compilation, le réflexe naturel est de
+**retirer la garde**, ce qui restaure exactement le défaut d'origine — un commentaire qui promet une
+exhaustivité que le code n'applique plus (famille S-009).
+
+**Règle.** Avant de poser `x satisfies never` en branche `default`, vérifier si le type de `x` est
+une **union discriminée** (le `switch` rétrécit `x` lui-même) ou une **interface à champ union** (le
+`switch` ne rétrécit que le champ) — dans le second cas, la garde se pose sur `x.champDiscriminant`,
+jamais sur `x`. Contrôle positif à deux sondes, à répéter pour toute garde de ce genre : le nombre de
+cas actuel compile à 0 erreur, un cas neuf ajouté au type produit `TS1360` **à la ligne de la
+garde**. Cousine de [[L-013]] (seule une sonde bidirectionnelle fait foi) sur l'axe TypeScript.
+
+**Réfs.** `SimulationComponent`, modèle `ActeurSimulation` ; branche E2-ST5 lot b1.
+
+---
+
+## L-045 · Un périmètre de lot qui EXCLUT un gate ne peut pas voir les régressions que ce gate attrape ailleurs sur la page
+
+**Symptôme.** Le lot b2 (E2-ST5) a inséré `SimulationComponent` entre le quiz et le pied de page —
+son brief excluait explicitement G-e2e du périmètre du lot (sortie lourde, cf.
+`.claude/rules/agent-context-budget.md` §4). Conséquence non vue avant le lot **suivant** :
+l'assertion « Tab après *Corriger* → lien GitHub » de `e2e/parcours-clavier-quiz.spec.ts` est passée
+**rouge sur un dépôt sain**, parce que l'ordre de tabulation est une propriété de la **page**, pas du
+composant inséré — et personne n'avait de gate actif pour le voir au moment de l'insertion.
+
+**Règle.** Câbler un composant nouveau **dans** une page existante est un changement qui touche
+structurellement les voisins de tabulation, de focus et d'ordre DOM de **tout** ce qui l'entoure —
+même quand le lot qui l'exécute a, à raison, sorti G-e2e complet de son périmètre pour tenir son
+budget de contexte. Le geste : le lot d'insertion lance au minimum les specs e2e **du fichier
+voisin le plus proche** (ici `parcours-clavier-quiz.spec.ts`) avant de clore, même si la suite
+complète reste pour un agent de vérification séparé. Cousine de [[L-035]] (une prémisse de test
+fausse rougit sur un produit sain) sur un axe inverse : ici c'est le **produit** qui a changé sous
+un test resté juste, faute d'avoir été rejoué au bon moment.
+
+**Réfs.** `e2e/parcours-clavier-quiz.spec.ts` ; `SimulationComponent`, câblage de page ; branche
+E2-ST5 lot b2.
+
+---
+
+## L-046 · Un contrôle d'exhaustivité ne vaut que pour le CORPUS qu'on lui a donné — il conclura à l'absence chaque fois qu'une source légitime manque, même sur un fait exact
+
+**Symptôme.** Deux passes de vérification indépendantes de la fusion KB (E3-ST0) ont signalé des
+dates d'évaluation et un titre de séance comme « absents du plan de cours, à retirer ». Les deux
+avaient raison sur leur **mesure** (le fait n'était bien pas dans le `.docx` du plan) et tort sur
+leur **conclusion** : ces faits vivaient sur la **page web du cours**, une source qu'aucune des deux
+passes n'avait reçue. Le correctif « évident » (retirer ce qui semble non sourcé) aurait supprimé
+trois dates exactes.
+
+**Règle.** Un contrôle d'exhaustivité/de sourçage n'a de sens que relatif à un **corpus déclaré** —
+avant de lancer une passe de vérification qui peut conclure à une absence, **inventorier
+explicitement les sources dans le brief** (toutes, pas seulement la plus évidente), et faire écrire
+la source retenue dans le document vérifié pour qu'une passe suivante ne re-signale pas le même
+« manque ». « Absent du corpus qu'on m'a donné » et « faux » sont deux conclusions différentes ;
+un vérificateur qui les confond sur-corrige. Cousine de [[L-029]] (un contrôle positif ne prouve que
+les chemins qu'il contient) sur l'axe **sourçage** plutôt que **cas de test**.
+
+**Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep) ; dates d'évaluation et titre de
+séance retrouvés sur la page web du cours plutôt que dans le plan `.docx`.
+
+---
+
+## L-047 · Le budget de contexte d'une passe de fusion/synthèse se dimensionne au VOLUME DE SOURCE à lire, jamais au nombre de livrables promis
+
+**Symptôme.** Des lots de fusion KB annoncés « 4 fiches » et « 6 fiches » ont fini à 250k, 244k, 277k
+et 249k tokens — au-delà du maximum absolu de `.claude/rules/agent-context-budget.md` §0 — parce que
+la variable qui pilotait réellement le coût était le **corpus source** : 230 à 298 diapositives, et
+jusqu'à 47 captures d'écran ouvertes **une par une**. Les lots dimensionnés par corpus plutôt que par
+compte de fiches (23 diapositives, 2 fiches) ont fini à 113k et 105k — sous le seuil visé.
+
+**Règle.** Pour une passe de fusion/synthèse/lecture de source externe (diaporamas, captures, PDF),
+le découpage en lots (§2 de `.claude/rules/agent-context-budget.md`) se fait sur le **volume à
+lire** (nombre de diapositives, de pages, d'images à ouvrir), jamais sur le nombre de livrables
+attendus en sortie — deux livrables peuvent cacher 300 diapositives, ou vingt. Avant de brief er un
+lot de fusion, compter le corpus source de chaque fiche visée et répartir en conséquence. **Signal
+pour `.claude/rules/agent-context-budget.md`** : ajouter ce critère de découpe (volume de source, pas
+compte de livrables) à côté du « test du + » existant.
+
+**Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep, lots à 4-6 fiches) ;
+`.claude/rules/agent-context-budget.md` §0, §2.
 
 ---
 

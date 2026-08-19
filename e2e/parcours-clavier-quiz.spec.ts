@@ -185,10 +185,23 @@ test('les huit arrêts du quiz se parcourent au clavier seul, dans l’ordre du 
   ).toHaveCount(11);
 
   // La tabulation qui SUIT le quiz en sort — le bouton n'est pas un cul-de-sac.
+  //
+  // ⚠️ CE QUI VIENT APRÈS A CHANGÉ EN E2-ST5, ET C'EST UNE PRÉMISSE, PAS UN DÉFAUT
+  // (L-035). Jusqu'au lot b1, le voisin suivant était le lien du pied de page ; le
+  // lot b2 a inséré la SIMULATION entre le quiz et le pied de page, et cette
+  // assertion est partie rouge sur un produit parfaitement sain — le premier gate à
+  // constater le câblage. Ce que ce test veut prouver n'a pas bougé : le focus SORT
+  // du quiz. On le dit donc désormais par la région quittée, pas par le nom d'un
+  // voisin qui peut encore changer ; l'arrivée dans la simulation, elle, est mesurée
+  // nommément par `parcours-clavier-simulation.spec.ts`.
   await page.keyboard.press('Tab');
-  await expect(
-    page.getByRole('link', { name: 'dépôt public sur GitHub' }),
+  expect(
+    await page.evaluate(() => document.activeElement?.closest('.quiz') === null),
     'la tabulation après le bouton de correction ne sort pas du quiz',
+  ).toBe(true);
+  await expect(
+    page.locator('.simulation .commandes a').first(),
+    'la tabulation après le quiz n’entre pas dans la simulation : l’ordre du document de la page de leçon a changé',
   ).toBeFocused();
 });
 

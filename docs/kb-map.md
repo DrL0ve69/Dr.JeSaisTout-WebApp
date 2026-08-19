@@ -20,13 +20,42 @@
 
 ---
 
-## 1 · Contenu du cours « Sécurité des applications web » (E2, E3)
+## 1 · Contenu des DEUX cours publiés (E2, E3, E7)
 
-Source primaire des 13 modules — déjà câblée dans `docs/contenu/pipeline-contenu.md` §« Correspondance modules ↔ fiches KB ».
+> 🔎 **Avant de rédiger : lire les marqueurs de provenance.** Depuis **E3-ST0** (2026-08-19), les
+> fiches des deux cours portent un encadré « **🔎 Provenance** » et des marqueurs **ligne à ligne** :
+> **📘 Cours** = matière d'examen, telle quelle dans les diapositives ou les exercices · **🧩
+> Complément KB** = apport de la base, **non exigible** · **⚠️** = le cours est périmé ou faux, son
+> texte **conservé**, la correction posée à côté. Une leçon qui les mélange ment sur ce qui tombe à
+> l'examen. Règle complète : `.claude/rules/contenu-pedagogique.md` §6.
+>
+> ⚠️ **Ces fiches sont longues.** **22 fiches dépassent** le seuil de scission de ~500 lignes de
+> `KnowledgeBase/CONVENTIONS.md` (l. 74) — jusqu'à **1096** (`administration-serveur-linux.md`), 1057
+> (`exercices-corriges-poo-application.md`). La scission est une **dette ouverte assumée** (elle
+> déplacerait les ancres de liens entre fiches), pas un oubli : dimensionner **un agent par module**.
+
+### 1.1 · Cours « Sécurité des applications web » — 420-B10-HU (E2, E3)
+
+Source primaire — câblée dans `docs/contenu/pipeline-contenu.md` §« Correspondance modules ↔ fiches
+KB ». **19 modules** depuis le 2026-08-19 : les 13 d'origine + le **bloc D** (E3-ST14 à ST19), qui
+route six fiches jusque-là **orphelines** vers les six séances du cours qui n'avaient aucun module.
+
+> 🔴 **Trois fiches sont du COMPLÉMENT PUR — mesuré, pas supposé** (E3-ST0). Les publier comme
+> matière d'examen serait un mensonge : `evaluation-vulnerabilites-cvss.md` (**0 📘 / 21 🧩** — zéro
+> occurrence de CVSS/CVE/CWE/EPSS/KEV dans les 8 diaporamas **et** dans le plan de cours) ·
+> `jwt-securite.md` (**0 📘 / 15**, muette dans tout le millésime 2026) · `en-tetes-securite-http.md`
+> (**0 📘 / 11**, séance 8 sans support). **Piège symétrique** : `fondamentaux-securite-web.md` est à
+> **6 📘 / 32 🧩** alors qu'elle *paraît* être la matière de la séance 1.
 
 | Besoin | Fiches |
 |---|---|
-| Les 13 modules, un par fiche | `web/securite/*.md` — entrer par `web/securite/carte.md` |
+| Les 13 modules OWASP, un par fiche | `web/securite/*.md` — entrer par `web/securite/carte.md` |
+| **Bloc D · E3-ST14** — environnement Linux infonuagique (séance 2) | `web/securite/administration-serveur-linux.md` |
+| **Bloc D · E3-ST15** — SSH, clés, durcissement de l'accès distant (séance 3) | `web/securite/securisation-acces-distant-ssh.md` |
+| **Bloc D · E3-ST16** — tâches planifiées, journaux, surveillance (séance 4) | `web/securite/automatisation-surveillance-cron.md` |
+| **Bloc D · E3-ST17** — comptes, groupes, `sudo`, permissions (séance 5, **squelette à la source**) | `web/securite/administration-serveur-linux.md` + `web/securite/stockage-mots-de-passe.md` |
+| **Bloc D · E3-ST18** — privilèges MySQL, moindre privilège, sauvegardes (séance 9) | `web/securite/securite-base-de-donnees.md` |
+| **Bloc D · E3-ST19** — services web, TLS, certificats (séance 8, **aucun support publié**) | `web/securite/en-tetes-securite-http.md` + `web/securite/cryptographie-appliquee.md` |
 | Prérequis réseau d'un cours de sécu web (DNS, TCP, HTTP/2-3, CDN, rendu navigateur) | 🆕 `cs/reseaux/parcours-requete-web.md` |
 | HTTPS/TLS, certificats, HSTS, ACME/Let's Encrypt, révocation | 🆕 `cs/reseaux/https-tls.md` |
 | HTTP au niveau RFC (9110/9112), chunked, parsing | 🆕 `cs/reseaux/tcp-http-en-profondeur.md` |
@@ -38,6 +67,32 @@ Source primaire des 13 modules — déjà câblée dans `docs/contenu/pipeline-c
 | Zero Trust, segmentation, pare-feu — cadrage « au-delà de l'applicatif » | 🆕 `cs/securite/zero-trust-securite-reseau.md` |
 | Études de cas racontables en leçon | 🆕 `cs/securite/dark-web-investigation.md`, 🆕 `cs/securite/detection-compromission-poste.md` |
 | Stockage navigateur — pourquoi pas de token en `localStorage` | 🆕 `web/frontend/stockage-navigateur.md` |
+
+### 1.2 · Cours « Développement d'application en PHP » — 420-4P2-HU (E7) 🆕
+
+🆕 **Second cours publié**, décidé le 2026-08-19 (backlog §E7, 8 modules) : les **12 fiches de
+`web/php/`** deviennent des sources de rédaction de premier plan. E3-ST0 les a fusionnées avec le
+matériel réel (diapositives, captures de code, **corrigés officiels `.zip`**, plan de cours, projet).
+
+| Besoin | Fiches |
+|---|---|
+| **E7-ST1** — syntaxe, types, structures de contrôle, inclusion (séance 1) | `web/php/php-fondamentaux.md` |
+| **E7-ST2** — superglobales, tableaux, formulaires (séance 2) | `web/php/php-formulaires-superglobales.md` |
+| **E7-ST3** — librairie standard, fichiers, journalisation (séance 3) | `web/php/php-librairie-standard.md` + `web/php/php-fichiers-journalisation.md` |
+| **E7-ST4** — POO, organisation d'un projet (séance 4) | `web/php/php-poo.md` + `web/php/php-organisation-projet.md` |
+| **E7-ST5** — base de données (séance 5) ⚠️ le cours ne fait que du `mysqli` : **PDO n'y est cité qu'une fois et jamais écrit** | `web/php/php-base-de-donnees-pdo.md` |
+| **E7-ST6** — sessions et authentification (séance 7) | `web/php/php-sessions-authentification.md` |
+| **E7-ST7** — déploiement, hébergement, domaine, HTTPS (séance 8) | `web/php/php-deploiement.md` + `web/php/php-hebergement-domaine-https.md` |
+| **E7-ST8** — Laravel (séance 10) | 🔴 **aucune fiche, aucun diaporama** — voir §Trous connus |
+| Code des exercices | `web/php/exercices-corriges-langage.md`, `web/php/exercices-corriges-poo-application.md` — ⚠️ elles portent encore des corrigés **reconstruits depuis les énoncés**, pas le code officiel des `.zip` |
+| Entrée du domaine | `web/php/carte.md` |
+
+> 🔴 **Le pont pédagogique entre les deux cours est obligatoire, pas décoratif.** Ce cours enseigne
+> le langage **avant** d'en enseigner les dangers, et **ses propres corrigés officiels sont
+> vulnérables** : XSS réfléchis (`echo $_GET[...]`), mots de passe en clair en base, `config.ini`
+> portant le secret de la base **dans la racine web**, `root` sans mot de passe, `chmod 777`, `.inc`
+> servis en clair. Tout module PHP qui montre une de ces pratiques porte un ⚠️ pointant son module de
+> sécurité (`../securite/xss-cross-site-scripting.md`, `stockage-mots-de-passe.md`, `durcissement-serveur-web.md`).
 
 ## 2 · Pédagogie — la mission du site (transverse, `.claude/rules/contenu-pedagogique.md`)
 
@@ -153,6 +208,39 @@ Le CLAUDE.md renvoie aux conventions du projet frère AbrisTempo ; la KB en couv
 
 À ne pas chercher dans la KB : la réponse n'y est pas, il faut une source externe.
 
+### 🆕 Fermé le 2026-08-19 par la passe E3-ST0
+
+Le **matériel réel des deux cours** est dans la KB : diaporamas intégraux, **captures de code ouvertes
+une à une** (c'est là que vivait la matière pratique, pas dans le texte), **corrigés officiels `.zip`**
+du cours de PHP, plans de cours, calendrier, PDF du projet. Les fiches ne reconstruisent plus le code
+depuis les énoncés — sauf les deux fiches d'exercices corrigés de `web/php/`, signalées en §1.2.
+
+### 🆕 Trous de MATÉRIEL — côté enseignant, pas côté archivage *(mesurés le 2026-08-19)*
+
+Aucune recherche dans la KB ne les comblera ; ils bloquent ou dégradent des modules nommés.
+
+- 🔴 **Laravel — séance 10 du cours de PHP** : **aucune fiche KB, aucun diaporama publié**. **`E7-ST8`
+  est bloqué à la source** — le démarrer sans archivage préalable (page d'exercice + documentation
+  Laravel officielle datée) reviendrait à inventer une leçon.
+- 🔴 **Séance 8 du cours de sécurité** (« services web et certificat HTTPS ») : **aucun diaporama**
+  (seule séance dont la cellule du calendrier n'est pas un lien) **et page d'exercice vide**
+  (`content.rendered` de longueur 0, mesuré par l'API WordPress). **Aucune trace écrite** n'existe :
+  `E3-ST19` s'écrit intégralement en complément.
+- **Séance 5 du cours de sécurité** : squelette — 23 diapositives dont **10 réduites à un titre**,
+  0 image, 2 `(TODO)` de l'enseignant, page d'exercice vide. Seul son **plan annoncé** (diapositive 6)
+  est de la matière ; le reste de `E3-ST17` est du complément.
+- **Aucun corrigé publié, pour aucune des 13 séances** du cours de sécurité (colonne « Corrigé » =
+  texte sans lien) : les corrigés portés par les fiches sont des **reconstructions raisonnées**, à ne
+  jamais présenter comme ceux de l'enseignant. Le cours de PHP, lui, publie de vrais `.zip`.
+- **Pages d'exercices vides** des séances **7** (la *seule* séance d'application) et **12** du cours
+  de sécurité — même constat au 2026-08-07 et au 2026-08-19 : pas un retard de publication.
+- **CSRF et « Session » sont promis par l'élément de compétence** du plan de cours de sécurité et
+  **jamais enseignés** par le matériel. `web/securite/csrf.md` et
+  `web/securite/sessions-cookies-securite.md` sont donc du complément, malgré le plan de cours.
+- **Désérialisation non sécurisée** : absente du cours **et** sans fiche dédiée dans toute la base.
+
+### Trous de KB — sujets à ingérer
+
 - **Azure Static Web Apps** en propre (paliers, `staticwebapp.config.json`, action de déploiement) —
   la KB couvre AWS et le cloud agnostique, pas SWA. Source du projet : `docs/deployment.md`.
 - **WCAG 2.2 AA au niveau critère** (les critères numérotés, axe-core, outillage de test a11y) —
@@ -163,28 +251,22 @@ Le CLAUDE.md renvoie aux conventions du projet frère AbrisTempo ; la KB en couv
 - **Mermaid** comme brique de rendu (la KB *utilise* Mermaid partout, aucune fiche ne le *traite*).
 - **Angular 22 spécifiquement** — la fiche Angular est un crash course 18.2 avec une section d'écarts
   2026 ; elle ne remplace pas la doc officielle ni le MCP `angular-cli`.
-- 🆕 **Gamification et conception de la motivation** *(trou constaté le 2026-08-17)* — `npm run kb --
-  gamification pedagogie motivation --any` ne remonte que **deux** fiches, dont une carte de domaine :
-  `divers/pedagogie/enseigner-informatique-ere-ia.md` (Malan/CS50) est la seule substance, et elle
-  parle de pédagogie, pas de mécaniques de jeu. Or la direction produit décidée le 2026-08-17
-  s'appuie explicitement sur boot.dev et Duolingo. Ce qui a servi à trancher (§E2-ST6 du backlog) est
-  donc de la **recherche web datée**, pas de la KB : efficacité mesurée de la gamification,
-  *dark patterns* de la série quotidienne, effet des ligues sur l'objectif d'apprentissage.
-  **Prioritaire pour l'archiviste** — c'est le seul trou de cette liste qui porte sur une décision
-  produit déjà prise.
-- 🆕 **Widgets d'exercice interactifs (appariement, désignation de ligne)** *(trou constaté le
-  2026-08-18, lot D d'E2-ST3)* — `npm run kb -- associer appariement clavier --any` ne remonte que
-  `web/css/composant-tabs.md`, qui traite d'autre chose. La KB couvre les **onglets** accessibles et
-  la doctrine ARIA (`web/html/html-semantique-accessibilite.md`), rien sur les patrons d'exercice
-  qu'un site d'apprentissage emploie tous les jours. Ce qui a tranché le lot D (décision **D-1** du
-  backlog : un `<select>` natif par ligne, jamais un glisser-déposer) est donc la **doctrine « no
-  ARIA is better than bad ARIA » + WCAG 2.2 2.5.7**, pas une fiche. À ingérer avant E2-ST5, qui aura
-  le même besoin sur la simulation pas-à-pas.
+- 🆕 **Gamification et conception de la motivation** *(2026-08-17)* — `npm run kb -- gamification
+  pedagogie motivation --any` ne remonte que **deux** fiches, dont une carte de domaine ; la seule
+  substance (`divers/pedagogie/enseigner-informatique-ere-ia.md`, Malan/CS50) parle de pédagogie, pas
+  de mécaniques de jeu. Ce qui a tranché §E2-ST6 est de la **recherche web datée**, pas de la KB.
+  **Prioritaire pour l'archiviste** — seul trou de cette liste portant sur une décision déjà prise.
+- 🆕 **Widgets d'exercice interactifs (appariement, désignation de ligne)** *(2026-08-18, lot D
+  d'E2-ST3)* — `npm run kb -- associer appariement clavier --any` ne remonte que
+  `web/css/composant-tabs.md`, hors sujet. La KB couvre les onglets accessibles et la doctrine ARIA
+  (`web/html/html-semantique-accessibilite.md`), rien sur les patrons d'exercice. La décision D-1
+  (`<select>` natif par ligne, jamais de glisser-déposer) vient de « no ARIA is better than bad
+  ARIA » + WCAG 2.2 2.5.7, pas d'une fiche.
 - 🆕 **Design d'interface de jeu / esthétique rétro** — même angle mort : la KB couvre les principes
   de design visuel (`web/frontend/principes-design-visuel.md`) et les recettes d'effets CSS
   (`web/css/recettes-effets-visuels.md`), rien sur les codes visuels du jeu vidéo.
 
-> Ces trous sont aussi la liste de courses de l'archiviste : ce sont les sujets à ingérer en priorité
-> si la KB doit un jour couvrir ce projet de bout en bout. **Deux commandes d'archivage sont déjà
-> nommées et datées ailleurs** : la fusion du site du cours (backlog **E3-ST0**) et les deux trous
-> ci-dessus.
+> Ces trous sont la liste de courses de l'archiviste. **E3-ST0 est livré** (2026-08-19) ; les trois
+> commandes encore ouvertes sont **Laravel** (bloquant pour E7-ST8), la **gamification** et les
+> **widgets d'exercice**. Les trous de matériel, eux, ne s'archivent pas : ils se comblent en classe,
+> ou pas du tout.

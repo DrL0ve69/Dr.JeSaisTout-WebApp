@@ -6,7 +6,7 @@
 // theorie) ; `src/app/**` est écrit par la boucle LIVRAISON. Entre les deux, le
 // pipeline de build produit un JSON par leçon. Ce fichier est la SEULE
 // description de ce JSON : E2-ST2 (page de leçon), E2-ST3 (quiz), E2-ST4 (blocs de
-// code) et E2-ST6 (simulation) s'y réfèrent, et le compilateur `compiler-markdown.mjs`
+// code) et E2-ST5 (simulation) s'y réfèrent, et le compilateur `compiler-markdown.mjs`
 // s'y conforme sous `checkJs`. Trois représentations du même contrat existent
 // encore (ce fichier, les schémas Ajv, le Markdown réel) — le test `satisfies`
 // du lot 5 réduit l'écart, il ne l'élimine pas.
@@ -308,6 +308,141 @@ interface QuizCompile {
   questions: QuestionQuiz[];
 }
 
+// -----------------------------------------------------------------------------
+// LA SIMULATION — miroir de `schemas/simulation.schema.json`, émise DANS la leçon (E2-ST5, lot a)
+// -----------------------------------------------------------------------------
+// POURQUOI LA SIMULATION VOYAGE DANS LA LEÇON, comme le quiz et pour la même raison.
+// Elle s'affiche sur la page de leçon, à l'ancre `[[simulation]]` — donc au même instant
+// que le corps, dans le même chunk. Un second import paresseux ferait un aller-retour
+// réseau de plus pour une donnée dont on sait, avant même de charger la page, qu'elle
+// sera lue.
+//
+// ⚠️ ELLE EST OPTIONNELLE, ET C'EST LA SEULE DIFFÉRENCE DE FOND AVEC LE QUIZ.
+// `valider.mjs` (§9) n'exige `simulation.json` d'aucune leçon : une leçon qui ne décrit
+// aucun flux n'en a pas. `LeconCompilee.simulation` est donc `?`, et un consommateur qui
+// traiterait l'absence comme une anomalie se tromperait. Le contrat NEUF que le lot a
+// ajoute est l'autre moitié : `simulation.json` présent ⇔ EXACTEMENT UNE ancre
+// `[[simulation]]` dans le corps ; absent ⇔ ZÉRO. Avant lui, une ancre orpheline
+// compilait et rendait un trou silencieux dans la page, et un `simulation.json` sans
+// ancre était de la donnée livrée que rien n'affichait — les deux moitiés du même défaut
+// que `[[quiz]]` avait déjà. Le contrôle vit dans `compilerLecon` (le seul endroit qui
+// voit à la fois le DOSSIER et l'AST) et il est REDIT à la lecture de l'artéfact par
+// `lireLeconCompilee` (`src/app/features/cours/contenu-compile.ts`).
+//
+// LA SIMULATION EST PASSÉE FIDÈLEMENT — RIEN N'EST AJOUTÉ, RIEN N'EST RETIRÉ.
+// Contrairement au quiz, aucun champ n'est enrichi au build (pas de `htmlColore`) et aucun
+// champ n'est retiré (il n'y a pas d'équivalent de `ficheSource` — la traçabilité de la
+// simulation passe par la leçon qui la porte).
+//
+// 🔵 DÉCISION, PAS UNE OPTION : LE `code` D'UN PANNEAU N'EST JAMAIS COLORÉ. Shiki tourne au
+// BUILD et ne part jamais au navigateur (la CSP du site est à hachages : aucun colorateur
+// d'exécution ne pourrait y injecter ses styles). Le `code` d'un panneau se rend donc en
+// TEXTE BRUT monospace, par interpolation — exactement comme le rendu `comparaison`
+// d'E2-ST4. Il n'y a rien à arbitrer côté composant du lot b.
+//
+// LES `id` DEVIENNENT DES `id` DE DOCUMENT. La région porte `ID_SIMULATION`, et l'étape
+// `numero: N` est rendue sous `PREFIXE_ID_ETAPE + N` — les deux constantes vivent dans
+// `src/app/features/cours/contenu-compile.ts`, à côté de `PREFIXE_ID_QUESTION` et pour la
+// même raison : les ancres de section écrites par l'auteur et les `id` de la simulation
+// partagent l'espace de noms du document, et la collision est refusée nominativement là.
+// -----------------------------------------------------------------------------
+
+/** Une colonne/boîte du rendu. `type` pilote l'icône ET le rôle accessible du composant. */
+interface ActeurSimulation {
+  id: string; // kebab-case, unique dans la simulation — unicité vérifiée par `valider.mjs`
+  libelle: string;
+  /**
+   * Liste FERMÉE du schéma. Elle est REDITE nominativement côté application
+   * (`TYPES_ACTEUR`, `contenu-compile.ts`) parce que le schéma Ajv appartient au
+   * programme de l'outillage et n'a rien à faire dans le bundle du navigateur ;
+   * `lecon.spec.ts` relit le schéma et compare ces deux listes EXÉCUTABLES, pour qu'elles
+   * ne divergent pas (L-016).
+   *
+   * ⚠️ L'union ci-dessous est une TROISIÈME copie, que ce test ne lie PAS — un `.d.ts`
+   * ambiant ne s'exécute pas, donc rien ne rougirait s'il restait en arrière. La mettre à
+   * jour DANS LE MÊME DIFF que les deux autres est donc une obligation d'auteur, pas une
+   * garantie d'outil (l'ajout d'`attaquant` en est l'illustration : trois fichiers touchés
+   * pour une seule valeur).
+   *
+   * `attaquant` est distinct de `personne` parce que les déroulés d'attaque du bloc A d'E3
+   * font de l'opposition attaquant/victime le propos même de la simulation : sans ce type,
+   * les deux boîtes porteraient la même icône et le même rôle accessible.
+   */
+  type: 'personne' | 'attaquant' | 'navigateur' | 'serveur' | 'stockage';
+}
+
+/**
+ * Ce qui s'affiche sous la boîte d'un acteur. AU MOINS l'un des deux champs est écrit
+ * (`anyOf` du schéma), et `code` sans `langage` est refusé (`dependencies`).
+ *
+ * 🔵 `code` SE REND EN TEXTE BRUT MONOSPACE, PAR INTERPOLATION — décision, pas une option
+ * (voir la note de tête de cette section : Shiki ne part jamais au navigateur). `langage`
+ * ne sert donc qu'à ÉTIQUETER le panneau, pas à le colorer.
+ *
+ * 🔴 ET C'EST DU CODE VOLONTAIREMENT VULNÉRABLE, écrit par l'auteur de la leçon
+ * (`.claude/rules/contenu-pedagogique.md` §4) : une charge XSS d'exemple est le contenu
+ * NORMAL de ce champ. Il se rend par interpolation SEULE — jamais `[innerHTML]`, jamais
+ * `bypassSecurityTrust*`, dans aucune circonstance. La même consigne vaut pour `texte`.
+ */
+interface PanneauSimulation {
+  texte?: string;
+  code?: string;
+  langage?: Langage;
+}
+
+/**
+ * L'état visuel DÉCLARATIF d'une étape — ce que le composant du lot b sait peindre.
+ *
+ * ⚠️ AUCUN de ces champs n'est revérifié par la frontière de typage de l'application :
+ * c'est le composant qui les lit, donc lui qui doit les refuser nommément (même partage
+ * que `sections`/`blocs` avec `RenduBlocs`, et que l'enveloppe du quiz avec `QuizComponent`).
+ *
+ * 🔴 ET SURTOUT : LES RENVOIS VERS UN ACTEUR NE SONT GARANTIS NULLE PART À LA LECTURE.
+ * `acteurActif`, `fleche.de`/`vers`, les clés de `panneaux` et `surbrillance` sont tenus par
+ * `valider.mjs` AU BUILD, SUR `content/` UNIQUEMENT (JSON Schema ne sait pas comparer deux
+ * branches du même document). À la LECTURE de l'artéfact, ces renvois ne sont revérifiés par
+ * PERSONNE : `compilerSimulation` revalide le schéma — pas les renvois — précisément parce
+ * que `compilerRacine` s'exécute aussi hors de `build.mjs`, et `lireLeconCompilee` s'arrête à
+ * l'enveloppe. C'est donc au composant du lot b de les refuser NOMMÉMENT ; y lire « déjà
+ * garanti » serait hériter d'une confiance non gagnée (L-016, addendum E2-ST1).
+ *
+ * 🔒 ET `panneaux` NE SE LIT JAMAIS PAR ACCÈS DIRECT. C'est un `Record<string, …>` issu d'un
+ * `JSON.parse`, dont les clés viennent du contenu : `panneaux[acteur.id]` sur un objet
+ * dépourvu de cette clé rend l'héritage d'`Object.prototype`. `constructor` est un `id`
+ * d'acteur syntaxiquement légal (kebab-case), et `Object.prototype.constructor` est une
+ * valeur *truthy* qui traverserait un `@if (panneau)` pour peindre un panneau vide. Le lot b
+ * lit donc par `Object.hasOwn(panneaux, id)` ou via `new Map(Object.entries(panneaux))` —
+ * même parade que `resoudre-lecon.ts` sur la carte des leçons. (La frontière refuse déjà
+ * `constructor` comme `id` d'ACTEUR ; une clé de `panneaux` qui ne correspond à aucun acteur
+ * n'est, elle, tenue que par `valider.mjs`, donc au build seulement — d'où cette obligation.)
+ */
+interface EtatVisuelSimulation {
+  acteurActif: string;
+  fleche?: { de: string; vers: string; libelle: string };
+  /** Clé = `id` d'acteur. */
+  panneaux?: Record<string, PanneauSimulation>;
+  /**
+   * `id` d'acteurs à mettre en évidence (danger). La mise en évidence ne doit JAMAIS être
+   * le seul porteur de sens : `narration` dit la même chose en mots (WCAG 1.4.1).
+   */
+  surbrillance?: string[];
+}
+
+interface EtapeSimulation {
+  numero: number; // 1-based, égal à la position dans `etapes` — vérifié par `valider.mjs`
+  titre: string;
+  /** L'équivalent textuel de l'étape : c'est LUI qui la rend compréhensible sans l'image. */
+  narration: string;
+  etatVisuel: EtatVisuelSimulation;
+}
+
+interface SimulationCompilee {
+  lecon: string; // slug de la leçon — RE-vérifié à l'émission, comme `QuizCompile.lecon`
+  titre: string;
+  acteurs: ActeurSimulation[]; // 2 à 6 (schéma)
+  etapes: EtapeSimulation[]; // 5 à 12 (schéma)
+}
+
 interface LeconCompilee {
   frontmatter: {
     titre: string;
@@ -326,6 +461,11 @@ interface LeconCompilee {
   sections: SectionCompilee[];
   /** Obligatoire — voir la note du quiz ci-dessus. Rendu à l'ancre `[[quiz]]` du corps. */
   quiz: QuizCompile;
+  /**
+   * OPTIONNEL, à la différence de `quiz` — voir la note de la simulation ci-dessus.
+   * Présent ⇔ le corps porte EXACTEMENT une ancre `[[simulation]]` ; absent ⇔ zéro.
+   */
+  simulation?: SimulationCompilee;
 }
 
 interface EntreeManifesteRoutes {

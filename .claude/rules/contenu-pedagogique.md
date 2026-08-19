@@ -98,10 +98,52 @@ Et la leçon dans son ensemble :
 - [ ] Une simulation raconte une **histoire techniquement fidèle** : chaque étape a une narration
       ET un état visuel ; la séquence complète correspond au diagramme Mermaid de la leçon.
 
+## 6 · Provenance — séparer la matière d'examen du complément
+
+> **Née le 2026-08-19**, de l'exigence explicite du propriétaire lors de la passe E3-ST0. Le site
+> sert d'abord à **étudier les cours du cégep** (420-B10-HU sécurité, 420-4P2-HU PHP). Deux
+> échecs symétriques sont donc possibles, et tous deux sont graves : **omettre** de la matière
+> d'examen, ou **présenter comme examinable** ce que l'enseignant n'a jamais enseigné. Un étudiant
+> qui révise le second perd son temps ; un étudiant à qui manque le premier perd des points.
+
+**Les trois marqueurs, déjà en vigueur dans les fiches de `KnowledgeBase\web\securite\` et
+`web\php\` — les reprendre à l'identique, ne pas en inventer d'autres :**
+
+| Marqueur | Sens | Statut à l'examen |
+|---|---|---|
+| **📘 Cours** | présent tel quel dans les diapositives ou les exercices publiés de l'enseignant | **matière d'examen** |
+| **🧩 Complément KB** | ajout de la base de connaissances, absent du cours | utile en production, **pas exigible** |
+| **⚠️** | le cours dit quelque chose de **périmé, d'imprécis ou de faux** | le texte du cours est **conservé** ; la correction est donnée à côté, **sourcée et datée** |
+
+- [ ] **Une leçon n'aplatit jamais la distinction que sa fiche source porte.** Si la fiche marque
+      un passage 🧩 et que la leçon le présente sans le dire, l'information de provenance est
+      **perdue au moment exact où elle sert** — c'est le lecteur, pas la fiche, qui passe l'examen.
+- [ ] **La règle d'arbitrage s'écrit dans la leçon, pas seulement dans la fiche** :
+      *« à l'examen, donne la réponse du cours ; en production, applique la correction »*.
+- [ ] **Un ⚠️ ne supprime jamais le contenu qu'il corrige.** On conserve ce que l'enseignant
+      enseigne — c'est ce qui sera évalué — et on explique **pourquoi** c'est faux et **quoi faire
+      à la place**. Un encadré qui efface la version du cours rend la leçon inutilisable pour
+      réviser.
+- [ ] **Un ⚠️ qui accuse le cours à tort est un défaut grave**, au même titre qu'une erreur
+      technique : il salit un enseignant sur la foi d'une lecture trop rapide. Toute correction
+      passe par le `verificateur-theorie` avant publication.
+- [ ] **Le cours est SOMMAIRE par nature** — un concept présent n'y est presque jamais traité en
+      entier. Combler le trou est **attendu** ; le combler **en silence** ne l'est pas.
+
+**⏳ Décision de rendu encore ouverte, à trancher à l'ouverture d'E3-ST1.** Le pipeline ne connaît
+aujourd'hui que trois variantes d'encadré — `::: attention`, `::: note`, `::: a-retenir`
+(`tools/content-pipeline/compiler-markdown.mjs`, `VARIANTES_ENCADRE`). Deux voies :
+**(a)** réemployer `::: note` / `::: attention` avec un préfixe écrit en gras — aucun changement de
+pipeline, mais la distinction ne devient ni stylable ni vérifiable par un gate ;
+**(b)** ajouter les variantes `cours` et `complement` — coût réel (compilateur, schéma, rendu,
+tests, jetons de couleur, et **contraste mesuré** avant E6). La voie (b) est la seule qui permette
+un gate « aucun passage 📘 non tracé ». **Ne pas trancher au fil de la première leçon** : c'est un
+choix de contrat de contenu, il se prend une fois pour les 27 modules.
+
 ---
 
 **Avant de déclarer une leçon publiable :** exactitude sourcée et datée (§1) ? chaque concept a
 théorie + 2 exemples + analogie bornée + support visuel (§2) ? français et gabarit conformes
-(§3) ? code vulnérable confiné et vérifié (§4) ? quiz expliqué et simulation fidèle (§5) ? Au
+(§3) ? code vulnérable confiné et vérifié (§4) ? quiz expliqué et simulation fidèle (§5) ? provenance 📘/🧩/⚠️ préservée depuis la fiche source (§6) ? Au
 moindre doute sur un fait — **marqueur `à-vérifier:`, passe du `verificateur-theorie`, pas de
 publication**.

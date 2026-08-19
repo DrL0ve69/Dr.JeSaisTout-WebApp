@@ -1,0 +1,296 @@
+// =============================================================================
+// Simulation — l'habillage du pas-à-pas d'une leçon (E2-ST5, lot b1)
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet AUCUN CSS tant qu'aucun mixin n'est appelé) et
+// JAMAIS `themes` : un style de composant est une unité de compilation séparée, il
+// dupliquerait tout le bloc `:root` des jetons dans son propre fichier.
+//
+// G7 : aucune couleur, taille ni distance littérale — uniquement des jetons
+// SÉMANTIQUES. C'est le pari explicite d'E6 (« Moniteur ambre ») : la bascule de peau
+// ne doit toucher AUCUN composant. Les seules valeurs nues ci-dessous sont des remises
+// à plat (`0`), des mots-clés (`none`, `pre-wrap`) et les couleurs système du mode
+// contraste forcé.
+//
+// CONFINEMENT DES CONTRASTES — ZÉRO PAIRE NEUVE. Chaque encre employée forme avec son
+// fond une paire DÉJÀ MESURÉE par `tools/design/verifier-contrastes.mjs` :
+//   · `--couleur-encre` / `--couleur-encre-secondaire` sur `--couleur-surface-creuse` ;
+//   · `--couleur-encre` / `--couleur-encre-secondaire` sur `--couleur-surface` (les
+//     boîtes d'acteur posent leur propre fond, pour se détacher du fond du bloc) ;
+//   · `--couleur-accent` sur `--couleur-surface` ET sur `--couleur-surface-creuse`
+//     (les liens de la barre, le marqueur d'acteur actif) ;
+//   · `--couleur-danger-vuln` sur `--couleur-surface` (le marqueur de surbrillance) ;
+//   · `--couleur-code-encre` sur `--couleur-code-surface` ;
+//   · `--couleur-filet` / `--couleur-filet-fort` sur les deux surfaces.
+// D'où le fond `--couleur-surface-creuse` du bloc : c'est la seule surface, avec
+// `surface`, sur laquelle les deux encres sémantiques du composant sont mesurées.
+//
+// WCAG 1.4.1 — LA COULEUR NE PORTE JAMAIS LE SENS SEULE, et c'est vérifiable ici :
+// « acteur actif » et « surbrillance » ont chacun TROIS canaux — la couleur, le MOT
+// écrit dans le gabarit (`.marqueur`), et la `narration` de l'étape qui le redit en
+// phrases. En `forced-colors: active` les deux couleurs tombent sur `CanvasText` : il
+// ne reste que le mot et le STYLE du trait (plein pour l'actif, tireté pour le danger),
+// ce qui suffit — c'est exactement le partage du verdict de `quiz.scss`.
+//
+// G6 · `prefers-reduced-motion` : la seule transition du composant (le fond d'une boîte
+// au survol / à la révélation) est neutralisée plus bas. Toute animation ajoutée ici
+// devra l'être aussi.
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  display: block;
+}
+
+// -----------------------------------------------------------------------------
+// L'enveloppe
+// -----------------------------------------------------------------------------
+// G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
+// (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien seuls.
+.simulation {
+  margin-block: var(--espace-6);
+  padding: var(--espace-4);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  border-radius: var(--rayon-carte);
+  background-color: var(--couleur-surface-creuse);
+}
+
+// Tout ce qui peut recevoir le focus dessine le MÊME anneau, et la règle est écrite une
+// fois. La région et chaque étape sont CIBLABLES (`tabindex="-1"`), et c'est le focus qui
+// y est posé qui ANNONCE le changement — il n'y a pas de région `aria-live`. G8 · WCAG 2.2 ·
+// 2.4.7 et 2.4.11.
+// ⚠️ QUI pose ce focus dépend de l'état de la page : le NAVIGATEUR avant hydratation (il
+// suit le `href`), puis `ViewportScroller.scrollToAnchor` — `RouterLink` annule la
+// navigation native une fois hydraté. Ce second chemin n'existe QUE parce que
+// `app.config.ts` pose `anchorScrolling: 'enabled'` (dépendance détaillée dans l'en-tête de
+// `simulation.ts`).
+.simulation,
+.etape,
+.lien {
+  @include m.focus-visible;
+}
+
+.consigne {
+  margin-block-start: var(--espace-2);
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-xs);
+}
+
+// -----------------------------------------------------------------------------
+// Le bandeau d'acteurs et les boîtes de scène
+// -----------------------------------------------------------------------------
+// Les deux listes portent les mêmes boîtes : le bandeau dit QUI intervient, la scène
+// dit ce que chacun fait à CETTE étape. Le marqueur de liste est retiré parce que ni
+// l'une ni l'autre n'est une énumération ordonnée.
+// ⚠️ `list-style: none` N'EST PAS UNE DÉCISION PUREMENT VISUELLE : Safari/VoiceOver RETIRE
+// le rôle « list » d'une liste ainsi stylée, et « liste de 3 éléments » ne serait plus
+// annoncé. C'est pourquoi le gabarit pose un `role="list"` EXPLICITE sur les quatre listes
+// du composant — ici, sur `.commandes`/`.liens-etapes` plus bas, et sur rien d'autre.
+.acteurs,
+.scene {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--largeur-volet-min), 1fr));
+  gap: var(--espace-2);
+  margin-block-start: var(--espace-3);
+  padding: 0;
+  list-style: none;
+}
+
+.acteur,
+.boite {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-1);
+  align-items: baseline;
+  padding: var(--espace-2);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  border-radius: var(--rayon-net);
+  background-color: var(--couleur-surface);
+  color: var(--couleur-encre);
+  transition: background-color var(--duree-breve) var(--courbe-nette);
+
+  @include m.mouvement-reduit {
+    transition-duration: 0.01ms;
+  }
+}
+
+// Le badge est DÉCORATIF (`aria-hidden` dans le gabarit) : il n'ajoute rien au nom
+// accessible, il donne juste une accroche visuelle en chasse fixe.
+.badge {
+  flex: none;
+  color: var(--couleur-encre-secondaire);
+  font-family: var(--police-code);
+}
+
+// Le rôle est ÉCRIT — c'est LUI qui distingue un attaquant d'une personne pour qui ne
+// voit pas la boîte.
+.role {
+  font-weight: var(--graisse-tampon);
+}
+
+.libelle {
+  flex: 1 1 auto;
+}
+
+// -----------------------------------------------------------------------------
+// La barre de liens d'étape
+// -----------------------------------------------------------------------------
+.barre {
+  margin-block-start: var(--espace-4);
+  padding-block-start: var(--espace-2);
+  border-block-start: var(--filet-fin) solid var(--couleur-filet);
+}
+
+// Même remarque que pour `.acteurs`/`.scene` : `list-style: none` coûte le rôle « list »
+// dans Safari/VoiceOver, d'où le `role="list"` explicite du gabarit sur ces deux-là aussi.
+.commandes,
+.liens-etapes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin-block-start: var(--espace-2);
+  padding: 0;
+  list-style: none;
+}
+
+// WCAG 2.2 · 2.5.8 exige 24 × 24 px ; 2.5.5 (AAA) exige 44 × 44. La barre du projet est
+// la haute : `--espace-6` vaut 3rem, soit 48 px. Aucun gate ne peut l'attraper — jsdom
+// ne fait pas de mise en page : elle tient ici ou nulle part.
+.lien {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-2);
+  border: var(--filet-fin) solid var(--couleur-filet-fort);
+  border-radius: var(--rayon-net);
+  color: var(--couleur-accent);
+  font-size: var(--taille-xs);
+}
+
+// L'étape courante porte son MOT dans le libellé du lien (WCAG 1.4.1) ; le trait plein
+// et la graisse ne font que l'appuyer.
+.est-courante {
+  border-color: var(--couleur-accent);
+  font-weight: var(--graisse-tampon);
+}
+
+// -----------------------------------------------------------------------------
+// Les étapes
+// -----------------------------------------------------------------------------
+// ⚠️ AUCUNE RÈGLE NE MASQUE UNE ÉTAPE ICI. Le repli passe par l'attribut
+// `hidden="until-found"` posé par le gabarit — donc par le NAVIGATEUR, qui garde le
+// contenu trouvable au Ctrl+F et émet `beforematch`. Un `display: none` maison
+// perdrait exactement cette propriété.
+.etape {
+  margin-block-start: var(--espace-4);
+  padding-block-start: var(--espace-2);
+  border-block-start: var(--filet-fin) solid var(--couleur-filet);
+}
+
+.titre-etape {
+  font-size: var(--taille-s);
+}
+
+.narration {
+  margin-block-start: var(--espace-1);
+  color: var(--couleur-encre);
+}
+
+// La flèche est du TEXTE plus un TRAIT — aucun SVG (le sanitizer efface tout le SVG,
+// mesuré), et aucune notation bâtie sur « → », rendue par la police de repli sur ce
+// dépôt. Le trait est décoratif : le sens est déjà écrit en mots dans le paragraphe.
+.fleche {
+  margin-block-start: var(--espace-2);
+  padding-inline-start: var(--espace-2);
+  border-inline-start: var(--filet-marge) solid var(--couleur-filet-fort);
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-xs);
+}
+
+// -----------------------------------------------------------------------------
+// Les marqueurs d'état d'acteur (trois canaux — voir l'en-tête)
+// -----------------------------------------------------------------------------
+.marqueur {
+  flex: 1 0 100%;
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+}
+
+.est-actif {
+  border-inline-start: var(--filet-marge) solid var(--couleur-accent);
+}
+
+.marqueur-actif {
+  color: var(--couleur-accent);
+}
+
+.est-danger {
+  border-inline-start: var(--filet-marge) dashed var(--couleur-danger-vuln);
+}
+
+.marqueur-danger {
+  color: var(--couleur-danger-vuln);
+}
+
+// -----------------------------------------------------------------------------
+// Les panneaux
+// -----------------------------------------------------------------------------
+.panneau {
+  flex: 1 0 100%;
+  margin-block-start: var(--espace-1);
+}
+
+.panneau-texte {
+  font-size: var(--taille-xs);
+}
+
+.etiquette {
+  color: var(--couleur-encre-secondaire);
+  font-size: var(--taille-xs);
+}
+
+// Le code garde son indentation : c'est parfois elle qui rend la faille visible.
+// `pre-wrap` plutôt que `pre` — une ligne longue se replie au lieu de créer un
+// défileur horizontal. C'est CE choix qui dispense d'un `tabindex` : un conteneur
+// défilant devrait être atteignable au clavier (WCAG 2.1.1), celui-ci ne défile pas.
+.code {
+  margin-block-start: var(--espace-1);
+  padding: var(--espace-2);
+  border: var(--filet-fin) solid var(--couleur-filet);
+  background-color: var(--couleur-code-surface);
+  color: var(--couleur-code-encre);
+  font-family: var(--police-code);
+  font-size: var(--taille-xs);
+  white-space: pre-wrap;
+}
+
+// En `forced-colors: active`, le système repeint tout : les deux encres de marqueur
+// tombent sur `CanvasText`, et seuls le MOT et le style du trait (plein / tireté)
+// portent encore la distinction. Les traits du composant sont regroupés dans une seule
+// requête média — des requêtes séparées coûteraient une part du budget de style pour
+// un CSS identique.
+@include m.contraste-force {
+  .simulation,
+  .acteur,
+  .boite,
+  .code,
+  .lien {
+    border-color: CanvasText;
+  }
+
+  .barre,
+  .etape {
+    border-block-start-color: CanvasText;
+  }
+
+  .fleche,
+  .est-actif,
+  .est-danger {
+    border-inline-start-color: CanvasText;
+  }
+
+  .marqueur-actif,
+  .marqueur-danger {
+    color: CanvasText;
+  }
+}

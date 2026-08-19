@@ -56,6 +56,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 
 import { Quiz } from '../../quiz/quiz';
+import { Simulation } from '../../simulation/simulation';
 
 /**
  * Les types de blocs que ce composant sait rendre — liste NOMINATIVE, jamais un
@@ -317,7 +318,7 @@ interface TableDesRangs {
 
 @Component({
   selector: 'app-rendu-blocs',
-  imports: [Quiz],
+  imports: [Quiz, Simulation],
   styleUrl: './rendu-blocs.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // AUCUN `@default` dans le `@switch` ci-dessous, et c'est délibéré : le cas
@@ -514,6 +515,11 @@ interface TableDesRangs {
                  Le quiz DESCEND avec la récursion : une ancre écrite dans un
                  encadré doit rendre le même quiz que la même ancre au premier
                  niveau — le compilateur, lui, refuse qu'il y en ait deux.
+                 LA SIMULATION DESCEND POUR LA MÊME RAISON (E2-ST5, lot b2), et
+                 le compte d'ancres qui l'accompagne DESCEND aussi : la règle de
+                 cohérence de contenu-compile.ts compte récursivement, donc une
+                 seconde ancre cachée dans un encadré fait échouer la lecture de
+                 l'artéfact au lieu de dupliquer tous les id d'étape.
                  LE DÉCALAGE DESCEND AUSSI (E2-ST4, lot C1) : sans lui, les
                  compteurs de l'enfant repartiraient de 1 et un bloc de code
                  niché s'appellerait « Code n°1 » au milieu de la leçon. Il est
@@ -522,6 +528,7 @@ interface TableDesRangs {
             <app-rendu-blocs
               [blocs]="bloc.blocs"
               [quiz]="quiz()"
+              [simulation]="simulation()"
               [decalage]="decalageDeLEncadre(rangBloc)"
             />
           </aside>
@@ -538,7 +545,16 @@ interface TableDesRangs {
         }
 
         @case ('ancre-simulation') {
-          <!-- Idem, pour E2-ST5. Voir le commentaire du cas ancre-quiz. -->
+          <!--
+            E2-ST5 (lot b2) : idem, à la position que l'auteur a choisie. Une seule
+            différence, et elle est de CONTRAT : la simulation est optionnelle au
+            niveau de la leçon (une leçon qui ne décrit aucun flux n'en a pas), donc
+            l'input peut valoir « undefined » — d'où l'appel de méthode ci-dessous
+            plutôt qu'une liaison nue. simulationDeLAncre() LÈVE si l'ancre est là
+            sans la donnée ; une condition muette rendrait ce cas invisible dans une
+            leçon publiée, ce que le compte d'ancres du pipeline existe pour interdire.
+          -->
+          <app-simulation [simulation]="simulationDeLAncre()" />
         }
       }
     }
@@ -565,6 +581,24 @@ export class RenduBlocs {
    * à l'appelant : il a toujours la valeur sous la main.
    */
   readonly quiz = input.required<QuizCompile>();
+
+  /**
+   * La simulation de la leçon — E2-ST5, lot b2. LIAISON REQUISE, VALEUR OPTIONNELLE.
+   *
+   * Ce n'est pas une contradiction, c'est le contrat : `LeconCompilee.simulation` est `?`
+   * (une leçon qui ne décrit aucun flux n'a pas de `simulation.json`), donc `undefined` est
+   * une valeur LÉGITIME, à la différence de `quiz`. Mais l'input reste `required` pour que
+   * l'OUBLI de la liaison ne compile pas : c'est le seul des deux défauts qu'un gate peut
+   * attraper avant le prerender. Le second — l'ancre présente sans la donnée — se tient à
+   * `simulationDeLAncre()`, qui lève.
+   *
+   * L'invariant qui rend les deux cas exhaustifs vit à la frontière
+   * (`verifierEnveloppeSimulation`, `contenu-compile.ts`) : `simulation` présente ⇔
+   * EXACTEMENT une ancre `[[simulation]]` dans le corps, absente ⇔ zéro. Ce composant n'a
+   * donc pas à deviner ; il a seulement à ne jamais rendre en silence ce que l'invariant
+   * déclare impossible.
+   */
+  readonly simulation = input.required<SimulationCompilee | undefined>();
 
   /**
    * Ce qui a déjà été numéroté AVANT cette liste de blocs — E2-ST4, lot C1.
@@ -656,6 +690,30 @@ export class RenduBlocs {
       );
     }
     return decalage;
+  }
+
+  /**
+   * La simulation à rendre à l'ancre `[[simulation]]` — ou une levée qui la NOMME.
+   *
+   * Le cas couvert est celui d'un `lecons/<slug>.json` compilé par une AUTRE version du
+   * pipeline : la règle de cohérence bidirectionnelle de `verifierEnveloppeSimulation`
+   * rend ce cas impossible sur un artéfact frais, exactement comme la table des rangs rend
+   * `etiquetteCode` infaillible — et, exactement comme elle, on lève plutôt que de rendre
+   * un trou. Le rendu ayant lieu au prerender, l'échec casse la construction au lieu de
+   * publier une leçon dont la simulation a disparu sans un mot.
+   */
+  simulationDeLAncre(): SimulationCompilee {
+    const simulation = this.simulation();
+    if (simulation === undefined) {
+      throw new Error(
+        'RenduBlocs : ancre « [[simulation]] » sans simulation. `LeconCompilee.simulation` ' +
+          'est optionnelle, mais `verifierEnveloppeSimulation` (`contenu-compile.ts`) exige ' +
+          'l’équivalence « simulation présente ⇔ exactement une ancre » — un artéfact où les ' +
+          'deux se contredisent vient d’une autre version du pipeline. Le contrat est ' +
+          '`tools/content-pipeline/types.d.ts` ; régénérer avec `npm run content:build`.',
+      );
+    }
+    return simulation;
   }
 
   /**

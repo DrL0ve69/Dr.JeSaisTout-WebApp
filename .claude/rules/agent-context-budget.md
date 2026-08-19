@@ -42,6 +42,14 @@ agent **frais** tient en une fraction du coût. La reprise ne « continue » pas
 
 - [ ] **Test du « + »** : si le brief contient « **et** e2e » ou « **et** la clôture documentaire »,
       c'est **≥ 2 agents**. Un lot = une chose qu'on peut déclarer verte seule.
+- [ ] 🔴 **Dimensionne au VOLUME DE SOURCE à lire, jamais au nombre de livrables promis** (leçon
+      **L-047**, mesurée le 2026-08-19 sur la passe E3-ST0). Un lot « 4 fiches » et un lot
+      « 6 fiches » ont fini à **250k, 244k, 277k et 249k** — au-delà du maximum absolu — parce que
+      la vraie variable était le corpus : **230 à 298 diapositives** et jusqu'à **47 captures à
+      ouvrir une par une**. Les lots dimensionnés par corpus (23 diapositives, 2 fiches) ont fini à
+      **113k** et **105k**. Le compte de livrables ne prédit **rien** dès qu'un livrable a une source
+      de taille inconnue : **mesure la source avant d'écrire le brief** (nombre de pages, de
+      diapositives, d'images, de fichiers à lire), et découpe là-dessus.
 - [ ] **Ordre de grandeur** : un agent qui dépasse ~**60 appels d'outils** est en train de déborder —
       c'est le signal à surveiller (précédent AbrisTempo : 124 appels sur le run à 294k).
 - [ ] **Découpe type d'une sous-tâche « lourde »** : (a) le composant/la leçon + ses tests unitaires ·

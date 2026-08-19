@@ -27,8 +27,8 @@
           "libelle": { "type": "string", "minLength": 1 },
           "type": {
             "type": "string",
-            "enum": ["personne", "navigateur", "serveur", "stockage"],
-            "description": "Liste FERMÉE : le composant de rendu associe une icône et un rôle accessible à chaque valeur. Un type inconnu produirait une boîte muette pour un lecteur d'écran."
+            "enum": ["personne", "attaquant", "navigateur", "serveur", "stockage"],
+            "description": "Liste FERMÉE : le composant de rendu associe une icône et un rôle accessible à chaque valeur. Un type inconnu produirait une boîte muette pour un lecteur d'écran. `attaquant` est distinct de `personne` parce que la majorité des simulations du cours sont des déroulés d'attaque où l'opposition attaquant/victime EST le propos : sans ce type, les deux boîtes porteraient la même icône et le même rôle accessible, et la distinction ne tiendrait qu'au `libelle` — donc à rien pour qui ne le lit pas."
           }
         }
       }

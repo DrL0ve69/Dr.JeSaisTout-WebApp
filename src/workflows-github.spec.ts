@@ -188,8 +188,16 @@ describe('les workflows GitHub', () => {
  * (9) a déjà son miroir dans `config-swa-provenance-style.spec.ts`, donc le bouger coûte deux
  * fichiers et une revue ; la valeur de CI n'avait pas ce miroir, et passer 12 → 13 dans `ci.yml`
  * ne faisait rougir personne — alors que c'est exactement l'écriture qui autorise un hachage de
- * style NON REVU, au moment de pression maximale (build rouge, cf. S-011). Le voici. */
-const HACHAGES_STYLE_CI_ATTENDU = 12;
+ * style NON REVU, au moment de pression maximale (build rouge, cf. S-011). Le voici.
+ *
+ * 📈 12 → 13 le 2026-08-19 (E2-ST5, lot b2). Le hachage de plus est le bloc `<style>` du
+ * `SimulationComponent`, apparu quand l'ancre `[[simulation]]` a cessé de rendre le vide. Il a été
+ * NOMMÉ avant d'être épinglé : la page de leçon de la fixture passe de 7 à 8 blocs `<style>`, et
+ * le treizième bloc distinct de l'artéfact commence par `.simulation[_ngcontent-…]`. Aucune des
+ * quatre autres pages prerendues n'a bougé, et le compte de hachages de SCRIPT reste à 1.
+ * `NOMBRE_HACHAGES_STYLE_ATTENDU` (production, 9) ne bouge PAS : `content/` est vide, donc aucune
+ * simulation n'est rendue en ligne. */
+const HACHAGES_STYLE_CI_ATTENDU = 13;
 
 /** Racine du cours réel. Tant qu'elle ne porte aucune leçon, le harnais de fixture est légitime. */
 const RACINE_COURS_PRODUCTION = 'content/cours/securite-web';
@@ -351,7 +359,7 @@ describe('G-build de ci.yml ≡ `npm run build` déplié (décision E-2)', () =>
 // CE QUE CE BLOC MORD :
 //   · le chemin de fixture nommé dans `ci.yml` porte réellement une `lecon.md` — un dossier vide
 //     existe aussi, et ne prerenderait aucune page ;
-//   · `ci.yml` passe bien `--hachages-style 12`, à la valeur près — sans quoi le compte retomberait
+//   · `ci.yml` passe bien `--hachages-style 13`, à la valeur près — sans quoi le compte retomberait
 //     sur celui de la production et le gate rougirait à chaque run, avec la pression S-011 à la clef ;
 //   · `deploy.yml` ne bascule PAS sur une racine de fixture, ne pose PAS ce drapeau, et exécute
 //     encore `npm run build` : il publie, donc il construit ce qui part en ligne ;

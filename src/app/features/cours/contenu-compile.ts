@@ -32,6 +32,11 @@
 // Le quiz (E2-ST3) suit EXACTEMENT ce partage : son ENVELOPPE est vérifiée ici
 // (présence, appariement au slug, `id` et `type` de chaque question), les champs
 // propres à chacun des quatre types appartiennent au `QuizComponent`.
+// La simulation (E2-ST5) le suit à son tour : enveloppe ici (appariement au slug,
+// titre, acteurs, séquence des étapes, collision d'`id`), champs d'`etatVisuel` au
+// composant du lot b. Une seule différence, et elle est de contrat : `simulation` est
+// OPTIONNELLE — ce qui se vérifie n'est pas sa présence mais la COHÉRENCE de la paire
+// « fichier ⇔ ancre `[[simulation]]` ».
 //
 // FAIL-CLOSED, ET BRUYAMMENT. Un artéfact malformé LÈVE en nommant le champ fautif.
 // Sur une route prerendue, cela fait échouer `npm run build` — le comportement
@@ -94,6 +99,29 @@ export const TYPES_DE_QUESTION = [
   'trouver-la-faille',
 ] as const;
 
+/**
+ * Les CINQ types d'acteur du contrat — liste NOMINATIVE, REPRISE DE L'ÉNUMÉRATION DU
+ * SCHÉMA DE BUILD (`tools/content-pipeline/schemas/simulation.schema.json`,
+ * `acteurs.items.properties.type`). Le composant du lot b associe à chaque valeur une
+ * icône ET un rôle accessible : un `type` inconnu produirait une boîte MUETTE pour un
+ * lecteur d'écran — exactement ce que le schéma dit en refusant la liste ouverte.
+ * `lecon.spec.ts` RELIT le schéma et compare les deux listes, comme il le fait déjà pour
+ * `NIVEAUX` : elles ne peuvent pas diverger en silence (L-016).
+ *
+ * POURQUOI `attaquant` EST UN TYPE, ET NON UNE `personne` AU LIBELLÉ PARLANT. Le bloc A
+ * d'E3 porte cinq déroulés d'attaque où l'opposition attaquant/victime EST le propos de la
+ * simulation. Sans ce type, les deux boîtes recevraient la même icône et le même rôle
+ * accessible : la distinction ne tiendrait qu'au `libelle`, donc à rien pour qui ne lit pas
+ * (l'objectif d'E2-ST5 nomme d'ailleurs « navigateur/attaquant/serveur »).
+ */
+export const TYPES_ACTEUR = [
+  'personne',
+  'attaquant',
+  'navigateur',
+  'serveur',
+  'stockage',
+] as const;
+
 /** Le kebab-case du schéma — ancres de section ET identifiants de question. */
 const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -116,30 +144,66 @@ const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const PREFIXE_ID_QUESTION = 'quiz-';
 
 /**
- * Compte les blocs `ancre-quiz` d'une liste de blocs BRUTE — encadrés compris.
+ * L'`id` de document de la RÉGION de simulation (E2-ST5, lot a).
+ *
+ * POURQUOI IL EST ARBITRÉ ICI, ET NON LAISSÉ AU COMPOSANT DU LOT b — même raison,
+ * mot pour mot, que `PREFIXE_ID_QUESTION`. Le composant rendra une barre de LIENS
+ * D'ÉTAPE (décision du propriétaire) : il lui faut des `id` de document, donc un espace
+ * de noms, et cet espace est le MÊME que celui des ancres de section, que l'auteur d'une
+ * leçon choisit librement et sans rien savoir de la simulation. `ancre: 'simulation'` est
+ * un choix parfaitement naturel pour une section qui présente le pas-à-pas.
+ *
+ * ET C'EST VÉRIFIÉ, PAS SEULEMENT ÉCRIT (L-008) : `verifierEnveloppeDeLaSimulation` refuse
+ * nominativement une leçon où une ancre de section prendrait l'un de ces `id`. Le composant
+ * les IMPORTERA — il ne recopiera pas de chaînes.
+ */
+export const ID_SIMULATION = 'simulation';
+
+/**
+ * Le préfixe sous lequel l'étape `numero: N` devient un `id` de document :
+ * `simulation-etape-3` pour la troisième. Voir `ID_SIMULATION` pour le raisonnement.
+ */
+export const PREFIXE_ID_ETAPE = 'simulation-etape-';
+
+/**
+ * Compte les blocs d'ancre d'un type donné dans une liste de blocs BRUTE — encadrés compris.
  *
  * POURQUOI CETTE FONCTION EXISTE ICI, EN DOUBLE DU COMPILATEUR. `compilerLecon`
  * (`tools/content-pipeline/compiler-markdown.mjs`) refuse déjà une leçon dont le corps ne
- * porte pas exactement une ancre `[[quiz]]`, et il le fait récursivement depuis le lot C.
- * Mais ce fichier-ci se déclare frontière de confiance contre un artéfact produit par une
- * AUTRE version du pipeline (voir l'en-tête) : un invariant qui n'existe qu'au compilateur
- * n'est pas tenu à la lecture. Or celui-là est un invariant d'`id` au même titre que les
- * quatre autres déjà contrôlés — deux ancres, c'est le quiz rendu deux fois, donc tous les
- * `id` de question dupliqués dans le document.
+ * porte pas le bon nombre d'ancres `[[quiz]]` / `[[simulation]]`, et il le fait
+ * récursivement. Mais ce fichier-ci se déclare frontière de confiance contre un artéfact
+ * produit par une AUTRE version du pipeline (voir l'en-tête) : un invariant qui n'existe
+ * qu'au compilateur n'est pas tenu à la LECTURE. Or celui-là est un invariant d'`id` au
+ * même titre que les autres déjà contrôlés — deux ancres, c'est le composant rendu deux
+ * fois, donc tous ses `id` dupliqués dans le document.
  *
  * LA RÉCURSION N'EST PAS UNE PRÉCAUTION : `encadre` est le seul bloc qui en imbrique
  * d'autres, et c'est exactement là que le compilateur avait son trou (une ancre dans un
  * `::: note` était invisible à un balayage de premier niveau). Le type des blocs est
  * `unknown` à ce stade — leur CONTENU appartient à `RenduBlocs`, qui lève sur un type
  * inconnu ; on ne lit ici que ce qu'il faut pour compter.
+ *
+ * UNE SEULE FONCTION POUR LES DEUX ANCRES, comme dans le compilateur : deux recopies
+ * auraient été deux descentes à éprouver séparément, dont la seconde serait restée non
+ * exercée (L-039).
+ *
+ * ⚠️ LE POINTEUR CROISÉ NE SUFFIT PAS — `src/compter-ancres-parite.spec.ts` fait compter le
+ * MÊME corpus aux deux copies et exige l'égalité (L-037). Sans lui, le jour où un
+ * `BlocContenu` neuf portera des `blocs` imbriqués, une descente mise à jour d'un seul côté
+ * ferait SOUS-COMPTER l'autre — et le côté qui sous-compte trouverait son compte juste
+ * (1 ancre attendue, 1 comptée), donc resterait VERT (L-034). D'où l'export : cette fonction
+ * n'a aucun appelant hors de ce fichier, elle est exportée pour être mise à l'épreuve.
  */
-function compterAncresQuiz(blocs: readonly unknown[]): number {
+export function compterAncres(
+  blocs: readonly unknown[],
+  type: 'ancre-quiz' | 'ancre-simulation',
+): number {
   let total = 0;
   for (const bloc of blocs) {
     if (!estObjet(bloc)) continue;
-    if (bloc['type'] === 'ancre-quiz') total += 1;
+    if (bloc['type'] === type) total += 1;
     else if (bloc['type'] === 'encadre' && Array.isArray(bloc['blocs'])) {
-      total += compterAncresQuiz(bloc['blocs']);
+      total += compterAncres(bloc['blocs'], type);
     }
   }
   return total;
@@ -318,6 +382,11 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
   // ne se mesure alors sur rien, et c'est juste : la vraie faute est déjà signalée.
   let ancresDuDocument: unknown[] = [];
 
+  // Les listes de blocs, UNE FOIS TOUTES LISIBLES — `null` sinon. Deux comptages d'ancres
+  // s'en servent (quiz et simulation), et ni l'un ni l'autre ne doit porter sur un artéfact
+  // déjà signalé hors contrat : le « 0 ancre » qui en sortirait accuserait la mauvaise cause.
+  let blocsLisibles: readonly (readonly unknown[])[] | null = null;
+
   const sections = valeur['sections'];
   if (!Array.isArray(sections)) {
     manques.push('« sections » : tableau attendu');
@@ -369,8 +438,9 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
       estObjet(section) ? section['blocs'] : undefined,
     );
     if (blocsDeChaqueSection.every((blocs) => Array.isArray(blocs))) {
-      const ancresQuiz = blocsDeChaqueSection.reduce(
-        (total, blocs) => total + compterAncresQuiz(blocs as readonly unknown[]),
+      blocsLisibles = blocsDeChaqueSection as readonly (readonly unknown[])[];
+      const ancresQuiz = blocsLisibles.reduce(
+        (total, blocs) => total + compterAncres(blocs, 'ancre-quiz'),
         0,
       );
       if (ancresQuiz !== 1) {
@@ -388,6 +458,14 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
     valeur['quiz'],
     estObjet(frontmatter) ? frontmatter['slug'] : undefined,
     ancresDuDocument,
+    manques,
+  );
+
+  verifierEnveloppeDeLaSimulation(
+    valeur['simulation'],
+    estObjet(frontmatter) ? frontmatter['slug'] : undefined,
+    ancresDuDocument,
+    blocsLisibles,
     manques,
   );
 
@@ -476,17 +554,223 @@ function verifierEnveloppeDuQuiz(
   }
 
   // LA COLLISION AVEC LE RESTE DU DOCUMENT — l'autre moitié de l'unicité des `id`.
-  // Les `ANCRES_RESERVEES` sont hors de portée par CONSTRUCTION : elles commencent toutes
-  // par « titre- », qu'aucun `PREFIXE_ID_QUESTION + …` ne peut produire. Ne restent donc que
-  // les ancres écrites par l'auteur, qui sont libres — et c'est exactement le cas qu'aucune
-  // des deux parties ne peut arbitrer seule, d'où le refus nominatif ici.
+  // L'espace de noms du document est confronté EN ENTIER : ancres réservées de la page ET
+  // ancres écrites par l'auteur. Les premières sont aujourd'hui hors de portée (elles
+  // commencent toutes par « titre- », qu'aucun `PREFIXE_ID_QUESTION + …` ne peut produire),
+  // mais c'était écrit en COMMENTAIRE et tenu par aucun test (L-008) : les inclure rend la
+  // phrase vraie par construction du code, au prix d'un `…` dans un tableau.
+  const espaceDeNoms = [...ANCRES_RESERVEES, ...ancresDuDocument];
   const heurtees = identifiants.filter((id) =>
-    ancresDuDocument.some((ancre) => ancre === `${PREFIXE_ID_QUESTION}${id}`),
+    espaceDeNoms.some((ancre) => ancre === `${PREFIXE_ID_QUESTION}${id}`),
   );
   if (heurtees.length > 0) {
     manques.push(
       `« quiz.questions » : l'« id » ${heurtees.join(', ')} donnerait l'« id » de document ` +
         `« ${PREFIXE_ID_QUESTION}${heurtees[0]} », déjà pris par une ancre de section`,
+    );
+  }
+}
+
+/**
+ * Contrôle l'ENVELOPPE de la simulation — et rien de plus (E2-ST5, lot a).
+ *
+ * ⚠️ CE CHAMP EST OPTIONNEL, à la différence de `quiz`. Son absence n'est pas une anomalie :
+ * une leçon qui ne décrit aucun flux n'a pas de `simulation.json`, et `valider.mjs` (§9) ne
+ * l'exige de personne. Ce qui est contrôlé, c'est la COHÉRENCE de la paire — présent ⇔
+ * exactement une ancre `ancre-simulation` dans le corps, absent ⇔ zéro. C'est le même
+ * invariant que le compilateur tient sur le dossier, redit ici PARCE QUE ce fichier lit un
+ * artéfact qu'une autre version du pipeline a pu produire (voir `compterAncres`).
+ *
+ * CE QUI EST VÉRIFIÉ : qu'elle désigne CETTE leçon, qu'elle porte un titre, DE DEUX À SIX
+ * acteurs aux `id` kebab-case UNIQUES et non hérités d'`Object.prototype`, de `type` pris
+ * dans la liste NOMINATIVE, au libellé non vide, et DE CINQ À DOUZE étapes dont le `numero`
+ * suit la position (1-based), avec titre et narration non vides. Plus la collision d'`id` de
+ * document, que ni l'auteur ni le composant ne peuvent arbitrer seuls.
+ * ⚠️ LES QUATRE BORNES SONT CELLES DU SCHÉMA, à l'unité près. Une borne relâchée ici ferait
+ * une LECTURE plus permissive que l'ÉCRITURE : le build refuserait une simulation que cette
+ * frontière laisserait passer, donc un artéfact venu d'ailleurs traverserait sans contrôle.
+ *
+ * ⏭️ CE QUI RESTE AU LOT b : les champs d'`etatVisuel` (`acteurActif`, `fleche`, `panneaux`,
+ * `surbrillance`). C'est le composant qui les lit, donc lui qui doit les refuser nommément —
+ * même partage que `sections`/`blocs` avec `RenduBlocs` et que l'enveloppe du quiz avec
+ * `QuizComponent`. Les redire ici ferait deux vérités qui divergeraient au premier
+ * ajustement du schéma (L-016).
+ *
+ * @param valeur le champ `simulation` brut, ou `undefined` s'il n'y en a pas
+ * @param slug le `frontmatter.slug` déjà lu, ou `undefined` si le frontmatter est hors contrat
+ * @param ancresDuDocument les ancres de section déjà lues — l'autre moitié de l'espace de noms
+ * @param blocsLisibles les blocs de chaque section, ou `null` si l'un d'eux est hors contrat
+ * @param manques canal d'accumulation partagé avec `lireLeconCompilee`
+ */
+function verifierEnveloppeDeLaSimulation(
+  valeur: unknown,
+  slug: unknown,
+  ancresDuDocument: readonly unknown[],
+  blocsLisibles: readonly (readonly unknown[])[] | null,
+  manques: string[],
+): void {
+  // LE COMPTE D'ANCRES SE FAIT DANS LES DEUX CAS — c'est lui qui attrape l'ancre ORPHELINE,
+  // celle d'une leçon sans simulation. Un contrôle qui ne s'exécuterait qu'en présence du
+  // champ laisserait passer très exactement la moitié du défaut.
+  const attendues = valeur === undefined ? 0 : 1;
+  if (blocsLisibles !== null) {
+    const trouvees = blocsLisibles.reduce(
+      (total, blocs) => total + compterAncres(blocs, 'ancre-simulation'),
+      0,
+    );
+    if (trouvees !== attendues) {
+      manques.push(
+        `« sections » : ${trouvees} ancre(s) « [[simulation]] » dans le corps, ${attendues} attendue(s) ` +
+          (valeur === undefined
+            ? '— aucune « simulation » dans cette leçon, l’ancre laisserait un trou dans la page'
+            : trouvees === 0
+              ? '— la simulation ne serait rendue nulle part'
+              : '— la simulation serait rendue plusieurs fois, tous ses ids d’étape dupliqués'),
+      );
+    }
+  }
+
+  if (valeur === undefined) return;
+  if (!estObjet(valeur)) {
+    manques.push('« simulation » : objet attendu — le champ existe mais n’est pas une simulation');
+    return;
+  }
+
+  if (!estChaineNonVide(valeur['titre'])) {
+    manques.push('« simulation.titre » : chaîne non vide attendue');
+  }
+
+  // Même prudence que pour le quiz : le slug n'est comparé que s'il est lui-même conforme.
+  if (typeof slug === 'string' && valeur['lecon'] !== slug) {
+    manques.push(
+      `« simulation.lecon » : « ${String(valeur['lecon'])} » alors que « frontmatter.slug » vaut « ${slug} »`,
+    );
+  }
+
+  const acteurs = valeur['acteurs'];
+  // LE SEUIL EST DEUX, PAS UN — repris mot pour mot de `minItems: 2` du schéma
+  // (`simulation.schema.json`, `acteurs.description`) et de `types.d.ts` (« 2 à 6 »). Un
+  // `length !== 0` laisserait traverser cette frontière une simulation à un acteur, que le
+  // build refuse : la lecture serait alors PLUS permissive que l'écriture, exactement ce que
+  // ce fichier existe pour empêcher.
+  if (!Array.isArray(acteurs) || acteurs.length < 2) {
+    manques.push(
+      '« simulation.acteurs » : au moins deux acteurs — une simulation à un acteur ne ' +
+        'raconte pas d’échange',
+    );
+  } else {
+    // LE PLAFOND EST SIX, repris du même `maxItems: 6` du schéma. Il tient pour la même
+    // raison que le plancher : sans lui, la lecture serait PLUS PERMISSIVE que l'écriture.
+    if (acteurs.length > 6) {
+      manques.push(
+        `« simulation.acteurs » : au plus six acteurs, ${acteurs.length} trouvés — au-delà, ` +
+          'la scène ne tient plus à l’écran et chaque étape en désigne moins qu’elle n’en montre',
+      );
+    }
+    const identifiants: string[] = [];
+    for (const [rang, acteur] of acteurs.entries()) {
+      const ou = `« simulation.acteurs[${rang}] »`;
+      if (!estObjet(acteur)) {
+        manques.push(`${ou} : objet attendu`);
+        continue;
+      }
+      // L'`id` d'un acteur est la clef par laquelle chaque étape le désigne (`acteurActif`,
+      // `fleche`, `panneaux`, `surbrillance`) : deux homonymes rendraient l'un des deux
+      // indésignable, et le composant du lot b peindrait le mauvais.
+      if (typeof acteur['id'] !== 'string' || !KEBAB_CASE.test(acteur['id'])) {
+        manques.push(`${ou}.id : kebab-case attendu`);
+      } else if (Object.hasOwn(Object.prototype, acteur['id'])) {
+        // 🔴 LE PIÈGE DU PROTOTYPE, REFUSÉ À LA FRONTIÈRE. `panneaux` est un
+        // `Record<idActeur, PanneauSimulation>` issu d'un `JSON.parse`, et le composant du
+        // lot b l'indexera par l'`id` de l'acteur. Sur un objet dépourvu de la clef,
+        // `panneaux['constructor']` ne rend pas `undefined` mais
+        // `Object.prototype.constructor` — une fonction, donc une valeur *truthy* qui
+        // traverserait un `@if (panneau)` pour peindre un panneau vide.
+        // L'ENSEMBLE VISÉ EST CLOS ET ÉNUMÉRABLE, ce n'est donc pas une liste noire : on
+        // interroge `Object.prototype` lui-même. Deux voisins pour situer le seul cas réel :
+        // `__proto__` est déjà refusé plus haut (le kebab-case n'admet pas d'underscore) et
+        // `prototype` n'est pas hérité par un objet simple — reste `constructor`, qui passe
+        // le kebab-case sans rien devoir à un contenu hostile. Même parade que
+        // `resoudre-lecon.ts` sur la carte des leçons.
+        manques.push(
+          `${ou}.id : « ${acteur['id']} » est hérité d’« Object.prototype » — cet « id » ` +
+            'indexerait « panneaux » sur une valeur que l’auteur n’a pas écrite',
+        );
+      } else {
+        identifiants.push(acteur['id']);
+      }
+      if (!estChaineNonVide(acteur['libelle'])) {
+        manques.push(`${ou}.libelle : chaîne non vide attendue`);
+      }
+      if (!TYPES_ACTEUR.some((connu) => connu === acteur['type'])) {
+        manques.push(`${ou}.type : attendu ${TYPES_ACTEUR.join(' | ')}`);
+      }
+    }
+    if (new Set(identifiants).size !== identifiants.length) {
+      manques.push('« simulation.acteurs » : deux acteurs partagent le même « id »');
+    }
+  }
+
+  const etapes = valeur['etapes'];
+  if (!Array.isArray(etapes)) {
+    manques.push('« simulation.etapes » : tableau attendu');
+    return;
+  }
+  // LES BORNES SONT CELLES DU SCHÉMA — `minItems: 5` / `maxItems: 12`
+  // (`simulation.schema.json`, `etapes.description`) et `types.d.ts` (« 5 à 12 »). Un
+  // `length !== 0` laisserait traverser cette frontière une simulation à deux étapes, que le
+  // build refuse : la lecture serait alors PLUS PERMISSIVE que l'écriture, exactement ce que
+  // ce fichier existe pour empêcher — et c'est le seuil `acteurs` ci-dessus, mot pour mot.
+  if (etapes.length < 5 || etapes.length > 12) {
+    manques.push(
+      `« simulation.etapes » : de cinq à douze étapes attendues, ${etapes.length} trouvée(s) — ` +
+        'en deçà le pas-à-pas ne déroule rien, au-delà la barre de liens devient illisible',
+    );
+  }
+  // L'ARRÊT NE VAUT QUE POUR LE CAS DÉGÉNÉRÉ : hors bornes mais non vide, on continue, parce
+  // que les manques par étape nomment des champs que l'auteur devra corriger de toute façon.
+  if (etapes.length === 0) return;
+
+  for (const [rang, etape] of etapes.entries()) {
+    const ou = `« simulation.etapes[${rang}] »`;
+    if (!estObjet(etape)) {
+      manques.push(`${ou} : objet attendu`);
+      continue;
+    }
+    // Le `numero` N'EST PAS décoratif : c'est lui qui devient l'`id` de document de l'étape
+    // (`PREFIXE_ID_ETAPE`), donc la cible du lien de la barre d'étapes. Un `numero` qui ne
+    // suivrait pas la position ferait deux étapes au même `id`, ou un lien vers rien.
+    if (etape['numero'] !== rang + 1) {
+      manques.push(`${ou}.numero : ${String(etape['numero'])} attendu à ${rang + 1} (1-based)`);
+    }
+    if (!estChaineNonVide(etape['titre'])) manques.push(`${ou}.titre : chaîne non vide attendue`);
+    // La narration est l'équivalent textuel de l'état visuel (WCAG 1.1.1) : une étape muette
+    // serait une étape que rien ne raconte à qui ne voit pas le dessin.
+    if (!estChaineNonVide(etape['narration'])) {
+      manques.push(`${ou}.narration : chaîne non vide attendue`);
+    }
+    // Les CHAMPS d'`etatVisuel` appartiennent au composant du lot b ; sa PRÉSENCE, non —
+    // sans elle, il n'aurait rien à peindre et la page serait à moitié rendue.
+    if (!estObjet(etape['etatVisuel'])) manques.push(`${ou}.etatVisuel : objet attendu`);
+  }
+
+  // LA COLLISION AVEC LE RESTE DU DOCUMENT — mesurée SEULEMENT quand la simulation est là,
+  // parce que ces `id` n'existent dans la page que dans ce cas. L'espace de noms est
+  // confronté EN ENTIER, ancres réservées comprises : elles commencent aujourd'hui toutes
+  // par « titre- », donc aucune ne peut heurter — mais cette garantie ne vivait qu'en
+  // commentaire (L-008), et la voici tenue par le code. Restent les ancres écrites par
+  // l'auteur, qui sont libres : « simulation » est un choix parfaitement naturel pour la
+  // section qui présente le pas-à-pas.
+  const idsDeLaSimulation = [
+    ID_SIMULATION,
+    ...etapes.map((_etape, rang) => `${PREFIXE_ID_ETAPE}${rang + 1}`),
+  ];
+  const espaceDeNoms = [...ANCRES_RESERVEES, ...ancresDuDocument];
+  const heurtes = idsDeLaSimulation.filter((id) => espaceDeNoms.some((ancre) => ancre === id));
+  if (heurtes.length > 0) {
+    manques.push(
+      `« simulation » : l'« id » de document « ${heurtes.join(', ')} » est déjà pris par une ` +
+        'ancre de section — la simulation et le sommaire se disputeraient la même cible',
     );
   }
 }
