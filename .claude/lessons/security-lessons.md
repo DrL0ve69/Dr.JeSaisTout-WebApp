@@ -311,6 +311,28 @@ d'empiler un quatrième cas.
 `src/garde-fou-contournements-sanitizer.spec.ts`, `angular.json` (`lintFilePatterns`),
 `.claude/rules/security.md` §4, `docs/agile/backlog-phase-1.md` §E2-ST2.
 
+**Quatrième occurrence, E2-ST5 lot a (2026-08-19) — le même patron sur un contrôle de COLLISION
+d'`id`, pas sur un scan de fichiers.** La détection de collisions d'`id` d'étapes de simulation ne
+confrontait qu'aux ancres de section, en **excluant** `ANCRES_RESERVEES` au seul motif — écrit en
+**commentaire**, tenu par **aucun test** — qu'« elles commencent toutes par `titre-` ». Une future
+ancre réservée nommée autrement aurait rouvert la collision en silence, et une collision d'`id`
+utilisé comme cible de fragment (`#simulation-etape-3`) ne produit pas une erreur mais une
+**navigation vers le mauvais élément**, silencieusement ([[L-030]] : un fragment nu se résout
+contre `<base href>`). Corrigé en confrontant l'**union complète**
+(`[...ANCRES_RESERVEES, ...ancresDuDocument]`) aux deux points de contrôle, ce qui rend le
+commentaire vrai **par construction du code** plutôt que par relecture. Même famille, même correctif
+que la règle ci-dessus : une exclusion de périmètre justifiée en prose seule, sans contrôle positif,
+est une promesse non tenue.
+**Renfort complémentaire, à ne pas confondre avec la règle ci-dessus mais à appliquer ensemble** :
+l'`id` de chaque étape est bâti depuis `rang + 1` (la **position** dans le tableau), **jamais** depuis
+`etape.numero` qui vient du contenu — et `numero` est par ailleurs borné trois fois (schéma, script de
+validation, égalité stricte à la frontière). Un `id` dérivé du contenu peut être **forgé** par
+l'auteur d'une leçon ; un `id` dérivé de la position ne le peut pas. Bâtir un identifiant de collision
+depuis la position/une constante, et confronter cet identifiant à l'espace de noms **complet**, sont
+les deux moitiés d'un seul geste correct.
+**Réfs additionnelles.** `src/app/features/cours/contenu-compile.ts` (`ANCRES_RESERVEES`),
+`src/app/features/cours/simulation/simulation.ts`, `docs/agile/backlog-phase-1.md` §E2-ST5 lot a.
+
 ## S-011 · Un garde-fou qui balaie la SORTIE rencontre un jour le contenu qui enseigne le motif qu'il refuse (A05 · pression d'assouplissement)
 
 **Symptôme.** `tools/deploiement/generer-config-swa.mjs` lit le HTML prerendu et refuse deux
@@ -470,3 +492,31 @@ refusée » (assertion sur `getComputedStyle`, pas sur un événement) distinct 
 **Réfs.** `e2e/aides/sonde-csp.ts`, `e2e/quiz-sous-csp.spec.ts`, `e2e/bascule-theme.spec.ts`,
 `src/configuration-typescript.spec.ts`, `.claude/rules/security.md` §1,
 `docs/agile/backlog-phase-1.md` §E2-ST4 lot C.
+
+## S-017 · Une clé venue du contenu (`JSON.parse`) qui indexe un objet PAR CROCHETS peut remonter `Object.prototype` — un motif kebab-case ne l'exclut pas (A03 · CWE-1321, troisième occurrence sur ce dépôt)
+
+**Symptôme.** Constaté en revue du lot a d'E2-ST5 : `acteur.id` est validé par le motif kebab-case
+`^[a-z0-9]+(-[a-z0-9]+)*$`, qui **accepte** `constructor` — les underscores de `__proto__` sont
+refusés par le motif, ce qui donne une fausse impression d'avoir fermé la classe. Une lecture par
+indexation directe `panneaux[acteur.id]` sur un objet issu de `JSON.parse` **sans cette clé** aurait
+rendu `Object.prototype.constructor` — une fonction, valeur *truthy* — qui aurait traversé un `@if`
+et peint un panneau vide, sans qu'aucune exception ne signale la faute de contenu. `prototype` seul
+est inoffensif sur un objet simple ; c'est `constructor` (et par la même logique `__proto__` si le
+motif l'avait laissé passer) le cas réellement exploitable par indexation par crochets.
+**Ce n'est pas un cas isolé.** Le dépôt porte déjà la trace écrite de ce même piège à au moins deux
+autres endroits — `resoudre-lecon.ts` et `NIVEAUX_LISIBLES` dans `lecon.ts` — ce qui en fait la
+**troisième occurrence** connue. Un principe rappelé en commentaire à chaque site d'appel n'a pas
+empêché la récidive : la connaissance était présente, elle n'était simplement pas **imposée par le
+type/le contrat**.
+**Règle.** Sur toute clé issue du contenu (`JSON.parse`, frontmatter, identifiant d'auteur) qui sert
+à indexer un objet simple par crochets, refuser à la frontière selon un ensemble **clos et
+énumérable** — `Object.hasOwn(Object.prototype, id)` plutôt qu'une liste noire de motifs
+(`__proto__`, `constructor`, `prototype`…) qui ne couvre que ce dont on se souvient. Et, au **contrat
+de données** (pas seulement en commentaire au point d'appel), imposer que toute lecture indexée par
+une clé de contenu se fasse par `Object.hasOwn` ou par une `Map` — jamais par indexation directe
+`objet[cle]`. Sur ce dépôt, la troisième occurrence du même piège appelle un renfort permanent :
+`.claude/rules/security.md` §4/§6 devrait porter ce garde-fou comme geste systématique, pas comme
+rappel au cas par cas.
+**Réfs.** `src/app/features/cours/simulation/simulation.ts` (lignes ~76-95, ~536, ~562-563),
+`src/app/features/cours/lecon/resoudre-lecon.ts`, `src/app/features/cours/lecon/lecon.ts`
+(`NIVEAUX_LISIBLES`), `.claude/rules/security.md` §4, `docs/agile/backlog-phase-1.md` §E2-ST5 lot a.

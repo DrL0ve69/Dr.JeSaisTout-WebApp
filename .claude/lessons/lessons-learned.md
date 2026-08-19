@@ -352,6 +352,22 @@ configuration, et tout générateur qui hache du contenu texte.
 **Réfs.** `.github/workflows/ci.yml` ; `tools/deploiement/generer-config-swa.mjs` ;
 `src/init-theme.spec.ts` ; branche `chore/tsconfig-strict`.
 
+**Addendum (E2-ST5 lots a/b1) — le piège CRLF mord aussi les FIXTURES `.md` et les repères de
+test.** Un repère écrit en dur dans un test (`'\n[[quiz]]\n'`) ne s'appariait à rien contre une
+fixture `.md` en CRLF sur ce poste — même faute que la regex ancrée, sur un axe neuf : ici c'est un
+littéral de comparaison, pas une regex. Les helpers de test mesurent désormais la fin de ligne
+réelle du fichier plutôt que de supposer `\n`. **Deuxième variante, sur les commandes de ce poste :**
+`sed 's/…/ /'` ne produit **pas** U+00A0 — GNU sed interprète `\u` côté remplacement comme
+« mettre en majuscule le caractère suivant » et avale la séquence en silence ; il faut `\x5cu00A0`.
+Sur un dépôt dont `.claude/rules/contenu-pedagogique.md` §3 impose U+00A0 et interdit U+202F/U+2009,
+une substitution qui produit silencieusement un **autre** caractère (ou rien) est un risque de
+contenu, pas seulement de test. Règle commune aux deux : sur ce poste, **toute** transformation de
+fin de ligne ou d'espace spéciale se vérifie en relisant le résultat au disque, jamais en supposant
+que la commande a fait ce qu'elle annonce.
+
+**Réfs addendum.** fixtures `.md` et helpers de `tools/content-pipeline/` (E2-ST5 lots a/b1) ;
+`.claude/rules/contenu-pedagogique.md` §3.
+
 ---
 
 ## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
@@ -956,6 +972,32 @@ vérifier avant d'être écrit, pas seulement une promesse qualitative.
 **Réfs.** `tools/content-pipeline/compter-lignes.mjs` ; `src/app/features/cours/quiz/quiz.ts` ;
 revue `code-reviewer`, branche `feat/e2-st4-lot-b`.
 
+**⚠️ Addendum (E2-ST5 lots a/b1) — DEUXIÈME occurrence du même geste, même verdict que [[L-023]].**
+`compterAncres` a été dupliquée entre `tools/content-pipeline/compiler-markdown.mjs` et
+`src/app/features/cours/contenu-compile.ts`, avec un pointeur croisé écrit dans **les deux** JSDoc —
+mais sans le test de parité que cette leçon prescrit. Le mode de divergence est concret : un
+`BlocContenu` neuf portant des `blocs` enfants au-delà d'`encadre` ferait sous-compter **un seul**
+des deux côtés, qui deviendrait VERT en se comparant à lui-même — [[L-034]] à la lettre. Deux
+exemplaires de patron existaient déjà dans le dépôt (`src/compter-lignes-parite.spec.ts`,
+`src/clef-indiscernable-parite.spec.ts`) et n'ont pas été copiés spontanément. **La leçon écrite ne
+suffit plus pour ce geste non plus : dès qu'un commentaire dit « en double de X, et c'est voulu »,
+le geste suivant doit être de créer `*-parite.spec.ts`, jamais de finir la phrase.** Signal pour
+`.claude/rules/` : un gate exécutable est possible ici — grep les commentaires JSDoc/`.mjs`/`.ts`
+qui déclarent une duplication volontaire (« dupliqué depuis », « copie voulue », pointeur croisé) et
+exiger qu'un fichier `*-parite.spec.ts` existe pour la paire citée.
+
+**Nuance trouvée en corrigeant celle-ci — le corpus de parité ne s'épure pas pour faire passer le
+test.** Sur les entrées hostiles (`blocs` absent, `null`, un nombre), les deux implémentations de
+`compterAncres` divergent **légitimement** : le compilateur a le droit de lever, la frontière Angular
+doit rendre 0 sans lever. Retirer ces cas du corpus de parité aurait donné une parité vraie sur un
+corpus mutilé. Ils ont été gardés et assertés comme **asymétrie de contrat**, avec leur propre
+contrôle positif. Règle générale : quand deux implémentations d'une même règle divergent
+volontairement sur une classe d'entrées, cette classe s'asserte comme **divergence attendue** — on
+ne l'exclut pas du corpus, sinon le test vert ne couvre plus le cas qui l'a rendu intéressant.
+
+**Réfs addendum.** `tools/content-pipeline/compiler-markdown.mjs`, `src/app/features/cours/contenu-compile.ts`
+(`compterAncres`) ; revue `code-reviewer`, branche E2-ST5 lots a/b1.
+
 ---
 
 ## L-038 · Défaire une mutation de test par `git checkout -- <fichier>` sur un arbre SALE efface aussi le travail non commité de ce fichier
@@ -1043,6 +1085,47 @@ l'instrument a tenté quelque chose de mesurable.
 acceptée en DOM, jamais appliquée, sans violation rapportée) est un fait exploitable/déroutant sur
 l'axe sécurité autant que sur l'axe test — à évaluer pour une entrée `S-0xx` dans
 `security-lessons.md`, cette leçon-ci ne couvrant que l'angle méthode de test.
+
+---
+
+## L-042 · Un test qui lance un processus fils sans délai explicite hérite du délai par défaut du runner — une marge qui rétrécit à chaque test ajouté ailleurs, et le lot qui la fait déborder n'est pas celui qui l'a écrite
+
+**Symptôme.** Un test préexistant de `src/pipeline-contenu-compilation.spec.ts` (« le TEXTE du code
+ne peut pas fabriquer une ancre ») lance un processus fils **sans `DELAI` explicite** — alors que son
+voisin immédiat documente déjà ce piège et pose un délai. Le test était sain, le produit aussi : il a
+expiré au bout de 5 s (délai par défaut de Vitest) seulement une fois la suite alourdie par le lot
+a d'E2-ST5, qui n'a rien changé à ce fichier. Un test rouge sur un produit sain, imputable à un lot
+qui n'y touche pas.
+
+**Règle.** Tout test qui lance un processus fils (`execFileSync`, `spawnSync`…) pose un **délai
+explicite**, jamais le défaut du runner — le défaut est une ressource partagée par toute la suite, et
+elle rétrécit à mesure que le dépôt grossit. Copier le patron du voisin qui le fait déjà plutôt que
+de le découvrir à l'échéance. Cousine de [[L-005]]/[[L-032]] sur un axe neuf : ici ce n'est pas un
+outil qui masque une directive, c'est un **budget de temps implicite** que personne n'a nommé.
+
+**Réfs.** `src/pipeline-contenu-compilation.spec.ts` ; branche E2-ST5 lots a/b1.
+
+---
+
+## L-043 · Un garde-fou qui balaie du texte source ne distingue pas un USAGE d'une MENTION — nommer l'interdiction dans un commentaire déclenche l'interdiction
+
+**Symptôme.** Le garde-fou de portée du sanitizer interdit toute occurrence de `bypassSecurityTrust*`
+dans `src/**` non-spec. En écrivant l'en-tête d'un composant, formuler l'interdiction en la nommant
+(« jamais `bypassSecurityTrust*` ici ») **fait rougir G-test** — le grep du garde-fou ne sait pas
+qu'une mention en commentaire n'est pas un appel. Le composant a dû formuler l'interdiction sans
+prononcer le nom, comme `quiz.ts` le fait déjà.
+
+**Règle.** Sur ce dépôt, tout garde-fou qui balaie un **motif de texte** (pas un AST) dans du code
+source traite une mention et un usage identiquement — le savoir avant d'écrire un commentaire qui cite
+la chose interdite : reformuler sans le nom exact (paraphrase, ou pointeur vers le fichier qui porte
+déjà la règle) plutôt que découvrir le rougissement après coup. Cousine de la famille sécurité
+« liste noire de motifs sur un format structuré » (S-001/S-003/S-009/S-014,
+`.claude/rules/security.md` §4), mais sur un axe non sécuritaire : ici le garde-fou est correct dans
+son intention, c'est son **support** (texte brut plutôt qu'AST) qui ne sait pas lire l'intention d'un
+commentaire.
+
+**Réfs.** garde-fou de portée du sanitizer (grep `bypassSecurityTrust*` sur `src/**`) ;
+`src/app/features/cours/quiz/quiz.ts` (le patron qui évite déjà de nommer) ; branche E2-ST5 lots a/b1.
 
 ---
 
