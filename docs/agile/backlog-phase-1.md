@@ -2034,6 +2034,38 @@ contrôle positif — dette **S-016 payée**), **d** (clôture documentaire, cet
   il **n'est pas rejoué en ligne** par `deploy.yml` · **L-041 était fausse** (sa prémisse était
   l'inverse de la réalité mesurée) ; sa réécriture est en cours ailleurs, à ne pas relire ici.
 
+#### 🔴 DETTE NEUVE, CONSTATÉE LE 2026-08-19 — deux specs e2e de la simulation sont INTERMITTENTS
+
+**À traiter avant de considérer E2-ST5 comme réellement stable**, et à connaître avant tout lot qui
+touche `SimulationComponent` ou qui lit un vert de CI comme une preuve.
+
+**Le fait.** Sur la PR #25 (run `32282161844`), deux specs ont échoué :
+`e2e/parcours-clavier-simulation.spec.ts:210` (« activer un lien d'étape au clavier replie la vue »)
+et `e2e/simulation-mecanique.spec.ts:298` (« actionner la simulation ne produit aucune violation de
+la CSP servie »). **Même symptôme dans les deux cas : le repli n'a pas eu lieu** — `etat.courante`
+vaut **1** au lieu de 4, et les étapes visibles sont `[1, 2, 4, 5, 6]` au lieu d'aucune.
+
+**Pourquoi c'est INTERMITTENT et non une régression, prouvé sans relance.** La PR #25 est la PR #24
+**plus de la documentation seule** : le code produit des deux est **identique à l'octet près**. Le run
+de #24 était **vert (48 e2e / 0 échec)**, celui de #25 est rouge. Même code, résultats différents ⇒
+intermittence. ⚠️ Ce raisonnement-là est valide ; **conclure « transitoire » sur un seul run vert ne
+l'est pas** (c'est la faute commise le matin même, consignée en **L-005**).
+
+**Piste, à vérifier et non à croire.** Les deux specs appellent pourtant `attendreHydratation(page)`,
+qui attend la disparition des attributs `ngh`. L'hypothèse est donc que **cette attente ne suffit pas
+pour le `SimulationComponent`** : le modèle **C′** rend les liens d'étape actifs dès le prerender (ce
+sont de vraies ancres), et le repli n'arrive qu'au premier geste **après** que l'écouteur est attaché.
+Si le chunk paresseux n'a pas fini de s'exécuter quand la touche Entrée part, la navigation de
+fragment a bien lieu, **aucun repli ne se produit, et rien n'échoue bruyamment** — exactement la
+famille **L-033**. `ngh` absent prouve l'hydratation des vues, pas que le comportement d'un composant
+paresseux est armé. Si l'hypothèse tient, la parade est une attente qui observe l'**effet** (le
+composant a répondu) plutôt qu'un **marqueur** de framework — même leçon que **L-004** sur les
+vérifications post-déploiement.
+
+**Ce que ça coûte tant que ce n'est pas payé** : G-e2e peut rougir sur une PR parfaitement saine, ce
+qui **use la confiance dans le gate** et pousse à fusionner au rouge « parce que c'est sûrement le
+flaky ». C'est le mécanisme par lequel un gate meurt.
+
 ### E2-ST6 — Sommaire du cours & progression *(= la « carte de parcours »)*
 - **Objectif** : page `/cours/securite-web` : les 13 modules dans l'ordre de lecture (sections Fondations / Attaques / Identités & données / Hébergement), état par module (non commencé / lu / quiz réussi) depuis `localStorage`, temps de lecture estimé.
 - **Fichiers** : `src/app/features/cours/sommaire/`, `src/app/core/progression/`.

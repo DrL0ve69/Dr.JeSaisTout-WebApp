@@ -69,6 +69,20 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **E7**, §E7 du backlog) et un bloc D au cours de sécurité — la phase 1 passe de 13 à 27 modules ;
 > la progression est indexée **par cours** (clef plate `sujet/slug`), pas à plat globalement.
 >
+> **🔴 DEUX SPECS E2E DE LA SIMULATION SONT INTERMITTENTS — à savoir AVANT de lire un G-e2e rouge.**
+> Constaté le 2026-08-19 sur la PR #25 (run `32282161844`) :
+> `e2e/parcours-clavier-simulation.spec.ts:210` et `e2e/simulation-mecanique.spec.ts:298` ont échoué
+> sur le **même symptôme — le repli n'a pas eu lieu** (`etat.courante` = 1 au lieu de 4 ; étapes
+> visibles `[1,2,4,5,6]` au lieu d'aucune). **Ce n'est pas une régression, et c'est prouvé sans
+> relance** : la PR #25 est la PR #24 **plus de la documentation seule**, code produit identique, et
+> le run de #24 était vert (48 e2e / 0 échec). Même code, deux résultats ⇒ intermittence.
+> ⚠️ Les deux specs appellent pourtant `attendreHydratation(page)` : l'hypothèse — **à vérifier, pas
+> à croire** — est que l'absence d'attributs `ngh` prouve l'hydratation des **vues**, pas que le
+> comportement d'un composant **paresseux** est armé (famille **L-033**). Détail, preuve et parade
+> pressentie : backlog §E2-ST5, « DETTE NEUVE … specs e2e de la simulation ».
+> **Ce que ça coûte** : G-e2e peut rougir sur une PR saine — donc la tentation de fusionner au rouge
+> « parce que c'est le flaky ». C'est ainsi qu'un gate meurt : la dette se paie avant E3-ST1.
+>
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
 > décision E-2 fait bâtir à `ci.yml` l'artéfact depuis la **fixture témoin**, tandis que `deploy.yml`
