@@ -124,6 +124,13 @@
   // la seule définition du nombre de lignes d'un extrait, et ses trois appelants — deux dans le
   // compilateur, un dans le validateur — bornent chacun un garde-fou dessus. Hors du programme,
   // il serait le maillon non vérifié d'une chaîne dont tous les autres le sont.
+  //
+  // `verifier-csp-servie.mjs` (dette pré-E3-ST1, lot B) entre dans le MÊME DIFF que sa création,
+  // pour la raison la plus forte de la liste : il est le SEUL contrôle qui confronte la politique
+  // de sécurité RÉELLEMENT servie en production à celle qu'un humain a revue, et il s'exécute dans
+  // le job qui détient le jeton de déploiement — sans `node_modules`, donc sans filet d'exécution
+  // autre que celui-ci. Une faute de typage y sortirait en 0 sur une comparaison qui n'a rien
+  // comparé (L-005).
   "include": [
     "tools/a11y/verifier-axe.mjs",
     "tools/content-pipeline/build.mjs",
@@ -135,6 +142,7 @@
     "tools/content-pipeline/types.d.ts",
     "tools/content-pipeline/valider.mjs",
     "tools/deploiement/generer-config-swa.mjs",
+    "tools/deploiement/verifier-csp-servie.mjs",
     "tools/kb-search.mjs",
     "eslint.config.js"
   ]

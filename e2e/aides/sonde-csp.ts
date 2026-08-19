@@ -30,6 +30,16 @@
 //      liste vide. `lireViolations` LÈVE si le journal du document est absent, et
 //      chaque spec appelant porte en plus un CONTRÔLE POSITIF (L-019) : un script
 //      inline non haché injecté doit être refusé, compté et journalisé.
+//
+// 🔗 IL EXISTE UN SECOND COMPARATEUR DE CSP SERVIE, ET C'EST VOULU.
+// `tools/deploiement/verifier-csp-servie.mjs` fait EN LIGNE, dans le job `publication`
+// de `deploy.yml`, ce qu'`exigerCspServie` fait ici en local. Les deux coexistent parce
+// qu'aucun ne peut prendre la place de l'autre : ce module tourne sous Playwright avec
+// `node_modules`, le script tourne dans le job qui détient le jeton de déploiement et
+// n'a AUCUNE dépendance npm — et leurs sémantiques diffèrent (ici : la chaîne entière à
+// l'octet près, contre l'artéfact sur le DISQUE ; là-bas : directive par directive, en
+// trois documents dont la source versionnée). Ne pas les fusionner ; toucher à ce que
+// « CSP servie conforme » veut dire se répercute des deux côtés.
 // =============================================================================
 
 import { existsSync, readFileSync } from 'node:fs';

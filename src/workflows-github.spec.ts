@@ -217,10 +217,10 @@ const RACINE_COURS_PRODUCTION = 'content/cours/securite-web';
  * commentaire de `deploy.yml` en parle nommément, pour dire qu'il ne s'y emploie pas. On analyse,
  * puis on confronte (`.claude/rules/security.md` §4).
  */
-function etapes(chemin: string): readonly { name?: string; run?: string }[] {
+function etapes(chemin: string): readonly { name?: string; run?: string; uses?: unknown }[] {
   const analyse = parse(readFileSync(chemin, 'utf8')) as WorkflowAnalyse;
   return Object.values(analyse.jobs ?? {}).flatMap(
-    (job) => (job.steps ?? []) as { name?: string; run?: string }[],
+    (job) => (job.steps ?? []) as { name?: string; run?: string; uses?: unknown }[],
   );
 }
 
@@ -479,5 +479,75 @@ describe('le harnais de leçon interactive (décision E-2)', () => {
         `LE HARNAIS A FAIT SON TEMPS et masque désormais le contenu réel. Le retirer — G-build de ci.yml ` +
         `redevient \`npm run build\`, \`--hachages-style\` disparaît, et ce describe avec.`,
     ).not.toMatch(/--racine\s/);
+  });
+});
+
+// =============================================================================
+// LE JOB QUI DÉTIENT LE JETON — deux garanties qui ne vivent QU'EN LIGNE
+// -----------------------------------------------------------------------------
+// `publication` est le seul job du dépôt qui voit `secrets.AZURE_STATIC_WEB_APPS_API_TOKEN`.
+// Rien de ce qu'il fait n'est reproductible en local : ni le déploiement, ni les vérifications
+// qui suivent. Ses deux garanties structurelles ne peuvent donc être tenues que par une lecture
+// du workflow — c'est ce que fait ce bloc, et c'est pour ça qu'il existe.
+//
+//   1. La CSP servie est comparée STRUCTURELLEMENT. Retirer l'appel au comparateur laisserait
+//      les contrôles par motifs en place, le déploiement vert, et personne ne verrait que la
+//      seule vérification capable d'attraper une directive ajoutée a disparu (L-005/S-003).
+//      ⚠️ L'INVERSE N'EST PAS VRAI, et c'est le piège à ne pas tendre au prochain mainteneur :
+//      le comparateur ne lit QUE l'en-tête `Content-Security-Policy`. Il subsume les contrôles
+//      par motifs DE CSP — pas ceux des quatre en-têtes hors CSP (`strict-transport-security`,
+//      `x-content-type-options`, `referrer-policy`, `permissions-policy`) ni le `max-age=` de
+//      HSTS, dont ces motifs restent la SEULE couverture. Les supprimer en croyant retirer un
+//      doublon laisserait passer un `Permissions-Policy: camera=*` servi.
+//   2. L'action de déploiement est ÉPINGLÉE AU SHA. Un tag est mutable : repointer `v1` dans le
+//      dépôt amont ferait s'exécuter du code neuf, avec le jeton de déploiement en variable
+//      d'environnement, sans qu'aucune revue de PR ne voie quoi que ce soit changer.
+// =============================================================================
+describe('deploy.yml — les deux garanties du job qui détient le jeton, lues sur le workflow entier', () => {
+  const DEPLOY = '.github/workflows/deploy.yml';
+
+  /**
+   * Tous les `uses:` du workflow, dans l'ordre — le `run:` seul ne les voit pas.
+   *
+   * Balaie TOUS les jobs, pas seulement `publication` : c'est volontaire et c'est plus strict.
+   * Une action de déploiement déplacée dans un autre job continuerait de recevoir le jeton, et
+   * un filtre par nom de job la rendrait invisible à l'exigence d'épinglage au SHA.
+   */
+  function utilisations(chemin: string): readonly string[] {
+    return etapes(chemin)
+      .map((etape) => String(etape.uses ?? ''))
+      .filter((valeur) => valeur !== '');
+  }
+
+  it('appelle le comparateur structurel de CSP, avec ses TROIS documents', () => {
+    // On lit la commande RÉELLEMENT exécutée, pas le texte du fichier : le commentaire de l'étape
+    // nomme le script pour l'expliquer, et un `grep` confondrait les deux (même patron que
+    // `etapes()` plus haut, `.claude/rules/security.md` §4).
+    const run = runDeLEtape(DEPLOY, 'Vérifier les en-têtes servis');
+    expect(
+      run,
+      "l'étape ne lance plus `verifier-csp-servie.mjs` : la CSP servie n'est de nouveau vérifiée que par MOTIFS, et une directive entière ajoutée passerait verte",
+    ).toContain('tools/deploiement/verifier-csp-servie.mjs');
+
+    // Les trois documents, chacun pour une raison distincte : sans `--source`, la comparaison ne
+    // vaut plus que « le servi égale le généré » — et un générateur fautif resterait invisible.
+    for (const argument of ['--entetes', '--artefact', '--source']) {
+      expect(run, `l'appel au comparateur a perdu ${argument}`).toContain(argument);
+    }
+    expect(
+      run,
+      'le comparateur ne reçoit plus la SOURCE VERSIONNÉE — le seul des trois documents qu’un humain relit en revue',
+    ).toContain('config/staticwebapp.config.source.json');
+  });
+
+  it("épingle l'action de déploiement à un SHA de commit, jamais à un tag mutable", () => {
+    const deploiements = utilisations(DEPLOY).filter((valeur) =>
+      valeur.startsWith('Azure/static-web-apps-deploy@'),
+    );
+    expect(deploiements, "l'action de déploiement a disparu de deploy.yml").toHaveLength(1);
+    expect(
+      deploiements[0],
+      "`Azure/static-web-apps-deploy` est référencée par un tag ou une branche — donc par une référence MUTABLE, dans le job qui détient le jeton de déploiement. Épingler au SHA de commit du tag visé.",
+    ).toMatch(/^Azure\/static-web-apps-deploy@[0-9a-f]{40}$/);
   });
 });
