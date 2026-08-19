@@ -216,6 +216,86 @@ interface MermaidPrepare {
 /** Ce que le gabarit consomme réellement : le contrat, `mermaid` mis à part. */
 type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
 
+/**
+ * Ce que le comptage des figures sait parcourir : le contrat, ET sa forme préparée. Les deux
+ * appelants ne tiennent pas la même main — la page de leçon compte sur les blocs BRUTS d'une
+ * section (elle n'a rien préparé), le composant compte sur `blocsPrepares()`. Une union plutôt
+ * qu'une copie de la forme des trois types qui comptent : recopier `{ type: 'encadre'; blocs: … }`
+ * ici donnerait une deuxième vérité, qui divergerait au premier champ ajouté (L-016).
+ */
+type BlocDenombrable = BlocContenu | BlocPrepare;
+
+/**
+ * Le décalage de départ des DEUX compteurs de figures — c'est-à-dire ce qui a déjà été numéroté
+ * AVANT la liste de blocs qu'on s'apprête à rendre.
+ *
+ * Deux champs et non un : les blocs `code` d'un côté, les PAIRES de `comparaison` de l'autre. Cette
+ * séparation est justifiée sur `tableDesRangs` ci-dessous, et elle survit à la numérotation
+ * continue — ce qui devient continu, c'est chacun des deux compteurs, pas leur fusion.
+ */
+export interface DecalageFigures {
+  readonly blocsDeCode: number;
+  readonly paires: number;
+}
+
+/**
+ * Le décalage neutre : rien n'a encore été numéroté. C'est la valeur par défaut de l'input
+ * `decalage`, donc ce qui garde `RenduBlocs` montable SEUL (ses specs, et tout futur appelant qui
+ * ne rendrait qu'un fragment).
+ */
+export const SANS_DECALAGE: DecalageFigures = { blocsDeCode: 0, paires: 0 };
+
+/**
+ * LE parcours des figures de code — écrit UNE fois, appelé par TOUS ceux qui numérotent (L-037).
+ *
+ * ⚠️ RECENSEMENT DES APPELANTS, parce que « une définition, N appelants » n'est vrai que si les N
+ * ont été comptés (L-037, née d'un quatrième appelant resté à compter les lignes à la main) :
+ *   1. `Lecon` (`lecon.ts`) — le décalage de chaque SECTION, cumulé sur celles qui la précèdent ;
+ *   2. la récursion du cas `encadre` ci-dessous — le décalage de chaque encadré ENFANT ;
+ *   3. `tableDesRangs` — les rangs affichés, via le visiteur.
+ * Aucun quatrième au 2026-08-19 : `app-rendu-blocs` n'est monté qu'à ces deux endroits (mesuré par
+ * recherche sur le sélecteur). Un cinquième site de comptage rouvrirait exactement le défaut que ce
+ * lot ferme — les compteurs qui repartent de 1.
+ *
+ * LE COMPTAGE DESCEND DANS LES ENCADRÉS, et c'est le cas qu'on oublie : un bloc `code` niché dans
+ * un encadré de la section 1 doit décaler la section 2, sinon la numérotation continue saute un
+ * numéro puis se répète. La récursion interne ne rappelle PAS le visiteur : les blocs nichés sont
+ * numérotés par le composant enfant, à qui l'on passe le décalage constaté ici.
+ *
+ * @param depart ce qui a déjà été numéroté avant cette liste
+ * @param visiter appelé pour chaque bloc de PREMIER niveau, avec le cumul constaté AVANT lui
+ * @returns le cumul APRÈS toute la liste
+ */
+export function cumulerFigures(
+  blocs: readonly BlocDenombrable[],
+  depart: DecalageFigures,
+  visiter?: (bloc: BlocDenombrable, rangBloc: number, avant: DecalageFigures) => void,
+): DecalageFigures {
+  let cumul = depart;
+  blocs.forEach((bloc, rangBloc) => {
+    visiter?.(bloc, rangBloc, cumul);
+    if (bloc.type === 'code') {
+      cumul = { blocsDeCode: cumul.blocsDeCode + 1, paires: cumul.paires };
+    } else if (bloc.type === 'comparaison') {
+      // `Array.isArray` et pas `bloc.exemples.length` nu : la page de leçon compte sur des blocs
+      // BRUTS, donc avant que `verifierPortees` n'ait pu NOMMER un artéfact d'une autre version du
+      // pipeline. Sans cette garde, un `exemples` disparu ferait lever un `TypeError` anonyme ici,
+      // c'est-à-dire AVANT le garde-fou qui existe pour le nommer (patron S-009 / L-008).
+      const paires = Array.isArray(bloc.exemples) ? bloc.exemples.length : 0;
+      cumul = { blocsDeCode: cumul.blocsDeCode, paires: cumul.paires + paires };
+    } else if (bloc.type === 'encadre') {
+      cumul = cumulerFigures(bloc.blocs, cumul);
+    }
+  });
+  return cumul;
+}
+
+/** La table des rangs d'une instance, et les décalages à passer à ses encadrés enfants. */
+interface TableDesRangs {
+  readonly rangs: ReadonlyMap<string, number>;
+  readonly decalagesDesEncadres: ReadonlyMap<number, DecalageFigures>;
+}
+
 @Component({
   selector: 'app-rendu-blocs',
   imports: [Quiz],
@@ -414,8 +494,17 @@ type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
                  sa propre validation, donc un type inconnu imbriqué lève aussi.
                  Le quiz DESCEND avec la récursion : une ancre écrite dans un
                  encadré doit rendre le même quiz que la même ancre au premier
-                 niveau — le compilateur, lui, refuse qu'il y en ait deux. -->
-            <app-rendu-blocs [blocs]="bloc.blocs" [quiz]="quiz()" />
+                 niveau — le compilateur, lui, refuse qu'il y en ait deux.
+                 LE DÉCALAGE DESCEND AUSSI (E2-ST4, lot C1) : sans lui, les
+                 compteurs de l'enfant repartiraient de 1 et un bloc de code
+                 niché s'appellerait « Code n°1 » au milieu de la leçon. Il est
+                 calculé par la table des rangs, à partir des blocs qui précèdent
+                 CET encadré dans la liste courante, décalage d'entrée compris. -->
+            <app-rendu-blocs
+              [blocs]="bloc.blocs"
+              [quiz]="quiz()"
+              [decalage]="decalageDeLEncadre(rangBloc)"
+            />
           </aside>
         }
 
@@ -459,6 +548,18 @@ export class RenduBlocs {
   readonly quiz = input.required<QuizCompile>();
 
   /**
+   * Ce qui a déjà été numéroté AVANT cette liste de blocs — E2-ST4, lot C1.
+   *
+   * OPTIONNEL, ET NEUTRE PAR DÉFAUT, à la différence de `quiz`. La raison est le sens du défaut en
+   * cas d'oubli : un quiz non lié serait un quiz INVISIBLE sur une leçon publiée, donc requis ;
+   * un décalage non lié rend une numérotation qui repart de 1, ce qui est exactement le bon
+   * comportement pour un composant monté SEUL (ses specs, un fragment rendu hors leçon). Le seul
+   * appelant qui doit le poser est celui qui connaît le contexte, et il est unique — `Lecon` — plus
+   * la récursion du cas `encadre`, qui le calcule elle-même.
+   */
+  readonly decalage = input<DecalageFigures>(SANS_DECALAGE);
+
+  /**
    * Valide puis prépare les blocs. Deux choses s'y passent, et une seule est
    * visible : la validation du `type` (qui lève) et la mise en confiance du SVG des
    * diagrammes (qui ne se fait qu'ICI, une fois par bloc).
@@ -486,36 +587,57 @@ export class RenduBlocs {
    * distingue déjà, et qui se lisent ensemble : leur donner deux rangs différents ferait mentir
    * l'appariement que la mise en page montre.
    *
-   * ⚠️ CE QUE LE RANG NE REND PAS UNIQUE, ET IL FAUT LE DIRE — C'EST MESURÉ, PAS SUPPOSÉ. La page
-   * de leçon monte UN composant PAR SECTION (`lecon.ts`), et un encadré en remonte un enfant par
-   * récursion : les compteurs repartent donc de 1 à chaque instance. Mesure sur la leçon-témoin
-   * prerendue (2026-08-18, artéfact de fixture) : 8 défileurs, 8 noms distincts — mais QUATRE
-   * d'entre eux s'appellent « Code n°1 », et ce qui les sépare reste leur LANGAGE (bash, sql,
-   * typescript, json), pas leur rang. La portée réellement gagnée est donc le VOISINAGE : à
-   * l'intérieur d'une section — l'unité qu'un lecteur parcourt d'une traite, et la seule où deux
-   * figures se comparent — il n'y a plus d'homonyme, ce que la fixture montre sur ses deux paires
-   * (« n°1 » puis « n°2 »).
-   * Lever le reste demanderait que l'identité de la SECTION descende jusqu'ici, un input de plus à
-   * propager dans la récursion : hors du lot, et à trancher avec la forme du libellé, « Code
-   * n°2.1 » s'entendant mal. Constat laissé OUVERT, écrit ici pour ne pas se redécouvrir.
+   * ✅ LE RANG EST CONTINU SUR TOUTE LA PAGE DEPUIS E2-ST4 (lot C1), comme la numérotation des
+   * figures d'un livre — décision du propriétaire du 2026-08-19. Le lot B laissait ici un constat
+   * OUVERT : la page de leçon monte UN composant PAR SECTION (`lecon.ts`) et un encadré en remonte
+   * un enfant par récursion, donc les compteurs repartaient de 1 à chaque instance. Mesure faite
+   * alors sur la leçon-témoin prerendue : 8 défileurs, 8 noms distincts — mais QUATRE s'appelaient
+   * « Code n°1 », et seul leur LANGAGE (bash, sql, typescript, json) les séparait ; deux blocs du
+   * même langage dans deux sections différentes auraient donné deux homonymes STRICTS.
+   *
+   * CE QUI EST RÉELLEMENT APPLIQUÉ. Chaque instance reçoit un DÉCALAGE de départ (input `decalage`,
+   * neutre par défaut pour rester montable seule) et le propage : `Lecon` calcule celui de chaque
+   * section à partir des sections qui la précèdent, et le cas `encadre` du gabarit ci-dessus calcule
+   * celui de chaque enfant à partir des blocs qui le précèdent DANS SA PROPRE LISTE, décalage
+   * d'entrée compris. Le parcours qui produit ces trois nombres est écrit UNE fois — `cumulerFigures`
+   * — et il DESCEND dans les encadrés, sans quoi un bloc de code niché ferait sauter un numéro.
+   * L'alternative « le titre de la section dans le nom » a été écartée par le propriétaire.
    */
-  private readonly rangsDeCode = computed<ReadonlyMap<string, number>>(() => {
+  private readonly tableDesRangs = computed<TableDesRangs>(() => {
     const rangs = new Map<string, number>();
-    let blocsDeCode = 0;
-    let paires = 0;
-    this.blocsPrepares().forEach((bloc, rangBloc) => {
+    const decalagesDesEncadres = new Map<number, DecalageFigures>();
+    cumulerFigures(this.blocsPrepares(), this.decalage(), (bloc, rangBloc, avant) => {
       if (bloc.type === 'code') {
-        blocsDeCode += 1;
-        rangs.set(clefDeRang(rangBloc, PAS_UN_EXEMPLE), blocsDeCode);
+        rangs.set(clefDeRang(rangBloc, PAS_UN_EXEMPLE), avant.blocsDeCode + 1);
       } else if (bloc.type === 'comparaison') {
         bloc.exemples.forEach((_, rangExemple) => {
-          paires += 1;
-          rangs.set(clefDeRang(rangBloc, rangExemple), paires);
+          rangs.set(clefDeRang(rangBloc, rangExemple), avant.paires + rangExemple + 1);
         });
+      } else if (bloc.type === 'encadre') {
+        decalagesDesEncadres.set(rangBloc, avant);
       }
     });
-    return rangs;
+    return { rangs, decalagesDesEncadres };
   });
+
+  /**
+   * Le décalage à passer à l'encadré de rang `rangBloc` — ce que la récursion du gabarit consomme.
+   *
+   * Il LÈVE plutôt que de retomber sur `SANS_DECALAGE` : un repli muet rouvrirait très exactement
+   * le défaut que ce lot ferme, les compteurs d'un encadré repartant de 1 sans qu'aucun gate ne
+   * rougisse (même raison que la levée d'`etiquetteCode`).
+   */
+  decalageDeLEncadre(rangBloc: number): DecalageFigures {
+    const decalage = this.tableDesRangs().decalagesDesEncadres.get(rangBloc);
+    if (decalage === undefined) {
+      throw new Error(
+        `RenduBlocs : aucun décalage pour l'encadré (bloc n°${String(rangBloc + 1)}). La table ` +
+          'des rangs et le gabarit parcourent le même tableau — cet écart est un défaut de ce ' +
+          'composant.',
+      );
+    }
+    return decalage;
+  }
 
   /**
    * L'étiquette d'un bloc de code : « Exemple vulnérable n°2 — php ».
@@ -531,7 +653,7 @@ export class RenduBlocs {
     rangBloc: number,
     rangExemple = PAS_UN_EXEMPLE,
   ): string {
-    const rang = this.rangsDeCode().get(clefDeRang(rangBloc, rangExemple));
+    const rang = this.tableDesRangs().rangs.get(clefDeRang(rangBloc, rangExemple));
     if (rang === undefined) {
       // Impossible par construction : la table est bâtie du MÊME tableau que le gabarit parcourt.
       // On lève quand même — un nom amputé de son rang serait le défaut d'origine, en silence.

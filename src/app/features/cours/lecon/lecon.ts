@@ -56,7 +56,12 @@ import {
   type EntreeSommaire,
   type Voisines,
 } from './navigation-lecon';
-import { RenduBlocs } from './rendu-blocs/rendu-blocs';
+import {
+  RenduBlocs,
+  SANS_DECALAGE,
+  cumulerFigures,
+  type DecalageFigures,
+} from './rendu-blocs/rendu-blocs';
 
 /**
  * Les niveaux du frontmatter, rendus en français lisible.
@@ -170,7 +175,7 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
 
       <hr />
 
-      @for (section of sections(); track section.ancre) {
+      @for (section of sections(); track section.ancre; let rangSection = $index) {
         <section class="section">
           <!--
             Le niveau vient du Markdown source et vaut 2 ou 3 (contrôlé par
@@ -193,8 +198,18 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             qu'il y a exactement une ancre dans tout le corps, donc exactement un
             rendu — d'où un input requis plutôt qu'une liaison conditionnelle que la
             page aurait à deviner.
+
+            LE DÉCALAGE DES FIGURES DESCEND AVEC LES BLOCS (E2-ST4, lot C1). Un
+            RenduBlocs par section, donc autant de compteurs qui repartaient de 1 :
+            « Code n°1 » quatre fois dans la leçon-témoin, mesuré. La page est le
+            seul endroit qui voit TOUTES les sections, donc le seul qui puisse dire
+            à chacune ce qui a déjà été numéroté avant elle.
           -->
-          <app-rendu-blocs [blocs]="section.blocs" [quiz]="lecon().quiz" />
+          <app-rendu-blocs
+            [blocs]="section.blocs"
+            [quiz]="lecon().quiz"
+            [decalage]="decalageDeSection(rangSection)"
+          />
         </section>
       }
 
@@ -255,6 +270,26 @@ export class Lecon {
 
   readonly sections = computed<readonly SectionCompilee[]>(() => this.lecon().sections);
 
+  /**
+   * Ce qui a déjà été numéroté AVANT chaque section — un décalage par section, dans l'ordre du
+   * document (E2-ST4, lot C1).
+   *
+   * POURQUOI ICI ET NULLE PART AILLEURS : la numérotation des figures de code est CONTINUE sur
+   * toute la page, comme celle des figures d'un livre, et cette page est le seul endroit qui voit
+   * toutes les sections. `RenduBlocs`, monté une fois par section, ne peut pas savoir ce qui l'a
+   * précédé. Le parcours lui-même n'est pas réécrit ici : `cumulerFigures` est LA définition, et
+   * elle descend dans les encadrés (un bloc de code niché décale la section suivante).
+   */
+  private readonly decalagesDesSections = computed<readonly DecalageFigures[]>(() => {
+    const decalages: DecalageFigures[] = [];
+    let cumul = SANS_DECALAGE;
+    for (const section of this.sections()) {
+      decalages.push(cumul);
+      cumul = cumulerFigures(section.blocs, cumul);
+    }
+    return decalages;
+  });
+
   readonly sommaire = computed<readonly EntreeSommaire[]>(() =>
     construireSommaire(this.sections()),
   );
@@ -306,6 +341,26 @@ export class Lecon {
       // segment reçu ferait publier au site l'adresse qu'un tiers a forgée.
       this.metadonnees.updateTag({ property: 'og:url', content: urlDeLecon(slug) });
     });
+  }
+
+  /**
+   * Le décalage à passer à la section de rang `rangSection`.
+   *
+   * Il LÈVE plutôt que de retomber sur `SANS_DECALAGE` : un repli muet rendrait une leçon dont la
+   * numérotation repart de 1 au milieu — exactement le défaut que ce lot ferme — sans qu'aucun gate
+   * ne rougisse. Impossible par construction : la table est bâtie du MÊME tableau que le `@for`
+   * parcourt.
+   */
+  decalageDeSection(rangSection: number): DecalageFigures {
+    const decalage = this.decalagesDesSections()[rangSection];
+    if (decalage === undefined) {
+      throw new Error(
+        `Lecon : aucun décalage de figures pour la section n°${String(rangSection + 1)}. ` +
+          'La table et le gabarit parcourent le même tableau — cet écart est un défaut de ce ' +
+          'composant.',
+      );
+    }
+    return decalage;
   }
 
   /** Les commandes de `routerLink` vers une leçon voisine. */

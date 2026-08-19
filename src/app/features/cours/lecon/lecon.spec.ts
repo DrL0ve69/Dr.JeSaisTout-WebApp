@@ -95,6 +95,14 @@ function diagnostic(code: number, journal: string): string {
   return `${tete}\n${extrait}`;
 }
 
+/**
+ * U+00A0 écrite en échappement — comme dans le composant, et pour la même raison :
+ * `no-irregular-whitespace` refuse la vraie dans un littéral, et une espace ORDINAIRE tapée ici
+ * ferait échouer la comparaison sur un caractère invisible (L-035 : une prémisse de test fausse
+ * rougit sur un produit sain).
+ */
+const INSECABLE = '\u00A0';
+
 /** Copie profonde d'une valeur JSON — pour muter une fixture sans contaminer les voisines. */
 function copie<T>(valeur: T): T {
   return JSON.parse(JSON.stringify(valeur)) as T;
@@ -490,11 +498,16 @@ describe('rendu de la page', () => {
   async function monter(
     entrees: readonly EntreeManifesteRoutes[],
     url = `/cours/securite-web/${slugTemoin}`,
+    leconRendue: LeconCompilee = lecon(),
   ): Promise<HTMLElement> {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
-          { path: 'cours/securite-web/:slug', component: Lecon, resolve: { lecon: () => lecon() } },
+          {
+            path: 'cours/securite-web/:slug',
+            component: Lecon,
+            resolve: { lecon: () => leconRendue },
+          },
         ]),
         { provide: MANIFESTE_LECONS, useValue: entrees },
       ],
@@ -595,6 +608,69 @@ describe('rendu de la page', () => {
     }
     // Le corps est bien délégué à RenduBlocs : le diagramme de la fixture est là.
     expect(rendu.querySelectorAll('svg.diagramme-mermaid').length).toBeGreaterThan(0);
+  });
+
+  it('🔴 numérote les figures de code EN CONTINU d’une section à l’autre', async () => {
+    // LE DÉFAUT QUE CETTE ASSERTION FERME (E2-ST4, lot C1). Un `RenduBlocs` est monté PAR SECTION :
+    // chaque instance repartait donc de « n°1 ». Sur la leçon-témoin, quatre défileurs s'appelaient
+    // « Code n°1 » et seul leur LANGAGE les séparait — deux sections portant un bloc du MÊME
+    // langage auraient produit deux homonymes stricts. C'est ce cas-là qui est monté ici, et il
+    // n'est PAS dans la fixture : la fixture y échappe par hasard.
+    const bloc = (): unknown => ({
+      type: 'code',
+      langage: 'php',
+      htmlColore: '<pre class="shiki"><code><span class="line">echo $x;</span></code></pre>',
+    });
+    const surMesure = copie(lecon()) as unknown as Record<string, unknown>;
+    surMesure['sections'] = [
+      { titre: 'Première', ancre: 'premiere-mesure', niveau: 2, blocs: [bloc()] },
+      // La section du milieu niche son bloc dans un ENCADRÉ : le comptage doit y descendre,
+      // sinon la troisième section réutilise le numéro de la deuxième.
+      {
+        titre: 'Deuxième',
+        ancre: 'deuxieme-mesure',
+        niveau: 2,
+        blocs: [{ type: 'encadre', variante: 'note', blocs: [bloc()] }],
+      },
+      {
+        titre: 'Troisième',
+        ancre: 'troisieme-mesure',
+        niveau: 2,
+        blocs: [bloc(), { type: 'ancre-quiz' }],
+      },
+    ];
+    const rendu = await monter(
+      manifesteReel,
+      `/cours/securite-web/${slugTemoin}`,
+      lireLeconCompilee(surMesure, 'leçon de mesure — numérotation continue'),
+    );
+
+    const noms = [...rendu.querySelectorAll('.defileur')].map(
+      (element) => element.getAttribute('aria-label') ?? '',
+    );
+    // CONTRÔLE POSITIF (L-019) : trois figures, toutes du MÊME langage. Sans lui, « les noms sont
+    // uniques » serait vrai d'une page qui n'aurait rien rendu.
+    expect(noms).toHaveLength(3);
+    expect(noms.every((nom) => nom.endsWith('— php'))).toBe(true);
+    expect(noms).toEqual([
+      `Code n°1${INSECABLE}— php`,
+      `Code n°2${INSECABLE}— php`,
+      `Code n°3${INSECABLE}— php`,
+    ]);
+  });
+
+  it('ne laisse AUCUN nom de défileur en double sur la leçon-témoin réelle', async () => {
+    // L'autre bout de la pince : la mesure précédente est construite, celle-ci porte sur la leçon
+    // que le pipeline produit vraiment. Avant le lot C1, elle donnait quatre « Code n°1 ».
+    const rendu = await monter(manifesteReel);
+
+    const noms = [...rendu.querySelectorAll('.defileur')].map(
+      (element) => element.getAttribute('aria-label') ?? '',
+    );
+    expect(noms.length).toBeGreaterThan(1); // contrôle positif : on a bien regardé plusieurs figures
+    expect(new Set(noms).size, noms.join(' · ')).toBe(noms.length);
+    // Et un seul « n°1 » par genre : c'est la continuité, pas seulement l'unicité.
+    expect(noms.filter((nom) => nom.startsWith('Code n°1'))).toHaveLength(1);
   });
 
   it('n’affiche AUCUNE voisine quand la leçon est seule au manifeste', async () => {
