@@ -15,6 +15,16 @@
 > dans chaque session/sous-agent ; lire l'entrée complète d'une leçon dont la zone touche la tâche en
 > cours **avant** d'y toucher. Ce fichier est distinct de `.claude/lessons/security-lessons.md`
 > (`S-0xx`), réservé aux leçons de sécurité.
+>
+> **Avant d'entrer une leçon : une mesure CONTRÔLÉE, pas une observation isolée.** (2026-08-19,
+> né d'un correctif de [[L-041]], qui affirmait pendant plusieurs sessions une cause inverse de la
+> réalité, tirée d'une seule observation non contrôlée.) Une entrée fausse est **plus coûteuse**
+> qu'aucune entrée : elle est injectée à chaque session et fait raisonner juste sur des faits faux,
+> et personne ne la remet en doute puisqu'elle a l'autorité du fichier. Avant d'écrire une leçon
+> tirée d'un seul comportement observé (« ça n'a pas marché », « rien n'a bougé »,
+> « c'est accepté/refusé ») : reproduire avec au moins **une variante de contrôle positif** qui
+> prouve que l'instrument/la propriété testés peuvent effectivement bouger dans l'autre sens — sinon
+> marquer l'entrée `à confirmer` dans son titre plutôt que l'affirmer comme un fait.
 
 ---
 
@@ -665,6 +675,24 @@ automatiques ne pouvait voir : ils vérifient tous des contrats, aucun ne **rega
 **Réfs.** `src/styles/_mixins.scss` (`@mixin filet-horizontal`, l'avertissement en tête) ;
 `docs/agile/backlog-phase-1.md` §E1-ST3, lot C.
 
+**Addendum (2026-08-19, E2-ST5 lot c2) — le pendant côté PROPRIÉTÉ TÉMOIN, pas seulement côté
+rendu.** Deux occurrences mesurées dans un même épisode CSP : une sonde écrivait `top` sur un
+élément en `position: static` (où `top` n'a structurellement aucun effet), puis, en corrigeant,
+`outline-offset` sur un élément dont `outline-style` valait `none` (Chromium le résout à `0px` tant
+que le contour n'existe pas) — les deux fois, « aucun changement observé » était **ambigu** entre
+« refusé par une politique » et « cette propriété-là n'avait de toute façon aucune prise ici ».
+**Règle.** Toute sonde qui lit une propriété calculée (CSS, géométrie, attribut, focus) pour prouver
+qu'**autre chose** a été refusé ou appliqué doit d'abord garantir que cette propriété **bouge** en
+l'absence de tout refus — sinon on mesure l'inertie de la propriété choisie, pas la politique
+testée. Choisir une propriété qui se résout **inconditionnellement** dans l'état où on l'interroge
+(ex. `padding-top` plutôt que `top` hors positionnement, un contour déjà visible plutôt
+qu'`outline-offset` seul). Cousine directe de [[L-010]] (un test de mutation doit vérifier qu'il a
+frappé sa cible) et de [[L-013]] (seule une sonde bidirectionnelle fait foi) : ici l'axe est le
+*choix de la propriété observée*, pas la mutation ni la config. Détail de l'épisode d'origine :
+[[L-041]] (CSP `style-src`) et `.claude/lessons/security-lessons.md` **S-016**.
+
+**Réfs addendum.** `e2e/aides/sonde-csp.ts` ; branche E2-ST5 lot c2.
+
 ---
 
 ## L-026 · Une clef de cache indexée sur le CONTENU ne peut pas servir de préfixe d'identifiant — elle se répète dès que le contenu se répète
@@ -1076,29 +1104,56 @@ branche `feat/e2-st4-lot-c`.
 
 ---
 
-## L-041 · Sous la CSP servie, une écriture CSSOM de `style` est acceptée dans le DOM mais jamais APPLIQUÉE — sans violation, sans message console. Dans un spec de ce dépôt, on ne déplace RIEN par le style
+## L-041 · Sous la CSP servie, l'écriture CSSOM de propriété par propriété (`.style.top`, `.setProperty`, `.cssText`) est APPLIQUÉE sans violation — seuls `setAttribute('style', …)` et un `<style>` inline non haché sont refusés, et ces deux-là sont rapportés. Dans un spec de ce dépôt, on ne déplace RIEN par une écriture d'attribut/bloc `style`, mais l'écriture CSSOM reste un canal ouvert
 
-**Symptôme.** Un brief proposait de pousser un élément hors de la fenêtre visible par CSSOM
-(`el.style.top = '-200px'`), en supposant qu'une écriture CSSOM échappe à `style-src`. **C'est faux,
-et mesuré** : sous la CSP servie par ce dépôt, Chromium **accepte** l'écriture dans l'attribut
-`style` (il se relit intact au DOM) et **refuse de l'appliquer** — `getComputedStyle` rend la valeur
-d'origine, y compris sur `<body>`, y compris via `setProperty(…, 'important')` — **sans** émettre
-`securitypolicyviolation` ni le moindre message de console. Un test bâti sur cette hypothèse aurait
-été un **no-op silencieux accusant le produit** d'un défaut qu'il n'a pas.
+> **🔴 CORRIGÉE le 2026-08-19 (E2-ST5, lot c2).** La version d'origine de cette leçon affirmait la
+> cause **inverse** de la réalité mesurée : elle disait qu'une écriture CSSOM était acceptée en DOM
+> mais jamais appliquée, sans violation. C'était un **artefact de la propriété sondée**
+> (`top` sur un élément `position: static`, où `top` n'a structurellement aucun effet), pas un
+> comportement de la CSP — rejouée avec une propriété qui se résout inconditionnellement
+> (`padding-top`), l'écriture CSSOM **s'applique bel et bien**. Détail de la mesure contradictoire :
+> `.claude/lessons/security-lessons.md` **S-016** (source de vérité pour l'axe sécurité — ne pas la
+> redupliquer ici).
 
-**Règle.** Dans un spec de ce dépôt, **ne jamais déplacer un élément par une écriture de style**
-(CSSOM ou attribut) pour simuler un état — la CSP stricte rend l'effet invisible sans le signaler,
-ce qui est le pire des deux mondes pour un test (ni erreur, ni effet). Utiliser le **défilement**
-réel (`scrollIntoView`, `scrollTo`) pour chasser un élément hors champ, qui est de toute façon le
-vrai mode d'échec WCAG 2.4.11 visé ici. Cousine de [[L-019]] (un contrôle négatif seul ne prouve rien
-sans contrôle positif) sur un axe neuf : ici l'absence de violation ne prouve même pas que
-l'instrument a tenté quelque chose de mesurable.
+**Symptôme d'origine (faux, gardé pour mémoire du piège).** Un brief proposait de pousser un élément
+hors de la fenêtre visible par CSSOM (`el.style.top = '-200px'`), en supposant qu'une écriture CSSOM
+échappe à `style-src`. La première mesure semblait confirmer une conclusion **encore plus étrange** —
+« accepté en DOM, jamais appliqué, sans violation » — et c'est CETTE conclusion qui était fausse : le
+témoin choisi (`top` sur du `position: static`) ne pouvait jamais bouger, CSP ou pas.
 
-**Réfs.** E2-ST4 lot C ; garde-fous CSP `style-src` (`.claude/rules/security.md` §1) ; branche
-`feat/e2-st4-lot-c`. **⚠️ Signalé au `security-mentor`** : ce comportement de la CSP (écriture CSSOM
-acceptée en DOM, jamais appliquée, sans violation rapportée) est un fait exploitable/déroutant sur
-l'axe sécurité autant que sur l'axe test — à évaluer pour une entrée `S-0xx` dans
-`security-lessons.md`, cette leçon-ci ne couvrant que l'angle méthode de test.
+**Ce que la mesure du lot c2 établit (juste).** Deux canaux distincts, deux comportements distincts :
+(1) `setAttribute('style', '…')` et un `<style>` inline non haché sont **refusés** (l'effet
+n'apparaît jamais dans `getComputedStyle`) **et rapportés** (`style-src-attr`/`style-src-elem`
+via `securitypolicyviolation`) ; (2) `element.style.setProperty(…)` / `.cssText` / une propriété CSSOM
+directe sont **appliqués**, sans aucun événement — la directive `style-src` gouverne l'**analyse d'un
+texte de déclaration**, pas les accesseurs de `CSSStyleDeclaration`.
+
+**Règle.** Dans un spec de ce dépôt, **ne jamais déplacer un élément par `setAttribute('style', …)`
+ou un `<style>` inline** pour simuler un état sous la CSP servie — c'est bien bloqué, mais un test
+qui espérait un déplacement s'y casserait pour la bonne raison. À l'inverse, **une écriture CSSOM
+directe (`.style.propriete = …`) N'EST PAS bloquée par cette CSP** : ne pas s'appuyer dessus comme
+contre-exemple de sécurité, et utiliser le **défilement** réel (`scrollIntoView`, `scrollTo`) pour
+chasser un élément hors champ dans un test WCAG 2.4.11 — c'est de toute façon le vrai mode d'échec
+visé. Cousine de [[L-019]] (un contrôle négatif seul ne prouve rien sans contrôle positif) : la
+version d'origine de cette leçon-même en était la victime — un « rien observé » pris pour un refus
+de politique plutôt que pour l'inertie d'une propriété mal choisie.
+
+**Conséquence de sécurité, à retenir de l'épisode.** `style-src` ferme l'**injection** de style (un
+`<style>`/`style="…"` glissé dans du contenu) — exactement la surface d'un site de contenu compilé —
+mais **ne ferme pas** le restylage d'un script **déjà en cours d'exécution** via les accesseurs
+CSSOM. Écrire « la CSP interdit tout style dynamique » serait une garantie surestimée (famille S-009).
+Détail et mesures : S-016.
+
+**Sur le choix de la propriété témoin de la sonde** (`top` en `position: static`, puis
+`outline-offset` sans `outline-style`, tous deux structurellement inertes ici — indépendamment de
+toute CSP) : voir **[[L-025]]**, qui porte désormais cette règle sous un titre qui ne nomme pas la
+CSP, pour rester trouvable par une sonde de contraste/géométrie/focus qui n'a rien à voir avec ce
+dossier.
+
+**Réfs.** E2-ST4 lot C (mesure d'origine, fausse) ; E2-ST5 lot c2 (mesure correctrice) ;
+`e2e/aides/sonde-csp.ts` (`exigerStyleSrcApplique`/`mesurerStyleSrc`) ;
+`e2e/simulation-sous-csp.spec.ts` ; `.claude/lessons/security-lessons.md` **S-016** ; garde-fous CSP
+`style-src` (`.claude/rules/security.md` §1) ; branches `feat/e2-st4-lot-c` et `feat/e2-st5-lot-c2`.
 
 ---
 
