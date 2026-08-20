@@ -20,12 +20,20 @@
 // E2-ST6, et un composant qui la porterait « en prévision » serait du code mort
 // que personne n'oserait retirer.
 //
-// `mentionChantier` EST UNE DETTE DATÉE, pas un ornement : tant qu'aucune leçon
-// n'est publiée, le sommaire du cours n'affiche que « Modules en préparation »
-// (`sommaire.html`) et la carte doit le dire, sinon l'appel à l'action ment. Elle
-// se retire le jour de la première leçon publiée — E3-ST1 — et ce jour-là
-// SEULEMENT : la bascule d'E2-ST6, qui a remplacé le placeholder par le vrai
-// sommaire, ne l'a PAS rendue caduque (rappel repris en E6-ST4).
+// ✅ `mentionChantier` A ÉTÉ RETIRÉE DE L'APPEL LE 2026-08-20, à la clôture d'E3-ST1,
+// exactement au jour dit. C'était une DETTE DATÉE, pas un ornement : tant qu'aucune
+// leçon n'était publiée, le sommaire n'affichait que « Modules en préparation » et la
+// carte devait le dire, sinon l'appel à l'action mentait. La leçon 01 est en ligne, le
+// sommaire la liste — la mention mentirait désormais dans l'autre sens. (La bascule
+// d'E2-ST6, qui avait remplacé le placeholder par le vrai sommaire, ne l'avait PAS
+// rendue caduque : c'est bien la PUBLICATION qui l'a fait.)
+//
+// L'ENTRÉE, ELLE, RESTE — et ce n'est pas de l'indécision. Elle est facultative,
+// testée dans les deux sens (`carte-cours.spec.ts`, rendue quand fournie / aucun
+// paragraphe quand absente), et le besoin revient tel quel à l'ouverture du DEUXIÈME
+// sujet, dont la carte annoncera un cours vide. Retirer le composant pour le
+// réécrire dans six semaines coûterait plus que le garder. Ce qui serait du code mort,
+// c'est un état ou un compteur posé « en prévision » — pas une entrée déjà exercée.
 //
 // ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT, écrites `&nbsp;` pour
 // qu'on les VOIE à la relecture (jamais U+202F ni U+2009, absentes de Fraunces
