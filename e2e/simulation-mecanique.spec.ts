@@ -51,6 +51,9 @@ import {
   NOMBRE_ACTEURS,
   NOMBRE_ETAPES,
   NOMBRE_LIENS,
+  attendreCourante,
+  attendreDepli,
+  attendreRepli,
   commande,
   etape,
   idEtape,
@@ -146,6 +149,10 @@ test('un clic sur un lien d’étape replie la vue sur cette étape, et sur elle
   await attendreHydratation(page);
 
   await lienEtape(page, 4).click();
+  // Barrière : `lireEtat` est servie UNE fois et ne se rejoue pas, alors que le
+  // repli est peint sur une frame ultérieure — intermittence « famille 1 », mesurée
+  // et détaillée dans `aides/simulation.ts`.
+  await attendreRepli(page, 4, 'l’étape courante ne suit pas le lien activé');
 
   const etat = await lireEtat(page);
   expect(etat.courante, 'l’étape courante ne suit pas le lien activé').toBe(4);
@@ -178,13 +185,19 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
   // le seul endroit où le repli pourrait masquer TOUTES les étapes.
   expect((await lireEtat(page)).commandes[COMMANDES.precedente]).toContain('étape 1');
   await commande(page, COMMANDES.precedente).click();
+  // Une barrière par geste : chaque lecture ponctuelle décrit alors un instant
+  // COHÉRENT, au lieu de courir contre la frame de peinture (« famille 1 »).
+  await attendreCourante(page, 1, 'la borne basse de « précédente » a cédé');
   expect((await lireEtat(page)).courante, 'la borne basse de « précédente » a cédé').toBe(1);
 
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 2, '« Suivante » n’a pas mené à l’étape 2');
   expect((await lireEtat(page)).courante).toBe(2);
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 3, '« Suivante » n’a pas mené à l’étape 3');
   expect((await lireEtat(page)).courante).toBe(3);
   await commande(page, COMMANDES.precedente).click();
+  await attendreRepli(page, 2, '« Précédente » n’a pas ramené la vue à l’étape 2');
 
   const avantReinitialisation = await lireEtat(page);
   expect(avantReinitialisation.courante).toBe(2);
@@ -194,6 +207,9 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
   ).toEqual(toutesSaufCelleCi(2));
 
   await commande(page, COMMANDES.reinitialiser).click();
+  // La vue VIENT d'être constatée repliée (assertion ci-dessus) : la barrière de
+  // dépli n'est donc pas vraie par construction ici.
+  await attendreDepli(page, '« Réinitialiser » n’a pas tout réaffiché');
 
   const apres = await lireEtat(page);
   expect(apres.masquees, '« Réinitialiser » n’a pas tout réaffiché').toEqual([]);
@@ -207,6 +223,9 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
 test('ouvrir directement …#simulation-etape-3 affiche l’étape 3 (L-033)', async ({ page }) => {
   await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(3)}`);
   await attendreHydratation(page);
+  // `amorcerDepuisLeFragment` court dans `afterNextRender`, et son effet est peint
+  // sur une frame ultérieure : `[ngh]`=0 ne dit rien de CETTE écriture-là.
+  await attendreCourante(page, 3, 'le fragment de l’URL n’a pas été relu au premier rendu client');
 
   const etat = await lireEtat(page);
 
@@ -311,9 +330,13 @@ test('actionner la simulation ne produit aucune violation de la CSP servie', asy
 
   // Le parcours complet : repli, navigation bornée, dépli.
   await lienEtape(page, 3).click();
+  await attendreRepli(page, 3, 'le repli n’a pas suivi le lien d’étape');
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 4, '« Suivante » n’a pas mené à l’étape 4');
   await commande(page, COMMANDES.precedente).click();
+  await attendreRepli(page, 3, '« Précédente » n’a pas ramené la vue à l’étape 3');
   await commande(page, COMMANDES.reinitialiser).click();
+  await attendreDepli(page, '« Réinitialiser » n’a rien réaffiché');
   expect((await lireEtat(page)).masquees).toEqual([]);
 
   const violations = await lireViolations(page, journal);

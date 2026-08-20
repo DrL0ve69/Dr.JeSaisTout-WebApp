@@ -67,6 +67,9 @@ import {
 import {
   CHEMIN_LECON_TEMOIN,
   COMMANDES,
+  attendreCourante,
+  attendreDepli,
+  attendreRepli,
   commande,
   idEtape,
   lienEtape,
@@ -94,12 +97,19 @@ const BLOCS_STYLE_PAGE_LECON = 8;
  * violation » serait le zéro d'une page morte.
  */
 async function actionnerLaSimulation(page: Page): Promise<void> {
+  // Une barrière après CHAQUE geste : `lireEtat` est servie une fois et ne se
+  // rejoue pas, alors que l'effet est peint sur une frame ultérieure. Mesure et
+  // justification : `aides/simulation.ts` (intermittence « famille 1 »).
   await lienEtape(page, 3).click();
+  await attendreRepli(page, 3, 'le repli n’a pas suivi le lien d’étape');
   expect((await lireEtat(page)).courante, 'le repli n’a pas suivi le lien d’étape').toBe(3);
 
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 4, '« Suivante » n’a pas mené à l’étape 4');
   await commande(page, COMMANDES.precedente).click();
+  await attendreRepli(page, 3, '« Précédente » n’a pas ramené la vue à l’étape 3');
   await commande(page, COMMANDES.reinitialiser).click();
+  await attendreDepli(page, '« Réinitialiser » n’a rien réaffiché');
 
   const etat = await lireEtat(page);
   expect(
@@ -285,6 +295,7 @@ test('CONTRÔLE POSITIF — `style-src` REFUSE réellement, et sur la page où l
   // ET LA PAGE RESTE ACTIONNABLE. Sans cette ligne, une politique qui casserait
   // aussi la simulation passerait ce contrôle positif avec les honneurs.
   await lienEtape(page, 2).click();
+  await attendreCourante(page, 2, 'la simulation ne répond plus après la sonde');
   expect((await lireEtat(page)).courante, 'la simulation ne répond plus après la sonde').toBe(2);
 });
 
@@ -304,6 +315,13 @@ test('arriver par un lien profond d’étape ne produit aucune violation de CSP'
   exigerCspServie(reponse);
 
   await attendreHydratation(page);
+  // `amorcerDepuisLeFragment` court dans `afterNextRender` : `[ngh]`=0 ne dit rien
+  // du moment où SON écriture atteint le DOM.
+  await attendreCourante(
+    page,
+    4,
+    'le fragment n’a pas été relu : ce test ne traverserait pas le chemin qu’il prétend mesurer',
+  );
   expect(
     (await lireEtat(page)).courante,
     'le fragment n’a pas été relu : ce test ne traverserait pas le chemin qu’il prétend mesurer',

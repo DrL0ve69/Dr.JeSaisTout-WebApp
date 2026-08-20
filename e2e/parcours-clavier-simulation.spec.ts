@@ -40,6 +40,7 @@ import {
   COMMANDES,
   NOMBRE_ETAPES,
   NOMBRE_LIENS,
+  attendreRepli,
   commande,
   etape,
   lienEtape,
@@ -50,10 +51,17 @@ exigerLaPageDeLecon('le parcours clavier de la simulation (9 arrêts, focus visi
 
 /**
  * La borne de l'approche. La simulation est en bas de la page de leçon, derrière le
- * sommaire, la prose et les huit arrêts du quiz : le compte réel mesuré est de 39
- * tabulations. La borne est large parce qu'elle n'est PAS l'objet de la mesure —
- * elle existe pour qu'un piège de focus en amont s'arrête en nommant sa cause au
- * lieu de faire tourner la suite jusqu'au délai d'expiration.
+ * sommaire, la prose et les huit arrêts du quiz.
+ *
+ * COMPTE RÉEL : 33 tabulations — REMESURÉ le 2026-08-20 sur la leçon-témoin de fixture
+ * ENRICHIE (les quatre encadrés de provenance, doublon « cours » du contrôle positif de
+ * `landmark-unique` compris). Le chiffre n'a pas bougé, et c'est attendu : un encadré
+ * n'ouvre aucun arrêt focalisable. Le spec le journalise à chaque exécution — ce
+ * commentaire se recoupe donc contre sa propre sortie, il ne se devine pas.
+ *
+ * La borne, elle, reste large parce qu'elle n'est PAS l'objet de la mesure : elle existe
+ * pour qu'un piège de focus en amont s'arrête en nommant sa cause au lieu de faire
+ * tourner la suite jusqu'au délai d'expiration.
  */
 const LIMITE_APPROCHE = 80;
 
@@ -224,6 +232,13 @@ test('activer un lien d’étape au clavier replie la vue ET garde le focus dans
   await expect(lienEtape(page, 4), 'le clavier n’atteint pas le lien de l’étape 4').toBeFocused();
 
   await page.keyboard.press('Enter');
+
+  // 🔴 LA BARRIÈRE, ET LA DETTE QU'ELLE FERME. `lireEtat` est servie UNE fois et
+  // `expect(etat.courante)` porte sur une valeur : Playwright ne la rejoue jamais.
+  // Sans cette attente, la lecture ci-dessous court contre la frame où Angular peint
+  // le repli — c'est l'intermittence « famille 1 » (4 rouges en CI sur un produit
+  // sain, `Received: 1`). Voir `aides/simulation.ts` pour la mesure.
+  await attendreRepli(page, 4, 'Entrée sur le lien d’étape n’a pas replié la vue sur l’étape 4');
 
   const etat = await lireEtat(page);
   expect(etat.courante, 'Entrée sur le lien d’étape n’a pas replié la vue sur l’étape 4').toBe(4);
