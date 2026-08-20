@@ -49,34 +49,41 @@
 // champ manquant LÈVE en nommant la question : le rendu ayant lieu au prerender,
 // l'échec casse `npm run build` au lieu d'afficher une question vide en silence.
 //
-// 🔴 COLLISION S-011 — LE MODE D'ÉCHEC DE CE FICHIER, ET IL S'ATTACHE AU FICHIER,
-// PAS À UNE BRANCHE DU `@switch`. Le gate de déploiement
-// `tools/deploiement/generer-config-swa.mjs` balaie le HTML prerendu et refuse DEUX
-// séquences : le style en ligne (« espace + style= » suivi d'un guillemet, ligne 379)
-// et tout gestionnaire d'événement en ligne (« espace + on…= » suivi d'un guillemet,
-// ligne 333). Or l'interpolation d'Angular n'échappe que `&`, `<` et `>` — jamais les
-// guillemets. Tout NŒUD TEXTE portant du texte d'auteur peut donc faire échouer le
-// build sur un message parlant de CSP, alors que la cause sera un texte de quiz.
+// ✅ COLLISION S-011 — REFERMÉE LE 2026-08-19, ET VOICI CE QUI LA TIENT FERMÉE.
+// L'ancienne version de cette note décrivait un garde-fou qui n'existe plus : le gate
+// `tools/deploiement/generer-config-swa.mjs` balayait le HTML prerendu à la recherche
+// de DEUX séquences de TEXTE BRUT (« espace + style= » et « espace + on…= » suivis d'un
+// guillemet). Or l'interpolation d'Angular n'échappe que `&`, `<` et `>` — jamais les
+// guillemets —, donc tout NŒUD TEXTE portant du texte d'auteur faisait échouer le build
+// sur un message parlant de CSP alors que la cause était un texte de quiz. Le lot A de
+// la dette sécurité pré-E3-ST1 a remplacé ces motifs par UN parse jsdom : la décision
+// porte désormais sur les ATTRIBUTS que l'analyseur a réellement construits, et un nœud
+// texte n'en produit aucun. MESURÉ le 2026-08-19 contre le générateur d'aujourd'hui :
+// une page portant `<p>onerror="alert(1)" style="color:red"</p>` sort en CODE 0 (avant
+// le lot A : rouge). Une leçon sur le XSS peut donc écrire ses charges en toutes lettres.
 //
-// LES SITES CONCERNÉS, NOMMÉMENT — c'est la liste qu'il faut tenir à jour, pas le
-// souvenir d'y avoir pensé une fois : le `code` d'un `trouver-la-faille` (ligne par
-// ligne), sa `faille` et sa `correction` (qui est du CODE CORRIGÉ), le `gauche` et le
-// `droite` d'un `associer` (le texte des `<option>`), la `consigne`, la `question`,
-// l'`affirmation`, les `choix[].texte` et les `explication`/`justification`. Une leçon
-// sur le XSS appariera littéralement `onerror="…"` dans un `associer` : la collision
-// est certaine, pas hypothétique.
+// 🔴 CE QUI LA ROUVRIRAIT, ET C'EST LA SEULE RAISON DE GARDER CETTE NOTE. Ajouter au
+// gate un « contrôle de conservation » pour la branche attributs, sur le modèle de ceux
+// qui existent pour `<script` et `<style`. Le réflexe est bon — une branche sans filet
+// de complétude est un S-003 en puissance — mais le motif brut correspondant compterait
+// les NŒUDS TEXTE, donc exactement le contenu ci-dessous. Le générateur a pris l'autre
+// voie, STRUCTURELLE : descente dans `template.content` + refus nominatif de `<template>`,
+// `<noscript>`, `<iframe>` et `shadowrootmode`, qui ne peuvent pas se former dans une
+// phrase d'auteur. Ne pas défaire ce choix sans relire S-011.
 //
-// CE QUI N'EST PAS CONCERNÉ, ET C'EST MESURÉ (revue de sécurité du lot D, sur domino —
-// le sérialiseur du prerender — ET sur jsdom) : les CONTEXTES D'ATTRIBUT. Un `"` posé
-// dans une `value` de `<option>`, d'`<input>` ou dans `[attr.data-champ]` est sérialisé
-// en `&quot;`, donc les motifs du gate — qui exigent un guillemet LITTÉRAL — ne peuvent
-// pas s'y former. Les surfaces d'attribut ajoutées par le lot D n'élargissent donc pas
-// la collision. Ne pas généraliser dans l'autre sens pour autant : le même caractère est
-// inerte ici et signifiant là, c'est le CONTEXTE qui décide.
+// LES SITES DE TEXTE D'AUTEUR, NOMMÉMENT — la liste survit à la fermeture parce que
+// c'est elle qui chiffre le coût d'un retour au balayage brut : le `code` d'un
+// `trouver-la-faille` (ligne par ligne), sa `faille` et sa `correction` (qui est du CODE
+// CORRIGÉ), le `gauche` et le `droite` d'un `associer` (le texte des `<option>`), la
+// `consigne`, la `question`, l'`affirmation`, les `choix[].texte` et les
+// `explication`/`justification`.
 //
-// LA PARADE EST ÉDITORIALE (guillemets typographiques, entité) — JAMAIS d'assouplir le
-// garde-fou ni d'exclure une page du balayage. Ce site enseigne la CSP. Détail : S-011
-// dans `.claude/lessons/security-lessons.md`.
+// CE QUI N'ÉTAIT DÉJÀ PAS CONCERNÉ, ET C'EST MESURÉ (revue de sécurité du lot D, sur
+// domino — le sérialiseur du prerender — ET sur jsdom) : les CONTEXTES D'ATTRIBUT. Un `"`
+// posé dans une `value` de `<option>`, d'`<input>` ou dans `[attr.data-champ]` est
+// sérialisé en `&quot;`. Constat conservé parce qu'il reste vrai et qu'il documente une
+// asymétrie réelle : le même caractère est inerte ici et signifiant là, c'est le CONTEXTE
+// qui décide. Détail : S-011 dans `.claude/lessons/security-lessons.md`.
 //
 // ⚠️ RÉDACTION : blanches insécables U+00A0 UNIQUEMENT, écrites `&nbsp;` dans le
 // gabarit et en séquence d'échappement dans le code, pour qu'on les VOIE à la

@@ -390,9 +390,24 @@ jobs:
       # même pas de `node_modules`, l'action n'aurait rien avec quoi construire.
       # Pas de `skip_api_build` : cette entrée N'EXISTE PAS dans l'action (elle l'annonçait en
       # avertissement). `api_location: ''` suffit — sans API, il n'y a rien à construire.
+      #
+      # 🔴 ÉPINGLÉE AU SHA, et c'est la seule action du dépôt qui le MÉRITE vraiment : elle
+      # s'exécute dans le job qui détient `AZURE_STATIC_WEB_APPS_API_TOKEN`. Un tag `v1` est
+      # MUTABLE — celui qui contrôle le dépôt amont peut le repointer sur n'importe quel commit,
+      # qui s'exécuterait ici avec le jeton de déploiement en variable d'environnement, sans
+      # qu'aucune revue de PR ne voie le changement. Un SHA de commit, lui, ne se réécrit pas.
+      #
+      # ⚠️ CE SHA EST CELUI DU TAG, PAS CELUI DE LA BRANCHE. Le dépôt amont porte un tag `v1` ET
+      # une branche `v1` qui ont DIVERGÉ. GitHub résout `@v1` vers le TAG : c'est donc bien
+      # 1a947af… que la production exécutait déjà, relevé dans le journal du run 32308397145 (le
+      # dernier déploiement vert, 2026-08-19). Prendre le commit de branche, plus récent, aurait
+      # été une montée de version déguisée en durcissement — un épinglage FIGE, il n'upgrade pas.
+      #
+      # Pour relever la version plus tard : lire le SHA du tag visé dans le dépôt amont, le
+      # remplacer ici, et garder le commentaire `# v…` à jour — c'est lui qui rend le SHA lisible.
       - name: Déployer sur Azure Static Web Apps
         id: deploiement
-        uses: Azure/static-web-apps-deploy@v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1 — relevé du journal du run 32308397145, 2026-08-19
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           action: upload
@@ -433,6 +448,13 @@ jobs:
           done
 
           echo "$entetes"
+
+          # LA CAPTURE SERT DEUX FOIS : aux contrôles par motifs ci-dessous, puis à la
+          # comparaison structurelle en fin d'étape. Elle est écrite sur DISQUE plutôt que
+          # recapturée — une seconde requête pourrait tomber sur un autre état de propagation,
+          # et c'est ICI qu'on a attendu l'EFFET, pas le code de retour (L-004).
+          capture="${RUNNER_TEMP:-/tmp}/entetes-servis.txt"
+          printf '%s\n' "$entetes" > "$capture"
 
           manquants=0
           for attendu in "content-security-policy" "strict-transport-security" "x-content-type-options" "referrer-policy" "permissions-policy"; do
@@ -475,6 +497,47 @@ jobs:
           # HSTS : la présence ne suffit pas, c'est la durée qui fait la protection.
           if ! grep -i "^strict-transport-security:" <<<"$entetes" | grep -qE "max-age=[0-9]+"; then
             echo "::error::Strict-Transport-Security sans max-age exploitable."
+            manquants=1
+          fi
+
+          # =====================================================================
+          # LA COMPARAISON STRUCTURELLE — ce que tout ce qui précède ne pouvait pas voir.
+          # ---------------------------------------------------------------------
+          # Tous les contrôles ci-dessus cherchent des MOTIFS : un nom d'en-tête, un
+          # `sha256-`, quatre directives écrites en clair, trois mots interdits. Une CSP
+          # servie pouvait donc porter une directive ENTIÈRE de plus, ou une directive
+          # affaiblie que ces motifs ne nomment pas (`img-src *`, `connect-src https:`),
+          # et sortir verte. C'est la faille que ce site ENSEIGNE : une liste NOIRE ne
+          # refuse que ce que son auteur a imaginé (`.claude/rules/security.md` §4).
+          #
+          # Le script confronte la politique SERVIE à celle de l'artéfact téléversé, puis
+          # celle de l'artéfact à `config/staticwebapp.config.source.json` — le seul des
+          # trois documents qu'un humain relit en revue. Égalité EXACTE, directive par
+          # directive, modulo les jetons `__HACHAGES_*__` qui n'ont le droit de devenir
+          # que des `'sha256-…'` (S-005 : la liste blanche reste NOMINATIVE).
+          #
+          # ⚠️ LES CONTRÔLES PAR MOTIFS CI-DESSUS NE SONT PAS DES DOUBLONS — NE PAS LES
+          # RETIRER. L'égalité structurelle subsume leurs contrôles DE CSP, et rien d'autre :
+          # le comparateur ne lit QUE l'en-tête `Content-Security-Policy`. La présence des
+          # quatre en-têtes hors CSP (`strict-transport-security`, `x-content-type-options`,
+          # `referrer-policy`, `permissions-policy`) et le `max-age=` de HSTS n'ont AUCUNE
+          # autre couverture que les lignes ci-dessus — un `Permissions-Policy: camera=*`
+          # servi passerait le comparateur sans une erreur. S'y ajoute la valeur de
+          # diagnostic : leurs messages nomment la faute en clair là où un delta structurel
+          # demande une lecture.
+          #
+          # Node seul, ZÉRO dépendance npm : ce job détient le jeton de déploiement et n'a
+          # pas de `node_modules`. Un `npm ci` ici élargirait la surface d'exécution du job
+          # le plus sensible du dépôt à tout l'arbre de dépendances.
+          # =====================================================================
+          if ! command -v node >/dev/null 2>&1; then
+            echo "::error::\`node\` introuvable sur le runner : la comparaison structurelle de la CSP ne peut pas s'exécuter. Ne pas conclure au vert — c'est le gate qui manque, pas la conformité qui est prouvée."
+            exit 1
+          fi
+          if ! node tools/deploiement/verifier-csp-servie.mjs \
+            --entetes "$capture" \
+            --artefact dist/dr-je-sais-tout/browser/staticwebapp.config.json \
+            --source config/staticwebapp.config.source.json; then
             manquants=1
           fi
 
