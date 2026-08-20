@@ -567,6 +567,19 @@ describe('câblage de `content:build`', () => {
         // boucle VIDE — vert en n'ayant rien mesuré.
         expect(jobs.length, `${workflow} n'expose aucun job à inspecter`).toBeGreaterThan(0);
 
+        // ⚠️ LA LISTE DES JOBS QUI COMPILENT, ASSERTIONNÉE AVANT LA BOUCLE (L-019). La version
+        // précédente bouclait sur TOUS les jobs et faisait `continue` quand `content:build` n'y
+        // était pas : la disparition du script — le pire des cas, celui qui laisse `src/styles.scss`
+        // sans sa feuille — aurait vidé la boucle et laissé ce test VERT sans mesurer un seul job.
+        const compilateurs = jobs.filter(([, job]) =>
+          (job.steps ?? []).some((etape) => APPEL_COMPILATION.test(String(etape.run ?? ''))),
+        );
+        expect(
+          compilateurs.map(([nom]) => nom),
+          `${workflow} ne compile \`content/\` dans AUCUN job : l'ordre installation → compilation ` +
+            `n'a pas pu être mesuré, et \`src/styles.scss\` perdrait sa feuille gitignorée`,
+        ).not.toEqual([]);
+
         let installationsTotales = 0;
         for (const [nom, job] of jobs) {
           const commandes = (job.steps ?? []).map((etape) => String(etape.run ?? ''));
@@ -578,6 +591,9 @@ describe('câblage de `content:build`', () => {
           ).toBeLessThanOrEqual(1);
           installationsTotales += installations;
 
+          // Ce `continue` est légitime — et il ne l'est QUE parce que `compilateurs` a été
+          // assertionné non vide plus haut : un job qui ne compile pas n'a pas d'ordre à tenir,
+          // mais l'absence TOTALE de compilation, elle, est déjà refusée.
           const rangCompilation = commandes.findIndex((c) => APPEL_COMPILATION.test(c));
           if (rangCompilation === -1) continue;
           const rangInstallation = commandes.findIndex((c) => APPEL_INSTALLATION.test(c));

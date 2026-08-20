@@ -262,5 +262,10 @@ jobs:
       #
       # ⚠️ Cette liste de gates doit rester ALIGNÉE avec celle de deploy.yml, qui les rejoue avant
       # publication. Un gate ajouté ici et pas là-bas ne protège pas ce qui part en ligne.
+      # ⚠️ L'alignement porte sur la LISTE DES GATES, PAS SUR LA TOPOLOGIE DES JOBS. `deploy.yml`
+      # est scindé en trois jobs (`contenu` → `gates` → `publication`) à dessein : il détient un
+      # jeton, pose un sceau d'artéfact et publie. Ce workflow-ci ne fait aucun des trois, donc les
+      # deux coupes n'y protégeraient rien et coûteraient deux transferts d'artéfact par run. Ce
+      # fichier reste MONO-JOB volontairement — ce n'est pas un oubli à « réparer ».
       #
       # Les gates Terraform vivent dans infra.yml, déclenché par un filtre `paths` natif.

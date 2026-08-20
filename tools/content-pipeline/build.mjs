@@ -28,12 +28,22 @@
  *   `npm run build`. D'où la règle : ZÉRO leçon écrit une feuille vide, un manifeste vide et une carte
  *   vide. Le vide est un résultat, pas une raison de ne rien faire.
  *
- * ─── CHROMIUM N'EST DEMANDÉ QUE S'IL EST NÉCESSAIRE ────────────────────────────────────────────
- * `creerRendeurMermaid()` localise `mmdc` ET le Chromium de Playwright À LA CONSTRUCTION, et échoue
- * si l'un manque. Le construire inconditionnellement rendrait `npm test` impossible sur un poste
- * qui n'a pas encore lancé `npm run e2e:install` — alors qu'avec `content/` vide, aucun diagramme
- * n'est à rendre. On lit donc les sources, on cherche un bloc ` ```mermaid `, et on ne construit le
- * rendeur que s'il y en a au moins un.
+ * ─── CHROMIUM N'EST DEMANDÉ QUE S'IL EST NÉCESSAIRE — DEUX FILTRES, PAS UN ────────────────────
+ * 1. On lit les sources, on cherche un bloc ` ```mermaid `, et on ne construit le rendeur que s'il
+ *    y en a au moins un : avec `content/` vide, aucun diagramme n'est à rendre.
+ * 2. 🔴 ET LE RENDEUR LUI-MÊME NE RÉSOUT RIEN À LA CONSTRUCTION. `mmdc` et le Chromium de
+ *    Playwright ne sont localisés qu'au moment d'un rendu RÉEL — c'est-à-dire quand un socle
+ *    manque au cache (`rendre-mermaid.mjs`, `localiserOutils`). Le premier filtre seul ne suffit
+ *    pas : une leçon À DIAGRAMMES dont le cache est CHAUD n'a rien à rendre et exigeait pourtant
+ *    un navigateur (mesuré : cache à 4 SVG + `PLAYWRIGHT_BROWSERS_PATH` vide ⇒ code 1). Or le job
+ *    `gates` de `deploy.yml` lance G-test AVANT d'installer le navigateur.
+ * Ce qui NE change pas : quand un rendu est nécessaire et que l'outil manque, l'échec reste
+ * bruyant, nommé, et dit la commande à lancer.
+ *
+ * ─── `--cache-diagrammes` ─────────────────────────────────────────────────────────────────────
+ * Dossier des socles SVG mis en cache (défaut : `.cache/mermaid`). Il existe pour que les tests
+ * puissent EXERCER les deux états — cache froid et cache chaud — sans se marcher dessus ni
+ * effacer le cache partagé du poste. En production, on ne le passe jamais.
  *
  * ─── 🔴 `--inclure-brouillons` — LE SEUL MOYEN DE PUBLIER UNE LEÇON NON PUBLIÉE ────────────────
  * Sans ce drapeau, une leçon dont le `statut` n'est pas `publiee` est COMPILÉE (elle doit l'être :
@@ -45,7 +55,7 @@
  *
  * Usage :
  *   node tools/content-pipeline/build.mjs [--racine <dossier>] [--sortie <dossier>] [--css <fichier>]
- *                                         [--inclure-brouillons]
+ *                                         [--inclure-brouillons] [--cache-diagrammes <dossier>]
  */
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -182,9 +192,10 @@ function etapeValider(racineAbsolue) {
  * Étape 3 — compilation, diagrammes compris.
  *
  * @param {string} racineAbsolue
+ * @param {string | undefined} cacheDiagrammes dossier de cache des SVG, ou `undefined` pour le défaut
  * @returns {Promise<{ lecons: LeconCompilee[], feuille: string }>}
  */
-async function etapeCompiler(racineAbsolue) {
+async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
   /** @type {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | undefined} */
   let rendreMermaid;
 
@@ -194,8 +205,11 @@ async function etapeCompiler(racineAbsolue) {
     const avecDiagrammes = sources.filter(({ source }) => extraireDiagrammes(source).length > 0);
 
     if (avecDiagrammes.length > 0) {
-      // Chromium n'est demandé qu'ici — voir l'en-tête du fichier.
-      const rendeur = creerRendeurMermaid();
+      // Construire le rendeur n'exige AUCUN outil : Chromium et `mmdc` ne sont
+      // localisés que si un socle manque au cache — voir l'en-tête du fichier.
+      const rendeur = creerRendeurMermaid(
+        cacheDiagrammes === undefined ? {} : { cache: cacheDiagrammes },
+      );
       for (const { chemin, source } of avecDiagrammes) rendeur.prechargerLecon(chemin, source);
       rendeur.journaliser();
       rendreMermaid = rendeur.rendre;
@@ -229,7 +243,8 @@ async function etapeCompiler(racineAbsolue) {
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {{ racine: string, racineExplicite: boolean, sortie: string, css: string, inclureBrouillons: boolean }}
+ * @returns {{ racine: string, racineExplicite: boolean, sortie: string, css: string,
+ *             inclureBrouillons: boolean, cacheDiagrammes: string | undefined }}
  */
 function lireArguments() {
   const args = process.argv.slice(2);
@@ -238,6 +253,8 @@ function lireArguments() {
   let sortie = SORTIE_PAR_DEFAUT;
   let css = CSS_PAR_DEFAUT;
   let inclureBrouillons = false;
+  /** @type {string | undefined} */
+  let cacheDiagrammes;
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -247,10 +264,16 @@ function lireArguments() {
       inclureBrouillons = true;
       continue;
     }
-    if (arg !== '--racine' && arg !== '--sortie' && arg !== '--css') {
+    if (
+      arg !== '--racine' &&
+      arg !== '--sortie' &&
+      arg !== '--css' &&
+      arg !== '--cache-diagrammes'
+    ) {
       echec(`option inconnue : « ${String(arg)} »`, [
         'usage : node tools/content-pipeline/build.mjs [--racine <dossier>] [--sortie <dossier>]',
         '                                             [--css <fichier>] [--inclure-brouillons]',
+        '                                             [--cache-diagrammes <dossier>]',
       ]);
     }
     const valeur = args[i + 1];
@@ -261,14 +284,16 @@ function lireArguments() {
       racine = valeur;
       racineExplicite = true;
     } else if (arg === '--sortie') sortie = valeur;
+    else if (arg === '--cache-diagrammes') cacheDiagrammes = valeur;
     else css = valeur;
     i += 1;
   }
-  return { racine, racineExplicite, sortie, css, inclureBrouillons };
+  return { racine, racineExplicite, sortie, css, inclureBrouillons, cacheDiagrammes };
 }
 
 async function principal() {
-  const { racine, racineExplicite, sortie, css, inclureBrouillons } = lireArguments();
+  const { racine, racineExplicite, sortie, css, inclureBrouillons, cacheDiagrammes } =
+    lireArguments();
 
   const racineAbsolue = resolve(RACINE_DEPOT, racine);
   const sortieAbsolue = resolve(RACINE_DEPOT, sortie);
@@ -303,7 +328,7 @@ async function principal() {
     );
   }
 
-  const { lecons, feuille } = await etapeCompiler(racineAbsolue);
+  const { lecons, feuille } = await etapeCompiler(racineAbsolue, cacheDiagrammes);
 
   // ÉCRITURE INCONDITIONNELLE — c'est le cœur du lot. Voir l'en-tête : zéro leçon écrit quand même
   // la feuille, le manifeste et la carte, sinon `src/styles.scss` perd sa cible sur un clone frais.

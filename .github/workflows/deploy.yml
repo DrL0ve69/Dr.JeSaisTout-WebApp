@@ -27,6 +27,13 @@ name: Déploiement (main → SWA Free)
 # sur une machine où AUCUN binaire CDN n'a encore tourné. Le tripwire de cette promesse est
 # structurel, pas déclaratif : si le cache Mermaid transféré était incomplet, `content:build`
 # rappellerait `mmdc` dans `gates` et échouerait faute de Chromium — bruyamment, en le nommant.
+# ⚠️ ET IL NE DISCRIMINE QUE DEPUIS LE 2026-08-19. Tant que `creerRendeurMermaid()` localisait
+# Chromium À LA CONSTRUCTION, il se déclenchait sur cache COMPLET comme sur cache troué : il ne
+# prouvait donc rien sur le cache, il prouvait seulement l'absence du navigateur. La localisation
+# est devenue PARESSEUSE (`rendre-mermaid.mjs`, `localiserOutils`), et le comportement a été
+# MESURÉ sur la fixture `mermaid-deux-diagrammes`, `PLAYWRIGHT_BROWSERS_PATH` pointant un dossier
+# vide : cache 2/2 ⇒ code 0 ; une seule entrée retirée ⇒ code 1, « Chromium de Playwright
+# introuvable ». C'est ce delta, et lui seul, qui fait du tripwire une mesure.
 #
 # ⚠️ CE QUE CES COUPES NE FONT PAS, ET QUI EST COUVERT AUTREMENT — ou pas du tout.
 #   · Isoler le secret protège le JETON, pas l'ARTÉFACT : dans `gates`, G-axe et G-e2e s'exécutent
@@ -34,17 +41,38 @@ name: Déploiement (main → SWA Free)
 #     **sceau d'empreintes** (étapes « Sceller l'artéfact » / « Vérifier le sceau avant
 #     publication ») qui ferme cette fenêtre — pas la coupe.
 #   · 🔴 ET CE QUI RESTE ENTIER, dit ici pour que personne ne lise ce bloc comme « la dette est
-#     réglée » (patron S-009) : `gates` CONSOMME les sorties de `contenu`, et `src/content-generated/`
-#     finit dans `dist/`. Un Chromium compromis dans `contenu` pourrait donc encore empoisonner ce
-#     qui part en ligne. Ce que la coupe n°2 retire, c'est l'exécution du binaire CDN sur la machine
-#     de construction ; ce qu'elle ne retire pas, c'est la confiance dans les SVG qu'il a produits.
-#     Ces SVG passent, eux, par l'analyseur à liste blanche de `rendre-mermaid.mjs` — c'est là, et
-#     nulle part dans ce fichier, que ce reliquat de risque est traité.
+#     réglée » (patron S-009) : `gates` CONSOMME LES SORTIES DE `contenu` — pas seulement les SVG,
+#     mais TOUT le tarball : les leçons compilées de `src/content-generated/`, le manifeste de
+#     routes, la carte d'imports, la feuille SCSS de coloration. Tout cela finit dans `dist/`. Un
+#     Chromium compromis dans `contenu` a tourné sur la machine qui a produit ces fichiers-là ; ce
+#     que la coupe n°2 retire, c'est l'exécution du binaire CDN sur la machine de CONSTRUCTION, pas
+#     la confiance dans ce qu'il a laissé derrière lui.
+#     ⚠️ Ne pas lire l'analyseur à liste blanche de `rendre-mermaid.mjs` comme la parade de ce
+#     reliquat — mais ne pas non plus le lire comme un pur no-op côté `gates` : un commentaire qui
+#     SOUS-estime une garantie est un défaut S-009 au même titre qu'un qui la sur-estime, parce
+#     qu'il invite le prochain lecteur à rajouter une protection qui existe déjà, ou à croire ce
+#     lot plus faible qu'il n'est. Ce que `gates` REVÉRIFIE, mesuré : quand `content:build` y
+#     repasse, chaque socle du cache Mermaid restauré retraverse l'analyseur — 7 SVG du cache
+#     empoisonnés en labo, tous REFUSÉS, code 1, sans aucun navigateur. Ce qu'il NE revérifie
+#     PAS : les leçons compilées, où les SVG sont déjà inlinés — elles arrivent telles quelles et
+#     rien ne les réanalyse. L'analyseur durcit donc la sortie de `mmdc` à l'endroit où elle est
+#     produite ET couvre le cache au rebond ; il ne referme pas pour autant la confiance
+#     transférée d'un job à l'autre. Ce qui garde CETTE frontière, c'est la liste blanche de
+#     membres de l'étape de déballage — et elle contrôle des SEGMENTS de chemin, des NOMS et des
+#     TYPES, jamais du contenu.
 #
 # La règle qui en découle, pour tout gate ajouté plus tard : un gate va dans `gates`, jamais dans
 # `publication` ni dans `contenu`. Si une étape a besoin du jeton, elle ne vérifie rien ; si elle
 # vérifie quelque chose, elle n'a pas besoin du jeton. Et si elle a besoin d'un navigateur AVANT
 # G-build, elle va dans `contenu` — sinon elle rouvre la fenêtre que la coupe n°2 vient de fermer.
+#
+# ⚠️ `ci.yml` RESTE MONO-JOB, ET CE N'EST PAS UN OUBLI À RATTRAPER. Les deux coupes ci-dessus n'ont
+# de sens que là où il y a quelque chose à protéger : un JETON (`ci.yml` n'en détient aucun), un
+# SCEAU d'artéfact (`ci.yml` n'en pose pas), une PUBLICATION (`ci.yml` ne téléverse rien). Y
+# transposer trois jobs coûterait deux transferts d'artéfact par run pour ne fermer aucune fenêtre.
+# La doctrine d'alignement des deux workflows (note de `ci.yml`, § « G-audit ») porte sur la LISTE
+# DES GATES — un gate absent d'un des deux ne protège pas ce qui part en ligne (L-007) — jamais sur
+# la topologie des jobs. Aligner les topologies serait « réparer » une divergence VOULUE.
 on:
   push:
     branches: [main]
@@ -99,15 +127,35 @@ jobs:
       # `gates` exécute G-test, et les specs du pipeline (`pipeline-contenu-orchestration`,
       # `garde-fou-lecons-non-publiees`) compilent les FIXTURES, qui portent des diagrammes. Sans
       # leurs entrées de cache, `mmdc` serait rappelé dans `gates` — donc un Chromium y serait
-      # requis, donc la coupe n°2 ne servirait à rien. Mesuré le 2026-08-19 : ces deux racines
-      # produisent 4 entrées de cache, et la suite complète (744 tests) n'en fait apparaître
-      # AUCUNE de plus. Le compte est le contrôle : s'il bougeait, `gates` rougirait faute de
-      # Chromium, en nommant la commande manquante.
+      # requis, donc la coupe n°2 ne servirait à rien. Mesuré le 2026-08-19, cache vidé au
+      # préalable : ces deux racines produisent 4 entrées (5 blocs ` ```mermaid `, dont deux
+      # sources IDENTIQUES qui partagent une clef de cache), et la suite complète n'en fait
+      # apparaître AUCUNE de plus.
+      #
+      # 🔴 « LE COMPTE EST LE CONTRÔLE » — ET IL EST EXÉCUTABLE ICI, PAS SEULEMENT ÉCRIT.
+      # La version précédente se contentait d'`echo`er un compte que personne ne comparait : un
+      # `.cache/mermaid` déplacé ou un script de préchauffage devenu incomplet passait donc EN
+      # SILENCE, et la panne surgissait trois étapes plus loin dans `gates`, sur un message qui
+      # accuse Playwright — le mauvais coupable. Le minimum ci-dessous échoue ICI, où la faute est.
+      # ⚠️ `attendu` est un MINIMUM, jamais une égalité : `content/` se remplira à E3-ST1 et le
+      # compte ne peut que croître. Sa valeur est dérivée des fixtures et tenue par
+      # `src/workflows-github.spec.ts` — la changer à la main sans changer les fixtures rougit.
+      #
       # Il tourne AVANT la compilation de production : `rendre-mermaid.mjs --racine` n'écrit que le
       # cache, jamais `src/content-generated/` — mais garder cet ordre rend l'étape suivante seule
       # responsable de ce qui est empaqueté.
       - name: Préchauffer le cache Mermaid des fixtures (pour que `gates` reste vierge)
-        run: npm run content:mermaid:prechauffer
+        run: |
+          set -euo pipefail
+          attendu=4
+          npm run content:mermaid:prechauffer
+          mkdir -p .cache/mermaid
+          entrees="$(find .cache/mermaid -type f | wc -l)"
+          if [ "$entrees" -lt "$attendu" ]; then
+            echo "::error::le préchauffage a laissé $entrees entrée(s) dans .cache/mermaid pour $attendu attendue(s) au minimum. Le job « gates » rappellerait donc « mmdc » sans Chromium, et son message accuserait Playwright. Corriger le script « content:mermaid:prechauffer » (package.json) — surtout PAS en installant un navigateur dans « gates »."
+            exit 1
+          fi
+          echo "cache Mermaid préchauffé : $entrees entrée(s) (minimum exigé : $attendu)."
 
       # Même étape que dans ci.yml, et AVANT G-lint (L-007 : un gate câblé dans un seul workflow
       # n'est pas câblé). `src/styles.scss` fait `@use` sur une feuille GITIGNORÉE que seul ce
@@ -125,9 +173,9 @@ jobs:
       #     `content/` est vide, aucun diagramme de production n'existe, `.cache/mermaid/` est vide,
       #     et cette racine glisserait de la racine du dépôt à `src/` — les fichiers seraient alors
       #     restaurés au MAUVAIS endroit, sans erreur.
-      # Le tar fige les chemins et échoue en nommant ce qui manque. Le `mkdir -p` garantit que
-      # l'entrée existe même sans diagramme de production : elle est vide aujourd'hui, elle se
-      # remplira à la première leçon d'E3-ST1.
+      # Le tar fige les chemins et échoue en nommant ce qui manque. ⚠️ Le `mkdir -p` le fait
+      # réussir même sur un cache VIDE — il ne prouve donc rien à lui seul, et c'est pour ça que
+      # le minimum d'entrées est exigé à l'étape PRÉCÉDENTE, avant l'empaquetage.
       - name: Empaqueter les sorties compilées
         run: |
           set -euo pipefail
@@ -187,33 +235,129 @@ jobs:
       #
       # ⚠️ CE CACHE EST CE QUI TIENT LA PROMESSE, et il faut savoir pourquoi. Les crochets `pretest`
       # et le script `build` rappellent `content:build` DANS ce job — c'est voulu, on ne le
-      # court-circuite pas. Grâce au cache transféré, il relit les SVG au lieu de les redessiner et
-      # n'invoque JAMAIS `mmdc`. Si une entrée manquait, il tenterait de le faire et échouerait
-      # faute de Chromium, en nommant la commande d'installation. C'est un tripwire STRUCTUREL, pas une
-      # promesse écrite : il prouve à chaque run que la machine qui bâtit `dist/` est vierge de
-      # binaire CDN. Ne pas « corriger » un tel échec en réinstallant le navigateur ici — ce serait
-      # rouvrir la fenêtre que la coupe n°2 ferme ; il se corrige dans `contenu`.
+      # court-circuite pas. Ce que ce job compile réellement, ce sont les FIXTURES, par les specs du
+      # pipeline : avec un `content/` vide, la racine de production ne porte aucun diagramme.
+      # Chaque socle demandé est alors trouvé sur le disque, repassé par l'analyseur à liste
+      # blanche, et `invoquerMmdc` n'est jamais atteint.
+      #
+      # 🔴 ET C'EST BIEN `mmdc` QUI N'EST PAS INVOQUÉ, PAS SEULEMENT « le rendu qui n'a pas lieu ».
+      # La nuance est neuve, et ce texte était FAUX SUR L'EFFET avant le 2026-08-19 : à l'époque,
+      # `creerRendeurMermaid()` localisait `mmdc` ET Chromium dès sa CONSTRUCTION — un cache
+      # parfaitement complet faisait donc échouer ce job quand même, sur « Chromium introuvable »,
+      # alors qu'il n'y avait rien à rendre. La localisation est maintenant PARESSEUSE, déplacée
+      # dans `invoquerMmdc` (`rendre-mermaid.mjs`, `localiserOutils`), et c'est ce déplacement qui
+      # rend la phrase ci-dessus vraie. Mesuré, cache 2/2 vs 1/2 et `PLAYWRIGHT_BROWSERS_PATH` vide :
+      # code 0 puis code 1.
+      #
+      # Si une entrée manquait, le rendu serait tenté et l'échec serait bruyant et nommé. C'est un
+      # tripwire STRUCTUREL, pas une promesse écrite : il prouve à chaque run que la machine qui
+      # bâtit `dist/` est vierge de binaire CDN. ⚠️ Ne pas « corriger » un tel échec en réinstallant
+      # le navigateur ici — ce serait rouvrir la fenêtre que la coupe n°2 ferme ; il se corrige dans
+      # `contenu`. ⚠️ Et attention au conseil que porte le message de `rendre-mermaid.mjs` : il
+      # nomme le script COMBINÉ (`e2e:install`), qui enchaîne un `apt-get` en root INTERDIT dans
+      # les workflows — un test du dépôt refuse son retour. En CI, la commande à rétablir est
+      # `npm run e2e:install:navigateur`, et elle va dans `contenu`.
       - name: Récupérer les sorties compilées de `contenu`
         uses: actions/download-artifact@v7
         with:
           name: contenu-compile
           path: ${{ runner.temp }}
 
-      # `set -euo pipefail` puis deux contrôles nommés : le tar échouerait déjà si l'archive était
-      # incomplète, mais un `@use` sur une feuille absente donne une erreur Sass qui ne nomme PAS
-      # sa cause (piège documenté dans CLAUDE.md). On nomme donc les deux sorties ici, où l'échec
-      # est lisible, plutôt que trois gates plus loin.
+      # 🔴 UNE ARCHIVE TRANSFÉRÉE ENTRE JOBS EST UNE ENTRÉE — on l'ANALYSE, puis on la confronte à
+      # une LISTE BLANCHE NOMINATIVE (`.claude/rules/security.md` §4, patron S-001/S-003/S-009/S-014).
+      # Ce que faisait la version précédente, et pourquoi c'était l'ironie de ce lot : `tar -xzf`
+      # SANS liste de membres, à la racine du dépôt, suivi d'un contrôle qui ne regardait que
+      # l'EXISTENCE de deux chemins. Une archive portant les trois chemins attendus PLUS
+      # `tools/deploiement/generer-config-swa.mjs` passait donc VERTE en affichant « Sorties du
+      # pipeline restaurées » — et le générateur de la CSP venait d'être remplacé. Rejoué en labo
+      # avant correctif : étape verte, code 0, fichier écrasé. Le rayon n'était pas `..` (GNU tar
+      # 1.35 le neutralise) mais le WORKSPACE ENTIER : outils, `angular.json`, `node_modules/.bin`,
+      # specs. Autrement dit, le job qui exécute le binaire CDN — celui dont ce lot existe pour
+      # RETIRER la confiance — pouvait réécrire le garde-fou de CSP durci au lot A.
+      #
+      # TROIS BARRIÈRES, et chacune tient même si la précédente était contournée :
+      #   0. 🔴 LES SEGMENTS DE CHEMIN SONT ANALYSÉS AVANT TOUT LE RESTE. Motif de la barrière : la
+      #      liste blanche du point 1 est un MOTIF appliqué à un chemin SÉRIALISÉ, et un motif ne
+      #      sait pas ce qu'est un segment. Mesuré : `src/content-generated/../../tools/deploiement/
+      #      generer-config-swa.mjs` passe la liste blanche (`(/.*)?` l'apparie) ET le contrôle de
+      #      type — sortie observée « LISTE BLANCHE : AUCUN INTRUS », « TYPES OK ». Seul GNU tar
+      #      1.35 l'arrêtait ensuite, en refusant le membre lui-même : fail-closed, donc sans
+      #      danger réel, mais la première barrière était HORS-JEU sur toute cette classe. On
+      #      découpe donc le chemin sur `/` et on refuse tout segment valant `..` ou `.` —
+      #      apparier un motif sur un chemin sérialisé n'est pas analyser une structure de chemin
+      #      (famille S-003/S-014, la même que celle que ce lot paie partout ailleurs).
+      #   1. la liste des membres est confrontée à la liste blanche AVANT toute écriture. Tout
+      #      membre hors liste fait échouer l'étape EN SE NOMMANT — jamais un retrait silencieux,
+      #      qui masquerait la régression qui l'a fait apparaître. Le contrôle porte aussi sur le
+      #      TYPE : seuls fichier ordinaire (`-`) et répertoire (`d`) sont admis, parce qu'un lien
+      #      symbolique dont le NOM est dans la liste blanche (`src/content-generated/passerelle`
+      #      → `../../tools/deploiement/generer-config-swa.mjs`) passerait le contrôle de chemin.
+      #      Mesuré : archive forgée à la main, refusée sur son type.
+      #   2. l'extraction NOMME les membres — ce qui n'est pas dans ces trois-là n'est pas écrit,
+      #      même si l'analyse avait laissé passer quelque chose. `--no-same-owner` retire à
+      #      l'archive le droit de choisir le propriétaire des fichiers restaurés.
+      #
+      # Les contrôles d'existence qui suivent restent, et pour leur raison d'origine : le tar
+      # échouerait déjà si l'archive était incomplète, mais un `@use` sur une feuille absente donne
+      # une erreur Sass qui ne nomme PAS sa cause (piège documenté dans CLAUDE.md). On nomme donc
+      # les sorties ici, où l'échec est lisible, plutôt que trois gates plus loin.
+      # ⚠️ LE CACHE MERMAID EN FAIT PARTIE, et il ne l'a pas toujours fait : le contrôle ne
+      # regardait que les DEUX autres sorties, alors que le cache est précisément celle dont
+      # l'absence rouvre la coupe n°2. Un dossier vide passerait un simple test d'existence — on
+      # exige donc ici le MÊME minimum qu'à l'émission, symétriquement. Les deux nombres sont
+      # tenus ensemble par `src/workflows-github.spec.ts`, qui les dérive des fixtures.
       - name: Déballer les sorties compilées
         run: |
           set -euo pipefail
-          tar -xzf "$RUNNER_TEMP/contenu-compile.tgz"
-          for attendu in src/content-generated src/styles/_coloration-syntaxique-generee.scss; do
-            if [ ! -e "$attendu" ]; then
-              echo "::error::« $attendu » manque après déballage — le job « contenu » ne l'a pas produit."
+          archive="$RUNNER_TEMP/contenu-compile.tgz"
+          membres="$RUNNER_TEMP/membres-contenu-compile.txt"
+          detail="$RUNNER_TEMP/membres-contenu-compile-detail.txt"
+          tar -tzf "$archive" > "$membres"
+          tar -tvzf "$archive" > "$detail"
+
+          traversee="$(awk -F/ '{ for (i = 1; i <= NF; i++) if ($i == ".." || $i == ".") { print; next } }' "$membres" || true)"
+          if [ -n "$traversee" ]; then
+            echo "::error::l'archive « contenu-compile » porte des membres dont un segment de chemin vaut « .. » ou « . » — déballage refusé, rien n'a été écrit."
+            printf '%s\n' "$traversee" | while IFS= read -r membre; do
+              echo "::error::membre refusé (segment de traversée) : $membre"
+            done
+            exit 1
+          fi
+
+          intrus="$(grep -Ev '^(src/content-generated(/.*)?|\.cache/mermaid(/.*)?|src/styles/_coloration-syntaxique-generee\.scss)$' "$membres" || true)"
+          if [ -n "$intrus" ]; then
+            echo "::error::l'archive « contenu-compile » porte des membres HORS de la liste blanche — déballage refusé, rien n'a été écrit."
+            printf '%s\n' "$intrus" | while IFS= read -r membre; do
+              echo "::error::membre refusé : $membre"
+            done
+            exit 1
+          fi
+
+          types="$(cut -c1 "$detail" | grep -Ev '^[-d]$' | sort -u | tr '\n' ' ' | sed 's/[[:space:]]*$//' || true)"
+          if [ -n "$types" ]; then
+            echo "::error::l'archive porte des membres qui ne sont ni fichier ordinaire ni répertoire (type(s) : $types) — déballage refusé, rien n'a été écrit."
+            exit 1
+          fi
+
+          tar -xzf "$archive" --no-same-owner -- \
+            src/content-generated \
+            src/styles/_coloration-syntaxique-generee.scss \
+            .cache/mermaid
+
+          for chemin in src/content-generated src/styles/_coloration-syntaxique-generee.scss .cache/mermaid; do
+            if [ ! -e "$chemin" ]; then
+              echo "::error::« $chemin » manque après déballage — le job « contenu » ne l'a pas produit."
               exit 1
             fi
           done
-          echo "Sorties du pipeline restaurées ; cache Mermaid : $(find .cache/mermaid -type f | wc -l) entrée(s)."
+
+          attendu=4
+          entrees="$(find .cache/mermaid -type f | wc -l)"
+          if [ "$entrees" -lt "$attendu" ]; then
+            echo "::error::le cache Mermaid restauré ne porte que $entrees entrée(s) pour $attendu attendue(s) au minimum : « content:build » va rappeler « mmdc » dans ce job, qui n'a AUCUN Chromium. Le défaut est dans le job « contenu » (préchauffage ou empaquetage) — ne pas installer de navigateur ici, ce serait rouvrir la fenêtre que la coupe n°2 ferme."
+            exit 1
+          fi
+          echo "Sorties du pipeline restaurées ($(wc -l < "$membres") membre(s), tous dans la liste blanche) ; cache Mermaid : $entrees entrée(s) (minimum exigé : $attendu)."
 
       - name: G-lint
         run: npm run lint
