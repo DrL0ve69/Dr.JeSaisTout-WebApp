@@ -130,6 +130,61 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
   });
 });
 
+describe('Jetons de provenance pédagogique — 📘 cours / 🧩 complément', () => {
+  const css = compile(FEUILLE_GLOBALE, { loadPaths: [RACINE_STYLES] }).css;
+
+  /** Toutes les valeurs émises pour une custom property, tous thèmes confondus. */
+  const valeursDe = (jeton: string): string[] =>
+    [...css.matchAll(new RegExp(`${jeton}:\\s*([^;]+);`, 'g'))].map((m) => (m[1] ?? '').trim());
+
+  it('porte les quatre jetons DANS LES DEUX THÈMES, sur les primitives attendues', () => {
+    // Le gate `tools/design/verifier-contrastes.mjs` refuse déjà un jeton défini
+    // dans un seul thème ; ce test épingle en plus la PRIMITIVE choisie, sur le
+    // CSS réellement émis. Un remappage (E6) est légitime — il doit alors être
+    // délibéré, donc passer par ici, pas se glisser dans un diff de peau.
+    const attendu: Record<string, [string, string]> = {
+      // jeton: [valeur en thème clair, valeur en thème sombre]
+      '--couleur-provenance-cours': ['#10508f', '#94bdf0'],
+      '--couleur-provenance-cours-surface': ['#eee8da', '#1f2531'],
+      '--couleur-provenance-complement': ['#4e586e', '#a3abbb'],
+      '--couleur-provenance-complement-surface': ['#fffdf7', '#262e3c'],
+    };
+    for (const [jeton, [clair, sombre]] of Object.entries(attendu)) {
+      const valeurs = new Set(valeursDe(jeton));
+      expect(valeurs, jeton).toContain(clair);
+      expect(valeurs, jeton).toContain(sombre);
+      expect(valeurs.size, `${jeton} — exactement deux calibrages, un par thème`).toBe(2);
+    }
+  });
+
+  it('ne dilue NI le rouge « vulnérable » NI le vert « corrigé »', () => {
+    // La seule signature chromatique pédagogique du site : rouge = vulnérable,
+    // vert = corrigé. Une teinte de provenance qui reprendrait l'une des deux la
+    // viderait de son sens. Les valeurs de référence sont relues du CSS émis, pas
+    // recopiées : changer une primitive de signature ne peut pas contourner le test.
+    const signature = new Set([
+      ...valeursDe('--couleur-danger-vuln'),
+      ...valeursDe('--couleur-danger-vuln-surface'),
+      ...valeursDe('--couleur-ok-corrige'),
+      ...valeursDe('--couleur-ok-corrige-surface'),
+    ]);
+    expect(signature.size).toBeGreaterThan(0);
+    const provenance = [...css.matchAll(/--couleur-provenance-[\w-]+:\s*([^;]+);/g)].map((m) =>
+      (m[1] ?? '').trim(),
+    );
+    expect(provenance.length).toBeGreaterThan(0);
+    for (const valeur of provenance) expect(signature).not.toContain(valeur);
+  });
+
+  it('n’ouvre AUCUNE troisième teinte pour « correction-du-cours »', () => {
+    // La variante ⚠️ réemploie `--couleur-attention{,-surface}`, déjà mesuré.
+    // Un jeton dédié serait une teinte de plus dans un vocabulaire qui en compte
+    // déjà assez — et une paire de contraste de plus à porter jusqu'à E6.
+    expect(css).not.toMatch(/--couleur-provenance-correction/);
+    expect(css).toMatch(/--couleur-attention:/);
+  });
+});
+
 describe('Numérotation des lignes de code — feuille globale (E2-ST4, lot B2)', () => {
   const css = compile(FEUILLE_GLOBALE, { loadPaths: [RACINE_STYLES] }).css;
 

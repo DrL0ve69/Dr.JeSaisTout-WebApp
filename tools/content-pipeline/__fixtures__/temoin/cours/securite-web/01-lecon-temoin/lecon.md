@@ -99,6 +99,38 @@ npm run content:build
 ```
 :::
 
+Les encadrés qui suivent exercent la **provenance** (E3-ST1). Ils sont ici pour que
+l'artéfact de la fixture en porte un exemplaire de chaque : un rendu absent de ce fichier
+n'est vu ni par le gate d'accessibilité, ni par la suite e2e. Aucun pictogramme n'est écrit
+ci-dessous — la règle G1 les refuse dans une source, et c'est le rendu qui les pose.
+
+Et **la variante `cours` y paraît DEUX fois, délibérément**. Une fixture « un exemplaire de
+chaque » ne peut, par construction, jamais exercer une règle d'**unicité** : c'est ce trou
+qui a laissé passer un `aria-label` promouvant chaque encadré en repère `complementary`, donc
+deux repères homonymes dès qu'une leçon porte deux encadrés de même variante — le cas normal.
+Le doublon ci-dessous est le **contrôle positif** de `landmark-unique` : il a été vu rougir
+avec l'attribut, puis vert sans lui (2026-08-20). Ne pas le retirer.
+
+::: cours
+Le cours enseigne que le contenu d'une leçon est validé, puis compilé, avant toute
+construction de l'application. C'est cette moitié-ci qui est exigible à l'examen.
+:::
+
+::: cours
+Le cours enseigne aussi que le manifeste de routes est dérivé du contenu, jamais écrit à la
+main. Ce second encadré de la même variante est le doublon annoncé juste au-dessus.
+:::
+
+::: complement
+La base de connaissances ajoute que la compilation précède aussi `ng test`, par un crochet
+`pretest`. Utile en pratique, mais absent du cours — donc pas exigible.
+:::
+
+::: correction-du-cours {source="OWASP Top 10 2021 — A03 Injection"}
+Le cours présente le filtrage par liste noire comme une parade suffisante à l'injection.
+À l'examen, donne la réponse du cours ; en production, applique le requêtage paramétré.
+:::
+
 ## Exemple simple
 
 Le mécanisme isolé, sans rien autour : une requête paramétrée, en SQL.

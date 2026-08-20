@@ -191,13 +191,63 @@ function clefDeRang(rangBloc: number, rangExemple: number): string {
   return `${String(rangBloc)}:${String(rangExemple)}`;
 }
 
-/** Étiquette visible d'un encadré. WCAG 1.4.1 : le genre de l'encadré ne peut pas
- * reposer sur sa seule couleur ni sur son seul style de trait — il est ÉCRIT. */
-const ETIQUETTES_ENCADRE: Record<'attention' | 'note' | 'a-retenir', string> = {
+/**
+ * Étiquette visible d'un encadré. WCAG 1.4.1 : le genre de l'encadré ne peut pas
+ * reposer sur sa seule couleur ni sur son seul style de trait — il est ÉCRIT.
+ *
+ * 🔴 LE TYPE EST `Record<VarianteEncadre, string>`, ET C'EST LE CONTRÔLE DE COMPLÉTUDE DU LOT.
+ * `TYPES_RENDUS` ne garde que le `type` d'un bloc : l'union `VarianteEncadre` pouvait donc
+ * s'élargir (E3-ST1 : `cours`, `complement`, `correction-du-cours`) sans que rien ne rougisse ici,
+ * et un encadré de provenance serait sorti sous une étiquette `undefined` dans une leçon publiée.
+ * Ce `Record` ferme ce trou à la COMPILATION — retirer une entrée, ou en ajouter une au contrat
+ * sans la nommer ici, casse `ng build`.
+ *
+ * ⚠️ LES TROIS ÉTIQUETTES DE PROVENANCE DISENT LE STATUT À L'EXAMEN, PAS SEULEMENT LE TON.
+ * C'est l'exigence de `.claude/rules/contenu-pedagogique.md` §6 : « Complément » tout court
+ * laisserait l'apprenant deviner si c'est exigible. La phrase le dit, et elle le dit au lecteur
+ * d'écran comme à l'imprimante, parce qu'elle est du TEXTE.
+ */
+const ETIQUETTES_ENCADRE: Record<VarianteEncadre, string> = {
   attention: 'Attention',
   note: 'Note',
   'a-retenir': 'À retenir',
+  cours: 'Au programme du cours — matière d’examen',
+  complement: 'Complément — hors du cours, pas exigible à l’examen',
+  'correction-du-cours': 'Correction — le cours est inexact sur ce point',
 };
+
+/**
+ * Le pictogramme d'un encadré — DÉCORATIF, et rien d'autre.
+ *
+ * 🔴 L'EMOJI NE PORTE JAMAIS LE SENS. Il est posé `aria-hidden` dans le gabarit, à côté de
+ * l'étiquette écrite : le nom d'un émoji varie d'une plateforme à l'autre, ne se traduit pas, et
+ * disparaît d'une impression en noir et blanc comme d'un affichage en police de repli. C'est un
+ * quatrième canal de confort, jamais le canal d'information.
+ *
+ * `null` POUR LES TROIS VARIANTES DE TON, ET C'EST DÉLIBÉRÉ. `attention` prendrait naturellement
+ * ⚠️ — or ⚠️ est réservé, dans la notation des fiches KB comme dans la règle §6, à « le cours se
+ * trompe sur ce point ». Le réemployer pour une mise en garde ordinaire diluerait le seul
+ * marqueur qui accuse un enseignant. Le type reste `Record<VarianteEncadre, …>` : l'exhaustivité
+ * est vérifiée à la compilation, l'absence de pictogramme est ÉCRITE plutôt que déduite d'un
+ * `undefined`.
+ *
+ * ⚠️ AUCUN DE CES CARACTÈRES N'EST ÉCRIT DANS LE MARKDOWN SOURCE — la règle G1 de `valider.mjs`
+ * les y refuse justement pour qu'ils n'aient qu'UN point de décision : celui-ci.
+ */
+const PICTOGRAMMES_ENCADRE: Record<VarianteEncadre, string | null> = {
+  attention: null,
+  note: null,
+  'a-retenir': null,
+  cours: '📘',
+  complement: '🧩',
+  'correction-du-cours': '⚠️',
+};
+
+/** Les variantes d'encadré admises au rendu — liste NOMINATIVE, dérivée des étiquettes. */
+const VARIANTES_ENCADRE_RENDUES: readonly string[] = Object.keys(ETIQUETTES_ENCADRE);
+
+/** La seule variante qui porte — et exige — une `source`. Même constante que côté pipeline. */
+const VARIANTE_SOURCEE = 'correction-du-cours';
 
 /**
  * Le bloc `mermaid`, préparé : son `svg` est devenu une valeur de confiance, UNE
@@ -509,8 +559,38 @@ interface TableDesRangs {
         }
 
         @case ('encadre') {
+          <!--
+            🔴 CET ASIDE NE PORTE NI NOM ACCESSIBLE NI RÔLE, ET C'EST LA CORRECTION D'UN
+            DÉFAUT MESURÉ (revue du lot E3-ST1, 2026-08-20). Un aside imbriqué dans une
+            section est « generic » tant qu'il n'a pas de nom accessible ; lui en donner
+            un le promeut en REPÈRE « complementary ». Or DEUX encadrés de la MÊME
+            variante dans une leçon est le cas NORMAL — c'est l'objet même de la
+            provenance —, et deux repères de même rôle portant le même nom violent
+            landmark-unique (mesuré à axe-core 4.13 : sans nom, 0 violation ; deux noms
+            identiques, 1 violation). Une barre AXE à zéro violation ne se négocie pas ;
+            un nom qui se duplique par construction n'a donc pas sa place ici.
+            ⚠️ NE PAS « RÉPARER » CECI PAR UN NOM DISTINCT PAR OCCURRENCE : cela
+            fabriquerait une dizaine de faux repères par leçon, ce que la navigation par
+            repères refuse tout autant. Et surtout, aucun nom n'est requis — le canal
+            d'information de WCAG 1.4.1 est l'ÉTIQUETTE VISIBLE ci-dessous, du texte,
+            premier enfant de l'encadré, donc lue à l'oreille comme à l'impression et en
+            police de repli, sans dépendre d'un attribut.
+            La contrepartie est assumée : l'encadré n'est pas atteignable par la liste
+            des repères. Il ne l'était pas davantage pour attention / note / a-retenir
+            avant ce lot, et la provenance ne justifie pas de changer leur sémantique.
+            Le tripwire est dans le spec (« NE PROMEUT AUCUN encadré en repère »), et le
+            contrôle positif est le doublon « cours » de la leçon-témoin de fixture.
+          -->
           <aside class="encadre" [attr.data-variante]="bloc.variante">
-            <p class="etiquette">{{ etiquetteEncadre(bloc.variante) }}</p>
+            <p class="etiquette">
+              <!-- DÉCOR SEUL. Le sens est dans le mot juste à côté : un émoji n'a
+                   pas de nom stable d'une plateforme à l'autre, ne se traduit pas,
+                   et s'efface d'une impression en noir et blanc. -->
+              @if (pictogrammeEncadre(bloc.variante); as pictogramme) {
+                <span class="pictogramme" aria-hidden="true">{{ pictogramme }}</span>
+              }
+              <span class="mot">{{ etiquetteEncadre(bloc.variante) }}</span>
+            </p>
             <!-- RÉCURSION : un encadré porte lui-même des blocs. L'enfant refait
                  sa propre validation, donc un type inconnu imbriqué lève aussi.
                  Le quiz DESCEND avec la récursion : une ancre écrite dans un
@@ -538,6 +618,16 @@ interface TableDesRangs {
               [simulation]="simulation()"
               [decalage]="decalageDeLEncadre(rangBloc)"
             />
+            <!-- LA SOURCE D'UNE CORRECTION EST PUBLIÉE, PAS SEULEMENT VALIDÉE.
+                 .claude/rules/contenu-pedagogique.md §6 : un ⚠️ qui accuse le
+                 cours sans citer sa source salit un enseignant. Le compilateur
+                 EXIGE l'attribut ; la garantie ne vaut que si le lecteur le VOIT,
+                 sinon la traçabilité s'arrête à l'artéfact. preparer() refuse
+                 une correction sans source, donc l'interpolation ci-dessous ne
+                 peut pas écrire « Source : undefined ». -->
+            @if (bloc.variante === 'correction-du-cours') {
+              <p class="source">Source&nbsp;: {{ bloc.source }}</p>
+            }
           </aside>
         }
 
@@ -649,9 +739,20 @@ export class RenduBlocs {
     this.blocs().map((bloc, rang) => this.preparer(bloc, rang)),
   );
 
-  /** L'étiquette écrite d'un encadré — troisième canal de WCAG 1.4.1. */
-  etiquetteEncadre(variante: 'attention' | 'note' | 'a-retenir'): string {
+  /**
+   * L'étiquette écrite d'un encadré — le canal d'information de WCAG 1.4.1, et le nom du repère.
+   *
+   * `preparer()` a déjà refusé toute variante hors de la liste blanche : la lecture ci-dessous ne
+   * peut donc pas rendre `undefined`. C'est cet ordre-là qui compte — valider d'abord, lire
+   * ensuite —, parce qu'une étiquette vide ne ferait rougir aucun gate.
+   */
+  etiquetteEncadre(variante: VarianteEncadre): string {
     return ETIQUETTES_ENCADRE[variante];
+  }
+
+  /** Le pictogramme décoratif d'un encadré, ou `null` pour les trois variantes de ton. */
+  pictogrammeEncadre(variante: VarianteEncadre): string | null {
+    return PICTOGRAMMES_ENCADRE[variante];
   }
 
   /**
@@ -804,13 +905,16 @@ export class RenduBlocs {
     // `verifierPortees` le fait pour une comparaison. Sans ces deux moitiés, un artéfact compilé
     // par une autre version du pipeline se manifesterait par un `TypeError` anonyme, ici ou dans
     // l'input `[blocs]` de l'enfant.
-    if (bloc.type === 'encadre' && !Array.isArray(bloc.blocs)) {
-      throw new Error(
-        `RenduBlocs : encadré sans liste de blocs (bloc n°${rang + 1}, variante ` +
-          `« ${bloc.variante} »). Le contrat est \`tools/content-pipeline/types.d.ts\` : ` +
-          '`blocs` est requis, un tableau vide compris. Un encadré vide de contrat vient ' +
-          "d'un artéfact compilé par une autre version du pipeline — reconstruire `content:build`.",
-      );
+    if (bloc.type === 'encadre') {
+      if (!Array.isArray(bloc.blocs)) {
+        throw new Error(
+          `RenduBlocs : encadré sans liste de blocs (bloc n°${rang + 1}, variante ` +
+            `« ${bloc.variante} »). Le contrat est \`tools/content-pipeline/types.d.ts\` : ` +
+            '`blocs` est requis, un tableau vide compris. Un encadré vide de contrat vient ' +
+            "d'un artéfact compilé par une autre version du pipeline — reconstruire `content:build`.",
+        );
+      }
+      this.verifierVariante(bloc, rang);
     }
 
     if (bloc.type !== 'mermaid') return bloc;
@@ -833,6 +937,55 @@ export class RenduBlocs {
       titreAccessible: bloc.titreAccessible,
       descriptionLongue: bloc.descriptionLongue,
     };
+  }
+
+  /**
+   * Refuse une VARIANTE d'encadré hors liste blanche, et une correction sans source.
+   *
+   * 🔴 POURQUOI CE CONTRÔLE EXISTE, alors que `TYPES_RENDUS` en garde déjà un. Le contrôle de
+   * `type` ne dit rien de la VARIANTE : l'union `VarianteEncadre` s'est élargie de trois membres
+   * en E3-ST1 sans qu'aucun garde-fou d'exécution ne s'en aperçoive. Un artéfact compilé par une
+   * autre version du pipeline — le seul cas réaliste, comme pour les portées et les diagrammes —
+   * aurait donc rendu un `<aside>` NU : sans étiquette, sans nom accessible, sans pictogramme, et
+   * sans que rien ne rougisse. C'est exactement le retrait silencieux que
+   * `.claude/rules/security.md` §4 interdit : la liste blanche est NOMINATIVE (les clefs de
+   * `ETIQUETTES_ENCADRE`, lues au singulier — pas une seconde liste qui divergerait), et
+   * l'inconnu ÉCHOUE EN SE NOMMANT.
+   *
+   * ⚠️ LE PARAMÈTRE EST TYPÉ, ET LA GARDE RESTE NÉCESSAIRE. Au moment où ce cas se produit, le
+   * TYPE ment par construction — c'est la même raison que les `Array.isArray` de
+   * `verifierPortees`. Un `switch` exhaustif « rassurant » aurait le défaut inverse : il compile,
+   * et il rend l'encadré quand même.
+   *
+   * LA SOURCE D'UNE CORRECTION EST VÉRIFIÉE ICI AUSSI, et pour une raison de contenu, pas de
+   * forme : `Source : undefined` publié sous un ⚠️ accuse un enseignant sans citer personne
+   * (`.claude/rules/contenu-pedagogique.md` §6, « un ⚠️ qui accuse le cours à tort est un défaut
+   * grave »). Le compilateur l'exige déjà ; ce contrôle-ci couvre l'artéfact périmé.
+   */
+  private verifierVariante(
+    bloc: Extract<BlocContenu, { type: 'encadre' }>,
+    rang: number,
+  ): void {
+    const variante: string = bloc.variante;
+    if (!VARIANTES_ENCADRE_RENDUES.includes(variante)) {
+      throw new Error(
+        `RenduBlocs : variante d'encadré inconnue « ${variante} » (bloc n°${rang + 1}). ` +
+          `Variantes rendues : ${VARIANTES_ENCADRE_RENDUES.join(', ')}. Le contrat est ` +
+          '`tools/content-pipeline/types.d.ts` (`VarianteEncadre`) — un encadré rendu sans ' +
+          'étiquette ni nom accessible serait un trou silencieux dans une leçon publiée, on ' +
+          'préfère casser la construction.',
+      );
+    }
+
+    const source = bloc.source;
+    if (variante === VARIANTE_SOURCEE && (typeof source !== 'string' || source.trim() === '')) {
+      throw new Error(
+        `RenduBlocs : correction du cours sans source (bloc n°${rang + 1}). ` +
+          "L'attribut `{source=\"…\"}` est obligatoire et non vide sur `correction-du-cours` " +
+          '(`tools/content-pipeline/valider.mjs`, règle G3) : un ⚠️ qui accuse le cours doit ' +
+          'citer sa référence, sinon il salit un enseignant sans preuve.',
+      );
+    }
   }
 
   /**

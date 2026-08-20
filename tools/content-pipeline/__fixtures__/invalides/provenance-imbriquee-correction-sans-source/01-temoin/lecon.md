@@ -32,18 +32,20 @@ Cette section libre existe pour prouver un point du gabarit : entre la première
 « Exemple simple », l'auteur intercale autant de sections de théorie qu'il veut. Le validateur
 ancre seulement la première et la dernière. Durée annoncée : 5 minutes.
 
-::: note
-Un conteneur de la liste fermée passe. Un conteneur inventé fait échouer la construction.
-:::
+:::: note
+Le SEUL encadré de provenance de cette leçon est IMBRIQUÉ dans celui-ci. Un compteur qui ne
+descendrait pas le manquerait, et refuserait une leçon correcte (L-039).
 
 ::: cours
-AJOUTÉ AU LOT « PROVENANCE » (E3-ST1), et ce n’est pas décoratif : cette leçon est la seule
-fixture en `statut: publiee`, donc la seule que la règle G2 atteint. Sans cet encadré, elle
-porterait DEUX fautes — la sienne et une provenance absente — et le contrat « un dossier = une
-faute » du LISEZMOI serait rompu.
+Le cours enseigne que le contrat de contenu est vérifié au build.
 :::
 
-<!-- à-vérifier: le validateur refuse-t-il ce marqueur en statut publiee ? — doute posé exprès -->
+::::
+
+::: correction-du-cours {source=""}
+LA FAUTE EST À LA LIGNE D’OUVERTURE CI-DESSUS : `source` est présent mais VIDE — la forme
+passe, la citation manque.
+:::
 
 ## Exemple simple
 
@@ -56,14 +58,18 @@ Un bloc de code est EXEMPTÉ des règles typographiques et de la liste fermée d
 Le bloc qui suit contient les deux transgressions, et cette leçon reste pourtant valide —
 c'est le contrôle positif de l'exemption :
 
-```text
-Une espace fine insécable (U+202F) dans du code d'exemple : tolérée.
-::: conteneur-inventé  ← toléré aussi, parce que ce sont des données, pas du balisage.
+```bash
+# Une espace fine insécable (U+202F) dans du code d'exemple : tolérée.
+# ::: conteneur-inventé  ← toléré aussi, parce que ce sont des données, pas du balisage.
+echo 'la langue de la cloture appartient a la liste fermee du contrat'
 ```
 
 ## À toi de jouer
 
-Le quiz de cette leçon vit dans `quiz.json`, à côté de ce fichier.
+Le quiz de cette leçon vit dans `quiz.json`, à côté de ce fichier. Le marqueur ci-dessous dit au
+compilateur OÙ l'insérer dans la page (bloc `ancre-quiz` du contrat).
+
+[[quiz]]
 
 ## À retenir
 

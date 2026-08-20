@@ -14,7 +14,7 @@ fiches-sources:
   - web/securite/fondamentaux-securite-web.md
 cree: 2026-08-15
 maj: 2026-08-15
-statut: publiee
+statut: brouillon
 ---
 
 # Leçon témoin — validation du pipeline de contenu
@@ -36,14 +36,15 @@ ancre seulement la première et la dernière. Durée annoncée : 5 minutes.
 Un conteneur de la liste fermée passe. Un conteneur inventé fait échouer la construction.
 :::
 
-::: cours
-AJOUTÉ AU LOT « PROVENANCE » (E3-ST1), et ce n’est pas décoratif : cette leçon est la seule
-fixture en `statut: publiee`, donc la seule que la règle G2 atteint. Sans cet encadré, elle
-porterait DEUX fautes — la sienne et une provenance absente — et le contrat « un dossier = une
-faute » du LISEZMOI serait rompu.
+::: correction-du-cours
+LA FAUTE EST À LA LIGNE D’OUVERTURE CI-DESSUS : aucun attribut `source`. Une correction du
+cours contredit l’enseignant devant l’apprenant ; elle doit citer ce qui l’autorise.
 :::
 
-<!-- à-vérifier: le validateur refuse-t-il ce marqueur en statut publiee ? — doute posé exprès -->
+<!-- à-vérifier: ce commentaire est le CONTRÔLE POSITIF du retrait des marqueurs de doute
+     (E2-ST1 lot 2). Le statut de cette leçon est « brouillon », donc le validateur le tolère —
+     et c'est précisément le cas où le compilateur doit l'effacer avant rendu, sinon un doute du
+     professeur s'afficherait à un apprenant. Le retirer d'ici rend le test aveugle (L-019). -->
 
 ## Exemple simple
 
@@ -56,14 +57,18 @@ Un bloc de code est EXEMPTÉ des règles typographiques et de la liste fermée d
 Le bloc qui suit contient les deux transgressions, et cette leçon reste pourtant valide —
 c'est le contrôle positif de l'exemption :
 
-```text
-Une espace fine insécable (U+202F) dans du code d'exemple : tolérée.
-::: conteneur-inventé  ← toléré aussi, parce que ce sont des données, pas du balisage.
+```bash
+# Une espace fine insécable (U+202F) dans du code d'exemple : tolérée.
+# ::: conteneur-inventé  ← toléré aussi, parce que ce sont des données, pas du balisage.
+echo 'la langue de la cloture appartient a la liste fermee du contrat'
 ```
 
 ## À toi de jouer
 
-Le quiz de cette leçon vit dans `quiz.json`, à côté de ce fichier.
+Le quiz de cette leçon vit dans `quiz.json`, à côté de ce fichier. Le marqueur ci-dessous dit au
+compilateur OÙ l'insérer dans la page (bloc `ancre-quiz` du contrat).
+
+[[quiz]]
 
 ## À retenir
 

@@ -647,6 +647,216 @@ describe('RenduBlocs', () => {
         expect(rendu.querySelector('.etiquette')?.textContent?.trim()).toBe(libelle);
       }
     });
+
+    // ─── PROVENANCE (E3-ST1) ──────────────────────────────────────────────────
+    // 🔴 CE QUE CETTE SECTION EXISTE POUR TENIR. La provenance d'un passage — 📘 au
+    // programme, 🧩 hors cours, ⚠️ le cours se trompe — décide de ce qu'un étudiant
+    // révise. Si elle est portée par le seul émoji, elle disparaît pour le lecteur
+    // d'écran (dont l'annonce d'un émoji varie d'une plateforme à l'autre), pour
+    // l'impression en noir et blanc, et pour la police de repli. Le canal
+    // d'information est donc le MOT, et ces assertions le vérifient sur le nom
+    // ACCESSIBLE calculé, pas sur la présence du pictogramme.
+    // ⚠️ LES LIBELLÉS SONT ÉCRITS EN DUR, VARIANTE PAR VARIANTE (L-012). Un tableau
+    // paramétré depuis `ETIQUETTES_ENCADRE` passerait par compensation : échanger
+    // deux entrées de la table échangerait aussi les attentes.
+    describe('provenance — le mot porte le sens, l’émoji ne porte que le décor', () => {
+      it('nomme « au programme du cours » sur l’élément ET dans son étiquette', async () => {
+        const rendu = await rendre([{ type: 'encadre', variante: 'cours', blocs: [] }]);
+        const aside = rendu.querySelector('aside.encadre');
+
+        expect(aside?.getAttribute('data-variante')).toBe('cours');
+        expect(aside?.querySelector('.etiquette .mot')?.textContent?.trim()).toBe(
+          'Au programme du cours — matière d’examen',
+        );
+      });
+
+      it('nomme « complément » en disant qu’il n’est PAS exigible', async () => {
+        const rendu = await rendre([{ type: 'encadre', variante: 'complement', blocs: [] }]);
+        const aside = rendu.querySelector('aside.encadre');
+
+        expect(aside?.getAttribute('data-variante')).toBe('complement');
+        expect(aside?.querySelector('.etiquette .mot')?.textContent?.trim()).toBe(
+          'Complément — hors du cours, pas exigible à l’examen',
+        );
+      });
+
+      it('nomme « correction » et PUBLIE la source citée', async () => {
+        const rendu = await rendre([
+          {
+            type: 'encadre',
+            variante: 'correction-du-cours',
+            source: 'OWASP Top 10 2021 — A03 Injection',
+            blocs: [],
+          },
+        ]);
+        const aside = rendu.querySelector('aside.encadre');
+
+        expect(aside?.getAttribute('data-variante')).toBe('correction-du-cours');
+        expect(aside?.querySelector('.etiquette .mot')?.textContent?.trim()).toBe(
+          'Correction — le cours est inexact sur ce point',
+        );
+        // La référence est PUBLIÉE, pas seulement exigée par le compilateur : un ⚠️
+        // qui accuse le cours sans citer sa source salit un enseignant
+        // (`.claude/rules/contenu-pedagogique.md` §6).
+        expect(aside?.querySelector('.source')?.textContent).toContain(
+          'OWASP Top 10 2021 — A03 Injection',
+        );
+      });
+
+      it('🔴 NE PROMEUT AUCUN encadré en repère — deux « cours » ne sont pas homonymes', async () => {
+        // TRIPWIRE DE RÉGRESSION (revue du 2026-08-20). Un `<aside>` sous une
+        // `<section>` est `generic` SANS nom accessible et `complementary` — donc un
+        // REPÈRE — avec. Mesuré à axe-core 4.13 : deux `aria-label` identiques
+        // déclenchent `landmark-unique`. Or deux `::: cours` dans une leçon est le cas
+        // NORMAL, et la fixture témoin en porte désormais deux pour que le gate le
+        // voie. Reposer un nom ici, ou un `role="complementary"`, rougirait à `a11y:axe`
+        // longtemps après le commit fautif : ce test le dit tout de suite.
+        const variantes: BlocContenu[] = [
+          { type: 'encadre', variante: 'cours', blocs: [] },
+          { type: 'encadre', variante: 'complement', blocs: [] },
+          { type: 'encadre', variante: 'correction-du-cours', source: 'X', blocs: [] },
+          { type: 'encadre', variante: 'attention', blocs: [] },
+          { type: 'encadre', variante: 'note', blocs: [] },
+          { type: 'encadre', variante: 'a-retenir', blocs: [] },
+        ];
+
+        for (const bloc of variantes) {
+          TestBed.resetTestingModule();
+          const aside = (await rendre([bloc])).querySelector('aside.encadre');
+
+          expect(aside?.hasAttribute('aria-label')).toBe(false);
+          expect(aside?.hasAttribute('aria-labelledby')).toBe(false);
+          expect(aside?.hasAttribute('role')).toBe(false);
+        }
+      });
+
+      it('🔴 pose les pictogrammes `aria-hidden`, et AUCUN sur les variantes de ton', async () => {
+        // Les trois pictogrammes sont écrits ici, en dur, dans l'ordre des variantes :
+        // les échanger dans le composant fait rougir ce test.
+        const attendus: [BlocContenu, string | null][] = [
+          [{ type: 'encadre', variante: 'cours', blocs: [] }, '📘'],
+          [{ type: 'encadre', variante: 'complement', blocs: [] }, '🧩'],
+          [
+            { type: 'encadre', variante: 'correction-du-cours', source: 'X', blocs: [] },
+            '⚠️',
+          ],
+          // ⚠️ RÉSERVÉ. `attention` prendrait naturellement ⚠️ — le lui donner
+          // diluerait le seul marqueur qui dise « le cours se trompe ».
+          [{ type: 'encadre', variante: 'attention', blocs: [] }, null],
+          [{ type: 'encadre', variante: 'note', blocs: [] }, null],
+          [{ type: 'encadre', variante: 'a-retenir', blocs: [] }, null],
+        ];
+
+        for (const [bloc, pictogramme] of attendus) {
+          TestBed.resetTestingModule();
+          const rendu = await rendre([bloc]);
+          const picto = rendu.querySelector('.etiquette .pictogramme');
+
+          if (pictogramme === null) {
+            expect(picto).toBeNull();
+            continue;
+          }
+          expect(picto?.textContent?.trim()).toBe(pictogramme);
+          // LE POINT DE LA SECTION : le pictogramme est retiré de l'arbre
+          // d'accessibilité. Le retirer de ce `aria-hidden` ferait lire un nom
+          // d'émoji dépendant de la plateforme au milieu de la phrase.
+          expect(picto?.getAttribute('aria-hidden')).toBe('true');
+        }
+      });
+
+      it('🔴 REFUSE une variante hors liste au lieu de rendre un `<aside>` nu', async () => {
+        // Le contrôle de `type` (`TYPES_RENDUS`) ne dit RIEN de la variante : l'union
+        // `VarianteEncadre` s'est élargie de trois membres sans qu'aucun garde-fou
+        // d'exécution ne s'en aperçoive. Un artéfact compilé par une autre version du
+        // pipeline rendrait donc un encadré sans étiquette, sans nom, en silence —
+        // exactement le retrait silencieux que `.claude/rules/security.md` §4 refuse.
+        const inconnue = {
+          type: 'encadre',
+          variante: 'anecdote',
+          blocs: [],
+        } as unknown as BlocContenu;
+
+        await expect(rendre([FIXTURES.prose, inconnue])).rejects.toThrowError(/anecdote/);
+        await expect(rendre([FIXTURES.prose, inconnue])).rejects.toThrowError(/n°2/);
+      });
+
+      it('🔴 REFUSE une correction sans source — jamais « Source : undefined »', async () => {
+        const sansSource = {
+          type: 'encadre',
+          variante: 'correction-du-cours',
+          blocs: [],
+        } as unknown as BlocContenu;
+
+        await expect(rendre([sansSource])).rejects.toThrowError(/sans source/);
+
+        // Et une source vide de sens ne vaut pas mieux qu'une source absente.
+        const sourceBlanche = {
+          type: 'encadre',
+          variante: 'correction-du-cours',
+          source: '   ',
+          blocs: [],
+        } as unknown as BlocContenu;
+        await expect(rendre([sourceBlanche])).rejects.toThrowError(/sans source/);
+      });
+
+      it('🔴 distingue les six variantes SANS la couleur — six signatures de trait', () => {
+        // WCAG 1.4.1 en `forced-colors: active` : les couleurs se replient toutes sur
+        // `CanvasText`, donc seuls la FORME du cadre et le STYLE du trait subsistent
+        // côté CSS. Les trois styles de gauche étaient épuisés par les variantes de
+        // ton ; la provenance ouvre un second axe (cadre complet vs filet de gauche).
+        // Mesuré sur la feuille RÉELLEMENT COMPILÉE, pas sur une relecture.
+        const css = feuilleCompilee();
+        // ⚠️ SASS DÉPOUILLE LES GUILLEMETS de l'attribut (`[data-variante=cours]`), et une
+        // variante peut sortir en PLUSIEURS règles (un `@include` en ouvre une, la suite du
+        // bloc en rouvre une autre). On recolle donc TOUS les corps de la règle NUE — le
+        // `\\s*\\{` écarte les règles descendantes `> .etiquette`, qui ne portent pas de trait.
+        const signature = (variante: string): string =>
+          [
+            ...css.matchAll(
+              new RegExp(`\\.encadre\\[data-variante=['"]?${variante}['"]?\\]\\s*\\{([^}]*)\\}`, 'g'),
+            ),
+          ]
+            .map((regle) => regle[1])
+            .join(' ');
+
+        // Cadre COMPLET pour les deux variantes « du cours » : `border:` sans suffixe.
+        expect(signature('cours')).toMatch(/border:[^;]*solid/);
+        expect(signature('correction-du-cours')).toMatch(/border:[^;]*double/);
+        // Filet de GAUCHE seul pour les quatre autres — et quatre styles distincts.
+        expect(signature('complement')).toMatch(/border-inline-start-style:\s*dashed/);
+        expect(signature('attention')).toMatch(/border-inline-start:[^;]*dotted/);
+        expect(signature('note')).toMatch(/border-inline-start:[^;]*solid/);
+        expect(signature('a-retenir')).toMatch(/border-inline-start-style:\s*double/);
+        // Aucune des deux nouvelles n'ouvre un cadre sans le refermer en contraste
+        // forcé : la couleur y tombe, la forme doit rester.
+        // ⚠️ L'ASSERTION EST PAR VARIANTE, PAS GLOBALE (revue du 2026-08-20). Un
+        // `expect(css).toContain('forced-colors: active')` est déjà vrai par les mixins
+        // préexistants : il resterait VERT si les deux variantes neuves n'ouvraient
+        // aucun bloc de contraste forcé — c'est-à-dire s'il mesurait exactement le
+        // contraire de ce que son commentaire annonce. `signature()` recolle les corps
+        // émis SOUS le `@media`, donc `CanvasText` n'y apparaît que si la variante y
+        // reforce son trait elle-même.
+        expect(signature('cours')).toContain('CanvasText');
+        expect(signature('correction-du-cours')).toContain('CanvasText');
+      });
+
+      it('🔴 AFFICHE une source hostile sans en faire naître un seul nœud', async () => {
+        // S-011, appliqué au PREMIER champ d'auteur en texte libre que ce composant
+        // rende au DOM. `source` traverse le pipeline sans échappement HTML : ce qui
+        // tient l'invariant est qu'elle est INTERPOLÉE dans un nœud texte, jamais posée
+        // en valeur d'attribut ni en `[innerHTML]`. Rien d'autre ne le tient — d'où ce
+        // test, qui rougirait le jour où quelqu'un la déplace.
+        const charge = '"><img src=x onerror=alert(1)><script>alert(1)</script>';
+        const rendu = await rendre([
+          { type: 'encadre', variante: 'correction-du-cours', source: charge, blocs: [] },
+        ]);
+
+        // Elle est LUE, en entier — l'échappement ne doit rien tronquer.
+        expect(rendu.querySelector('.source')?.textContent).toContain(charge);
+        // Et elle n'est pas ANALYSÉE : zéro élément né de la charge utile.
+        expect(rendu.querySelectorAll('img, script').length).toBe(0);
+      });
+    });
   });
 
   describe('comparaison — rendu provisoire, mais complet et honnête', () => {

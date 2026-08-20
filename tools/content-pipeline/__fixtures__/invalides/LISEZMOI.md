@@ -8,10 +8,10 @@ pas le code.
 > ### 🔒 Qui exécute ce contrôle, et pourquoi ce n'est PAS une étape de CI
 >
 > Le gate est **`src/pipeline-contenu-validation.spec.ts`**, donc **G-test** — qui tourne déjà dans
-> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **16/16 refus** et vérifie
+> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **20/20 refus** et vérifie
 > que **chaque cas est refusé sur SA cause propre** : seize refus pour une seule et même raison (un
 > chemin introuvable, disons) seraient sinon indistinguables de seize refus corrects. Il porte en
-> plus un **garde-fou de complétude** — ajouter un dix-septième dossier ici sans écrire son assertion
+> plus un **garde-fou de complétude** — ajouter un vingt-et-unième dossier ici sans écrire son assertion
 > fait ROUGIR le spec.
 >
 > N'ajoutez donc **pas** d'étape `content:valider:fixtures` aux workflows : elle ferait tourner la
@@ -60,6 +60,10 @@ rapportée est bien celle-là.
 | `quiz-associer-gauche-indiscernable` | deux `gauche` que seule une U+00A0 sépare (q4) | unicité de `gauche` sur clef **normalisée** |
 | `quiz-ligne-fautive-hors-extrait` | `code` terminé par un saut de ligne + `ligneFautive: 4` (q3) | borne de `ligneFautive` sur `compterLignes` **partagé** |
 | `frontmatter-section-partielle-dans-le-sujet` | **deux** leçons, dont une seule porte `section` | tout-ou-rien de `section` par sujet, hors schéma (D-2) |
+| `corps-marqueur-provenance-litteral` | 🧩 littéral **en prose** (et un 📘 **légal en bloc de code**, placé plus haut) | G1 — marqueurs de provenance littéraux, analyse par tranches |
+| `provenance-absente-en-statut-publiee` | `statut: publiee`, aucun `::: cours`/`::: complement` | G2 — provenance tracée dès la publication |
+| `correction-du-cours-sans-source` | `::: correction-du-cours` sans attribut | G3 — `source` obligatoire |
+| `provenance-imbriquee-correction-sans-source` | `{source=""}` **vide** ; unique `::: cours` **imbriqué** dans un `:::: note` | G3 sur l’attribut vide **+** contrôle positif de la **récursion** de G2 |
 
 ⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** : `##` suivi
 de trois espaces, **ligne 39 du fichier** (que le validateur rapporte comme « corps ligne 21 » — il
@@ -94,4 +98,28 @@ qu'une faute. Elle porte en plus l'ancre `[[quiz]]` et un marqueur de doute tol�
 `brouillon`) — deux différences sans effet sur le validateur, qui ne connaît ni l'une ni l'autre.
 
 ⚠️ **Ce ne sont pas des leçons** : ces dossiers appartiennent au moteur, pas à `content/`. Ils ne
-sont jamais compilés ni publiés.
+sont jamais compilés ni publiés.
+
+⚠️ **`marqueur-a-verifier-en-statut-publiee` porte un `::: cours` qui n’a rien de décoratif.** C’est
+la seule fixture en `statut: publiee` parmi les cas d’origine, donc la seule que **G2** atteint. Sans
+cet encadré, elle porterait DEUX fautes — la sienne et une provenance absente — et le contrat
+« un dossier = une faute » de ce fichier serait rompu (le runner l’affiche en « (+1 autre(s)) »).
+
+⚠️ **La faute de `corps-marqueur-provenance-litteral` est celle du BAS.** Le fichier contient DEUX
+marqueurs : un 📘 dans un bloc de code, **légal et voulu**, placé exprès **plus haut** que le 🧩 de
+prose qui est la vraie faute. C’est un contrôle positif de l’**exemption** : un garde-fou écrit en
+`corps.includes("📘")` — la liste noire sur le fichier entier que `.claude/rules/security.md` §4
+interdit — rapporterait la ligne du bloc de code, et le spec, qui assertionne le **numéro de ligne**,
+rougirait. Ne pas déplacer l’un des deux.
+⚠️ **`corps-marqueur-correction-litteral` oppose LES DEUX FORMES DE SAISIE du ⚠️**, et c’est tout
+son intérêt. La faute (en prose) est la séquence **émoji** U+26A0 U+FE0F ; le contrôle positif
+d’exemption, dans le bloc de code plus haut, est la forme **nue** U+26A0. Un garde-fou qui
+chercherait la séquence complète laisserait passer la forme nue — il se contournerait par une
+simple variante de saisie. Ne convertir ni l’une ni l’autre.
+
+⚠️ **`correction-du-cours-attributs-hors-accolades` et `correction-du-cours-attribut-inconnu`
+ne sont PAS des doublons de `correction-du-cours-sans-source`.** Les deux écritures qu’ils portent
+— `source="…"` sans accolades, et `{data-source="…"}` — **satisfaisaient G3** jusqu’au 2026-08-20
+et faisaient échouer le **compilateur** à la place, sur une cause qui ne nomme pas la faute
+commise. Ils verrouillent le fait que le validateur lit désormais la **même grammaire** que
+`lireAttributs`, et non un motif cherché n’importe où dans la ligne.

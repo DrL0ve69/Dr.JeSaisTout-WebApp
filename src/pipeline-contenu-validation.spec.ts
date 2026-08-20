@@ -3,7 +3,7 @@
 // -----------------------------------------------------------------------------
 // POURQUOI CE TEST EXISTE — et pourquoi il est arrivé en retard.
 // `tools/content-pipeline/valider.mjs` porte un mode `--fixtures` qui est le
-// contrôle positif du garde-fou (L-019) : seize dossiers, une faute chacun, tous
+// contrôle positif du garde-fou (L-019) : un dossier par cas, une faute chacun, tous
 // attendus REFUSÉS. Ce mode était exact, exécutable à la main… et lancé par
 // PERSONNE — ni par un test, ni par un script npm, ni par un workflow. Or
 // `content/cours/securite-web` n'existe pas encore : l'étape de validation de
@@ -15,13 +15,13 @@
 // runner n'exécute est une intention, pas un gate. Ce fichier est le runner.
 //
 // LES TROIS CHOSES QU'IL PROUVE, et pourquoi aucune ne suffit seule :
-//   1. Les seize cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
+//   1. TOUS les cas invalides sont REFUSÉS. Seul, ce constat est compatible avec
 //      un validateur qui refuserait TOUT.
 //   2. La leçon-témoin VALIDE passe, code 0. C'est l'autre moitié de la pince :
 //      ensemble, les deux prouvent que le garde-fou discrimine.
 //   3. Chaque refus porte la BONNE cause, cas par cas. Sans ce troisième point,
-//      seize refus pour une seule et même raison (un chemin introuvable, disons)
-//      seraient indistinguables de seize refus corrects.
+//      des refus tous dus à une seule et même raison (un chemin introuvable, disons)
+//      seraient indistinguables d’autant de refus corrects.
 //
 // LES CAUSES ATTENDUES SONT ÉCRITES ICI, EN DUR — jamais importées de l'outil
 // qu'elles vérifient (L-012). Un test qui importe la constante dont il contrôle
@@ -35,9 +35,10 @@
 // =============================================================================
 
 import { execFileSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
+const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
 const DOSSIER_INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
 const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
 
@@ -49,7 +50,7 @@ const FIXTURE_VALIDE = 'tools/content-pipeline/__fixtures__/temoin-minimal';
  */
 const FIXTURE_SECTIONS_PARTOUT = 'tools/content-pipeline/__fixtures__/temoin/cours/securite-web';
 
-/** Ajv compile ses schémas et seize racines : lent une fois, pas seize fois. */
+/** Ajv compile ses schémas et une racine par cas : lent une fois, pas une fois par cas. */
 const DELAI = 60_000;
 
 /**
@@ -135,7 +136,128 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     cause:
       /la leçon « sans-section » n'a pas de « section » alors que « avec-section » .*en porte une/,
   },
+  // ---------------------------------------------------------------------------------------------
+  // Cas 17 à 20 (E3-ST1, lot « provenance ») — les trois règles hors schéma du contrat 📘/🧩/⚠️.
+  // ---------------------------------------------------------------------------------------------
+  // 17. G1 — marqueur de provenance LITTÉRAL dans le corps.
+  // ⚠️ L'ASSERTION PORTE SUR LE NUMÉRO DE LIGNE, et c'est tout son intérêt. Cette fixture contient
+  // DEUX marqueurs : un 📘 dans un bloc de code (LÉGAL — une leçon peut citer une fiche KB
+  // verbatim, ou enseigner la notation elle-même) placé exprès PLUS HAUT, et le 🧩 fautif en prose.
+  // Un garde-fou écrit en `corps.includes('📘')` — la liste noire sur le fichier entier que
+  // `.claude/rules/security.md` §4 interdit, et que ce dépôt a déjà écrite cinq fois — rapporterait
+  // la ligne du bloc de code, donc échouerait ici. Sans le numéro, les deux implémentations
+  // seraient indistinguables.
+  {
+    dossier: 'corps-marqueur-provenance-litteral',
+    cause: /corps ligne 49 : marqueur de provenance littéral .*U\+1F9E9/,
+  },
+  // 17bis. G1 sur le TROISIÈME marqueur — le ⚠️, ajouté le 2026-08-20 sur constat de revue.
+  // 🔴 C'EST LE PLUS IMPORTANT DES TROIS, et il manquait pendant que DEUX documents
+  // (`docs/contenu/pipeline-contenu.md`, `types.d.ts`) promettaient déjà qu'il était couvert : une
+  // promesse plus large que le code appliqué. Les deux autres marqueurs ne font que perdre une
+  // information de provenance ; celui-ci ACCUSE L'ENSEIGNANT — écrit en prose, il contredit le
+  // cours sans passer par `::: correction-du-cours`, donc sans le `source` que G3 impose, donc
+  // hors de toute relecture. C'est l'accusation non sourcée que
+  // `.claude/rules/contenu-pedagogique.md` §6 classe comme défaut GRAVE.
+  // ⚠️ LA FIXTURE OPPOSE LES DEUX FORMES DE SAISIE, et c'est tout son intérêt : la faute de la
+  // ligne 51 est la séquence ÉMOJI (U+26A0 U+FE0F), le contrôle positif d'exemption placé plus
+  // haut dans le bloc de code est la forme NUE (U+26A0 seule). Un garde-fou qui chercherait la
+  // séquence complète laisserait passer la forme nue — il se contournerait par une variante de
+  // saisie. Le numéro de ligne est ce qui distingue les deux implémentations : une recherche sur
+  // le fichier entier rapporterait la ligne du bloc de code.
+  {
+    dossier: 'corps-marqueur-correction-litteral',
+    cause: /corps ligne 51 : marqueur de provenance littéral .*U\+26A0/,
+  },
+  // 18. G2 — leçon `publiee` sans aucun encadré `cours`/`complement`. Sur un site qui sert d'abord
+  // à réviser des examens, une leçon dont rien ne dit ce qui vient du cours et ce qui vient de la
+  // KB fait perdre des points OU du temps (`.claude/rules/contenu-pedagogique.md` §6) — les deux
+  // échecs sont graves, et aucun schéma JSON ne sait les voir.
+  {
+    dossier: 'provenance-absente-en-statut-publiee',
+    cause: /corps : aucun encadré de provenance alors que `statut: publiee`/,
+  },
+  // 19. G3 — `correction-du-cours` sans attribut `source` du tout.
+  {
+    dossier: 'correction-du-cours-sans-source',
+    cause: /corps ligne 21 : « ::: correction-du-cours » sans attribut « source »/,
+  },
+  // 19bis et 19ter (2026-08-20, constat de revue) : LES DEUX FORMES QUE G3 LAISSAIT PASSER.
+  // L'ancien motif `/\bsource="([^"]*)"/` cherchait la paire N'IMPORTE OÙ dans la suite du nom de
+  // conteneur ; `lireAttributs` (compiler-markdown.mjs) impose, lui, `^\{(.*)\}$` puis une clef en
+  // liste fermée. Deux écritures satisfaisaient donc le validateur et faisaient échouer le
+  // COMPILATEUR : `source="…"` sans accolades, et `{data-source="…"}` (la frontière `\b` s'ouvre
+  // juste après un tiret). Les deux restaient fail-closed — le build cassait — mais sur une cause
+  // qui n'était pas la faute commise, et à un endroit qui n'est pas celui où l'auteur la corrige.
+  // Un garde-fou qui apparie plus large que le contrat qu'il annonce est la même famille que les
+  // listes noires de `.claude/rules/security.md` §4. Ces deux cas sont ce qui l'empêche de revenir.
+  {
+    dossier: 'correction-du-cours-attributs-hors-accolades',
+    cause: /corps ligne 21 : « ::: correction-du-cours » suivi de « source=.* » — les attributs/,
+  },
+  {
+    dossier: 'correction-du-cours-attribut-inconnu',
+    cause: /corps ligne 21 : attributs illisibles .* attribut « data-source » inconnu/,
+  },
+  // 20. G3 sur l'attribut VIDE — et surtout le CONTRÔLE POSITIF DE LA RÉCURSION DE G2.
+  // Cette leçon est `publiee` et son SEUL encadré de provenance est imbriqué dans un `:::: note` :
+  // G2 ne la laisse passer que parce qu'elle DESCEND. Sa faute propre est celle de G3, déclenchée
+  // AVANT G2 dans `verifierCorps` — donc si la descente était débranchée, G2 mordrait en SECONDE
+  // anomalie et la ligne imprimée gagnerait un « (+1 autre(s)) ». Le test dédié plus bas est ce
+  // qui le voit ; l'assertion ci-dessous, portant sur la sortie entière, ne le verrait pas seule.
+  // Motif de L-039 : un compteur qui ne descend pas reste vert sur tout corpus non imbriqué.
+  {
+    dossier: 'provenance-imbriquee-correction-sans-source',
+    cause: /corps ligne 27 : « ::: correction-du-cours » porte un attribut « source » vide/,
+  },
 ];
+
+/**
+ * Les SIX variantes d'encadré du contrat, ÉCRITES EN DUR et dans l'ordre du contrat.
+ *
+ * L-012 : ce littéral n'est dérivé d'aucune des deux listes qu'il vérifie. Un test qui lirait la
+ * constante dont il contrôle la valeur ne vérifierait que `x === x` — et les deux copies pourraient
+ * dériver ENSEMBLE, ce qui est précisément le mode d'échec qu'on ferme ici.
+ */
+const SIX_VARIANTES_ENCADRE = [
+  'attention',
+  'note',
+  'a-retenir',
+  'cours',
+  'complement',
+  'correction-du-cours',
+] as const;
+
+/** Les trois conteneurs de comparaison, qui ne sont PAS des encadrés (ils n'ont pas de variante). */
+const TROIS_CONTENEURS_DE_COMPARAISON = ['comparaison', 'vulnerable', 'corrige'] as const;
+
+/**
+ * Extrait les noms d'une déclaration de liste d'un fichier d'outillage.
+ *
+ * ANALYSE PAR LIGNES, PAS UNE RECHERCHE GLOBALE DE CHAÎNES CITÉES. Les deux déclarations portent
+ * des commentaires en français, donc des apostrophes droites : un `/'([a-z-]+)'/g` lâché sur le
+ * bloc entier lirait des morceaux de prose comme des noms de conteneurs. On découpe, on écarte les
+ * lignes de commentaire, puis on n'accepte qu'une ligne qui EST une entrée de liste.
+ *
+ * ⚠️ Une extraction qui échoue LÈVE. Sans ça, un renommage de constante rendrait deux tableaux
+ * vides — égaux entre eux, et le test passerait vert sur zéro information.
+ */
+function listeDeclaree(fichier: string, motif: RegExp): string[] {
+  const bloc = motif.exec(readFileSync(fichier, 'utf8'))?.[1];
+  if (bloc === undefined) {
+    throw new Error(`déclaration introuvable dans ${fichier} — c'est l'extraction qui a échoué`);
+  }
+  const noms = bloc
+    .split('\n')
+    .map((ligne) => ligne.trim())
+    .filter((ligne) => !ligne.startsWith('//'))
+    .map((ligne) => /^'([a-z0-9-]+)',$/.exec(ligne)?.[1])
+    .filter((nom): nom is string => nom !== undefined);
+  if (noms.length === 0) {
+    throw new Error(`aucune entrée lue dans ${fichier} — l'extraction ne prouverait rien`);
+  }
+  return noms;
+}
 
 /**
  * Lance le validateur et rend sa sortie complète. Le mode `--fixtures` sort en
@@ -167,18 +289,41 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les SEIZE cas, et aucun ne manque à l’appel',
+    'traite les VINGT-TROIS cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('16 cas attendus INVALIDES');
-      expect(sortie).toContain('16/16 cas refusés avec une cause nommée');
+      expect(sortie).toContain('23 cas attendus INVALIDES');
+      expect(sortie).toContain('23/23 cas refusés avec une cause nommée');
     },
     DELAI,
   );
 
-  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Quinze refus identiques
+  // 🔴 LE CONTRÔLE POSITIF DE « G2 COMPTE À TOUTE PROFONDEUR ».
+  // Les assertions de la boucle ci-dessous portent sur la sortie ENTIÈRE : elles resteraient vertes
+  // si une anomalie SUPPLÉMENTAIRE s'ajoutait à un cas. Or c'est exactement ce qui se produit si G2
+  // cesse de voir l'imbrication — la fixture, dont l'unique encadré `::: cours` est imbriqué dans
+  // un `:::: note`, se met à violer G2 en plus de sa faute propre, et le runner imprime
+  // « (+1 autre(s)) » derrière la cause. Ce test-ci exige donc la ligne EXACTE, terminée par sa fin
+  // de ligne : rien ne peut se glisser après « l'autorise ».
+  // ⚠️ CE TEST GARDE LE CONTRAT, PAS UNE IMPLÉMENTATION (précision du 2026-08-20). Il parlait
+  // naguère de « la descente récursive de `compterProvenance` » : cette descente parcourait un
+  // ARBRE de conteneurs dont AUCUNE sortie n'observait la forme — un compte plat des lignes
+  // d'ouverture rendait le même nombre sur tout document, imbriqué ou non. L'arbre est parti ;
+  // l'indépendance à la profondeur est désormais structurelle, et c'est cette fixture qui la
+  // constate du point de vue de l'auteur.
+  it(
+    'la fixture imbriquée n’est refusée QUE sur sa faute propre — la provenance imbriquée est comptée',
+    () => {
+      expect(sortie).toMatch(
+        /refusé : corps ligne 27 : « ::: correction-du-cours » porte un attribut « source » vide — une correction du cours cite la source qui l'autorise\r?\n/,
+      );
+    },
+    DELAI,
+  );
+
+  // Le cœur : chaque cas est refusé POUR SA PROPRE RAISON. Des refus tous identiques
   // passeraient l'assertion globale ci-dessus et échoueraient ici.
   for (const { dossier, cause } of CAS_ATTENDUS) {
     it(
@@ -191,7 +336,7 @@ describe('le contrôle positif du validateur de contenu', () => {
     );
   }
 
-  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un seizième cas de fixture sans
+  // GARDE-FOU DE COMPLÉTUDE. Sans lui, ajouter un cas de fixture de plus sans
   // écrire son assertion laisserait ce spec vert — et le nouveau cas ne serait
   // vérifié par personne, ce qui est exactement la faute que ce fichier répare.
   it('connaît TOUS les dossiers de fixtures — un cas ajouté sans assertion fait rougir', () => {
@@ -201,6 +346,50 @@ describe('le contrôle positif du validateur de contenu', () => {
       .sort();
     const connus = CAS_ATTENDUS.map((c) => c.dossier).sort();
     expect(surDisque).toEqual(connus);
+  });
+});
+
+// =============================================================================
+// LES DEUX LISTES DUPLIQUÉES DISENT-ELLES LA MÊME CHOSE ?
+// -----------------------------------------------------------------------------
+// La liste fermée des conteneurs `:::` existe en DEUX exemplaires — `VARIANTES_ENCADRE` dans
+// `compiler-markdown.mjs`, `CONTENEURS_AUTORISES` dans `valider.mjs` — et la duplication est
+// VOULUE : le validateur tourne AVANT le compilateur et ne doit pas en dépendre (importer la
+// constante chargerait Shiki et markdown-it au démarrage du validateur, et inverserait la
+// stratification du pipeline). Elle n'est donc PAS à mutualiser.
+//
+// Ce qui n'est pas acceptable, c'est que le seul lien entre les deux copies soit un COMMENTAIRE
+// (L-008) — même patron que la clef d'indiscernabilité, appariée par `--clefs`. Ce bloc est
+// l'appariement de celle-ci.
+//
+// LE MODE D'ÉCHEC N'EST VICIEUX QUE DANS UN SENS. Si le VALIDATEUR devient plus permissif que le
+// compilateur, une leçon sort G-content verte puis casse au prerender d'`ng build`, sur un message
+// qui ne nomme pas le fichier au milieu d'une pile Angular. Si c'est le COMPILATEUR qui l'est,
+// l'auteur reçoit un refus pour un conteneur que le rendu aurait su afficher.
+// =============================================================================
+describe('les deux copies de la liste fermée de conteneurs', () => {
+  it('le compilateur déclare EXACTEMENT les six variantes d’encadré du contrat', () => {
+    expect(listeDeclaree(COMPILATEUR, /const VARIANTES_ENCADRE = \[([\s\S]*?)\];/)).toEqual([
+      ...SIX_VARIANTES_ENCADRE,
+    ]);
+  });
+
+  it('le validateur déclare les trois conteneurs de comparaison PUIS les six mêmes variantes', () => {
+    expect(
+      listeDeclaree(VALIDATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/),
+    ).toEqual([...TROIS_CONTENEURS_DE_COMPARAISON, ...SIX_VARIANTES_ENCADRE]);
+  });
+
+  // Le troisième constat, celui qu'aucun des deux ci-dessus ne fait seul : les listes se
+  // RECOUPENT. Retirer un nom d'un seul des deux fichiers fait rougir l'assertion de ce
+  // fichier-là ; celle-ci rougit en plus en nommant l'écart, ce qui est le message utile.
+  it('aucune des deux copies ne connaît un encadré que l’autre ignore', () => {
+    const duCompilateur = listeDeclaree(COMPILATEUR, /const VARIANTES_ENCADRE = \[([\s\S]*?)\];/);
+    const duValidateur = listeDeclaree(
+      VALIDATEUR,
+      /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/,
+    ).filter((nom) => !TROIS_CONTENEURS_DE_COMPARAISON.includes(nom as never));
+    expect([...duValidateur].sort()).toEqual([...duCompilateur].sort());
   });
 });
 

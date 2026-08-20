@@ -79,8 +79,11 @@ const REGLES_DESACTIVEES = [
   [
     'color-contrast',
     'exige des couleurs RENDUES ; aucune feuille de style n’est chargée en jsdom. ' +
-      'Déjà couverte en amont par tools/design/verifier-contrastes.mjs (33 paires de ' +
-      'jetons, 66 mesures, les deux thèmes) — c’est la moitié amont de ce gate-ci.',
+      'Déjà couverte en amont par tools/design/verifier-contrastes.mjs, sur les deux thèmes — ' +
+      'c’est la moitié amont de ce gate-ci. Ce gate-là IMPRIME son propre compte de paires et ' +
+      'de mesures : c’est lui qui fait foi. Le rappel daté ici (40 paires / 80 mesures au ' +
+      '2026-08-20) avait dérivé — il annonçait 33/66 pendant que la table en portait 40 — et ' +
+      'un journal faux vaut moins qu’un journal muet (L-005).',
   ],
   [
     'target-size',
