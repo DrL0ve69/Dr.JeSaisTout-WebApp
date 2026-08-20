@@ -757,7 +757,7 @@ async function creerColorateur() {
 }
 
 /**
- * Assemble la feuille SCSS générée : les classes de Shiki, puis la bascule clair/sombre.
+ * Assemble la feuille SCSS générée : les classes de Shiki, puis le choix écran/impression.
  *
  * Les couleurs en dur qu'on lit ici sont la PALETTE d'un thème de coloration syntaxique, pas des
  * couleurs de composant : elles n'ont pas d'équivalent en jetons sémantiques (le design system
@@ -771,8 +771,8 @@ function assemblerFeuille(classes) {
   return `// FICHIER GÉNÉRÉ par tools/content-pipeline/compiler-markdown.mjs — NE PAS ÉDITER.
 // Coloration syntaxique Shiki (${THEME_CLAIR} / ${THEME_SOMBRE}), sortie en CLASSES et non en
 // styles en ligne : la CSP du site est à hachages et refuse tout attribut « style ».
-// Chaque classe ne porte que deux propriétés personnalisées ; la bascule ci-dessous décide
-// laquelle s'applique, avec les MÊMES sélecteurs que src/styles/_themes.scss.
+// Chaque classe ne porte que deux propriétés personnalisées : l'ÉCRAN prend la sombre sans
+// condition (le site n'a qu'un thème depuis E6), l'IMPRESSION prend la claire.
 
 ${classes}
 
@@ -786,38 +786,40 @@ ${classes}
 // \`tabindex\` est retiré à la compilation depuis le lot B (\`drjst-pre-sans-tabindex\`),
 // précisément parce qu'il n'a plus rien à faire défiler (WCAG 2.1.1 / 2.4.6).
 // Épinglé par \`src/pipeline-contenu-compilation.spec.ts\`.
+// 🔴 À L'ÉCRAN, LA COLORATION SOMBRE EST INCONDITIONNELLE — E6, « Moniteur ambre ».
+// Jusqu'ici la bascule avait trois branches : un DÉFAUT clair, puis deux surcharges sombres
+// conditionnées à \`prefers-color-scheme: dark\` ou à \`[data-theme='sombre']\`. Les deux
+// conditions sont mortes depuis E6 — le thème clair a quitté \`_themes.scss\` et plus personne
+// ne pose \`data-theme\` —, donc un visiteur dont le SYSTÈME est en clair tombait sur la branche
+// par défaut et recevait des blocs de code BLANCS dans une page noire. Une seule branche
+// subsiste : le site n'a qu'un thème.
+//
+// Et le FOND vient du design system, pas du thème de coloration : \`--shiki-dark-bg\` (#24292e,
+// le gris-bleu de github-dark) n'est pas la surface du site, et la MÊME page affichait deux
+// fonds de code — celui des blocs de leçon et celui du quiz/de la simulation, qui lisent le
+// jeton. Les ENCRES (\`--shiki-dark\`) restent celles du thème : c'est la coloration
+// syntaxique, elle a sa raison d'être.
 .shiki {
-  background-color: var(--shiki-light-bg);
+  background-color: var(--couleur-code-surface);
 }
 
 .shiki,
 .shiki span {
-  color: var(--shiki-light);
+  color: var(--shiki-dark);
 }
 
-@media screen and (prefers-color-scheme: dark) {
-  :root:not([data-theme]) .shiki {
-    background-color: var(--shiki-dark-bg);
+// À l'impression, src/styles.scss force les jetons du thème CLAIR pour TOUS les visiteurs :
+// encre sombre sur papier blanc. Un bloc de code resté sombre gaspillerait l'encre et sortirait
+// illisible — exactement la panne que la cascade d'impression a corrigée ailleurs (E1-ST1). La
+// branche claire n'est donc pas supprimée, elle est DÉPLACÉE là où elle vaut encore.
+@media print {
+  .shiki {
+    background-color: var(--shiki-light-bg);
   }
 
-  :root:not([data-theme]) .shiki,
-  :root:not([data-theme]) .shiki span {
-    color: var(--shiki-dark);
-  }
-}
-
-// « @media screen » et non une règle nue : à l'impression, src/styles.scss force les jetons du
-// thème CLAIR pour TOUS les visiteurs, épinglés ou non. Un bloc de code resté sombre gaspillerait
-// l'encre et sortirait illisible — exactement la panne que la cascade d'impression a corrigée
-// ailleurs (E1-ST1).
-@media screen {
-  :root[data-theme='sombre'] .shiki {
-    background-color: var(--shiki-dark-bg);
-  }
-
-  :root[data-theme='sombre'] .shiki,
-  :root[data-theme='sombre'] .shiki span {
-    color: var(--shiki-dark);
+  .shiki,
+  .shiki span {
+    color: var(--shiki-light);
   }
 }
 `;
