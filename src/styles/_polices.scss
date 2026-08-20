@@ -1,6 +1,12 @@
 // =============================================================================
-// POLICES AUTO-HÉBERGÉES — Fraunces (titres) + Inter (corps)
+// POLICES AUTO-HÉBERGÉES — quatre familles, quatre rôles disjoints
 // -----------------------------------------------------------------------------
+//   · IBM Plex Mono 700 — TITRES (`$pile-titres`)
+//   · Inter 100-900     — CORPS et interface (`$pile-corps`)
+//   · IBM Plex Mono 400 — BLOCS DE CODE (`$pile-code`)
+//   · Silkscreen 400    — MICRO-ÉTIQUETTES en capitales (`$pile-micro`)
+//   · Press Start 2P 400 — JALONS, rôle FERMÉ à trois emplois (`$pile-jalon`)
+//
 // ⚠️ Ce fichier ÉMET du CSS (`@font-face`). Il ne s'`@use` qu'UNE fois, depuis
 // `styles.scss`, jamais depuis un style de composant — sinon les déclarations
 // sont dupliquées dans chaque bundle. Même précaution que `_themes.scss`.
@@ -14,16 +20,16 @@
 // tiers non plus.
 //
 // PROVENANCE ET LICENCE. Fichiers pris une fois chez le fournisseur puis versés
-// au dépôt ; les deux familles sont sous SIL Open Font License 1.1, qui autorise
-// l'auto-hébergement. Le détail (URL exacte, empreintes, procédure de mise à
-// jour) vit dans `public/polices/PROVENANCE.md`, les licences dans
-// `public/polices/LICENCE-*.txt`.
+// au dépôt ; les quatre familles sont sous SIL Open Font License 1.1, qui
+// autorise l'auto-hébergement. Le détail (URL exacte, empreintes SHA-256,
+// procédure de mise à jour) vit dans `public/polices/PROVENANCE.md`, les licences
+// dans `public/polices/LICENCE-*.txt`.
 //
 // NOM VERSIONNÉ, ET C'EST OBLIGATOIRE. `public/**` est copié SANS empreinte de
 // contenu, alors que `staticwebapp.config.source.json` sert les `.woff2` en
 // `immutable` pendant un an. Un fichier remplacé sous le même nom resterait donc
 // en cache chez les lecteurs jusqu'en 2027. La version du fournisseur (`v20`,
-// `v38`) est portée par le NOM : la changer, c'est changer l'URL.
+// `v16`, `v6`) est portée par le NOM : la changer, c'est changer l'URL.
 //
 // `unicode-range` : RECOPIÉ VERBATIM du fournisseur, jamais retaillé à la main.
 // Un sous-ensemble maison casse « œ », « » et ’ en silence, au milieu d'un mot.
@@ -36,37 +42,67 @@
 // temps du téléchargement), jamais `optional` (qui priverait de la police une
 // première visite, c'est-à-dire l'écart à G3 qu'on est en train de refermer).
 // La fenêtre de permutation est réduite par les `<link rel="preload">` posés sur
-// les deux fichiers `latin` dans `src/index.html`.
+// les deux fichiers `latin` réellement présents au premier écran (Inter et
+// IBM Plex Mono 700) dans `src/index.html` — Silkscreen et Press Start 2P ne
+// sont PAS préchargées : leurs emplois sont rares et hors du premier écran, et
+// précharger une police qu'on n'utilise pas tout de suite vole de la bande
+// passante au contenu.
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// Fraunces — serif de caractère, réservée aux TITRES
+// IBM Plex Mono — TITRES (700) et BLOCS DE CODE (400)
 // -----------------------------------------------------------------------------
-// Graisse 700 fixe : c'est la seule que le design system déclare
-// (`$graisse-titre`). L'axe `opsz` (9→144) reste variable dans le fichier, donc
-// le dessin s'adapte encore à la taille de rendu. Livrer la graisse variable
-// 100→900 coûterait +32 Ko sur le seul sous-ensemble latin pour des graisses
-// qu'aucun jeton n'utilise — mesuré, pas supposé. Le jour où une graisse plus
-// légère est voulue : reprendre la procédure de `PROVENANCE.md` avec
-// `wght@100..900`, et le nom de fichier change.
+// Deux graisses, donc deux fichiers par sous-ensemble : contrairement à Inter,
+// IBM Plex Mono n'est PAS servie en police variable par le fournisseur — les
+// octets de la 400 et de la 700 diffèrent (SHA-256 distincts, cf.
+// `PROVENANCE.md`). Chaque graisse coûte donc son fichier.
+//
+// 🔴 LES BLOCS DE CODE SONT PASSÉS D'UNE PILE SYSTÈME À UNE POLICE SERVIE
+// (décision du propriétaire, 2026-08-20). C'est le seul poste de la bascule qui
+// COÛTE du poids, et la raison est pédagogique : le cours ancre des annotations
+// À LA LIGNE et oppose des paires vulnérable/corrigé où l'alignement vertical
+// porte du sens. Une pile système rendait le même extrait en Consolas chez l'un
+// et en SF Mono chez l'autre.
 
 @font-face {
-  font-family: 'Fraunces';
+  font-family: 'IBM Plex Mono';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('/polices/fraunces-700-latin-v38.woff2') format('woff2');
+  src: url('/polices/ibm-plex-mono-700-latin-v20.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
     U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
     U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-  font-family: 'Fraunces';
+  font-family: 'IBM Plex Mono';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url('/polices/fraunces-700-latin-ext-v38.woff2') format('woff2');
+  src: url('/polices/ibm-plex-mono-700-latin-ext-v20.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/ibm-plex-mono-400-latin-v20.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/ibm-plex-mono-400-latin-ext-v20.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
     U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
@@ -100,6 +136,73 @@
   font-weight: 100 900;
   font-display: swap;
   src: url('/polices/inter-latin-ext-v20.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+// -----------------------------------------------------------------------------
+// Silkscreen — MICRO-ÉTIQUETTES en capitales
+// -----------------------------------------------------------------------------
+// Police bitmap : elle a une taille de dessin, pas une échelle. En dessous de
+// ~10 px elle bouillie, au-dessus de ~14 px elle crénelle. Elle ne sert donc
+// qu'aux tampons et étiquettes courtes, jamais à de la prose — un paragraphe en
+// Silkscreen serait illisible bien avant d'être laid.
+
+@font-face {
+  font-family: 'Silkscreen';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/silkscreen-400-latin-v6.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Silkscreen';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/silkscreen-400-latin-ext-v6.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
+    U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
+    U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+// -----------------------------------------------------------------------------
+// Press Start 2P — LE JALON, et rien d'autre
+// -----------------------------------------------------------------------------
+// 🔴 RÔLE FERMÉ À TROIS EMPLOIS, décidé par le propriétaire et tenu par un
+// garde-fou exécutable (`src/styles/police-jalon.spec.ts`, liste blanche
+// nominative `(fichier, sélecteur)`) :
+//   1. le numéro de module dans la pastille du cartouche de leçon ;
+//   2. le verdict d'un quiz réussi ;
+//   3. le code d'erreur de la page 404.
+// Interdite partout ailleurs, et SURTOUT jamais en prose : sa chasse vaut ~2×
+// celle d'IBM Plex Mono, ce qui casserait toute mesure de ligne, et son dessin
+// pixel ne supporte ni l'italique ni les tailles intermédiaires. Chaque emploi
+// admis porte une taille explicitement réduite ET un `line-height` ≥ 1.5, pour
+// que WCAG 1.4.12 (le lecteur impose son interlignage) reste tenable.
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/press-start-2p-400-latin-v16.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/polices/press-start-2p-400-latin-ext-v16.woff2') format('woff2');
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF,
     U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020,
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
