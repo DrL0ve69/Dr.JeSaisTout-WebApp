@@ -92,7 +92,11 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **🔴 CSP : le compte de hachages `style-src` est passé de 10 à 13**, et les trois blocs de plus ont
 > été **mesurés et nommés un par un** avant épinglage (S-005) : l'adaptateur de route de la page de
 > leçon (4 196 o), `RenduBlocs` `.prose` (6 998 o), `QuizComponent` `.quiz` (5 669 o). Le compte se
-> recompose 10 + 3 ; aucun `.simulation`, ce qui est cohérent. **Hachages de script inchangés à 1.**
+> recompose 10 + 3 ; aucun `.simulation`, ce qui est cohérent.
+> ⚠️ **CE COMPTE A ÉTÉ REMPLACÉ PAR CELUI D'E6 (2026-08-20)** : **13 hachages de style, ZÉRO de
+> script**. `script-src 'self'` est écrit en dur et le jeton `__HACHAGES_SCRIPT__` a disparu de la
+> source ; sa réapparition est refusée nominativement. Remettre un script inline exige une revue
+> `security-reviewer`, jamais une édition d'`index.html`.
 > ⚠️ **L'option `--hachages-style` a été SUPPRIMÉE** du générateur : plus aucun appelant ne l'employait
 > depuis le retrait du harnais, et supprimer un levier vaut mieux que le garder (S-018).
 >
