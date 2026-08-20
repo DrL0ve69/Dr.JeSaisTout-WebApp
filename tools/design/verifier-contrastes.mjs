@@ -1001,7 +1001,7 @@ if (sourceColoration === null) {
       );
     } else {
       for (const [hex, { rvb, classes }] of parEncre) {
-        encresColoration.push({ hex, rvb, classes: [...classes].sort() });
+        encresColoration.push({ hex, rvb, classes: [...classes].sort((a, b) => a.localeCompare(b)) });
       }
       encresColoration.sort((a, b) => a.hex.localeCompare(b.hex));
     }
