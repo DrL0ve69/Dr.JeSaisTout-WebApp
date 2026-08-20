@@ -36,7 +36,27 @@
  *      dépendance, patron démontré par `tools/a11y/verifier-axe.mjs`), et chaque
  *      élément et chaque attribut est confronté à une liste blanche NOMINATIVE :
  *      tout ce qui n'y figure pas fait ÉCHOUER en se nommant, avec la marche à
- *      suivre pour l'ajouter après revue. Deux exceptions, et deux seulement, sont
+ *      suivre pour l'ajouter après revue.
+ *      UN NOM ADMIS N'EST PAS UNE VALEUR ADMISE — deuxième trou, refermé par le
+ *      lot D de la dette sécurité pré-E3-ST1. La v2 contraignait la valeur de
+ *      `href`/`xlink:href` (`ATTRIBUTS_REFERENCE`) et d'eux seuls ; `fill`,
+ *      `stroke`, `clip-path`, `marker-start` et `marker-end` acceptent pourtant un
+ *      `<FuncIRI>`, si bien que `fill="url(https://exemple.invalide/x.svg#p)"`
+ *      traversait en silence — une référence EXTERNE dans un SVG livré. Ces cinq
+ *      attributs (`ATTRIBUTS_FUNCIRI`, relevés PAR MESURE, pas de mémoire) voient
+ *      désormais leur valeur confrontée à DEUX formes admises, et à elles seules :
+ *      `REFERENCE_LOCALE` (`url(#…)`) et `COULEUR_FONCTIONNELLE` (`rgb(…)`/
+ *      `rgba(…)`, mesurées sur le `rect rgb(…)` de surlignage d'un
+ *      `sequenceDiagram`).
+ *      🔴 QUAND UNE FORME LÉGITIME MANQUE, LE CORRECTIF EST UNE FORME AJOUTÉE
+ *      NOMINATIVEMENT ICI, mesurée sur une sortie réelle de `mmdc` et revue par le
+ *      `security-reviewer` — JAMAIS un repli sur une chasse au motif `url(`, ni un
+ *      assouplissement de l'ancrage. Sur un format structuré, une liste noire de
+ *      motifs est un S-003 par construction (`.claude/rules/security.md` §4) : ce
+ *      fichier a déjà payé ce défaut deux fois. La pression sera éditoriale — une
+ *      leçon qui ne se publie pas — et c'est exactement le moment où la doctrine
+ *      doit tenir (famille S-011).
+ *      Deux exceptions, et deux seulement, sont
  *      RETIRÉES au lieu d'être refusées — `<style>` et l'attribut `style=`, parce
  *      que Mermaid en émet TOUJOURS. Motif : la CSP du site est à hachages.
  *      `generer-config-swa.mjs` refuse tout ` style="` de l'artéfact et hache tout
@@ -224,8 +244,14 @@ const ELEMENTS_REFUSES = new Map([
   ['foreignObject', 'HTML arbitraire dans le SVG ; `htmlLabels: false` doit l’empêcher en amont'],
 ]);
 
-/** Attributs ADMIS, nominativement. Voir le calibrage ci-dessus. */
-const ATTRIBUTS_AUTORISES = new Set([
+/**
+ * Attributs ADMIS, nominativement. Voir le calibrage ci-dessus.
+ *
+ * EXPORTÉ pour le seul tripwire de `src/analyseur-svg-references.spec.ts`, qui
+ * assertionne le couplage avec `ATTRIBUTS_FUNCIRI` : admettre ici un nom porteur
+ * de `<FuncIRI>` sans l'inscrire là-bas rouvrirait le trou n°2 en une ligne.
+ */
+export const ATTRIBUTS_AUTORISES = new Set([
   // mesurés
   'alignment-baseline',
   'class',
@@ -313,6 +339,90 @@ const ATTRIBUTS_RETIRES = new Set(['style']);
 const ATTRIBUTS_REFERENCE = new Set(['href', 'xlink:href']);
 
 /**
+ * Attributs dont la VALEUR peut porter un `<FuncIRI>` — la forme `url(…)`, qui
+ * référence une ressource. C'est le trou n°2, jumeau du n°1 : la liste blanche
+ * contraignait le NOM de ces attributs et rien d'autre, si bien que
+ * `fill="url(https://exemple.invalide/x.svg#p)"` traversait sans un mot. Ni
+ * l'analyseur (l'attribut est admis, sa valeur n'était pas regardée) ni
+ * `prefixerIdentifiants` (qui ne se plaint que d'un `url(#…)` LOCAL orphelin) ne
+ * le signalait : une référence EXTERNE dans un SVG livré, en silence.
+ *
+ * MESURÉ, PAS DEVINÉ — même méthode que le reste du calibrage. Chaque nom
+ * d'`ATTRIBUTS_AUTORISES` a été posé à `url(#cible)` sur un élément SVG dans le
+ * Chromium de Playwright, puis sa valeur CALCULÉE relue : ces CINQ-LÀ sont les
+ * seuls dont le moteur CSS a retenu la référence. `mask` et `filter` en portent
+ * une aussi — mais ils ne sont PAS dans `ATTRIBUTS_AUTORISES`, donc déjà refusés
+ * par leur nom, et ce lot RESSERRE la liste blanche : il n'y ajoute rien.
+ *
+ * ⚠️ CE COUPLAGE-LÀ N'EST PAS TENU PAR CE COMMENTAIRE. `mask`, `filter`, `marker`
+ * et `marker-mid` ne sont refusés que par leur NOM : le jour où un lot en ajoute
+ * un à `ATTRIBUTS_AUTORISES` pour une famille de diagrammes neuve — une ligne,
+ * tout à fait plausible — leur valeur redeviendrait libre, et le défaut refermé
+ * ici reviendrait en silence. L'invariant « tout attribut admis qui peut porter
+ * un `<FuncIRI>` est dans CE `Set` » est donc assertionné par un runner, dans
+ * `src/analyseur-svg-references.spec.ts` : c'est pour cela que les deux ensembles
+ * sont EXPORTÉS.
+ */
+export const ATTRIBUTS_FUNCIRI = new Set([
+  'clip-path',
+  'fill',
+  'marker-end',
+  'marker-start',
+  'stroke',
+]);
+
+/**
+ * La forme de RÉFÉRENCE admise pour un attribut d'`ATTRIBUTS_FUNCIRI` dès que sa
+ * valeur porte une parenthèse — donc une fonction CSS, quelle qu'elle soit. Avec
+ * `COULEUR_FONCTIONNELLE` juste en dessous, elles sont les DEUX seules formes
+ * admises, et toute autre fait échouer en se nommant.
+ * C'est une liste BLANCHE DE FORME, pas une chasse au motif `url(` : `URL(`,
+ * `url (`, `url("…")` et `image-set(…)` échouent tous parce qu'ils ne sont pas
+ * CETTE forme, sans qu'on ait eu à les imaginer un par un (S-003, S-009).
+ *
+ * Pourquoi ni les guillemets ni la casse mixte, alors que le CSS les accepte :
+ * c'est EXACTEMENT la forme que `prefixerIdentifiants` sait réécrire
+ * (`/url\(#([^)]+)\)/g`, sans le drapeau `i`). Admettre `url("#a")` ou `URL(#a)`
+ * laisserait la référence NON préfixée — et tous les identifiants du diagramme,
+ * eux, SONT préfixés : la référence PEND donc, elle ne désigne plus rien. Elle ne
+ * pointerait chez un voisin que si un élément NON-diagramme de la page portait
+ * l'identifiant brut. Dans les deux cas c'est un défaut silencieux, que le
+ * contrôle d'orphelins ne verrait pas davantage — il ne relit que la forme
+ * canonique.
+ */
+const REFERENCE_LOCALE = /^url\(#[^\s"'()\\]+\)$/;
+
+/**
+ * La SECONDE forme admise : une couleur fonctionnelle `rgb(…)` / `rgba(…)`.
+ *
+ * MESURÉE, PAS SUPPOSÉE — et c'est une correction de faux positif, pas un
+ * élargissement de confort. Le corpus de la fixture (deux diagrammes) ne portait
+ * que `#eaeaea`, `#000000`, `#666`, `#999`, `black`, `none` et `url(#…)`. Mais
+ * `mmdc` émet `fill="rgb(191, 223, 255)"` dès qu'un `sequenceDiagram` emploie
+ * `rect rgb(…)`, la syntaxe DOCUMENTÉE de surlignage d'un échange (Mermaid la
+ * pose en attribut : `rectElem.attr("fill", rectData.fill)`). Les deux formes
+ * ont été rendues et relues sur ce dépôt : `rect rgb(191, 223, 255)` donne
+ * `fill="rgb(191, 223, 255)"`, `rect rgba(0, 0, 255, .1)` donne
+ * `fill="rgba(0, 0, 255, .1)"`. RIEN D'AUTRE n'a été ajouté : ni `hsl()`, ni
+ * `var()`, ni `color-mix()` — aucune n'a été observée, et ce fichier n'ouvre pas
+ * « au cas où ».
+ *
+ * Sans elle, la première leçon qui surligne un aller-retour ferait ÉCHOUER le
+ * build sur un message parlant de `url(#…)` — sur le site qui enseigne la CSP,
+ * avec la pression éditoriale que ça implique (famille S-011).
+ *
+ * 🔴 LA DOCTRINE, à relire avant de toucher à ces deux formes : quand une forme
+ * LÉGITIME manque, le correctif attendu est UNE FORME AJOUTÉE NOMINATIVEMENT,
+ * ici, après revue `security-reviewer` — mesurée sur une sortie réelle de `mmdc`.
+ * Ce n'est JAMAIS un repli sur une chasse au motif `url(` : une liste noire sur
+ * un format structuré est un S-003 par construction (`.claude/rules/security.md`
+ * §4). Le corollaire tient l'ancrage : le nom de la fonction est exact, et son
+ * contenu n'admet que des chiffres, virgules, espaces, `%` et décimales — ni
+ * lettre, ni `//`, ni `:`, donc aucune URL ne peut s'y loger.
+ */
+const COULEUR_FONCTIONNELLE = /^rgba?\([\d.,% ]+\)$/;
+
+/**
  * Ordre total stable sur les unités de code UTF-16 — indépendant de la locale et de
  * la plateforme. Même fonction, même raison que dans `tools/a11y/verifier-axe.mjs`
  * et `tools/deploiement/generer-config-swa.mjs` (L-009) : `localeCompare` classerait
@@ -347,6 +457,9 @@ const EMPREINTE_REGLES = createHash('sha256')
       attributsAutorises: [...ATTRIBUTS_AUTORISES].sort(comparerOctets),
       attributsRetires: [...ATTRIBUTS_RETIRES].sort(comparerOctets),
       attributsReference: [...ATTRIBUTS_REFERENCE].sort(comparerOctets),
+      attributsFuncIri: [...ATTRIBUTS_FUNCIRI].sort(comparerOctets),
+      referenceLocale: REFERENCE_LOCALE.source,
+      couleurFonctionnelle: COULEUR_FONCTIONNELLE.source,
       prefixesAttributs: PREFIXES_ATTRIBUTS,
       configMermaid: CONFIG_MERMAID,
       classeRacine: CLASSE_RACINE,
@@ -358,7 +471,9 @@ const EMPREINTE_REGLES = createHash('sha256')
 /** Marche à suivre, imprimée sous CHAQUE refus de l'analyseur. */
 const CONSEILS_ANALYSEUR = [
   'les listes blanches vivent en tête de `tools/content-pipeline/rendre-mermaid.mjs`',
-  '(ELEMENTS_AUTORISES, ATTRIBUTS_AUTORISES) : un nom légitime s’y ajoute NOMINATIVEMENT,',
+  '(ELEMENTS_AUTORISES, ATTRIBUTS_AUTORISES, ATTRIBUTS_FUNCIRI / REFERENCE_LOCALE et',
+  'COULEUR_FONCTIONNELLE pour les VALEURS) : un nom ou une FORME légitime s’y ajoute',
+  'NOMINATIVEMENT, après mesure sur une sortie réelle de `mmdc` et',
   'après revue `security-reviewer` — jamais par glob, jamais en effaçant le refus',
   'ce SVG sera livré sous `bypassSecurityTrustHtml` (E2-ST2) : le sanitizer d’Angular ne',
   'repassera PAS derrière cet analyseur, il est le seul filtre (voir la note de `types.d.ts`)',
@@ -697,7 +812,39 @@ function jugerAttribut(nom, cle, valeur) {
       libelle: `<${nom} ${cle}="${abreger(valeur)}"> — absent de ATTRIBUTS_AUTORISES`,
     };
   }
+  if (ATTRIBUTS_FUNCIRI.has(cle)) return jugerFuncIri(nom, cle, valeur);
   return { genre: 'garder' };
+}
+
+/**
+ * Confronte la VALEUR d'un attribut porteur de `<FuncIRI>` à la liste blanche de
+ * forme. Le nom de l'attribut a déjà été admis par `jugerAttribut` ; ce qui se
+ * juge ici est ce vers quoi il POINTE.
+ *
+ * Le déclencheur est la présence d'une PARENTHÈSE, pas celle du mot « url » :
+ * une valeur sans parenthèse ne peut pas être une fonction CSS, donc ne peut
+ * référencer quoi que ce soit (`none`, `#666`, `black`). Dès qu'il y en a une,
+ * la valeur ENTIÈRE doit être la forme admise — c'est ce qui rend inutile
+ * d'énumérer les contournements (`URL(`, guillemets, `//hôte`, espaces).
+ *
+ * @param {string} nom nom de la balise porteuse, pour désigner l'attribut EN SITUATION
+ * @param {string} cle nom de l'attribut
+ * @param {string} valeur valeur de l'attribut
+ * @returns {Verdict}
+ */
+function jugerFuncIri(nom, cle, valeur) {
+  if (!/[()]/.test(valeur)) return { genre: 'garder' };
+  if (REFERENCE_LOCALE.test(valeur)) return { genre: 'garder' };
+  if (COULEUR_FONCTIONNELLE.test(valeur)) return { genre: 'garder' };
+  return {
+    genre: 'refuser',
+    libelle:
+      `<${nom} ${cle}="${abreger(valeur)}"> — deux formes seulement sont admises : ` +
+      '« url(#identifiant) », référence INTERNE au même diagramme, « url » en ' +
+      'minuscules, sans guillemets ni espace ; et une couleur « rgb(…) »/« rgba(…) » ' +
+      'à contenu purement numérique. Une URL externe, un protocole relatif « // », un ' +
+      '« javascript: » ou toute autre fonction CSS sont refusés',
+  };
 }
 
 /**
