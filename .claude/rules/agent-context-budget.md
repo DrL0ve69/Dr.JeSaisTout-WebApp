@@ -109,3 +109,45 @@ Un implémenteur ne doit pas porter la sortie d'une suite de tests/e2e complète
 est-il **frais** ou déjà lourd (§3) ? les gates lourds sont-ils **sortis** de son périmètre (§4) ?
 Au moindre doute — **découpe**. Un agent coupé à 250k a coûté plus cher que deux agents à 120k, et il
 rend un travail moins bon.
+
+---
+
+## 7 · Le PLANCHER : ce que l'agent porte AVANT d'avoir lu son lot
+
+> Mesuré le **2026-08-20**. Le propriétaire avait observé des sous-agents démarrant à ~100k en fin
+> de session contre 40-50k au début, et supposé une fuite du contexte du fil principal.
+> **L'hypothèse est RÉFUTÉE par la mesure** : un sous-agent (hors `fork`) ne reçoit rien du
+> transcript du fil principal. Le plancher venait d'ailleurs — et il est **monotone** : les corpus
+> grossissent à chaque cycle et ne redescendent jamais, pas même entre deux sessions.
+
+**Le relevé, tel quel.** Avant d'avoir lu une ligne du lot :
+
+| Injecté dans chaque agent | ~tokens |
+|---|---|
+| `CLAUDE.md` (projet, auto-chargé) | 11 500 |
+| les cinq `.claude/rules/*.md` | 10 600 |
+| `.claude/lessons/lessons-learned.md` **lu en entier** | 33 600 |
+| `.claude/lessons/security-lessons.md` **lu en entier** | 18 000 |
+| `~/.claude/CLAUDE.md` + prompt de l'agent | ~2 500 |
+| **Plancher** | **~74 000** |
+
+Sur un plafond de 120k, il restait **46k** de travail utile. Ce n'était pas un budget : c'était une
+contrainte cachée, qui expliquait à elle seule les démarrages à 100k.
+
+**Le correctif, en place.** `.claude/lessons/INDEX.md` — généré par
+`.claude/hooks/generer-index-lecons.mjs`, régénéré à chaque `SessionStart` et par
+`npm run lecons:index` — porte, pour chaque entrée, son identifiant, son sujet **et sa plage de
+lignes**. ~3 900 tokens au lieu de 51 600.
+
+- [ ] **Un agent lit l'INDEX, puis 2-4 entrées** avec `Read(fichier, offset, limit)`. Ouvrir un
+      corpus en entier est désormais un défaut de méthode, pas une prudence.
+- [ ] **Sans plage de lignes, un index ne sert à rien** : l'agent n'a pas d'autre choix que
+      d'ouvrir le fichier. C'est ce qui rendait inopérant l'index déjà imprimé par le hook.
+- [ ] 🔴 **Les deux `mentor` régénèrent l'index en dernier geste.** Ajouter, fusionner ou élaguer
+      une entrée décale toutes les plages suivantes : sans régénération, l'index envoie chaque agent
+      lire le **mauvais passage, en silence**. Un index qui ment coûte plus cher que pas d'index.
+- [ ] **Un fichier injecté partout est un budget partagé.** Le bloc de reprise de `CLAUDE.md` est
+      payé par chaque agent de chaque session ; l'historique détaillé d'un epic clos appartient au
+      backlog. L'élaguer à chaque clôture d'epic est du travail rentable.
+- [ ] **Mesurer avant de supposer** : `wc -c` sur tout ce qui est injecté, ÷ 4. Un plancher de 70k
+      explique un démarrage à 100k sans qu'il faille inventer une fuite.

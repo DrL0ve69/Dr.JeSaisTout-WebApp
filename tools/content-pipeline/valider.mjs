@@ -19,9 +19,12 @@
  *   5. espaces fines interdites     — U+202F et U+2009 hors blocs de code
  *   6. marqueurs `à-vérifier:`      — interdits dès `statut: publiee`
  *   7. conteneurs `:::`             — liste FERMÉE
- *   8. `quiz.json`                  — obligatoire ; schéma + cohérences inter-champs
- *   9. `simulation.json`            — optionnel ; schéma + cohérences inter-champs
- *  10. `section` tout-ou-rien       — à l'échelle du SUJET, après le passage de toutes les leçons
+ *   8. marqueurs 📘/🧩 littéraux    — interdits hors bloc de code (G1)
+ *   9. `correction-du-cours`        — `{source="…"}` obligatoire et non vide (G3)
+ *  10. provenance vs statut         — ≥ 1 encadré `cours`/`complement` dès `statut: publiee` (G2)
+ *  11. `quiz.json`                  — obligatoire ; schéma + cohérences inter-champs
+ *  12. `simulation.json`            — optionnel ; schéma + cohérences inter-champs
+ *  13. `section` tout-ou-rien       — à l'échelle du SUJET, après le passage de toutes les leçons
  *
  * POURQUOI DES RÈGLES « HORS SCHÉMA ».
  * JSON Schema décrit la forme d'UN document ; il ne sait pas comparer deux branches du même
@@ -117,6 +120,70 @@ const CONTENEURS_AUTORISES = new Set([
   'attention',
   'note',
   'a-retenir',
+  // Les trois encadrés de PROVENANCE (E3-ST1), nés de `.claude/rules/contenu-pedagogique.md` §6 :
+  // 📘 le cours, 🧩 le complément KB, ⚠️ la correction sourcée. La duplication avec
+  // `compiler-markdown.mjs` reste ASSUMÉE (le validateur ne dépend pas du compilateur) — ce qui
+  // n'est pas acceptable, c'est qu'un commentaire en soit le seul lien (L-008) : les deux listes
+  // sont appariées par `src/pipeline-contenu-validation.spec.ts`, contre six noms écrits en dur.
+  'cours',
+  'complement',
+  'correction-du-cours',
+]);
+
+/**
+ * Les DEUX encadrés qui portent une provenance POSITIVE — ceux que G2 compte.
+ *
+ * `correction-du-cours` n'y est pas, et c'est délibéré : un ⚠️ dit que le cours se trompe sur un
+ * point, il ne dit pas d'où vient le reste de la leçon. Une leçon publiée qui n'aurait qu'une
+ * correction n'aurait toujours tracé la provenance d'aucun de ses passages.
+ */
+const VARIANTES_PROVENANCE = new Set(['cours', 'complement']);
+
+/** La seule variante qui exige un attribut, et le nom de cet attribut. */
+const VARIANTE_SOURCEE = 'correction-du-cours';
+const ATTRIBUT_SOURCE = 'source';
+
+/**
+ * Les marqueurs de provenance LITTÉRAUX, interdits dans le corps d'une leçon (règle G1).
+ *
+ * Les fiches de `KnowledgeBase/web/securite/` et `web/php/` les emploient — c'est leur notation.
+ * Une LEÇON, elle, exprime la provenance par sa VARIANTE d'encadré, et le pictogramme est posé par
+ * le rendu : deux notations concurrentes voudraient dire deux endroits où la provenance se décide,
+ * donc un jour deux réponses différentes à la même question. Le marqueur recopié à la main est en
+ * outre invisible à tout gate de style, de contraste et de traduction.
+ *
+ * ⚠️ INTERDITS HORS CODE SEULEMENT. Un bloc de code d'exemple peut légitimement citer une fiche KB
+ * telle quelle — ce sont des données, pas du balisage (même exemption que les espaces fines).
+ *
+ * 🔴 LE ⚠️ EST LE PLUS IMPORTANT DES TROIS, et il manquait ici jusqu'au 2026-08-20 (constat de
+ * revue). Les deux autres ne font que perdre une information de provenance ; celui-ci ACCUSE
+ * L'ENSEIGNANT. Écrit en prose, il contredit le cours sans passer par `::: correction-du-cours`,
+ * donc sans l'attribut `source` que G3 impose — c'est-à-dire exactement l'accusation non sourcée
+ * que `.claude/rules/contenu-pedagogique.md` §6 classe comme défaut GRAVE (« il salit un
+ * enseignant sur la foi d'une lecture trop rapide »). Deux documents promettaient déjà que G1 le
+ * couvrait (`docs/contenu/pipeline-contenu.md`, `types.d.ts`) : la promesse était plus large que
+ * le code, ce qui est pire qu'une absence de promesse.
+ *
+ * ⚠️ LA CLEF EST LA FORME NUE U+26A0, PAS LA SÉQUENCE ÉMOJI. « ⚠️ » s'écrit le plus souvent
+ * U+26A0 U+FE0F (sélecteur de variante) ; chercher la séquence complète laisserait passer la
+ * forme nue, et un garde-fou qui se contourne par une variante de saisie n'en est pas un. La
+ * recherche porte donc sur le caractère de base, qui préfixe les DEUX formes.
+ *
+ * ⚠️ DETTE CONNUE, NON CORRIGÉE ICI : G1 BALAIE LA SOURCE BRUTE, ET markdown-it DÉCODE LES
+ * ENTITÉS. Mesuré avec le markdown-it du dépôt, options identiques : `&#x1F4D8;` rend 📘 et
+ * `&#x1F9E9;` rend 🧩 (idem `&#x26A0;`). Un auteur obtient donc le pictogramme dans la page
+ * publiée sans que cette liste voie quoi que ce soit. La parade n'est pas d'ajouter des motifs
+ * d'entités — ce serait la liste noire que `.claude/rules/security.md` §4 interdit, et l'entité
+ * s'écrit en décimal, en hexadécimal, avec ou sans zéros de tête. C'est de porter G1 sur la
+ * SORTIE COMPILÉE : les nœuds texte de l'AST hors blocs `code`, où les entités sont déjà
+ * résolues et où l'exemption « bloc de code » devient structurelle plutôt que dérivée d'un
+ * découpage de lignes. Coût réel (le validateur tourne AVANT le compilateur et ne doit pas en
+ * dépendre — voir `CONTENEURS_AUTORISES`), donc lot à part.
+ */
+const MARQUEURS_PROVENANCE_LITTERAUX = new Map([
+  ['\u{1F4D8}', '📘 (U+1F4D8, marqueur « Cours » des fiches KB)'],
+  ['\u{1F9E9}', '🧩 (U+1F9E9, marqueur « Complément KB » des fiches KB)'],
+  ['\u{26A0}', '⚠ (U+26A0, marqueur « correction du cours » des fiches KB, avec ou sans U+FE0F)'],
 ]);
 
 /**
@@ -643,18 +710,13 @@ function verifierMarqueurDeDouteVsStatut(lignes, statut, signaler) {
 function verifierConteneursEnListeFermee(lignes, signaler) {
   for (const l of lignes) {
     if (l.code) continue;
-    // Préfixe seul (indentation + `:::`), la suite en JS — même raison qu'en `lignesDuCorps` et
-    // `titresDuCorps` : `\s*(.*)$` accolé au marqueur rend le motif super-linéaire (S8786).
-    const marque = /^\s{0,3}:{3,}/.exec(l.texte);
-    if (!marque) continue;
-    const suite = l.texte.slice(marque[0].length).trim();
-    if (suite === '') continue; // fermeture d'un conteneur
-    const nom = /^([A-Za-z0-9-]+)/.exec(suite);
-    if (!nom) {
-      signaler(`corps ligne ${l.numero} : conteneur « ::: ${suite} » sans nom lisible`);
+    const marqueur = marqueurDeConteneur(l.texte);
+    if (marqueur === null || marqueur.suite === '') continue; // pas un marqueur, ou une fermeture
+    const identifiant = nomDeConteneur(marqueur.suite);
+    if (identifiant === null) {
+      signaler(`corps ligne ${l.numero} : conteneur « ::: ${marqueur.suite} » sans nom lisible`);
       continue;
     }
-    const identifiant = nom[1] ?? '';
     if (!CONTENEURS_AUTORISES.has(identifiant)) {
       signaler(
         `corps ligne ${l.numero} : conteneur « ::: ${identifiant} » hors de la liste fermée ` +
@@ -662,6 +724,260 @@ function verifierConteneursEnListeFermee(lignes, signaler) {
       );
     }
   }
+}
+
+/**
+ * Reconnaît un marqueur de conteneur `:::` en tête de ligne, et rend ce qui le suit.
+ *
+ * ⚠️ LA LONGUEUR DU MARQUEUR N'EST PLUS RENDUE (2026-08-20). Elle ne servait qu'à l'arbre de
+ * conteneurs que G2 parcourait, et cet arbre a été remplacé par un compte plat : la profondeur
+ * d'imbrication n'entre dans AUCUNE des trois règles de provenance. Rendre une valeur qu'aucun
+ * appelant ne lit inviterait à la croire vérifiée par quelque chose. Le jour où une règle dépendra
+ * vraiment de l'imbrication, la sémantique à reproduire est celle de markdown-it-container — le
+ * conteneur le PLUS EXTERNE dont l'ouverture est d'au plus la longueur d'une ligne de fermeture
+ * réclame cette ligne, et tout ce qu'il contient se referme avec lui — et elle devra être observée
+ * par une fixture, pas seulement écrite.
+ *
+ * Préfixe seul (indentation + deux-points), la suite en JS — même raison qu'en `lignesDuCorps` et
+ * `titresDuCorps` : un `\s*(.*)$` accolé au marqueur rend le motif super-linéaire (S8786).
+ *
+ * @param {string} texte
+ * @returns {{ suite: string } | null} `suite === ''` désigne une FERMETURE
+ */
+function marqueurDeConteneur(texte) {
+  const marque = /^\s{0,3}(:{3,})/.exec(texte);
+  if (marque === null) return null;
+  return { suite: texte.slice(marque[0].length).trim() };
+}
+
+/**
+ * Extrait le nom d'un conteneur de la suite rendue par `marqueurDeConteneur`.
+ *
+ * @param {string} suite
+ * @returns {string | null} `null` si aucun nom lisible
+ */
+function nomDeConteneur(suite) {
+  return /^([A-Za-z0-9-]+)/.exec(suite)?.[1] ?? null;
+}
+
+/**
+ * --- 8. Marqueurs de provenance LITTÉRAUX (règle G1) ---
+ *
+ * 🔴 ANALYSE PAR TRANCHES HORS-CODE, JAMAIS UNE RECHERCHE SUR LE FICHIER ENTIER. Le pictogramme
+ * doit rester légal DANS un bloc de code : une leçon qui enseigne la notation des fiches KB, ou qui
+ * cite une fiche verbatim en exemple, est du contenu parfaitement valide. Un `corps.includes('📘')`
+ * la refuserait — et pousserait l'auteur à contourner le garde-fou plutôt qu'à le respecter. C'est
+ * la même exemption que les espaces fines interdites (règle 5), et le même patron que
+ * `.claude/rules/security.md` §4 : on tranche la structure, puis on inspecte les tranches.
+ *
+ * Les segments de `code en ligne` sont blanchis SUR PLACE, à longueur égale, pour que la colonne
+ * rapportée reste celle du fichier réel.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {(cause: string) => void} signaler
+ */
+function verifierMarqueursDeProvenanceLitteraux(lignes, signaler) {
+  for (const l of lignes) {
+    if (l.code) continue;
+    const texte = l.texte.replace(/`+[^`]*`+/g, (m) => ' '.repeat(m.length));
+    for (const [caractere, libelle] of MARQUEURS_PROVENANCE_LITTERAUX) {
+      if (texte.includes(caractere)) {
+        signaler(
+          `corps ligne ${l.numero} : marqueur de provenance littéral ${libelle} interdit hors ` +
+            "d'un bloc de code — la provenance s'exprime par la VARIANTE d'encadré " +
+            '(::: cours, ::: complement, ::: correction-du-cours), le pictogramme est posé par le rendu',
+        );
+      }
+    }
+  }
+}
+
+/**
+ * --- 9. `correction-du-cours` sourcée (règle G3) ---
+ *
+ * Un ⚠️ contredit l'enseignant devant l'apprenant. `.claude/rules/contenu-pedagogique.md` §6 classe
+ * une correction fausse comme un défaut GRAVE, au même titre qu'une erreur technique : elle salit
+ * un enseignant sur la foi d'une lecture trop rapide. Exiger la source au build est ce qui rend la
+ * relecture possible — sans elle, le `verificateur-theorie` n'a rien à vérifier.
+ *
+ * L'attribut VIDE est refusé SÉPARÉMENT de l'attribut ABSENT, et le message le dit : les deux
+ * fautes ne sont pas la même (l'un a oublié l'attribut, l'autre a oublié de le remplir) et un
+ * contrôle positif doit pouvoir les distinguer.
+ *
+ * 🔴 LA GRAMMAIRE LUE ICI EST CELLE DE `lireAttributs`, PAS UNE RECHERCHE LIBRE (constat de revue,
+ * 2026-08-20). L'ancien `/\bsource="([^"]*)"/` appariait deux formes que le COMPILATEUR refuse :
+ * `{data-source="X"}` (la frontière de mot `\b` s'ouvre juste après un tiret) et
+ * `::: correction-du-cours source="X"` sans accolades (`lireAttributs` impose `^\{(.*)\}$`). Les
+ * deux restaient fail-closed — le build cassait plus loin — mais le validateur existe précisément
+ * pour NOMMER LA FAUTE LÀ OÙ L'AUTEUR LA CORRIGE, et il accusait la mauvaise cause : « attribut
+ * inconnu » ou « forme illisible » au lieu de « source manquante ». Un garde-fou qui apparie plus
+ * large que le contrat qu'il annonce est la même famille que les listes noires de
+ * `.claude/rules/security.md` §4 : on lit la STRUCTURE, on ne cherche pas un motif dedans.
+ *
+ * ⚠️ La duplication avec `compiler-markdown.mjs` est ASSUMÉE, pour la raison déjà écrite en tête de
+ * `CONTENEURS_AUTORISES` : le validateur tourne AVANT le compilateur et ne doit pas l'importer.
+ * `correction-du-cours` n'admet qu'une seule clef — `source` — donc la grammaire complète tient
+ * en trois contrôles, et les deux copies sont appariées par
+ * `src/pipeline-contenu-validation.spec.ts` via des fixtures, pas par un commentaire (L-008).
+ *
+ * La règle est écrite en DEUX morceaux, juste en dessous : `causeDeCorrectionNonSourcee` juge une
+ * ouverture isolée et rend sa cause, `verifierSourceDesCorrections` parcourt les lignes et signale.
+ */
+
+/**
+ * La forme d'auteur ATTENDUE, citée dans chacune des quatre causes de G3.
+ *
+ * Une seule écriture pour quatre messages : un auteur qui se trompe de forme doit lire la MÊME
+ * forme correcte, quelle que soit la manière dont il s'est trompé.
+ */
+const FORME_ATTENDUE_CORRECTION = `forme attendue : ::: ${VARIANTE_SOURCEE} {${ATTRIBUT_SOURCE}="OWASP Top 10 2021 — A02"}`;
+
+/**
+ * Motif de paire `clef="valeur"`, IDENTIQUE à celui de `lireAttributs` (`\b` de tête compris,
+ * S8786). Ce qui est lu ici doit être exactement ce que le compilateur lira, sans quoi les deux
+ * garde-fous se contrediraient — et c'est le validateur qui aurait tort, puisqu'il ne compile pas.
+ *
+ * Déclaré au module et remis à zéro à chaque emploi : un motif `g` porte un `lastIndex` qui survit
+ * d'un appel à l'autre.
+ */
+const MOTIF_PAIRE_ATTRIBUT = /\b([a-z-]+)="([^"]*)"/g;
+
+/**
+ * Lit la partie attributs d'une ouverture `::: correction-du-cours` et rend la CAUSE du refus.
+ *
+ * Fonction séparée de la boucle qui l'appelle pour une raison qui n'est pas cosmétique : chacune
+ * des quatre fautes possibles est une décision distincte, et les tenir dans la boucle mêlait le
+ * parcours des lignes à l'analyse d'une ligne (complexité cognitive au-dessus du seuil du dépôt).
+ * Ici, la boucle parcourt, cette fonction juge — et la cause qu'elle rend est testable seule.
+ *
+ * @param {string} reste ce qui suit le nom du conteneur, déjà rogné
+ * @returns {string | null} la cause du refus, sans le préfixe « corps ligne N : » ; `null` si conforme
+ */
+function causeDeCorrectionNonSourcee(reste) {
+  if (reste === '') {
+    return (
+      `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ` +
+      FORME_ATTENDUE_CORRECTION
+    );
+  }
+  const accolade = /^\{(.*)\}$/.exec(reste);
+  if (accolade === null) {
+    return (
+      `« ::: ${VARIANTE_SOURCEE} » suivi de « ${reste} » — les attributs d'un conteneur ` +
+      `s'écrivent ENTRE ACCOLADES ; ${FORME_ATTENDUE_CORRECTION}`
+    );
+  }
+  const corpsAttributs = accolade[1] ?? '';
+  /** @type {Record<string, string>} */
+  const attributs = {};
+  MOTIF_PAIRE_ATTRIBUT.lastIndex = 0;
+  for (const paire of corpsAttributs.matchAll(MOTIF_PAIRE_ATTRIBUT)) {
+    attributs[paire[1] ?? ''] = paire[2] ?? '';
+  }
+  // CE QUI RESTE une fois les paires retirées doit être vide — même contrôle de résidu que
+  // `lireAttributs`. Sans lui, `{source=X}` (guillemets oubliés) rendrait un objet VIDE et
+  // sortirait sous la cause « attribut absent », qui n'est pas la faute commise.
+  const residu = corpsAttributs.replace(MOTIF_PAIRE_ATTRIBUT, '').trim();
+  const clefsInconnues = Object.keys(attributs).filter((clef) => clef !== ATTRIBUT_SOURCE);
+  if (residu !== '' || clefsInconnues.length > 0) {
+    const detail = residu !== '' ? `« ${residu} »` : `attribut « ${clefsInconnues[0]} » inconnu`;
+    return (
+      `attributs illisibles sur « ::: ${VARIANTE_SOURCEE} » — ${detail} ; ` +
+      `seul « ${ATTRIBUT_SOURCE} » est admis, ${FORME_ATTENDUE_CORRECTION}`
+    );
+  }
+  const valeur = attributs[ATTRIBUT_SOURCE];
+  if (valeur === undefined) {
+    return (
+      `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ` +
+      FORME_ATTENDUE_CORRECTION
+    );
+  }
+  if (valeur.trim() === '') {
+    return (
+      `« ::: ${VARIANTE_SOURCEE} » porte un attribut « ${ATTRIBUT_SOURCE} » vide — ` +
+      "une correction du cours cite la source qui l'autorise"
+    );
+  }
+  return null;
+}
+
+/**
+ * Applique G3 à toutes les lignes du corps : parcourt, délègue le jugement, signale.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {(cause: string) => void} signaler
+ */
+function verifierSourceDesCorrections(lignes, signaler) {
+  for (const l of lignes) {
+    if (l.code) continue;
+    const marqueur = marqueurDeConteneur(l.texte);
+    if (marqueur === null || marqueur.suite === '') continue;
+    if (nomDeConteneur(marqueur.suite) !== VARIANTE_SOURCEE) continue;
+    const cause = causeDeCorrectionNonSourcee(marqueur.suite.slice(VARIANTE_SOURCEE.length).trim());
+    if (cause !== null) signaler(`corps ligne ${l.numero} : ${cause}`);
+  }
+}
+
+/**
+ * --- Support de G2 : compte des encadrés de provenance du corps ---
+ *
+ * 🔴 UN COMPTE PLAT DES LIGNES D'OUVERTURE, ET C'EST DÉLIBÉRÉ (2026-08-20, constat de revue). Ce
+ * compte REMPLACE un arbre de conteneurs `:::` que rien n'observait. L'arbre se justifiait par
+ * « c'est ce qui donne à G2 quelque chose à descendre » — mais G2 ne pose qu'UNE question (« y a-t-il
+ * au moins un encadré de provenance, à quelque profondeur que ce soit ? »), et la réponse d'une
+ * descente exhaustive sur cet arbre valait, pour TOUT document — imbriqué ou non — exactement le
+ * compte des lignes d'ouverture. La FORME de l'arbre n'était donc observable par rien : elle n'était
+ * juste que par accident, et elle ne l'était même pas tout à fait (sur `::: a` / `:::: b` /
+ * `:::`, markdown-it-container ferme `a` — sa recherche de fin balaie les lignes du document
+ * avant que le contenu ne soit re-tokenisé — là où la pile ne dépilait rien, 4 <= 3 étant faux).
+ * Écrire un invariant que rien ne peut observer est le défaut même que L-039 dénonce.
+ *
+ * ⚠️ CE QUE LE COMPTE PLAT GAGNE. L'indépendance à la profondeur devient STRUCTURELLE au lieu d'être
+ * le résultat d'une descente qu'un lot futur pourrait débrancher : ici, aucun niveau n'est jamais
+ * distingué : un `::: cours` imbriqué dans un `:::: comparaison` est compté par construction.
+ * La fixture `provenance-imbriquee-correction-sans-source` reste le contrôle positif du CONTRAT —
+ * elle est `publiee` et son unique encadré de provenance est imbriqué — mais elle garde désormais
+ * la règle vue de l'AUTEUR, pas une structure interne.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @returns {number}
+ */
+function compterEncadresDeProvenance(lignes) {
+  let total = 0;
+  for (const l of lignes) {
+    if (l.code) continue;
+    const marqueur = marqueurDeConteneur(l.texte);
+    if (marqueur === null || marqueur.suite === '') continue;
+    const nom = nomDeConteneur(marqueur.suite);
+    // `null` : nom illisible — déjà signalé par la règle 7, qui en nomme la vraie cause.
+    if (nom !== null && VARIANTES_PROVENANCE.has(nom)) total += 1;
+  }
+  return total;
+}
+
+/**
+ * --- 10. Provenance tracée vs statut (règle G2) ---
+ *
+ * ⚠️ LE SEUIL EST « ≥ 1 », ET IL N'Y A PAS DE COMPTE DÉCLARÉ AU FRONTMATTER. Un champ que l'auteur
+ * renseignerait lui-même, à côté des encadrés qu'il écrit lui-même, serait une preuve fabriquée par
+ * l'entrée qu'elle prétend contrôler — exactement le patron S-014. Ce qui est vérifiable ici, c'est
+ * qu'une leçon publiée a traversé la question de la provenance au moins une fois ; savoir si elle
+ * l'a fait PARTOUT relève du `verificateur-theorie`, pas d'un compteur.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {string} statut
+ * @param {(cause: string) => void} signaler
+ */
+function verifierProvenanceVsStatut(lignes, statut, signaler) {
+  if (statut !== 'publiee') return;
+  if (compterEncadresDeProvenance(lignes) > 0) return;
+  signaler(
+    'corps : aucun encadré de provenance alors que `statut: publiee` — une leçon publiée porte ' +
+      `au moins un « ::: ${[...VARIANTES_PROVENANCE].join(' » ou « ::: ')} », ` +
+      "à quelque profondeur d'imbrication que ce soit " +
+      '(.claude/rules/contenu-pedagogique.md §6)',
+  );
 }
 
 /**
@@ -699,6 +1015,20 @@ function verifierCorps(corps, statut, signaler) {
 
   // --- 7. Conteneurs `:::` en liste fermée ---------------------------------
   verifierConteneursEnListeFermee(lignes, signaler);
+
+  // --- 8. Marqueurs de provenance littéraux (G1) ---------------------------
+  verifierMarqueursDeProvenanceLitteraux(lignes, signaler);
+
+  // --- 9. `correction-du-cours` sourcée (G3) -------------------------------
+  // ⚠️ AVANT la règle 10, et ce n'est pas cosmétique. Les deux peuvent mordre sur la MÊME leçon
+  // publiée ; le mode `--fixtures` ne compare que la PREMIÈRE anomalie. Placer G3 devant est ce qui
+  // permet à `provenance-imbriquee-correction-sans-source` d'exercer la descente récursive de G2 :
+  // sa cause propre est celle de G3, et une G2 qui se mettrait à mordre (descente débranchée)
+  // apparaîtrait en SECONDE anomalie — visible dans le « (+N autre(s)) » que le spec épingle.
+  verifierSourceDesCorrections(lignes, signaler);
+
+  // --- 10. Provenance tracée vs statut (G2) --------------------------------
+  verifierProvenanceVsStatut(lignes, statut, signaler);
 }
 
 /**

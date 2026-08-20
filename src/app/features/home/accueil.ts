@@ -77,8 +77,7 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
 
       <app-carte-cours
         titre="Sécurité des applications web"
-        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. Les modules sont en cours d’écriture — le sommaire ouvrira avec eux."
-        mentionChantier="Chantier en cours"
+        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. Le premier module est en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
         lien="/cours/securite-web"
       />
     </div>

@@ -29,7 +29,8 @@
     "design:glyphes": "node tools/design/verifier-glyphes.mjs",
     "a11y:axe": "node tools/a11y/verifier-axe.mjs",
     "a11y:axe:auto-test": "node tools/a11y/verifier-axe.mjs --auto-test",
-    "kb": "node tools/kb-search.mjs"
+    "kb": "node tools/kb-search.mjs",
+    "lecons:index": "node .claude/hooks/generer-index-lecons.mjs"
   },
   "private": true,
   "packageManager": "npm@11.11.1",

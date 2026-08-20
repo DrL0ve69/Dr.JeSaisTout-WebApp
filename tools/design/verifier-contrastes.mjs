@@ -218,6 +218,68 @@ const PAIRES = [
     'texte-normal',
   ],
 
+  // --- Provenance pédagogique : 📘 cours / 🧩 complément --------------------
+  // La 3ᵉ variante (⚠️ « correction-du-cours ») n'apparaît pas ici : elle
+  // réemploie `--couleur-attention{,-surface}`, déjà mesuré juste au-dessus.
+  // ⚠️ Ces paires mesurent l'encadré SUR SA PROPRE SURFACE. Poser la teinte de
+  // provenance en bordure d'un encadré posé sur `--couleur-surface` serait un
+  // usage de plus, donc une paire de plus (seuil `non-texte`) : à déclarer par
+  // le lot de rendu, pas à supposer couvert.
+  [
+    '--couleur-provenance-cours',
+    '--couleur-provenance-cours-surface',
+    'Titre / étiquette d’un encadré « au programme du cours »',
+    'texte-normal',
+  ],
+  [
+    '--couleur-encre',
+    '--couleur-provenance-cours-surface',
+    'Corps d’un encadré « au programme du cours »',
+    'texte-normal',
+  ],
+  [
+    '--couleur-provenance-complement',
+    '--couleur-provenance-complement-surface',
+    'Titre / étiquette d’un encadré « complément hors cours »',
+    'texte-normal',
+  ],
+  [
+    '--couleur-encre',
+    '--couleur-provenance-complement-surface',
+    'Corps d’un encadré « complément hors cours »',
+    'texte-normal',
+  ],
+  // Les DEUX paires annoncées par la note ci-dessus, déclarées par le lot de rendu
+  // (E3-ST1) parce qu'il a bel et bien posé la teinte en BORDURE : `cours` reçoit un
+  // cadre complet, `complement` un filet de gauche en tirets. Une bordure est au
+  // contact de `--couleur-surface`, pas de la surface de l'encadré — c'est un objet
+  // graphique porteur d'information (le second canal de WCAG 1.4.1), donc 1.4.11.
+  // 🔴 ET UNE TROISIÈME, QUI N'ÉTAIT PAS PRÉVUE ET QUI EST UNE DETTE ANTÉRIEURE.
+  // `correction-du-cours` réemploie `--couleur-attention` — la note du lot des jetons
+  // en concluait « rien à déclarer ». Faux : la paire déjà mesurée est
+  // `--couleur-attention` sur `--couleur-attention-surface`, c'est-à-dire l'ENCRE de
+  // l'étiquette sur le fond de l'encadré. Le TRAIT, lui, borde la page — et l'encadré
+  // `attention` d'E2-ST1 le posait déjà, sans que personne ne le mesure. On le mesure
+  // ici, une fois, pour les deux variantes qui l'emploient.
+  [
+    '--couleur-attention',
+    '--couleur-surface',
+    'Filet / cadre d’un encadré d’avertissement ou de correction, sur la page',
+    'non-texte',
+  ],
+  [
+    '--couleur-provenance-cours',
+    '--couleur-surface',
+    'Cadre d’un encadré « au programme du cours » sur la page',
+    'non-texte',
+  ],
+  [
+    '--couleur-provenance-complement',
+    '--couleur-surface',
+    'Filet d’un encadré « complément hors cours » sur la page',
+    'non-texte',
+  ],
+
   // --- Code et sélection ----------------------------------------------------
   [
     '--couleur-code-encre',

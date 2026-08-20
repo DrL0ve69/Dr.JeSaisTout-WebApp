@@ -126,6 +126,16 @@
   --couleur-attention: #{prim.$ocre-c};
   --couleur-attention-surface: #{prim.$ocre-lavis-c};
 
+  // Provenance pédagogique (`.claude/rules/contenu-pedagogique.md` §6)
+  // 📘 « cours » = matière d'examen · 🧩 « complément » = ajout de la KB.
+  // La 3ᵉ variante, « correction-du-cours » (⚠️), N'A PAS de jeton à elle :
+  // elle réemploie `--couleur-attention{,-surface}`. Une troisième teinte serait
+  // une teinte de trop dans un vocabulaire qui compte déjà rouge et vert.
+  --couleur-provenance-cours: #{prim.$bleu-encre-c};
+  --couleur-provenance-cours-surface: #{prim.$papier-100};
+  --couleur-provenance-complement: #{prim.$encre-600};
+  --couleur-provenance-complement-surface: #{prim.$papier-0};
+
   // Traits
   --couleur-filet: #{prim.$papier-400};
   --couleur-filet-fort: #{prim.$papier-500};
@@ -166,6 +176,12 @@
   --couleur-ok-corrige-surface: #{prim.$vert-annotation-lavis-s};
   --couleur-attention: #{prim.$ocre-s};
   --couleur-attention-surface: #{prim.$ocre-lavis-s};
+
+  // Provenance pédagogique — G9 : recalibré pour l'ardoise, pas inversé.
+  --couleur-provenance-cours: #{prim.$bleu-encre-s};
+  --couleur-provenance-cours-surface: #{prim.$ardoise-700};
+  --couleur-provenance-complement: #{prim.$craie-300};
+  --couleur-provenance-complement-surface: #{prim.$ardoise-600};
 
   // Traits
   --couleur-filet: #{prim.$ardoise-300};

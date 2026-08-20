@@ -953,6 +953,33 @@ describe('voisines et titre de document', () => {
   });
 });
 
+/**
+ * Délai propre au groupe « rendu de la page » — MESURÉ, pas choisi au hasard.
+ *
+ * 🔴 CE GROUPE EST LE SEUL DU FICHIER QUI MONTE LE COMPOSANT, et chacun de ses tests
+ * rend la leçon-témoin GRASSE en entier dans jsdom : deux SVG Mermaid, le HTML coloré
+ * par Shiki, le quiz et la simulation. Mesuré en suite complète (2026-08-20, reporter
+ * `verbose`) : 580 à 1018 ms par test, et **1658 ms pour le premier**, qui paie en plus
+ * la compilation JIT des gabarits et l'amorçage du routeur. Le défaut de Vitest est de
+ * 5 000 ms — soit un facteur 3 seulement au-dessus du pire cas mesuré, sur une suite qui
+ * sur-souscrit ses workers (520 s de temps de test cumulé pour 133 s de temps mur). D'où
+ * l'intermittence « famille 2 » : `Test timed out in 5000ms` sur un produit SAIN, dès que
+ * la machine est chargée (un run mesuré à +44 % de CPU pour les mêmes fichiers).
+ *
+ * POURQUOI ON NE REND PAS CE TEMPS DÉTERMINISTE — la voie qu'on aurait préférée. Il n'y a
+ * ici AUCUNE attente en temps mur à supprimer : `whenStable()` se résout dès que
+ * l'application est stable, il ne sonde pas et ne temporise pas. Le coût est du CALCUL —
+ * du rendu réel dans jsdom. `fakeAsync`/`flush` ne raccourcissent que des minuteries ; il
+ * n'y en a pas. Le seul élément fragile n'est donc pas l'attente, c'est **l'échéance**.
+ *
+ * CE QUE CE DÉLAI GARDE ENCORE. 20 000 ms reste ~12× le pire cas mesuré : un blocage vrai
+ * (un `effect` qui ne se stabilise jamais, un `whenStable()` qui ne se résout pas) est
+ * INFINI, pas 12× plus lent — il rougit toujours. On ne perd que le mode d'échec que ce
+ * délai n'a jamais su mesurer : la contention de la machine. ⚠️ Et surtout PAS de `retry`
+ * Vitest : un test qu'on rejoue jusqu'au vert n'est plus un gate.
+ */
+const DELAI_RENDU = 20_000;
+
 describe('rendu de la page', () => {
   /** Monte la page sur une route réelle, avec un `resolve` qui rend la leçon compilée. */
   async function monter(
@@ -1294,4 +1321,8 @@ describe('rendu de la page', () => {
     expect(metadonnees).not.toContain('1-800');
     expect(metadonnees).not.toContain('compromis');
   });
-});
+  // Le délai s'applique au GROUPE, jamais au seul test qui a rougi : les quatorze tests
+  // d'ici montent le même composant et paient le même rendu. N'en corriger qu'un
+  // laisserait ses treize voisins exposés au même mécanisme — un symptôme traité, pas
+  // une cause. Voir `DELAI_RENDU` pour la mesure qui fixe la valeur.
+}, DELAI_RENDU);

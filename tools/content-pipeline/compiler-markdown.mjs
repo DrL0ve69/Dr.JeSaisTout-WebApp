@@ -134,11 +134,35 @@ const LANGAGES = ['php', 'csharp', 'typescript', 'sql', 'bash', 'json'];
 /** @type {ReadonlySet<string>} */
 const NOMS_LANGAGES = new Set(LANGAGES);
 
-/** Les trois encadrés, et la variante qu'ils portent au contrat. */
-/** @type {ReadonlyArray<'attention' | 'note' | 'a-retenir'>} */
-const VARIANTES_ENCADRE = ['attention', 'note', 'a-retenir'];
+/**
+ * Les SIX encadrés, et la variante qu'ils portent au contrat (`type VarianteEncadre`).
+ *
+ * Trois encadrés de TON (E2-ST1) puis trois encadrés de PROVENANCE (E3-ST1) — voir la note de
+ * `types.d.ts`. L'ORDRE est celui du contrat, et il est comparé au littéral écrit en dur dans
+ * `src/pipeline-contenu-validation.spec.ts` : ce n'est pas un détail de style, c'est ce qui fait
+ * de la liste dupliquée de `valider.mjs` une redondance VÉRIFIÉE plutôt qu'un commentaire (L-008).
+ */
+/** @type {readonly VarianteEncadre[]} */
+const VARIANTES_ENCADRE = [
+  'attention',
+  'note',
+  'a-retenir',
+  'cours',
+  'complement',
+  'correction-du-cours',
+];
 /** @type {ReadonlySet<string>} */
 const ENCADRES = new Set(VARIANTES_ENCADRE);
+
+/**
+ * La SEULE variante qui admet — et EXIGE — un attribut, et le nom de cet attribut.
+ *
+ * Écrits en constantes parce que trois endroits les citent (la liste de clefs admise passée à
+ * `lireAttributs`, le contrôle de non-vacuité, et le message d'échec) : un nom recopié trois fois
+ * est un nom qui divergera une fois.
+ */
+const VARIANTE_SOURCEE = 'correction-du-cours';
+const ATTRIBUT_SOURCE = 'source';
 
 /**
  * Conteneurs `:::` autorisés — liste FERMÉE, la MÊME que celle de `valider.mjs`. Deux listes
@@ -361,7 +385,7 @@ function retirerCommentairesHtml(corps) {
 /**
  * Refuse tout conteneur `:::` hors de la liste fermée, AVANT le rendu.
  *
- * markdown-it-container n'enregistre que les six noms connus ; un `::: astuce` n'est donc pas
+ * markdown-it-container n'enregistre que les noms de `CONTENEURS_AUTORISES` ; un `::: astuce` n'est donc pas
  * « mal rendu », il retombe en paragraphe et les deux-points s'affichent au lecteur. Le défaut est
  * silencieux à la compilation et visible en production — l'inverse de ce qu'on veut.
  *
@@ -1359,17 +1383,43 @@ function lireAncreDeComposant(jetons, i) {
  */
 function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
   if (nom === 'comparaison') return lireComparaison(enfants, ouverture, ctx);
-  if (!ENCADRES.has(/** @type {'attention' | 'note' | 'a-retenir'} */ (nom))) {
+  if (!ENCADRES.has(nom)) {
     echec(`${ctx.nomFichier} : « ::: ${nom} » hors d'un « :::: comparaison »`, [
       'vulnerable et corrige n’existent qu’appariés, à l’intérieur d’une comparaison',
     ]);
   }
-  lireAttributs(ouverture.info, nom, [], ctx.nomFichier);
-  return {
-    type: 'encadre',
-    variante: /** @type {'attention' | 'note' | 'a-retenir'} */ (nom),
-    blocs: construireBlocs(enfants, ctx),
-  };
+  const variante = /** @type {VarianteEncadre} */ (nom);
+
+  // `source` n'est admis QUE sur `correction-du-cours`. Passer une liste de clefs VIDE aux cinq
+  // autres variantes n'est pas une omission : `lireAttributs` refuse alors nommément tout
+  // attribut, donc `::: note {source="…"}` échoue au lieu d'être avalé. Un attribut ignoré en
+  // silence serait un auteur qui croit sourcer et ne source rien.
+  const attributs = lireAttributs(
+    ouverture.info,
+    nom,
+    variante === VARIANTE_SOURCEE ? [ATTRIBUT_SOURCE] : [],
+    ctx.nomFichier,
+  );
+
+  if (variante !== VARIANTE_SOURCEE) {
+    return { type: 'encadre', variante, blocs: construireBlocs(enfants, ctx) };
+  }
+
+  // OBLIGATOIRE ET NON VIDE. `{source=""}` passe `lireAttributs` (la forme est correcte) et
+  // rendrait un encadré qui ACCUSE le cours sans rien citer — le défaut grave nommé par
+  // `.claude/rules/contenu-pedagogique.md` §6. Le validateur porte la même règle, en amont ;
+  // celle-ci est le filet du compilateur, qui ne suppose pas que le validateur a tourné.
+  const source = (attributs[ATTRIBUT_SOURCE] ?? '').trim();
+  if (source === '') {
+    echec(
+      `${ctx.nomFichier} : « ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » non vide`,
+      [
+        `forme attendue : ::: ${VARIANTE_SOURCEE} {${ATTRIBUT_SOURCE}="OWASP Top 10 2021 — A02"}`,
+        'une correction du cours doit citer la source qui l’autorise, datée quand elle est périssable',
+      ],
+    );
+  }
+  return { type: 'encadre', variante, source, blocs: construireBlocs(enfants, ctx) };
 }
 
 /**

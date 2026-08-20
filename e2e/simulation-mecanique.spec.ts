@@ -41,16 +41,19 @@
 
 import { Page, expect, test } from '@playwright/test';
 
-import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+import { exigerUneLeconAvecSimulation } from './aides/artefact-mesure';
 import { attendreHydratation } from './aides/hydratation';
 import { exigerCspServie, lireViolations, surveiller } from './aides/sonde-csp';
 import {
-  CHEMIN_LECON_TEMOIN,
+  ROUTE_LECON_SIMULATION,
   COMMANDES,
   ID_REGION,
   NOMBRE_ACTEURS,
   NOMBRE_ETAPES,
   NOMBRE_LIENS,
+  attendreCourante,
+  attendreDepli,
+  attendreRepli,
   commande,
   etape,
   idEtape,
@@ -58,7 +61,7 @@ import {
   lireEtat,
 } from './aides/simulation';
 
-exigerLaPageDeLecon('la mécanique de la simulation (modèle C′, lien profond, anchorScrolling)');
+exigerUneLeconAvecSimulation('la mécanique de la simulation (modèle C′, lien profond, anchorScrolling)');
 
 /** Tous les numéros d'étape SAUF celui-là — ce que « repliée sur N » veut dire. */
 function toutesSaufCelleCi(numero: number): number[] {
@@ -79,7 +82,7 @@ test.describe('sans JavaScript — l’état final du prerender', () => {
   test.use({ javaScriptEnabled: false });
 
   test('les M étapes et les M liens d’étape sont là, aucun n’est masqué', async ({ page }) => {
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(ROUTE_LECON_SIMULATION);
 
     const etat = await lireEtat(page);
 
@@ -108,7 +111,7 @@ test.describe('sans JavaScript — l’état final du prerender', () => {
   });
 
   test('le lien profond mène à l’étape visée même sans JavaScript', async ({ page }) => {
-    await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(3)}`);
+    await page.goto(`${ROUTE_LECON_SIMULATION}#${idEtape(3)}`);
 
     // Sans JavaScript, personne ne déplace le focus ni ne marque l'étape : ce qui
     // doit tenir, c'est que la cible EXISTE et soit visible. Un `id` absent ferait
@@ -123,7 +126,7 @@ test.describe('sans JavaScript — l’état final du prerender', () => {
 test('après hydratation, RIEN ne se replie tant que le lecteur n’a rien demandé', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   const etat = await lireEtat(page);
@@ -142,10 +145,14 @@ test('après hydratation, RIEN ne se replie tant que le lecteur n’a rien deman
 test('un clic sur un lien d’étape replie la vue sur cette étape, et sur elle seule', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   await lienEtape(page, 4).click();
+  // Barrière : `lireEtat` est servie UNE fois et ne se rejoue pas, alors que le
+  // repli est peint sur une frame ultérieure — intermittence « famille 1 », mesurée
+  // et détaillée dans `aides/simulation.ts`.
+  await attendreRepli(page, 4, 'l’étape courante ne suit pas le lien activé');
 
   const etat = await lireEtat(page);
   expect(etat.courante, 'l’étape courante ne suit pas le lien activé').toBe(4);
@@ -170,7 +177,7 @@ test('un clic sur un lien d’étape replie la vue sur cette étape, et sur elle
 test('« précédente », « suivante » et « réinitialiser » déplacent l’étape courante', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   // Au premier pas, « précédente » est BORNÉE à l'étape 1 : elle pointe une cible
@@ -178,13 +185,19 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
   // le seul endroit où le repli pourrait masquer TOUTES les étapes.
   expect((await lireEtat(page)).commandes[COMMANDES.precedente]).toContain('étape 1');
   await commande(page, COMMANDES.precedente).click();
+  // Une barrière par geste : chaque lecture ponctuelle décrit alors un instant
+  // COHÉRENT, au lieu de courir contre la frame de peinture (« famille 1 »).
+  await attendreCourante(page, 1, 'la borne basse de « précédente » a cédé');
   expect((await lireEtat(page)).courante, 'la borne basse de « précédente » a cédé').toBe(1);
 
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 2, '« Suivante » n’a pas mené à l’étape 2');
   expect((await lireEtat(page)).courante).toBe(2);
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 3, '« Suivante » n’a pas mené à l’étape 3');
   expect((await lireEtat(page)).courante).toBe(3);
   await commande(page, COMMANDES.precedente).click();
+  await attendreRepli(page, 2, '« Précédente » n’a pas ramené la vue à l’étape 2');
 
   const avantReinitialisation = await lireEtat(page);
   expect(avantReinitialisation.courante).toBe(2);
@@ -194,6 +207,9 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
   ).toEqual(toutesSaufCelleCi(2));
 
   await commande(page, COMMANDES.reinitialiser).click();
+  // La vue VIENT d'être constatée repliée (assertion ci-dessus) : la barrière de
+  // dépli n'est donc pas vraie par construction ici.
+  await attendreDepli(page, '« Réinitialiser » n’a pas tout réaffiché');
 
   const apres = await lireEtat(page);
   expect(apres.masquees, '« Réinitialiser » n’a pas tout réaffiché').toEqual([]);
@@ -205,8 +221,11 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
 // -----------------------------------------------------------------------------
 
 test('ouvrir directement …#simulation-etape-3 affiche l’étape 3 (L-033)', async ({ page }) => {
-  await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(3)}`);
+  await page.goto(`${ROUTE_LECON_SIMULATION}#${idEtape(3)}`);
   await attendreHydratation(page);
+  // `amorcerDepuisLeFragment` court dans `afterNextRender`, et son effet est peint
+  // sur une frame ultérieure : `[ngh]`=0 ne dit rien de CETTE écriture-là.
+  await attendreCourante(page, 3, 'le fragment de l’URL n’a pas été relu au premier rendu client');
 
   const etat = await lireEtat(page);
 
@@ -251,7 +270,7 @@ const DIAGNOSTIC_ANCRE =
  * n'est jamais focalisée). C'est donc bien lui qui tient l'option.
  */
 test('le focus suit le lien d’étape — la dépendance à `anchorScrolling`', async ({ page }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   // Prémisse explicite : le focus n'est pas DÉJÀ sur la cible avant le geste,
@@ -282,7 +301,7 @@ test('le focus suit le lien d’étape — la dépendance à `anchorScrolling`',
  * l'option est le test précédent, et lui seul.
  */
 test('le focus atterrit sur l’étape visée à l’ouverture par lien profond', async ({ page }) => {
-  await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(2)}`);
+  await page.goto(`${ROUTE_LECON_SIMULATION}#${idEtape(2)}`);
   await attendreHydratation(page);
 
   await expect(
@@ -299,7 +318,7 @@ test('actionner la simulation ne produit aucune violation de la CSP servie', asy
   // AVANT `goto` : une violation survenue au chargement serait perdue autrement.
   const journal = await surveiller(page);
 
-  const reponse = await page.goto(CHEMIN_LECON_TEMOIN);
+  const reponse = await page.goto(ROUTE_LECON_SIMULATION);
   // La politique servie est comparée à celle du dépôt : un `npx swa start` démarré
   // sur un artéfact périmé sert une AUTRE politique — dans le sens permissif, il
   // rendrait ce test vert pour rien.
@@ -311,9 +330,13 @@ test('actionner la simulation ne produit aucune violation de la CSP servie', asy
 
   // Le parcours complet : repli, navigation bornée, dépli.
   await lienEtape(page, 3).click();
+  await attendreRepli(page, 3, 'le repli n’a pas suivi le lien d’étape');
   await commande(page, COMMANDES.suivante).click();
+  await attendreCourante(page, 4, '« Suivante » n’a pas mené à l’étape 4');
   await commande(page, COMMANDES.precedente).click();
+  await attendreRepli(page, 3, '« Précédente » n’a pas ramené la vue à l’étape 3');
   await commande(page, COMMANDES.reinitialiser).click();
+  await attendreDepli(page, '« Réinitialiser » n’a rien réaffiché');
   expect((await lireEtat(page)).masquees).toEqual([]);
 
   const violations = await lireViolations(page, journal);
@@ -347,7 +370,7 @@ test('la transition des boîtes est neutralisée sous `prefers-reduced-motion: r
 }) => {
   // `playwright.config.ts` place TOUTE la suite sous `reduce` : c'est l'état par
   // défaut ici, et c'est bien celui qu'un gate d'accessibilité doit mesurer.
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   const duree = await dureeDeTransition(page);
@@ -365,7 +388,7 @@ test.describe('sans préférence de mouvement', () => {
   test.use({ contextOptions: { reducedMotion: 'no-preference' } });
 
   test('la transition existe bel et bien quand rien n’est demandé', async ({ page }) => {
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(ROUTE_LECON_SIMULATION);
     await attendreHydratation(page);
 
     const duree = await dureeDeTransition(page);
@@ -381,7 +404,7 @@ test.describe('en couleurs forcées', () => {
   test.use({ contextOptions: { forcedColors: 'active', reducedMotion: 'reduce' } });
 
   test('rien d’essentiel ne disparaît sous `forced-colors: active`', async ({ page }) => {
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(ROUTE_LECON_SIMULATION);
     await attendreHydratation(page);
 
     // Le système repeint TOUT : les deux encres de marqueur tombent sur `CanvasText`.

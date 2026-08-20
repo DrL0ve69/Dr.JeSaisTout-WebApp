@@ -1,0 +1,142 @@
+{
+  "lecon": "fondamentaux",
+  "titre": "Quiz — fondamentaux de la sécurité des applications web",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Une équipe corrige dans son code une concaténation de chaîne qui construisait une requête SQL. Que corrige-t-elle, au sens du vocabulaire de la sécurité ?",
+      "choix": [
+        { "id": "a", "texte": "Un CVE, puisqu'il s'agit d'une vulnérabilité identifiée." },
+        { "id": "b", "texte": "Un CWE, ici CWE-89, le type de faiblesse « injection SQL »." },
+        { "id": "c", "texte": "Un exploit, puisque le code fautif permettait l'attaque." },
+        { "id": "d", "texte": "Une 0-day, puisque personne d'autre ne connaissait le défaut." }
+      ],
+      "bonneReponse": "b",
+      "explication": "Un CWE nomme un TYPE de faiblesse, indépendamment du produit : c'est la vue du développeur, et on corrige un CWE. La réponse a inverse la distinction — un CVE identifie une INSTANCE précise dans un produit et une version donnés (par exemple CVE-2021-44228 pour Log4Shell), et on le patche, on ne le « corrige » pas dans son propre code. La réponse c confond le défaut et le moyen : l'exploit est le code de l'attaquant, pas celui de l'équipe. La réponse d est un piège de vocabulaire courant : une 0-day est une faille inconnue DU FABRICANT, ce qui n'a rien à voir avec le fait qu'une équipe trouve un défaut dans son propre code.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "Une vulnérabilité qualifiée de 0-day est, par définition, une vulnérabilité déjà exploitée activement par des attaquants.",
+      "bonneReponse": false,
+      "justification": "Faux : une 0-day est une vulnérabilité INCONNUE DU FABRICANT, donc non corrigée — le nom vient de ce que celui-ci a eu « zéro jour » pour la corriger avant qu'elle circule. L'exploitation active est un sous-cas, celui qu'on appelle « 0-day exploitée dans la nature » et qui fait les manchettes ; tout 0-day n'y correspond pas. Confondre les deux conduit à sous-estimer les failles silencieuses, qui sont les plus nombreuses.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "associer",
+      "consigne": "Associe chaque attaque au principe de la triade CIA qu'elle compromet en premier lieu.",
+      "paires": [
+        { "gauche": "DDoS mené par un botnet", "droite": "Disponibilité" },
+        {
+          "gauche": "Extraction d'une base par injection SQL",
+          "droite": "Confidentialité, puis intégrité"
+        },
+        {
+          "gauche": "Verrouillage massif de comptes après trois échecs de connexion",
+          "droite": "Disponibilité"
+        },
+        {
+          "gauche": "Un utilisateur qui s'attribue le rôle administrateur",
+          "droite": "Intégrité"
+        }
+      ],
+      "explication": "Le DDoS ne vole ni ne modifie rien : il rend le service inutilisable, donc il vise la disponibilité seule. L'injection SQL fait d'abord sortir des données (confidentialité) et permet ensuite de les modifier ou de les détruire. Le troisième cas est le plus instructif, et c'est celui que le cours souligne : une politique de verrouillage protège la confidentialité contre la force brute et offre en même temps un déni de service trivial à qui connaît des noms d'utilisateur — une protection peut détruire un autre principe de la triade. L'élévation de privilèges, elle, modifie une donnée que son auteur n'a pas le droit de modifier : c'est de l'intégrité, avant même les conséquences en confidentialité. Deux lignes peuvent partager la même réponse : ce n'est pas une erreur de l'exercice.",
+      "ficheSource": "web/securite/panorama-menaces.md"
+    },
+    {
+      "id": "q4",
+      "type": "trouver-la-faille",
+      "consigne": "Une page interne affiche des dossiers confidentiels aux administrateurs. Quelle ligne rend ce contrôle d'accès inopérant, et pourquoi ?",
+      "langage": "php",
+      "code": "$estAdmin = $_GET['admin'] ?? '0';\n$dossiers = listerDossiers();\nif ($estAdmin === '1') {\n    afficherDossiersConfidentiels($dossiers);\n}",
+      "ligneFautive": 1,
+      "faille": "Confiance au client — le privilège est décidé par une donnée fournie par le visiteur",
+      "explication": "La ligne 1 lit le privilège dans l'URL : il suffit d'ajouter ?admin=1 pour devenir administrateur, sans le moindre exploit. La ligne 3, souvent désignée à tort, est parfaitement correcte : la comparaison fait exactement ce qu'on lui demande — le défaut n'est pas dans le test, il est dans l'ORIGINE de la valeur testée. La ligne 4 n'est fautive que par conséquence, et la ligne 2 ne fait que charger des données. Retiens la règle générale : une donnée qui conditionne le comportement de sécurité de l'application ne doit jamais être une donnée que le client peut écrire.",
+      "correction": "session_start();\n$idUtilisateur = $_SESSION['idUtilisateur'] ?? null;\n$estAdmin = $idUtilisateur !== null && roleDepuisLaBase($idUtilisateur) === 'admin';\n$dossiers = listerDossiers();\nif ($estAdmin) {\n    afficherDossiersConfidentiels($dossiers);\n}",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Un formulaire impose une quantité entre 1 et 10 par un attribut HTML et une vérification JavaScript. Pourquoi cela ne protège-t-il pas le serveur ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Parce que l'attaquant peut envoyer la requête HTTP directement, sans jamais ouvrir la page."
+        },
+        {
+          "id": "b",
+          "texte": "Parce que JavaScript est un langage interprété, donc moins fiable qu'un langage compilé."
+        },
+        {
+          "id": "c",
+          "texte": "Parce que la vérification s'exécute trop tard, après l'envoi du formulaire."
+        },
+        {
+          "id": "d",
+          "texte": "Parce que certains navigateurs ignorent l'attribut de borne sur les champs numériques."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Le code client s'exécute sur une machine que l'attaquant contrôle entièrement : il peut le modifier, mais surtout il n'a pas besoin de le faire — un simple appel curl envoie la requête sans que le formulaire ait jamais existé pour lui. La réponse b invoque une propriété du langage sans rapport : un binaire compilé livré à l'utilisateur se décompile lui aussi, la frontière n'est pas « interprété contre compilé » mais « chez moi contre chez lui ». La réponse c décrit un défaut d'implémentation imaginaire : même parfaitement exécutée avant l'envoi, la vérification resterait contournable. La réponse d est plausible mais accessoire : même avec un support universel des attributs, la protection ne tiendrait pas.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q6",
+      "type": "vrai-faux",
+      "affirmation": "Pour l'examen 1 du cours 420-B10-HU (millésime 2026), il faut savoir réciter les dix catégories de l'OWASP Top 10.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est vérifié sur les sources du cours : le deck de la séance 1 NOMME l'organisme OWASP (diapositive 32) mais ne liste AUCUNE de ses dix catégories, et le plan de cours officiel ne mentionne jamais OWASP — il énonce son contenu en clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce qui est attendu est de savoir ce qu'est l'OWASP et à quoi sert un tel classement. Connaître le Top 10 reste professionnellement utile — le contrôle d'accès défaillant y est premier en 2021 comme en 2025 — mais c'est un complément de la base de connaissances, pas une consigne d'examen.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Une application est déployée avec un message d'erreur détaillé laissé actif en production. Quel outillage a le plus de chances de le détecter ?",
+      "choix": [
+        { "id": "a", "texte": "Un SAST, qui lit tout le code source sans exécuter l'application." },
+        {
+          "id": "b",
+          "texte": "Un DAST, qui attaque l'application en cours d'exécution sans voir le code."
+        },
+        {
+          "id": "c",
+          "texte": "Aucun outil automatisé : seul un pentest manuel peut le trouver."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Le défaut n'existe qu'à l'exécution, dans la configuration de l'environnement déployé : c'est exactement l'angle mort du SAST, qui lit le code sans jamais le faire tourner et reste aveugle aux failles de configuration, d'authentification ou de logique qui n'apparaissent qu'au runtime. Le DAST, lui, interroge l'application vivante et voit la réponse réellement servie. La réponse c surestime le pentest manuel : il est irremplaçable pour les failles de LOGIQUE MÉTIER — contourner un tunnel d'achat, par exemple — qu'aucun scanner ne devine, mais un message d'erreur bavard est précisément ce qu'un scanner dynamique repère à bas coût.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q8",
+      "type": "choix-multiple",
+      "question": "Une équipe veut bloquer la force brute et propose de verrouiller définitivement tout compte après trois échecs de connexion. Quelle est la meilleure objection ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Aucune : c'est la contre-mesure recommandée contre la force brute."
+        },
+        {
+          "id": "b",
+          "texte": "La mesure protège la confidentialité mais offre un déni de service trivial à qui connaît des noms d'utilisateur."
+        },
+        {
+          "id": "c",
+          "texte": "La mesure est inutile, car un attaquant peut de toute façon tester les mots de passe hors ligne."
+        },
+        {
+          "id": "d",
+          "texte": "La mesure viole l'intégrité, puisqu'elle modifie l'état d'un compte sans l'accord de son propriétaire."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "C'est l'exemple central de la triade dans le cours : trois mauvais mots de passe par compte suffisent à mettre toute la clientèle dehors — une protection de la confidentialité qui détruit la disponibilité. La bonne réponse n'est pas « ne rien faire » mais un arbitrage : ralentissement exponentiel plutôt que verrouillage, limitation par adresse IP ET par compte, CAPTCHA après N échecs, déverrouillage automatique. La réponse c décrit un scénario réel mais hors sujet : le cassage hors ligne suppose que la base a déjà fuité, et c'est le hachage lent qui y répond, pas le verrouillage. La réponse d détourne le vocabulaire de la triade : l'intégrité porte sur la modification non autorisée de DONNÉES par un acteur, pas sur une décision prise par l'application elle-même.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

@@ -66,3 +66,9 @@ ne mérite pas de règle permanente.
 2. Rends un résumé de 2 à 4 lignes : quels IDs `S-0xx` tu as ajoutés ou changés, l'enseignement en une
    phrase pour chacun, plus toute vérification que `security.md` devrait désormais porter. Si rien ne
    méritait d'être capturé, dis-le franchement — **ne fabrique pas** une leçon pour avoir l'air occupé.
+
+> 🔴 **DERNIER GESTE, OBLIGATOIRE : `npm run lecons:index`.** Tu es l’un des deux seuls agents
+> qui lisent `.claude/lessons/security-lessons.md` EN ENTIER — tous les autres passent par
+> `.claude/lessons/INDEX.md`, qui porte les **plages de lignes** de chaque entrée. Ajouter,
+> fusionner ou élaguer une entrée décale ces plages : sans régénération, l’index envoie chaque
+> agent lire le mauvais passage, en silence. Un index qui ment coûte plus cher que pas d’index.

@@ -195,6 +195,7 @@ Le CLAUDE.md renvoie aux conventions du projet frère AbrisTempo ; la KB en couv
 | Gestion du contexte, « zone intelligente », 1 ticket = 1 fenêtre — source de `.claude/rules/agent-context-budget.md` | `ai/agents/claude-code/methode-travail.md` |
 | Coût d'une flotte, séquentiel vs parallèle, coût d'une tâche abandonnée | `ai/agents/cout-exploitation-flotte.md` |
 | CLAUDE.md, portées, permissions, subagents, skills/hooks/MCP, **RAG vs navigation fichiers** | 🆕 `ai/agents/claude-code/workflow-configuration.md` |
+| 🔴 **`CLAUDE.md` trop long : le tri, et les 4 mécanismes** — `<!-- -->` retirés avant injection, `paths:` des `.claude/rules/`, `@imports` qui n’économisent rien, cible « sous 200 lignes » ; + hook `InstructionsLoaded` et coupes par `/doctor`. Fonde `~/.claude/CLAUDE.md` §préambule et `.claude/rules/agent-context-budget.md` §7 | 🆕 `ai/agents/claude-code/workflow-configuration.md` §« quand CLAUDE.md devient trop long » |
 | Arbre de décision tool / skill / subagent ; les deux cas légitimes de subagent | 🆕 `ai/agents/architecture-harness.md` |
 | Skills, progressive disclosure, LLM-as-judge, maturité des evals | 🆕 `ai/agents/claude-code/skills-et-evals.md` |
 | **AI slop, design system injecté en contexte, bibliothèque de goût** — source de `docs/design/direction-visuelle.md` | 🆕 `ai/agents/claude-code/design-ui.md` |

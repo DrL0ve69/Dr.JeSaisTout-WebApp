@@ -117,6 +117,18 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
       dans le corps d'une étape existante passe encore. Il faut une liste blanche **ordonnée**, avec
       **empreinte du corps exécuté**, en littéraux **revus à la main** et jamais recalculés depuis le
       fichier (S-005).
+      🔴 **DEUX GESTES DE PLUS, ajoutés au lot `fix/intermittence-gates-pre-e3-st1` (2026-08-20) :**
+      **(d) Un contrôle de contenu publié se porte sur la SORTIE COMPILÉE, jamais sur le Markdown
+      source** (**S-022**). Mesuré : `markdown-it` **décode les entités** — `&#x1F4D8;` → 📘 — donc
+      un balayage du texte d'auteur brut ne voit rien passer un pictogramme de provenance interdit
+      en prose. Le contrôle doit porter sur l'**AST/HTML compilés** (nœuds texte hors blocs `code`),
+      où les entités sont déjà résolues et où l'exemption « bloc de code » redevient structurelle ;
+      couvrir aussi les **sélecteurs de variante** (U+FE0F), qui peuvent séparer un pictogramme de
+      son glyphe de base sans changer le motif recherché.
+      **(e) Tout CHAMP D'AUTEUR EN TEXTE LIBRE nouvellement rendu au DOM arrive avec son test à
+      DEUX MAINS** (patron **S-011**) : la charge s'affiche **entière** ET n'engendre **aucun
+      nœud** — un test qui ne vérifie qu'une des deux moitiés certifierait un assainissement dont
+      l'autre moitié est un no-op.
 - [ ] **Aucun `bypassSecurityTrust*`** Angular sans justification écrite et revue — et **cette
       justification se relit dans le MÊME diff que le garde-fou qu'elle décrit**. Un texte qui
       promet une garantie plus forte que celle qui est appliquée autorise, de fait, plus que ce

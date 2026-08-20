@@ -36,6 +36,13 @@ ancre seulement la première et la dernière. Durée annoncée : 5 minutes.
 Un conteneur de la liste fermée passe. Un conteneur inventé fait échouer la construction.
 :::
 
+::: cours
+AJOUTÉ AU LOT « PROVENANCE » (E3-ST1), et ce n’est pas décoratif : cette leçon est la seule
+fixture en `statut: publiee`, donc la seule que la règle G2 atteint. Sans cet encadré, elle
+porterait DEUX fautes — la sienne et une provenance absente — et le contrat « un dossier = une
+faute » du LISEZMOI serait rompu.
+:::
+
 <!-- à-vérifier: le validateur refuse-t-il ce marqueur en statut publiee ? — doute posé exprès -->
 
 ## Exemple simple

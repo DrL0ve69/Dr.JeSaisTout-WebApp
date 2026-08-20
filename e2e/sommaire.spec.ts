@@ -1,6 +1,6 @@
 // =============================================================================
-// Sommaire du cours — état vide, masquage des brouillons, et la chaîne complète
-// Quiz → ProgressionService → Sommaire (E2-ST6, lot E)
+// Sommaire du cours — masquage des brouillons, fidélité au contenu, et la chaîne
+// complète Quiz → ProgressionService → Sommaire (E2-ST6, lot E)
 // -----------------------------------------------------------------------------
 // CE QUE CE FICHIER MESURE, ET QUE RIEN D'AUTRE NE VOIT. Les specs unitaires du
 // lot A/B tiennent chacun un maillon : `progression.spec.ts` sait écrire et relire
@@ -12,28 +12,55 @@
 // feature n'importe une autre feature ») — et une frontière ne se prouve qu'en la
 // franchissant pour de vrai, dans un vrai navigateur, sous la CSP servie.
 //
-// 🔴 LE FICHIER TOURNE SUR LES DEUX ARTÉFACTS, ET IL MESURE DES CHOSES DIFFÉRENTES.
-// Le dépôt bâtit deux artéfacts distincts (décision E-2 d'E2-ST3, en-tête de
-// `e2e/aides/artefact-mesure.ts`) : `deploy.yml` depuis la racine de PRODUCTION,
-// où `content/` est vide jusqu'à E3-ST1, et `ci.yml` depuis la FIXTURE TÉMOIN, qui
-// porte deux leçons. Le sommaire est la première page du site à être RÉELLEMENT
-// SIGNIFICATIVE des deux côtés — vide ici, peuplé là — donc ce fichier ne choisit
-// pas un artéfact : il mesure l'état vide quand il n'y a rien, et le masquage plus
-// la progression quand il y a quelque chose. Chaque moitié se saute nommément sur
-// l'autre artéfact, jamais en silence.
+// 🔴 RECALIBRÉ LE 2026-08-20 (clôture d'E3-ST1) — TROIS CHANGEMENTS, ET LEURS RAISONS.
 //
-// 🔴 ET LE MASQUAGE DU BROUILLON SE VÉRIFIE AU DISQUE, JAMAIS PAR UNE 404.
-// C'est l'exigence explicite du plan v2, et la raison est structurelle : une 404
-// sur `/cours/securite-web/lecon-brouillon/` serait rendue à l'identique par TROIS
-// situations dont deux sont des pannes — (1) le brouillon est bien exclu du
-// prerender, ce qu'on veut prouver ; (2) on tourne sur l'artéfact de production,
-// où AUCUNE leçon n'existe, donc le test serait vert sans rien avoir mesuré ;
-// (3) le serveur est cassé. Un test qui accepte une 404 comme preuve est vert dans
-// les trois cas. On interroge donc le système de fichiers, et on l'accompagne d'un
-// CONTRÔLE POSITIF sur le même chemin de base : si `lecon-temoin/index.html` n'est
-// pas trouvée là où on la cherche, c'est le sondage qui est faux, pas le produit
-// (mode d'échec L-035 — une prémisse de test fausse rougit sur un produit sain, et
-// sa jumelle silencieuse : un chemin mal orthographié rend l'absence triviale).
+// (1) LE VOLET « ÉTAT VIDE » A ÉTÉ RETIRÉ DE CETTE SUITE. Il vérifiait que le
+//     sommaire annonce « Modules en préparation. » quand `content/` ne porte aucune
+//     leçon. Ce cas n'a plus de sujet : la leçon 01 est publiée, et il n'existe plus
+//     d'artéfact sans leçon à bâtir. Un test e2e qui ne peut PLUS JAMAIS s'exécuter
+//     n'est pas un filet, c'est un gate vide (L-005) — il coûterait un `skip`
+//     permanent en laissant croire à une couverture. L'état vide reste couvert là où
+//     il est réellement atteignable : par le test unitaire
+//     `src/app/features/cours/sommaire/sommaire.spec.ts`, describe « état vide », qui
+//     monte le composant avec un manifeste VIDE et exige « en préparation », aucun
+//     résumé et aucune liste. C'est le bon niveau : le manifeste y est une entrée, pas
+//     un fait de dépôt.
+//
+// (2) LE MASQUAGE DU BROUILLON MESURE L'INVARIANT, PLUS L'INVENTAIRE. L'ancien test
+//     exigeait nommément `lecon-brouillon` absent et `lecon-temoin` présent — deux
+//     slugs qui n'existaient que dans la fixture témoin. Ce qui doit être vrai n'est
+//     pas « ces deux-là », c'est : TOUTE leçon de `content/cours/securite-web/` en
+//     `statut: brouillon` est absente de `dist/`, et TOUTE leçon en `statut: publiee`
+//     y est présente ET listée exactement une fois dans le sommaire. La liste des
+//     leçons est donc LUE DANS `content/`, jamais écrite ici : publier la leçon 02 ne
+//     demande de toucher à rien.
+//
+// (3) LE QUIZ EST RÉPONDU À PARTIR DE SON JSON, PAS D'UN SCRIPT ÉCRIT À LA MAIN.
+//     `repondreJusteAuQuizTemoin` connaissait les cinq questions de la fixture par
+//     cœur (libellés compris). La leçon 01 en porte huit, et les leçons suivantes en
+//     porteront autre chose. La fonction lit désormais `quiz.json` sur le disque et en
+//     déduit la bonne réponse de chaque forme, et le verdict attendu (« N bonnes
+//     réponses sur N ») se calcule à partir du NOMBRE DE QUESTIONS DU FICHIER.
+//
+// 🔴 ET LE CROISEMENT DEUX SOURCES EST VOULU, C'EST LUI L'ASSERTION. Le DOM d'un
+// côté, `quiz.json` de l'autre — deux chemins indépendants jusqu'à la page. Un quiz
+// qui perdrait une question au compilateur ferait diverger les deux comptes, et c'est
+// l'égalité qui le dit. Le contraire — faire écrire à l'auteur, dans le test, le
+// nombre qu'on prétend vérifier — serait le patron S-014 : un garde-fou dont l'entrée
+// fabrique la preuve qu'il exige n'en est pas un.
+//
+// 🔴 LE MASQUAGE DU BROUILLON SE VÉRIFIE AU DISQUE, JAMAIS PAR UNE 404.
+// C'est l'exigence explicite du plan v2, et la raison est structurelle : une 404 sur
+// une route de brouillon serait rendue à l'identique par TROIS situations dont deux
+// sont des pannes — (1) le brouillon est bien exclu du prerender, ce qu'on veut
+// prouver ; (2) l'artéfact mesuré ne porte AUCUNE leçon, donc le test serait vert sans
+// rien avoir mesuré ; (3) le serveur est cassé. Un test qui accepte une 404 comme
+// preuve est vert dans les trois cas. On interroge donc le système de fichiers, et on
+// l'accompagne d'un CONTRÔLE POSITIF sur le même chemin de base : si le document d'une
+// leçon PUBLIÉE n'est pas trouvé là où on le cherche, c'est le sondage qui est faux,
+// pas le produit (mode d'échec L-035 — une prémisse de test fausse rougit sur un
+// produit sain, et sa jumelle silencieuse : un chemin mal orthographié rend l'absence
+// trivialement vraie).
 //
 // ⚠️ SÉLECTEURS PAR RÔLE ET PAR NOM ACCESSIBLE, pas par classe CSS. La bascule
 // visuelle E6 va réécrire les feuilles de style de fond en comble ; elle ne doit
@@ -42,141 +69,261 @@
 // `a[href^=…]`, qui porte sur la cible d'un lien, pas sur son habillage.
 // =============================================================================
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
-import { Page, expect, test } from '@playwright/test';
+import { Locator, Page, expect, test } from '@playwright/test';
 
-import { LECON_TEMOIN_PRERENDUE, exigerLaPageDeLecon } from './aides/artefact-mesure';
+import { LECON_AVEC_QUIZ, exigerUneLeconAvecQuiz } from './aides/artefact-mesure';
 import { attendreHydratation } from './aides/hydratation';
 
-/** La route du sommaire — la seule route de cours du site, et elle existe dans les DEUX artéfacts. */
+/** La route du sommaire — la seule route de cours du site, et elle existe toujours. */
 const CHEMIN_SOMMAIRE = '/cours/securite-web/';
 
-/** La leçon-témoin de la fixture, en `statut: publiee`. */
-const CHEMIN_LECON_TEMOIN = '/cours/securite-web/lecon-temoin/';
+/** La racine, DANS LE DÉPÔT, des leçons de ce sujet — la source de vérité éditoriale. */
+const RACINE_CONTENU = 'content/cours/securite-web';
 
 /**
- * La racine, SUR LE DISQUE, des pages de leçon prerendues de ce sujet. Les deux
- * sondages ci-dessous en dérivent — c'est ce qui rend le contrôle positif capable
- * d'attraper une faute de frappe qui rendrait le contrôle négatif trivialement vrai.
+ * La racine, SUR LE DISQUE, des pages de leçon prerendues de ce sujet. Les sondages
+ * ci-dessous en dérivent — c'est ce qui rend le contrôle positif capable d'attraper
+ * une faute de frappe qui rendrait le contrôle négatif trivialement vrai.
  */
 const RACINE_COURS_PRERENDUE = 'dist/dr-je-sais-tout/browser/cours/securite-web';
 
-/** Le document prerendu d'une leçon de ce sujet, tel que `swa start` le servirait. */
+/**
+ * Le document prerendu d'une leçon de ce sujet, tel que `swa start` le servirait.
+ *
+ * 🔴 UN SLUG VIDE EST REFUSÉ, EN SE NOMMANT (correctif du 2026-08-20). Une `lecon.md`
+ * dont le frontmatter n'aurait pas de champ `slug:` donne `''`, et
+ * `documentPrerendu('')` résout alors au document du SOMMAIRE lui-même — qui existe
+ * toujours. L'étape 1 de « toute leçon publiée est prerendue » serait donc
+ * trivialement vraie, et le contrôle positif du test des brouillons aussi. Le
+ * chemin fabriqué ne doit jamais pouvoir désigner autre chose que ce qu'il nomme.
+ */
 function documentPrerendu(slug: string): string {
+  if (slug === '') {
+    throw new Error(
+      "une leçon de content/ ne déclare pas de champ « slug: » dans son frontmatter : le chemin " +
+        'prerendu qu’on en dériverait pointerait sur le sommaire, et rendrait le sondage disque ' +
+        'trivialement vrai',
+    );
+  }
   return `${RACINE_COURS_PRERENDUE}/${slug}/index.html`;
 }
-
-/** Les titres exacts des deux leçons de la fixture témoin (frontmatter `titre`). */
-const TITRE_TEMOIN = 'Leçon-témoin grasse — tout le contrat du pipeline dans un fichier';
-const TITRE_BROUILLON = 'Leçon-témoin brouillon — celle que le sommaire ne doit pas montrer';
-
-/** Les sections des deux leçons de la fixture — le brouillon est SEUL dans la sienne. */
-const SECTION_DU_BROUILLON = 'Approfondissements';
 
 /** Les libellés de badge de `Sommaire` (`LIBELLES_ETAT`), écrits ici tels qu'un visiteur les lit. */
 const BADGE_A_COMMENCER = 'À commencer';
 const BADGE_MAITRISE = 'Maîtrisé';
 
-/**
- * Les cinq bonnes réponses du quiz de la leçon-témoin, relevées dans
- * `tools/content-pipeline/__fixtures__/temoin/…/01-lecon-temoin/quiz.json`.
- *
- * Le seuil de maîtrise est de 80 % (`SEUIL_REUSSITE`) : 4 sur 5 suffiraient. On
- * répond juste PARTOUT quand même, pour que ce test ne devienne pas rouge le jour
- * où le seuil bouge — ce fichier mesure la chaîne, pas l'arithmétique du seuil,
- * qui a son test unitaire.
- */
-const ASSOCIATIONS_ATTENDUES: Readonly<Record<string, string>> = {
-  'manifeste-routes.json': 'la liste des routes à prerendre',
-  'carte-lecons.ts': "le chargement paresseux d'une leçon",
-  '_coloration-syntaxique-generee.scss': 'les couleurs des blocs de code',
-};
+// -----------------------------------------------------------------------------
+// Ce que `content/` déclare — lu, jamais recopié
+// -----------------------------------------------------------------------------
 
-/** Le module du sommaire qui porte la leçon-témoin, avec son badge et ses métadonnées. */
-function moduleTemoin(page: Page) {
-  return page
+/** Une leçon telle que son fichier source la déclare. */
+interface LeconSource {
+  /** Le dossier dans `content/`, avec son préfixe d'ordre (`01-fondamentaux`). */
+  readonly dossier: string;
+  /** Le `slug` du frontmatter — c'est LUI qui devient la route, pas le dossier. */
+  readonly slug: string;
+  readonly titre: string;
+  readonly statut: string;
+}
+
+/**
+ * Lit un champ scalaire du frontmatter. Volontairement minimal : on ne veut ici que
+ * trois chaînes plates (`slug`, `titre`, `statut`), et ajouter un analyseur YAML à la
+ * suite e2e pour cela serait une dépendance de plus sur la surface d'un gate. Les
+ * champs structurés (`objectifs`, `fiches-sources`) ne sont pas lus.
+ */
+function champScalaire(frontmatter: string, nom: string): string {
+  const trouve = new RegExp(`^${nom}:[ \\t]*(.*)$`, 'm').exec(frontmatter);
+  return (trouve?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
+}
+
+/** Toutes les leçons DÉCLARÉES dans `content/`, publiées comme brouillons. */
+const LECONS_SOURCE: readonly LeconSource[] = existsSync(RACINE_CONTENU)
+  ? readdirSync(RACINE_CONTENU, { withFileTypes: true })
+      .filter((entree) => entree.isDirectory())
+      .map((entree) => ({ dossier: entree.name, chemin: join(RACINE_CONTENU, entree.name, 'lecon.md') }))
+      .filter((candidate) => existsSync(candidate.chemin))
+      .map((candidate) => {
+        const brut = readFileSync(candidate.chemin, 'utf8');
+        // Le frontmatter est le premier bloc encadré de `---`. `\r?\n` parce que les
+        // fins de ligne de ce poste sont mixtes (L-015).
+        const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(brut)?.[1] ?? '';
+        return {
+          dossier: candidate.dossier,
+          slug: champScalaire(frontmatter, 'slug'),
+          titre: champScalaire(frontmatter, 'titre'),
+          statut: champScalaire(frontmatter, 'statut'),
+        };
+      })
+  : [];
+
+const LECONS_PUBLIEES = LECONS_SOURCE.filter((lecon) => lecon.statut === 'publiee');
+const LECONS_BROUILLON = LECONS_SOURCE.filter((lecon) => lecon.statut === 'brouillon');
+
+/** Les slugs de leçon effectivement liés depuis le `<main>` du sommaire, dans l'ordre. */
+async function slugsListesAuSommaire(page: Page): Promise<readonly string[]> {
+  const hrefs = await page
     .getByRole('main')
-    .locator('li')
-    .filter({ has: page.getByRole('link', { name: TITRE_TEMOIN }) });
+    .locator('a[href^="/cours/securite-web/"]')
+    .evaluateAll((elements) => elements.map((element) => element.getAttribute('href') ?? ''));
+
+  return hrefs.map((href) => href.replace('/cours/securite-web/', '').replace(/\/$/, ''));
+}
+
+/**
+ * Le module du sommaire qui porte une leçon donnée, avec son badge et ses métadonnées.
+ *
+ * 🔴 LES DEUX CONVENTIONS DE `href` SONT ACCEPTÉES, ET C'EST UN CORRECTIF
+ * (2026-08-20). `slugsListesAuSommaire` tolère la barre oblique finale (elle la
+ * retire avant de comparer) ; cette fonction, elle, exigeait son ABSENCE. Le jour où
+ * le routeur canonicalise en `…/${slug}/`, ce locator résoudrait à ZÉRO élément — et
+ * `expect(module).not.toContainText(BADGE_A_COMMENCER)` passerait alors À VIDE, sur
+ * un sommaire qui affiche pourtant le mauvais badge. Une assertion négative sur un
+ * locator vide est toujours vraie : c'est le mode d'échec silencieux de L-019.
+ * On énumère donc les DEUX formes exactes plutôt qu'un préfixe — `href^=` aurait
+ * aussi capté un futur slug `${slug}-avance`, et fait porter au module voisin les
+ * assertions de celui-ci.
+ */
+function moduleDuSommaire(page: Page, slug: string): Locator {
+  const lien = `a[href="/cours/securite-web/${slug}"], a[href="/cours/securite-web/${slug}/"]`;
+  return page.getByRole('main').locator('li').filter({ has: page.locator(lien) });
 }
 
 // -----------------------------------------------------------------------------
-// (a) L'artéfact de PRODUCTION — le sommaire dit honnêtement qu'il est vide
+// (a) Le sommaire dit EXACTEMENT ce que `content/` publie — ni plus, ni moins
 // -----------------------------------------------------------------------------
-test.describe("sommaire de l'artéfact de production", () => {
-  // Le symétrique d'`exigerLaPageDeLecon` : ici c'est l'ABSENCE de page de leçon
-  // qui est la prémisse. Sur la fixture, le sommaire porte un module et l'état
-  // vide n'a plus de sujet — le saut se nomme plutôt que de rougir à tort.
-  test.beforeEach(() => {
-    test.skip(
-      LECON_TEMOIN_PRERENDUE,
-      "l'artéfact mesuré porte une page de leçon : c'est la FIXTURE, l'état vide du sommaire n'y a pas de sujet",
-    );
-  });
+test.describe('sommaire — fidélité au contenu publié', () => {
+  test('toute leçon publiée est prerendue ET listée exactement une fois', async ({ page }) => {
+    // CONTRÔLE POSITIF, en tête. Sans lui, un `content/` vide ou un chemin mal
+    // orthographié rendrait toutes les boucles ci-dessous vides, donc vertes, sans
+    // avoir rien mesuré (L-005/L-019).
+    expect(
+      LECONS_PUBLIEES.map((lecon) => lecon.slug),
+      `aucune leçon en « statut: publiee » trouvée sous ${RACINE_CONTENU} : ce test serait vert ` +
+        'et vide. Soit le contenu a disparu, soit ce sondage regarde au mauvais endroit.',
+    ).not.toEqual([]);
 
-  test("le sommaire existe, se nomme, et annonce qu'aucun module n'est publié", async ({ page }) => {
+    // 🔴 ET AUCUN SLUG N'EST VIDE (correctif du 2026-08-20). `['']` passait le contrôle
+    // ci-dessus — un tableau non vide de chaînes vides — alors qu'un `slug` absent du
+    // frontmatter fait résoudre `documentPrerendu('')` sur le SOMMAIRE, qui existe
+    // toujours : l'étape 1 devenait trivialement vraie. Le contrôle positif doit
+    // refuser la valeur qui le rend inoffensif, pas seulement la liste vide.
+    expect(
+      LECONS_PUBLIEES.filter((lecon) => lecon.slug === '').map((lecon) => lecon.dossier),
+      'ces leçons publiées ne déclarent aucun champ « slug: » dans leur frontmatter : la route ' +
+        'qu’on en dériverait serait celle du sommaire, et ce test ne mesurerait plus rien.',
+    ).toEqual([]);
+
+    // ---- 1. Chacune a bien SA PAGE, et c'est le disque qui le dit ---------------
+    for (const lecon of LECONS_PUBLIEES) {
+      expect(
+        existsSync(documentPrerendu(lecon.slug)),
+        `« ${lecon.titre} » est en « statut: publiee » mais n'a PAS été prerendue : ` +
+          `${documentPrerendu(lecon.slug)} est introuvable. Une leçon publiée que le prerender ` +
+          'ignore est une page qui n’existe pas pour un visiteur sans JS, ni pour un moteur.',
+      ).toBe(true);
+    }
+
+    // ---- 2. Le sommaire liste ces slugs-là, et RIEN d'autre ---------------------
     await page.goto(CHEMIN_SOMMAIRE);
 
-    // La page a bien un titre de premier niveau : c'est l'adaptateur de route qui
-    // l'écrit (littéral de gabarit), pas une donnée de route qu'on peut oublier.
-    await expect(page.getByRole('heading', { level: 1, name: 'Sécurité des applications web' })).toBeVisible();
+    const listes = [...(await slugsListesAuSommaire(page))].sort((a, b) => a.localeCompare(b));
+    const attendus = LECONS_PUBLIEES.map((lecon) => lecon.slug).sort((a, b) => a.localeCompare(b));
 
-    // L'aveu, en toutes lettres. Une page de sommaire qui se rendrait VIDE — sans
-    // liste et sans phrase — serait indiscernable d'une page cassée : c'est le
-    // mode d'échec « page vide en silence » que tout le moteur de contenu combat.
-    await expect(page.getByText('Modules en préparation.')).toBeVisible();
+    // Une seule égalité, et elle porte dans les DEUX sens : un brouillon listé apparaît
+    // à gauche, une leçon publiée oubliée manque à gauche, et un doublon casse le
+    // compte. « La publiée est là » n'aurait exclu ni l'un ni l'autre.
+    expect(
+      listes,
+      'le sommaire ne liste pas exactement les leçons publiées de `content/` — un brouillon ' +
+        'listé, une leçon publiée manquante, ou un module en double',
+    ).toEqual(attendus);
 
-    // Et rien qui ressemble à un module : aucun lien de leçon, aucun badge.
-    await expect(page.getByRole('main').locator('a[href^="/cours/securite-web/"]')).toHaveCount(0);
+    // Et le TITRE est bien celui du frontmatter : un lien juste sous une étiquette
+    // fausse serait indétectable par le compte ci-dessus.
+    for (const lecon of LECONS_PUBLIEES) {
+      await expect(
+        page.getByRole('link', { name: lecon.titre }),
+        `« ${lecon.titre} » n’est pas lisible comme lien dans le sommaire`,
+      ).toBeVisible();
+    }
+  });
+
+  test('toute leçon en « statut: brouillon » est absente du prerender ET du sommaire', async ({
+    page,
+  }) => {
+    if (LECONS_BROUILLON.length === 0) {
+      // Le journal fait foi (L-005) : un saut muet serait indiscernable d'un succès,
+      // et celui-ci est appelé à durer tant qu'aucun auteur ne laisse un brouillon.
+      console.log(
+        `⏭️  SAUTÉ — masquage des brouillons : aucune leçon de ${RACINE_CONTENU} n'est en ` +
+          `« statut: brouillon » (${String(LECONS_SOURCE.length)} leçon(s) inspectée(s) : ` +
+          `${LECONS_SOURCE.map((lecon) => `${lecon.dossier} → ${lecon.statut}`).join(', ')}). ` +
+          "Il n'y a rien à masquer, donc rien à mesurer — la moitié « publiée » de l'invariant " +
+          'est mesurée par le test précédent, elle, et le filtre `leconsPubliees` garde ' +
+          'son test unitaire (D-1 d’E2-ST6).',
+      );
+    }
+    test.skip(
+      LECONS_BROUILLON.length === 0,
+      'aucune leçon en « statut: brouillon » dans content/ — le masquage n’a pas de sujet',
+    );
+
+    // ---- 1. Le brouillon n'a PAS DE PAGE, et c'est le disque qui le dit ---------
+    //
+    // Contrôle positif d'abord : sans lui, une faute de frappe dans
+    // `RACINE_COURS_PRERENDUE` rendrait les assertions suivantes vraies pour rien.
+    const temoinPublie = LECONS_PUBLIEES[0];
+    expect(
+      temoinPublie === undefined ? false : existsSync(documentPrerendu(temoinPublie.slug)),
+      'le sondage disque regarde au mauvais endroit : aucune leçon PUBLIÉE n’est trouvée sous ' +
+        `${RACINE_COURS_PRERENDUE} (contrôle positif du test)`,
+    ).toBe(true);
+
+    for (const brouillon of LECONS_BROUILLON) {
+      expect(
+        existsSync(documentPrerendu(brouillon.slug)),
+        `la leçon en « statut: brouillon » a été PRERENDUE : ${documentPrerendu(brouillon.slug)} ` +
+          'existe. Le sélecteur « leconsPubliees » (D-1 d’E2-ST6) doit filtrer le manifeste de ' +
+          'prerender autant que le sommaire — sinon un brouillon est public et indexable.',
+      ).toBe(false);
+    }
+
+    // ---- 2. Le sommaire, lui non plus, ne le montre pas ------------------------
+    await page.goto(CHEMIN_SOMMAIRE);
+
+    const listes = await slugsListesAuSommaire(page);
+    for (const brouillon of LECONS_BROUILLON) {
+      expect(
+        listes,
+        `le sommaire liste « ${brouillon.titre} », qui est un brouillon`,
+      ).not.toContain(brouillon.slug);
+
+      await expect(
+        page.getByRole('link', { name: brouillon.titre }),
+        `« ${brouillon.titre} » est un brouillon et pourtant lisible comme lien dans le sommaire`,
+      ).toHaveCount(0);
+    }
   });
 });
 
 // -----------------------------------------------------------------------------
-// (b) et (c) — l'artéfact de FIXTURE, le seul où il y a quelque chose à masquer
+// (b) La chaîne complète : quiz réussi sur une route → badge sur une autre
 // -----------------------------------------------------------------------------
-test.describe('sommaire peuplé — masquage du brouillon et progression', () => {
-  exigerLaPageDeLecon(
-    'le sommaire peuplé du cours (1 module listé sur 2, et la chaîne quiz → progression → badge)',
-  );
+test.describe('sommaire — la chaîne quiz → progression → badge', () => {
+  exigerUneLeconAvecQuiz('la chaîne quiz réussi → ProgressionService → badge « Maîtrisé » du sommaire');
 
-  test("liste la leçon publiée et masque le brouillon — partout, y compris au prerender", async ({
-    page,
-  }) => {
-    // ---- 1. Le brouillon n'a PAS DE PAGE, et c'est le disque qui le dit --------
-    //
-    // Contrôle positif d'abord : sans lui, une faute de frappe dans
-    // `RACINE_COURS_PRERENDUE` rendrait l'assertion suivante vraie pour rien.
-    expect(
-      existsSync(documentPrerendu('lecon-temoin')),
-      `le sondage disque regarde au mauvais endroit — ${documentPrerendu('lecon-temoin')} introuvable ` +
-        `alors que l'artéfact mesuré est celui de la fixture (contrôle positif du test)`,
-    ).toBe(true);
+  test('quiz réussi → le module passe à « Maîtrisé » sur le sommaire', async ({ page }) => {
+    const lecon = LECON_AVEC_QUIZ;
+    expect(lecon, 'la garde `exigerUneLeconAvecQuiz` aurait dû faire sauter ce test').toBeDefined();
+    if (lecon === undefined) return;
 
-    expect(
-      existsSync(documentPrerendu('lecon-brouillon')),
-      `la leçon en « statut: brouillon » a été PRERENDUE : ${documentPrerendu('lecon-brouillon')} existe. ` +
-        `Le sélecteur « leconsPubliees » (D-1 d'E2-ST6) doit filtrer le manifeste de prerender ` +
-        `autant que le sommaire — sinon un brouillon est public et indexable.`,
-    ).toBe(false);
+    const quiz = lireQuizDeLaLecon(lecon.slug);
+    const module = moduleDuSommaire(page, lecon.slug);
 
-    // ---- 2. Le sommaire, lui aussi, n'en montre qu'une -------------------------
-    await page.goto(CHEMIN_SOMMAIRE);
-
-    await expect(page.getByRole('link', { name: TITRE_TEMOIN })).toBeVisible();
-    await expect(page.getByRole('link', { name: TITRE_BROUILLON })).toHaveCount(0);
-
-    // Le compte, et non seulement la présence : « la publiée est là » n'exclut pas
-    // « et une autre aussi ». Un seul lien de leçon dans tout le `<main>`.
-    await expect(page.getByRole('main').locator('a[href^="/cours/securite-web/"]')).toHaveCount(1);
-
-    // La fixture donne au brouillon une SECTION à lui (« Approfondissements ») :
-    // masquer la leçon doit faire disparaître le groupe entier, titre compris.
-    // Un titre de section resté seul serait une promesse vide dans la carte de parcours.
-    await expect(page.getByRole('heading', { name: SECTION_DU_BROUILLON })).toHaveCount(0);
-  });
-
-  test('quiz témoin réussi → le module passe à « Maîtrisé » sur le sommaire', async ({ page }) => {
     // ---- 1. L'état de départ, MESURÉ et non supposé ---------------------------
     //
     // Playwright donne à chaque test un contexte neuf, donc un `localStorage` vide.
@@ -185,22 +332,40 @@ test.describe('sommaire peuplé — masquage du brouillon et progression', () =>
     // (L-035 — on vérifie que l'entrée produit bien la sortie exigée).
     await page.goto(CHEMIN_SOMMAIRE);
     await attendreHydratation(page, 'le sommaire lit la progression après hydratation seulement');
-    await expect(moduleTemoin(page)).toContainText(BADGE_A_COMMENCER);
+
+    // 🔴 LE MODULE EXISTE, ET C'EST LA PREMIÈRE CHOSE MESURÉE. Sans cette ligne, un
+    // locator résolvant à zéro élément rendrait le `not.toContainText` de la fin
+    // trivialement vrai — le test annoncerait « le badge est passé à Maîtrisé » en
+    // n'ayant regardé aucun module (L-019).
+    await expect(
+      module,
+      `aucun module du sommaire ne porte de lien vers « ${lecon.slug} » : la convention de href a ` +
+        'changé, ou le sommaire ne liste pas la leçon mesurée. Tout ce qui suit serait vert et vide.',
+    ).toHaveCount(1);
+    await expect(module).toContainText(BADGE_A_COMMENCER);
 
     // ---- 2. Le quiz de la leçon, réussi pour de vrai --------------------------
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(lecon.route);
     await attendreHydratation(
       page,
       'le chunk paresseux de la leçon a-t-il été refusé par `script-src` ?',
     );
-    await repondreJusteAuQuizTemoin(page);
+    await repondreJusteAuQuiz(page, quiz);
 
     await page.getByRole('button', { name: 'Corriger mes réponses' }).click();
 
     // La preuve que le quiz est RÉUSSI se lit dans la région live — le texte que le
     // visiteur (et son lecteur d'écran) reçoit. C'est cet instant précis qui appelle
     // `enregistrerQuiz` ; un verdict partiel ici invaliderait tout ce qui suit.
-    await expect(page.getByRole('status')).toContainText('5 bonnes réponses sur 5');
+    //
+    // ⚠️ LE DÉNOMINATEUR VIENT DU JSON, PAS D'UN LITTÉRAL. C'est le croisement décrit
+    // en tête de fichier : si le compilateur perdait une question en chemin, le DOM
+    // en rendrait N-1 et cette ligne le dirait. Un « 8 » écrit ici l'aurait tu.
+    const total = quiz.questions.length;
+    const pluriel = total > 1 ? 's' : '';
+    await expect(page.getByRole('status')).toContainText(
+      `${String(total)} bonne${pluriel} réponse${pluriel} sur ${String(total)}`,
+    );
 
     // ---- 3. Retour au sommaire : l'autre route, l'autre composant --------------
     //
@@ -209,64 +374,155 @@ test.describe('sommaire peuplé — masquage du brouillon et progression', () =>
     await page.goto(CHEMIN_SOMMAIRE);
     await attendreHydratation(page, 'le sommaire lit la progression après hydratation seulement');
 
-    await expect(moduleTemoin(page)).toContainText(BADGE_MAITRISE);
-    await expect(moduleTemoin(page)).not.toContainText(BADGE_A_COMMENCER);
+    await expect(module).toContainText(BADGE_MAITRISE);
+    await expect(module).not.toContainText(BADGE_A_COMMENCER);
   });
 });
 
+// -----------------------------------------------------------------------------
+// Le quiz, lu à la source
+// -----------------------------------------------------------------------------
+
+/** Une question telle que `quiz.json` la déclare — les quatre formes du contrat. */
+interface QuestionSource {
+  readonly id: string;
+  readonly type: 'choix-multiple' | 'vrai-faux' | 'associer' | 'trouver-la-faille';
+  /** `choix-multiple` : l'`id` du bon choix. `vrai-faux` : un booléen. */
+  readonly bonneReponse?: string | boolean;
+  /** `trouver-la-faille` : le NUMÉRO de la ligne fautive, à partir de 1. */
+  readonly ligneFautive?: number;
+  /** `associer` : les paires, dans l'ordre de la source. */
+  readonly paires?: readonly { readonly gauche: string; readonly droite: string }[];
+}
+
+interface QuizSource {
+  readonly questions: readonly QuestionSource[];
+}
+
 /**
- * Répond juste aux cinq questions du quiz de la leçon-témoin.
+ * Le `quiz.json` de la leçon dont le SLUG est donné.
+ *
+ * ⚠️ Le slug n'est pas le nom du dossier : `content/…/01-fondamentaux/` publie la
+ * route `fondamentaux`. On passe donc par `LECONS_SOURCE`, qui a lu le frontmatter —
+ * fabriquer le chemin en devinant le préfixe d'ordre serait une supposition de plus.
+ */
+function lireQuizDeLaLecon(slug: string): QuizSource {
+  const source = LECONS_SOURCE.find((lecon) => lecon.slug === slug);
+  if (source === undefined) {
+    throw new Error(
+      `aucune leçon de ${RACINE_CONTENU} ne déclare le slug « ${slug} », que l'artéfact prerend ` +
+        'pourtant : le frontmatter et le manifeste de routes ont divergé',
+    );
+  }
+
+  const chemin = join(RACINE_CONTENU, source.dossier, 'quiz.json');
+  const brut: unknown = JSON.parse(readFileSync(chemin, 'utf8'));
+  const quiz = brut as QuizSource;
+
+  if (!Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+    throw new Error(`${chemin} ne porte aucune question : le test serait vert et vide`);
+  }
+  return quiz;
+}
+
+/** Normalise un texte lu au DOM pour le comparer à un littéral du JSON. */
+function normaliser(texte: string): string {
+  return texte.normalize('NFC').replace(/\s+/gu, ' ').trim();
+}
+
+/**
+ * Répond JUSTE à toutes les questions d'un quiz, quelle que soit sa forme.
  *
  * ⚠️ AUCUNE ÉCRITURE D'ÉTAT PAR SCRIPT. On coche et on sélectionne comme un
  * visiteur, pour que le `(change)` du gabarit coure réellement : c'est lui qui
  * alimente `Quiz.repondre()`, donc le score, donc `enregistrerQuiz`. Poser l'état
  * par `page.evaluate` rendrait le test vert avec le composant débranché.
+ *
+ * ⚠️ ET LES VALEURS CIBLÉES SONT CELLES QUE LE COMPOSANT LIT, pas les libellés
+ * affichés. Le piège a été payé le 2026-08-19 sur la fixture : le nom accessible
+ * d'une ligne de `trouver-la-faille` contient deux U+00A0 (« Ligne 2 », L-024) que la
+ * normalisation des noms accessibles ne garantit pas de rendre comparables à un
+ * littéral. L'attribut `value` est, lui, exactement ce que `repondre()` reçoit —
+ * `choix.id`, `'vrai'`/`'faux'`, `String(numeroDeLigne)`, la valeur de droite.
  */
-async function repondreJusteAuQuizTemoin(page: Page): Promise<void> {
-  // q1 et q3 — `choix-multiple`. Récupérées par leur NOM ACCESSIBLE : le libellé
-  // est ce qu'une aide technique annonce, et il change si l'auteur change le quiz
-  // (auquel cas ce test doit rougir, pas cocher silencieusement la mauvaise case).
-  await page
-    .getByRole('radio', {
-      name: 'Il fait échouer la construction en nommant le fichier et le champ.',
-      exact: true,
-    })
-    .check();
+async function repondreJusteAuQuiz(page: Page, quiz: QuizSource): Promise<void> {
+  for (const question of quiz.questions) {
+    // `#quiz-<id>` vient de `PREFIXE_ID_QUESTION` : un identifiant de document, pas
+    // une classe de style — il survit à la bascule visuelle E6.
+    const champDeQuestion = page.locator(`#quiz-${question.id}`);
+    await expect(
+      champDeQuestion,
+      `la question « ${question.id} » du fichier quiz.json n’est pas rendue dans la page : ` +
+        'le compilateur ou le composant en a perdu une en chemin',
+    ).toHaveCount(1);
 
-  // q2 — `vrai-faux`. La bonne réponse est `false` : le pipeline ne démarre
-  // Chromium que si un bloc `mermaid` existe.
-  await page.locator('#quiz-q2').getByRole('radio', { name: 'Faux', exact: true }).check();
+    switch (question.type) {
+      case 'choix-multiple':
+        await cocherParValeur(champDeQuestion, String(question.bonneReponse));
+        break;
 
-  await page
-    .getByRole('radio', { name: 'Pour que le bundler émette un chunk par leçon.', exact: true })
-    .check();
+      case 'vrai-faux':
+        // `VALEUR_VRAI` / `VALEUR_FAUX` du composant : deux chaînes, pas un booléen.
+        await cocherParValeur(champDeQuestion, question.bonneReponse === true ? 'vrai' : 'faux');
+        break;
 
-  // q4 — `trouver-la-faille`, `ligneFautive: 2`. Ciblée par la VALEUR du contrôle
-  // et non par son nom accessible : celui-ci contient deux U+00A0 (« Ligne 2 »,
-  // L-024) que la normalisation des noms accessibles ne garantit pas de rendre
-  // comparables à un littéral. L'attribut `value` est, lui, exactement ce que le
-  // composant lit dans `repondre()`.
-  await page.locator('#quiz-q4 input[type="radio"][value="2"]').check();
+      case 'trouver-la-faille':
+        await cocherParValeur(champDeQuestion, String(question.ligneFautive));
+        break;
 
-  // q5 — `associer`. On lit la colonne de GAUCHE dans le document et on en déduit
-  // la réponse, plutôt que de compter sur l'ordre des `<select>` : un pipeline qui
-  // réordonnerait les paires ferait alors rougir la table ci-dessus (paire
-  // inattendue) au lieu de faire échouer le quiz sur une association fausse.
-  const lignes = page.locator('#quiz-q5 li');
-  const nombreDeLignes = await lignes.count();
-  expect(nombreDeLignes, 'la question « associer » de la fixture porte trois paires').toBe(3);
+      case 'associer':
+        await associerJuste(page, champDeQuestion, question);
+        break;
+    }
+  }
+}
 
-  for (let index = 0; index < nombreDeLignes; index++) {
+/** Coche la radio d'une question par la VALEUR que le composant lit. */
+async function cocherParValeur(champDeQuestion: Locator, valeur: string): Promise<void> {
+  const radio = champDeQuestion.locator(`input[type="radio"][value="${valeur}"]`);
+  await expect(
+    radio,
+    `aucune option de valeur « ${valeur} » dans cette question — la bonne réponse déclarée ` +
+      'au JSON ne correspond à aucun contrôle rendu',
+  ).toHaveCount(1);
+  await radio.check();
+}
+
+/**
+ * Remplit un `associer` en croisant le DOM et le JSON, ligne par ligne.
+ *
+ * On lit la colonne de GAUCHE dans le document et on en déduit la réponse, plutôt que
+ * de compter sur l'ordre des `<select>` : un pipeline qui réordonnerait les paires
+ * ferait alors rougir ce test en NOMMANT la paire inattendue, au lieu de choisir au
+ * hasard et d'échouer plus loin sur un score partiel.
+ */
+async function associerJuste(
+  page: Page,
+  champDeQuestion: Locator,
+  question: QuestionSource,
+): Promise<void> {
+  const paires = question.paires ?? [];
+  const lignes = champDeQuestion.locator('li');
+
+  await expect(
+    lignes,
+    `la question « ${question.id} » rend un nombre de lignes différent des paires du JSON`,
+  ).toHaveCount(paires.length);
+  expect(paires.length, `la question « ${question.id} » ne porte aucune paire`).toBeGreaterThan(0);
+
+  for (let index = 0; index < paires.length; index++) {
     const ligne = lignes.nth(index);
-    const gauche = (await ligne.locator('label > span').first().innerText()).trim();
-    const droite = ASSOCIATIONS_ATTENDUES[gauche];
+    const gauche = normaliser(await ligne.locator('label > span').first().innerText());
+    const attendue = paires.find((paire) => normaliser(paire.gauche) === gauche)?.droite;
 
     expect(
-      droite,
-      `paire inattendue à gauche : « ${gauche} » — la fixture du quiz a changé, ` +
-        `mettre à jour ASSOCIATIONS_ATTENDUES plutôt que de laisser le test choisir au hasard`,
+      attendue,
+      `paire inattendue à gauche : « ${gauche} » — le DOM et « quiz.json » ne portent pas les ` +
+        'mêmes intitulés (le compilateur a-t-il transformé le texte ?)',
     ).toBeDefined();
 
-    await ligne.locator('select').selectOption({ label: droite });
+    // Par VALEUR et non par libellé : `[value]="option"` est exactement la chaîne que
+    // `repondre()` reçoit, alors que le libellé passe par l'interpolation.
+    await ligne.locator('select').selectOption(attendue ?? '');
   }
 }

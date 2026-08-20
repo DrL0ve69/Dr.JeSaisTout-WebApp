@@ -27,7 +27,10 @@
 // G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
 //
 // CONFINEMENT DES CONTRASTES. Chaque encre employée ici forme avec son fond une
-// paire DÉJÀ MESURÉE par `tools/design/verifier-contrastes.mjs` — zéro paire neuve :
+// paire mesurée par `tools/design/verifier-contrastes.mjs`. ⚠️ E3-ST1 y ajoute DEUX
+// paires `non-texte` (1.4.11) et pas une de plus : les deux teintes de provenance
+// posées en BORDURE, donc au contact de `--couleur-surface` et non de la surface de
+// l'encadré. Le lot des jetons avait laissé la note ; la voici honorée. Le reste :
 //   · `--couleur-encre` sur `--couleur-{danger-vuln,ok-corrige,attention}-surface` ;
 //   · `--couleur-{danger-vuln,ok-corrige,attention}` sur leur propre surface ;
 //   · `--couleur-{encre,encre-tertiaire,accent,filet,filet-fort}` sur
@@ -238,15 +241,56 @@
 }
 
 // -----------------------------------------------------------------------------
-// Encadré — trois variantes, distinguées par le MOT et par le STYLE du trait
+// Encadré — SIX variantes, distinguées par le MOT et par la FORME du trait
 // -----------------------------------------------------------------------------
 // WCAG 1.4.1 : la couleur seule ne porte jamais l'information. Chaque variante a
-// son étiquette écrite (« Attention », « Note », « À retenir ») ET un style de trait
-// propre — `dotted`, `solid`, `double` —, que `forced-colors: active` ne touche pas.
-// Sans ce second canal, les trois encadrés deviendraient rigoureusement identiques
-// en contraste forcé, où tout se replie sur `CanvasText`.
+// son étiquette écrite ET une signature de trait propre, que `forced-colors: active`
+// ne touche pas. Sans ce second canal, les six encadrés deviendraient rigoureusement
+// identiques en contraste forcé, où tout se replie sur `CanvasText`.
+//
+// 🔴 LES TROIS STYLES DE TRAIT ÉTAIENT ÉPUISÉS — d'où un SECOND AXE (E3-ST1).
+// Les variantes de TON tiennent déjà `dotted` / `solid` / `double` sur la bordure de
+// GAUCHE. Recycler ces mêmes styles pour la provenance aurait rendu « Note » et « Au
+// programme du cours » indiscernables en contraste forcé. L'axe neuf est donc la
+// FORME du cadre, orthogonale au style :
+//
+//                   bordure de gauche seule        bordure COMPLÈTE
+//   dotted          attention                      —
+//   solid           note                           cours          📘
+//   dashed          complement            🧩        —
+//   double          a-retenir                      correction-du-cours  ⚠️
+//
+// Six cases distinctes, aucune collision — vérifié case par case, pas supposé. Le
+// pictogramme (colonne de droite) est un TROISIÈME canal, textuel : il survit au
+// contraste forcé comme à une impression, mais il est `aria-hidden` et ne remplace
+// jamais le mot (cf. `PICTOGRAMMES_ENCADRE` dans `rendu-blocs.ts`).
+//
+// CONTRASTE. Les six teintes d'étiquette sont mesurées sur la surface de leur propre
+// encadré par `tools/design/verifier-contrastes.mjs`. Les DEUX teintes de provenance
+// posées en bordure y sont mesurées EN PLUS contre `--couleur-surface` (seuil
+// `non-texte`, 1.4.11) : une bordure est un objet graphique, et ces deux paires-là
+// n'existaient pas avant ce lot.
 .encadre {
   padding: var(--espace-3);
+}
+
+// L'étiquette d'un encadré porte un pictogramme optionnel : `inline-flex` pour
+// l'espacer par un `gap` plutôt que par un nœud blanc, que `preserveWhitespaces:
+// false` retirerait (L-024). L'espacement est PUREMENT visuel — le pictogramme est
+// `aria-hidden`, donc le nom calculé de l'élément ne dépend d'aucun recollage.
+.encadre > .etiquette {
+  display: flex;
+  gap: var(--espace-2);
+  align-items: baseline;
+}
+
+// La référence d'une correction, publiée sous le corps de l'encadré. Elle n'est
+// jamais l'étiquette : c'est une note de bas d'encadré, en encre de corps.
+.encadre > .source {
+  margin-block-start: var(--espace-3);
+  color: var(--couleur-encre);
+  font-size: var(--taille-xs);
+  font-style: italic;
 }
 
 .encadre[data-variante='attention'] {
@@ -275,5 +319,73 @@
 
   > .etiquette {
     color: var(--couleur-accent);
+  }
+}
+
+// --- Provenance (E3-ST1) — `.claude/rules/contenu-pedagogique.md` §6 -----------
+// ⚠️ CES TROIS ÉTIQUETTES SONT DES PHRASES, PAS DES TAMPONS. La règle `.etiquette`
+// générique les mettrait en CAPITALES espacées : « AU PROGRAMME DU COURS — MATIÈRE
+// D'EXAMEN » sur une ligne entière est plus lent à lire qu'en bas de casse, et
+// c'est justement l'information que l'apprenant cherche en premier. On lève donc
+// les deux propriétés de tampon ici, et nulle part ailleurs.
+.encadre[data-variante='cours'] > .etiquette,
+.encadre[data-variante='complement'] > .etiquette,
+.encadre[data-variante='correction-du-cours'] > .etiquette {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+// 📘 « au programme du cours » — cadre COMPLET, trait continu : ce qui est délimité
+// de tous côtés est ce qui sera évalué. Le seul encadré entièrement fermé avec la
+// correction, et le seul des deux à trait plein.
+.encadre[data-variante='cours'] {
+  border: var(--filet-marge) solid var(--couleur-provenance-cours);
+  background-color: var(--couleur-provenance-cours-surface);
+
+  > .etiquette {
+    color: var(--couleur-provenance-cours);
+  }
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+    background-color: Canvas;
+  }
+}
+
+// 🧩 « complément » — bordure de gauche seulement, en TIRETS : un ajout accolé au
+// cours, pas une partie de son cadre. `dashed` est le seul des quatre styles que
+// les variantes de ton n'emploient pas.
+.encadre[data-variante='complement'] {
+  @include m.marge-carnet(var(--couleur-provenance-complement));
+
+  border-inline-start-style: dashed;
+  background-color: var(--couleur-provenance-complement-surface);
+
+  > .etiquette {
+    color: var(--couleur-provenance-complement);
+  }
+
+  @include m.contraste-force {
+    background-color: Canvas;
+  }
+}
+
+// ⚠️ « correction du cours » — cadre COMPLET, trait DOUBLE. Aucune teinte propre :
+// il réemploie l'ocre d'`attention`, décision du lot des jetons (une troisième
+// teinte serait une teinte de trop dans un vocabulaire qui compte déjà rouge et
+// vert). C'est donc la FORME qui le distingue d'`attention` — cadre fermé et
+// double, contre un filet de gauche pointillé —, et le mot qui le distingue tout
+// court.
+.encadre[data-variante='correction-du-cours'] {
+  border: var(--filet-marge) double var(--couleur-attention);
+  background-color: var(--couleur-attention-surface);
+
+  > .etiquette {
+    color: var(--couleur-attention);
+  }
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+    background-color: Canvas;
   }
 }

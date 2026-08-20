@@ -484,6 +484,16 @@ correspondance de chaîne (la chaîne cherchée « matchait » selon l'outil, ma
 remplacé). Même geste que l'entrée d'origine : un « binary file matches » sur un `.ts`/`.mjs` connu
 pour être du texte est un signal à inspecter, jamais une non-correspondance à accepter.
 
+**Addendum (2026-08-20) — le pire cas est le SILENCE TOTAL, et il a fait conclure à l'absence d'un
+garde-fou qui existe.** `src/workflows-github.spec.ts` est classé **`data`** (et non `text`) par
+`file` : les outils de recherche le **sautent sans le dire** et répondent « aucune correspondance ».
+Un scribe en a déduit qu'il ne pouvait pas vérifier la constante attendue — alors qu'elle s'y trouve
+bien (`HACHAGES_STYLE_CI_ATTENDU = 14`, l. 212). **Règle** : sur un fichier réputé binaire/`data`,
+forcer le mode texte (`rg --text`, `Select-String -Encoding utf8`, ou lecture directe du fichier)
+**avant** de conclure. « Aucun résultat » ne prouve jamais une absence — et croire un garde-fou
+absent est plus dangereux que son absence réelle : on en écrit un second, ou on retire l'exigence
+qu'il tenait.
+
 ---
 
 ## L-018 · Une assertion de « non-lecture » (ex. aucun paramètre d'URL lu) ne prouve que ce que le gabarit rend, pas ce que le code lit
@@ -917,6 +927,19 @@ justification qui promet plus que le code n'applique (famille S-009).
 (`withNoIncrementalHydration()`) ; CLAUDE.md, bloc de reprise « PIÈGES ENCORE ACTIFS » n°1 ;
 cousine [[L-032]].
 
+**🔴 CE QUI EST RÉFUTÉ, MESURÉ LE 2026-08-20 — l'extension e2e de cette leçon était FAUSSE.**
+La leçon ci-dessus reste vraie **pour ce qu'elle décrit** : la fenêtre de pré-hydratation existe, et
+l'amorçage depuis le DOM est le bon correctif. Ce qui est **réfuté**, c'est l'usage qu'en faisaient
+`CLAUDE.md` et le backlog pour expliquer l'intermittence des specs e2e de la simulation : « l'absence
+d'attributs `ngh` prouve l'hydratation des vues, pas que le comportement d'un composant paresseux est
+armé ». Mesures qui la renversent : `app-simulation` porte bien `ngh="7"` ; la disparition de `[ngh]`
+et l'apparition de `__ngContext__` tombent sur le **même** échantillon ; « armé au retour de
+`attendreHydratation` » **8/8** ; **20 gestes** émis à l'instant exact où `attendreHydratation` rend
+la main, **0 perdu**. La vraie cause est une **lecture périmée**, décrite en [[L-057]] — pas une
+hydratation incomplète. Entrée conservée et marquée plutôt qu'effacée : une leçon fausse laissée
+muette est pire qu'une leçon absente (voir l'avertissement en tête de fichier), et celle-ci a orienté
+le diagnostic à tort pendant plusieurs semaines.
+
 ---
 
 ## L-034 · Mutualiser une VÉRIFICATION déplace le risque vers le module mutualisé — il hérite du pouvoir de rendre tous ses appelants verts
@@ -1336,6 +1359,22 @@ compte de livrables) à côté du « test du + » existant.
 **Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep, lots à 4-6 fiches) ;
 `.claude/rules/agent-context-budget.md` §0, §2.
 
+**Addendum (2026-08-20) — la même faute HORS fusion KB, sur des lots de CODE : trois dépassements
+dans une seule session.** Trois sous-agents du lot d'intermittence pré-E3-ST1 ont fini à **179k,
+195k et 186k** tokens, au-delà du maximum de 150k, sur des lots qui *paraissaient* bornés. Cause
+commune, sans détour : le brief cumulait « **diagnostic + correctif + contrôle positif + campagne
+de stabilité** », ou « **compilateur + validateur + fixtures + test d'appariement** ». Le **test du
+« + »** de `.claude/rules/agent-context-budget.md` §2 l'interdisait explicitement ; le coordinateur
+ne l'a pas appliqué. **C'est un défaut de brief, jamais un défaut d'agent** — un sous-agent ne peut
+pas se `/compact` lui-même, son isolation vient entièrement du périmètre qu'on lui donne. La leçon
+d'origine parlait de volume de **source à lire** ; celle-ci ajoute le volume de **phases à
+traverser** : une phase de diagnostic (mesures, campagnes, journaux) est un livrable entier, elle ne
+se greffe pas au lot qui applique le correctif. **Quatrième point de mesure, le même jour** : le lot
+de correctifs de revue à **sept constats** a fini à **212k**. Sept constats dans un seul brief, c'est
+le test du « + » ignoré une fois de plus — par le même coordinateur, **après** l'avoir écrit. Un
+constat de revue est déjà un brief autonome (`fichier:ligne` + correctif) : ils se répartissent, ils
+ne s'empilent pas.
+
 ---
 
 ## L-048 · Un job CI sans `timeout-minutes` ne rougit jamais quand il pend — il court jusqu'au plafond de six heures, et le mode d'échec est le SILENCE, pas le rouge
@@ -1592,6 +1631,187 @@ niveau où [[S-003]] déplace le doute pour ce lot : de l'analyseur vers son pro
 **Réfs.** PR #27, #28, #29, #30 (lot de dette sécurité pré-E3-ST1) ; `.claude/lessons/security-lessons.md`
 **S-003** ; [[L-036]], [[L-034]], [[L-029]], [[L-019]], [[L-043]], [[L-016]], [[L-046]], [[L-035]] ;
 `.claude/rules/security.md` §4.
+
+---
+
+## L-057 · Une assertion sur une VALEUR lue par une `page.evaluate` unique n'est jamais réessayée — c'est la vraie cause de l'intermittence e2e, pas l'hydratation
+
+**Symptôme.** `e2e/parcours-clavier-simulation.spec.ts:210` et `e2e/simulation-mecanique.spec.ts:298`
+échouaient par intermittence depuis des semaines (`etat.courante` = 1 au lieu de 4, étapes visibles
+`[1,2,4,5,6]` au lieu d'aucune), sur du code produit inchangé. Le dépôt attribuait ça à l'hydratation
+via [[L-033]] — **réfuté par la mesure** (voir le bloc de réfutation de [[L-033]] : `ngh="7"` présent,
+armement 8/8, 20 gestes émis à l'instant du retour de `attendreHydratation`, 0 perdu).
+
+**Cause réelle, générale.** Playwright réessaie les **locators**, jamais la **valeur** rendue par une
+`page.evaluate` ponctuelle : elle est lue une fois et l'assertion tranche dessus. Or l'effet d'un
+geste est peint sur une frame **ultérieure** (détection de changements zoneless planifiée). Mesuré :
+effet au DOM à 26-407 ms, lecture servie à 112-938 ms — une marge de 58-856 ms **garantie par rien** ;
+sur 800 essais, une lecture CDP est servie **avant** un `requestAnimationFrame` déjà planifié
+**3 fois (0,4 %)**. 15 lectures de ce type existaient dans 3 specs.
+
+**Règle.** Entre un geste et une lecture ponctuelle (`page.evaluate`, `elementHandle.evaluate`),
+poser une **barrière de locator auto-réessayée** (`expect(locator).toHaveText/toBeVisible`, ou
+`expect.poll`) qui atteste que l'effet est peint — la lecture de valeur ne vient qu'après.
+**⚠️ Corollaire à ne pas rater : une barrière ne précède JAMAIS une assertion NÉGATIVE** (« aucune
+étape visible », « rien n'a bougé ») — elle serait vraie dès le prerender et donnerait l'apparence
+d'avoir fermé une course encore ouverte. Pour un négatif, il faut d'abord attendre un **positif
+observable** du même geste.
+
+**⚠️ Méthode, aussi durable que la règle.** Le journal CI a tranché **sans relance** : le test avait
+bouclé en 2,0 s **sans délai d'expiration**, ce qui prouve une lecture périmée et exclut un événement
+perdu ou une attente non satisfaite. **On vérifie l'assertion et le journal, jamais l'étiquette du
+test** — « c'est le flaky connu » est le raisonnement qui tue un gate (famille [[L-005]], addendum
+« un run vert ne referme pas une panne intermittente »).
+
+**Réfs.** `e2e/parcours-clavier-simulation.spec.ts`, `e2e/simulation-mecanique.spec.ts`,
+`e2e/quiz-pre-hydratation.spec.ts` ; branche `fix/intermittence-gates-pre-e3-st1` ; [[L-033]] (réfutée
+sur cet axe), [[L-021]] (lire un style calculé sec ment), [[L-005]].
+
+---
+
+## L-058 · Ajouter un nom accessible à un `<aside>` ne le nomme pas — ça le PROMEUT en repère, et un gabarit répétable fabrique alors des repères homonymes
+
+**Symptôme.** Un `[attr.aria-label]` posé « pour aider le lecteur d'écran » sur un `<aside>` d'un
+gabarit **répétable** (encadrés de leçon) a fait échouer la règle axe **`landmark-unique`**. Mécanisme
+du rôle implicite : sous `<section>`/`<article>`, un `aside` est `generic` **sans** nom accessible, et
+**`complementary`** — donc un repère de page — **avec**. Le nom ne décore pas l'élément, il change son
+rôle. Mesuré avec axe-core 4.13 : aucun nom → 0 violation ; deux `aside` de même nom → `landmark-unique`
+×1 ; deux noms distincts → 0 violation.
+
+**Règle.** Sur tout élément dont le rôle implicite dépend de la présence d'un nom accessible
+(`aside`, `section`, `form`, `nav` imbriqué), ne pas ajouter `aria-label`/`aria-labelledby` « au cas
+où » : soit le nom est **unique par instance**, soit on ne nomme pas. Sur un gabarit qui se répète ou
+se récurse, un nom **constant** est fautif par construction. **Cousine directe de [[L-026]]** (une
+clef de cache indexée sur le contenu se répète dès que le contenu se répète) : *la même récursivité
+qui interdit l'`id` en dur interdit aussi le nom accessible constant* — dans les deux cas, une valeur
+qui doit être unique dans le document est dérivée de quelque chose qui ne l'est pas.
+
+**Réfs.** rendu des encadrés de leçon (`rendu-blocs`) ; `tools/a11y/verifier-axe.mjs` (axe-core 4.13,
+`landmark-unique` actif — aucun `runOnly` ne la filtre) ; [[L-026]].
+
+---
+
+## L-059 · Une fixture « un exemplaire de chaque » ne peut JAMAIS exercer une règle d'UNICITÉ — le contrôle positif d'une telle règle exige un DOUBLON
+
+**Symptôme.** Corollaire de [[L-058]], et c'est ce qui a rendu le gate aveugle : la fixture témoin
+portait **un** exemplaire de chaque variante d'encadré. La règle `landmark-unique` était donc
+**structurellement inatteignable** — le gate axe tournait bel et bien, sur un corpus incapable de
+produire le symptôme. Le défaut n'est apparu qu'en contenu réel, où deux encadrés de même variante se
+suivent.
+
+**Règle.** Toute règle de la forme « X doit être unique dans le document » (identifiants, noms de
+repères, ancres, clefs de progression) exige une fixture qui contient **deux instances** de X, sinon
+le gate est vert par inaccessibilité de son cas. Généralisation : une fixture de couverture se
+dimensionne sur les **règles à exercer**, pas sur les **variantes à représenter** — « une de chaque »
+couvre le rendu, jamais les propriétés relationnelles. Même famille que [[L-019]] et l'addendum
+E2-ST1 de [[L-007]] : un contrôle positif inexécutable est une intention, pas un gate.
+
+**Réfs.** `tools/content-pipeline/__fixtures__/temoin/` ; `tools/a11y/verifier-axe.mjs` ;
+[[L-058]], [[L-019]], [[L-007]].
+
+---
+
+## L-060 · Un garde-fou de COLLECTION neuf frappe d'abord les données EXISTANTES — recenser les racines déjà porteuses du statut avant d'écrire la règle
+
+**Symptôme.** La règle G2 (« toute leçon publiée porte au moins un encadré de provenance ») a été
+écrite comme une exigence sur le contenu **à venir**. Elle a immédiatement rendu **invalide la
+fixture-témoin de la CI elle-même** : 13 tests rouges, une seule cause. Effet de bord plus retors :
+une fixture volontairement invalide s'est mise à porter **deux** fautes au lieu d'une, violant le
+contrat que ce corpus s'était donné (« un dossier = une faute »), donc rendant indistinguable la
+cause que le test voulait prouver.
+
+**Règle.** Avant d'écrire une règle conditionnée à un **statut** (`statut: publie`, `visible`,
+`actif`…), **recenser les racines qui portent déjà ce statut** — `content/`, mais aussi les fixtures,
+les corpus de test, les artéfacts de démonstration — et décider explicitement, dans le même lot, si
+chacune est mise en conformité ou exclue du périmètre. Corollaire pour les corpus de fixtures
+invalides : un dossier ne doit rester porteur que de **la** faute qu'il illustre ; une règle neuve qui
+lui en ajoute une seconde se corrige côté fixture, jamais en relâchant la règle.
+
+**Réfs.** règle G2 de provenance (📘/🧩/⚠️) ; `tools/content-pipeline/__fixtures__/` ;
+`.claude/rules/contenu-pedagogique.md` §6 ; cousine [[L-053]] (une fixture partagée est un contrat
+implicite).
+
+---
+
+## L-061 · Deux agents ne partagent pas un arbre de travail quand l'un lance des gates — un `content:build` concurrent purge `src/content-generated/`
+
+**Symptôme.** Payé **deux fois** dans la même session. (1) Un `npm run content:build` lancé par un
+agent **purge `src/content-generated/`** pendant qu'un autre agent compile : `TS2307: Cannot find
+module '…/manifeste-routes.json'` — un message qui **n'accuse pas sa cause** et envoie chercher un
+défaut d'import inexistant. (2) Un lot à moitié appliqué par un agent parallèle fait rougir le
+typecheck d'un autre, sur un fichier qui ne lui appartient pas — l'agent innocent débogue le travail
+d'un tiers.
+
+**Règle.** Quand plusieurs agents travaillent dans le **même** arbre : périmètres de fichiers
+**disjoints**, **et** un seul agent autorisé à lancer les gates lourds (`content:build`, `build`,
+`test`, `e2e`) à la fois. Le coordinateur prévient explicitement les autres des **rouges attendus qui
+ne sont pas les leurs**. Cousine de la note « worktree sans `node_modules` » : l'isolation par
+worktree coûte les dépendances, l'arbre partagé coûte les gates — il n'existe pas d'option gratuite,
+il faut choisir laquelle payer **avant** de lancer les agents.
+
+**Réfs.** `src/content-generated/` (répertoire régénéré, gitignoré) ; `tools/content-pipeline/build.mjs` ;
+mémoire du propriétaire « worktree sans node_modules » ; `.claude/rules/agent-context-budget.md` §6.
+
+---
+
+## L-062 · L'instrument accuse le produit — deux cas neufs : une feuille racine-absolue en `file://`, et un harnais de MUTATION muet sur CRLF
+
+**Symptôme (a).** Une mesure de `forced-colors: active` a rapporté « aucune bordure nulle part » :
+l'instrument, pas le produit. Une feuille de style référencée en **racine-absolue** (`/styles…`) ne se
+résout pas sous `file://` ; tous les jetons `var()` deviennent indéfinis, donc toute déclaration qui en
+contient une est *invalid-at-computed-value-time* et retombe à `border: none`. **Il faut servir en
+HTTP** (`npx swa start` sur l'artéfact) pour toute mesure de style calculé.
+
+**Symptôme (b).** [[L-015]] (CRLF sur ce poste) a mordu sur un **harnais de mutation** : deux
+`perl -0pi` ancrés sur `\n` n'ont rien muté sur des fichiers CRLF, et les mutations ont d'abord été
+rapportées « **vertes** » — c'est-à-dire qu'un test réputé mordant a été déclaré sain **sans avoir
+jamais été éprouvé**. Exactement [[L-010]], sur un harnais outillé plutôt qu'un `String.replace` isolé :
+l'outillage n'immunise pas contre la faute qu'il automatise, il la répète plus vite. **Et il a remordu
+le MÊME JOUR**, dans le lot de correctifs de revue qui a suivi : une mutation de plus déclarée
+« verte » sans s'être appliquée. La parade (vérifier que le motif a frappé) n'était donc pas encore un
+réflexe au moment où elle venait d'être écrite — signal qu'elle appartient à l'outillage, pas à la
+vigilance (même verdict que [[L-023]]).
+
+**Règle.** (a) Une mesure de style/rendu se fait sur une page **servie en HTTP**, jamais ouverte en
+`file://` — sinon on mesure la résolution des URL, pas le CSS. (b) **Tout harnais de mutation vérifie
+que son motif s'est réellement appliqué** avant de juger le gate : `if (!s.includes(motif)) throw`, ou
+comparaison avant/après sur la zone visée. Un « vert » de mutation non instrumenté n'est pas une
+preuve, c'est un silence. Famille [[L-025]] / [[L-035]] : l'instrument défaillant accuse toujours le
+produit, jamais lui-même.
+
+**Réfs.** mesure `forced-colors: active` (E6, dette de contraste) ; harnais de mutation du lot
+d'intermittence ; [[L-010]], [[L-015]], [[L-019]], [[L-025]], [[L-035]].
+
+---
+
+## L-063 · Un invariant que rien n'observe n'est pas vrai — il est INDÉTERMINÉ
+
+**Symptôme.** Le validateur de contenu construisait un « arbre des conteneurs », présenté comme le
+garant du comptage des encadrés **à travers la récursion**. Deux constats, dans cet ordre.
+**(1) Aucune sortie ne pouvait le contredire** : la fonction de comptage visitait tous les nœuds, et
+chaque ouverture produit exactement un nœud — le compte de l'arbre égalait donc le **compte plat**
+des lignes d'ouverture pour **tout** document, imbriqué ou non. Aucune fixture, existante ou
+imaginable, ne distinguait les deux implémentations. **(2) Et il était faux** : sur
+`::: a` / `:::: b` / `:::`, markdown-it-container ferme `a` (une fermeture de longueur ≥ ouverture
+ferme), alors que la pile ne dépilait rien. Une structure écrite « pour la rigueur » portait donc une
+garantie que **rien ne mesurait**, *et* se trompait, sans qu'aucun test ne puisse le révéler.
+
+**Règle.** Avant d'écrire une structure ou un invariant « pour la rigueur », **nommer la sortie
+observable qui le distinguerait d'une version naïve**. Si cette sortie n'existe pas, la structure
+n'ajoute aucune garantie — elle ajoute de la **surface** et une occasion de se tromper en silence. Et
+quand le cas se présente, le correctif par défaut est de **retirer** l'invariant non observable et de
+rendre la propriété structurelle (ici : la profondeur), pas de réparer ce que personne ne regarde.
+
+**Cousines, et l'axe neuf.** La famille est déjà peuplée : [[L-019]] (contrôle positif inexécutable —
+axe **câblage**), [[L-039]] (test vert **par compensation**, mutation survivante à 573 tests — axe
+**valeur d'essai neutre**), [[L-059]] (fixture « un de chaque » incapable d'exercer une règle
+d'unicité — axe **cardinalité du corpus**). L'axe neuf ici est l'**observabilité de l'invariant
+lui-même** : même avec un test câblé, une valeur non neutre et un corpus riche, deux implémentations
+indiscernables en sortie ne se départagent par aucun test.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` (arbre des conteneurs, retiré) ; markdown-it-container
+(règle « fermeture de longueur ≥ ouverture ») ; lot de correctifs de revue du 2026-08-20 ;
+[[L-019]], [[L-039]], [[L-059]].
 
 ---
 

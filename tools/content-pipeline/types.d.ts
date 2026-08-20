@@ -34,6 +34,41 @@ type Langage = 'php' | 'csharp' | 'typescript' | 'sql' | 'bash' | 'json';
 type NiveauTitre = 2 | 3; // <h2>/<h3> réels — pour un sommaire imbriqué correct (E2-ST2)
 
 /**
+ * Les SIX encadrés du contrat — liste FERMÉE (E3-ST1, lot « provenance »).
+ *
+ * Les trois premiers sont les encadrés de TON, hérités d'E2-ST1 : ils qualifient ce que l'auteur
+ * dit. Les trois derniers sont les encadrés de PROVENANCE, nés de
+ * `.claude/rules/contenu-pedagogique.md` §6 : ils qualifient D'OÙ vient ce qui est dit, et c'est
+ * une information dont le lecteur a besoin au moment exact où il révise un examen.
+ *
+ * ⚠️ `correction-du-cours` est une variante À PART ENTIÈRE, et non un attribut de `attention` :
+ * `attention` signale un DANGER TECHNIQUE au lecteur, `correction-du-cours` signale un DÉSACCORD
+ * SOURCÉ avec l'enseignant. Deux régimes éditoriaux — le second n'efface jamais ce que le cours
+ * enseigne (c'est ce qui sera évalué) et doit citer sa source. Les fondre en une seule variante
+ * ferait perdre au rendu la seule distinction qui compte pour réviser.
+ *
+ * AUCUN PICTOGRAMME N'EST ÉCRIT DANS LE MARKDOWN SOURCE. Les 📘 / 🧩 / ⚠️ des fiches de la
+ * KnowledgeBase sont ici portés par la VARIANTE, et posés par le rendu — le validateur refuse les
+ * TROIS marqueurs littéraux dans le corps d'une leçon (hors bloc de code), précisément pour qu'il
+ * n'existe qu'un seul endroit où la provenance se décide.
+ *
+ * ⚠️ CETTE PHRASE A ÉTÉ FAUSSE JUSQU'AU 2026-08-20 : elle disait « un marqueur », le validateur
+ * n'en refusait que DEUX, et le manquant était le ⚠️ — le seul qui ACCUSE l'enseignant, donc le
+ * seul dont l'écriture en prose contourne l'obligation de source de `correction-du-cours`. Une
+ * promesse plus large que le code appliqué est pire qu'une absence de promesse : elle dispense
+ * le lecteur d'aller vérifier. Trou restant, écrit à la constante `MARQUEURS_PROVENANCE_LITTERAUX`
+ * de `valider.mjs` : la règle balaie la source brute, où une entité numérique n'est pas encore
+ * décodée.
+ */
+type VarianteEncadre =
+  | 'attention'
+  | 'note'
+  | 'a-retenir'
+  | 'cours'
+  | 'complement'
+  | 'correction-du-cours';
+
+/**
  * UNE remarque de l'auteur, et la PORTÉE sur laquelle elle s'applique.
  *
  * ⚠️ FORME CHANGÉE EN E2-ST4 (lot A1) : `ligne: number` est devenu `lignes: number[]`.
@@ -198,7 +233,19 @@ type BlocContenu =
       titreAccessible: string; // nom accessible court, role="img"
       descriptionLongue: string; // équivalent textuel complet (WCAG 1.1.1)
     }
-  | { type: 'encadre'; variante: 'attention' | 'note' | 'a-retenir'; blocs: BlocContenu[] }
+  | {
+      type: 'encadre';
+      variante: VarianteEncadre;
+      /**
+       * Référence de la correction — RENSEIGNÉE UNIQUEMENT sur `correction-du-cours`, où elle est
+       * OBLIGATOIRE et non vide (`{source="OWASP Top 10 2021 — A02"}`). Le compilateur refuse
+       * l'attribut sur les cinq autres variantes et refuse son absence sur celle-ci : un ⚠️ qui
+       * accuse le cours sans citer sa source salit un enseignant sur la foi d'une lecture rapide,
+       * ce que `.claude/rules/contenu-pedagogique.md` §6 classe comme un défaut grave.
+       */
+      source?: string;
+      blocs: BlocContenu[];
+    }
   | { type: 'ancre-quiz' }
   | { type: 'ancre-simulation' };
 

@@ -26,10 +26,18 @@
 // d'un coup, ce qui est le comportement souhaité pour un contrat de document.
 // =============================================================================
 
-import { Locator, Page } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
 
-/** La route de la page de leçon dans l'artéfact de FIXTURE (voir `artefact-mesure.ts`). */
-export const CHEMIN_LECON_TEMOIN = '/cours/securite-web/lecon-temoin/';
+/**
+ * La route de la page de leçon qui porte une SIMULATION dans l'artéfact sous mesure.
+ *
+ * 📉 Le littéral `'/cours/securite-web/lecon-temoin/'` a disparu le 2026-08-20, avec le harnais
+ * de fixture de `ci.yml` (clôture d'E3-ST1). Une route écrite en dur n'aurait plus de sens : les
+ * deux workflows bâtissent le contenu RÉEL, et la leçon qui portera une simulation (E3-ST3,
+ * `03-injection`) n’est pas encore publiée. `artefact-mesure.ts` la DÉCOUVRE dans l’artéfact,
+ * ou fait sauter le fichier en nommant ce qui n’a pas été mesuré.
+ */
+export { ROUTE_LECON_SIMULATION } from './artefact-mesure';
 
 /** L'`id` de la région — cible du lien « Réinitialiser ». */
 export const ID_REGION = 'simulation';
@@ -92,6 +100,71 @@ export interface EtatSimulation {
   readonly etapesPresentes: number;
   /** Les libellés des trois commandes, dans l'ordre. */
   readonly commandes: readonly string[];
+}
+
+// =============================================================================
+// 🔴 LES BARRIÈRES — À POSER ENTRE UN GESTE ET TOUTE LECTURE DE `lireEtat`
+// -----------------------------------------------------------------------------
+// LA DETTE QU'ELLES REMBOURSENT (intermittence « famille 1 », 4 occurrences en CI,
+// diagnostiquée le 2026-08-20). `lireEtat` est UNE évaluation, servie une fois, et
+// les assertions qui la suivent portent sur une VALEUR : `expect(etat.courante)`
+// n'est PAS une assertion de locator, donc Playwright ne la rejoue jamais. Or
+// l'effet d'un geste sur le DOM n'est pas synchrone : le `(click)` écrit les
+// signaux tout de suite, mais la détection de changements zoneless d'Angular est
+// PLANIFIÉE — elle peint sur une frame ultérieure.
+//
+// MESURÉ SUR CE DÉPÔT, PAS DÉDUIT (fixture témoin, `swa start`, 42 échantillons) :
+//   · l'effet du geste atteint le DOM 26 à 407 ms APRÈS le geste ;
+//   · la lecture `page.evaluate` qui suit est servie 112 à 938 ms après le geste ;
+//   · la marge est donc de 58 à 856 ms — confortable, et garantie par RIEN.
+// Et l'ordonnancement n'offre aucune garantie : sur 800 essais, une lecture CDP a
+// été servie AVANT une `requestAnimationFrame` déjà planifiée 3 fois (0,4 %) —
+// jamais avant un `setTimeout(0)`. Sous contention (CI : 2 workers sur 2 cœurs,
+// frames sautées), l'ordre s'inverse pour de bon : le test lit l'état d'AVANT le
+// geste et rougit en accusant un produit sain (famille L-035).
+//
+// ⚠️ CE N'EST PAS UNE TOLÉRANCE AU FLOU, ET LA DISTINCTION EST TOUT LE PROPOS.
+// Une barrière n'assouplit aucune assertion : elle attend que le DOM porte l'effet
+// ANNONCÉ du geste, puis les lectures ponctuelles qui suivent décrivent un instant
+// COHÉRENT. Ce qui était mesuré l'est encore, au même endroit ; ce qui disparaît,
+// c'est la course. Ajouter des `retries` à `playwright.config.ts` aurait masqué le
+// symptôme — c'est exactement ce que le harnais refuse (voir son en-tête).
+//
+// 🔴 NE JAMAIS POSER DE BARRIÈRE DEVANT UNE ASSERTION NÉGATIVE. « rien ne se
+// replie à l'hydratation » (`simulation-mecanique.spec.ts`) affirme une ABSENCE de
+// changement : une barrière y serait vraie dès le prerender et ne prouverait plus
+// rien. Une barrière se pose devant l'effet d'un GESTE, et devant lui seul.
+// =============================================================================
+
+/** Les sections d'étape actuellement masquées — la mesure du repli, en locator. */
+function etapesMasquees(page: Page): Locator {
+  return page.locator(`.simulation section.etape[hidden]`);
+}
+
+/**
+ * Attend que la barre désigne l'étape `numero`. Assertion de locator, donc
+ * RÉESSAYÉE jusqu'au délai d'expiration, et qui imprime son journal d'attente en
+ * cas d'échec — un geste réellement perdu rougit toujours, en nommant sa cause.
+ */
+export async function attendreCourante(page: Page, numero: number, raison: string): Promise<void> {
+  await expect(lienEtape(page, numero), raison).toHaveAttribute('aria-current', 'step');
+}
+
+/** Attend le repli COMPLET sur l'étape `numero` : la barre l'a suivie, et M−1 étapes sont masquées. */
+export async function attendreRepli(page: Page, numero: number, raison: string): Promise<void> {
+  await attendreCourante(page, numero, raison);
+  await expect(etapesMasquees(page), raison).toHaveCount(NOMBRE_ETAPES - 1);
+}
+
+/**
+ * Attend le dépli : plus aucune étape masquée, et la lecture revenue à l'étape 1.
+ *
+ * ⚠️ Vraie par construction sur une vue JAMAIS repliée — à n'employer qu'après un
+ * geste de dépli, sur une vue dont l'appelant a établi qu'elle ÉTAIT repliée.
+ */
+export async function attendreDepli(page: Page, raison: string): Promise<void> {
+  await expect(etapesMasquees(page), raison).toHaveCount(0);
+  await attendreCourante(page, 1, raison);
 }
 
 export async function lireEtat(page: Page): Promise<EtatSimulation> {

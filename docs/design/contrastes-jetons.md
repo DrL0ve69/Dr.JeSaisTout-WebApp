@@ -50,6 +50,13 @@ Cible haute informative : **7:1 (AAA)** sur le corps de texte — signalée, non
 | `--couleur-attention`<br>`#7d5203` | `--couleur-surface`<br>`#f7f4ec` | Étiquette « cours vs état de l’art » | 4.5:1 | **6.20:1** | ✅ AA |
 | `--couleur-attention`<br>`#7d5203` | `--couleur-attention-surface`<br>`#f7efdb` | Texte d’un encadré d’avertissement | 4.5:1 | **5.94:1** | ✅ AA |
 | `--couleur-encre`<br>`#1c2433` | `--couleur-attention-surface`<br>`#f7efdb` | Corps d’un encadré d’avertissement | 4.5:1 | **13.57:1** | ✅ AA |
+| `--couleur-provenance-cours`<br>`#10508f` | `--couleur-provenance-cours-surface`<br>`#eee8da` | Titre / étiquette d’un encadré « au programme du cours » | 4.5:1 | **6.69:1** | ✅ AA |
+| `--couleur-encre`<br>`#1c2433` | `--couleur-provenance-cours-surface`<br>`#eee8da` | Corps d’un encadré « au programme du cours » | 4.5:1 | **12.73:1** | ✅ AA |
+| `--couleur-provenance-complement`<br>`#4e586e` | `--couleur-provenance-complement-surface`<br>`#fffdf7` | Titre / étiquette d’un encadré « complément hors cours » | 4.5:1 | **7.01:1** | ✅ AA |
+| `--couleur-encre`<br>`#1c2433` | `--couleur-provenance-complement-surface`<br>`#fffdf7` | Corps d’un encadré « complément hors cours » | 4.5:1 | **15.29:1** | ✅ AA |
+| `--couleur-attention`<br>`#7d5203` | `--couleur-surface`<br>`#f7f4ec` | Filet / cadre d’un encadré d’avertissement ou de correction, sur la page | 3:1 | **6.20:1** | ✅ AA |
+| `--couleur-provenance-cours`<br>`#10508f` | `--couleur-surface`<br>`#f7f4ec` | Cadre d’un encadré « au programme du cours » sur la page | 3:1 | **7.44:1** | ✅ AA |
+| `--couleur-provenance-complement`<br>`#4e586e` | `--couleur-surface`<br>`#f7f4ec` | Filet d’un encadré « complément hors cours » sur la page | 3:1 | **6.48:1** | ✅ AA |
 | `--couleur-code-encre`<br>`#1c2433` | `--couleur-code-surface`<br>`#eee8da` | Code source (bloc et incise) | 4.5:1 | **12.73:1** | ✅ AA |
 | `--couleur-selection-encre`<br>`#141a24` | `--couleur-selection-fond`<br>`#f6e08a` | Texte sélectionné à la souris | 4.5:1 | **13.25:1** | ✅ AA |
 | `--couleur-filet`<br>`#877f6e` | `--couleur-surface`<br>`#f7f4ec` | Bordure d’encart / séparateur sur la page | 3:1 | **3.61:1** | ✅ AA |
@@ -90,6 +97,13 @@ Ratio le plus bas du thème : **3.24:1** (`--couleur-filet` sur `--couleur-surfa
 | `--couleur-attention`<br>`#dcb063` | `--couleur-surface`<br>`#171c25` | Étiquette « cours vs état de l’art » | 4.5:1 | **8.48:1** | ✅ AA |
 | `--couleur-attention`<br>`#dcb063` | `--couleur-attention-surface`<br>`#33280f` | Texte d’un encadré d’avertissement | 4.5:1 | **7.18:1** | ✅ AA |
 | `--couleur-encre`<br>`#ece8dd` | `--couleur-attention-surface`<br>`#33280f` | Corps d’un encadré d’avertissement | 4.5:1 | **11.82:1** | ✅ AA |
+| `--couleur-provenance-cours`<br>`#94bdf0` | `--couleur-provenance-cours-surface`<br>`#1f2531` | Titre / étiquette d’un encadré « au programme du cours » | 4.5:1 | **7.89:1** | ✅ AA |
+| `--couleur-encre`<br>`#ece8dd` | `--couleur-provenance-cours-surface`<br>`#1f2531` | Corps d’un encadré « au programme du cours » | 4.5:1 | **12.54:1** | ✅ AA |
+| `--couleur-provenance-complement`<br>`#a3abbb` | `--couleur-provenance-complement-surface`<br>`#262e3c` | Titre / étiquette d’un encadré « complément hors cours » | 4.5:1 | **5.91:1** | ✅ AA |
+| `--couleur-encre`<br>`#ece8dd` | `--couleur-provenance-complement-surface`<br>`#262e3c` | Corps d’un encadré « complément hors cours » | 4.5:1 | **11.14:1** | ✅ AA |
+| `--couleur-attention`<br>`#dcb063` | `--couleur-surface`<br>`#171c25` | Filet / cadre d’un encadré d’avertissement ou de correction, sur la page | 3:1 | **8.48:1** | ✅ AA |
+| `--couleur-provenance-cours`<br>`#94bdf0` | `--couleur-surface`<br>`#171c25` | Cadre d’un encadré « au programme du cours » sur la page | 3:1 | **8.78:1** | ✅ AA |
+| `--couleur-provenance-complement`<br>`#a3abbb` | `--couleur-surface`<br>`#171c25` | Filet d’un encadré « complément hors cours » sur la page | 3:1 | **7.40:1** | ✅ AA |
 | `--couleur-code-encre`<br>`#ece8dd` | `--couleur-code-surface`<br>`#11151c` | Code source (bloc et incise) | 4.5:1 | **14.94:1** | ✅ AA |
 | `--couleur-selection-encre`<br>`#ece8dd` | `--couleur-selection-fond`<br>`#4a4324` | Texte sélectionné à la souris | 4.5:1 | **8.09:1** | ✅ AA |
 | `--couleur-filet`<br>`#6a778d` | `--couleur-surface`<br>`#171c25` | Bordure d’encart / séparateur sur la page | 3:1 | **3.77:1** | ✅ AA |

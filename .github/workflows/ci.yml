@@ -106,10 +106,11 @@ jobs:
       # la construction ICI, en nommant le fichier et le champ fautifs.
       #
       # ⚠️ CETTE ÉTAPE-CI GARDE LA RACINE DE PRODUCTION (`content/`), et elle doit la garder. C'est
-      # ELLE le gate du contenu réellement publié : la fixture témoin employée plus bas à G-build
-      # (décision E-2) sert à bâtir un ARTÉFACT interactif, pas à valider `content/`. Si les deux
-      # étapes basculaient sur la fixture, un `lecon.md` malformé de `content/` passerait la CI et
-      # ne tomberait qu'au déploiement.
+      # ELLE le gate du contenu réellement publié. Le détour par la fixture témoin (décision E-2),
+      # qui faisait bâtir à G-build un artéfact interactif pendant que `content/` était vide, est
+      # RETIRÉ depuis la clôture d'E3-ST1 : les deux workflows bâtissent le même artéfact, celui
+      # qui part en ligne. Faire basculer cette étape sur une fixture laisserait un `lecon.md`
+      # malformé de `content/` passer la CI et ne tomber qu'au déploiement.
       - name: Compiler `content/` (pipeline)
         run: npm run content:build
 
@@ -141,72 +142,40 @@ jobs:
       - name: G-test
         run: npm test
 
-      # Les trois commandes ci-dessous SONT `npm run build`, déplié : compilation du contenu, puis
-      # `ng build`, puis la génération de la config SWA. Le générateur sort en code 1 si la sortie
-      # prerendue casse la CSP (gestionnaire inline, script inline, attribut style) : ce gate
-      # protège donc aussi la CSP, pas seulement la compilation.
+      # ✅ LE HARNAIS DE FIXTURE A ÉTÉ RETIRÉ LE 2026-08-20, à la clôture d'E3-ST1, exactement
+      # comme sa péremption l'annonçait. `content/` porte sa première leçon publiée
+      # (`01-fondamentaux`) : bâtir depuis la fixture témoin masquerait désormais le contenu RÉEL
+      # — G-axe, G-e2e et le générateur de CSP auditeraient un double de test au lieu de ce qui
+      # part en ligne, ce qui est le mode d'échec L-007 exactement. Les deux workflows bâtissent
+      # donc le MÊME artéfact, et l'écart nommé par la décision E-2 (E2-ST3) est CLOS.
       #
-      # ⚠️ CETTE ÉTAPE N'EST PAS `npm run build`, ET C'EST LE CŒUR DE LA DÉCISION E-2 (E2-ST3, lot E).
-      # Elle bâtit le MÊME artéfact, mais depuis la FIXTURE TÉMOIN au lieu de `content/`.
+      # `npm run build`, et non ses trois commandes dépliées : c'est le script que `deploy.yml`
+      # exécute pour publier, donc le seul dont le vert ICI prouve quelque chose LÀ-BAS. Il
+      # enchaîne `content:build`, `ng build` et `config:swa` — ce dernier sort en code 1 si la
+      # sortie prerendue casse la CSP (gestionnaire inline, script inline, attribut style) : ce
+      # gate protège donc aussi la CSP, pas seulement la compilation.
       #
-      # POURQUOI. `content/` ne contient qu'un `README.md` jusqu'à E3-ST1 : aucune page de leçon
-      # n'est donc prerendue, et les trois routes que voient G-axe, G-e2e et le générateur de config
-      # sont INERTES. Le vert de ces gates ne prouvait rien sur le premier composant réellement
-      # interactif du site (`QuizComponent`, E2-ST3 lots C et D) : la barre n'était pas franchie,
-      # elle était contournée par l'absence de données. La fixture porte 1 leçon, 5 questions, les
-      # 4 types et 2 diagrammes Mermaid — les gates ci-dessous voient donc en permanence une page
-      # de leçon INTERACTIVE. C'est exactement le point aveugle de S-005.
+      # ⚠️ AUCUN `--racine`, AUCUN `--hachages-style`, et les deux absences sont gardées. Le
+      # générateur retombe sur `NOMBRE_HACHAGES_STYLE_ATTENDU`, épinglé et revu à la main dans
+      # `src/config-swa-provenance-style.spec.ts` ; un drapeau qui réapparaîtrait ici desserrerait
+      # un contrôle d'égalité exacte sans passer par cette revue, au moment de pression maximale
+      # (build rouge, cf. S-011). `src/workflows-github.spec.ts` rougit si l'un des deux revient.
       #
-      # ⏳ PÉREMPTION — À RETIRER À LA CLÔTURE D'E3-ST1. Le jour où `content/` porte sa première
-      # leçon publiée, ce harnais devient inutile ET nuisible (il masquerait le vrai contenu) :
-      # cette étape redevient `npm run build`, et le `--hachages-style` ci-dessous disparaît avec
-      # elle. Le rappel ne vit PAS que dans ce commentaire : il est (a) l'item 4 de la liste
-      # « à traiter en clôture d'E3-ST1 » du backlog (§E2-ST2, « Réserves de clôture »),
-      # l'endroit qu'ouvrira celui qui clôt E3-ST1 ; et surtout (b) un TRIPWIRE
-      # EXÉCUTABLE : `src/workflows-github.spec.ts` rougit tout seul le jour où
-      # `content/cours/securite-web/` porte une leçon et que ce `--racine` est encore là.
-      #
-      # `deploy.yml` GARDE la racine de production : c'est lui qui publie, et ses vérifications
-      # EN LIGNE restent le juge de la CSP réellement servie. L'écart entre les deux artéfacts est
-      # assumé et nommé (backlog §E2-ST3, décision E-2).
-      #
-      # 🔴 LE `--hachages-style 13` N'EST PAS UN DESSERRAGE. Le générateur compare le nombre de
-      # hachages de style à une valeur ÉPINGLÉE (égalité exacte, jamais « au moins »). Deux
-      # artéfacts ⇒ deux comptes : 9 pour la production (défaut de `NOMBRE_HACHAGES_STYLE_ATTENDU`,
-      # employé par `deploy.yml`), 13 ici — les 4 de plus sont les blocs `<style>` des composants de
-      # la page de leçon (`lecon`, le rendeur de blocs, `quiz`, `simulation`). Les 3 premiers ont été
-      # mesurés le 2026-08-18 et relus ; le quatrième l'a été le 2026-08-19 (E2-ST5, lot b2), quand
-      # l'ancre `[[simulation]]` a cessé de rendre le vide — la page de leçon passe de 7 à 8 blocs
-      # `<style>`, et le bloc neuf commence par `.simulation[_ngcontent-…]`.
-      # ⚠️ LE COMPTE DE PRODUCTION NE BOUGE PAS, ET C'EST LE POINT : `content/` est vide, donc
-      # aucune simulation n'est rendue en ligne. Monter les deux rendrait `deploy.yml` ROUGE.
-      # Un drapeau absent retombe sur 9 ; il n'existe aucune écriture qui TAISE le contrôle.
-      # Changer ce nombre passe par `security-reviewer` PUIS l'édition, jamais l'inverse (S-002).
-      # Ce 13 est ÉPINGLÉ EN MIROIR dans `src/workflows-github.spec.ts`
-      # (`HACHAGES_STYLE_CI_ATTENDU`), comme le 9 l'est dans `config-swa-provenance-style.spec.ts` :
-      # le bouger ici seul rougit G-test. Deux fichiers, donc une revue — c'est le but.
-      #
-      # ⚠️ `node_modules/.bin/ng` ET NON `npx ng` — deux constats SonarCloud sur la PR #17,
-      # `githubactions:S6505` et `githubactions:S8543`, tous deux justes. `npx` INSTALLE À LA
-      # DEMANDE ce qu'il ne trouve pas : si `@angular/cli` disparaissait des dépendances, ou si
-      # `npm ci` échouait à moitié, `npx ng build` irait chercher un `ng` au registre — donc une
-      # version non épinglée, dont les scripts de cycle de vie s'exécuteraient, dans le job qui
-      # bâtit l'artéfact publié. Ce n'est pas théorique : c'est la voie d'entrée classique d'une
-      # compromission de chaîne d'approvisionnement, et ce dépôt ENSEIGNE ce risque. Le chemin
-      # direct ne peut rien installer : il échoue si le binaire n'est pas là, ce qui est le bon
-      # mode d'échec. Le commentaire de `src/workflows-github.spec.ts` disait déjà que `npx`
-      # « appelle le MÊME binaire de `node_modules/.bin` » — c'est maintenant littéral.
-      - name: G-build (+ config SWA à hachages) — artéfact bâti sur la FIXTURE TÉMOIN
-        run: |
-          node tools/content-pipeline/build.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web
-          node_modules/.bin/ng build
-          npm run config:swa -- --hachages-style 14
+      # ⚠️ Le binaire `ng` vient de `node_modules/.bin` — npm l'y met sur le PATH — et jamais de
+      # `npx`, qui INSTALLE À LA DEMANDE ce qu'il ne trouve pas : une version non épinglée dont
+      # les scripts de cycle de vie s'exécuteraient dans le job qui bâtit l'artéfact publié. Voie
+      # d'entrée classique d'une compromission de chaîne d'approvisionnement, que ce dépôt
+      # ENSEIGNE (SonarCloud `githubactions:S6505` et `S8543` sur la PR #17, tous deux justes).
+      - name: G-build (+ config SWA à hachages)
+        run: npm run build
 
       # Gate d'accessibilité : axe-core exécuté dans jsdom sur CHAQUE page prerendue de
       # `dist/dr-je-sais-tout/browser`. Il vient donc APRÈS G-build, qui produit l'artéfact.
-      # ✅ DEPUIS LE LOT E (décision E-2), CET ARTÉFACT CONTIENT UNE PAGE DE LEÇON INTERACTIVE
-      # (`cours/securite-web/lecon-temoin/index.html`, avec son quiz). Jusque-là, axe n'avait
-      # JAMAIS vu le `QuizComponent` : il auditait trois pages inertes. Ne pas déplacer cette étape
+      # ✅ CET ARTÉFACT CONTIENT UNE PAGE DE LEÇON INTERACTIVE, ET C’EST DÉSORMAIS LA VRAIE :
+      # `cours/securite-web/fondamentaux/index.html`, avec son quiz de 8 questions — la leçon 01
+      # publiée le 2026-08-20. Le lot E (décision E-2) avait dû la SIMULER depuis la fixture témoin
+      # parce que `content/` était vide ; ce détour est clos avec le harnais. Jusqu’au lot E, axe
+      # n'avait JAMAIS vu le `QuizComponent` : il auditait trois pages inertes. Ne pas déplacer cette étape
       # avant G-build, ni y reconstruire l'artéfact — elle doit voir CELUI de G-build.
       # Pas de Playwright : le site est 100 % prerendu, et `jsdom` était déjà là — `axe-core` est la
       # seule dépendance ajoutée (devDep, 0 octet en production).

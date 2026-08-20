@@ -26,7 +26,7 @@
 
 import { Locator, Page, expect, test } from '@playwright/test';
 
-import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+import { exigerUneLeconAvecSimulation } from './aides/artefact-mesure';
 import { attendreHydratation } from './aides/hydratation';
 import {
   MesureFocus,
@@ -36,24 +36,32 @@ import {
   releverEtatAuRepos,
 } from './aides/indicateur-focus';
 import {
-  CHEMIN_LECON_TEMOIN,
+  ROUTE_LECON_SIMULATION,
   COMMANDES,
   NOMBRE_ETAPES,
   NOMBRE_LIENS,
+  attendreRepli,
   commande,
   etape,
   lienEtape,
   lireEtat,
 } from './aides/simulation';
 
-exigerLaPageDeLecon('le parcours clavier de la simulation (9 arrêts, focus visible, sortie)');
+exigerUneLeconAvecSimulation('le parcours clavier de la simulation (9 arrêts, focus visible, sortie)');
 
 /**
  * La borne de l'approche. La simulation est en bas de la page de leçon, derrière le
- * sommaire, la prose et les huit arrêts du quiz : le compte réel mesuré est de 39
- * tabulations. La borne est large parce qu'elle n'est PAS l'objet de la mesure —
- * elle existe pour qu'un piège de focus en amont s'arrête en nommant sa cause au
- * lieu de faire tourner la suite jusqu'au délai d'expiration.
+ * sommaire, la prose et les huit arrêts du quiz.
+ *
+ * COMPTE RÉEL : 33 tabulations — REMESURÉ le 2026-08-20 sur la leçon-témoin de fixture
+ * ENRICHIE (les quatre encadrés de provenance, doublon « cours » du contrôle positif de
+ * `landmark-unique` compris). Le chiffre n'a pas bougé, et c'est attendu : un encadré
+ * n'ouvre aucun arrêt focalisable. Le spec le journalise à chaque exécution — ce
+ * commentaire se recoupe donc contre sa propre sortie, il ne se devine pas.
+ *
+ * La borne, elle, reste large parce qu'elle n'est PAS l'objet de la mesure : elle existe
+ * pour qu'un piège de focus en amont s'arrête en nommant sa cause au lieu de faire
+ * tourner la suite jusqu'au délai d'expiration.
  */
 const LIMITE_APPROCHE = 80;
 
@@ -96,7 +104,7 @@ async function tabulerJusquALaSimulation(page: Page): Promise<number> {
 test('les neuf arrêts de la simulation se parcourent au clavier seul, dans l’ordre du document', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   const approche = await tabulerJusquALaSimulation(page);
@@ -135,7 +143,7 @@ test('les neuf arrêts de la simulation se parcourent au clavier seul, dans l’
 });
 
 test('Maj+Tab remonte les neuf arrêts en miroir', async ({ page }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   await tabulerJusquALaSimulation(page);
@@ -165,7 +173,7 @@ test('Maj+Tab remonte les neuf arrêts en miroir', async ({ page }) => {
 test('chacun des neuf arrêts porte un indicateur de focus visible et non masqué', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   // Relevé AVANT toute tabulation : à cet instant aucun élément n'a le focus, donc
@@ -210,7 +218,7 @@ test('chacun des neuf arrêts porte un indicateur de focus visible et non masqu�
 test('activer un lien d’étape au clavier replie la vue ET garde le focus dans le document', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   await tabulerJusquALaSimulation(page);
@@ -224,6 +232,13 @@ test('activer un lien d’étape au clavier replie la vue ET garde le focus dans
   await expect(lienEtape(page, 4), 'le clavier n’atteint pas le lien de l’étape 4').toBeFocused();
 
   await page.keyboard.press('Enter');
+
+  // 🔴 LA BARRIÈRE, ET LA DETTE QU'ELLE FERME. `lireEtat` est servie UNE fois et
+  // `expect(etat.courante)` porte sur une valeur : Playwright ne la rejoue jamais.
+  // Sans cette attente, la lecture ci-dessous court contre la frame où Angular peint
+  // le repli — c'est l'intermittence « famille 1 » (4 rouges en CI sur un produit
+  // sain, `Received: 1`). Voir `aides/simulation.ts` pour la mesure.
+  await attendreRepli(page, 4, 'Entrée sur le lien d’étape n’a pas replié la vue sur l’étape 4');
 
   const etat = await lireEtat(page);
   expect(etat.courante, 'Entrée sur le lien d’étape n’a pas replié la vue sur l’étape 4').toBe(4);

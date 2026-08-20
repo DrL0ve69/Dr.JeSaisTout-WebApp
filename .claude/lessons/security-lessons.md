@@ -301,6 +301,28 @@ ancien `tools/a11y/verifier-axe.mjs`.
 **Réfs.** `tools/content-pipeline/rendre-mermaid.mjs`, `tools/content-pipeline/types.d.ts`,
 `.claude/rules/security.md` §1/§4, `docs/agile/backlog-phase-1.md` §E2-ST1.
 
+**🔴 RENFORT le 2026-08-20 (encadrés de provenance, `fix/intermittence-gates-pre-e3-st1`) — la
+promesse et le code étaient dans le MÊME diff, écrits à quelques minutes d'intervalle, et personne
+ne les a confrontés.** `MARQUEURS_PROVENANCE_LITTERAUX` (règle G1 : aucun pictogramme de provenance
+littéral en prose) ne couvrait que **📘** et **🧩**, tandis que **trois** documents livrés au même
+lot affirmaient que **⚠️** l'était aussi (`docs/contenu/pipeline-contenu.md`, la note de
+`tools/content-pipeline/types.d.ts`, et la table des pictogrammes qui déclare ⚠️ « réservé »).
+**Conséquence concrète, et elle n'est pas cosmétique** : un ⚠️ littéral en prose accuse le cours
+**sans** `::: correction-du-cours`, donc **sans l'attribut `source` obligatoire, donc hors de G3** —
+exactement l'accusation non sourcée que `.claude/rules/contenu-pedagogique.md` §6 classe comme
+**défaut grave** (elle salit un enseignant sur une lecture rapide).
+**Règle renforcée.** La liste de caractères/motifs d'un garde-fou et **toute prose qui l'énumère**
+sont **un seul artéfact** : elles se relisent ensemble, dans le même diff, en **comptant les
+entrées de part et d'autre** ([[S-011]], corollaire de méthode). Écrire « X, Y et Z sont réservés »
+sans que Z figure dans la constante, c'est délivrer une permission qu'aucun humain n'a revue
+([[S-002]] : on compare à une **valeur**, jamais à une intention).
+⚠️ **Variante de saisie à couvrir en même temps :** ⚠️ s'écrit **U+26A0 suivi de U+FE0F**
+(sélecteur de variante). Une liste de caractères qui ignore les sélecteurs de variante — ou qui
+n'inscrit que la forme composée — se contourne sans même passer par les entités ([[S-022]]).
+**Réfs additionnelles.** `tools/content-pipeline/valider.mjs`
+(`MARQUEURS_PROVENANCE_LITTERAUX`), `docs/contenu/pipeline-contenu.md`,
+`tools/content-pipeline/types.d.ts`, `.claude/rules/contenu-pedagogique.md` §6.
+
 ## S-010 · Un garde-fou doit couvrir exactement le périmètre que sa promesse énonce, avec un contrôle positif prouvant qu'il l'a réellement lu (A05 · WSTG-CONF)
 
 **Symptôme.** `rendu-blocs.ts` affirmait « **L'UNIQUE `bypassSecurityTrustHtml` DU SITE** », mais le
@@ -395,6 +417,29 @@ en ligne » : seul un attribut/élément réellement présent dans l'arbre le pe
 même lot ([[S-020]])** : fermer une collision texte↔motif en passant à un compte structurel
 ré-ouvre la collision **à la valeur d'un attribut réel** dès que du texte d'auteur y est sérialisé
 sans échappement de `<` — la parade reste éditoriale, jamais un relâchement du compte.
+
+**🔵 GÉNÉRALISATION le 2026-08-20 (attribut `source` de `::: correction-du-cours`) — tout champ
+d'AUTEUR en texte libre nouvellement rendu au DOM arrive avec son test « à deux mains ».**
+`{{ bloc.source }}` est le **premier** champ d'auteur en texte libre rendu au DOM depuis le quiz.
+**Aucune exposition n'a été trouvée** : la valeur est lue par une liste blanche à un nom, mise en
+artéfact par `JSON.stringify`, rendue dans un **unique nœud texte**, jamais dans une valeur
+d'attribut ; aucun `innerHTML`, aucun `bypassSecurityTrust*` dans le diff. **Mais l'invariant
+n'était tenu par aucun test** — le jour où quelqu'un déplace la valeur dans un `[attr.…]`, rien ne
+rougit, et le déplacement est banal (un `title`, un `aria-label`, une ancre).
+**Règle générale.** Tout champ d'auteur en texte libre **nouvellement** rendu au DOM arrive dans le
+même lot avec le test à deux mains décrit ci-dessus : (a) la charge s'affiche **entière** et
+n'engendre **aucun nœud** ; (b) l'assertion qui épingle le **canal** (nœud texte, pas valeur
+d'attribut). Exemplaire de référence déjà au dépôt :
+`src/app/features/cours/quiz/quiz.spec.ts`, « AFFICHE une charge utile sans en faire naître un seul
+nœud ».
+**Distinction à ne pas perdre** (elle sépare « le build casse » de « rien ne se passe ») : la
+collision S-011 avec le générateur de CSP porte sur les **valeurs d'attribut**, où la sérialisation
+n'échappe pas `<` — pas sur les **nœuds texte**, qu'Angular échappe (`&`, `<`, `>`). Déplacer un
+champ d'auteur du texte vers un attribut change donc **les deux** propriétés d'un coup : innocuité
+et bruit de gate.
+**Réfs additionnelles.** `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts`
+(rendu de `bloc.source`), `tools/content-pipeline/valider.mjs` (règle G3),
+`.claude/rules/contenu-pedagogique.md` §6.
 
 ## S-012 · `npx` dans un job de CI qui produit l'artéfact publié est une résolution de code NON ÉPINGLÉE au moment de l'exécution (A08 · CICD-SEC)
 
@@ -733,3 +778,54 @@ de conservation qui ne vérifie que « les chemins attendus sont là » ne dit j
 **en plus** — répétition du renfort déjà posé par [[S-003]] pour du HTML/SVG, ici pour une archive.
 **Réfs.** `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.claude/rules/security.md`
 §1/§3, `docs/agile/backlog-phase-1.md` (lot de dette pré-E3-ST1, 2026-08-19, PR #30).
+
+## S-022 · Un garde-fou qui balaie la SOURCE d'un format qui DÉCODE se contourne par ce que le compilateur ajoute — la COUCHE d'observation est un choix de sécurité (A03/A05 · CWE-116, axe neuf sur la famille [[S-003]]/[[S-009]]/[[S-014]])
+
+**Symptôme, mesuré et non supposé** (markdown-it du dépôt, avec ses options réelles
+`html: false, typographer: false`) : `&#x1F4D8;` compile en `<p>📘</p>` et `&#x1F9E9;` en
+`<p>🧩</p>`. La règle **G1** (aucun pictogramme de provenance littéral dans le corps d'une leçon,
+hors blocs de code) balaie les **lignes du Markdown source**. Un auteur obtient donc un pictogramme
+de provenance **en prose publiée** sans que G1 voie quoi que ce soit — c'est-à-dire précisément le
+point de décision que G1 existe pour fermer. Aucune entrée hostile n'est nécessaire : il suffit
+d'une entité HTML, forme parfaitement ordinaire en Markdown.
+**Pourquoi ça compte plus ici qu'ailleurs.** La provenance n'est pas cosmétique sur ce site : un
+📘 non tracé fait passer pour **matière d'examen** ce que l'enseignant n'a jamais enseigné ; un ⚠️
+non tracé **accuse un enseignant sans source** (voir le renfort de [[S-009]] du 2026-08-20). Le
+lecteur qui révise est celui qui paie.
+**Ce que la famille ne nommait pas encore.** [[S-003]]/[[S-014]] disent *quoi* inspecter (analyser,
+ne pas apparier un motif) ; [[S-015]] dit *dans quel sens* le défaut peut aller (sur-refus). Aucune
+ne nomme **à quelle couche** on regarde. Un balayage de la **source** contrôle un texte que le
+compilateur va encore **transformer** : entités décodées, références de caractères, normalisations.
+Contrôler l'amont d'une transformation, c'est contrôler autre chose que ce qui est publié — même
+patron que [[S-005]] (le périmètre était faux, pas la vérification).
+**Règle.** Porter tout contrôle de contenu publié sur la **sortie compilée** — les nœuds texte de
+l'AST, hors nœuds `code` — jamais sur le Markdown source. Deux gains, pas un : les entités y sont
+**déjà résolues**, et l'exemption « bloc de code » devient **structurelle** au lieu d'être
+reconstruite à la main (automate de fences, spans en ligne). Corollaire de saisie, à appliquer dans
+le même geste : normaliser avant comparaison et **couvrir les sélecteurs de variante** — ⚠️ s'écrit
+U+26A0 **suivi de U+FE0F**, et une liste de caractères qui les ignore se contourne sans même passer
+par les entités.
+**⚠️ Coût connu à assumer :** un contrôle porté sur l'AST perd le **numéro de ligne source** si on
+ne le conserve pas explicitement (`map` des jetons) — le conserver, sinon le message d'erreur
+devient inutilisable pour l'auteur et la pression à désarmer le garde-fou revient ([[S-011]]).
+
+**🔵 CE QUI A TENU AU MÊME LOT — trois patrons à nommer parce qu'ils marchent.**
+· **G1 analyse par tranches**, avec un automate de fences CommonMark réel et des spans en ligne
+blanchis **à longueur égale** (la colonne est préservée) ; son contrôle positif place un 📘
+**légal** dans un bloc de code **au-dessus** de la faute et assertionne le **numéro de ligne** —
+une implémentation `corps.includes('📘')` rougirait. C'est le premier contrôle positif du dépôt qui
+**distingue réellement** deux implémentations, au lieu de prouver seulement « ça rougit »
+([[L-019]]).
+· **`verifierVariante` côté rendu** est une liste blanche nominative dérivée d'un littéral **écrit
+à la main** (jamais de l'artéfact, [[S-002]]), avec `Array.includes` **avant** toute indexation par
+crochets — [[S-017]] fermée par construction — et un échec qui **lève en se nommant** plutôt qu'un
+rendu nu silencieux.
+· **G2 refuse un compte de provenance déclaré au frontmatter**, au motif explicite qu'un compte
+écrit par l'auteur à côté des encadrés qu'il pose serait une **preuve fabriquée par l'entrée** :
+[[S-014]] appliquée **d'elle-même et en amont**, pour la première fois sur ce dépôt.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` (règles G1/G2/G3),
+`tools/content-pipeline/compiler-markdown.mjs` (`VARIANTES_ENCADRE`),
+`src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts` (`verifierVariante`),
+`.claude/rules/security.md` §4, `.claude/rules/contenu-pedagogique.md` §6,
+branche `fix/intermittence-gates-pre-e3-st1` (2026-08-20).
