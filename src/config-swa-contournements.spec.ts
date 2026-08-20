@@ -47,7 +47,7 @@
 //     nomme correctement, lui, l'est.
 //
 // LES DEUX MOITIÉS DE LA PINCE, dont aucune ne suffit seule :
-//   1. Les quatorze contournements sont REFUSÉS, chacun sur une cause qui NOMME la
+//   1. Les quinze contournements sont REFUSÉS, chacun sur une cause qui NOMME la
 //      page et l'élément. Seul, ce constat est compatible avec un outil qui refuserait
 //      tout — et un faux positif ici, c'est une construction rouge sur un dépôt
 //      sain, donc la pression d'assouplissement décrite en S-011.
@@ -82,23 +82,34 @@ const GENERATEUR = resolve('tools/deploiement/generer-config-swa.mjs');
 /** La VRAIE source de configuration — une copie inventée ici ne verrait pas disparaître son jeton. */
 const SOURCE_CONFIG = readFileSync(resolve('config/staticwebapp.config.source.json'), 'utf8');
 
-/**
- * Le script anti-flash, repris VERBATIM de `src/index.html`, fins de ligne normalisées en LF.
- * La normalisation n'est pas cosmétique (L-015) : ce poste écrit en CRLF, et les pages fabriquées
- * ici sont assemblées avec des LF explicites — un mélange rendrait toute assertion multi-ligne
- * dépendante de la plateforme. Le hachage, lui, est insensible aux fins de ligne (le générateur
- * les normalise avant de hacher), donc ce geste ne masque rien.
- */
-const SCRIPT_THEME = (() => {
-  const index = readFileSync(resolve('src/index.html'), 'utf8');
-  const trouve = /<script id="init-theme">[\s\S]*?<\/script>/.exec(index)?.[0];
-  if (trouve === undefined)
-    throw new Error('script « init-theme » introuvable dans src/index.html');
-  return trouve.replace(/\r\n?/g, '\n');
-})();
+// =============================================================================
+// 🔴 `SCRIPT_THEME` A DISPARU DE CE FICHIER — ET SON REMPLAÇANT EST PLUS DUR (bascule E6, 2026-08-20)
+// -----------------------------------------------------------------------------
+// La constante relisait `<script id="init-theme">` dans `src/index.html` et l'injectait dans chaque
+// page de fixture, parce que le générateur autorisait alors CE script nommément, au hachage épinglé
+// (`HACHAGE_SCRIPT_ATTENDU`). Le script a été retiré du site : `script-src` vaut `'self'` SANS
+// aucun hachage, la liste blanche nominative est VIDE.
+//
+// CE QUE CES DEUX CONSTANTES PROUVAIENT SEULES, ET OÙ C'EST PROUVÉ MAINTENANT :
+//   · `SCRIPT_THEME` prouvait que la fixture ressemblait au réel (trois scripts par page). Le réel
+//     n'en porte plus que DEUX — le bundle `type="module"` et `ng-state` — et la fixture les garde
+//     tous les deux. Les comptes du contrôle de conservation suivent : 3 occurrences brutes pour
+//     2 éléments dès qu'un `<script` de plus est masqué dans le fragment.
+//   · `HACHAGE_SCRIPT_ATTENDU` prouvait que la liste de hachages de script était NOMINATIVE et
+//     valait exactement 1, et que le corps haché venait bien de `textContent`. Ce contrat n'existe
+//     plus : il est remplacé, dans le cas « artéfact sain » plus bas, par `script-src` lu dans la
+//     config ÉCRITE et exigé strictement égal à `script-src 'self'`, zéro `sha256-`. C'est plus
+//     fort : un hachage réintroduit, quel qu'il soit, rougit — là où l'ancienne assertion aurait
+//     accepté n'importe quel remplaçant portant le bon compte.
+//   · Et ce que RIEN ne prouvait avant, parce que c'était impossible : le script anti-flash
+//     LUI-MÊME, réinjecté verbatim, est désormais REFUSÉ. C'est le contrôle positif du durcissement
+//     (dernier cas de `CONTOURNEMENTS`) — sans lui, on ne saurait pas que la branche « autorisé »
+//     a réellement été supprimée plutôt que rendue silencieuse.
+// =============================================================================
 
 /**
- * LES DEUX AUTRES `<script>` QUE PORTE UNE VRAIE PAGE PRERENDUE, dans leur forme réelle — relevés
+ * LES DEUX SEULS `<script>` QUE PORTE ENCORE UNE VRAIE PAGE PRERENDUE (ils étaient trois avant le
+ * retrait de l'anti-flash, bascule E6), dans leur forme réelle — relevés
  * le 2026-08-19 sur `dist/dr-je-sais-tout/browser/index.html`. Ils ne sont pas décoratifs : sans
  * eux la fixture restait plus PAUVRE que le réel — exactement le défaut décrit sous `page()` pour
  * le `<meta content>` — et les deux échappements de la boucle des scripts du générateur n'étaient
@@ -116,11 +127,14 @@ const SCRIPT_ETAT =
   '<script id="ng-state" type="application/json">{"__nghData__":[{"t":{"5":"t0"}}]}</script>';
 
 /**
- * Le hachage du script anti-flash, RECOPIÉ EN DUR depuis `generer-config-swa.mjs` — jamais importé
- * de l'outil qu'il vérifie (L-012). C'est la sentinelle du seul changement de comportement du lot A
- * qui pourrait passer inaperçu : le corps haché vient désormais de `textContent`.
+ * LE CORPS EXACT du script anti-flash retiré du site, recopié ici EN DUR — il n'est plus nulle part
+ * dans `src/index.html` (le commentaire qui l'y raconte écrit `‹script›`, jamais la balise). Il ne
+ * sert plus de fixture saine : il est la CHARGE d'un contournement, celui qui prouve que la
+ * permission nominative a bien été supprimée et pas seulement rendue muette.
+ * 29 o de corps — une longueur qu'aucun des six autres cas de script ne produit, donc une empreinte
+ * de cause que ce fichier ne peut pas confondre (même geste que les longueurs 8 à 13).
  */
-const HACHAGE_SCRIPT_ATTENDU = 'sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M=';
+const CORPS_ANCIEN_SCRIPT_THEME = 'document.title=document.title';
 
 /** Le compte de hachages de style épinglé par le générateur — en dur ici aussi, même raison. */
 // 10 → 13 le 2026-08-20 : ce n’est pas une permission élargie mais la TAILLE DE LA FIXTURE de ce
@@ -154,15 +168,15 @@ const BASE = mkdtempSync(join(tmpdir(), 'swa-contournements-'));
  *
  * ⚠️ MÊME RAISON pour les deux `<script>` de bas de page et pour les marqueurs d'hydratation
  * (`<!--nghm-->`, `ngh="…"`) : la fixture n'en portait aucun alors que TOUTE page réelle les porte.
- * Trois scripts par page, donc, et non un — ce qui fixe aussi les comptes du contrôle de
- * conservation cité par le dernier cas de `CONTOURNEMENTS` (4 occurrences brutes pour 3 éléments
- * dès qu'un `<script` supplémentaire est masqué dans le fragment).
+ * DEUX scripts par page depuis la bascule E6 — le `<head>` n'en porte plus aucun — ce qui fixe
+ * aussi les comptes du contrôle de conservation cité par le dernier cas de `CONTOURNEMENTS`
+ * (3 occurrences brutes pour 2 éléments dès qu'un `<script` supplémentaire est masqué dans le
+ * fragment ; c'était 4 pour 3 tant que l'anti-flash existait).
  */
 function page(fragment: string, blocsStyle: readonly string[]): string {
   return [
     '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Essai</title>',
-    SCRIPT_THEME,
     ...blocsStyle,
     '</head><body><!--nghm-->',
     '<app-root ngh="0">',
@@ -179,13 +193,21 @@ function page(fragment: string, blocsStyle: readonly string[]): string {
  * la ligne de commande réelle. `404/index.html` existe parce que `responseOverrides.404` le nomme et
  * que le générateur vérifie ses cibles ; il ne porte aucun bloc `<style>`, pour que le compte de
  * hachages ne dépende que de `index.html`. Corollaire : un rouge ne peut venir que du fragment.
+ *
+ * `sourceConfig` vaut la VRAIE source par défaut — la surcharger est réservée au seul cas qui
+ * n'attaque pas l'artéfact mais la CONFIGURATION elle-même (le jeton `__HACHAGES_SCRIPT__`
+ * réintroduit, dernier `it()` du fichier). Corollaire du corollaire : tant que ce paramètre garde
+ * son défaut, un rouge ne peut toujours venir que du fragment.
  */
-function lancer(fragment: string): { sortie: string; code: number; config: string } {
+function lancer(
+  fragment: string,
+  sourceConfig: string = SOURCE_CONFIG,
+): { sortie: string; code: number; config: string } {
   const racine = mkdtempSync(join(BASE, 'artefact-'));
   const navigateur = join(racine, 'dist', 'dr-je-sais-tout', 'browser');
   mkdirSync(join(racine, 'config'), { recursive: true });
   mkdirSync(join(navigateur, '404'), { recursive: true });
-  writeFileSync(join(racine, 'config', 'staticwebapp.config.source.json'), SOURCE_CONFIG);
+  writeFileSync(join(racine, 'config', 'staticwebapp.config.source.json'), sourceConfig);
   writeFileSync(join(navigateur, 'index.html'), page(fragment, BLOCS_CONFORMES));
   writeFileSync(join(navigateur, '404', 'index.html'), page('<p>404</p>', []));
 
@@ -234,7 +256,7 @@ const CONTOURNEMENTS: readonly { nom: string; fragment: string; causes: readonly
     // un test bâti dessus serait vert sans rien prouver du trou.
     nom: 'un guillemet NON REFERMÉ, qui rendait la balise INVISIBLE au motif',
     fragment: '<script data-x=a"b>alert(1)</script>',
-    causes: [/script inline exécutable non autorisé \(8 o\)/],
+    causes: [/script inline exécutable \(8 o\) — aucun script inline n’est autorisé sur ce site/],
   },
   {
     // NON-RÉGRESSION, pas un trou : l'ancien code refusait déjà ce cas, mais par sa voie
@@ -243,20 +265,20 @@ const CONTOURNEMENTS: readonly { nom: string; fragment: string; causes: readonly
     // le refuser — et le fait désormais en NOMMANT ce que c'est : un script inline exécutable.
     nom: 'un faux `type` inerte caché dans une valeur à backticks (refus déjà acquis, à ne pas relâcher)',
     fragment: '<script data-x=`type="application/json"`>alert(11)</script>',
-    causes: [/script inline exécutable non autorisé \(9 o\)/],
+    causes: [/script inline exécutable \(9 o\) — aucun script inline n’est autorisé sur ce site/],
   },
   {
     // NON-RÉGRESSION : l'ancien motif portait déjà le drapeau `i`. Le cas reste pour que le jour où
     // quelqu'un « simplifierait » l'analyse, la casse mêlée rougisse encore.
     nom: 'une balise <ScRiPt> en casse mêlée (refus déjà acquis, à ne pas relâcher)',
     fragment: '<ScRiPt>alert(111)</ScRiPt>',
-    causes: [/script inline exécutable non autorisé \(10 o\)/],
+    causes: [/script inline exécutable \(10 o\) — aucun script inline n’est autorisé sur ce site/],
   },
   {
     // NON-RÉGRESSION : l'ancien motif portait déjà `</script\s*>`.
     nom: 'une balise fermante « </script > » porteuse d’un blanc (refus déjà acquis, à ne pas relâcher)',
     fragment: '<script>alert(1111)</script >',
-    causes: [/script inline exécutable non autorisé \(11 o\)/],
+    causes: [/script inline exécutable \(11 o\) — aucun script inline n’est autorisé sur ce site/],
   },
   {
     // Trou n°2 : ` style="` ne voyait que le guillemet double.
@@ -342,7 +364,7 @@ const CONTOURNEMENTS: readonly { nom: string; fragment: string; causes: readonly
     // `getAttribute('id')` ne peut pas s'y tromper, et on le MESURE désormais.
     nom: 'un faux `id="init-theme"` forgé dans une valeur d’attribut (sous-chaîne ≠ jeton)',
     fragment: '<script data-x=" id=init-theme">alert(11111)</script>',
-    causes: [/script inline exécutable non autorisé \(12 o\)/],
+    causes: [/script inline exécutable \(12 o\) — aucun script inline n’est autorisé sur ce site/],
   },
   {
     // NON-RÉGRESSION, second des deux cas promis sans être assertionnés. PREMIER GAGNANT sur
@@ -351,7 +373,7 @@ const CONTOURNEMENTS: readonly { nom: string; fragment: string; causes: readonly
     // passer. L'analyseur applique nativement la règle du navigateur.
     nom: 'un `type` répété dont la SECONDE valeur est inerte (règle du premier gagnant)',
     fragment: '<script type="text/javascript" type="application/json">alert(111111)</script>',
-    causes: [/script inline exécutable non autorisé \(13 o\)/],
+    causes: [/script inline exécutable \(13 o\) — aucun script inline n’est autorisé sur ce site/],
   },
   {
     // CONTRÔLE DE CONSERVATION, jumeau de celui des blocs <style> : ce cas ne prouve pas qu'on
@@ -364,11 +386,25 @@ const CONTOURNEMENTS: readonly { nom: string; fragment: string; causes: readonly
     // qu'il est ; et c'est LUI que la cause ci-dessous exige, pas le refus.
     nom: 'une occurrence de « <script » que l’analyseur ne retrouve pas (commentaire HTML)',
     fragment: '<!-- <script>alert(1)</script> -->',
-    // 4 pour 3 : la page réelle porte TROIS scripts (anti-flash, bundle `type="module"`, `ng-state`),
-    // et le commentaire en ajoute une quatrième occurrence BRUTE qu'aucun élément ne réalise.
+    // 3 pour 2 : la page réelle porte DEUX scripts depuis la bascule E6 (bundle `type="module"` et
+    // `ng-state` ; l'anti-flash a disparu), et le commentaire ajoute une TROISIÈME occurrence BRUTE
+    // qu'aucun élément ne réalise. C'était 4 pour 3 tant que le `<head>` portait l'anti-flash.
     causes: [
-      /4 occurrence\(s\) brute\(s\) de .{1,3}<script.{1,3}pour 3 élément\(s\) <script> vu\(s\)/,
+      /3 occurrence\(s\) brute\(s\) de .{1,3}<script.{1,3}pour 2 élément\(s\) <script> vu\(s\)/,
     ],
+  },
+  {
+    // 🔴 LE CONTRÔLE POSITIF DU DURCISSEMENT E6, ET IL N'A PAS D'ÉQUIVALENT AILLEURS.
+    // Ce fragment est le script anti-flash tel qu'il vivait dans `src/index.html` : marqueur
+    // `id="init-theme"` compris. Il était AUTORISÉ NOMMÉMENT, hachage épinglé, jusqu'au
+    // 2026-08-20 — c'est-à-dire que ce même fragment sortait en code 0.
+    // Sans ce cas, la suppression de la branche « autorisé » ne serait prouvée par RIEN : un
+    // générateur qui aurait gardé l'exception en la rendant silencieuse passerait tous les autres
+    // cas de ce fichier, puisque aucun d'eux ne porte ce marqueur. Ici, le marqueur ne protège
+    // plus rien : la liste blanche de `script-src` est VIDE, il n'y a plus d'exception à examiner.
+    nom: 'le script anti-flash LUI-MÊME, autrefois autorisé nommément (la liste blanche est vide)',
+    fragment: `<script id="init-theme">${CORPS_ANCIEN_SCRIPT_THEME}</script>`,
+    causes: [/script inline exécutable \(29 o\) — aucun script inline n’est autorisé sur ce site/],
   },
 ];
 
@@ -397,16 +433,79 @@ describe('le garde-fou CSP, analysé plutôt qu’apparié', () => {
   }
 
   it(
-    'accepte un artéfact sain — et le hachage ÉPINGLÉ du script anti-flash n’a pas bougé',
+    'accepte un artéfact sain — et `script-src` y est écrit SANS le moindre hachage',
     () => {
       const { sortie, code, config } = lancer('<p>rien à signaler</p>');
       expect(code).toBe(0);
       expect(sortie).toContain(`${NOMBRE_HACHAGES_ATTENDU} hachage(s) de style distinct(s)`);
-      // LA MOITIÉ QUI COMPTE POUR LE LOT A : le corps haché vient désormais de `textContent` et non
-      // de la sous-chaîne brute. C'est la directive ÉCRITE qui part sur Azure — on la lit.
+      // ✅ CE QUI REMPLACE `HACHAGE_SCRIPT_ATTENDU`, ET POURQUOI C'EST PLUS FORT.
+      // L'assertion d'avant exigeait que la directive CONTIENNE un hachage précis, et qu'il y en
+      // ait exactement 1 : c'était la sentinelle du lot A (le corps haché venait désormais de
+      // `textContent`). Ce contrat a disparu avec le script. Le neuf est une ÉGALITÉ STRICTE sur
+      // la directive entière — un hachage réintroduit, une source tierce ajoutée, un
+      // `'unsafe-inline'` glissé : tout rougit ici, pas seulement la valeur qu'on avait prévue.
+      // C'est la directive ÉCRITE qui part sur Azure ; c'est elle qu'on lit, pas le journal.
       const directive = /script-src[^;]*/.exec(config)?.[0] ?? '';
-      expect(directive).toContain(HACHAGE_SCRIPT_ATTENDU);
-      expect(directive.match(/sha256-/g) ?? []).toHaveLength(1);
+      expect(directive).toBe("script-src 'self'");
+      expect(directive.match(/sha256-/g) ?? []).toHaveLength(0);
+      // La preuve que le générateur a bien COMPTÉ zéro, et non simplement omis de compter : le
+      // journal l'énonce. Un « 0 attendu » muet ne distinguerait pas les deux (L-005).
+      expect(sortie).toContain('0 attendu');
+    },
+    DELAI,
+  );
+
+  // ===========================================================================
+  // 🔴 LE `echec()` QUE RIEN N'EXERÇAIT — famille L-019, axe CÂBLAGE
+  // ---------------------------------------------------------------------------
+  // `generer-config-swa.mjs` refuse la RÉAPPARITION de `__HACHAGES_SCRIPT__` dans la source
+  // versionnée : plus aucun code ne le substitue depuis la bascule E6, donc s'il revenait, la
+  // directive `script-src` partirait sur Azure en portant un jeton NON RÉSOLU — que le navigateur
+  // ignore en silence, et qui ne rougirait nulle part.
+  // Cette branche était écrite, commentée, pédagogique… et jamais exécutée : un `echec()` qu'aucun
+  // test ne déclenche est indistinguable d'une branche morte, c'est exactement le défaut que L-019
+  // nomme (un garde-fou non exercé n'est pas prouvé). `src/csp-servie-structurelle.spec.ts` attrape
+  // bien le retour du jeton, mais en lisant le VRAI fichier : il prouve l'état du dépôt, pas que le
+  // générateur sait refuser — or c'est le générateur qui porte le message et la consigne de revue.
+  //
+  // POURQUOI CE CAS N'EST PAS UNE ENTRÉE DE `CONTOURNEMENTS` : les autres cas attaquent
+  // l'ARTÉFACT et sortent par le contrôle des pages prerendues, donc sur la phrase « la sortie
+  // prerendue est incompatible avec la CSP stricte ». Celui-ci attaque la CONFIGURATION et sort
+  // AVANT toute lecture de page. Le mettre dans la boucle aurait exigé d'assouplir l'assertion
+  // commune — c'est-à-dire d'affaiblir tous les autres cas pour en loger un de plus.
+  it(
+    'refuse la réapparition du jeton `__HACHAGES_SCRIPT__` dans la source, en nommant la cause',
+    () => {
+      const sourceForgee = SOURCE_CONFIG.replace(
+        "script-src 'self';",
+        "script-src 'self' __HACHAGES_SCRIPT__;",
+      );
+      // CONTRÔLE POSITIF DE LA FORGE (L-015) : un `replace()` qui n'apparie rien rendrait la source
+      // INCHANGÉE, et le test passerait au vert en croyant avoir attaqué. On mesure les deux sens.
+      expect(sourceForgee).not.toBe(SOURCE_CONFIG);
+      expect(sourceForgee).toContain('__HACHAGES_SCRIPT__');
+      expect(SOURCE_CONFIG).not.toContain('__HACHAGES_SCRIPT__');
+
+      const { sortie, code, config } = lancer('<p>rien à signaler</p>', sourceForgee);
+      expect(code).toBe(1);
+      expect(sortie).toMatch(
+        /le jeton __HACHAGES_SCRIPT__ est présent dans la source alors qu'il n'est plus résolu/,
+      );
+      // La CONSIGNE DE REVUE fait partie du livrable de cette branche : sans elle, un lecteur pressé
+      // remettrait le jeton en croyant réparer un oubli.
+      expect(sortie).toContain('revue `security-reviewer`');
+      // 🔴 CE QUI DISTINGUE « code 1 À CAUSE DU JETON » DE « code 1 POUR UNE AUTRE RAISON ».
+      // Le refus doit sortir AVANT toute lecture de page : la phrase des infractions d'artéfact ne
+      // doit donc PAS apparaître. Sans cette moitié, un générateur qui aurait planté sur le
+      // répertoire temporaire passerait ce test.
+      expect(sortie).not.toContain('la sortie prerendue est incompatible avec la CSP stricte');
+      expect(config).toBe('');
+
+      // TÉMOIN NÉGATIF, dans le MÊME test : le seul et unique delta est le jeton. Le même fragment,
+      // le même harnais, la source intacte → code 0. Sans lui, le rouge ci-dessus resterait
+      // compatible avec un harnais cassé (L-035 : une prémisse fausse rougit sur un produit sain).
+      const temoin = lancer('<p>rien à signaler</p>');
+      expect(temoin.code).toBe(0);
     },
     DELAI,
   );

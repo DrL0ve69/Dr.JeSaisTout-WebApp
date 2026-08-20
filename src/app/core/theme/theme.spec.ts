@@ -91,22 +91,46 @@ function installerPreferenceSysteme(sombreAuDepart: boolean) {
   };
 }
 
-/**
- * Le CORPS du `<script id="init-theme">` de `src/index.html`, lu au disque.
- *
- * On extrait le script plutôt que de chercher dans le fichier entier : le
- * commentaire qui précède la balise cite lui aussi `drjst-theme`, et une
- * assertion sur tout le HTML resterait donc verte après un renommage de la clé
- * dans le script seul (piège L-010 — la même chaîne existe deux fois).
- */
-function corpsDuScriptInitTheme(): string {
-  const html = readFileSync(join(process.cwd(), 'src', 'index.html'), 'utf8');
-  const corps = /<script[^>]*\bid\s*=\s*"init-theme"[^>]*>([\s\S]*?)<\/script>/.exec(html)?.[1];
-  if (corps === undefined) {
-    throw new Error('Aucun <script id="init-theme"> dans src/index.html.');
-  }
-  return corps;
+/** Le `src/index.html` versionné, lu au disque. */
+function indexHtml(): string {
+  return readFileSync(join(process.cwd(), 'src', 'index.html'), 'utf8');
 }
+
+/**
+ * Les thèmes épinglables que la feuille de styles NE SAIT PLUS peindre en phase 1.
+ *
+ * 🔴 LISTE REVUE À LA MAIN, JAMAIS DÉRIVÉE DU CSS COMPILÉ. Une exemption calculée
+ * depuis la sortie qu'elle est censée contraindre ne contraint rien (S-002/S-005) :
+ * elle se mettrait à jour toute seule le jour où un sélecteur disparaît, ce qui est
+ * exactement l'accident qu'on veut faire rougir.
+ *
+ * POURQUOI ELLE EXISTE. Décision D-2 du 2026-08-17 : la phase 1 ne rend qu'un
+ * thème, le sombre. `_themes.scss` a donc RETIRÉ le mixin `jetons-theme-clair` et
+ * tous ses sélecteurs `[data-theme=…]` — « clair » n'a plus de peau.
+ *
+ * ⚠️ ELLE NE CONTIENT QUE « clair », ET C'EST UNE MESURE, PAS UNE INTUITION. La
+ * première rédaction de ce lot y avait mis « sombre » aussi, en croyant `:root`
+ * seul responsable de la peau ; le test ci-dessous a rendu `Set{'sombre'}` et l'a
+ * réfutée. Le sélecteur `:root[data-theme='sombre']` survit dans
+ * `_coloration-syntaxique-generee.scss` — la feuille GÉNÉRÉE par le pipeline de
+ * contenu pour la coloration Shiki, qui a gardé la bascule à deux thèmes.
+ *
+ * CE QUE L'EXEMPTION NE RENDRAIT PAS SÛRE TOUTE SEULE : `definir('clair')` pose un
+ * attribut que plus rien ne peint. C'est inoffensif UNIQUEMENT parce qu'aucun
+ * composant rendu n'appelle `definir()` — `bascule-theme` n'est plus composée dans
+ * `EnTete` (tripwire dans `en-tete.spec.ts`). Recomposer la bascule sans vider
+ * cette liste gèlerait la page.
+ */
+// 🔴 « sombre » A REJOINT CETTE LISTE LE 2026-08-20, et ce n'est pas un
+// relâchement. Le dernier `[data-theme='sombre']` du dépôt vivait dans la feuille
+// de coloration syntaxique générée ; il a disparu quand `compiler-markdown.mjs` a
+// cessé d'émettre une bascule à deux thèmes (elle laissait un visiteur au système
+// CLAIR recevoir des blocs de code blancs sur une page noire). Le thème sombre est
+// désormais peint SANS CONDITION sur `:root` : il n'a plus besoin de sélecteur,
+// et un sélecteur qui reviendrait signalerait précisément le retour d'une cascade
+// conditionnelle. L'ensemble attendu est donc VIDE — et un ensemble vide attendu
+// attrape encore tout ce qui apparaît.
+const THEMES_SANS_SELECTEUR_PHASE_1: ReadonlySet<string> = new Set(['clair', 'sombre']);
 
 /** Le CSS réellement produit par la feuille de styles du site. */
 function cssCompile(): string {
@@ -414,21 +438,49 @@ describe('ThemeService', () => {
 // écrit à la main, que rien ne type) et `_themes.scss` (des sélecteurs CSS).
 // On les lit donc à leur source, le SCSS étant compilé pour de vrai — la valeur
 // littérale d'un sélecteur n'est visible qu'après compilation.
+//
+// ⚠️ EN PHASE 1, DEUX DE CES TROIS MOITIÉS SONT VIDES, ET C'EST LE CONTRAT (E6,
+// 2026-08-20) : `index.html` n'a plus de script inline, `_themes.scss` n'a plus de
+// sélecteur `[data-theme]`. Ces tests ne se sont pas ramollis pour autant — ils
+// prouvent désormais l'ABSENCE, ce qui est une affirmation aussi forte et
+// exactement aussi facile à casser par accident. E4-ST1 les réinversera.
 // =============================================================================
 describe('contrat du thème — les trois moitiés doivent se répondre', () => {
-  it('`CLE_THEME` est bien la clé que lit le script anti-flash d’`index.html`', () => {
-    expect(corpsDuScriptInitTheme()).toContain(`'${CLE_THEME}'`);
+  it('`index.html` ne porte AUCUN script inline — `script-src` est à zéro hachage', () => {
+    // ⚠️ TEST RETOURNÉ LE 2026-08-20 (bascule E6). Il exigeait auparavant que le
+    // `<script id="init-theme">` d'`index.html` lise bien `CLE_THEME` : c'était la
+    // moitié « hors TypeScript » du contrat. Ce script a été SUPPRIMÉ — en phase 1
+    // il n'y a plus qu'un thème, il n'avait plus rien à lire, et un script inline
+    // qui ne fait rien conserve une permission CSP pour du code mort (S-005).
+    //
+    // CE QUE CE TEST PROUVE MAINTENANT, et que rien d'autre en `src/` ne dit : la
+    // page d'amorçage versionnée n'introduit aucun script inline. C'est la moitié
+    // AMONT du garde-fou `hachagesScript.size !== 0` de
+    // `tools/deploiement/generer-config-swa.mjs`, qui, lui, mesure l'ARTÉFACT. Les
+    // deux sont nécessaires : celui-ci rougit en `npm test`, à la seconde où la
+    // balise est écrite ; l'autre attrape ce que la construction injecterait sans
+    // qu'aucun humain n'ait édité ce fichier.
+    //
+    // `CLE_THEME` reste importée et exercée par les tests de service ci-dessus :
+    // c'est la clé de `localStorage`, que E4-ST1 relira intacte.
+    const html = indexHtml();
+
+    expect(html).not.toMatch(/<script[\s>/]/i);
+    expect(html, 'la clé de thème n’a plus rien à faire dans la page d’amorçage').not.toContain(
+      CLE_THEME,
+    );
   });
 
-  it('`ATTRIBUT_THEME` est bien l’attribut que ciblent les sélecteurs compilés', () => {
-    // `[data-theme=…]` ou `:not([data-theme])` : les deux formes comptent.
-    expect(cssCompile()).toMatch(new RegExp(`\\[${ATTRIBUT_THEME}[\\]=]`));
-  });
-
-  it('les états épinglables sont EXACTEMENT ceux que la feuille de styles sait peindre', () => {
-    // Ensembles comparés dans les deux sens : un état ajouté au service sans
-    // sélecteur (page gelée en clair) et un sélecteur orphelin (thème mort dans
-    // le CSS) sortent tous deux rouges.
+  it('la feuille compilée n’émet aucun sélecteur de thème que le service ne connaisse pas', () => {
+    // Ensembles comparés dans les DEUX SENS, comme avant — c'est ce qui fait la
+    // sensibilité de ce test, et le retrait du thème clair ne l'a pas entamée :
+    //   · un sélecteur ORPHELIN (`[data-theme='dark']`, un thème mort dans le CSS)
+    //     n'est dans aucun des deux ensembles attendus → rouge ;
+    //   · un état ajouté à `THEMES` SANS sélecteur → rouge, à moins qu'un humain
+    //     ne l'ait explicitement inscrit dans `THEMES_SANS_SELECTEUR_PHASE_1`,
+    //     c'est-à-dire ne l'ait REVU.
+    // La seule chose qui a changé, c'est que l'ensemble attendu est aujourd'hui
+    // VIDE — et un ensemble vide attendu attrape encore tout ce qui apparaît.
     const epinglables = new Set<string>(THEMES.filter((theme) => theme !== 'systeme'));
     const selecteurs = new Set(
       [...cssCompile().matchAll(new RegExp(`\\[${ATTRIBUT_THEME}=['"]?([\\w-]+)['"]?\\]`, 'g'))].map(
@@ -436,8 +488,87 @@ describe('contrat du thème — les trois moitiés doivent se répondre', () => 
       ),
     );
 
+    // Garde-fou contre le vert vide, et garde-fou sur l'exemption elle-même : une
+    // liste d'exemption qui nomme un thème inexistant est une liste périmée, et
+    // elle masquerait le jour où ce nom reviendrait (L-016).
     expect(epinglables.size).toBeGreaterThan(0);
-    expect(selecteurs).toEqual(epinglables);
+    for (const exempte of THEMES_SANS_SELECTEUR_PHASE_1) {
+      expect(
+        epinglables.has(exempte),
+        `« ${exempte} » est exempté de sélecteur mais n’est plus un thème épinglable`,
+      ).toBe(true);
+    }
+
+    const attendus = new Set(
+      [...epinglables].filter((theme) => !THEMES_SANS_SELECTEUR_PHASE_1.has(theme)),
+    );
+    expect(selecteurs).toEqual(attendus);
+  });
+
+  it('les JETONS de thème sont peints sans condition — seule la coloration Shiki reste à deux thèmes', () => {
+    // 🔴 LE TEST QUI PORTE LA SÛRETÉ DE `THEMES_SANS_SELECTEUR_PHASE_1`, et sa
+    // rédaction a dû être CORRIGÉE PAR LA MESURE — le récit vaut plus que le test.
+    // La version écrite d'abord exigeait qu'aucun `prefers-color-scheme` ne subsiste
+    // dans la feuille compilée. Elle est sortie ROUGE sur un dépôt sain : la
+    // coloration syntaxique en porte un, et c'est un fait qu'il fallait apprendre
+    // plutôt que faire taire (L-035 — une prémisse fausse rougit sur un produit
+    // sain).
+    //
+    // CE QUI EST VRAI, MESURÉ : les jetons de thème de `_themes.scss` sont
+    // inconditionnels (`:root { color-scheme: dark }` + les primitives sombres), et
+    // le SEUL `prefers-color-scheme` de tout le CSS livré vient de
+    // `_coloration-syntaxique-generee.scss`. On compare donc les deux comptes plutôt
+    // que d'exiger zéro : c'est l'autre extrémité du contrat qui donne la valeur
+    // attendue, jamais un chiffre recopié (L-012).
+    //
+    // ⚠️ CE QUE CE TEST NE CORRIGE PAS, ET QUI EST UNE DETTE RÉELLE POUR E6 : la
+    // feuille de coloration applique ses couleurs CLAIRES par défaut et ne bascule
+    // en sombre que sous `prefers-color-scheme: dark` ou `[data-theme='sombre']` —
+    // deux conditions dont AUCUNE n'est vraie pour un visiteur dont l'OS est en
+    // clair. Depuis le passage au thème sombre seul, ce visiteur reçoit donc des
+    // blocs de code aux couleurs github-light sur une page noire. Ce fichier est
+    // GÉNÉRÉ (`tools/content-pipeline/compiler-markdown.mjs`) : le correctif ne
+    // s'écrit pas ici, et il n'appartient pas à ce lot. Ce test le NOMME pour qu'il
+    // ne se redécouvre pas.
+    const css = cssCompile();
+    const feuilleShiki = readFileSync(
+      join(process.cwd(), 'src', 'styles', '_coloration-syntaxique-generee.scss'),
+      'utf8',
+    );
+
+    expect(css, '`:root` ne déclare plus `color-scheme: dark`').toContain('color-scheme: dark');
+
+    // 🔴 LE CONTRAT S'EST DURCI DANS LE MÊME LOT. Ce test tolérait les
+    // `prefers-color-scheme` de la coloration syntaxique, en NOMMANT cette
+    // tolérance comme une dette. La dette est PAYÉE : `compiler-markdown.mjs`
+    // n'émet plus de bascule à deux thèmes, parce qu'elle servait des blocs de
+    // code github-LIGHT à tout visiteur dont le système est en clair. Il ne doit
+    // donc plus rester AUCUNE requête de préférence de couleur nulle part.
+    const total = [...css.matchAll(/prefers-color-scheme/g)].length;
+    // 🔴 ON DÉCOMMENTE AVANT DE COMPTER, et c'est le même patron que le garde-fou
+    // de la police du jalon. Le commentaire qui EXPLIQUE le correctif cite
+    // forcément le motif qu'il a supprimé : compter le texte écrit plutôt que le
+    // style appliqué faisait rougir ce test sur une feuille parfaitement saine.
+    // C'est la famille L-021/L-025 du dépôt — une déclaration présente ne prouve
+    // pas une déclaration appliquée, et sa mention ne prouve pas sa présence.
+    const coloration = feuilleShiki.replace(new RegExp('//.*$', 'gm'), '');
+    const dansLaColoration = [...coloration.matchAll(/prefers-color-scheme/g)].length;
+
+    expect(
+      total,
+      'un `prefers-color-scheme` est apparu dans la feuille compilée : les jetons de thème ne sont plus peints sans condition, et l’exemption de sélecteur ci-dessus n’est plus sûre',
+    ).toBe(0);
+    expect(
+      dansLaColoration,
+      'la coloration syntaxique a retrouvé une bascule à deux thèmes — un visiteur au système CLAIR recevra des blocs de code blancs sur une page noire',
+    ).toBe(0);
+
+    // Garde-fou contre le vert vide (L-005) : deux ensembles vides se valident
+    // trivialement, donc on prouve d'abord qu'on lit bien quelque chose — la
+    // feuille compilée porte sa cascade d'impression, la feuille générée ses
+    // classes de coloration.
+    expect(css).toContain('@media print');
+    expect(coloration).toContain('.shiki');
   });
 
   it('« systeme » n’a AUCUN sélecteur — son absence d’attribut EST l’état', () => {

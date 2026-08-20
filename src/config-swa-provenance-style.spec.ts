@@ -58,19 +58,19 @@ const GENERATEUR = resolve('tools/deploiement/generer-config-swa.mjs');
  *  verrait — une copie inventée ici ne le verrait pas. */
 const SOURCE_CONFIG = readFileSync(resolve('config/staticwebapp.config.source.json'), 'utf8');
 
-/**
- * Le script anti-flash, repris VERBATIM de `src/index.html`. Le générateur exige exactement un
- * `id="init-theme"` par page, au hachage épinglé : sans lui, chaque cas échouerait sur une cause
- * étrangère à ce qu'il teste. Repris de la source et non recopié pour que l'édition légitime du
- * script ne fabrique pas ici un faux rouge — le hachage porte sur le contenu après normalisation
- * des fins de ligne (S-002), donc le CRLF de ce poste est sans effet.
- */
-const SCRIPT_THEME = (() => {
-  const index = readFileSync(resolve('src/index.html'), 'utf8');
-  const trouve = /<script id="init-theme">[\s\S]*?<\/script>/.exec(index)?.[0];
-  if (trouve === undefined) throw new Error('script « init-theme » introuvable dans src/index.html');
-  return trouve;
-})();
+// =============================================================================
+// 🔴 CE FICHIER PORTAIT UNE CONSTANTE `SCRIPT_THEME`, ET ELLE A DISPARU (bascule E6, 2026-08-20).
+// Elle relisait `<script id="init-theme">` dans `src/index.html` et l'injectait dans CHAQUE page
+// de fixture, parce que le générateur exigeait alors exactement un script inline autorisé par page.
+// `src/index.html` ne porte plus aucun script inline et `script-src` vaut `'self'` sans hachage :
+// une page de fixture qui en porterait un serait désormais REFUSÉE, et tous les cas de ce fichier
+// échoueraient sur une cause étrangère à ce qu'ils testent — la provenance des blocs `<style>`.
+//
+// ⚠️ CE QUE CETTE CONSTANTE PROUVAIT SEULE : rien. Elle n'était pas assertionnée ici, elle rendait
+// seulement la fixture plausible. Ce qui EST assertionné sur `script-src` — zéro hachage, et un
+// script inline qui fait échouer le générateur — vit dans `src/config-swa-contournements.spec.ts`,
+// qui exerce précisément cette branche. Aucune couverture n'est perdue par ce retrait.
+// =============================================================================
 
 /**
  * Le nombre de hachages de style que le générateur épingle — RECOPIÉ ICI EN DUR, jamais importé de
@@ -104,11 +104,10 @@ const DELAI = 60_000;
 
 const BASE = mkdtempSync(join(tmpdir(), 'swa-provenance-'));
 
-/** Une page prerendue plausible : un `<head>`, le script anti-flash, les blocs à l'essai. */
+/** Une page prerendue plausible : un `<head>` SANS aucun script inline, et les blocs à l'essai. */
 function page(blocsStyle: readonly string[]): string {
   return [
     '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Essai</title>',
-    SCRIPT_THEME,
     ...blocsStyle,
     '</head><body><p>Essai</p></body></html>',
   ].join('\n');

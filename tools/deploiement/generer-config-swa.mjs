@@ -8,15 +8,41 @@
  * modification de style. Une CSP recopiée à la main se désynchronise donc au premier changement —
  * d'où la génération.
  *
- * Même mécanique pour `script-src` depuis E1-ST1-C : la page porte UN script inline
- * (`<script id="init-theme">`, l'anti-flash de thème), qui ne peut être autorisé que par hachage.
- * Il est haché depuis l'artéfact et non depuis `src/index.html`, parce que c'est l'artéfact que le
- * navigateur reçoit : si la construction transforme la page (minification, sérialisation du
- * prerender), le hachage suit sans qu'on ait à le savoir.
+ * 🔴 `script-src` N'A PLUS AUCUN HACHAGE, ET C'EST UN DURCISSEMENT (bascule E6, lot « thème & CSP »,
+ * 2026-08-20). De E1-ST1-C au 2026-08-20, la page portait UN script inline —
+ * `<script id="init-theme">`, l'anti-flash de thème — autorisé par un hachage épinglé. Il n'existe
+ * plus, pour trois raisons qui se lisent ensemble :
+ *   1. Il lisait, avant la première peinture, le thème que le visiteur avait épinglé. En phase 1 il
+ *      n'y a plus qu'UN thème (décision D-2 du 2026-08-17) : il n'avait plus rien à lire.
+ *   2. Un script inline qui ne fait rien conserve une permission CSP pour du CODE MORT — exactement
+ *      ce contre quoi met en garde **S-005** : une autorisation nominative doit correspondre à un
+ *      besoin REVU, pas à une habitude.
+ *   3. `script-src 'self'` SANS aucun hachage est strictement PLUS FORT que la politique
+ *      précédente. La liste blanche nominative ne se relâche pas, elle devient **VIDE** : tout
+ *      script inline exécutable présent dans l'artéfact est désormais une infraction **sans
+ *      exception possible**, et `hachagesScript.size !== 0` refuse jusqu'à l'idée d'un hachage.
+ * ⚠️ REMETTRE UN SCRIPT INLINE, c'est réintroduire une constante de hachage épinglée ET la revue
+ * `security-reviewer` qui va avec — jamais une exclusion, jamais un `'unsafe-inline'`.
+ * ⚠️ Le CONTRÔLE DE CONSERVATION `<script[\s>/]` vs éléments analysés est INCHANGÉ, et c'est le
+ * point à ne pas manquer : c'est lui qui attrape un `<script>` apparu dans l'artéfact. Le retirer
+ * « puisqu'il n'y a plus de script à hacher » serait précisément la régression que ce lot évite.
+ * ⚠️ AUCUNE MIGRATION DE `localStorage` N'A ÉTÉ FAITE, ET C'EST DÉLIBÉRÉ. La préférence d'un
+ * visiteur qui avait épinglé « clair » devient inoffensive par construction : plus personne ne pose
+ * l'attribut, et `_themes.scss` n'émet plus aucun sélecteur de thème. E4-ST1 la retrouvera intacte.
+ * Effacer la clé serait détruire une donnée du visiteur pour rien.
+ * ⚠️ ET NE JAMAIS ÉCRIRE LA BALISE DE SCRIPT EN CLAIR DANS UN COMMENTAIRE D'`index.html` — on y
+ * écrit « ‹script› ». Le contrôle de conservation compte les occurrences BRUTES du début de balise,
+ * commentaires compris, et exige l'égalité avec ce que l'analyseur a vu : une seule occurrence en
+ * commentaire fait échouer la construction sur un dépôt SAIN, avec un message qui accuse la CSP.
+ * Payé en direct sur ce lot, code 1 sur les 5 pages. La parade est ÉDITORIALE — on ne relâche
+ * jamais le compte (S-011).
  *
- * `config/staticwebapp.config.source.json` est la SOURCE : elle contient tout sauf les hachages,
- * marqués par les jetons `__HACHAGES_STYLE__` et `__HACHAGES_SCRIPT__`. Ce script la résout et écrit
- * le résultat dans `dist/`, qui est l'artéfact réellement déployé sur Azure Static Web Apps.
+ * `config/staticwebapp.config.source.json` est la SOURCE : elle contient tout sauf les hachages de
+ * style, marqués par le jeton `__HACHAGES_STYLE__`. `script-src 'self'` y est écrit EN DUR — le
+ * jeton `__HACHAGES_SCRIPT__` a disparu de la source, il n'a PAS été remplacé par une liste vide
+ * (voir `injecter` : la directive serait devenue `script-src 'self' ;`, que le navigateur rejette).
+ * Ce script la résout et écrit le résultat dans `dist/`, qui est l'artéfact réellement déployé sur
+ * Azure Static Web Apps.
  *
  * ⚠️ La source ne s'appelle **pas** `staticwebapp.config.json` et ne vit **pas** à la racine, à
  * dessein : `swa start` (et potentiellement le déploiement) résout ce nom depuis le répertoire
@@ -113,28 +139,18 @@ const RACINE = process.cwd();
 const SOURCE = join(RACINE, 'config', 'staticwebapp.config.source.json');
 const ARTEFACT = join(RACINE, 'dist', 'dr-je-sais-tout', 'browser');
 const JETON_STYLE = '__HACHAGES_STYLE__';
-const JETON_SCRIPT = '__HACHAGES_SCRIPT__';
 
 /**
- * Le SEUL script inline autorisé du site : l'anti-flash de thème (`src/index.html`).
- * Tout autre script inline reste une infraction — la liste blanche est nominative, jamais un motif.
- */
-const ID_SCRIPT_AUTORISE = 'init-theme';
-
-/**
- * Hachage attendu du script autorisé — ÉPINGLÉ ICI EXPRÈS.
+ * Le jeton de `script-src` — désormais INTERDIT dans la source, et surveillé comme tel.
  *
- * Sans cette constante, la liste blanche porterait sur l'`id` et non sur le CONTENU : n'importe
- * quel corps placé sous `id="init-theme"` se ferait hacher puis autoriser tout seul dans
- * `script-src`. Le générateur cesserait d'être un garde-fou pour devenir un distributeur
- * d'autorisations, et la revue `security-reviewer` exigée par le backlog (§E1-ST1, ST1-C) ne
- * survivrait pas à la première édition du script.
- *
- * ⚠️ CHANGER LE SCRIPT INLINE CHANGE CE HACHAGE, et la construction échouera tant qu'il n'est pas
- * remis à jour ici — c'est voulu, et la mise à jour n'est PAS une formalité : elle passe par une
- * relecture `security-reviewer`. Même esprit que le mode `--check` de la leçon L-009.
+ * Il n'est plus résolu : `script-src 'self'` est écrit en dur dans
+ * `config/staticwebapp.config.source.json` depuis le retrait du dernier script inline. Le laisser
+ * réapparaître sans qu'aucun code ne le substitue produirait une directive
+ * `script-src 'self' __HACHAGES_SCRIPT__` servie telle quelle — une source inconnue que le
+ * navigateur ignore, donc un garde-fou qui a l'air d'exister et n'existe pas.
+ * FAIL-CLOSED : la présence de ce jeton dans la source fait échouer la génération en se nommant.
  */
-const HACHAGE_SCRIPT_ATTENDU = "'sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M='";
+const JETON_SCRIPT_INTERDIT = '__HACHAGES_SCRIPT__';
 
 /**
  * La SEULE provenance de bloc `<style>` reconnue : le marqueur qu'Angular pose sur les styles qu'il
@@ -204,7 +220,23 @@ const PARENTS_STYLE_ADMIS = new Set(['head', 'body']);
 // QUATRE de plus (14) : le quatrième était `.simulation[_ngcontent-…]`. La leçon 01 n’a pas de
 // simulation — sujet abstrait, schéma statique (décision du propriétaire du 2026-08-20) — donc
 // ce bloc n’est pas rendu. Il reviendra avec E3-ST3, et rougira ici une fois, comme prévu.
-// Le compte de hachages de SCRIPT reste à 1.
+// 🔁 13 → 13 le 2026-08-20 (E6, lot « thème & CSP ») : LE COMPTE NE BOUGE PAS, MAIS SA COMPOSITION
+// CHANGE — et c'est exactement le cas où un nombre inchangé pourrait laisser passer une permission
+// non revue. Les deux mouvements ont donc été MESURÉS et NOMMÉS un par un sur l'artéfact réel
+// (énumération des blocs `<style>` dédupliqués par hachage), jamais déduits du fait que le total
+// retombe juste :
+//   · ENTRE  — 323 o, `[_nghost-…]{position:absolute;inset:0;display:block;overflow:hidden;
+//     pointer-events:…}` : `src/app/core/ambiance/pluie-glyphes`, le composant d'ambiance livré par
+//     le lot précédent d'E6. Il n'apparaît QUE sur `index.html` (l'accueil).
+//   · SORT   — le bloc de `src/app/core/layout/bascule-theme` (son `fieldset` de radios). Il était
+//     composé dans l'en-tête, donc présent sur les 4 pages prerendues ; `EnTete` ne le rend plus
+//     (phase 1 = un seul thème, décision D-2). Vérifié à l'artéfact : 0 occurrence de
+//     `app-bascule-theme`, 0 de `fieldset`.
+// ⚠️ UN COMPTE STABLE N'EST PAS UN COMPTE INCHANGÉ. Le jour où un lot retire un composant porteur
+// de styles ET en ajoute un autre, ce garde-fou reste vert : c'est sa limite connue (le NOMBRE est
+// épinglé, pas les VALEURS — voir l'en-tête de ce fichier, S-002/S-009). La parade n'est pas
+// technique, elle est procédurale : énumérer les blocs et nommer le delta, comme ci-dessus.
+// 🔴 Le compte de hachages de SCRIPT est passé de 1 à ZÉRO — voir `hachagesScript.size !== 0`.
 const NOMBRE_HACHAGES_STYLE_ATTENDU = 13;
 
 /**
@@ -417,8 +449,14 @@ function comparerOctets(a, b) {
  * On absorbe l'espace qui PRÉCÈDE le jeton pour qu'une liste vide ne laisse pas
  * `script-src 'self' ;` — une directive que SWA sert telle quelle et que le navigateur rejette.
  *
+ * ⚠️ C'EST CETTE PANNE QUI DICTE COMMENT `script-src` A ÉTÉ RETIRÉ (E6) : le jeton
+ * `__HACHAGES_SCRIPT__` a DISPARU de la source, il n'a pas été « laissé avec une liste vide ».
+ * S'appuyer sur l'absorption d'espace ci-dessous pour émettre une directive correcte aurait fait
+ * dépendre la validité de la CSP d'un détail de ce `replaceAll` — la seule directive du site sans
+ * hachage s'écrit donc à la main, lisible en revue.
+ *
  * @param {string} texte configuration SWA sérialisée, jetons non encore résolus
- * @param {string} jeton marqueur à remplacer (`__HACHAGES_STYLE__` ou `__HACHAGES_SCRIPT__`)
+ * @param {string} jeton marqueur à remplacer (`__HACHAGES_STYLE__` — le seul restant)
  * @param {ReadonlySet<string>} hachages sources CSP à injecter, dans un ordre quelconque
  * @returns {string} le même texte, jeton résolu
  */
@@ -594,16 +632,25 @@ try {
 // donc `jeton` sortirait `string | undefined` de la déstructuration et ne pourrait plus être passé
 // à `includes()`. Le tuple dit ce que la donnée est réellement — deux champs, tous deux présents.
 /** @type {ReadonlyArray<readonly [jeton: string, directive: string]>} */
-const JETONS_REQUIS = [
-  [JETON_STYLE, 'style-src'],
-  [JETON_SCRIPT, 'script-src'],
-];
+const JETONS_REQUIS = [[JETON_STYLE, 'style-src']];
 for (const [jeton, directive] of JETONS_REQUIS) {
   if (!source.includes(jeton)) {
     echec(`le jeton ${jeton} est absent de la source`, [
       `La directive ${directive} doit contenir ce jeton pour que les hachages y soient injectés.`,
     ]);
   }
+}
+
+// L'ENVERS DU CONTRÔLE CI-DESSUS, et il compte autant : `__HACHAGES_SCRIPT__` a été RETIRÉ de la
+// source avec le dernier script inline (bascule E6). Plus aucun code ne le substitue — s'il
+// revenait, la directive `script-src` porterait un jeton non résolu que le navigateur ignore en
+// silence. Refusé en se nommant, jamais toléré.
+if (source.includes(JETON_SCRIPT_INTERDIT)) {
+  echec(`le jeton ${JETON_SCRIPT_INTERDIT} est présent dans la source alors qu'il n'est plus résolu`, [
+    'script-src s’écrit « \'self\' » EN DUR depuis le retrait du script inline anti-flash (E6).',
+    'Aucun script inline n’est autorisé sur ce site : il n’y a donc plus rien à injecter ici.',
+    'Réintroduire un hachage de script passe par une revue `security-reviewer`, pas par ce jeton.',
+  ]);
 }
 
 let pages;
@@ -718,36 +765,33 @@ for (const page of pages) {
     );
   }
 
-  let scriptsAutorises = 0;
+  // 🔴 LA LISTE BLANCHE EST VIDE DEPUIS LA BASCULE E6, ET C'EST LE DURCISSEMENT DU LOT.
+  // Il n'existe plus d'`ID_SCRIPT_AUTORISE` ni de `HACHAGE_SCRIPT_ATTENDU` : tout script inline
+  // exécutable est une infraction, sans exception à examiner. On ne compare donc plus un `id` ni un
+  // hachage — il n'y a plus rien à comparer, et c'est précisément ce qui rend le contrôle plus
+  // fort qu'avant (S-005 : une permission nominative qui n'a plus de besoin revu doit DISPARAÎTRE,
+  // pas dormir).
+  //
+  // Ce qui reste exclu ici est exactement ce que `script-src` ne régit pas :
+  //   · un script VIDE (pas de corps à hacher, rien à exécuter) ;
+  //   · un script EXTERNE (`src=`), régi par `'self'` et non par un hachage ;
+  //   · un `type` réellement INERTE (`TYPES_INERTES`) — dont `<script id="ng-state"
+  //     type="application/json">`, l'état d'hydratation d'Angular, que le navigateur n'exécute pas.
+  // Ces trois exclusions étaient déjà là et n'ont pas bougé ; seule la branche « autorisé » a été
+  // supprimée.
   for (const script of scripts) {
     const corps = script.textContent ?? '';
     const type = (script.getAttribute('type') ?? '').trim().toLowerCase();
     if (!corps.trim() || script.getAttribute('src') !== null || TYPES_INERTES.has(type)) continue;
 
-    // Le script d'initialisation du thème est le SEUL inline exécutable admis. Deux conditions
-    // CUMULATIVES : le bon `id` ET le contenu exact déjà revu. L'`id` seul ne suffit pas — il est
-    // choisi par celui qui produit l'artéfact, donc il n'atteste de rien.
-    if (script.getAttribute('id') === ID_SCRIPT_AUTORISE) {
-      // Compté ici, avant la comparaison de hachage : un script présent mais modifié doit produire
-      // le message « il a changé », pas « il est absent ».
-      scriptsAutorises += 1;
-      // `textContent` est le corps tel que l'analyseur l'a construit — fins de ligne déjà
-      // normalisées, comme côté navigateur. C'est le texte que la CSP hache, et le hachage épinglé
-      // ci-dessus n'a pas bougé en passant de la sous-chaîne brute à `textContent` (assertionné par
-      // `src/config-swa-contournements.spec.ts`, pas supposé).
-      const hachage = hacher(corps);
-      if (hachage === HACHAGE_SCRIPT_ATTENDU) hachagesScript.add(hachage);
-      else infractions.push(`${nom} : le script « ${ID_SCRIPT_AUTORISE} » a changé — ${hachage}, attendu ${HACHAGE_SCRIPT_ATTENDU}`);
-    } else {
-      infractions.push(`${nom} : script inline exécutable non autorisé (${corps.trim().length} o) — bloqué par script-src`);
-    }
-  }
-
-  // Absent, la page flashe au chargement pour un visiteur qui a épinglé un thème ; en double, le
-  // « script inline unique » d'E1-ST1-C n'est plus unique. Les deux sont des régressions muettes.
-  if (scriptsAutorises !== 1) {
+    // Haché AVANT d'être refusé, et ce n'est pas décoratif : `hachagesScript` reste la matière du
+    // contrôle final `hachagesScript.size !== 0`. Sans cette ligne, ce contrôle serait vrai par
+    // construction — un garde-fou incapable de rougir, donc un garde-fou qui ne garde rien (L-005).
+    // Les deux barrières sont redondantes EXPRÈS : celle-ci nomme le fichier fautif, l'autre refuse
+    // structurellement qu'un hachage de script existe, quel que soit le chemin qui l'y aurait mis.
+    hachagesScript.add(hacher(corps));
     infractions.push(
-      `${nom} : ${scriptsAutorises} script(s) « ${ID_SCRIPT_AUTORISE} » — il en faut exactement 1 (anti-flash de thème)`,
+      `${nom} : script inline exécutable (${corps.trim().length} o) — aucun script inline n’est autorisé sur ce site, script-src le bloquerait`,
     );
   }
 
@@ -812,26 +856,28 @@ for (const page of pages) {
 }
 
 if (infractions.length) {
-  const aChange = infractions.some((i) => i.includes('a changé'));
+  // La branche « le script inline a changé » a été SUPPRIMÉE avec le script lui-même (E6) : plus
+  // aucune infraction ne peut porter ce sens, et un conseil qui ne peut plus s'appliquer est un
+  // commentaire qui ment (L-008/L-016). Il ne reste qu'une piste, la seule encore vraie.
   echec('la sortie prerendue est incompatible avec la CSP stricte', [
     ...infractions.slice(0, 15),
     ...(infractions.length > 15 ? [`… et ${infractions.length - 15} autre(s)`] : []),
-    ...(aChange
-      ? [
-          'Le script inline a été modifié : faire relire le nouveau contenu par `security-reviewer`,',
-          'PUIS reporter le hachage ci-dessus dans HACHAGE_SCRIPT_ATTENDU. Jamais l’inverse.',
-        ]
-      : ['Piste la plus fréquente : `optimization.styles.inlineCritical` doit rester à false (addendum S-02).']),
+    'Piste la plus fréquente : `optimization.styles.inlineCritical` doit rester à false (addendum S-02).',
   ]);
 }
 
-// Un hachage par page servie signifierait que la construction sérialise le script différemment
-// d'une page à l'autre : `script-src` gonflerait à chaque nouvelle route, et le premier écart
-// passerait inaperçu. On exige donc UN hachage distinct, pas « au moins un ».
-if (hachagesScript.size !== 1) {
-  echec(`${hachagesScript.size} version(s) distincte(s) du script « ${ID_SCRIPT_AUTORISE} » dans l’artéfact`, [
-    'Les pages prerendues doivent toutes porter le même script inline, octet pour octet.',
-    'Vérifier que le script vient bien de `src/index.html` et qu’aucun composant n’en injecte un.',
+// 🔴 ZÉRO HACHAGE DE SCRIPT — la liste blanche nominative de `script-src` est VIDE, et c'est
+// strictement plus fort que l'unique hachage épinglé qui vivait ici jusqu'au 2026-08-20 (bascule
+// E6). Aucun script inline n'est autorisé sur ce site : il n'y a donc aucune exception à examiner,
+// et aucune valeur à maintenir. C'est le miroir exact de `NOMBRE_HACHAGES_STYLE_ATTENDU` ci-dessous,
+// à ceci près que le nombre attendu est ZÉRO — la seule valeur qu'on ne puisse pas desserrer par
+// mégarde.
+if (hachagesScript.size !== 0) {
+  echec(`${hachagesScript.size} hachage(s) de script dans l’artéfact — aucun script inline n’est autorisé sur ce site`, [
+    'script-src vaut « \'self\' » sans le moindre hachage depuis le retrait du script anti-flash (E6).',
+    'Un script inline est donc apparu dans l’artéfact : le NOMMER et le supprimer.',
+    'Si ce script est réellement nécessaire, c’est une revue `security-reviewer` — jamais une',
+    'constante ajoutée ici pour faire passer la construction (S-005, S-011).',
   ]);
 }
 
@@ -861,8 +907,9 @@ if (hachagesStyle.size !== NOMBRE_HACHAGES_STYLE_ATTENDU) {
 }
 
 // --- 3. Écriture de l'artéfact -------------------------------------------------
-let resolu = injecter(source, JETON_STYLE, hachagesStyle);
-resolu = injecter(resolu, JETON_SCRIPT, hachagesScript);
+// UN SEUL jeton à résoudre depuis E6 : `script-src 'self'` est écrit en dur dans la source, et
+// `JETON_SCRIPT_INTERDIT` a été refusé plus haut s'il y était. Rien à injecter dans `script-src`.
+const resolu = injecter(source, JETON_STYLE, hachagesStyle);
 const config = /** @type {unknown} */ (JSON.parse(resolu)); // garde-fou : la substitution doit laisser un JSON valide
 
 // --- 3 bis. Les cibles internes existent-elles vraiment ? -----------------------
@@ -909,7 +956,7 @@ console.log(`✔ staticwebapp.config.json généré dans ${relative(RACINE, ARTE
 console.log(`  ${pages.length} page(s) inspectée(s)`);
 console.log(`  ${cibles.length} cible(s) interne(s) vérifiée(s) présente(s) dans l’artéfact`);
 console.log(
-  `  ${hachagesStyle.size} hachage(s) de style distinct(s) (provenance ${ATTRIBUT_PROVENANCE_STYLE}="${VALEUR_PROVENANCE_STYLE}", ${NOMBRE_HACHAGES_STYLE_ATTENDU} attendu(s)), ${hachagesScript.size} de script`,
+  `  ${hachagesStyle.size} hachage(s) de style distinct(s) (provenance ${ATTRIBUT_PROVENANCE_STYLE}="${VALEUR_PROVENANCE_STYLE}", ${NOMBRE_HACHAGES_STYLE_ATTENDU} attendu(s)), ${hachagesScript.size} de script (0 attendu — script-src 'self' sans hachage)`,
 );
 // L'ancienne note « aucun bloc <style> inline — style-src reste à 'self' » a été retirée : le
 // compte étant désormais épinglé à NOMBRE_HACHAGES_STYLE_ATTENDU, arriver ici avec 0 hachage est
