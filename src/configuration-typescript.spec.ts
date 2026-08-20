@@ -480,3 +480,80 @@ describe('rigueur du compilateur', () => {
     }
   });
 });
+
+// =============================================================================
+// AUCUN `testTimeout` GLOBAL — le défaut de 5 000 ms de Vitest est un SIGNAL
+// -----------------------------------------------------------------------------
+// POURQUOI CE TEST EXISTE (2026-08-20, constat de revue du lot d'intermittence).
+// `src/app/features/cours/lecon/lecon.spec.ts` porte `DELAI_RENDU = 20_000` sur
+// UN `describe` : c'est le correctif mesuré de la famille 2 de l'intermittence,
+// un test qui stabilise un `effect` gardé par `afterNextRender` et dont le coût
+// est en TEMPS MUR, donc sensible à la contention de la machine.
+//
+// La sûreté de ce correctif ne tient PAS à sa propre écriture — elle tient à ce
+// qu'il soit LOCAL, c'est-à-dire à ce que le défaut de 5 000 ms de Vitest reste
+// actif partout ailleurs. Un test lent qui n'a aucune raison de l'être doit
+// continuer de rougir : c'est le seul instrument qui rende une régression de
+// performance visible dans ce dépôt.
+//
+// Or RIEN n'empêchait un lot futur d'ajouter un `testTimeout` GLOBAL — dans les
+// options de la cible `test` d'`angular.json`, ou dans un `vitest.config.*` créé
+// pour l'occasion. Le délai local deviendrait alors indistinguable du reste, et
+// TOUS les tests du dépôt seraient masqués d'un coup, sans qu'aucun gate ne
+// rougisse. C'est exactement le mode d'échec que l'en-tête de ce fichier décrit
+// pour `strict` — une garantie qui ne tient qu'à un défaut d'outil — mais retourné :
+// ici, c'est le DÉFAUT LUI-MÊME qui est la garantie, et il faut donc interdire
+// qu'on l'écrase globalement plutôt qu'exiger qu'on le déclare.
+//
+// L'ASSERTION PORTE SUR LES DEUX SURFACES, parce qu'une seule ne prouverait rien :
+// le réglage peut venir de la cible `angular.json` OU d'un fichier de config
+// Vitest. Fermer l'une laisserait l'autre grande ouverte.
+//
+// ⚠️ LE SECOND CONTRÔLE INTERDIT LE FICHIER, PAS SEULEMENT L'OPTION — délibérément.
+// Aucun `vitest.config.*` n'existe aujourd'hui : la surface est donc à ZÉRO, et
+// c'est ce zéro qu'on épingle. En lire un pour n'y chercher que `testTimeout`
+// reviendrait à contrôler ce qu'on a imaginé et à ignorer ce qui serait EN PLUS
+// (S-021). Le jour où un tel fichier est réellement voulu, ce test rougit, et
+// c'est le bon moment pour décider — en revue — ce qu'il a le droit de contenir.
+// =============================================================================
+
+describe('le délai de test par défaut de Vitest', () => {
+  /** Les noms qu'un fichier de configuration Vitest peut prendre à la racine. */
+  const CONFIGS_VITEST_INTERDITES = [
+    'vitest.config.ts',
+    'vitest.config.mts',
+    'vitest.config.js',
+    'vitest.config.mjs',
+    'vitest.workspace.ts',
+    'vitest.workspace.js',
+  ] as const;
+
+  it('n’est écrasé par AUCUN réglage de la cible « test » d’angular.json', () => {
+    const espaceDeTravail: {
+      projects?: Record<string, { architect?: Record<string, { options?: unknown }> }>;
+    } = JSON.parse(readFileSync(join(process.cwd(), 'angular.json'), 'utf8'));
+    const projets = Object.values(espaceDeTravail.projects ?? {});
+    // Une lecture qui ne trouve aucun projet passerait toutes les assertions sur
+    // zéro information : on exige d'abord qu'il y ait quelque chose à inspecter.
+    expect(projets.length).toBeGreaterThan(0);
+    for (const projet of projets) {
+      const cible = projet.architect?.['test'];
+      expect(cible).toBeDefined();
+      // Sérialisé puis cherché : le réglage peut être posé à la racine des
+      // options comme dans un `runnerConfig` imbriqué, et une lecture champ par
+      // champ ne verrait que la forme qu'on aurait imaginée (même raison que la
+      // liste blanche de `.claude/rules/security.md` §4 : on ne devine pas une
+      // structure, on la borne). Ici, l'ABSENCE totale du mot est la borne.
+      expect(JSON.stringify(cible ?? {})).not.toContain('testTimeout');
+    }
+  });
+
+  it('n’est écrasé par AUCUN fichier de configuration Vitest à la racine', () => {
+    const presents = readdirSync(process.cwd(), { withFileTypes: true })
+      .filter((entree) => entree.isFile())
+      .map((entree) => entree.name);
+    for (const nom of CONFIGS_VITEST_INTERDITES) {
+      expect(presents).not.toContain(nom);
+    }
+  });
+});
