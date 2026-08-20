@@ -31,13 +31,14 @@ flowchart LR
 
 ```
 content/
-  securite-web/                      # le sujet (cours), kebab-case
-    01-fondamentaux/                 # <nn>-<slug> : nn = ordre sur 2 chiffres
-      lecon.md                       # obligatoire
-      quiz.json                      # obligatoire
-      simulation.json                # optionnel (recommandé pour toute attaque/flux)
-    02-evaluation-cvss/
-      ...
+  cours/                              # racine canonique (backlog §E2-ST1, §E3)
+    securite-web/                    # le sujet (cours), kebab-case
+      01-fondamentaux/                # <nn>-<slug> : nn = ordre sur 2 chiffres
+        lecon.md                      # obligatoire
+        quiz.json                     # obligatoire
+        simulation.json               # optionnel (recommandé pour toute attaque/flux)
+      02-evaluation-cvss/
+        ...
 ```
 
 ## Gabarit `lecon.md`
@@ -209,6 +210,46 @@ une note dont le `{lignes="…"}` n'est pas écrit **littéralement** en tête (
 
 **Marqueur de doute** (posé par le `professeur-web`, consommé par le `verificateur-theorie`,
 absent de toute leçon `statut: publiee`) : `<!-- à-vérifier: <affirmation> — <raison du doute> -->`.
+
+### Encadrés — les six variantes, dont trois de provenance (décision tranchée le 2026-08-20, voie b)
+
+Le compilateur reconnaît **six** variantes d'encadré (`VARIANTES_ENCADRE`,
+`tools/content-pipeline/compiler-markdown.mjs`) : `attention`, `note`, `a-retenir`, `cours`,
+`complement`, `correction-du-cours`. Les trois dernières portent la distinction 📘/🧩/⚠️ de
+`.claude/rules/contenu-pedagogique.md` §6 — voir ce document pour le **sens** des marqueurs, ici
+seulement leur **syntaxe**.
+
+```markdown
+::: cours
+Le cours enseigne X.
+:::
+
+::: complement
+Ajout KB, hors du cours.
+:::
+
+::: correction-du-cours {source="OWASP Top 10 2021 — A02"}
+Le cours dit X ; en production, faire Y.
+:::
+```
+
+- **`source` est le seul attribut admis**, **obligatoire et non vide**, et **uniquement** sur
+  `correction-du-cours` — une correction qui n'accuse pas le cours sur une citation vérifiable est
+  un défaut grave (`.claude/rules/contenu-pedagogique.md` §6).
+- **Aucun pictogramme ne s'écrit en Markdown source.** Le 📘/🧩/⚠️ est posé par le **rendu**, jamais
+  tapé par l'auteur — un pictogramme littéral dans le corps d'une leçon est refusé par **G1**
+  (il reste légal à l'intérieur d'un bloc de code d'exemple : une leçon peut citer un extrait qui le
+  contient).
+
+**Trois règles hors schéma, dans `valider.mjs`, qui rendent la provenance vérifiable :**
+
+- **G1** — aucun `📘`/`🧩`/`⚠️` littéral dans le corps d'une leçon, hors bloc de code. Les deux
+  formes de saisie du dernier sont refusées : U+26A0 nue comme la séquence émoji U+26A0 U+FE0F.
+  ⏳ **Trou connu** : la règle balaie la source **brute**, et markdown-it décode les entités — un
+  `&#x1F4D8;` rend 📘 dans la page sans que G1 le voie (mesuré le 2026-08-20). La parade est de
+  porter G1 sur la sortie **compilée**, pas d'énumérer des motifs d'entités ; lot à part.
+- **G2** — toute leçon en `statut: publiee` porte **au moins un** encadré `cours` ou `complement`.
+- **G3** — un `correction-du-cours` sans `{source="…"}` non vide est refusé.
 
 ## Schéma `quiz.json`
 

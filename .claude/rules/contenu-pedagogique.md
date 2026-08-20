@@ -130,15 +130,36 @@ Et la leçon dans son ensemble :
 - [ ] **Le cours est SOMMAIRE par nature** — un concept présent n'y est presque jamais traité en
       entier. Combler le trou est **attendu** ; le combler **en silence** ne l'est pas.
 
-**⏳ Décision de rendu encore ouverte, à trancher à l'ouverture d'E3-ST1.** Le pipeline ne connaît
-aujourd'hui que trois variantes d'encadré — `::: attention`, `::: note`, `::: a-retenir`
-(`tools/content-pipeline/compiler-markdown.mjs`, `VARIANTES_ENCADRE`). Deux voies :
-**(a)** réemployer `::: note` / `::: attention` avec un préfixe écrit en gras — aucun changement de
-pipeline, mais la distinction ne devient ni stylable ni vérifiable par un gate ;
-**(b)** ajouter les variantes `cours` et `complement` — coût réel (compilateur, schéma, rendu,
-tests, jetons de couleur, et **contraste mesuré** avant E6). La voie (b) est la seule qui permette
-un gate « aucun passage 📘 non tracé ». **Ne pas trancher au fil de la première leçon** : c'est un
-choix de contrat de contenu, il se prend une fois pour les 27 modules.
+**✅ Décision de rendu TRANCHÉE par le propriétaire le 2026-08-20 (voie b) — plus une note
+flottante.** Le pipeline porte désormais **six** variantes d'encadré — `attention`, `note`,
+`a-retenir`, **`cours`**, **`complement`**, **`correction-du-cours`**
+(`tools/content-pipeline/compiler-markdown.mjs`,
+`VARIANTES_ENCADRE`), plutôt que la voie (a), qui aurait réemployé `note`/`attention` avec un préfixe
+en gras — insuffisant précisément parce qu'elle ne rendait la distinction ni stylable ni vérifiable
+par un gate. Syntaxe et attributs : [`docs/contenu/pipeline-contenu.md`](../../docs/contenu/pipeline-contenu.md),
+section « Encadrés — les six variantes ». Trois règles hors schéma la rendent vérifiable, plutôt que
+déclarative :
+
+- **G1** — aucun pictogramme **📘/🧩/⚠️** littéral dans le corps d'une leçon (hors bloc de code) :
+  le pictogramme est posé par le rendu, jamais tapé par l'auteur. Le **⚠️** est couvert depuis le
+  2026-08-20 (il ne l'était pas, alors que ce document l'annonçait déjà) : c'est le plus important
+  des trois, puisque écrit en prose il **accuse l'enseignant sans passer par G3**, donc sans source.
+  Les deux formes de saisie sont refusées, U+26A0 nue comme U+26A0 U+FE0F.
+  ⏳ **Trou connu, non fermé :** G1 balaie la source **brute**, or markdown-it décode les entités —
+  une entité numérique (`&#x26A0;`, `&#x1F4D8;`…) produit le pictogramme dans la page publiée sans
+  que G1 le voie (mesuré le 2026-08-20). La parade est de porter G1 sur la **sortie compilée** — les
+  nœuds texte de l'AST hors blocs `code`, où les entités sont résolues — et non d'énumérer des
+  motifs d'entités, qui serait la liste noire que `.claude/rules/security.md` §4 interdit. Lot à part.
+- **G2** — toute leçon `statut: publiee` porte au moins un encadré `cours` ou `complement`.
+- **G3** — un `correction-du-cours` sans `{source="…"}` non vide est refusé.
+
+⚠️ **Ce qui n'existe PAS, et pourquoi : aucun compte de provenance déclaré au frontmatter.** Un
+compte que l'auteur écrirait lui-même à côté des encadrés qu'il pose serait une preuve fabriquée par
+l'entrée qu'elle prétend vérifier — le patron que `.claude/rules/security.md` §4 nomme **S-014** :
+un garde-fou dont l'entrée peut fabriquer la preuve qu'il exige n'en est pas un. La fidélité réelle
+d'une leçon à sa fiche source — est-ce que ce qui est marqué `cours` est vraiment dans le cours, est-ce
+qu'un `complement` n'est pas en réalité examinable — reste vérifiée par lecture de la source : c'est
+le rôle du `verificateur-theorie`, pas d'un compte auto-déclaré.
 
 ---
 

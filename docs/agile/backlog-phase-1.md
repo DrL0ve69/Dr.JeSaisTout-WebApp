@@ -2342,6 +2342,90 @@ contention de ressource côté Vitest (voir bloc de clôture ci-dessous).
 **Suite** : geste suivant **E3 bloc A — la première leçon publiée**. La dette d'intermittence e2e
 reste devant E3-ST1 (deux familles, ci-dessus).
 
+#### ✅ CLÔTURE — lot `fix/intermittence-gates-pre-e3-st1` (2026-08-20)
+
+**Les DEUX familles d'intermittence sont payées.** C'était la dernière dette devant E3-ST1.
+
+- **Famille e2e — la cause consignée jusqu'ici était FAUSSE.** L'hypothèse « l'absence
+  d'attributs `ngh` prouve l'hydratation des vues, pas que le comportement d'un composant
+  paresseux est armé » (famille L-033) est **réfutée par la mesure** : `app-simulation` porte
+  bien `ngh="7"`, l'armement est vérifié **8/8**, et **20 gestes** émis à l'instant où
+  `attendreHydratation` rend la main sont **tous reçus (0 perdu)**.
+  **Vraie cause** : une assertion portant sur une **valeur** lue par une `page.evaluate`
+  **unique** n'est **jamais réessayée** par Playwright, alors que l'effet d'un geste est peint
+  sur une frame ultérieure. 15 lectures de ce type dans 3 specs. Mesures : effet au DOM
+  26-407 ms, lecture servie 112-938 ms ; sur 800 essais, une lecture CDP précède un
+  `requestAnimationFrame` déjà planifié **3 fois (0,4 %)**. Le journal CI a tranché sans
+  relance : le test avait bouclé en **2,0 s sans délai d'expiration** ⇒ lecture périmée, pas
+  événement perdu.
+  **Correctif** : trois barrières auto-réessayées sur des assertions de **locator**
+  (`e2e/aides/simulation.ts`). Aucun `retries`, aucun `waitForTimeout`, **aucun code produit
+  touché**.
+  ⚠️ **Nuance à préserver** : L-033 n'est pas fausse en entier — la fenêtre de pré-hydratation
+  et l'amorçage de l'état depuis le DOM restent **vrais** ; seule son **extension e2e**
+  (le diagnostic de ce symptôme précis) est réfutée.
+- **Famille Vitest** : `lecon.spec.ts` — 14 tests montent la leçon-témoin grasse dans jsdom
+  (580-1018 ms chacun, 1658 ms pour le plus lourd) contre un défaut de 5 000 ms ; c'est du
+  **calcul**, pas une attente. Correctif : `DELAI_RENDU = 20_000` porté sur **le `describe`
+  entier** (pas sur le seul test qui rougissait), **`angular.json` non touché** — aucun
+  relâchement global. Contrôle positif (7 s injectées dans le groupe → passe) **et** témoin
+  négatif (les mêmes 7 s hors du groupe → `Test timed out in 5000ms`) : la sensibilité du gate
+  reste intacte partout ailleurs. Un garde-fou neuf interdit désormais tout `testTimeout` global.
+
+**Encadrés de provenance — voie (b) tranchée par le propriétaire le 2026-08-20**, contre la
+voie (a), au motif qu'elle seule permet un gate exécutable. Trois variantes neuves :
+`cours` · `complement` · `correction-du-cours` (avec `{source="…"}` **obligatoire**). Trois
+règles : **G1** (aucun 📘/🧩/⚠️ littéral dans un corps de leçon, hors blocs de code) · **G2**
+(toute leçon `publiee` porte ≥ 1 encadré de provenance) · **G3** (`correction-du-cours` sans
+`source` refusé). Jetons sémantiques dans les deux thèmes, rendu Angular, fixture témoin
+enrichie. ⚠️ **Il n'y a PAS de compte de provenance déclaré au frontmatter**, délibérément :
+ce serait une preuve fabriquée par l'entrée (S-014). La fidélité à la fiche source reste le
+travail du `verificateur-theorie`.
+
+**Chiffres de clôture (2026-08-20)** :
+
+| Gate | Production | Fixture |
+|---|---|---|
+| G-test | **849 passés / 40 fichiers / 0 échec** (2 runs, aucun `Test timed out`) | |
+| G-build | **10** hachages style / **1** script | **14 / 1** |
+| G-axe | 3 pages · **258 vérif. · 0 violation** | 4 pages · **344 vérif. · 0 violation** |
+| G-e2e | **13 passés / 38 sautés / 0 échec** | **50 passés / 1 sauté / 0 échec** |
+| G-contraste | **40 paires · 80 mesures**, plus bas **3,24:1** clair / **3,39:1** sombre | |
+| Fixtures invalides | **23/23 refusées**, chacune sur sa cause propre (était 20/20) | |
+| G-lint · G-typage-outils · G-audit | vert · 0 · **0 vulnérabilité** | |
+
+Stabilité : `--repeat-each=6` sur les deux specs instables → **96 passés / 0 échec**.
+✅ **Dette refermée** : l'avertissement de budget sur `quiz.scss` (4,09 Ko / 4,00 Ko), ouvert
+depuis E2-ST3, **n'apparaît plus** dans aucun des deux builds.
+
+**Dette NEUVE consignée, non corrigée** :
+1. **G1 balaie la source brute, or `markdown-it` DÉCODE les entités** — mesuré : `&#x1F4D8;` →
+   📘. Un auteur obtient donc le pictogramme en prose publiée sans que G1 voie rien. Parade
+   nommée, **non appliquée** : porter G1 sur la **sortie compilée** (nœuds texte de l'AST hors
+   blocs `code`), où les entités sont résolues et où l'exemption « bloc de code » redevient
+   structurelle. Voir **S-022**.
+2. **`attendreHydratation` expire sous forte contention** (hydratation mesurée à 2,1-6,5 s sous
+   16 workers). **Non atteignable en CI** — `playwright.config.ts` ne fixe pas `workers`, donc
+   Playwright prend la moitié des cœurs logiques (1 à 2 sur un runner GitHub). Relever ce délai
+   sans preuve qu'il frappe en CI serait du masquage : **laissé tel quel, sciemment**.
+3. **`e2e/simulation-mecanique.spec.ts:129`** (« rien ne se replie ») reste une assertion
+   négative potentiellement vide : une barrière y serait vraie dès le prerender. La fermer exige
+   un marqueur DOM « armé », donc un **changement de code produit** — hors périmètre de ce lot.
+4. **`tools/content-pipeline/valider.mjs`** : l'arbre des conteneurs a été **retiré** (il était
+   indiscernable d'un compte plat, et faux sur `::: a` / `:::: b` / `:::`). La sémantique réelle
+   de markdown-it — le conteneur **le plus externe** réclame la fermeture — est consignée pour
+   le jour où une règle en dépendra.
+
+**Leçons écrites ce cycle** : `.claude/lessons/lessons-learned.md` — **L-057** à **L-063**
+créées ; **L-017**, **L-047**, **L-062** affûtées. `.claude/lessons/security-lessons.md` —
+**S-022** créée ; **S-009** et **S-011** renforcées. `.claude/rules/security.md` §4 élargie de
+deux gestes (S-022, patron S-011 sur les champs d'auteur).
+
+**Suite** : la dette d'intermittence e2e/Vitest est **CLOSE EN ENTIER**. Geste suivant :
+**E3 bloc A — la première leçon publiée**, module **E3-ST1 `01-fondamentaux`**. Voir bloc de
+reprise de `CLAUDE.md` pour les décisions de contenu (sources KB, `section`, absence de
+simulation) et l'avertissement de tripwire de fixture à retirer dans le même commit.
+
 ---
 
 ## E3 · Production du cours sécurité web (13 modules)

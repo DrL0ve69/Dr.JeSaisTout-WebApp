@@ -69,8 +69,20 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > (production) · G-axe 0 violation · builds **10/1** et **14/1** inchangés · `npm audit --omit=dev` 0.
 > Leçons : **L-056**, **S-020**, **S-021** ; `.claude/rules/security.md` §4 élargie à trois surfaces
 > neuves. Détail : backlog, bloc de clôture du lot.
-> **Le geste suivant : E3 bloc A — la première leçon publiée**, précédé de la seule dette qui reste
-> devant elle : l'**intermittence**, qui porte désormais **DEUX familles** (détail juste en dessous).
+> **✅ LA DETTE D'INTERMITTENCE EST PAYÉE (2026-08-20) — les DEUX familles sont closes** (détail
+> juste en dessous, avec la correction d'une hypothèse **réfutée**).
+> **Le geste suivant : E3 bloc A — la première leçon publiée**, module **E3-ST1 `01-fondamentaux`**
+> (`content/cours/securite-web/01-fondamentaux/`), par le skill **`/lecon`** (boucle contenu :
+> `professeur-web` → `verificateur-theorie`), **pas** `/feature-cycle`. Décisions du propriétaire du
+> 2026-08-20 : sources KB `web/securite/fondamentaux-securite-web.md` (662 l.) +
+> `carte.md` (177 l.) + **`panorama-menaces.md` (483 l.) en source secondaire** (orpheline
+> jusqu'ici) · **`section: « Fondamentaux »` posée dès la 01** (champ tout-ou-rien par sujet —
+> engage les 18 modules suivants) · **pas de simulation** (schéma kill chain statique).
+> ⚠️ Le tripwire auto-périmant `src/workflows-github.spec.ts:472-485` **rougira dès le premier
+> `lecon.md` déposé** sous `content/cours/securite-web/` : le retrait du harnais de fixture
+> (`ci.yml` qui redevient `npm run build`) doit se faire **dans le même commit** que la leçon.
+> ⚠️ Le module 01 est à **6 📘 pour 32 🧩** (voir backlog, recensement de provenance) — c'est celui
+> où le marquage de provenance compte le plus.
 > Ordre révisé (D-3 bascule 2026-08-17) : E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B/C → E4 → E5.
 > **Chiffres à la clôture d'E2-ST6 (2026-08-19)** : G-test **744/36**, 0 échec, G-e2e **50 passés/1
 > sauté** (fixture) et 13 passés/38 sautés (production), G-axe 258 vérif./0 violation, G-build
@@ -78,45 +90,36 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > 0. Détail complet, dette neuve et leçons (L-050 à L-055, S-019) : backlog §E2-ST6, bloc « ✅
 > CLÔTURE — 2026-08-19 ».
 >
-> **🔴 L'INTERMITTENCE PORTE DEUX FAMILLES DISTINCTES — à savoir AVANT de lire un gate rouge.**
-> **Famille 2, NEUVE et caractérisée le 2026-08-20 — elle est côté VITEST, pas e2e :**
-> `src/app/features/cours/lecon/lecon.spec.ts:1005` (« marque la leçon LUE, sous le couple
-> `(sujet, slug)` du frontmatter ») tombe en **`Test timed out in 5000ms`**. Ce n'est **pas une
-> assertion fausse, c'est un dépassement de délai** : aucun `testTimeout` n'est configuré dans le
-> dépôt, donc le défaut Vitest de 5 000 ms s'applique. Le test passe par `RouterTestingHarness` +
-> `navigateByUrl` + stabilisation d'un `effect` gardé par `afterNextRender` : son coût est en **temps
-> mur**, donc sensible à la **contention machine**. Mesuré : **isolé 5 runs / 5 verts** · en suite
-> complète **1 échec sur 3**, le run le plus lent consommant **+44 % de CPU** pour les mêmes fichiers.
-> ⚠️ Deux autres échecs avaient été signalés au même moment **sans être nommés** : ils ne se sont pas
-> reproduits, et **rien ne permet de les rattacher** à ce symptôme.
+> **✅ L'INTERMITTENCE PORTAIT DEUX FAMILLES DISTINCTES — TOUTES DEUX PAYÉES le 2026-08-20.**
 >
-> **Famille 1 — les trois specs e2e, hydratation.**
-> Constaté le 2026-08-19 sur la PR #25 (run `32282161844`) :
-> `e2e/parcours-clavier-simulation.spec.ts:210` et `e2e/simulation-mecanique.spec.ts:298` ont échoué
-> sur le **même symptôme — le repli n'a pas eu lieu** (`etat.courante` = 1 au lieu de 4 ; étapes
-> visibles `[1,2,4,5,6]` au lieu d'aucune). **Ce n'est pas une régression, et c'est prouvé sans
-> relance** : la PR #25 est la PR #24 **plus de la documentation seule**, code produit identique, et
-> le run de #24 était vert (48 e2e / 0 échec). Même code, deux résultats ⇒ intermittence.
-> ⚠️ Les deux specs appellent pourtant `attendreHydratation(page)` : l'hypothèse — **à vérifier, pas
-> à croire** — est que l'absence d'attributs `ngh` prouve l'hydratation des **vues**, pas que le
-> comportement d'un composant **paresseux** est armé (famille **L-033**). Détail, preuve et parade
-> pressentie : backlog §E2-ST5, « DETTE NEUVE … specs e2e de la simulation ».
-> **Constat neuf à la clôture d'E2-ST6** : `e2e/quiz-pre-hydratation.spec.ts:234` a lui aussi échoué
-> une fois en suite complète — mais sur un symptôme **différent** (une requête HTTP en échec,
-> `document.ok()` faux, pas un comportement de composant), puis passé seul et en suite complète au
-> run suivant. Même dossier de dette (backlog §E2-ST6, « ✅ CLÔTURE », point 3).
-> **Quatrième occurrence observée le 2026-08-20**, sur la PR #30 (run `32322129384`) :
-> `parcours-clavier-simulation.spec.ts:210`, `etat.courante` = **1 au lieu de 4** — symptôme
-> **identique**, vérifié sur l'assertion et pas seulement sur le nom du test. Le lot ne touchait aucun
-> code produit de la simulation, et dans le **même run** l'équivalent à la souris
-> (`simulation-mecanique.spec.ts:142`) est **passé**. Au run suivant, code produit inchangé : **50 e2e
-> passés / 1 sauté, 0 échec**.
-> **Ce que ça coûte, et pourquoi la dette se paie avant E3-ST1** : un gate peut rougir sur une PR
-> saine, donc la tentation de fusionner au rouge « parce que c'est le flaky ». La discipline tenue le
-> 2026-08-20 : on vérifie **l'assertion**, jamais l'étiquette ; on ne relance pas soi-même ; et deux
-> échecs consécutifs sur un même symptôme ne se fusionnent pas sans arbitrage du propriétaire.
-> **Ce que ça coûte** : G-e2e peut rougir sur une PR saine — donc la tentation de fusionner au rouge
-> « parce que c'est le flaky ». C'est ainsi qu'un gate meurt : la dette se paie avant E3-ST1.
+> **Famille e2e — la cause écrite ici jusqu'au 2026-08-19 était FAUSSE, et c'est mesuré, pas
+> supposé.** L'hypothèse tenue depuis E2-ST5 (« l'absence d'attributs `ngh` prouve l'hydratation
+> des vues, pas que le comportement d'un composant paresseux est armé », famille **L-033**) est
+> **réfutée par la mesure** : `app-simulation` porte bien `ngh="7"`, l'armement du composant est
+> vérifié **8/8**, et **20 gestes** émis à l'instant où `attendreHydratation` rend la main sont
+> **tous reçus (0 perdu)**. ⚠️ Nuance à garder : **L-033 n'est pas fausse en entier** — la fenêtre
+> de pré-hydratation et l'amorçage de l'état depuis le DOM restent **vrais** ; seule son
+> **extension e2e** (le diagnostic du symptôme ci-dessus) est réfutée.
+> **Vraie cause** : une assertion portant sur une **valeur** lue par une `page.evaluate` **unique**
+> n'est **jamais réessayée** par Playwright, alors que l'effet d'un geste est peint sur une frame
+> ultérieure — 15 lectures de ce type dans 3 specs. Mesures : effet au DOM 26-407 ms, lecture servie
+> 112-938 ms ; sur 800 essais, une lecture CDP précède un `requestAnimationFrame` déjà planifié
+> **3 fois (0,4 %)**. **Correctif** : trois barrières auto-réessayées sur des assertions de
+> **locator** (`e2e/aides/simulation.ts`) — aucun `retries`, aucun `waitForTimeout`, **aucun code
+> produit touché**. Détail et preuve : **L-057**.
+>
+> **Famille Vitest** (`lecon.spec.ts`) : 14 tests montent la leçon-témoin grasse dans jsdom
+> (580-1018 ms chacun, 1658 ms pour le plus lourd) contre un défaut Vitest de 5 000 ms — c'était du
+> **calcul**, pas une attente perdue. Correctif : `DELAI_RENDU = 20_000` porté sur **le `describe`
+> entier**, `angular.json` **non touché** (aucun relâchement global). Contrôle positif et témoin
+> négatif confirment que la sensibilité du gate reste intacte ailleurs ; un garde-fou neuf interdit
+> tout `testTimeout` global.
+>
+> **Chiffres de clôture (2026-08-20)** : G-test **849 passés / 40 fichiers / 0 échec** (2 runs,
+> aucun `Test timed out`) · G-e2e fixture **50 passés/1 sauté/0 échec**, production **13 passés/38
+> sautés/0 échec** · stabilité `--repeat-each=6` sur les deux specs instables → **96 passés/0
+> échec**. Détail complet, dette neuve (S-022 notamment) et leçons : backlog, bloc de clôture du
+> lot `fix/intermittence-gates-pre-e3-st1`.
 >
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
