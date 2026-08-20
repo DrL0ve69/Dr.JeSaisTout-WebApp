@@ -1036,23 +1036,25 @@ analysés à jsdom) — **une leçon n'a jamais été fabriquée dans `content/`
 
 Ce qui en découle, à traiter **en clôture d'E3-ST1** (la première vraie leçon), pas avant :
 
-1. ~~**`npm run a11y:axe` et `npm run e2e` n'ont jamais vu la page de leçon**~~ — **amendée le
+1. ✅ **LEVÉE en entier le 2026-08-20 (clôture E3-ST1).** ~~**`npm run a11y:axe` et `npm run e2e` n'ont jamais vu la page de leçon**~~ — **amendée le
    2026-08-18 (lot E-b2).** La barre AXE est désormais **franchie sur la FIXTURE TÉMOIN** : depuis la
    décision E-2, `ci.yml` bâtit son artéfact sur `tools/content-pipeline/__fixtures__/temoin/…`, donc
    G-axe voit une page de leçon **interactive** (mesure du 2026-08-18 : **4 fichiers · 344
-   vérifications · 0 violation**). Ce qui **reste ouvert** : la confirmation sur le **contenu réel**
-   à E3-ST1 — une fixture n'est pas une leçon, et c'est `deploy.yml` (racine de production) qui
+   vérifications · 0 violation**). Ce qui **restait ouvert** avant E3-ST1 : la confirmation sur le **contenu réel**
+   — une fixture n'était pas une leçon, et c'est `deploy.yml` (racine de production) qui
    construit ce qui part en ligne. G-e2e sur la page de leçon relève du **lot E-c**.
-2. **La CSP servie n'a jamais été mesurée sur une page de leçon** : `generer-config-swa.mjs` n'a
+2. ✅ **LEVÉE le 2026-08-20 (clôture E3-ST1).** **La CSP servie n'a jamais été mesurée sur une page de leçon** : `generer-config-swa.mjs` n'a
    jamais inspecté son `<head>`. C'est la règle « enabler ≠ enforcement » (S-005) — un `npm run
    build` vert ne prouve rien sur une page qui n'existe pas. *Mesuré et rassurant en attendant* :
    `script-src` est `'self' <hachages>` **sans** `strict-dynamic`, donc `'self'` reste actif et le
    premier chunk paresseux du dépôt (`lecon`, 17,49 kB) chargera. À vérifier **live** malgré tout.
-3. **Une leçon en `statut: brouillon` sera prerendue en page publique et indexable.** Le manifeste ne
+   Mesuré en ligne à la clôture d'E3-ST1 : `script-src` à 1 hachage nominatif, `style-src` à 13.
+3. ✅ **LEVÉE le 2026-08-20 (clôture E3-ST1).** **Une leçon en `statut: brouillon` sera prerendue en page publique et indexable.** Le manifeste ne
    filtre pas sur `statut` — nœud tranché par le propriétaire le 2026-08-16, **non rouvert ici** —
    et `X-Robots-Tag: noindex` n'existe que sur `/404/*`. Conséquence à connaître avant de committer
-   un brouillon dans `content/`, pas un défaut du lot.
-4. 🔴 **RETIRER LE HARNAIS DE FIXTURE de `ci.yml`** (décision E-2, lot E-b2 — ajouté le 2026-08-18).
+   un brouillon dans `content/`, pas un défaut du lot. Le filtre des brouillons est désormais en
+   place et testé.
+4. ✅ **CONSOMMÉE le 2026-08-20 (clôture E3-ST1).** 🔴 **RETIRER LE HARNAIS DE FIXTURE de `ci.yml`** (décision E-2, lot E-b2 — ajouté le 2026-08-18).
    Il n'existe **que** parce que `content/` est vide : dès qu'une leçon y est publiée, il **masque le
    contenu réel** et fait auditer une fixture à sa place. Trois gestes, dans le même commit :
    (a) l'étape **G-build de `ci.yml` redevient `npm run build`** (les trois commandes dépliées
@@ -2502,7 +2504,7 @@ E3-ST1, pas pendant.
 
 | ID | Module (`NN-slug`) | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|
-| E3-ST1 | `01-fondamentaux` — Fondamentaux de la sécurité web (faille/exploit/0-day, CVE/CWE, OWASP Top 10 2021 **et** 2025, kill chain, types de tests) | `fondamentaux-securite-web.md` | non — schéma kill chain statique | ⬜ |
+| E3-ST1 | `01-fondamentaux` — Fondamentaux de la sécurité web (faille/exploit/0-day, CVE/CWE, OWASP Top 10 2021 **et** 2025, kill chain, types de tests) | `fondamentaux-securite-web.md` | non — schéma kill chain statique | ✅ |
 | E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV). 🔴 **COMPLÉMENT PUR — corrigé le 2026-08-19** : la mention « quiz = les 6 mises en situation corrigées du cours (matière d'examen) » était **fausse**. Mesure : **0 occurrence** de CVSS/CVE/CWE/EPSS/KEV dans les **8 diaporamas publiés** et dans le **plan de cours officiel**. Rien de ce module n'est examinable ; il doit se présenter comme complément. *(Réserve : la mesure porte sur le texte extrait ; un sigle qui n'existerait que dans une image aurait échappé — 95 captures ont été ouvertes sans le rencontrer.)* | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ⬜ |
 | E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ⬜ |
 | E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ⬜ |
@@ -2542,6 +2544,66 @@ E3-ST1, pas pendant.
 > **À l'inverse**, `fondamentaux-securite-web.md` (6 📘 / 32 🧩) est le piège symétrique : la fiche
 > est massivement du complément alors que le module **E3-ST1** ouvre le cours et *paraît* être la
 > matière de la séance 1. C'est le module où le marquage compte le plus.
+
+#### ✅ CLÔTURE — E3-ST1 `01-fondamentaux`, PR #32 fusionnée et vérifiée en ligne (2026-08-20)
+
+**Ce qui a été livré.** `content/cours/securite-web/01-fondamentaux/` (`lecon.md` 656 l.,
+`quiz.json` 8 questions couvrant les 4 types), route `/cours/securite-web/fondamentaux/`. Sources
+KB : `web/securite/fondamentaux-securite-web.md`, `carte.md`, `panorama-menaces.md` (source
+secondaire, orpheline jusqu'ici). `section: « Fondamentaux »` posée. Pas de simulation — décision
+du propriétaire : module abstrait, kill chain en schéma statique.
+
+**Le harnais de fixture de `ci.yml` est RETIRÉ**, comme annoncé depuis E2-ST2 (voir réserve 4
+ci-dessus). G-build redevient `npm run build` ; les deux workflows bâtissent désormais le **même**
+artéfact de production ; l'écart de la décision E-2 (E2-ST3) est clos. Le tripwire auto-périmant de
+`src/workflows-github.spec.ts` a joué son rôle exactement comme annoncé.
+
+**Vérifié EN LIGNE, pas sur le vert d'un workflow** : `/cours/securite-web/fondamentaux/` → **200**,
+175 258 o, `app-quiz` présent ; le sommaire liste le module ; l'accueil ne porte plus « Chantier en
+cours » (0 occurrence) ; CSP servie avec `script-src` à **1 hachage nominatif**.
+
+**Réserves de clôture d'E2-ST2 (ci-dessus) — les trois LEVÉES par cette clôture** :
+1. ~~axe et e2e n'ont jamais vu une page de leçon~~ → **levée** : axe et e2e voient désormais une
+   page de leçon **réelle**, plus seulement la fixture témoin.
+2. ~~la CSP servie n'a jamais été mesurée sur une page de leçon~~ → **levée** : mesurée en ligne
+   sur `/cours/securite-web/fondamentaux/` (ci-dessus).
+3. ~~une leçon en `statut: brouillon` serait prerendue publique et indexable~~ → **levée** : le
+   filtre des brouillons est en place et testé.
+4. ~~retirer le harnais de fixture de `ci.yml`~~ → **consommée** (ci-dessus). La péremption posée
+   à trois endroits (workflow, `src/workflows-github.spec.ts`, ce backlog) est close.
+
+**Dette NEUVE, nommée et datée → E3-ST3 (`03-injection`)** : 3 specs e2e de simulation SAUTENT sur
+l'artéfact publié. Le trou est compté par `CAPACITES_MESUREES_EN_E2E`
+(`src/workflows-github.spec.ts`), littéral revu à la main confronté à ce que `content/` publie
+(fichier **ET** ancre rendue) ; il **rougit** le jour où une leçon publiée gagne une simulation.
+Ce jour-là : faire tourner les 3 specs **avant** de basculer le littéral.
+
+**CSP** : compte de hachages `style-src` **10 → 13**, les trois blocs nommés un par un (adaptateur
+de route 4 196 o ; `RenduBlocs` `.prose` 6 998 o ; `QuizComponent` `.quiz` 5 669 o). Script
+inchangé à 1. **L'option `--hachages-style` du générateur est SUPPRIMÉE** (plus aucun appelant).
+
+**Ce que les deux revues ont attrapé** (3 Majeurs sécurité + 5 Majeurs code, tous corrigés et
+prouvés par mutation) : la preuve LIVE de `style-src` s'éteignait dans le commit qui élargissait la
+directive ; le garde-fou se contournait par le **corps d'un script npm** (S-018, 6ᵉ occurrence) ;
+le compteur hors-e2e mesurait un **prédicat différent** du garde qu'il protège ; `.toContain` ne
+distinguait pas usage et mention (L-043) ; une anti-vacuité tautologique ; une plage d'index
+tronquée.
+
+**Autre livré dans le même lot** : `mentionChantier` retirée de l'accueil — rappel posé en E2-ST2,
+ci-dessus (elle mentait à l'envers) ; contexte des sous-agents — `.claude/lessons/INDEX.md` généré
+avec plages de lignes, ~74 000 → plancher réduit, règles Angular et contenu passées en portée de
+chemin (`paths:`) ; `CLAUDE.md` trié (565 → **457 lignes hors commentaires**, zéro suppression
+vérifiée par script).
+
+**Chiffres de clôture** : G-test **867 passés / 41 fichiers / 0 échec** (3 exécutions) · G-build
+4 routes, **13 hachages de style / 1 de script** · G-axe 4 pages, **344 vérifications, 0 violation**
+· G-e2e **33 passés / 18 sautés / 0 échec** (2 exécutions) · `npm audit --omit=dev` **0** ·
+typecheck outils et e2e **0**.
+
+**Suite** : E3 bloc A continue avec **E3-ST2** (`02-evaluation-cvss`) — voir l'encadré de
+recensement de provenance ci-dessus (0 📘, complément pur, à annoncer comme tel). En parallèle,
+l'ordre révisé D-3 (`CLAUDE.md`) place **E6 — bascule « Moniteur ambre »** après E3 bloc A : c'est
+le **geste suivant** que le propriétaire a désigné, avant de reprendre E3 blocs B/C.
 
 ### Bloc B — Identités & données *(cible : ~12 octobre, J5)*
 
