@@ -110,8 +110,39 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # ⚠️ `--ignore-scripts` EST POSÉ SUR LES TROIS `npm ci` DES DEUX WORKFLOWS, PAS SEULEMENT ICI.
+      # Constat SonarCloud `githubactions:S6505` : sans lui, un script de cycle de vie d'une
+      # dépendance s'exécute pendant l'installation, avec les droits du runner, sans qu'aucun humain
+      # ne l'ait revu. Corriger le seul `npm ci` que l'outil pointe satisferait la porte sans
+      # améliorer la posture — on joue avec le gate, pas contre lui.
+      #
+      # CE QUI EST MESURÉ DANS CE DÉPÔT, et qui rend ce refus sans coût :
+      #  · le projet ne déclare AUCUN script de cycle de vie propre — ni `preinstall`, ni `install`,
+      #    ni `postinstall`, ni `prepare`, ni `prepack` dans `package.json` ;
+      #  · `package-lock.json` porte 8 entrées `hasInstallScript`, soit 7 paquets distincts :
+      #    `esbuild`, `puppeteer`, `keytar`, plus 5 optionnels (`@parcel/watcher`, `fsevents` ×2,
+      #    `lmdb`, `msgpackr-extract`) ;
+      #  · les binaires natifs n'arrivent PAS par ces scripts mais par les optionalDependencies DE
+      #    PLATEFORME, déjà verrouillées : `esbuild` en déclare 26, dont `@esbuild/linux-x64` bien
+      #    présent dans le lockfile — son `postinstall` ne fait que vérifier ce qui est déjà là ;
+      #  · `puppeteer` est le cas où sauter le script est ce qu'on voulait DÉJÀ : `.puppeteerrc.cjs`
+      #    lui interdit de télécharger son propre Chromium (~200 Mo) ;
+      #  · seul `keytar` cesse d'être utilisable sans sa compilation. C'est une dépendance de DEV, de
+      #    `@azure/static-web-apps-cli`, atteinte depuis un unique point d'appel — un
+      #    `await import("keytar")` paresseux et enveloppé d'un essai, dans
+      #    `core/swa-cli-persistence-plugin/impl/credentials-store.js`, c'est-à-dire le chemin de
+      #    CONNEXION. Ni `swa start` ni aucun gate ne l'empruntent.
+      #
+      # Mesuré sur un clone jetable de `main` le 2026-08-19 : `npm ci --ignore-scripts` (1077
+      # paquets) puis `npm run build` réussissent, avec 10 hachages de style et 1 de script —
+      # l'attendu exact ; les 2 SVG Mermaid sont rendus ; `npx swa start` sert 200 sous la CSP
+      # complète, donc le harnais de G-e2e tient.
+      # ⚠️ NE PAS AJOUTER DE `npm rebuild` pour « compenser » : aucun n'est nécessaire, et il
+      # rouvrirait exactement l'exécution que cette option vient de fermer.
+      # 🔒 Tenu par un tripwire — `src/workflows-github.spec.ts` exige `--ignore-scripts` sur TOUT
+      # `npm ci` des workflows, et nomme le workflow et l'étape fautifs quand il manque.
       - name: Installer (verrouillé)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # LE BINAIRE CDN, ET IL NE SORT PAS DE CE JOB. `rendre-mermaid.mjs` impose CE Chromium-là à
       # `mmdc` (`.puppeteerrc.cjs` interdit à Puppeteer de télécharger le sien). Il est téléchargé
@@ -224,8 +255,9 @@ jobs:
           node-version: '24'
           cache: npm
 
+      # `--ignore-scripts` : voir le raisonnement mesuré au même endroit du job `contenu`.
       - name: Installer (verrouillé)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # LE PASSAGE DE TÉMOIN DU JOB `contenu`, ET LE TRIPWIRE DE LA COUPE N°2.
       # Ce job ne compile plus `content/` lui-même : il récupère ce que `contenu` a produit sur la

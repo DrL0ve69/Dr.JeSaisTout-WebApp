@@ -734,7 +734,11 @@ describe('la portée du sceau d’artéfact de deploy.yml (lot C)', () => {
   const FENETRE_AVANT_SCEAU_REVUE: readonly string[] = [
     'uses actions/checkout@v7 sha256:60ca15f023a2',
     'uses actions/setup-node@v7 sha256:5d380d42b3f2',
-    'run « Installer (verrouillé) » sha256:2796a1ab1439',
+    // 📌 2796a1ab1439 → 901c052f9cea le 2026-08-19 : le corps passe de `npm ci` à
+    // `npm ci --ignore-scripts` (SonarCloud githubactions:S6505). Revu — le drapeau RÉDUIT ce que
+    // l'étape exécute, elle ne lance plus les scripts de cycle de vie des dépendances dans la
+    // fenêtre pré-sceau. Raisonnement mesuré au point d'appel, `deploy.yml` job `contenu`.
+    'run « Installer (verrouillé) » sha256:901c052f9cea',
     'uses actions/download-artifact@v7 sha256:299c81e63a50',
     'run « Déballer les sorties compilées » sha256:a6ceff83511d',
     'run « G-lint » sha256:9b77b20f69fa',
@@ -1172,5 +1176,83 @@ describe('deploy.yml — les deux garanties du job qui détient le jeton, lues s
       deploiements[0],
       "`Azure/static-web-apps-deploy` est référencée par un tag ou une branche — donc par une référence MUTABLE, dans le job qui détient le jeton de déploiement. Épingler au SHA de commit du tag visé.",
     ).toMatch(/^Azure\/static-web-apps-deploy@[0-9a-f]{40}$/);
+  });
+});
+
+// =============================================================================
+// AUCUN `npm ci` DE WORKFLOW N'EXÉCUTE DE SCRIPT DE CYCLE DE VIE
+// -----------------------------------------------------------------------------
+// Constat SonarCloud `githubactions:S6505`, tombé sur le `npm ci` du job `contenu` de `deploy.yml`
+// : sans `--ignore-scripts`, les scripts `preinstall`/`install`/`postinstall`/`prepare` des
+// dépendances s'exécutent pendant l'installation, avec les droits du runner et sans qu'aucun humain
+// ne les ait revus. Le raisonnement mesuré qui rend le drapeau sans coût est écrit au point d'appel
+// (`deploy.yml`, job `contenu`) ; ce test est ce qui l'empêche de se démentir en silence.
+//
+// POURQUOI UN TEST ET PAS UNE SIMPLE CORRECTION. Le drapeau se retire en une frappe, et rien dans
+// le dépôt ne le remarquerait : SonarCloud n'analyse que le NOUVEAU code, donc une ligne rétablie
+// dans un fichier déjà analysé ne rouvrirait aucun constat. Un garde-fou que rien n'exécute est une
+// intention, pas un gate (famille L-019).
+//
+// PORTÉE — les TROIS workflows, pas seulement celui que l'outil a pointé. Corriger le seul `npm ci`
+// signalé fermerait la porte qualité sans améliorer la posture. Et le compte plancher ci-dessous
+// est la moitié qui manquerait autrement : un test qui n'inspecte QUE ce qu'il trouve passe vert
+// sur zéro occurrence — le jour où une refonte renomme les étapes, il jurerait que tout va bien en
+// n'ayant rien regardé (famille S-010 : portée promise ≠ portée balayée).
+//
+// ⚠️ On analyse le YAML, on ne `grep` pas le fichier : le commentaire de `deploy.yml` contient le
+// texte `npm ci` ET le texte `--ignore-scripts`, et une regex sur la source les confondrait avec
+// les commandes réellement exécutées (`.claude/rules/security.md` §4).
+// =============================================================================
+describe('les `npm ci` des workflows', () => {
+  /** Un `npm ci` réellement exécuté, avec de quoi le nommer dans un message d'échec. */
+  interface InstallationReperee {
+    readonly workflow: string;
+    readonly etape: string;
+    readonly segment: string;
+  }
+
+  /**
+   * Les invocations de `npm ci` de tous les workflows. On découpe chaque bloc `run:` en segments de
+   * commande (`\n`, `&&`, `||`, `;`) pour que le drapeau soit exigé sur LA commande qui installe —
+   * un `--ignore-scripts` posé sur une commande voisine de la même étape ne compterait pas.
+   */
+  const installations: readonly InstallationReperee[] = WORKFLOWS.flatMap((workflow) =>
+    etapes(workflow).flatMap((etape) =>
+      String(etape.run ?? '')
+        .split(/\n|&&|\|\||;/)
+        .map((segment) => segment.trim())
+        .filter((segment) => /(^|\s)npm\s+ci(\s|$)/.test(segment))
+        .map((segment) => ({ workflow, etape: etape.name ?? '(étape sans nom)', segment })),
+    ),
+  );
+
+  // Relevé le 2026-08-19 : `ci.yml` (job unique) + `deploy.yml` (jobs `contenu` et `gates`).
+  // `infra.yml` n'installe rien, et `publication` non plus — c'est voulu et documenté au point
+  // d'appel. Ce plancher n'est pas une valeur à ajuster machinalement : un `npm ci` qui DISPARAÎT
+  // est une information, un `npm ci` qui APPARAÎT doit passer par ce gate.
+  const INSTALLATIONS_ATTENDUES = 3;
+
+  it('sont au nombre attendu — le gate ne peut pas passer en n’inspectant rien', () => {
+    expect(
+      installations.map((i) => `${i.workflow} → ${i.etape}`),
+      'le nombre de `npm ci` dans les workflows a changé. Si c’est voulu, ajuster ' +
+        'INSTALLATIONS_ATTENDUES *et* vérifier que le nouveau porte `--ignore-scripts`.',
+    ).toHaveLength(INSTALLATIONS_ATTENDUES);
+  });
+
+  it('portent TOUS `--ignore-scripts` — aucun script de cycle de vie au `npm ci`', () => {
+    const sansDrapeau = installations.filter(
+      (installation) => !/(^|\s)--ignore-scripts(\s|$)/.test(installation.segment),
+    );
+
+    expect(
+      sansDrapeau.map(
+        (installation) =>
+          `${installation.workflow} → étape « ${installation.etape} » : ${installation.segment}`,
+      ),
+      'un `npm ci` de workflow s’exécute SANS `--ignore-scripts` : les scripts de cycle de vie des ' +
+        'dépendances tournent avec les droits du runner (SonarCloud githubactions:S6505). Le ' +
+        'raisonnement mesuré est au point d’appel, dans deploy.yml, job `contenu`.',
+    ).toEqual([]);
   });
 });

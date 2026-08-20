@@ -40,8 +40,12 @@ jobs:
           node-version: '24' # Angular 22 exige ≥ 24.15
           cache: npm
 
+      # `--ignore-scripts` : voir le raisonnement mesuré dans `deploy.yml`, job `contenu`, à la même
+      # étape. Résumé — aucun script de cycle de vie propre au projet, binaires natifs livrés par les
+      # optionalDependencies de plateforme, seul `keytar` (dev, chemin de connexion de `swa`) en
+      # dépend. Tenu par un tripwire dans `src/workflows-github.spec.ts`.
       - name: Installer (verrouillé)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # ⚠️ REMONTÉE ICI EXPRÈS — ne pas la redescendre près de G-e2e.
       # Ce n'est plus seulement le navigateur du gate de bout en bout : `rendre-mermaid.mjs`
