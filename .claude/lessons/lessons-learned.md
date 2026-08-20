@@ -1815,4 +1815,139 @@ indiscernables en sortie ne se départagent par aucun test.
 
 ---
 
+## L-064 · Un gate qui remplace un littéral par une mesure doit mesurer LE MÊME PRÉDICAT que le garde qu'il protège — pas un proxy voisin
+
+**Symptôme.** Deux occurrences dans le même lot (E3-ST1). `capacitesPubliees()`
+(`src/workflows-github.spec.ts`) comptait `existsSync('quiz.json')`, là où `e2e/aides/artefact-mesure.ts`
+cherche `<app-quiz` **rendu dans le HTML prerendu** — une leçon gardant son `quiz.json` mais perdant
+son ancre `[[quiz]]` dans le Markdown laissait le gate de couverture **vert** pendant que 4 specs e2e
+sautaient en silence. Et trois copies de `lireQuizSource()` **devinaient** le dossier source en
+retirant `^\d+-` du slug, là où `sommaire.spec.ts` **lit le frontmatter** pour la même information.
+
+**Règle.** Quand un gate remplace un littéral fragile par une mesure « plus honnête », vérifier
+qu'elle porte sur **la même couche d'observation** que le mécanisme qu'elle protège — présence d'un
+fichier source n'est pas présence dans le rendu compilé ; deviner un chemin n'est pas le lire à sa
+source déclarée. Cousine de [[S-022]] (« la couche d'observation d'un contrôle de contenu est un
+choix, pas un détail ») appliquée ici à un gate de **couverture** plutôt qu'à un balayage de sécurité,
+et de [[L-012]] (un test doit lire le contrat à sa vraie source, pas le deviner).
+
+**Réfs.** `src/workflows-github.spec.ts` (`capacitesPubliees`) ; `e2e/aides/artefact-mesure.ts` ;
+`lireQuizSource()` (3 copies) ; `sommaire.spec.ts` ; PR #32, E3-ST1.
+
+---
+
+## L-065 · Un spec e2e calibré sur une fixture peut épingler un inventaire ÉDITORIAL — préférer une égalité DOM ↔ source de contenu à un compte en dur
+
+**Symptôme.** Un recalibrage e2e a montré qu'un gate d'accessibilité mécanique n'a besoin de citer
+aucun titre de bloc ni aucun compte fixe : compter les éléments dans le DOM et vérifier l'**égalité**
+avec le compte extrait indépendamment de la source de contenu suffit. La forme antérieure (compte en
+dur, titres cités) transformait un gate mécanique en dette à échéance connue — tout `content/` qui
+grossit finit par le faire rougir sur un désaccord purement éditorial, sans rapport avec
+l'accessibilité réelle.
+
+**Règle.** Un spec e2e qui vérifie une propriété mécanique (nombre d'éléments, ordre de tabulation,
+présence d'un rôle) sur du contenu qui va grossir compare **deux mesures indépendantes** (DOM rendu
+vs source de contenu), jamais une mesure contre un littéral figé au moment de l'écriture. Cousine de
+[[L-053]] (une fixture partagée est un contrat implicite) sur l'axe inverse : ici la parade est de
+**dérober** le test à la forme exacte de la fixture plutôt que de documenter la dépendance.
+
+**Réfs.** specs e2e recalibrés du lot E3-ST1 ; [[L-053]].
+
+---
+
+## L-066 · `toContainText(chaîne)` normalise les blancs (`\s+` → espace, U+00A0 inclus) — une insécable ne se prouve qu'en RegExp
+
+**Symptôme.** Deux specs Playwright promettaient, en commentaire nourri, de vérifier la présence
+d'une espace insécable U+00A0 (contrainte dure de `.claude/rules/contenu-pedagogique.md` §3) via
+`toContainText('texte :')` — assertion qui **ne peut jamais échouer** sur ce point précis,
+`toContainText` normalisant tout `\s` (dont U+00A0) en un espace simple avant comparaison.
+
+**Règle.** Toute assertion Playwright censée distinguer une espace **spéciale** (U+00A0, U+202F,
+U+2009) d'une espace ordinaire passe par une **RegExp non normalisante**
+(`toHaveText(/texte :/)` ou lecture brute du texte), jamais par `toContainText` sur une chaîne.
+Cousine de [[L-008]] (une garantie qui ne vit que dans un commentaire ne protège rien) : ici la
+garantie était bien dans le **code** du test, mais l'API choisie ne pouvait matériellement pas la
+tenir.
+
+**Réfs.** specs e2e du lot E3-ST1 vérifiant U+00A0 ; `.claude/rules/contenu-pedagogique.md` §3 ;
+[[L-008]].
+
+---
+
+## L-067 · Une anti-vacuité peut être TAUTOLOGIQUE — `toBe(SOURCE.length)` après une boucle qui pousse un élément par itération de SOURCE ne peut jamais échouer
+
+**Symptôme.** `expect(mesures.length).toBe(SOURCE.length)`, écrit pour attraper une boucle qui
+sauterait des éléments en silence, était construit sur une boucle qui pousse exactement un élément
+par itération de `SOURCE` — l'égalité est vraie **par construction**, y compris à 0 élément
+(`0 === 0`), exactement le cas dégénéré que le message d'intention annonçait attraper. Prouvé par
+mutation : aucune mutation de la boucle ne le fait rougir.
+
+**Règle.** Un `toBe(N)` censé prouver une non-vacuité s'accompagne d'un `toBeGreaterThan(0)`
+**séparé** — le patron correct existe déjà ailleurs dans ce dépôt (`defileurs-clavier.spec.ts`).
+Avant de faire confiance à une égalité de compte comme garde contre le saut silencieux, vérifier
+qu'elle peut réellement valoir 0 sans que le test le remarque. Cousine de [[L-063]] (un invariant que
+rien n'observe n'est pas vrai, il est indéterminé) et de [[L-039]] (test vert par compensation) : ici
+l'axe est la **tautologie algébrique**, un troisième mode de « rien ne peut faire rougir ce test ».
+
+**Réfs.** lot E3-ST1 (test de mutation) ; `defileurs-clavier.spec.ts` (bon patron) ; [[L-063]],
+[[L-039]].
+
+---
+
+## L-068 · Une règle DUPLIQUÉE par une frontière structurelle (tsconfig, e2e isolé) doit couvrir TOUTES ses copies dans son contrôle de parité, pas seulement les plus accessibles
+
+**Symptôme.** La règle de découpage des lignes de code existe en **3 exemplaires**
+(`quiz.ts::decouperLignesDeCode()`, `valider.mjs`, `e2e/aides/quiz-source.ts`) parce que
+`tsconfig.e2e.json` interdit structurellement à l'e2e d'importer le composant — la duplication
+n'est pas de la paresse, elle est imposée par la frontière. `src/compter-lignes-parite.spec.ts`,
+le contrôle censé garder les copies synchrones, n'en couvrait que **deux**.
+
+**Règle.** Quand une frontière du dépôt (tsconfig, package, worktree) **force** la duplication d'une
+règle plutôt que de la permettre par erreur, chercher explicitement **toutes** les copies (grep du
+nom de fonction/de la logique) avant d'écrire le test de parité — une duplication structurelle a
+plus de chances d'avoir une troisième copie oubliée qu'une duplication accidentelle. Cousine de
+[[L-013]]/[[L-020]] (une promesse de synchronisation qui grandit doit faire grandir son test dans le
+même diff) : ici c'est le recensement initial, pas la croissance, qui a manqué une copie.
+
+**Réfs.** `src/app/**/quiz.ts` (`decouperLignesDeCode`) ; `tools/content-pipeline/valider.mjs` ;
+`e2e/aides/quiz-source.ts` ; `src/compter-lignes-parite.spec.ts` ; `tsconfig.e2e.json`.
+
+---
+
+## L-069 · `CLAUDE.md` est capturé au démarrage de session — un sous-agent lancé ensuite hérite de cet instantané, pas du fichier au disque
+
+**Symptôme.** Un test d'introspection posait deux sentinelles dans `CLAUDE.md` (une en commentaire
+HTML, une en texte brut) pour observer si un mécanisme donné relisait le fichier. Les **deux** sont
+revenues absentes — mais la sentinelle en texte brut était le **contrôle négatif** : son absence
+prouvait que le fichier testé n'avait simplement pas été relu depuis le disque à ce moment-là, donc
+l'absence de l'autre sentinelle ne prouvait **rien** sur le mécanisme réellement visé. Conclusion
+utile trouvée en creusant : `CLAUDE.md` est lu au **démarrage de session**, et tout sous-agent lancé
+ensuite dans cette même session travaille sur cet **instantané**, pas sur une relecture live.
+
+**Règle.** Avant de conclure d'un test d'introspection sur ce qu'un agent « voit » d'un fichier
+d'instructions, vérifier que le contrôle négatif (une sentinelle dont l'absence isolée signerait un
+problème d'instrument, pas de mécanisme) a lui-même réussi — sinon l'échec du contrôle positif
+n'est pas interprétable. Corollaire propre à ce dépôt : un changement de `CLAUDE.md` en cours de
+session ne se propage à un sous-agent **qu'au prochain démarrage de session**, jamais en cours de
+route. Cousine directe de [[L-062]] (« l'instrument accuse le produit »).
+
+**Réfs.** test d'introspection du lot E3-ST1 (sentinelles `CLAUDE.md`) ; [[L-062]].
+
+---
+
+**Addendum à [[L-015]] (2026-08-20, lot E3-ST1) — sur ce poste, `Set-Content -Encoding utf8`
+(PowerShell 5.1) écrit un BOM, même sur un JSON.** Restaurer `package.json` après une mutation de
+test avec cette commande a fait échouer **silencieusement** `JSON.parse` dans plusieurs specs : 77
+tests non collectés, un run rapportant « 790 skipped » **sans message de cause**. Même famille que
+[[L-015]] (une transformation de texte sur ce poste ment sur ce qu'elle a écrit) sur un troisième axe
+après CRLF et l'expansion `$VAR` : l'**encodage**. Règle commune aux trois : les mutations posées et
+retirées sur un fichier de ce dépôt (JSON, YAML, source) passent par **Node** (`fs.writeFileSync`) ou
+`git checkout --`, jamais par `Set-Content` en PowerShell 5.1, qui BOM-préfixe même en `-Encoding
+utf8`.
+
+**Réfs addendum.** lot de correctifs E3-ST1 (restauration de `package.json` après mutation) ;
+[[L-015]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
