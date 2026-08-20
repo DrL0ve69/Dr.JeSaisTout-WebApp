@@ -266,6 +266,11 @@ describe('rigueur du compilateur', () => {
      * une raison propre : ne portant que des déclarations globales, son absence du programme ne
      * casserait aucun import. Elle ferait retomber tout le contrat en `any` sous un `tsc` vert,
      * qui est très exactement le gate vide de L-005.
+     *
+     * `verifier-csp-servie.mjs` (dette pré-E3-ST1, lot B) rejoint la liste pour la raison la plus
+     * forte : il compare la CSP RÉELLEMENT servie par Azure à celle de l'artéfact et à la source
+     * versionnée, depuis le job `publication` — celui qui détient le jeton de déploiement, et le
+     * seul du dépôt qui tourne SANS `node_modules`. Rien d'autre que ce programme ne le vérifie.
      */
     const FICHIERS_EPINGLES = [
       'tools/content-pipeline/build.mjs',
@@ -276,6 +281,7 @@ describe('rigueur du compilateur', () => {
       'tools/content-pipeline/valider.mjs',
       'tools/content-pipeline/verifier-poids.mjs',
       'tools/deploiement/generer-config-swa.mjs',
+      'tools/deploiement/verifier-csp-servie.mjs',
     ] as const;
 
     it('vérifie réellement le JavaScript, et pas seulement le TypeScript', () => {
