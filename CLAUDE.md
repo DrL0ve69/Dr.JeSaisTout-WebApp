@@ -59,18 +59,38 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > B, C — PR #18, #19, #20, et la PR du lot C) **· E2-ST5 CLOSE ET FUSIONNÉE** (PR #22) **· E3-ST0
 > CLOSE ET FUSIONNÉE** (PR #22) **· E2-ST6 CLOSE** (sommaire du cours + progression, PR à surveiller
 > — voir §E2-ST6 du backlog) — **E2 est donc CLOS EN ENTIER**.
-> **Le geste suivant : E3 bloc A — la première leçon publiée**, précédé du **lot de dette sécurité
-> pré-E3-ST1** (S-003, garde-fou `style='…'`, CSP servie vérifiée structurellement, portée du sceau
-> d'artéfact, épinglage de `Azure/static-web-apps-deploy@v1`) et de la **dette d'intermittence e2e**
-> (trois specs, détail juste en dessous). Ordre révisé (D-3 bascule 2026-08-17) : E2 → E3-ST0 → E3
-> bloc A → E6 → E3 blocs B/C → E4 → E5.
+> **✅ LE LOT DE DETTE SÉCURITÉ PRÉ-E3-ST1 EST CLOS (2026-08-20)** — quatre PR fusionnées et
+> déployées : **#27** (S-003 + les deux trous jumeaux du garde-fou d'attributs — `generer-config-swa.mjs`
+> n'apparie plus aucun motif pour **décider**, un seul parse jsdom par page sert aux trois contrôles)
+> · **#28** (CSP servie comparée **structurellement**, 11 directives énumérées au journal, + action
+> de déploiement épinglée au SHA `1a947af9992250f3bc2e68ad0754c0b0c11566c9`) · **#29** (valeurs
+> `FuncIRI` contraintes aux références locales) · **#30** (job `contenu` propre : le sceau retrouve sa
+> portée pleine). Chiffres : G-test **824/40**, 0 échec · G-e2e 50 passés/1 sauté (fixture), 13
+> (production) · G-axe 0 violation · builds **10/1** et **14/1** inchangés · `npm audit --omit=dev` 0.
+> Leçons : **L-056**, **S-020**, **S-021** ; `.claude/rules/security.md` §4 élargie à trois surfaces
+> neuves. Détail : backlog, bloc de clôture du lot.
+> **Le geste suivant : E3 bloc A — la première leçon publiée**, précédé de la seule dette qui reste
+> devant elle : l'**intermittence**, qui porte désormais **DEUX familles** (détail juste en dessous).
+> Ordre révisé (D-3 bascule 2026-08-17) : E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B/C → E4 → E5.
 > **Chiffres à la clôture d'E2-ST6 (2026-08-19)** : G-test **744/36**, 0 échec, G-e2e **50 passés/1
 > sauté** (fixture) et 13 passés/38 sautés (production), G-axe 258 vérif./0 violation, G-build
 > production 10/1 hachages de style/script (était 9), fixture 14/1 (était 13), `npm audit --omit=dev`
 > 0. Détail complet, dette neuve et leçons (L-050 à L-055, S-019) : backlog §E2-ST6, bloc « ✅
 > CLÔTURE — 2026-08-19 ».
 >
-> **🔴 TROIS SPECS E2E SONT INTERMITTENTS — à savoir AVANT de lire un G-e2e rouge.**
+> **🔴 L'INTERMITTENCE PORTE DEUX FAMILLES DISTINCTES — à savoir AVANT de lire un gate rouge.**
+> **Famille 2, NEUVE et caractérisée le 2026-08-20 — elle est côté VITEST, pas e2e :**
+> `src/app/features/cours/lecon/lecon.spec.ts:1005` (« marque la leçon LUE, sous le couple
+> `(sujet, slug)` du frontmatter ») tombe en **`Test timed out in 5000ms`**. Ce n'est **pas une
+> assertion fausse, c'est un dépassement de délai** : aucun `testTimeout` n'est configuré dans le
+> dépôt, donc le défaut Vitest de 5 000 ms s'applique. Le test passe par `RouterTestingHarness` +
+> `navigateByUrl` + stabilisation d'un `effect` gardé par `afterNextRender` : son coût est en **temps
+> mur**, donc sensible à la **contention machine**. Mesuré : **isolé 5 runs / 5 verts** · en suite
+> complète **1 échec sur 3**, le run le plus lent consommant **+44 % de CPU** pour les mêmes fichiers.
+> ⚠️ Deux autres échecs avaient été signalés au même moment **sans être nommés** : ils ne se sont pas
+> reproduits, et **rien ne permet de les rattacher** à ce symptôme.
+>
+> **Famille 1 — les trois specs e2e, hydratation.**
 > Constaté le 2026-08-19 sur la PR #25 (run `32282161844`) :
 > `e2e/parcours-clavier-simulation.spec.ts:210` et `e2e/simulation-mecanique.spec.ts:298` ont échoué
 > sur le **même symptôme — le repli n'a pas eu lieu** (`etat.courante` = 1 au lieu de 4 ; étapes
@@ -85,6 +105,16 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > une fois en suite complète — mais sur un symptôme **différent** (une requête HTTP en échec,
 > `document.ok()` faux, pas un comportement de composant), puis passé seul et en suite complète au
 > run suivant. Même dossier de dette (backlog §E2-ST6, « ✅ CLÔTURE », point 3).
+> **Quatrième occurrence observée le 2026-08-20**, sur la PR #30 (run `32322129384`) :
+> `parcours-clavier-simulation.spec.ts:210`, `etat.courante` = **1 au lieu de 4** — symptôme
+> **identique**, vérifié sur l'assertion et pas seulement sur le nom du test. Le lot ne touchait aucun
+> code produit de la simulation, et dans le **même run** l'équivalent à la souris
+> (`simulation-mecanique.spec.ts:142`) est **passé**. Au run suivant, code produit inchangé : **50 e2e
+> passés / 1 sauté, 0 échec**.
+> **Ce que ça coûte, et pourquoi la dette se paie avant E3-ST1** : un gate peut rougir sur une PR
+> saine, donc la tentation de fusionner au rouge « parce que c'est le flaky ». La discipline tenue le
+> 2026-08-20 : on vérifie **l'assertion**, jamais l'étiquette ; on ne relance pas soi-même ; et deux
+> échecs consécutifs sur un même symptôme ne se fusionnent pas sans arbitrage du propriétaire.
 > **Ce que ça coûte** : G-e2e peut rougir sur une PR saine — donc la tentation de fusionner au rouge
 > « parce que c'est le flaky ». C'est ainsi qu'un gate meurt : la dette se paie avant E3-ST1.
 >
@@ -309,21 +339,23 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > `MutationObserver` posé avant l'existence de `documentElement` levait, et le script a rapporté son
 > propre plantage comme « 1 violation CSP ».
 >
-> **Dette à ne pas perdre**, de la plus mordante à la plus froide. **Les quatre premières forment UN
-> SEUL LOT, à payer AVANT E3-ST1** (la première leçon publiée) — elles sont de la même famille :
-> **🔴 S-003** (le garde-fou de CSP ne prouve pas qu'il a *tout vu* : un guillemet orphelin rend une
-> balise `<script>` invisible à son motif) · **le garde-fou de `generer-config-swa.mjs` ne connaît que
-> le motif ` style="`** — `style='…'` ou sans guillemets lui échappe · **la CSP servie n'est vérifiée
-> que par motifs, pas structurellement** (comparer directive par directive avec
-> `config/staticwebapp.config.source.json`) · **la portée du sceau d'artéfact de `deploy.yml` a été
-> réduite** par la remontée de l'installation du navigateur (imposée par le pipeline de contenu) : la
-> parade est un **job propre** pour `content:build`, pas un digest — aucun digest n'épingle un
-> `apt-get` en root. *Ces quatre-là ont maintenant un patron de correctif DANS le dépôt :
-> `rendre-mermaid.mjs` a remplacé sa liste noire par un analyseur jsdom à liste blanche — le
-> transposer, pas en réinventer un.*
-> Puis, plus froid : `Azure/static-web-apps-deploy@v1` est un **tag mutable** dans le job qui détient
-> le jeton (SHA relevé, épinglage volontairement reporté à ce même lot) · **`.claude/rules/security.md`
-> n'a pas intégré S-007/S-008** · **typage (b) 34 et (c) 35 erreurs** sur les deux gates de design · et
+> **Dette à ne pas perdre**, de la plus mordante à la plus froide. ✅ **Les cinq premières sont
+> PAYÉES le 2026-08-20** (S-003, le garde-fou ` style="`, la CSP servie structurelle, la portée du
+> sceau, l'épinglage de l'action) — voir le bloc de clôture en tête. **Ce qu'elles ont laissé
+> derrière elles**, consigné au backlog et non corrigé : les **autres en-têtes globaux** (HSTS,
+> Referrer-Policy, Permissions-Policy, X-Content-Type-Options) restent vérifiés par **présence
+> seule** — un `Permissions-Policy: camera=*` servi passerait tous les gates · `publication` ne
+> **revérifie pas le sceau** après `download-artifact` · le refus nominatif rougirait sur un
+> `<noscript>` de repli ou un `<iframe>` de média **légitimes** (zéro occurrence aujourd'hui ; le
+> jour où l'un est voulu, c'est une **revue de sécurité**, pas un retrait de la balise) · le **compte
+> brut** `<script[\s>/]` compte aussi dans les **valeurs d'attribut**, où la sérialisation n'échappe
+> pas `<` — parade **éditoriale**, jamais un assouplissement (pression S-011) · les **11 empreintes
+> d'étapes** de `FENETRE_AVANT_SCEAU_REVUE` se maintiennent à la main, et rougissent sur un
+> renommage bénin — c'est **voulu** · le nom du job `lint · test · build · audit` **sous-décrit** ce
+> qu'il exécute (il porte aussi G-axe et G-e2e, ce qui a déjà induit un lecteur en erreur).
+> Puis, plus froid : **`.claude/rules/security.md` n'a pas intégré S-007/S-008** (le lot du 2026-08-20
+> y a ajouté trois surfaces neuves en §4, mais **pas** celles-là) · **typage (b) 34 et (c) 35
+> erreurs** sur les deux gates de design · et
 > le texte de l'extrait d'en-têtes de la Home est **en dur** (borné par un test qui relit
 > `staticwebapp.config.source.json`).
 > Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1, §E1-ST2, §E1-ST3 et §E2.

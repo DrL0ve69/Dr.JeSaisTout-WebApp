@@ -150,6 +150,12 @@ artéfact frais — le cache n'est jamais une exemption de contrôle.
 `tools/content-pipeline/rendre-mermaid.mjs`, `.claude/rules/security.md` §1,
 `docs/agile/backlog-phase-1.md` §E2-ST1.
 
+**✅ FERMÉE pour `generer-config-swa.mjs` (PR #27, lot de dette pré-E3-ST1, 2026-08-19).** Le
+garde-fou script **et** style reposent désormais sur un seul parse jsdom par page ; les motifs
+restants ne servent plus qu'à **compter** le brut pour le contrôle de conservation, jamais à
+décider — 14 contournements exécutés par `npm test`. **Reste hors de cette fermeture** : tout autre
+garde-fou par motif du dépôt (voir [[S-014]]/[[S-015]] pour `compiler-markdown.mjs`).
+
 ## S-004 · Une config de déploiement qui NOMME un chemin doit prouver qu'il existe dans l'artéfact (A05 · fail-open)
 
 **Symptôme.** `config/staticwebapp.config.source.json` pointait `responseOverrides.404` vers
@@ -199,6 +205,15 @@ là où `script-src` reste nominatif.** Le danger annoncé par S-005 a changé d
 de nature ; revalider « la CSP au premier écouteur » reste juste, mais viser `style-src` en premier,
 pas `script-src`, sur ce dépôt précis.
 **Réfs additionnelles.** `docs/agile/backlog-phase-1.md` §E2-ST3 lot E (E-b2, E-c2).
+
+**✅ RENFORT le 2026-08-19 (PR #28, lot de dette pré-E3-ST1) : la substitution des jetons
+`__HACHAGES_*__` est désormais vérifiée SOURCE PAR SOURCE, pas seulement par comptage.** Un
+`'unsafe-inline'` glissé en 2ᵉ position derrière un hachage valide passait un contrôle qui ne
+comptait que le nombre d'entrées ; il est refusé maintenant que chaque valeur substituée est
+confrontée individuellement à la liste attendue. Même famille que [[S-002]] (une autorisation se
+compare à une valeur revue, jamais à un compte) — la vérification en ligne de la CSP servie
+([[S-008]]) énumère de même ses 11 directives une à une dans le journal, pour que « absence de
+comparaison » et « 0 divergence » restent distinguables au log.
 
 ## S-006 · Tout fichier présent dans l'artéfact est servable, qu'un plan de routage le mentionne ou non (A05 · exclusion d'audit sur motif faux)
 
@@ -372,6 +387,14 @@ garde-fou doit relire ce garde-fou et **compter ses motifs**, pas nommer celui a
 `src/app/features/cours/quiz/quiz.spec.ts` (« AFFICHE une charge utile sans en faire naître un seul
 nœud »), `tools/deploiement/generer-config-swa.mjs` (lignes 333 et 379),
 `.claude/rules/security.md` §1 et §4, `.claude/rules/contenu-pedagogique.md` §4.
+
+**✅ CONFIRMÉE close le 2026-08-19 (PR #27, lot de dette pré-E3-ST1) : le balayage de TEXTE brut a
+disparu de `generer-config-swa.mjs`, remplacé par le parse jsdom (voir clôture de [[S-003]]
+ci-dessus).** Une phrase d'auteur de leçon ne peut plus déclencher la branche « style/gestionnaire
+en ligne » : seul un attribut/élément réellement présent dans l'arbre le peut. **Corollaire payé au
+même lot ([[S-020]])** : fermer une collision texte↔motif en passant à un compte structurel
+ré-ouvre la collision **à la valeur d'un attribut réel** dès que du texte d'auteur y est sérialisé
+sans échappement de `<` — la parade reste éditoriale, jamais un relâchement du compte.
 
 ## S-012 · `npx` dans un job de CI qui produit l'artéfact publié est une résolution de code NON ÉPINGLÉE au moment de l'exécution (A08 · CICD-SEC)
 
@@ -572,6 +595,23 @@ qu'elle décrit ([[S-009]]).
 `package.json` (`e2e:install:deps`, `e2e:install:navigateur`, `e2e:install`),
 `.claude/rules/security.md` §1/§3, `docs/agile/backlog-phase-1.md` §E2-ST6 (revue du 2026-08-19).
 
+**🔴 RENFORT le 2026-08-19 (PR #30, lot de dette pré-E3-ST1) — le patron d'épinglage du CORPS avait
+lui-même une faute de même famille : il reconnaissait l'INTERDIT plutôt que d'énumérer le PERMIS.**
+Le garde ne fait qu'apparier `npm run e2e:install:navigateur` dans le corps de l'étape ; **quatre**
+contournements passaient les quatre tests au vert : `npx playwright install`,
+`node_modules/.bin/playwright install`, un `&& npx playwright install` greffé derrière l'appel
+attendu, et **n'importe quel `uses:`** (une action tierce entière, jamais inspectée). Une liste
+d'appariement — même portant sur le corps, pas seulement le nom (correctif de la première rédaction
+de cette leçon) — reste une liste **noire** tant qu'elle ne borne pas ce qui est permis.
+**Règle renforcée.** Un garde-fou d'ordonnancement de CI doit être une liste blanche **ordonnée**
+d'étapes permises, chacune identifiée par une **empreinte du corps exécuté au complet**
+(commande exacte, littérale et **revue à la main** — jamais recalculée depuis le fichier, sinon le
+garde-fou s'auto-valide comme [[S-002]] le nomme) — et refuser toute étape absente de la liste,
+`uses:` compris. Un appariement partiel du corps n'est pas une analyse du corps.
+**Réfs additionnelles.** `.github/workflows/deploy.yml`,
+`src/pipeline-contenu-orchestration.spec.ts`, `docs/agile/backlog-phase-1.md` (lot de dette
+pré-E3-ST1, 2026-08-19).
+
 ## S-019 · Sur un site prerendu, « ne pas prerendre » n'est PAS « ne pas publier » — un filtre de visibilité doit couvrir génération, mise en artéfact ET rendu client (A01/A05 · croisement [[S-006]]/[[S-010]])
 
 **Symptôme.** E2-ST6 devait masquer les leçons `statut: brouillon`. Un sélecteur unique
@@ -636,3 +676,60 @@ rappel au cas par cas.
 **Réfs.** `src/app/features/cours/simulation/simulation.ts` (lignes ~76-95, ~536, ~562-563),
 `src/app/features/cours/lecon/resoudre-lecon.ts`, `src/app/features/cours/lecon/lecon.ts`
 (`NIVEAUX_LISIBLES`), `.claude/rules/security.md` §4, `docs/agile/backlog-phase-1.md` §E2-ST5 lot a.
+
+## S-020 · Sur une liste blanche NOMINATIVE, un nom d'attribut admis n'est pas une VALEUR admise — cinquième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]] (A03 · CWE-116, CWE-79)
+
+**Symptôme.** `analyserSvg` (`rendre-mermaid.mjs`) contraignait la liste **des noms** d'attributs
+autorisés, mais ne vérifiait la **valeur** que pour `href`/`xlink:href`. `fill`, `stroke`,
+`clip-path`, `marker-start`, `marker-end` acceptaient n'importe quel `<FuncIRI>`, donc
+`url(https://exemple.invalide/x.svg#p)` traversait intact — un canal d'exfiltration/de référence
+externe que la revue de [[S-009]] n'avait pas fermé, parce qu'elle raisonnait « nom admis ⇒
+attribut sûr ».
+**Piège de fixture rencontré en corrigeant, à consigner à part.** Le premier resserrement des
+valeurs FuncIRI a fait rougir `rect rgb(191, 223, 255)` — syntaxe **documentée** de
+`sequenceDiagram`, présente en valeur d'attribut `fill`. Or `.claude/rules/contenu-pedagogique.md`
+**impose** un `sequenceDiagram` dès qu'une leçon décrit un échange : ce faux positif aurait rougi le
+build à la **première** leçon publiée, sur un message parlant de `url(#…)` — un site qui enseigne la
+CSP bloqué par sa propre pédagogie. Corrigé en ajoutant une **forme nominative revue**
+(`rgb(0-255, 0-255, 0-255)`), jamais en assouplissant vers une chasse au motif. Un corpus de
+**fixture** (SVG jetables de test) ne remplace pas le corpus de **production** (rendu Mermaid réel
+d'une leçon) pour valider une liste blanche de valeurs.
+**Règle.** Sur une liste blanche nominative d'attributs, la contrainte de **nom** et la contrainte
+de **valeur** sont deux gestes distincts et tous deux obligatoires — un attribut dont la grammaire
+de valeur admet une référence externe (`<FuncIRI>`, `url()`, tout schéma d'URI) doit voir sa valeur
+analysée, pas seulement son nom listé. Avant de resserrer une grammaire de valeur, vérifier contre
+un corpus de **production réelle** (ici : les leçons/diagrammes que le pipeline produit
+effectivement), pas seulement contre les fixtures du garde-fou lui-même.
+**Réfs.** `tools/content-pipeline/rendre-mermaid.mjs` (`analyserSvg`),
+`.claude/rules/security.md` §4, `.claude/rules/contenu-pedagogique.md` §3,
+`docs/agile/backlog-phase-1.md` (lot de dette pré-E3-ST1, 2026-08-19, PR #29).
+
+## S-021 · Un artéfact transféré entre jobs de CI EST une entrée non fiable — existence des chemins attendus ne suffit ni contre un membre EN PLUS, ni contre un chemin `..`, ni contre un lien symbolique (A08 · CICD-SEC, CWE-22)
+
+**Symptôme, trois défauts empilés dans le même mécanisme de restauration inter-jobs.** (1)
+`tar -xzf` s'exécutait sans liste de membres, à la racine du dépôt, et le contrôle de conservation
+ne vérifiait que la **présence** des chemins attendus — une archive portant les 3 chemins légitimes
+**plus** `tools/deploiement/generer-config-swa.mjs` passait l'étape « verte » en écrasant le
+générateur de CSP. (2) La liste blanche de membres ajoutée en réponse restait aveugle au chemin
+sérialisé : `src/content-generated/../../tools/deploiement/generer-config-swa.mjs` appariait le
+motif de chemin **et** passait le contrôle de type — seul GNU tar l'a arrêté (fail-closed, mais la
+barrière applicative était hors-jeu). (3) Un **lien symbolique** portant un nom de la liste blanche
+aurait passé un contrôle de chemin seul, sans contrôle de **type d'entrée**. Ironie du lot : c'est
+précisément le correctif retirant de la confiance à un binaire CDN externe qui ouvrait ce canal
+inter-jobs.
+**Croisement avec la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]].** Même patron générique
+qu'ailleurs sur ce dépôt — un contrôle d'**existence**/de **motif** donne l'apparence de la rigueur
+sans borner ce qui peut être présent **en plus**, transposé ici à un artéfact CI plutôt qu'à un
+SVG/HTML. Nouveau par rapport à ces quatre : la surface n'est pas du contenu utilisateur mais un
+**artéfact inter-jobs**, et le vecteur ajoute une dimension absente ailleurs — la **structure du
+chemin** (`..`) et le **type d'entrée sur disque** (lien symbolique), pas seulement le nom.
+**Règle.** Traiter tout artéfact transféré entre jobs de CI (`actions/upload-artifact` /
+`download-artifact`, cache restauré, archive rejouée) comme une **entrée non fiable** :
+extraire avec une liste de membres explicite (jamais une extraction ouverte), refuser tout membre
+absent de la liste blanche **et** tout chemin dont un segment est `..` ou `.` (découper en segments,
+ne pas apparier la chaîne sérialisée — même défaut que [[S-014]] transposé aux chemins), **et**
+contrôler le **type** de chaque entrée avant écriture (rejeter les liens symboliques). Un contrôle
+de conservation qui ne vérifie que « les chemins attendus sont là » ne dit jamais rien de ce qui est
+**en plus** — répétition du renfort déjà posé par [[S-003]] pour du HTML/SVG, ici pour une archive.
+**Réfs.** `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.claude/rules/security.md`
+§1/§3, `docs/agile/backlog-phase-1.md` (lot de dette pré-E3-ST1, 2026-08-19, PR #30).

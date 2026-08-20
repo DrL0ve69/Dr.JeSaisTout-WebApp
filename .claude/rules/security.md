@@ -93,6 +93,30 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
       débranché. **Un garde-fou dont l'ENTRÉE peut fabriquer la preuve qu'il exige n'est pas un
       garde-fou.** Dès qu'on cherche un motif dans une chaîne qui contient une entrée, quel que
       soit le but — on analyse.
+      🔴 **TROIS SURFACES QUE CETTE RÈGLE NE NOMMAIT PAS, et où elle a récidivé au lot de dette
+      pré-E3-ST1 (2026-08-19) — les ajouter au réflexe :**
+      **(a) La VALEUR, pas seulement le NOM** (**S-020**). Une liste blanche d'attributs qui ne
+      contraint que les noms laisse libre toute valeur dont la grammaire admet une référence
+      externe. Mesuré : `fill`, `stroke`, `clip-path`, `marker-start`, `marker-end` étaient admis
+      par leur nom, et `url(https://exemple.invalide/x.svg#p)` traversait l'analyseur SVG en
+      silence. Recenser **par mesure** quels attributs admis portent une telle grammaire — pas de
+      mémoire — puis contraindre leur valeur à une forme nominative.
+      **(b) Un ARTÉFACT TRANSFÉRÉ ENTRE JOBS DE CI est une entrée** (**S-021**). Mesuré : un
+      `tar -xzf` sans liste de membres, déballé à la racine du dépôt, avec une vérification qui ne
+      contrôlait que l'**existence** des chemins attendus — une archive portant les 3 chemins
+      légitimes **plus** `tools/deploiement/generer-config-swa.mjs` passait **verte** et écrasait le
+      générateur de CSP. Un contrôle d'existence ne dit **jamais rien de ce qui est en plus**. Il
+      faut : liste blanche des **membres**, contrôle du **type** d'entrée (un lien symbolique portant
+      un nom admis passe un contrôle de chemin seul), et découpe en **segments** — apparier un motif
+      sur un chemin sérialisé n'est pas analyser une structure de chemin (`a/../../b` traverse un
+      motif `(/.*)?`).
+      **(c) Un garde-fou d'ORDONNANCEMENT énumère ce qui est PERMIS** (**S-018** élargie). Mesuré :
+      un garde qui appariait `npm run e2e:install:navigateur` laissait passer `npx playwright
+      install`, `node_modules/.bin/playwright install` et **n'importe quel `uses:`** — 4 tests sur 4
+      au vert. Et épingler le **nom** des étapes ne suffit pas : `&& npx playwright install` greffé
+      dans le corps d'une étape existante passe encore. Il faut une liste blanche **ordonnée**, avec
+      **empreinte du corps exécuté**, en littéraux **revus à la main** et jamais recalculés depuis le
+      fichier (S-005).
 - [ ] **Aucun `bypassSecurityTrust*`** Angular sans justification écrite et revue — et **cette
       justification se relit dans le MÊME diff que le garde-fou qu'elle décrit**. Un texte qui
       promet une garantie plus forte que celle qui est appliquée autorise, de fait, plus que ce
