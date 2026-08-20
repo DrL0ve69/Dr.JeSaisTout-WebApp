@@ -31,6 +31,39 @@
 }
 
 // -----------------------------------------------------------------------------
+// Scanlines de scène — l'ambiance « Moniteur ambre » (E6)
+// -----------------------------------------------------------------------------
+// PSEUDO-ÉLÉMENT, DONC HORS DE L'ARBRE D'ACCESSIBILITÉ PAR CONSTRUCTION : aucun
+// `aria-hidden` à poser, aucune chance qu'un lecteur d'écran l'annonce. C'est
+// aussi pourquoi le décor ne passe JAMAIS par un vrai élément — un `<div>` de
+// décor, lui, se retrouve dans l'arbre et il faut penser à l'en retirer.
+//
+// `position: fixed` : hors flux, donc il NE CRÉE AUCUNE RANGÉE dans la grille de
+// coquille (le raisonnement est le même que pour le lien d'évitement — trois
+// rangées, en-tête / contenu / pied, et pas une de plus).
+// `z-index: -1` le place derrière le contenu ; `pointer-events: none` garantit
+// qu'il n'intercepte ni clic ni survol.
+//
+// G6 · G11 : le motif est STATIQUE — rien ne défile, rien ne clignote, aucun
+// effet ne tourne dans le champ de lecture. Il disparaît tout de même sous
+// `prefers-reduced-motion` (une texture plein écran est une ambiance, et une
+// ambiance a toujours sa variante réduite) et en `forced-colors: active`, où le
+// système ne saurait pas le recolorer (retrait porté par le mixin lui-même).
+:host::before {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+
+  @include m.scanlines;
+
+  @include m.mouvement-reduit {
+    background-image: none;
+  }
+}
+
+// -----------------------------------------------------------------------------
 // Lien d'évitement (WCAG 2.4.1 · 2.4.7 · 2.4.11 · 2.5.8)
 // -----------------------------------------------------------------------------
 // LA TECHNIQUE DE MASQUAGE EST LE POINT DÉLICAT. `display: none` et
@@ -64,15 +97,22 @@
   // 44 px) : `--espace-6` vaut 3rem = 48 px, comme les liens de l'en-tête.
   min-block-size: var(--espace-6);
   padding-inline: var(--espace-3);
-  border: var(--filet-moyen) solid var(--couleur-encre);
-  border-radius: var(--rayon-net);
   background-color: var(--couleur-surface-elevee);
-  color: var(--couleur-encre);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
   text-decoration: none;
-  text-transform: uppercase;
+
+  // Le traitement « tampon » du carnet est devenu une MICRO-ÉTIQUETTE (E6) :
+  // même rôle — capitales courtes et espacées —, vocabulaire d'interface pixel
+  // plutôt que d'encre tamponnée. Le mixin pose aussi la couleur d'encre.
+  @include m.micro-etiquette;
+
+  // Le mixin pose l'encre SECONDAIRE (une étiquette est du second plan) ; ce
+  // lien-ci est une commande, pas une étiquette : on remonte à l'encre pleine.
+  color: var(--couleur-encre);
+
+  // G2 : trait net, aucun rayon d'arrondi. Le cartouche remplace ici la paire
+  // `border` + `border-radius` et rebranche le trait sur `CanvasText` en
+  // contraste forcé — sans quoi le lien réapparaîtrait sans délimitation.
+  @include m.cartouche(var(--couleur-encre), var(--filet-moyen));
 
   // Invisible au repos, mais toujours dans l'ordre de tabulation.
   clip-path: inset(50%);
@@ -81,10 +121,6 @@
     clip-path: none;
 
     @include m.focus-visible-dessine;
-  }
-
-  @include m.contraste-force {
-    border-color: CanvasText;
   }
 }
 

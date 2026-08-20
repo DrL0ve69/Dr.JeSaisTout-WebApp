@@ -803,7 +803,8 @@ describe('RenduBlocs', () => {
         // WCAG 1.4.1 en `forced-colors: active` : les couleurs se replient toutes sur
         // `CanvasText`, donc seuls la FORME du cadre et le STYLE du trait subsistent
         // côté CSS. Les trois styles de gauche étaient épuisés par les variantes de
-        // ton ; la provenance ouvre un second axe (cadre complet vs filet de gauche).
+        // ton ; depuis E6 les six passent par un cadre COMPLET (`cartouche`, G7-a), et
+        // ce qui les sépare est le STYLE du trait plus l'ÉPAISSEUR du montant de gauche.
         // Mesuré sur la feuille RÉELLEMENT COMPILÉE, pas sur une relecture.
         const css = feuilleCompilee();
         // ⚠️ SASS DÉPOUILLE LES GUILLEMETS de l'attribut (`[data-variante=cours]`), et une
@@ -822,10 +823,22 @@ describe('RenduBlocs', () => {
         // Cadre COMPLET pour les deux variantes « du cours » : `border:` sans suffixe.
         expect(signature('cours')).toMatch(/border:[^;]*solid/);
         expect(signature('correction-du-cours')).toMatch(/border:[^;]*double/);
-        // Filet de GAUCHE seul pour les quatre autres — et quatre styles distincts.
-        expect(signature('complement')).toMatch(/border-inline-start-style:\s*dashed/);
+        // 🔴 `complement` EST UN CADRE COMPLET EN TIRETS DEPUIS E6, plus un filet de
+        // gauche : la bascule a déprécié `marge-carnet` au profit de `cartouche`, dont
+        // la règle est qu'un bloc se borne sur ses QUATRE côtés (G7-a). Ce test épinglait
+        // encore l'ancienne forme et rougissait donc sur un produit sain, dont le
+        // commentaire nomme la migration à l'endroit exact. Ce qui compte — l'opposition
+        // de FORME entre `cours` (plein) et `complement` (tireté), la seule qui survive à
+        // `forced-colors: active` — est intacte, et c'est elle qu'on mesure.
+        expect(signature('complement')).toMatch(/border-style:\s*dashed/);
+        // Montant de gauche accentué pour les trois variantes de ton.
         expect(signature('attention')).toMatch(/border-inline-start:[^;]*dotted/);
-        expect(signature('note')).toMatch(/border-inline-start:[^;]*solid/);
+        // Même remarque que pour `complement` : `note` passe par `cartouche` depuis E6,
+        // donc un cadre SOLIDE sur quatre côtés dont seul le montant de gauche est
+        // épaissi — il n'y a plus de raccourci `border-inline-start:` à apparier. C'est
+        // l'ÉPAISSEUR de ce montant qui le sépare de `cours`, à trait solide lui aussi.
+        expect(signature('note')).toMatch(/border:[^;]*solid/);
+        expect(signature('note')).toMatch(/border-inline-start-width:\s*var\(--filet-marge\)/);
         expect(signature('a-retenir')).toMatch(/border-inline-start-style:\s*double/);
         // Aucune des deux nouvelles n'ouvre un cadre sans le refermer en contraste
         // forcé : la couleur y tombe, la forme doit rester.
@@ -838,6 +851,29 @@ describe('RenduBlocs', () => {
         // reforce son trait elle-même.
         expect(signature('cours')).toContain('CanvasText');
         expect(signature('correction-du-cours')).toContain('CanvasText');
+
+        // 🔴 ET LES SIX DIFFÈRENT DEUX À DEUX, COULEUR RETIRÉE. Les six assertions
+        // ci-dessus, prises isolément, resteraient TOUTES vertes si deux variantes
+        // finissaient par porter la même signature de trait — le titre promet une
+        // distinction, elles ne vérifient qu'une présence. On neutralise donc toute
+        // valeur de couleur (c'est ce que fait `forced-colors: active`) et on exige
+        // six signatures distinctes.
+        const sansCouleur = (variante: string): string =>
+          signature(variante)
+            .replaceAll(/var\(--couleur-[a-z-]*\)|CanvasText|Canvas/g, '⟨couleur⟩')
+            .replaceAll(/\s+/g, ' ')
+            .trim();
+        const signatures = [
+          'cours',
+          'complement',
+          'correction-du-cours',
+          'attention',
+          'note',
+          'a-retenir',
+        ].map(sansCouleur);
+
+        expect(signatures.every((forme) => forme !== '')).toBe(true); // anti-vacuité
+        expect(new Set(signatures).size).toBe(signatures.length);
       });
 
       it('🔴 AFFICHE une source hostile sans en faire naître un seul nœud', async () => {

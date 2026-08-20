@@ -51,7 +51,9 @@ l'AMBRE, pas le vert.**
 
 > Le vert est **déjà pris** : il veut dire « corrigé ». La signature du site est
 > **rouge = vulnérable / vert = corrigé** ; elle est portée par `--couleur-danger-vuln` et
-> `--couleur-ok-fixed`, elle structure le `CodeCompareComponent` (E2-ST4), et c'est le seul code
+> `--couleur-ok-corrige` (nom réel du jeton dans `src/styles/_themes.scss` — ce document a dit
+> `ok-fixed` jusqu'au 2026-08-20, c'était une erreur : **le code fait foi**), elle structure le
+> rendu des paires vulnérable/corrigé (E2-ST4), et c'est le seul code
 > couleur qu'un étudiant doit retenir sans effort. Un vert phosphore *de marque* — bordures, titres,
 > boutons, pluie de glyphes — le diluerait jusqu'à ce que le vert ne **signale** plus rien.
 > C'est la stricte application d'une règle que ce document portait déjà : « l'encre rouge ne sert
@@ -80,7 +82,7 @@ le gate reste le juge, sur ses 33 paires — mais elles partent d'un état vert.
 | **`marque` (ambre)** | `#FFB454` | **11,38:1** sur fond (AAA) ; `fond` sur ambre plein : 11,38:1 |
 | `marque-sourde` | `#A97129` | 4,85:1 — pour les traits d'accent, pas pour du texte fin |
 | **`danger-vuln`** | `#FF5C57` | 6,61:1 / 6,02:1 |
-| **`ok-fixed`** | `#4ADE80` | 11,51:1 / 10,49:1 (AAA) |
+| **`ok-corrige`** | `#4ADE80` | 11,51:1 / 10,49:1 (AAA) |
 | `info` | `#5BC8E8` | 10,39:1 (AAA) |
 
 ⚠️ **Le premier jet a échoué et c'est ce qui rend cette table crédible** : les filets proposés à vue
@@ -93,15 +95,23 @@ commettre sur fond noir, et c'est exactement celle que G7-a existe pour attraper
 | Rôle | Décision | Contrainte |
 |---|---|---|
 | Corps | **Inter — conservée** | Déjà auto-hébergée et **déjà passée au gate de glyphes** (80 vérifications, `œ` / `« »` / `’` couverts). La conserver supprime tout le lot « polices » de la bascule. |
-| Affichage / titres | **Une mono d'affichage en capitales espacées**, famille à choisir | **Fraunces est retirée** (~113 Ko livrés en moins). Candidats à *mesurer avant adoption* : Departure Mono, VT323, Silkscreen, Press Start 2P, JetBrains Mono, IBM Plex Mono. |
-| Code | mono, inchangée dans son rôle | Coloration précompilée Shiki, déjà en place. |
+| Affichage / titres | **IBM Plex Mono 700** (retenue le 2026-08-20) | **Fraunces est retirée** — ses deux fichiers pesaient **67 816 o**, pas « ~113 Ko » comme ce document l'a écrit jusqu'au 2026-08-20. |
+| Code | **IBM Plex Mono 400 — passe d'une pile SYSTÈME à une police servie** | Décision du propriétaire (2026-08-20) : le cours ancre des annotations *à la ligne* et oppose des paires vulnérable/corrigé où l'alignement porte du sens ; une pile système rend le même extrait en Consolas chez l'un et en SF Mono chez l'autre. Coloration précompilée Shiki, inchangée. |
+| Micro-étiquettes | **Silkscreen 400** | Capitales courtes uniquement (tampons, jalons). Police bitmap : illisible en prose, quelle que soit la taille. |
+| Jalons | **Press Start 2P 400** | 🔴 Rôle **fermé à trois emplois** (pastille de module, verdict d'un quiz réussi, code d'erreur 404), tenu par `src/styles/police-jalon.spec.ts`. |
 
 🔴 **Aucune police d'affichage n'entre sans être passée à `tools/design/verifier-glyphes.mjs`
-D'ABORD.** Les polices pixel couvrent notoirement mal le français ; le gate lit la vraie table
-`cmap` et échoue sur un `œ`, un `« »` ou une apostrophe `’` manquants. C'est déjà lui qui a interdit
-le sous-ensemble maison en E1-ST1-B. **Repli sûr si tous les candidats tombent** : une mono à large
-couverture, traitée en capitales espacées — le caractère vient alors du *traitement*, pas de la
-fonte.
+D'ABORD** — et cette exigence-là reste entière : le gate lit la vraie table `cmap` et échoue sur un
+`œ`, un `« »` ou une apostrophe `’` manquants. C'est déjà lui qui a interdit le sous-ensemble maison
+en E1-ST1-B.
+
+⚠️ **En revanche, la crainte qui accompagnait cette exigence est MESURÉE FAUSSE.** Ce document
+affirmait que « les polices pixel couvrent notoirement mal le français ». Passées au gate le
+2026-08-20, **Silkscreen 400 et Press Start 2P 400 couvrent 40/40 caractères exigés**, `œ Œ « » ’` et
+U+00A0 compris — exactement comme IBM Plex Mono et Inter (160 vérifications, 0 lacune). La leçon
+n'est pas « les polices pixel vont bien » : c'est qu'**une réputation ne remplace pas une mesure**,
+dans les deux sens. Le repli prévu (« une mono à large couverture traitée en capitales espacées »)
+n'a pas eu à servir.
 
 ⚠️ La contrainte de rédaction née d'E1-ST1-B **ne change pas** : le contenu emploie **U+00A0** et
 jamais U+202F ni U+2009. Détail : [`polices.md`](polices.md).
@@ -179,9 +189,26 @@ moins un filet trop discret.
   sémantiques (leur mappage change, pas leur nom) · Inter · `@mixin filet-horizontal` (avec son
   correctif L-025 sur `margin-inline: auto`) · `@mixin focus-visible` · `marque-pedagogique()` ·
   le gate de contraste et le gate de glyphes · G2, G6, G7, G7-a, G7-b, G8.
-- **Ce qui tombe** : les 73 valeurs primitives · Fraunces (2 fichiers, ~113 Ko) · `@mixin
-  marge-carnet` et le vocabulaire carnet (tampons, marginalia, règlure) · les formulations de G1, G4,
-  G5, G9 · les 66 mesures du gate de contraste, à refaire.
+- **Ce qui tombe** : les 73 valeurs primitives · Fraunces (2 fichiers, **67 816 o** — le chiffre
+  « ~113 Ko » écrit ici jusqu'au 2026-08-20 était faux) · `@mixin marge-carnet` et le vocabulaire
+  carnet (tampons, marginalia, règlure) · les formulations de G1, G4, G5, G9 · les mesures du gate de
+  contraste, à refaire.
+
+**🔴 LE BILAN DE POIDS RÉEL — il faut distinguer LIVRÉ et CHARGÉ, sinon on se trompe de signe.**
+Mesuré le 2026-08-20, fichiers en main (`wc -c`, Fraunces relue depuis git avant suppression) :
+
+| | Avant | Après | Delta |
+|---|---:|---:|---:|
+| **Livré** (tous fichiers) | 201 140 o | 223 876 o | **+22 736 o** |
+| **Chargé** sur une page de leçon complète (5 sous-ensembles `latin`) | 83 768 o | 98 788 o | **+15 020 o** |
+
+Le poste qui coûte est la **police de code** : +14 708 o sur toute page qui porte du code, prix
+explicite de l'alignement des paires vulnérable/corrigé. Le reste s'équilibre presque —
+IBM Plex Mono 700 `latin` (14 908 o) remplace Fraunces `latin` (35 512 o). Une page qui ne porterait
+**ni** pastille de jalon **ni** micro-étiquette ne chargerait que 77 872 o, soit *moins* qu'avant :
+le delta ci-dessus est le **cas le plus chargé**, pas une moyenne. Silkscreen et Press Start 2P ne
+sont de toute façon **pas préchargées** — elles ne pèsent rien sur le premier écran. Détail par
+fichier et empreintes : [`public/polices/PROVENANCE.md`](../../public/polices/PROVENANCE.md).
 - **G2 est fondé, pas seulement affaire de goût** : `web/frontend/principes-design-visuel.md`
   recommande la « depth » (texture, glassmorphism subtil) — mais exclut ces effets des produits « où
   la clarté et la vitesse de scan priment ». Un site de cours est un produit de lecture (G11).

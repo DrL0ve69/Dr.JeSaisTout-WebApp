@@ -22,8 +22,17 @@ import { RouterLink } from '@angular/router';
   styleUrl: './page-introuvable.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <article class="carnet">
-      <p class="tampon">Erreur 404</p>
+    <article class="cartouche-erreur">
+      <!--
+        DEUX PARAGRAPHES DISTINCTS, ET C'EST DÉLIBÉRÉ. Écrits en deux <span>
+        d'un même paragraphe, ils seraient COLLÉS dans le texte accessible :
+        preserveWhitespaces: false retire le nœud de texte blanc qui les
+        sépare, et l'espace qu'on voit ne viendrait que du CSS — que nulle API
+        d'accessibilité ne lit (c'est exactement le mode d'échec L-024, payé sur
+        le logotype de l'en-tête). Deux blocs ne peuvent pas se coller.
+      -->
+      <p class="etiquette">Erreur</p>
+      <p class="code-erreur">404</p>
 
       <h1 class="titre">Page introuvable</h1>
 
@@ -32,7 +41,7 @@ import { RouterLink } from '@angular/router';
         déplacée, ou le lien qui vous a mené ici comporte une faute de frappe.
       </p>
 
-      <hr class="reglure" />
+      <hr class="separateur" />
 
       <p class="retour">
         <a routerLink="/">Retour à l&rsquo;accueil</a>

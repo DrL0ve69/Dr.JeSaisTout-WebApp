@@ -1,6 +1,29 @@
 // =============================================================================
 // BasculeTheme — le choix visible du thème (clair / sombre / système)
 // -----------------------------------------------------------------------------
+// 🔴 CE COMPOSANT N'EST PLUS RENDU NULLE PART, ET C'EST DÉLIBÉRÉ (bascule E6,
+// 2026-08-20). `EnTete` ne le compose plus : la phase 1 ne rend qu'UN thème, le
+// sombre (décision D-2 du 2026-08-17), et une commande qui n'offre aucun choix
+// est un contrôle mort. Il n'a PAS été supprimé pour autant — la mécanique à deux
+// thèmes reste entière (`core/theme/`, `THEMES`, `definir()`, l'état tri-valué et
+// ses tests), sur demande explicite du propriétaire.
+//
+// ⚠️ IL APPARTIENT À E4-ST1, qui livrera le thème clair. Trois choses à savoir
+// avant d'y toucher :
+//   · SA PEAU EST RESTÉE AU VOCABULAIRE « CARNET DE LABORATOIRE », abandonné le
+//     2026-08-17. Ce n'est pas un oubli de la bascule « Moniteur ambre » : rien
+//     n'étant rendu, repeindre ce composant aurait été du travail à refaire, et
+//     un défaut G7 déclaré sur un composant invisible n'aurait mesuré personne.
+//     E4-ST1 le rhabille en même temps qu'il le recompose.
+//   · LE REMETTRE DANS L'EN-TÊTE NE SUFFIT PAS. Le choix « clair » n'a plus aucun
+//     sélecteur dans `_themes.scss`, et le script inline anti-flash de
+//     `src/index.html` a été retiré — `script-src` est à ZÉRO hachage. Recomposer
+//     la bascule sans traiter ces deux moitiés rendrait un contrôle qui a l'air
+//     vivant et ne peint rien.
+//   · SON TEST `en-tete.spec.ts` (« ne rend AUCUNE bascule de thème ») est le
+//     tripwire qui signalera une recomposition accidentelle. Il se réinverse à
+//     E4-ST1, jamais avant.
+//
 // LE PREMIER CLIENT DU `ThemeService`. Celui-ci exporte `THEMES` et `definir()`
 // depuis E1-ST1-D précisément pour cette bascule ; la partie visible avait été
 // laissée hors de ST1-D.

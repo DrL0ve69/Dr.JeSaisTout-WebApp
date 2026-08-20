@@ -95,9 +95,27 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
   template: `
     <article class="lecon">
       <header class="page-de-garde">
-        <p class="tampon">Module {{ frontmatter().ordre }}&nbsp;— sécurité des applications web</p>
+        <!--
+          Le cartouche de module (E6). La pastille porte le numéro à DEUX CHIFFRES
+          dans la police de jalon — l'un des deux seuls emplois admis dans ce lot,
+          et src/styles/police-jalon.spec.ts en tient la liste blanche.
 
-        <h1 class="titre">{{ frontmatter().titre }}</h1>
+          Elle est aria-hidden, et le numéro est RÉÉCRIT dans la micro-étiquette
+          juste à côté : c'est le patron déjà employé par le sommaire du cours
+          (sommaire.html, span.numero + nomAccessible). Sans cela, un lecteur
+          d'écran annoncerait « 01 » hors contexte, et preserveWhitespaces: false
+          recollerait la pastille au libellé qui la suit (L-024).
+        -->
+        <div class="cartouche-module">
+          <p class="pastille" aria-hidden="true">{{ numeroDeModule() }}</p>
+
+          <div class="identite">
+            <p class="tampon">
+              Module {{ numeroDeModule() }}&nbsp;— sécurité des applications web
+            </p>
+            <h1 class="titre">{{ frontmatter().titre }}</h1>
+          </div>
+        </div>
 
         <!--
           Les repères de la leçon. Une liste de définitions plutôt que des
@@ -140,60 +158,99 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
       </header>
 
       <!--
-        Le sommaire est une NAVIGATION nommée, pas une simple liste : c'est un
-        repère que l'on doit pouvoir atteindre directement (WCAG 2.4.1). Ses liens
-        mènent à un titre de LA MÊME page, et le navigateur les suit sans JavaScript
-        — ce qui est obligatoire sur une page prerendue non hydratée.
+        🔴 ENVELOPPE DE GRILLE (E6) — MISE EN PAGE SEULEMENT, ET L'ORDRE DU DOM NE
+        CHANGE PAS. Au-delà du point de rupture du rail, le sommaire devient une
+        colonne collante à gauche de la prose ; en deçà, il reste au-dessus d'elle.
+        Dans les deux cas c'est l'ORDRE DU DOCUMENT qui est rendu tel quel : ni
+        order ni grid-row n'interviennent dans lecon.scss, parce que l'ordre de
+        lecture et l'ordre de tabulation suivent le DOM (WCAG 1.3.2 / 2.4.3) et
+        qu'une réécriture CSS de la position les romprait EN SILENCE.
 
-        🔴 routerLink + fragment, JAMAIS un href de fragment nu. index.html pose une
-        balise base sur « / » : un fragment nu se résout contre la BASE du document
-        et non contre l'URL courante, donc chaque entrée renverrait le lecteur à
-        l'ACCUEIL (mesuré en Chromium). Un routerLink vide désigne la route
-        courante — le routeur écrit alors un href ABSOLU, juste sans JS —, et
-        anchorScrolling (app.config.ts) fait défiler jusqu'au titre sans que
-        GestionFocusRoute n'y voie un changement de page : il compare les chemins
-        fragment retiré.
+        Le filet horizontal est passé DANS div.corps-lecon et non laissé enfant
+        direct de la grille : un hr item de grille retombe à une largeur de ZÉRO,
+        la feuille de l'agent utilisateur lui posant margin-inline: auto (L-025 ;
+        l'en-tête du mixin filet-horizontal raconte la panne).
       -->
-      <nav class="sommaire" aria-labelledby="titre-sommaire">
-        <h2 id="titre-sommaire">Sommaire</h2>
-        <ol>
-          @for (entree of sommaire(); track entree.ancre) {
-            <li>
-              <a [routerLink]="[]" [fragment]="entree.ancre">{{ entree.titre }}</a>
-              @if (entree.sousEntrees.length > 0) {
-                <ol>
-                  @for (sousEntree of entree.sousEntrees; track sousEntree.ancre) {
-                    <li>
-                      <a [routerLink]="[]" [fragment]="sousEntree.ancre">{{ sousEntree.titre }}</a>
-                    </li>
-                  }
-                </ol>
-              }
-            </li>
-          }
-        </ol>
-      </nav>
+      <div class="disposition-lecon">
+        <!--
+          Le sommaire est une NAVIGATION nommée, pas une simple liste : c'est un
+          repère que l'on doit pouvoir atteindre directement (WCAG 2.4.1). Ses liens
+          mènent à un titre de LA MÊME page, et le navigateur les suit sans JavaScript
+          — ce qui est obligatoire sur une page prerendue non hydratée.
 
-      <hr />
+          🔴 routerLink + fragment, JAMAIS un href de fragment nu. index.html pose une
+          balise base sur « / » : un fragment nu se résout contre la BASE du document
+          et non contre l'URL courante, donc chaque entrée renverrait le lecteur à
+          l'ACCUEIL (mesuré en Chromium). Un routerLink vide désigne la route
+          courante — le routeur écrit alors un href ABSOLU, juste sans JS —, et
+          anchorScrolling (app.config.ts) fait défiler jusqu'au titre sans que
+          GestionFocusRoute n'y voie un changement de page : il compare les chemins
+          fragment retiré.
 
-      @for (section of sections(); track section.ancre; let rangSection = $index) {
-        <section class="section">
-          <!--
+          ✅ tabindex="0" EST JUSTIFIÉ ICI, mais SEULEMENT au-delà du point de
+          rupture : en colonne (la media query min-width $rupture-rail de lecon.scss),
+          le rail est un conteneur qui DÉFILE — overflow: auto, hauteur bornée à la
+          fenêtre — sur une leçon longue, et axe l'exige alors (règle
+          scrollable-region-focusable), sans quoi son contenu serait inatteignable au
+          clavier seul. Le nom accessible vient déjà d'aria-labelledby.
+
+          ⚠️ SOUS LE POINT DE RUPTURE, C'EST UN ARRÊT DE TABULATION MORT, et il faut
+          l'appeler par son nom : le sommaire est alors en pleine largeur, sans
+          overflow ni hauteur bornée, donc rien n'y défile — c'est bien la famille des
+          huit tabindex sans emploi d'E2-ST4. On l'accepte quand même, pour une
+          raison qui n'existait pas dans ce cas-là : l'attribut est POSÉ AU RENDU,
+          et le conditionner à une media query demanderait de le calculer en
+          JavaScript. Sur une page prerendue, cela rouvrirait la divergence
+          d'hydratation L-033 — le DOM servi porterait un attribut que la première
+          détection de changements viendrait retirer — pour supprimer UN arrêt de
+          tabulation nommé sur un lecteur mobile, alors que l'oublier au-dessus du
+          point de rupture est, lui, une violation WCAG. Un arrêt inutile mais
+          annoncé coûte moins qu'un contenu injoignable ; à rouvrir seulement si le
+          rail devient un conteneur défilant à toutes les largeurs.
+        -->
+        <nav class="sommaire" aria-labelledby="titre-sommaire" tabindex="0">
+          <h2 id="titre-sommaire">Sommaire</h2>
+          <ol>
+            @for (entree of sommaire(); track entree.ancre) {
+              <li>
+                <a [routerLink]="[]" [fragment]="entree.ancre">{{ entree.titre }}</a>
+                @if (entree.sousEntrees.length > 0) {
+                  <ol>
+                    @for (sousEntree of entree.sousEntrees; track sousEntree.ancre) {
+                      <li>
+                        <a [routerLink]="[]" [fragment]="sousEntree.ancre">{{
+                          sousEntree.titre
+                        }}</a>
+                      </li>
+                    }
+                  </ol>
+                }
+              </li>
+            }
+          </ol>
+        </nav>
+
+        <div class="corps-lecon">
+          <hr />
+
+          @for (section of sections(); track section.ancre; let rangSection = $index) {
+            <section class="section">
+              <!--
             Le niveau vient du Markdown source et vaut 2 ou 3 (contrôlé par
             lireLeconCompilee). Le repli sur h3 n'est pas un cas « inconnu » qu'on
             masque : c'est la garantie qu'un titre de section est TOUJOURS rendu, et
             jamais remplacé par un trou silencieux dans la page.
           -->
-          @switch (section.niveau) {
-            @case (2) {
-              <h2 class="titre-section" [id]="section.ancre">{{ section.titre }}</h2>
-            }
-            @default {
-              <h3 class="titre-section" [id]="section.ancre">{{ section.titre }}</h3>
-            }
-          }
+              @switch (section.niveau) {
+                @case (2) {
+                  <h2 class="titre-section" [id]="section.ancre">{{ section.titre }}</h2>
+                }
+                @default {
+                  <h3 class="titre-section" [id]="section.ancre">{{ section.titre }}</h3>
+                }
+              }
 
-          <!--
+              <!--
             Le quiz descend avec les blocs, à toutes les sections : c'est l'ancre
             [[quiz]] qui décide OÙ il se rend, pas la page. Le compilateur garantit
             qu'il y a exactement une ancre dans tout le corps, donc exactement un
@@ -219,41 +276,43 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             seul endroit qui voit TOUTES les sections, donc le seul qui puisse dire
             à chacune ce qui a déjà été numéroté avant elle.
           -->
-          <app-rendu-blocs
-            [blocs]="section.blocs"
-            [quiz]="lecon().quiz"
-            [sujet]="frontmatter().sujet"
-            [simulation]="lecon().simulation"
-            [decalage]="decalageDeSection(rangSection)"
-          />
-        </section>
-      }
-
-      <!--
-        Prev/next. Le bloc entier disparaît quand la leçon n'a aucune voisine : un
-        repère de navigation vide serait annoncé pour rien, et surtout un lien sans
-        destination serait un lien mort. La première et la dernière leçon du cours
-        n'affichent donc qu'un seul lien.
-      -->
-      @if (voisines().precedente !== null || voisines().suivante !== null) {
-        <nav class="voisines" aria-labelledby="titre-voisines">
-          <h2 id="titre-voisines">Poursuivre le cours</h2>
-
-          @if (voisines().precedente; as precedente) {
-            <a class="voisine precedente" [routerLink]="lienVers(precedente.slug)">
-              <span class="sens">Leçon précédente&nbsp;:&nbsp;</span>
-              <span class="titre-voisine">{{ precedente.titre }}</span>
-            </a>
+              <app-rendu-blocs
+                [blocs]="section.blocs"
+                [quiz]="lecon().quiz"
+                [sujet]="frontmatter().sujet"
+                [simulation]="lecon().simulation"
+                [decalage]="decalageDeSection(rangSection)"
+              />
+            </section>
           }
 
-          @if (voisines().suivante; as suivante) {
-            <a class="voisine suivante" [routerLink]="lienVers(suivante.slug)">
-              <span class="sens">Leçon suivante&nbsp;:&nbsp;</span>
-              <span class="titre-voisine">{{ suivante.titre }}</span>
-            </a>
+          <!--
+            Prev/next. Le bloc entier disparaît quand la leçon n'a aucune voisine : un
+            repère de navigation vide serait annoncé pour rien, et surtout un lien sans
+            destination serait un lien mort. La première et la dernière leçon du cours
+            n'affichent donc qu'un seul lien.
+          -->
+          @if (voisines().precedente !== null || voisines().suivante !== null) {
+            <nav class="voisines" aria-labelledby="titre-voisines">
+              <h2 id="titre-voisines">Poursuivre le cours</h2>
+
+              @if (voisines().precedente; as precedente) {
+                <a class="voisine precedente" [routerLink]="lienVers(precedente.slug)">
+                  <span class="sens">Leçon précédente&nbsp;:&nbsp;</span>
+                  <span class="titre-voisine">{{ precedente.titre }}</span>
+                </a>
+              }
+
+              @if (voisines().suivante; as suivante) {
+                <a class="voisine suivante" [routerLink]="lienVers(suivante.slug)">
+                  <span class="sens">Leçon suivante&nbsp;:&nbsp;</span>
+                  <span class="titre-voisine">{{ suivante.titre }}</span>
+                </a>
+              }
+            </nav>
           }
-        </nav>
-      }
+        </div>
+      </div>
     </article>
   `,
 })
@@ -297,6 +356,19 @@ export class Lecon {
   );
 
   readonly frontmatter = computed(() => this.lecon().frontmatter);
+
+  /**
+   * Le numéro du module, sur DEUX CHIFFRES — « 01 », « 13 ».
+   *
+   * La pastille du cartouche est un jalon dessiné dans une police à chasse fixe :
+   * une largeur constante est ce qui l'empêche de danser d'une leçon à l'autre. Le
+   * `padStart` ne tronque jamais — un `ordre` à trois chiffres passerait tel quel
+   * plutôt que d'être coupé, ce qui serait un mensonge silencieux sur le numéro.
+   *
+   * La MÊME chaîne alimente la micro-étiquette voisine, pour que le numéro lu par
+   * une technologie d'assistance soit exactement celui qui est dessiné.
+   */
+  readonly numeroDeModule = computed(() => String(this.frontmatter().ordre).padStart(2, '0'));
 
   readonly sections = computed<readonly SectionCompilee[]>(() => this.lecon().sections);
 

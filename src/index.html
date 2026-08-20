@@ -6,41 +6,29 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!--
-      Déclare que le site rend les deux thèmes. Le navigateur en tire la couleur du
-      canevas AVANT la première peinture du CSS : sans cette balise, une page ouverte
-      en thème sombre affiche un flash blanc. Doublé par `color-scheme: light dark`
-      sur `:root` (src/styles.scss) pour les contrôles de formulaire et l'ascenseur.
+      Déclare que le site ne rend QU'UN thème : le sombre (décision D-2 du
+      2026-08-17, phase 1 sombre seul). Le navigateur en tire la couleur du
+      canevas AVANT la première peinture du CSS : sans cette balise, la page
+      s'ouvre sur un flash blanc. Doublé par `color-scheme: dark` sur `:root`
+      (`src/styles/_themes.scss`) pour les contrôles de formulaire et l'ascenseur.
+
+      ⚠️ Ce `content` était « light dark » tant que le site rendait les deux
+      thèmes. E4-ST1, qui livrera le thème clair, le remettra à « light dark » —
+      c'est la moitié `<head>` de ce chantier-là, à ne pas oublier.
     -->
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="dark" />
 
     <!--
-      ⚠️ LE SEUL SCRIPT INLINE DU SITE — ne pas en ajouter un deuxième.
-      `tools/deploiement/generer-config-swa.mjs` le hache depuis l'artéfact vers
-      `script-src` et ÉCHOUE sur tout autre script inline ; ce fichier et lui se
-      lisent ensemble. Inline plutôt que `public/init-theme.js` parce que
-      `public/**` est copié sans empreinte de contenu et servi `immutable` un an.
-      Synchrone dans le `<head>` : il doit poser l'attribut avant la première
-      peinture, sinon un thème épinglé « sombre » flashe en clair au chargement.
-
-      CONTRAT avec le `ThemeService` (E1-ST1-D), qui écrira cette même clé :
-      `drjst-theme` vaut « clair » ou « sombre » pour un thème ÉPINGLÉ ; toute
-      autre valeur (absente, « systeme », inconnue) ne pose AUCUN attribut et
-      laisse `prefers-color-scheme` décider dans `_themes.scss` — l'absence
-      d'attribut EST l'état système. Liste blanche obligatoire : `localStorage`
-      est modifiable par le visiteur. Comportement vérifié par `init-theme.spec.ts`.
+      🔴 AUCUN SCRIPT INLINE SUR CE SITE : `script-src 'self'`, liste blanche de
+      hachages VIDE (bascule E6, 2026-08-20 — l'anti-flash de thème a été retiré).
+      Ajouter un script inline ici CASSE la construction, et c'est voulu.
+      ⚠️ NE JAMAIS ÉCRIRE LA BALISE DE SCRIPT EN CLAIR ICI, commentaire compris —
+      on écrit ‹script› : le contrôle de conservation compte les occurrences BRUTES
+      et ferait échouer la construction sur un dépôt sain (S-011). Parade ÉDITORIALE.
+      Raisonnement complet (pourquoi le script a disparu, pourquoi la préférence de
+      thème n'est pas migrée, pourquoi un hachage se rejoue en revue) : en tête de
+      `tools/deploiement/generer-config-swa.mjs`.
     -->
-    <script id="init-theme">
-      (function () {
-        try {
-          var theme = localStorage.getItem('drjst-theme');
-          if (theme === 'clair' || theme === 'sombre') {
-            document.documentElement.setAttribute('data-theme', theme);
-          }
-        } catch (e) {
-          /* stockage inaccessible : on reste sur le thème système */
-        }
-      })();
-    </script>
 
     <meta
       name="description"
@@ -49,19 +37,27 @@
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
 
     <!--
-      Préchargement des deux sous-ensembles `latin` — les seuls qu'une page
-      française touche à coup sûr. Découverts autrement au moment où le CSS est
-      analysé, donc tard, ce qui allonge la permutation de `font-display: swap`.
+      Préchargement des deux sous-ensembles `latin` du CORPS et des TITRES — les
+      seuls qu'une page française touche à coup sûr, dès le premier écran.
+      Découverts autrement au moment où le CSS est analysé, donc tard, ce qui
+      allonge la permutation de `font-display: swap`.
       Les sous-ensembles `latin-ext` ne sont PAS préchargés : ils ne servent qu'à
-      des caractères rares, les précharger serait 114 Kio payés pour rien.
+      des caractères rares, les précharger serait des dizaines de Kio payés pour
+      rien.
+
+      NE SONT PAS PRÉCHARGÉES NON PLUS, et c'est délibéré : IBM Plex Mono 400
+      (blocs de code — présente plus bas dans la page, pas au premier écran),
+      Silkscreen et Press Start 2P (emplois rares et ponctuels). Précharger une
+      police dont le premier écran n'a pas besoin vole de la bande passante au
+      contenu, ce que `preload` ne pardonne pas : il est prioritaire.
 
       `crossorigin` est OBLIGATOIRE, même en même origine : une police est
       toujours récupérée en mode CORS. Sans cet attribut, le préchargement ne
       correspond pas à la requête de la police et le fichier est téléchargé DEUX
       fois — le contraire de l'effet recherché.
 
-      Noms versionnés (`v20`, `v38`) : `public/**` est copié sans empreinte de
-      contenu alors que les `.woff2` sont servis `immutable` un an. Ces trois
+      Noms versionnés (`v20`) : `public/**` est copié sans empreinte de
+      contenu alors que les `.woff2` sont servis `immutable` un an. Ces deux
       chemins doivent donc changer en même temps que ceux de `_polices.scss`.
     -->
     <link
@@ -73,7 +69,7 @@
     />
     <link
       rel="preload"
-      href="/polices/fraunces-700-latin-v38.woff2"
+      href="/polices/ibm-plex-mono-700-latin-v20.woff2"
       as="font"
       type="font/woff2"
       crossorigin

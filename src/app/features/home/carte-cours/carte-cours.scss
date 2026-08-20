@@ -30,22 +30,20 @@
   display: block;
 }
 
+// G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
+// (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien, et
+// deviennent rigoureusement identiques en contraste forcé.
+//
+// ⚠️ `m.marge-carnet` A ÉTÉ REMPLACÉ PAR `m.cartouche` (bascule E6). Le mixin
+// déprécié posait un filet sur le SEUL bord de début — le vocabulaire du carnet ;
+// le cartouche borne les quatre côtés — celui du moniteur. Il apporte AUSSI le
+// `border-radius: 0` explicite et le rebranchement sur `CanvasText`, qui étaient
+// jusqu'ici écrits à la main juste en dessous.
 .carte {
-  // G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
-  // (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien, et
-  // deviennent rigoureusement identiques en contraste forcé.
-  border: var(--filet-fin) solid var(--couleur-filet);
-
-  // Marge NEUTRE (défaut `--couleur-filet-fort`) : l'encre rouge est la signature
-  // sémantique « vulnérable » du site, elle ne sert jamais d'ornement.
-  @include m.marge-carnet;
+  @include m.cartouche;
 
   padding: var(--espace-4) var(--espace-3);
   background-color: var(--couleur-surface-creuse);
-
-  @include m.contraste-force {
-    border-color: CanvasText;
-  }
 }
 
 // Le tampon « chantier ». WCAG 1.4.1 : l'avertissement ne passe PAS par la
@@ -53,12 +51,9 @@
 // couleur reste une encre neutre, précisément pour ne pas emprunter à la gamme
 // sémantique (rouge = vulnérable) une charge qui n'a rien à voir.
 .chantier {
+  @include m.micro-etiquette;
+
   margin-block-end: var(--espace-2);
-  color: var(--couleur-encre-tertiaire);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
 }
 
 .titre {
@@ -68,6 +63,42 @@
 .description {
   margin-block-end: var(--espace-3);
   color: var(--couleur-encre);
+}
+
+// -----------------------------------------------------------------------------
+// La jauge de progression éditoriale — SEGMENTÉE, jamais lisse
+// -----------------------------------------------------------------------------
+// Des segments discrets, bordés un par un : on COMPTE des modules, on ne mesure
+// pas un pourcentage. Une barre lisse mentirait sur la nature de la grandeur, et
+// « 8 % » ne dit rien à personne là où « 1 module publié sur 13 » dit tout.
+//
+// 🔴 CE DESSIN NE PORTE AUCUNE INFORMATION, ET C'EST LE CONTRAT (WCAG 1.4.1).
+// Le gabarit le pose `aria-hidden` ; le décompte vit dans `.jauge-texte`, en
+// toutes lettres, juste en dessous. C'est pour cela que la disparition des
+// remplissages en `forced-colors: active` — où le système impose ses propres
+// fonds — ne coûte rien : le texte, lui, est toujours là.
+.jauge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-0-5);
+  margin-block-end: var(--espace-1);
+}
+
+.segment {
+  @include m.cartouche;
+
+  flex: 1 1 var(--espace-2);
+  block-size: var(--espace-2);
+}
+
+.segment.rempli {
+  background-color: var(--couleur-accent);
+}
+
+.jauge-texte {
+  @include m.micro-etiquette;
+
+  margin-block-end: var(--espace-3);
 }
 
 // L'appel à l'action — le SEUL élément focalisable neuf de l'accueil.

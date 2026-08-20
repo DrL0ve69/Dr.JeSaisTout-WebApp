@@ -47,15 +47,55 @@
 // l'annonce se déclencherait à chaque chargement de page sans que le visiteur ait
 // rien fait, ce qui est du bruit, pas de l'information.
 .resume {
+  @include m.micro-etiquette;
+
   display: flex;
   flex-wrap: wrap;
   gap: var(--espace-1) var(--espace-3);
+  margin-block-end: var(--espace-2);
+}
+
+// --- Jauge de maîtrise --------------------------------------------------------
+// SEGMENTÉE, jamais lisse : la progression du cours se compte en modules, pas en
+// pourcentage, et une barre continue prétendrait mesurer un continuum qui n'existe
+// pas (la maîtrise vient d'un quiz réussi, jamais du temps passé).
+//
+// Le texte visible porte l'information ; les segments sont `aria-hidden` (gabarit).
+.jauge-libelle {
+  @include m.micro-etiquette;
+
+  margin-block-end: var(--espace-1);
+}
+
+.jauge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-0-5);
   margin-block-end: var(--espace-4);
-  color: var(--couleur-encre-tertiaire);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
+}
+
+// Un segment VIDE reste un cadre, pas un aplat : G7-a — le trait délimite, la
+// teinte de fond ne délimite jamais seule, et elle disparaît en contraste forcé.
+// La hauteur est prise sur l'échelle d'espacement ; la largeur s'étire pour que
+// la jauge remplisse sa ligne quel que soit le nombre de modules.
+.segment {
+  @include m.cartouche;
+
+  flex: 1 1 var(--espace-2);
+  block-size: var(--espace-1);
+}
+
+// Rempli en AMBRE. C'est le seul endroit du sommaire qui colore la maîtrise, et
+// c'est admis : la couleur n'y est pas la seule porteuse d'information — le texte
+// de la jauge donne le compte, et le badge de chaque module donne son mot. En
+// contraste forcé, l'aplat tombe : c'est alors `CanvasText` qui remplit, sinon un
+// segment rempli et un segment vide deviendraient identiques.
+.segment-rempli {
+  background-color: var(--couleur-accent);
+
+  @include m.contraste-force {
+    background-color: CanvasText;
+  }
 }
 
 // --- Groupes de sections ------------------------------------------------------
@@ -86,14 +126,12 @@
 
   // G7-a : un encart est TOUJOURS borné par un trait. Les deux fonds voisins
   // (`surface` / `surface-creuse`) sont à 1,11:1 — ils ne délimitent rien, et
-  // deviennent rigoureusement identiques en contraste forcé.
-  border: var(--filet-fin) solid var(--couleur-filet);
-  border-radius: var(--rayon-carte);
-  background-color: var(--couleur-surface-creuse);
+  // deviennent rigoureusement identiques en contraste forcé. `cartouche` pose ce
+  // trait sur les quatre côtés, écrit `border-radius: 0` et rebranche la couleur
+  // sur `CanvasText` en contraste forcé.
+  @include m.cartouche;
 
-  @include m.contraste-force {
-    border-color: CanvasText;
-  }
+  background-color: var(--couleur-surface-creuse);
 }
 
 .module + .module {
@@ -157,13 +195,18 @@
 // gate d'hydratation. Sa forme au repos est celle de « non commencé », parce que
 // c'est ce que le HTML prerendu contient toujours.
 .badge {
+  @include m.micro-etiquette;
+
   padding: var(--espace-0-5) var(--espace-2);
   border: var(--filet-fin) dashed var(--couleur-filet);
   border-radius: var(--rayon-pastille);
+
+  // 🔴 L'ENCRE EST REDESCENDUE À `tertiaire` APRÈS LE MIXIN, ET C'EST STRUCTURANT.
+  // `micro-etiquette` pose `secondaire`, qui est justement l'encre de l'état
+  // « Lu » : la garder ferait de « À commencer » et de « Lu » deux badges à
+  // l'encre identique, et l'échelle d'encre — l'un des deux canaux non colorés
+  // qui portent l'état — cesserait d'avoir trois barreaux.
   color: var(--couleur-encre-tertiaire);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
   white-space: nowrap;
 
   @include m.contraste-force {

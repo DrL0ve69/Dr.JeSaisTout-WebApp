@@ -268,6 +268,24 @@ export class Sommaire {
 
   readonly libelleCommences = computed(() => accorder(this.nombreCommences(), 'commencé'));
 
+  /**
+   * Le texte VISIBLE de la jauge segmentée — « Maîtrise : 3 / 13 ».
+   *
+   * Il ne se contente pas de doubler la jauge : c'est LUI qui porte l'information,
+   * les segments étant `aria-hidden` (WCAG 1.4.1 — jamais la seule couleur, et ici
+   * jamais la seule forme non plus).
+   *
+   * La forme « n / total » est choisie parce qu'elle N'A PAS DE PLURIEL à accorder :
+   * elle reste juste à 0, à 1 et à 13, là où « 1 modules maîtrisé » demanderait le
+   * `@if` que L-033 interdit dans ce gabarit. Les deux blanches sont des U+00A0
+   * écrites en séquence d'échappement — voir l'en-tête de ce fichier.
+   */
+  readonly libelleJauge = computed(
+    () =>
+      `Maîtrise${ESPACE_INSECABLE}: ${this.nombreMaitrises()}${ESPACE_INSECABLE}/` +
+      `${ESPACE_INSECABLE}${this.nombreModules()}`,
+  );
+
   /** La durée du cours entier, somme des durées annoncées par les leçons publiées. */
   readonly dureeTotale = computed(() =>
     formaterDuree(this.leconsDuSujet().reduce((somme, entree) => somme + entree.dureeEstimee, 0)),

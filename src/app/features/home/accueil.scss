@@ -1,5 +1,5 @@
 // =============================================================================
-// Accueil — mise en page, direction « Carnet de laboratoire »
+// Accueil — mise en page, direction « Moniteur ambre »
 // -----------------------------------------------------------------------------
 // ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
 // `:root`) : un style de composant est une unité de compilation séparée.
@@ -9,22 +9,29 @@
 // ⚠️ AUCUNE PROPRIÉTÉ `order:` DANS CE FICHIER NI DANS CEUX DES DEUX ENFANTS
 // (décision 4 du plan, WCAG 1.3.2) : l'ordre visuel doit rester celui du DOM, qui
 // est celui du clavier et celui de la synthèse vocale. `accueil.spec.ts` le
-// vérifie sur les trois feuilles compilées, pour que la règle ne dépende pas de
-// la vigilance du prochain contributeur.
+// vérifie sur les trois feuilles compilées.
 //
-// UNE SEULE COLONNE, ET C'EST UN CHOIX. Le design system n'expose aucun jeton de
-// point de rupture, et la coquille (`app.scss`, `en-tete.scss`) n'emploie que des
-// mises en page intrinsèques (`flex-wrap`, `gap`) plutôt que des `@media` à
-// valeurs choisies à l'œil. Une colonne unique bornée à la mesure de lecture se
-// replie donc toute seule, de 360 px à un écran large, sans point de rupture à
-// justifier ni risque de désynchroniser l'ordre visuel. Le jour où un jeton de
-// rupture existera, la marginalia de la pièce à conviction est la première
-// candidate à passer en vraie marge, à droite du bloc.
+// TROIS BLOCS, TROIS POIDS — C'EST TOUT LE CORRECTIF DE STRUCTURE. La page
+// empilait auparavant trois blocs de prose de même poids, bornés à la mesure de
+// lecture : rien n'y était un point d'entrée. Désormais la BANDE d'ouverture
+// occupe toute la largeur de page (`--largeur-page`) et porte l'accent, tandis
+// que la PROSE reste bornée à `--largeur-lecture` là où elle se lit vraiment.
+// Aucun point de rupture littéral n'est introduit : les mises en page restent
+// intrinsèques (`flex-wrap`, `gap`), comme partout ailleurs sur le site.
 //
-// CONFINEMENT DES CONTRASTES (décision 2) : la page se pose sur
-// `--couleur-surface` (le fond du `body`), ses deux enfants sur
-// `--couleur-surface-creuse`. `--couleur-surface-elevee` n'apparaît nulle part.
+// G7-a : chaque bloc est borné par un TRAIT (`m.cartouche`), jamais par sa seule
+// teinte de fond — deux surfaces voisines deviennent identiques en
+// `forced-colors: active`.
+//
+// CONFINEMENT DES CONTRASTES : la page et la bande d'ouverture se posent sur
+// `--couleur-surface` (le fond du `body`), le cadre de la pièce à conviction sur
+// `--couleur-surface-creuse`. La bande garde le fond de la page EXPRÈS : le voile
+// que peint `PluieGlyphes` pour fabriquer sa traîne est justement
+// `--couleur-surface`, et un fond différent verrait le décor le recouvrir peu à
+// peu. `--couleur-surface-elevee` n'apparaît nulle part.
 // =============================================================================
+
+@use '../../../styles/mixins' as m;
 
 :host {
   display: block;
@@ -33,36 +40,213 @@
 
 .accueil {
   display: grid;
-
-  // Un carnet respire : le rythme vertical est la seule « décoration » de cette
-  // page avec les filets.
   gap: var(--espace-6);
-  max-inline-size: var(--largeur-lecture);
+
+  // La PAGE, pas la mesure de lecture : la bande d'ouverture et le cadre de
+  // preuve prennent la largeur, la prose se borne bloc par bloc (voir plus bas).
+  max-inline-size: var(--largeur-page);
   margin-inline: auto;
 }
 
-// Le tampon d'ouverture et celui de la pièce à conviction. L'information passe
-// par les mots, la casse et la chasse — jamais par la seule couleur (WCAG 1.4.1),
-// et l'encre reste neutre : le rouge est la signature « vulnérable » du site.
-.tampon {
+// -----------------------------------------------------------------------------
+// Micro-étiquettes — l'information passe par les MOTS, la casse et la chasse,
+// jamais par la seule couleur (WCAG 1.4.1). L'encre reste neutre : le rouge est
+// la signature « vulnérable » du site et l'ambre celle de la marque.
+// -----------------------------------------------------------------------------
+.etiquette {
+  @include m.micro-etiquette;
+
   margin-block-end: var(--espace-2);
-  color: var(--couleur-encre-tertiaire);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
+}
+
+// -----------------------------------------------------------------------------
+// La bande d'ouverture — le seul endroit du site où l'ambiance a droit de cité
+// -----------------------------------------------------------------------------
+// `position: relative` + `overflow: hidden` : ils bornent la couche de décor
+// (`app-pluie-glyphes`, en `position: absolute; inset: 0`) au rectangle de la
+// bande. Sans `overflow`, les glyphes déborderaient sur la page entière ; sans
+// `position`, ils se caleraient sur le bloc conteneur le plus proche, c'est-à-dire
+// le document.
+.ouverture {
+  @include m.cartouche;
+
+  position: relative;
+  overflow: hidden;
+  padding: var(--espace-8) var(--espace-4);
+  background-color: var(--couleur-surface);
+}
+
+// Le texte est peint PAR-DESSUS la couche de décor. `position: relative` suffit à
+// l'empiler au-dessus sans `z-index` : dans le même contexte d'empilement, un
+// élément positionné passe devant un élément positionné plus haut dans le DOM.
+// Rien ici ne dépend du JavaScript — sans lui, le canevas reste vide et cette
+// colonne est exactement ce qu'elle est avec.
+.ouverture-contenu {
+  position: relative;
+}
+
+// -----------------------------------------------------------------------------
+// 🔴 L'AMBIANCE NE PASSE PAS DERRIÈRE LE TEXTE — G11, constaté par CAPTURE
+// -----------------------------------------------------------------------------
+// La couche de décor était posée en `inset: 0` : elle couvrait donc toute la
+// bande, y compris la colonne de lecture. Sur une capture de l'artéfact servi, le
+// chapô et les deux boutons se lisaient PAR-DESSUS des glyphes — passable à
+// 1440 px, franchement gênant à 390 px.
+//
+// ⚠️ AUCUN GATE NE POUVAIT L'ATTRAPER, et c'est la leçon à retenir : axe ne
+// mesure pas du texte sur une image de fond, et le gate de contraste compare des
+// paires de JETONS, pas des pixels. C'est la famille L-025 du dépôt — un style
+// calculé juste ne prouve pas un pixel peint ; seule une capture le prouve.
+//
+// 🔴 POURQUOI `inset` ET SURTOUT PAS `display`. Les deux parades du composant
+// d'ambiance (`prefers-reduced-motion` et `forced-colors`) sont portées par
+// `display: none` sur son `:host`. Or, en encapsulation émulée, le sélecteur
+// d'élément d'une feuille PARENTE (`app-pluie-glyphes[_ngcontent-…]`, 0-1-1)
+// l'emporte sur `:host` (`[_nghost-…]`, 0-1-0) : une surcharge de `display`
+// écrite ici écraserait les deux parades EN SILENCE, et la pluie tournerait chez
+// qui a demandé moins d'animation. On déplace donc la couche, on ne la masque
+// jamais depuis l'extérieur.
+app-pluie-glyphes {
+  // Étroit : la colonne de texte occupe toute la bande, il n'y a pas de place
+  // pour du décor — donc il n'y en a pas. La couche est poussée hors du cadre,
+  // que `.ouverture` rogne déjà (`overflow: hidden`). Sa largeur mesurée tombe à
+  // zéro, le canevas n'a plus rien à peindre.
+  inset-inline-start: 100%;
+
+  // Large : le décor occupe la bande libre à DROITE de la colonne de lecture, et
+  // rien d'autre. La valeur est accordée à `max-inline-size` ci-dessous, avec une
+  // gouttière — les deux se lisent ensemble ou pas du tout.
+  @media (min-width: 64rem) {
+    inset-inline-start: 46rem;
+  }
+}
+
+// La colonne de lecture est bornée pour laisser cette bande libre. Sans elle, le
+// chapô courrait jusqu'au bord et repasserait sous les glyphes : la contrainte
+// vaut pour les DEUX moitiés du réglage.
+@media (min-width: 64rem) {
+  .ouverture-contenu {
+    max-inline-size: 42rem;
+  }
+}
+
+// Le titre d'affichage. `--police-jalon` (Press Start 2P) est INTERDITE ici : son
+// rôle est fermé au numéro de module, au verdict de quiz et au code d'erreur 404
+// (`src/styles/police-jalon.spec.ts`). Le caractère « affichage » vient donc de
+// l'échelle, des capitales et de la chasse, pas d'un changement de fonte.
+.titre {
+  letter-spacing: var(--chasse-titre);
   text-transform: uppercase;
 }
 
+// G9 : UNE seule couleur de marque, dépensée à UN seul endroit de la page. La
+// moitié du nom passe à l'ambre ; l'information ne dépend pas de cette couleur —
+// le nom se lit entier en niveaux de gris comme en contraste forcé.
+.titre-marque {
+  color: var(--couleur-accent);
+}
+
 .chapo {
+  max-inline-size: var(--largeur-lecture);
   margin-block-start: var(--espace-3);
   color: var(--couleur-encre-secondaire);
   font-size: var(--taille-m);
 }
 
+// -----------------------------------------------------------------------------
+// Les deux appels à l'action
+// -----------------------------------------------------------------------------
+// `flex-wrap` plutôt qu'un point de rupture : à 360 px les deux boutons se
+// rangent l'un sous l'autre d'eux-mêmes, sans valeur choisie à l'œil.
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+  margin-block-start: var(--espace-4);
+}
+
+.bouton {
+  @include m.cartouche(var(--couleur-accent), var(--filet-moyen));
+  @include m.micro-etiquette;
+  @include m.focus-visible;
+
+  display: inline-flex;
+  align-items: center;
+
+  // Cible confortable : WCAG 2.2 · 2.5.8 exige 24 px, la barre du projet est
+  // 44 px ; `--espace-6` vaut 3rem = 48 px, comme les liens de l'en-tête.
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-3);
+  text-decoration: none;
+  transition:
+    background-color var(--duree-breve) var(--courbe-nette),
+    color var(--duree-breve) var(--courbe-nette);
+
+  @include m.mouvement-reduit {
+    transition-duration: 0.01ms;
+  }
+
+  @include m.contraste-force {
+    border-color: LinkText;
+  }
+}
+
+// Le plein et le contour S'INVERSENT au survol : c'est le même geste, pas deux
+// traitements différents — et ni l'un ni l'autre ne perd son trait, donc aucun
+// des deux ne disparaît en contraste forcé.
+.bouton-plein {
+  background-color: var(--couleur-accent);
+  color: var(--couleur-sur-accent);
+
+  &:hover {
+    background-color: transparent;
+    color: var(--couleur-accent);
+  }
+}
+
+.bouton-contour {
+  background-color: transparent;
+  color: var(--couleur-accent);
+
+  &:hover {
+    background-color: var(--couleur-accent);
+    color: var(--couleur-sur-accent);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// La pièce à conviction
+// -----------------------------------------------------------------------------
 .sous-titre {
   margin-block-end: var(--espace-2);
 }
 
 .intro {
+  max-inline-size: var(--largeur-lecture);
   margin-block-end: var(--espace-3);
+}
+
+// Le cadre à barre de titre : l'extrait cesse d'être un paragraphe parmi
+// d'autres, il devient une fenêtre de moniteur. La barre est un LIBELLÉ, pas un
+// contrôle — aucun bouton de fenêtre dessiné (G4 : un seul langage graphique, et
+// surtout aucune icône figurative qui promettrait une interaction inexistante).
+.cadre {
+  @include m.cartouche;
+
+  background-color: var(--couleur-surface-creuse);
+}
+
+.cadre-barre {
+  @include m.micro-etiquette;
+
+  padding: var(--espace-2) var(--espace-3);
+  border-block-end: var(--filet-fin) solid var(--couleur-filet);
+
+  @include m.contraste-force {
+    border-block-end-color: CanvasText;
+  }
+}
+
+.cadre-corps {
+  padding: var(--espace-3);
 }

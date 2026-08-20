@@ -1,5 +1,5 @@
 // =============================================================================
-// EnTete — la bande de tête du site : logotype, navigation, bascule de thème
+// EnTete — la bande de tête du site : logotype et navigation
 // -----------------------------------------------------------------------------
 // ⚠️ AUCUN `<h1>` ICI, ET C'EST UNE RÈGLE, PAS UN OUBLI. Chaque page routée porte
 // déjà son unique `<h1>` ; un second dans l'en-tête en mettrait deux sur TOUTES
@@ -39,18 +39,28 @@
 // WCAG 2.2 · 2.5.3 (« Étiquette dans le nom ») pour que « clique sur
 // Dr. Je-Sais-Tout » fonctionne. Contrat verrouillé par `en-tete.spec.ts`.
 //
-// La bascule de thème est composée ICI, dans l'en-tête : c'est là qu'un visiteur
-// la cherche, et l'`App` n'a pas à connaître son existence.
+// ⚠️ LE MENU COMPACT EST UN `<details>` NATIF, ET IL N'Y A QU'UN SEUL `<nav>`.
+// Sous ~840 px les liens se replient derrière un résumé ; au-delà, le résumé est
+// masqué et la liste redevient une barre horizontale — sur le MÊME balisage. Le
+// raisonnement complet (L-033, double `aria-current`, repli `@supports`) est
+// écrit au point d'appel : dans le gabarit ci-dessous et dans `en-tete.scss`.
+//
+// ⚠️ IL N'Y A PLUS DE BASCULE DE THÈME ICI (bascule E6, 2026-08-20). La phase 1
+// ne rend qu'UN thème, le sombre (décision D-2 du 2026-08-17) : une commande qui
+// n'offre aucun choix est un contrôle mort dans la barre de navigation, et elle
+// coûtait quatre arrêts de tabulation, un bloc `<style>` haché dans `style-src`
+// et le script inline anti-flash de `src/index.html` — donc le seul hachage de
+// `script-src`. Le composant `BasculeTheme` et tout `core/theme/` RESTENT dans le
+// dépôt, sans consommateur : E4-ST1 livre le thème clair et les recompose ici.
+// C'est une mise en réserve délibérée, pas un oubli.
 // =============================================================================
 
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
-import { BasculeTheme } from '../bascule-theme/bascule-theme';
-
 @Component({
   selector: 'app-en-tete',
-  imports: [RouterLink, RouterLinkActive, BasculeTheme],
+  imports: [RouterLink, RouterLinkActive],
   template: `
     <header class="en-tete">
       <!--
@@ -64,33 +74,60 @@ import { BasculeTheme } from '../bascule-theme/bascule-theme';
         <span class="titre-long">Je-Sais-Tout</span>
       </a>
 
-      <nav class="navigation" aria-label="Navigation principale">
-        <ul class="liens">
-          <li>
-            <a
-              routerLink="/"
-              routerLinkActive="est-actif"
-              [routerLinkActiveOptions]="{ exact: true }"
-              #accueilActif="routerLinkActive"
-              [attr.aria-current]="accueilActif.isActive ? 'page' : null"
-            >
-              Accueil
-            </a>
-          </li>
-          <li>
-            <a
-              routerLink="/cours/securite-web"
-              routerLinkActive="est-actif"
-              #coursActif="routerLinkActive"
-              [attr.aria-current]="coursActif.isActive ? 'page' : null"
-            >
-              Sécurité des applications web
-            </a>
-          </li>
-        </ul>
-      </nav>
+      <!--
+        MENU COMPACT EN <details>/<summary> NATIF, ET C'EST UN CHOIX MESURÉ.
+        withNoIncrementalHydration() est actif et toutes les routes sont
+        prerendues : entre la peinture du HTML et l'hydratation, un bouton
+        Angular A L'AIR VIVANT SANS L'ÊTRE — le clic est perdu, sans le moindre
+        signe (piège L-033, déjà payé deux fois dans ce dépôt). <details>
+        fonctionne AVANT tout script, et apporte gratuitement le clavier, le
+        focus et l'état ouvert/fermé annoncé. Aucun (click) ici, donc.
 
-      <app-bascule-theme />
+        ⚠️ UN SEUL <nav>, ENVELOPPÉ — jamais deux copies pour deux points de
+        rupture. Deux listes rendues donneraient deux aria-current="page"
+        simultanés (exactement le plan faux que { exact: true } existe pour
+        empêcher), deux jeux d'arrêts de tabulation, et un repère de navigation
+        en double chez axe. Le repli en barre horizontale se fait entièrement en
+        CSS, sur le MÊME balisage (en-tete.scss).
+      -->
+      <details class="menu">
+        <summary class="bascule-menu">
+          <!--
+            Trois barres dessinées en CSS (G4 : un seul langage graphique, le
+            trait net) — jamais un emoji, jamais une icône importée. Ce span est
+            vide et hors de l'arbre d'accessibilité ; le nom du bouton vient du
+            texte « Menu » qui le suit.
+          -->
+          <span class="barres" aria-hidden="true"></span>
+          <span class="etiquette-menu">Menu</span>
+        </summary>
+
+        <nav class="navigation" aria-label="Navigation principale">
+          <ul class="liens">
+            <li>
+              <a
+                routerLink="/"
+                routerLinkActive="est-actif"
+                [routerLinkActiveOptions]="{ exact: true }"
+                #accueilActif="routerLinkActive"
+                [attr.aria-current]="accueilActif.isActive ? 'page' : null"
+              >
+                Accueil
+              </a>
+            </li>
+            <li>
+              <a
+                routerLink="/cours/securite-web"
+                routerLinkActive="est-actif"
+                #coursActif="routerLinkActive"
+                [attr.aria-current]="coursActif.isActive ? 'page' : null"
+              >
+                Sécurité des applications web
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </details>
     </header>
   `,
   styleUrl: './en-tete.scss',

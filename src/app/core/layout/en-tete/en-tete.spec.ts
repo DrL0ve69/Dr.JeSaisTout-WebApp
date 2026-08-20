@@ -26,7 +26,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, Routes, provideRouter } from '@angular/router';
 
-import { ATTRIBUT_THEME } from '../../theme/theme';
 import { EnTete } from './en-tete';
 
 /** Harnais de routes : de quoi faire changer l'URL, rien de plus. */
@@ -55,19 +54,19 @@ async function creerSur(url: string): Promise<ComponentFixture<EnTete>> {
 }
 
 describe('EnTete', () => {
+  // ⚠️ PLUS AUCUN NETTOYAGE DE `data-theme` NI DE `localStorage` ICI, et c'est un
+  // retrait raisonné (L-029 : une règle appliquée PAR ACCIDENT disparaît sans
+  // bruit quand on refactorise l'accident — autant la retirer en le disant).
+  // Ces deux lignes existaient parce que l'en-tête composait `<app-bascule-theme>`,
+  // qui instanciait le `ThemeService`, qui écrivait sur `<html>` — un élément
+  // partagé par tout le run. L'en-tête ne compose plus la bascule (E6) : il ne
+  // touche plus ni à l'attribut ni au stockage. Un nettoyage qui ne nettoie rien
+  // laisserait croire que ce fichier a encore un effet de bord global.
   beforeEach(() => {
-    document.documentElement.removeAttribute(ATTRIBUT_THEME);
     TestBed.configureTestingModule({
       imports: [EnTete],
       providers: [provideRouter(ROUTES_HARNAIS)],
     });
-  });
-
-  afterEach(() => {
-    // La bascule composée dans l'en-tête instancie le `ThemeService`, qui écrit
-    // sur `<html>` — élément partagé par tout le run.
-    document.documentElement.removeAttribute(ATTRIBUT_THEME);
-    window.localStorage.clear();
   });
 
   describe('structure', () => {
@@ -145,13 +144,66 @@ describe('EnTete', () => {
       ]);
     });
 
-    it('compose la bascule de thème DANS l’en-tête', async () => {
-      // Elle vit ici, pas dans `App` : c'est là qu'un visiteur la cherche. On
-      // vérifie qu'elle est bien RENDUE (le fieldset), pas seulement déclarée.
+    it('n’expose QU’UN SEUL `<nav>` — le menu compact ENVELOPPE la liste, il ne la duplique pas', async () => {
+      // 🔴 LE TEST QUI TIENT LE MENU COMPACT (E6). La façon « évidente » de faire
+      // un menu responsive est de rendre la liste DEUX FOIS — une barre pour le
+      // large, un panneau pour l'étroit — puis d'en masquer une par media query.
+      // Trois conséquences, toutes invisibles à l'œil : deux liens porteraient
+      // `aria-current="page"` en même temps (exactement le plan faux que
+      // `{ exact: true }` existe pour empêcher, et que le test « une seule page
+      // courante » ci-dessous ne verrait PAS, puisqu'il compte des textes), deux
+      // jeux d'arrêts de tabulation dont un vers des liens masqués, et un repère
+      // de navigation en double chez axe. Un `display: none` en CSS ne retire
+      // rien de tout cela du DOM rendu.
       const fixture = await creerSur('/');
       const hote = fixture.nativeElement as HTMLElement;
 
-      expect(hote.querySelector('header app-bascule-theme fieldset')).not.toBeNull();
+      expect(hote.querySelectorAll('nav').length).toBe(1);
+      expect(liens(fixture).length).toBe(2);
+    });
+
+    it('replie la navigation derrière un `<details>` NATIF, sans le moindre gestionnaire', async () => {
+      // `withNoIncrementalHydration()` est actif et toutes les routes sont
+      // prerendues : un bouton Angular aurait l'air vivant sans l'être pendant
+      // la fenêtre d'hydratation (L-033). `<details>`/`<summary>` fonctionne
+      // avant tout script — c'est CE contrat-là qu'on verrouille, et il se perd
+      // silencieusement si quelqu'un « modernise » le résumé en `<button>`.
+      const fixture = await creerSur('/');
+      const hote = fixture.nativeElement as HTMLElement;
+
+      const details = hote.querySelector<HTMLDetailsElement>('header details');
+      const resume = details?.querySelector(':scope > summary');
+
+      expect(details).not.toBeNull();
+      expect(resume).not.toBeNull();
+      // La navigation vit DANS le `<details>` : c'est ce qui fait qu'il n'y en a
+      // qu'une seule, repliée ou dépliée selon la largeur, jamais deux.
+      expect(details?.querySelector('nav')).not.toBeNull();
+      // Fermé au chargement : le panneau ne doit pas s'ouvrir tout seul sur un
+      // petit écran, ni pousser le contenu avant la moindre interaction.
+      expect(details?.open).toBe(false);
+    });
+
+    it('ne rend AUCUNE bascule de thème — phase 1 = sombre seul', async () => {
+      // ⚠️ TEST INVERSÉ LE 2026-08-20 (bascule E6), et il prouve autant que celui
+      // qu'il remplace. L'ancien exigeait le `fieldset` de `<app-bascule-theme>`
+      // rendu dans l'en-tête ; la phase 1 n'a plus qu'un thème (décision D-2), et
+      // une commande qui n'offre aucun choix est un contrôle mort.
+      //
+      // CE QU'IL ATTRAPE, CONCRÈTEMENT : une recomposition accidentelle de la
+      // bascule. Elle ne serait pas un simple détail visuel — elle rouvrirait le
+      // besoin du script inline anti-flash, donc d'un hachage dans `script-src`,
+      // que ce lot vient précisément de ramener à ZÉRO. Ce test est le premier
+      // maillon de cette chaîne, et le moins cher à lire.
+      //
+      // ⚠️ E4-ST1 EST PROPRIÉTAIRE DE CE TEST : le jour où le thème clair revient,
+      // c'est ici qu'on réinverse — après avoir traité `src/index.html`,
+      // `_themes.scss` et `generer-config-swa.mjs`, pas avant.
+      const fixture = await creerSur('/');
+      const hote = fixture.nativeElement as HTMLElement;
+
+      expect(hote.querySelector('app-bascule-theme')).toBeNull();
+      expect(hote.querySelector('header fieldset')).toBeNull();
     });
   });
 

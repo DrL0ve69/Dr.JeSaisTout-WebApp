@@ -355,3 +355,40 @@
     margin-block-start: var(--espace-3);
   }
 }
+
+// -----------------------------------------------------------------------------
+// Le verdict de réussite
+// -----------------------------------------------------------------------------
+// 🔴 EMPLOI ADMIS N°2 DE LA POLICE DE JALON (`src/styles/police-jalon.spec.ts`).
+// Press Start 2P a une chasse d'environ le DOUBLE de celle d'IBM Plex Mono : la
+// taille reste donc à `--taille-s` (16 px), où elle pèse déjà comme un `--taille-l`
+// en police de titres. `line-height` reste l'interlignage de corps (1.6) — WCAG
+// 1.4.12 veut qu'un lecteur puisse imposer le sien.
+//
+// EN VERT « CORRIGÉ », PAS EN AMBRE, ET C'EST UNE DÉCISION SÉMANTIQUE : réussir un
+// quiz a exactement le sens de corriger un exemple vulnérable, et le site n'a
+// qu'un seul vocabulaire pour ça. `--couleur-ok-corrige` sur
+// `--couleur-surface-creuse` est une paire déjà mesurée (voir l'en-tête).
+//
+// Le trait plein reprend celui de `marque-pedagogique('corrige')` : en
+// `forced-colors: active`, la couleur tombe sur `CanvasText` et c'est le style du
+// trait — plus le MOT, qui est écrit — qui porte encore le sens (G7-b).
+//
+// Vide tant que le seuil n'est pas franchi : rien à peindre, donc rien à espacer.
+.verdict-reussite {
+  color: var(--couleur-ok-corrige);
+  font-family: var(--police-jalon);
+  font-size: var(--taille-s);
+  line-height: var(--interligne-corps);
+
+  &:not(:empty) {
+    margin-block-start: var(--espace-3);
+    padding-inline-start: var(--espace-2);
+    border-inline-start: var(--filet-marge) solid var(--couleur-ok-corrige);
+  }
+
+  @include m.contraste-force {
+    border-inline-start-color: CanvasText;
+    color: CanvasText;
+  }
+}

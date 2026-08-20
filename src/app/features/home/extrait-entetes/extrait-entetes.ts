@@ -16,10 +16,19 @@
 // où la configuration change, le test rougit — le site ne peut pas se mettre à
 // afficher une preuve périmée en silence.
 //
-// POURQUOI CES QUATRE LIGNES-LÀ. Ce sont les plus STABLES : aucune ne porte de
-// jeton `__HACHAGES_*__` (contrairement à `script-src` et `style-src`, réécrites à
-// chaque build), et le nom de l'en-tête HSTS est montré SANS sa valeur — figer un
-// `max-age` dans une page serait promettre une durée qu'on changera.
+// POURQUOI CES LIGNES-LÀ. Ce sont les plus STABLES : aucune ne porte de jeton
+// `__HACHAGES_*__` (contrairement à `style-src`, réécrite à chaque build), et le
+// nom de l'en-tête HSTS est montré SANS sa valeur — figer un `max-age` dans une
+// page serait promettre une durée qu'on changera.
+//
+// 🔴 `script-src 'self'` A ÉTÉ AJOUTÉ LE 2026-08-20 (bascule E6), et il n'y est pas
+// par cosmétique. Jusque-là cette directive portait `__HACHAGES_SCRIPT__` — un
+// hachage réécrit à chaque build, donc impossible à montrer honnêtement dans une
+// page. Le site n'ayant plus AUCUN script inline, elle s'écrit maintenant en dur
+// dans `config/staticwebapp.config.source.json` : elle devient à la fois la ligne
+// la plus stable de la politique et la plus intéressante à enseigner — une liste
+// blanche d'inline VIDE est le cas le plus fort, et c'est ce que ce site sert.
+// L'omettre laisserait l'accueil afficher une CSP qui n'est plus celle qu'on sert.
 //
 // ⚠️ STRUCTURE IMPOSÉE (décision 3 du plan) : `<figure>` → `<pre><code>` +
 // `<figcaption>`, `aria-label` sur la figure, et `overflow-x: auto` posé SUR LE
@@ -50,16 +59,17 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     <figure class="piece" aria-label="Extrait des en-têtes de sécurité servis par ce site">
       <pre class="extrait"><code>Content-Security-Policy:
   default-src 'self'
+  script-src 'self'
   object-src 'none'
   frame-ancestors 'none'
 
 Strict-Transport-Security</code></pre>
 
       <p class="marginalia">
-        En clair&nbsp;: la page ne charge que ce qui vient de ce domaine, aucun greffon ne s’y
-        exécute, aucun autre site ne peut l’encadrer à votre insu, et le navigateur refuse d’y
-        revenir en HTTP clair. Chacune ferme une porte par défaut, avant qu’une faille ait eu
-        l’occasion d’exister.
+        En clair&nbsp;: la page ne charge que ce qui vient de ce domaine, elle n’exécute aucun script
+        écrit dans le HTML — pas même les siens&nbsp;—, aucun greffon ne s’y exécute, aucun autre
+        site ne peut l’encadrer à votre insu, et le navigateur refuse d’y revenir en HTTP clair.
+        Chacune ferme une porte par défaut, avant qu’une faille ait eu l’occasion d’exister.
       </p>
 
       <figcaption class="cartel">
