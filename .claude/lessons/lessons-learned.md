@@ -405,6 +405,19 @@ propre à celle-ci : jamais de `node -e "…"` avec des `$variables` shell en gu
 **Réfs addendum 2.** passe de fusion KB E3-ST0 (registre de progression) ; cousine directe des deux
 variantes ci-dessus.
 
+**Addendum (lot E6) — la même leçon repayée DEUX fois la même journée par deux agents distincts, sur
+`design-system.spec.ts` et `tools/design/verifier-contrastes.mjs` : un `replace()` sur une ancre
+multi-ligne écrite en `\n` ne mute RIEN dans un fichier CRLF, et échoue en SILENCE.** Corollaire
+découvert au passage, sur un axe neuf (le TRANSPORT, pas le fichier) : **un script d'édition
+s'écrit dans un fichier, jamais collé en ligne de commande** — le shell mange les échappements
+(antislashs, apostrophes) au passage, ce qui a corrompu deux fois un fichier de test et forcé une
+réparation manuelle. Règle : tout script d'édition (1) détecte la fin de ligne réelle du fichier et
+aligne son motif dessus, (2) vérifie qu'une mutation a bien eu lieu avant d'écrire, (3) est lui-même
+un fichier sur disque, jamais un one-liner passé en argument de commande.
+
+**Réfs addendum 3.** lot E6 « Moniteur ambre » ; `src/app/pages/accueil/design-system.spec.ts` ;
+`tools/design/verifier-contrastes.mjs`.
+
 ---
 
 ## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
@@ -634,6 +647,20 @@ directement le garde-fou mécanisable déjà signalé ci-dessus : une règle ESL
 `PostToolUse`/gate CI) qui refuse un backtique à l'intérieur d'un commentaire HTML `<!-- … -->`
 présent dans un littéral `template: \`…\`` d'un `.ts`. **Signalé à `.claude/rules/angular-best-practices.md`
 pour que ce geste y soit porté en dur**, plutôt que de rester une entrée de plus dans ce fichier.
+
+**⚠️ Quatrième, cinquième et sixième occurrences (lot E6, même journée, trois agents indépendants) —
+la décision ci-dessus n'a pas été exécutée, et le piège a mordu de nouveau.** `en-tete.ts`,
+`page-introuvable.ts`, `lecon.ts`, `quiz.ts` : même geste, même symptôme (`Parsing error: ','
+expected` / `TS1005`/`TS2554` sur une ligne sans rapport). La leçon écrite ne protège toujours pas —
+elle n'a simplement jamais été portée en gate, malgré l'avoir déjà écrit noir sur blanc au tour
+précédent. **Ce n'est plus une leçon à relire, c'est une action non faite à finir** : quelqu'un doit
+réellement écrire la règle ESLint/le hook `PostToolUse` signalé ci-dessus — tant que ce n'est pas
+fait, chaque agent qui écrit un commentaire dans un `template:` inline repayera cette leçon. Parade
+immédiate en attendant l'outillage : dans un gabarit inline, ne **jamais** citer de code entre
+accents graves dans un commentaire HTML — le dire, en clair ou entre guillemets « ».
+
+**Réfs 4-6.** `src/app/core/layout/en-tete/en-tete.ts` ; `src/app/pages/page-introuvable/…` ; page de
+leçon (`lecon.ts`) ; `quiz.ts` — lot E6 « Moniteur ambre », 2026-08-20.
 
 ---
 
@@ -1009,6 +1036,15 @@ fichier qu'on croyait porter un échappement inoffensif. Corollaire : toute asse
 libellé produit doit **copier** l'U+00A0 depuis sa source (ou l'écrire en ` ` dans un littéral,
 jamais recopié tel quel par un outil qui l'interprète), et un script générateur de fichier source
 doit être relu pour ce qu'il écrit **au disque**, pas pour ce qu'il affiche à l'écran.
+
+**Addendum (lot E6) — un chiffre annoncé dans un BRIEF de coordinateur est un chiffre mesuré comme
+un autre, il se remesure avant d'être recopié dans un livrable.** Le coordinateur a écrit deux fois
+« les arrêts de tabulation passent de 7 à 9 » dans des briefs successifs ; la mesure réelle donne
+**8** (7 − 1 groupe de radios retiré + 2 boutons). Même défaut que (a) ci-dessus, vu depuis
+**l'amont** du test plutôt que depuis le test lui-même : un chiffre qui voyage d'un brief à l'autre
+sans être recompté est un chiffre recopié, pas mesuré.
+
+**Réfs addendum.** briefs de lot E6 « Moniteur ambre », arrêts de tabulation du composant en-tête.
 
 ---
 
@@ -1947,6 +1983,73 @@ utf8`.
 
 **Réfs addendum.** lot de correctifs E3-ST1 (restauration de `package.json` après mutation) ;
 [[L-015]].
+
+---
+
+## L-070 · Un commentaire qui promet « hors périmètre » ou « pas encore » ment dès que le MÊME lot fait le travail qu'il annonçait comme futur
+
+**Symptôme.** Trois occurrences dans le même lot (E6). `accueil.ts` renvoyait à « un lot e2e » pour
+des specs **modifiées dans le même diff**. `police-jalon.spec.ts` livrait un garde-fou en `it.skip`
+« à activer quand les trois emplois existeront » — les trois emplois étaient **posés dans le même
+commit**. `design-system.spec.ts` justifiait un retrait en pointant une source **supprimée dans le
+même commit**. Les trois commentaires étaient vrais au moment où la main les a écrits (au début du
+lot) et faux au moment où le lot a fini — personne n'est repassé les relire.
+
+**Règle.** Au dernier geste d'un lot, relire **tous les commentaires qui contiennent un futur** («
+doivent être », « quand », « à activer », « pas encore », « un lot ultérieur », « hors périmètre ») et
+vérifier qu'ils décrivent encore un état vrai au moment du commit — sinon les corriger ou les retirer.
+Corollaire côté **brief** : un coordinateur qui demande d'écrire un garde-fou **désactivé** en
+promettant « les emplois viendront au lot suivant » doit lui-même prévoir le geste qui le rallume —
+un garde-fou livré éteint ne garde rien, et rien dans le processus ne rappelle de le rallumer si ce
+n'est écrit nulle part comme tâche de clôture.
+
+**Réfs.** `src/app/pages/accueil/accueil.ts` ; `src/app/…/police-jalon.spec.ts` ;
+`src/app/pages/accueil/design-system.spec.ts` — lot E6 « Moniteur ambre », 2026-08-20.
+
+---
+
+## L-071 · Une propriété CSS DÉCLARÉE deux fois (une base, une surcharge) ne prouve rien sur laquelle GAGNE — et un garde-fou qui compte un motif dans une source compte aussi ses commentaires
+
+**Symptôme.** `src/styles.scss` posait `color-scheme: light dark` et `_themes.scss` posait
+`color-scheme: dark`. `styles.scss` important `_themes.scss` par `@use`, ses propres règles sont
+écrites **après** : à spécificité égale, `light dark` gagnait — le site annonçait au navigateur un
+mode clair possible malgré une phase 1 sombre seule. Le test existant n'assertionnait que la
+**présence** de la chaîne `color-scheme: dark` quelque part dans la feuille compilée : il restait
+**vert** sur cette régression, la chaîne étant bien là, juste perdante. Second défaut du même lot, sur
+le correctif lui-même : une assertion « plus aucun `prefers-color-scheme` » rougissait sur une feuille
+saine, parce que le **commentaire qui explique le correctif** cite forcément le motif qu'il supprime.
+
+**Règle.** (a) Mesurer ce qui est **appliqué** (CSS compilé résolu, style calculé, pixel peint),
+jamais ce qui est **déclaré quelque part** — un garde-fou juste ici est « `color-scheme` apparaît une
+seule fois hors `@media print` », pas « `color-scheme: dark` est présent ». Cousine de [[L-021]]
+(un `getComputedStyle` sec ment) et [[L-025]] (un style calculé correct ne prouve pas un pixel peint),
+sur un axe neuf : ici c'est la **spécificité/l'ordre de deux déclarations concurrentes**, pas le
+délai d'une transition. (b) Un garde-fou qui compte un motif dans un fichier source doit d'abord
+**décommenter** avant de compter, ou distinguer contenu actif et commentaire explicatif — même
+patron que le garde-fou de police du jalon (cf. `police-jalon.spec.ts`).
+
+**Réfs.** `src/styles.scss` ; `src/styles/_themes.scss` — lot E6 « Moniteur ambre », 2026-08-20.
+
+---
+
+## L-072 · jsdom 28 n'expose plus `matchMedia`/`requestAnimationFrame`/`ResizeObserver` — un test qui les pose sans doublure lève sur l'INSTRUMENT, jamais sur le produit
+
+**Symptôme.** `vi.spyOn(window, 'matchMedia')` lève dans ce dépôt : jsdom 28 ne fournit plus
+`matchMedia` par défaut (ni `requestAnimationFrame`, ni `ResizeObserver`) — `spyOn` ne peut pas
+espionner une méthode absente. Deuxième piège dans le même lot : un test qui **compte** les appels à
+un effet global (`requestAnimationFrame`, `setTimeout`) attribue au composant testé le bruit de
+l'ordonnanceur **zoneless** d'Angular, qui pose son propre `rAF` indépendamment du composant.
+
+**Règle.** (a) Sur ce dépôt, une doublure de `matchMedia`/`rAF`/`ResizeObserver` s'installe **par
+affectation directe** (`window.matchMedia = vi.fn(...)`), jamais par `vi.spyOn` sur une méthode que
+jsdom n'a jamais fournie — et se restaure explicitement en fin de test (`restoreAllMocks` ne défait
+pas une affectation directe, seulement un spy). (b) Pour mesurer un effet qu'un composant seul
+déclenche, mesurer sur une doublure ce que **le composant** touche, jamais un compteur global partagé
+avec l'ordonnanceur du framework. ⚠️ `src/app/core/theme/theme.spec.ts` porte encore un commentaire
+affirmant que « jsdom fournit toujours `matchMedia` » — c'est faux depuis jsdom 28, et ce commentaire
+enverra le prochain lecteur dans le mur ; à corriger au prochain passage sur ce fichier.
+
+**Réfs.** `src/app/core/theme/theme.spec.ts` — lot E6 « Moniteur ambre », 2026-08-20.
 
 ---
 

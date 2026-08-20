@@ -2737,11 +2737,11 @@ le **geste suivant** que le propriétaire a désigné, avant de reprendre E3 blo
 
 | ID | Objectif | Statut |
 |---|---|---|
-| E6-ST1 | Palette : primitives + jetons sémantiques + gate de contraste recalibré | ⬜ |
-| E6-ST2 | Typographie : retrait de Fraunces, police d'affichage, gate de glyphes | ⬜ |
-| E6-ST3 | Motifs : mixins carnet → mixins arcade, ambiance | ⬜ |
-| E6-ST4 | Logotype & en-têtes de module | ⬜ |
-| E6-ST5 | Vérification de bout en bout (a11y, e2e, CSP, poids) | ⬜ |
+| E6-ST1 | Palette : primitives + jetons sémantiques + gate de contraste recalibré | ✅ |
+| E6-ST2 | Typographie : retrait de Fraunces, police d'affichage, gate de glyphes | ✅ |
+| E6-ST3 | Motifs : mixins carnet → mixins arcade, ambiance | ✅ |
+| E6-ST4 | Logotype & en-têtes de module | ✅ |
+| E6-ST5 | Vérification de bout en bout (a11y, e2e, CSP, poids) | ✅ |
 
 **Le pari de cet épic, à vérifier plutôt qu'à supposer** : *aucun composant ne doit être touché pour
 changer de peau.* Si un composant doit l'être, c'est qu'il violait **G7** (couleur ou taille en dur)
@@ -2826,6 +2826,84 @@ composants touchés est donc la mesure de santé du design system : à rapporter
      s'afficherait alors **sans styles**. Un lot qui réécrit tout le CSS est exactement le moment où
      cette option se fait perdre de vue.
 - **Sortie attendue** : ≤ 20 lignes, **des chiffres**, pas de logs collés.
+
+### ✅ CLÔTURE — 2026-08-20
+
+**Tous les gates verts, pari de l'épic GAGNÉ et re-mesuré indépendamment en revue de code : ZÉRO
+défaut G7.** Aucune couleur hexadécimale, aucun `rgb()`/`hsl()`/`oklch()`, aucune couleur nommée,
+aucune taille de police littérale dans `src/app/**`. Les composants touchés l'ont été pour une
+raison légitime (mise en page neuve, retrait de commande, motif signature), jamais pour rattraper
+une valeur en dur — c'est le chiffre de santé du design system.
+
+| Gate | Résultat |
+|---|---|
+| `npm test` | 886 passés · 42 fichiers · 0 échec · 0 sauté |
+| `npm run e2e` | 32 passés · 18 sautés · 0 échec |
+| `npm run a11y:axe` | 4 pages · 344 vérifications · 0 violation |
+| `npm run build` | 4 routes prerendues · 13 hachages de style / **0 de script** |
+| `design:contrastes:check` | 40 paires + 5 encres Shiki, plus bas 3,41:1 (jetons, seuil 3) et 7,15:1 (Shiki, seuil 4,5) |
+| `design:glyphes` | 10 fichiers · 218,6 Kio livrés · 40/40 caractères sur 4 familles |
+| `typecheck:tools` | 0 erreur |
+| `npm audit --omit=dev` | 0 vulnérabilité |
+
+**Poids typographique, mesuré** (corrige la référence erronée d'E6-ST2, voir plus bas) : livré
+201 140 → **223 876 o (+22 736)** ; chargé sur une page de leçon 83 768 → **98 788 o (+15 020)**.
+La bascule **coûte** du poids — la police de code auto-hébergée en est la cause, décision du
+propriétaire pour un rendu stable d'un lecteur à l'autre.
+
+**Élargissement de périmètre acté par le propriétaire** (non prévu au backlog initial) : largeur de
+lecture 68ch → **78ch**, page 72rem → **88rem**, **rail de sommaire collant**, **menu compact
+`<details>`**, accueil restructuré.
+
+**Typographie retenue** : IBM Plex Mono (titres **et** blocs de code), Silkscreen
+(micro-étiquettes), **Press Start 2P en « police du jalon »** — rôle **fermé à trois emplois**
+(numéro de module, verdict de quiz réussi, code d'erreur 404), tenu par un garde-fou exécutable
+`src/styles/police-jalon.spec.ts` à liste blanche nominative.
+
+**`script-src` passe de 1 hachage à ZÉRO** (`script-src 'self'`), revue de sécurité **approuvée**.
+
+**Régression attrapée et corrigée** : la feuille de coloration syntaxique (générée, donc hors du
+gate) gardait sa bascule à deux thèmes — un visiteur au système **clair** aurait reçu des blocs de
+code **blancs sur page noire**. Corrigée à la source ; les 5 encres Shiki entrent désormais **dans
+le gate de contraste** (elles n'y étaient pas), l'encre la plus faible passe de 5,52:1 à **7,15:1**.
+
+**Défaut attrapé par CAPTURE, invisible à tout gate** : la pluie de glyphes couvrait la colonne de
+lecture du hero. Corrigée en déplaçant la couche hors du champ de texte.
+
+**Corrections de faits portées par ce lot, mesurées :**
+- La référence « ~113 Ko » pour Fraunces (E6-ST2) était **fausse** — les deux fichiers pesaient
+  **67 816 o**. La bascule ne fait pas gagner de poids, elle en coûte (voir mesure ci-dessus).
+- L'affirmation « les polices pixel couvrent notoirement mal le français » (E6-ST2) est **fausse**
+  sur les candidates retenues : Silkscreen et Press Start 2P passent **40/40** au gate de glyphes.
+- La `mentionChantier` (« Chantier en cours ») est **retirée** — dette E1-ST3 payée.
+- `public/polices/PROVENANCE.md` **existe désormais** — référencé par `_polices.scss` depuis
+  E1-ST1-B sans avoir jamais été créé.
+
+**Dette NEUVE, constatée et non corrigée (voulu) :**
+- Le `<summary>` du menu compact n'est mesuré par **aucun gate** : invisible à 1280 px, il échappe
+  au recensement des arrêts de tabulation **et** à celui des cibles de pointeur. Sous 840 px il
+  devient pourtant la seule porte vers la navigation. Le couvrir demande de mesurer `/` à une
+  **seconde largeur**.
+- Le rail de sommaire : indicateur de focus non mesuré, et `tabindex="0"` **inconditionnel** alors
+  que rien ne défile sous 1280 px. Le conditionner en JavaScript rouvrirait une divergence
+  d'hydratation sur page prerendue (**L-033**) — le remède serait pire. Même famille que les huit
+  `tabindex` d'E2-ST4.
+- Le contraste de l'indicateur de focus (WCAG 1.4.11) n'est mesuré par **aucun gate** ; l'anneau
+  n'est pas ambre partout.
+- La question-clé du cartouche de module n'est pas rendue : le frontmatter ne porte que
+  `titre, slug, sujet, cree, maj`. La livrer exige un champ de schéma **et** une réécriture des
+  leçons publiées.
+- **→ E4-ST1** : `bascule-theme` reste délibérément au vocabulaire « carnet » (il n'est plus
+  rendu) ; le thème clair devra aussi rouvrir `color-scheme` dans `styles.scss` **et** la `<meta>`
+  d'`index.html`, et le contrôle de parité du gate de contraste se rallume tout seul dès qu'une
+  seconde entrée revient dans `THEMES_ATTENDUS`.
+- `src/app/core/theme/theme.spec.ts` porte un commentaire affirmant que « jsdom fournit toujours
+  `matchMedia` » — **faux depuis jsdom 28** (**L-072**). Le fichier passe, mais le commentaire
+  trompera le prochain lecteur.
+
+**Leçons capitalisées** (index déjà régénéré) : `lessons-learned.md` **L-070**, **L-071**, **L-072**
+(neuves), **L-023**, **L-015**, **L-035** (renforcées) · `security-lessons.md` **S-023** (neuve),
+**S-011** (renforcée).
 
 ---
 
