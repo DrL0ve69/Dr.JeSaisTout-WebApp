@@ -76,7 +76,13 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-060 | 1714–1735 | Un garde-fou de COLLECTION neuf frappe d'abord les données EXISTANTES — recenser les racines déjà porteuses du statut avant d'écrire la règle |
 | L-061 | 1736–1756 | Deux agents ne partagent pas un arbre de travail quand l'un lance des gates — un `content:build` concurrent purge `src/content-generated/` |
 | L-062 | 1757–1786 | L'instrument accuse le produit — deux cas neufs : une feuille racine-absolue en `file://`, et un harnais de MUTATION muet sur CRLF |
-| L-063 | 1787–1819 | Un invariant que rien n'observe n'est pas vrai — il est INDÉTERMINÉ |
+| L-063 | 1787–1817 | Un invariant que rien n'observe n'est pas vrai — il est INDÉTERMINÉ |
+| L-064 | 1818–1838 | Un gate qui remplace un littéral par une mesure doit mesurer LE MÊME PRÉDICAT que le garde qu'il protège — pas un proxy voisin |
+| L-065 | 1839–1857 | Un spec e2e calibré sur une fixture peut épingler un inventaire ÉDITORIAL — préférer une égalité DOM ↔ source de contenu à un compte en dur |
+| L-066 | 1858–1876 | `toContainText(chaîne)` normalise les blancs (`\s+` → espace, U+00A0 inclus) — une insécable ne se prouve qu'en RegExp |
+| L-067 | 1877–1896 | Une anti-vacuité peut être TAUTOLOGIQUE — `toBe(SOURCE.length)` après une boucle qui pousse un élément par itération de SOURCE ne peut jamais échouer |
+| L-068 | 1897–1916 | Une règle DUPLIQUÉE par une frontière structurelle (tsconfig, e2e isolé) doit couvrir TOUTES ses copies dans son contrôle de parité, pas seulement les plus accessibles |
+| L-069 | 1917–1954 | `CLAUDE.md` est capturé au démarrage de session — un sous-agent lancé ensuite hérite de cet instantané, pas du fichier au disque |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -107,4 +113,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-021 | 752–781 | Un artéfact transféré entre jobs de CI EST une entrée non fiable — existence des chemins attendus ne suffit ni contre un membre EN PLUS, ni contre un chemin `..`, ni contre un lien symbolique (A08 · CICD-SEC, CWE-22) |
 | S-022 | 782–832 | Un garde-fou qui balaie la SOURCE d'un format qui DÉCODE se contourne par ce que le compilateur ajoute — la COUCHE d'observation est un choix de sécurité (A03/A05 · CWE-116, axe neuf sur la famille [[S-003]]/[[S-009]]/[[S-014]]) |
 
-_85 entrées indexées._
+_91 entrées indexées._

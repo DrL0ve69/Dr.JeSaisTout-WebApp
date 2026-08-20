@@ -1,5 +1,13 @@
 # CLAUDE.md
 
+**Tri éditorial — 2026-08-20.** Les passages enveloppés dans un commentaire HTML de bloc (les lignes
+ouvrantes et fermantes se repèrent à l'œil dans le fichier) sont du **récit clos**
+(clôtures d'epics, incidents résolus, chiffres de gates datés). Les commentaires HTML de bloc sont
+**retirés avant l'injection de ce fichier dans le contexte de Claude**, mais restent intégralement
+lisibles pour un humain et via l'outil `Read` — rien n'a été supprimé. Le détail de chaque clôture
+vit dans [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) ; **ce qui reste en texte
+brut est ce qui contraint encore du travail à venir** (décisions ouvertes, pièges actifs, dette).
+
 Guide de Claude Code pour ce dépôt. > Langue du projet : **français** (code commenté, commits, contenu). Match it.
 
 ## Projet
@@ -52,8 +60,69 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
-> ## ⏭️ REPRISE — état au 2026-08-19
+> ## ⏭️ REPRISE — état au 2026-08-20
 >
+> **✅ E3-ST1 EST CLOSE, FUSIONNÉE ET EN LIGNE** (PR #32). `content/cours/securite-web/01-fondamentaux/`
+> est la **première leçon publiée**, vérifiée sur le site déployé et non sur le vert d'un workflow :
+> `/cours/securite-web/fondamentaux/` répond **200**, porte son quiz, le sommaire la liste, et la CSP
+> servie garde `script-src` à **un seul hachage nominatif**. **E0, E1, E2 sont CLOS EN ENTIER.**
+>
+> **Le geste suivant : E6 — la bascule « Moniteur ambre »** (ordre révisé D-3 : E2 → E3-ST0 → E3 bloc A
+> → **E6** → E3 blocs B/C → E4 → E5). Le pari explicite d'E6 est qu'**aucun composant n'a besoin
+> d'être touché** pour changer de peau : tout composant qui l'exigera est un **défaut G7**, à consigner.
+>
+> **⏳ LA DETTE OUVERTE PAR E3-ST1, nommée et datée — elle se referme à E3-ST3 (`03-injection`).**
+> La leçon 01 n'a **pas** de simulation (décision du propriétaire du 2026-08-20 : module abstrait,
+> kill chain en schéma statique), donc **3 specs e2e de simulation SAUTENT** sur l'artéfact publié.
+> Le trou n'est pas silencieux : `CAPACITES_MESUREES_EN_E2E` (`src/workflows-github.spec.ts`) est un
+> **littéral revu à la main** confronté à ce que `content/` publie réellement — **fichier ET ancre
+> rendue** —, et il **ROUGIT le jour où une leçon publiée gagne une simulation**. C'est la **fermeture**
+> du trou qui réclame une revue, pas son ouverture : ce jour-là, faire tourner les 3 specs AVANT de
+> basculer le littéral à `true`.
+>
+> **🔴 CE QUI A CHANGÉ DANS LA MÉCANIQUE DES SPECS E2E, et qui vaut pour toute leçon à venir.** Les
+> specs **ne visent plus une route écrite en dur**. `e2e/aides/artefact-mesure.ts` DÉCOUVRE dans
+> `dist/` une page portant `<app-quiz` ou `<app-simulation` et expose `exigerUneLeconAvecQuiz` /
+> `exigerUneLeconAvecSimulation` + `ROUTE_LECON_QUIZ` / `ROUTE_LECON_SIMULATION`. Conséquence :
+> **publier la leçon 02, 03… n'oblige à toucher AUCUN spec**, et les specs de simulation se
+> **rallumeront seuls**. ⚠️ `exigerLaPageDeLecon` **n'existe plus** — si un document du dépôt la
+> prescrit encore, il est périmé. Un artéfact **sans aucune** page de leçon **LÈVE** au lieu de sauter.
+>
+> **🔴 CSP : le compte de hachages `style-src` est passé de 10 à 13**, et les trois blocs de plus ont
+> été **mesurés et nommés un par un** avant épinglage (S-005) : l'adaptateur de route de la page de
+> leçon (4 196 o), `RenduBlocs` `.prose` (6 998 o), `QuizComponent` `.quiz` (5 669 o). Le compte se
+> recompose 10 + 3 ; aucun `.simulation`, ce qui est cohérent. **Hachages de script inchangés à 1.**
+> ⚠️ **L'option `--hachages-style` a été SUPPRIMÉE** du générateur : plus aucun appelant ne l'employait
+> depuis le retrait du harnais, et supprimer un levier vaut mieux que le garder (S-018).
+>
+> **⚠️ CE QUE LES DEUX REVUES ONT ATTRAPÉ, ET QUI SE REPRODUIRA SI ON N'Y PENSE PAS.**
+> **(a)** Le lot élargissait `style-src` de 3 permissions **et éteignait dans le même commit la seule
+> preuve LIVE que la directive est appliquée** (`exigerStyleSrcApplique` n'avait qu'un appelant, un
+> spec devenu sauté). Règle neuve : **quand un lot augmente un compte de permission ET fait passer un
+> spec en `skip`, recenser ce que ce spec était le SEUL à prouver.**
+> **(b)** Un garde-fou d'ordonnancement peut se contourner **par le CORPS d'un script npm** — le YAML
+> est inspecté, le script qu'il appelle ne l'était pas (S-018, 6ᵉ occurrence). Les corps de
+> `content:build` et `config:swa` sont désormais épinglés, et les six crochets npm réinterdits.
+> **(c)** Un compteur qui remplace un littéral **doit mesurer LE MÊME PRÉDICAT que le garde qu'il
+> protège** — ici « `quiz.json` existe » vs « `<app-quiz` est rendu ».
+>
+> **📉 CONTEXTE DES AGENTS — mesuré le 2026-08-20, et corrigé.** Un sous-agent portait **~74 000 tokens
+> de préambule** avant d'avoir lu une ligne de son lot, dont **51 600** pour les deux corpus de leçons
+> que six définitions d'agents faisaient lire **en entier**. ⚠️ **Un sous-agent n'hérite PAS du contexte
+> du fil principal** (sauf `fork`) : l'hypothèse inverse est réfutée. Correctif : les corpus se lisent
+> par **`.claude/lessons/INDEX.md`** (généré, **avec plages de lignes**, ~3 900 tokens) — un agent ouvre
+> 2-4 entrées par `Read(offset, limit)`. Les deux `mentor` **régénèrent l'index** (`npm run lecons:index`)
+> après toute édition, et `src/index-lecons.spec.ts` le vérifie. Détail et méthode :
+> `.claude/rules/agent-context-budget.md` §7.
+>
+> <!--
+> **Chiffres de clôture d'E3-ST1 (2026-08-20)** : G-test **867 passés / 41 fichiers / 0 échec** (3 runs)
+> · G-build 4 routes, **13 hachages de style / 1 de script** · G-axe 4 pages, 344 vérifications,
+> **0 violation** — page de leçon RÉELLE comprise · G-e2e **33 passés / 18 sautés / 0 échec** (2 runs)
+> · `npm audit --omit=dev` **0** · typecheck outils et e2e **0**.
+> -->
+>
+> <!--
 > **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées, la 3ᵉ FERMÉE
 > à E2-ST6) · E2-ST3 CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2,
 > B, C — PR #18, #19, #20, et la PR du lot C) **· E2-ST5 CLOSE ET FUSIONNÉE** (PR #22) **· E3-ST0
@@ -120,7 +189,9 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > sautés/0 échec** · stabilité `--repeat-each=6` sur les deux specs instables → **96 passés/0
 > échec**. Détail complet, dette neuve (S-022 notamment) et leçons : backlog, bloc de clôture du
 > lot `fix/intermittence-gates-pre-e3-st1`.
+> -->
 >
+> <!--
 > **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
 > passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
 > décision E-2 fait bâtir à `ci.yml` l'artéfact depuis la **fixture témoin**, tandis que `deploy.yml`
@@ -135,6 +206,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > fixture de `ci.yml` porte une leçon **au slug exact** que ces specs cherchent.
 > Mesures attendues : **21 e2e / 0 sauté** sur l'artéfact fixture, **11 passés / 10 sautés** sur
 > l'artéfact de production.
+> -->
 >
 > **🔵 LES DEUX DÉCISIONS D'E2-ST4, PRISES LE 2026-08-18, À NE PAS ROUVRIR.**
 > **ST4-1 · Il n'y a PAS de sélecteur de langage, et le nœud « onglets » du backlog est SANS OBJET.**
@@ -179,22 +251,27 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > sécurité** : le contrôle positif CSP (`e2e/aides/sonde-csp.ts`) ne couvre que `script-src` ;
 > `style-src` (la directive la plus mouvante) n'a **aucun** contrôle positif prouvant qu'il bloque
 > réellement (voir **S-016**).
+> <!--
 > **Chiffres à la clôture d'E2-ST4 (2026-08-19)** : G-test **576/30**, G-e2e 29/0 sauté (fixture) et
 > 12 passés/17 sautés (production), G-axe 344 vérif./0 violation, G-build 12/1 hachages (fixture)
 > inchangés, `npm audit --omit=dev` 0.
 > **Chiffres à la clôture d'E2-ST5 (2026-08-19)** : G-test **661/32**, 0 échec, G-e2e **48 passés/0
 > sauté** (fixture) et 12 passés/36 sautés (production), G-axe 344 vérif./0 violation, G-build
 > production 9/9 hachages de style + 1 de script, fixture 13/13, `npm audit --omit=dev` 0.
+> -->
 >
+> <!--
 > **🔧 Lot CI du 2026-08-19** : les trois workflows portent désormais un `timeout-minutes` par job
 > (un job pendu ne court plus jusqu'au plafond GitHub de 6 h) ; l'installation du navigateur est
 > scindée en **deux scripts npm** dont la CI n'appelle que `e2e:install:navigateur` — le
 > développeur local garde `npm run e2e:install` comme commande unique, qui enchaîne les deux
 > moitiés. ⚠️ **`npm run e2e:install:deps` ne doit jamais revenir dans un workflow** — un test
 > l'interdit. Détail et cause mesurée : backlog §E0-ST4, « Lot CI du 2026-08-19 ».
+> -->
 >
 > ---
 >
+> <!--
 > **✅ CE QUE LE LOT E A FERMÉ, ET QUI NE SE REDÉCOUVRE PAS.**
 > **(1) La CSP est mesurée avec le quiz à l'écran, par DEUX instruments.** Côté artéfact : la page
 > de leçon interactive porte bien un script inline de plus — `<script id="ng-state"
@@ -218,6 +295,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **Chiffres de clôture (2026-08-18)** : **G-test 498 / 28 fichiers · G-e2e 21 · G-axe 4 fichiers,
 > 344 vérifications, 0 violation · G-build 12 hachages de style (fixture) / 9 (production), 1 de
 > script des deux côtés · `npm audit --omit=dev` 0.**
+> -->
 >
 > **⚠️ TROISIÈME PIÈGE DU HARNAIS E2E, PAYÉ EN DIRECT AU LOT A1 — et il ment dans les DEUX sens.**
 > `playwright.config.ts` pose `reuseExistingServer: !CI`. Un `npx swa start` laissé en marche par un
@@ -246,6 +324,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > exigeait une correction qui ne cite que les **fausses**, et une U+00A0 littérale refusée par
 > `no-irregular-whitespace` (elle s'écrit `\u00A0` dans un littéral).
 >
+> <!--
 > **⏳ PÉREMPTION, à ne pas perdre : le harnais de fixture se retire à la clôture d'E3-ST1.** Depuis
 > le lot E-b2, `ci.yml` bâtit son artéfact depuis `tools/content-pipeline/__fixtures__/temoin/…` avec
 > `--hachages-style 12` : G-axe, G-e2e et le générateur de CSP voient donc en permanence une page de
@@ -253,10 +332,14 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > `content/` porte sa première leçon, l'étape G-build de `ci.yml` redevient `npm run build` et le
 > drapeau disparaît. Écrit à trois endroits (workflow, `src/workflows-github.spec.ts`, backlog), dont
 > un **tripwire exécutable**.
+> -->
 >
+> <!--
 > **⚠️ RESTE OUVERT après E2-ST3** — la réserve **(3)** d'E2-ST2 : une leçon en `statut: brouillon`
 > **sera prerendue publique et indexable**. Elle se lève en clôture d'E3-ST1. Les réserves (1) et (2)
-> sont levées. Et un avertissement de build **antérieur au lot E** : `quiz.scss` dépasse son budget
+> -->
+> **⚠️ RESTE OUVERT, et c'est le seul reliquat de ce bloc** — un avertissement de build **antérieur
+> au lot E** : `quiz.scss` dépasse son budget
 > de **88 o** (4,09 Ko pour 4,00 Ko) — relever le budget ou alléger la feuille, à trancher en E2-ST4
 > ou dans le lot de dette.
 >
@@ -276,12 +359,14 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > tout serait échappé. ⚠️ Le lot C **ne lit toujours pas** `htmlColore` : il rend le `code` brut, par
 > interpolation.
 >
+> <!--
 > **🔴 INCIDENT DE PRODUCTION RÉSOLU LE 2026-08-17 — à connaître avant de toucher au routage.**
 > Signalé par le propriétaire depuis la console du site déployé : `main-<hash>.js/chunk-<hash>.js` en
 > **404**. `trailingSlash: "always"` redirigeait **aussi les fichiers** ; le 301 déplaçait l'URL
 > finale du module, donc la **base de ses imports relatifs**, et **la route paresseuse de la page de
 > leçon était morte**. Défaut **connu et écrit depuis E1-ST1-B** — mais classé *coût de performance*,
 > personne n'ayant vu qu'il deviendrait une panne dès le **premier chunk paresseux** (E2-ST2).
+> -->
 > Corrigé en **`trailingSlash: "auto"`** (les dossiers restent canonicalisés, les fichiers sont
 > servis directement). ⚠️ **Aucun gate local ne pouvait le voir** : l'émulateur `npx swa start`
 > n'implémente pas `trailingSlash`, donc `e2e` était vert sur une politique de routage qui n'était
@@ -289,12 +374,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > le routage servi » bloc **(c)**, chaque asset référencé par la page servie doit répondre 200 et
 > jamais 3xx. Leçon **L-032** ; détail dans `docs/deployment.md`.
 >
+> <!--
 > **⚠️ Les 3 réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE** (détail : backlog
 > §E2-ST2) : (1) `a11y:axe` et `e2e` **n'ont jamais vu** une page de leçon — la barre AXE est
 > *contournée par l'absence de données*, pas franchie ; (2) la **CSP servie n'a jamais été mesurée**
 > sur une page de leçon ; (3) une leçon en `statut: brouillon` **sera prerendue publique et
 > indexable**. Les trois se lèvent **en clôture d'E3-ST1**, pas avant.
+> -->
 >
+> <!--
 > **Ce qui suit reste vrai** — le **moteur de contenu tourne**. `content/` est
 > validé (Ajv + règles hors schéma), compilé en AST typé (Markdown → HTML, Shiki précompilé, encadrés),
 > ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
@@ -304,6 +392,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > axe 344 vérifications, 0 violation ·
 > `npm audit --omit=dev` 0.**
 > Le **jalon J2 est atteint neuf jours avant son échéance**.
+> -->
 >
 > **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**
 > **(1) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est **inerte** et
@@ -323,13 +412,16 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **(4) Retirer la `mentionChantier` « Chantier en cours »** de la carte le jour où la première leçon
 > est publiée, sinon l'accueil ment. Rappel repris en **E6-ST4**.
 >
+> <!--
 > **❓ NŒUDS : tous tranchés le 2026-08-16, ne pas les rouvrir** (détail : §E2 du backlog). Dette
 > sécurité → **avant E3-ST1**, pas avant E2-ST1 · leçon-témoin → **fixture hors de `content/`** ·
 > diagrammes Mermaid → **rendus au build** (une invocation `mmdc` par leçon, cache par hachage,
 > Chromium de Playwright réutilisé). **Un seul reste ouvert, et il n'appartient qu'au propriétaire :**
 > marquer *False Positive* le `css:S8776` de SonarCloud (le `&` de `@mixin focus-visible`) — un
 > fichier de propriétés ne sait pas taire une issue.
+> -->
 >
+> <!--
 > **✅ LES CONSTATS NAVIGATEUR D'E1 SONT FAITS** (2026-08-16, sur le site déployé) — et la consigne qui
 > les bloquait était **fausse par excès** : ce n'est pas le navigateur qui est banni, c'est
 > l'**extension** Claude in Chrome. **Playwright, déjà installé, est la voie.** Résultats : **0**
@@ -341,6 +433,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ⚠️ *Leçon de méthode payée au passage* : la 1ʳᵉ mesure du flash a échoué **sur l'instrument** — un
 > `MutationObserver` posé avant l'existence de `documentElement` levait, et le script a rapporté son
 > propre plantage comme « 1 violation CSP ».
+> -->
 >
 > **Dette à ne pas perdre**, de la plus mordante à la plus froide. ✅ **Les cinq premières sont
 > PAYÉES le 2026-08-20** (S-003, le garde-fou ` style="`, la CSP servie structurelle, la portée du
@@ -363,6 +456,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > `staticwebapp.config.source.json`).
 > Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1, §E1-ST2, §E1-ST3 et §E2.
 >
+> <!--
 > **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
 > ressources Azure créées (*Azure for Students*, palier **Free**) · secret
 > `AZURE_STATIC_WEB_APPS_API_TOKEN` posé · workflows `Déploiement` **et** `Infra` **verts, zéro
@@ -374,6 +468,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **scellé par empreintes sha256** entre les deux, vérifications en ligne **fail-closed** et portant
 > sur les **directives** CSP, pas seulement sur la présence des en-têtes — tous les gates câblés dans
 > `ci.yml` **et** `deploy.yml` (L-007) · aucun `tfstate` versionné.
+> -->
 >
 > **Pièges à ne pas repayer.** Les trois neufs d'E2-ST1 d'abord, parce qu'ils se ressemblent :
 > **(A) une liste NOIRE de motifs sur un format structuré est un S-003 par construction.** Le scrub
