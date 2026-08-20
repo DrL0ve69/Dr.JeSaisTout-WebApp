@@ -1,10 +1,10 @@
 // =============================================================================
 // COUCHE 1/3 — PRIMITIVES
 // -----------------------------------------------------------------------------
-// Valeurs brutes du design system « Carnet de laboratoire »
+// Valeurs brutes du design system « Moniteur ambre »
 // (docs/design/direction-visuelle.md §2). Rien ici ne porte de sens d'usage :
-// `$papier-50` ne dit pas « fond de page », il dit « la 50e nuance de papier ».
-// Le sens est donné par la couche 2 (`_themes.scss`).
+// `$noir-creux` ne dit pas « fond d'encart », il dit « le deuxième noir du
+// tube ». Le sens est donné par la couche 2 (`_themes.scss`).
 //
 // ⚠️ VOLONTAIREMENT DES VARIABLES SASS, PAS DES CUSTOM PROPERTIES.
 // Une primitive exposée en `var(--papier-50)` serait consommable depuis un
@@ -21,81 +21,79 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// 1 · Palette « papier ivoire » — thème clair
+// 1 · Palette « tube » — les noirs de la dalle
 // -----------------------------------------------------------------------------
-$papier-0: #fffdf7; // feuillet posé au-dessus de la page (surface élevée)
-$papier-50: #f7f4ec; // le papier lui-même
-$papier-100: #eee8da; // encart, bloc de code, creux dans la page
-$papier-200: #cbbfa2; // règlure de carnet — DÉCOR PUR, hors champ de 1.4.11
-$papier-400: #877f6e; // filet porteur de sens — mesuré ≥ 3:1 (WCAG 1.4.11)
-$papier-500: #6f6858; // filet appuyé (bordure de champ, trait de tableau)
+// D-2 (bascule du 2026-08-17) : la phase 1 est SOMBRE SEULE. Les palettes
+// « papier ivoire » et « ardoise encrée » du Carnet de laboratoire ont disparu
+// avec elle ; le thème clair est un livrable d'E4-ST1, qui recalibrera sa propre
+// famille de primitives plutôt que d'inverser celles-ci (G9 : un thème est
+// DESSINÉ, jamais inversé).
+//
+// Le noir est PROFOND et légèrement bleuté — un tube cathodique éteint, pas un
+// gris d'interface. Les trois premiers paliers sont les trois surfaces ; le
+// quatrième n'est que du décor.
+$noir-tube: #06080a; // la dalle éteinte — surface de la page
+$noir-creux: #0b1114; // encart, bloc de code, creux dans la page
+$noir-releve: #0f1619; // feuillet posé au-dessus de la page
+$noir-scanline: #10181c; // scanline — DÉCOR PUR, hors champ de 1.4.11
 
 // -----------------------------------------------------------------------------
-// 2 · Palette « encre bleu-noir » — texte du thème clair
+// 2 · Palette « phosphore froid » — texte
 // -----------------------------------------------------------------------------
+// ⚠️ CE N'EST PAS DU VERT, ET C'EST LE POINT LE PLUS FACILE À RATER DE TOUTE LA
+// DIRECTION. Le vert veut déjà dire « corrigé » (§5) : un phosphore vert de
+// marque diluerait la seule signature chromatique pédagogique du site. Le texte
+// est donc un blanc froid légèrement cyané, et *Matrix* passe par le MOTIF
+// (scanlines, pluie de glyphes), jamais par la teinte.
+//
 // Chaque niveau d'emphase est une COULEUR PLEINE. Pas de hiérarchie par opacité
 // (Material 87 %/60 %) : baisser l'opacité fait chuter le contraste sous 4.5:1
 // de façon mécanique et invisible en revue (fiche KB
 // web/frontend/principes-design-visuel.md §5, note d'accessibilité).
-$encre-900: #141a24; // filigrane sombre / aplats
-$encre-800: #1c2433; // texte principal
-$encre-700: #39435a; // texte secondaire
-$encre-600: #4e586e; // texte tertiaire (légendes, méta)
-$encre-500: #6d778c; // filigrane clair (grand texte décoratif ≥ 31 px)
+$phosphore-100: #d6e2e6; // texte principal
+$phosphore-200: #b3c4cb; // texte secondaire
+$phosphore-300: #8ca1aa; // texte tertiaire (légendes, méta)
+$phosphore-400: #63757d; // filigrane (grand texte décoratif ≥ 31 px)
 
 // -----------------------------------------------------------------------------
-// 3 · Palette « ardoise encrée » — thème sombre
+// 3 · Filets — le seuil de 3:1 ne se satisfait pas d'une inversion
 // -----------------------------------------------------------------------------
-// G9 : le sombre est DESSINÉ. L'ardoise est bleutée et mate, jamais un #000 ;
-// les accents sont recalibrés (§5), pas les mêmes hex que le clair.
-// ⚠️ Un filet lisible sur ardoise est nettement plus CLAIR que son homologue
-// sur papier n'est foncé : le seuil de 3:1 ne se satisfait pas d'une inversion.
-// C'est G9 en pratique — les deux thèmes sont calibrés séparément.
-$ardoise-900: #11151c; // creux le plus profond
-$ardoise-800: #171c25; // l'ardoise elle-même
-$ardoise-700: #1f2531; // encart, bloc de code
-$ardoise-600: #262e3c; // feuillet posé au-dessus
-$ardoise-500: #333d4e; // règlure de carnet — DÉCOR PUR, hors champ de 1.4.11
-$ardoise-300: #6a778d; // filet porteur de sens — mesuré ≥ 3:1 (WCAG 1.4.11)
-$ardoise-200: #8d97a8; // filet appuyé (bordure de champ, trait de tableau)
+// Un filet lisible sur un noir profond est nettement plus CLAIR que son
+// homologue sur papier n'était foncé. Les deux valeurs ci-dessous sont MESURÉES
+// (`npm run design:contrastes`), pas choisies à l'œil : un premier jet retenu à
+// vue mesurait 1,42:1 contre les 3:1 qu'exige WCAG 1.4.11 — sur fond noir, un
+// filet trop discret est invisible à l'œil et parfaitement mesurable.
+$filet-tube: #5e6a70; // filet porteur de sens — mesuré ≥ 3:1
+$filet-tube-fort: #8aa0a8; // filet appuyé (bordure de champ, trait de tableau)
 
 // -----------------------------------------------------------------------------
-// 4 · Palette « craie » — texte du thème sombre
+// 4 · Ambre de marque — la seule couleur de marque du site (G9)
 // -----------------------------------------------------------------------------
-$craie-100: #ece8dd; // texte principal
-$craie-200: #c3cad7; // texte secondaire
-$craie-300: #a3abbb; // texte tertiaire
-$craie-400: #7b8598; // filigrane (grand texte décoratif)
+// L'ambre est la couleur de marque PARCE QUE le vert est pris. Elle sert à la
+// fois l'action (liens, focus) et l'avertissement : ce n'est pas une économie,
+// c'est G9 — une seule couleur de marque. La distinction avertissement/action se
+// fait par le STYLE DE TRAIT de `marque-pedagogique()`, jamais par la teinte.
+$ambre: #ffb454; // action, focus, avertissement
+$ambre-vif: #ffc97e; // état survolé — sur fond noir, l'emphase MONTE en clarté
+$ambre-creux: #2a1c08; // aplat derrière un encadré d'avertissement
+$ambre-selection: #4a3410; // fond de sélection de texte
+$ambre-selection-encre: #ffddae; // texte sélectionné
 
 // -----------------------------------------------------------------------------
-// 5 · Accents sémantiques bruts — deux calibrages par teinte
+// 5 · Signature pédagogique — rouge = vulnérable, vert = corrigé
 // -----------------------------------------------------------------------------
-// La signature chromatique du site : encre rouge de correction = vulnérable,
-// vert d'annotation = corrigé (docs/design/direction-visuelle.md §2).
-// Suffixe `-c` = calibré pour un fond clair, `-s` = pour un fond sombre.
-$bleu-encre-c: #10508f; // couleur d'action (liens, focus) sur papier
-$bleu-encre-survol-c: #0a3c6d;
-$bleu-encre-s: #94bdf0; // idem sur ardoise
-$bleu-encre-survol-s: #b9d5f7;
+// La seule signature chromatique du site (docs/design/direction-visuelle.md §2).
+// Le suffixe `-creux` désigne l'aplat très sombre posé DERRIÈRE un bloc, pas une
+// variante de la teinte : les deux se mesurent l'un contre l'autre.
+$rouge-vuln: #ff5c57; // « vulnérable »
+$rouge-vuln-creux: #2a0e0d;
+$vert-corrige: #4ade80; // « corrigé »
+$vert-corrige-creux: #0d2417;
 
-$rouge-correction-c: #a02020; // « vulnérable »
-$rouge-correction-lavis-c: #fbeeeb; // aplat derrière un bloc vulnérable
-$rouge-correction-s: #f19a92;
-$rouge-correction-lavis-s: #3a2020;
-
-$vert-annotation-c: #1a6444; // « corrigé »
-$vert-annotation-lavis-c: #e8f2ea;
-$vert-annotation-s: #74c69a;
-$vert-annotation-lavis-s: #17301f;
-
-$ocre-c: #7d5203; // « attention / cours vs état de l'art »
-$ocre-lavis-c: #f7efdb;
-$ocre-s: #dcb063;
-$ocre-lavis-s: #33280f;
-
-// Surlignage : fond de sélection de texte.
-$surligneur-c: #f6e08a;
-$surligneur-s: #4a4324;
+// Provenance pédagogique : 📘 « au programme du cours ». Un cyan de tube, choisi
+// hors du vocabulaire rouge/vert/ambre pour ne rien lui voler.
+$cyan-cours: #5bc8e8;
+$cyan-cours-creux: #0a1e26;
 
 // -----------------------------------------------------------------------------
 // 6 · Échelle typographique — jeu FIXE, ratio 1.25 (tierce majeure)
@@ -124,10 +122,11 @@ $chasse-tampon: 0.18em;
 
 // Graisses — le dernier axe typographique qui restait en dur dans les composants.
 // Deux graisses appuyées de MÊME valeur aujourd'hui mais d'axes distincts : les
-// titres (serif d'affichage) et les tampons/étiquettes (sans-serif de labeur) ne
-// se règlent pas ensemble. Elles divergeront dès E1-ST1-B (Fraunces / Inter), et
-// c'est précisément pour que cette divergence n'exige aucune retouche de
-// composant qu'elles sont séparées maintenant.
+// titres (monospace d'affichage) et les tampons/étiquettes (sans-serif de
+// labeur) ne se règlent pas ensemble. Elles portent aujourd'hui la même valeur
+// mais s'appliquent à deux familles distinctes (IBM Plex Mono / Inter), et c'est
+// précisément pour que leur divergence n'exige aucune retouche de composant
+// qu'elles sont séparées.
 $graisse-corps: 400;
 $graisse-titre: 700;
 $graisse-tampon: 700;
@@ -147,9 +146,9 @@ $espace-8: 4rem;
 // -----------------------------------------------------------------------------
 // 8 · Rayons et épaisseurs de filets
 // -----------------------------------------------------------------------------
-// Un carnet a des angles nets : les rayons restent minuscules. Des cartes très
-// arrondies et interchangeables sont exactement le tic « AI-slop » que la
-// direction visuelle proscrit (G1/G2).
+// Une interface de console a des angles nets : les rayons restent minuscules.
+// Des cartes très arrondies et interchangeables sont exactement le tic
+// « AI-slop » que la direction visuelle proscrit (G1/G2).
 $rayon-net: 0;
 $rayon-doux: 2px;
 $rayon-carte: 4px;
@@ -157,7 +156,7 @@ $rayon-pastille: 999px; // pastilles/tampons uniquement
 
 $filet-fin: 1px;
 $filet-moyen: 2px;
-$filet-marge: 3px; // marge rouge du carnet
+$filet-marge: 3px; // filet de marge d'un bloc marqué
 $filet-focus: 3px;
 $decalage-focus: 2px;
 
@@ -171,7 +170,7 @@ $courbe-nette: cubic-bezier(0.2, 0, 0, 1);
 // -----------------------------------------------------------------------------
 // 10 · Piles de polices
 // -----------------------------------------------------------------------------
-// ✅ ÉCART À G3 LEVÉ par E1-ST1-B : Fraunces (titres) et Inter (corps) sont
+// ✅ ÉCART À G3 LEVÉ par E1-ST1-B, RECOMPOSÉ par E6 : les quatre familles sont
 // auto-hébergées, déclarées dans `_polices.scss`, servies depuis `/polices/`.
 // La CSP est `font-src 'self'` : aucun hôte externe, jamais de Google Fonts.
 //
@@ -179,16 +178,25 @@ $courbe-nette: cubic-bezier(0.2, 0, 0, 1);
 // `font-display: swap`, ce sont elles qui rendent le texte pendant le
 // téléchargement, et elles qui prennent le relais pour les caractères hors
 // couverture (cf. écarts assumés du gate `verifier-glyphes.mjs`). Elles sont
-// donc choisies pour ressembler à la police servie, pas au hasard : un serif de
-// même couleur d'œil derrière Fraunces, la pile système derrière Inter.
+// donc choisies pour ressembler à la police servie, pas au hasard : une pile
+// monospace derrière les trois familles à chasse fixe, la pile système derrière
+// Inter.
+//
+// 🔴 `$pile-code` EST PASSÉE D'UNE PILE SYSTÈME À UNE POLICE SERVIE (décision du
+// propriétaire, 2026-08-20), et c'est le seul poste de la bascule qui COÛTE du
+// poids. La raison est pédagogique, pas esthétique : le cours ancre des
+// annotations À LA LIGNE (« Ligne 2 : … ») et oppose des paires
+// vulnérable/corrigé où l'alignement vertical porte du sens. Une pile système
+// rend le même extrait en Consolas chez l'un et en SF Mono chez l'autre — deux
+// chasses, deux hauteurs de ligne, deux découpes de lignes longues.
 $pile-titres:
-  'Fraunces',
-  'Iowan Old Style',
-  'Palatino Linotype',
-  Palatino,
-  Georgia,
-  'Times New Roman',
-  serif;
+  'IBM Plex Mono',
+  ui-monospace,
+  SFMono-Regular,
+  'Cascadia Mono',
+  Consolas,
+  'Liberation Mono',
+  monospace;
 $pile-corps:
   'Inter',
   system-ui,
@@ -198,13 +206,49 @@ $pile-corps:
   'Helvetica Neue',
   Arial,
   sans-serif;
-$pile-code: ui-monospace, SFMono-Regular, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
+$pile-code:
+  'IBM Plex Mono',
+  ui-monospace,
+  SFMono-Regular,
+  'Cascadia Mono',
+  Consolas,
+  'Liberation Mono',
+  monospace;
+
+// Micro-étiquettes en CAPITALES (tampons, jalons de la carte de parcours).
+// Silkscreen est une bitmap : en dessous de ~10 px elle bouillie, au-dessus de
+// ~14 px elle crénelle. Elle n'a aucun emploi en prose.
+$pile-micro:
+  'Silkscreen',
+  ui-monospace,
+  SFMono-Regular,
+  'Cascadia Mono',
+  Consolas,
+  'Liberation Mono',
+  monospace;
+
+// 🔴 Press Start 2P a un rôle FERMÉ À TROIS EMPLOIS (numéro de module dans la
+// pastille du cartouche, verdict d'un quiz réussi, code d'erreur de la 404), et
+// `src/styles/police-jalon.spec.ts` tient cette liste blanche. Sa chasse vaut
+// ~2× celle d'IBM Plex Mono : tout emploi impose une taille explicitement
+// réduite ET un `line-height` ≥ 1.5 (WCAG 1.4.12). Jamais en prose.
+$pile-jalon:
+  'Press Start 2P',
+  ui-monospace,
+  SFMono-Regular,
+  'Cascadia Mono',
+  Consolas,
+  'Liberation Mono',
+  monospace;
 
 // -----------------------------------------------------------------------------
 // 11 · Mesures de lecture
 // -----------------------------------------------------------------------------
-$largeur-lecture: 68ch; // longueur de ligne confortable pour un cours
-$largeur-page: 72rem;
+// Élargissement acté par le propriétaire le 2026-08-20, avec la bascule E6 : la
+// mise en page « Moniteur ambre » respire davantage qu'un carnet, et le cours
+// affiche des paires de code côte à côte que 68ch / 72rem serraient.
+$largeur-lecture: 78ch; // longueur de ligne confortable pour un cours
+$largeur-page: 88rem;
 
 // Largeur MINIMALE d'un volet de comparaison avant que les deux exemples ne se
 // remettent l'un sous l'autre (E2-ST4, lot B2). En `ch` et non en `rem` parce que

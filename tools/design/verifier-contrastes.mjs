@@ -24,7 +24,9 @@
  *      vert mensonger ;
  *   3. un jeton de TEXTE porteur d'un canal alpha (`#rrggbbaa`) — la hiérarchie
  *      par opacité fait chuter le contraste de façon mécanique et invisible ;
- *   4. un jeton `--couleur-*` défini dans un seul des deux thèmes ;
+ *   4. un jeton `--couleur-*` défini dans certains thèmes seulement — contrôle EN
+ *      VEILLE tant que `THEMES_ATTENDUS` n'en compte qu'un (phase 1 : sombre
+ *      seul), et rallumé de lui-même dès qu'E4-ST1 y remet une entrée ;
  *   5. un jeton `--couleur-*` couvert par aucune paire et non exempté ;
  *   6. une exemption OBSOLÈTE (jeton disparu) ou REDONDANTE (jeton en réalité
  *      couvert par la table des paires) — une exemption mensongère est publiée
@@ -63,6 +65,8 @@ const RACINE = process.cwd();
 const PRIMITIVES = join(RACINE, 'src', 'styles', '_primitives.scss');
 const THEMES = join(RACINE, 'src', 'styles', '_themes.scss');
 const RAPPORT = join(RACINE, 'docs', 'design', 'contrastes-jetons.md');
+// Feuille GÉNÉRÉE par `content:build` et non versionnée (voir §6d) : facultative par nature.
+const COLORATION = join(RACINE, 'src', 'styles', '_coloration-syntaxique-generee.scss');
 
 // =============================================================================
 // 1 · Les seuils — trois, pas un
@@ -357,9 +361,11 @@ const PAIRES = [
 // argument WCAG, pas une commodité.
 const EXEMPTIONS = {
   '--couleur-reglure':
-    'Décor pur (règlure de carnet). Ne porte aucune information et n’est pas un ' +
-    'composant d’interface : hors champ de 1.4.11, qui exempte explicitement le décoratif. ' +
-    'Elle est d’ailleurs masquée en `forced-colors: active` (mixin `reglure`).',
+    'Décor pur (teinte des SCANLINES du moniteur — le jeton garde son nom d’origine, ' +
+    'sa justification a changé avec la bascule E6, pas son rôle). Ne porte aucune ' +
+    'information et n’est pas un composant d’interface : hors champ de 1.4.11, qui ' +
+    'exempte explicitement le décoratif. Elle est d’ailleurs masquée en ' +
+    '`forced-colors: active` (mixin `reglure`).',
   // `--couleur-surface-elevee` a été RETIRÉ de cette liste : il figure comme fond
   // dans quatre paires, la branche d'exemption ne s'exécutait donc jamais — et le
   // rapport publiait « exempté de mesure » pour un jeton mesuré quatre fois dans
@@ -552,9 +558,15 @@ function arrondiPrudent(ratio) {
 const primitives = lirePrimitives(lire(PRIMITIVES));
 const sourceThemes = lire(THEMES);
 
+// ⚠️ EN VEILLE, PAS AMPUTÉ. La phase 1 est SOMBRE SEULE (décision D-2 du
+// 2026-08-17) : l'entrée « clair » est retirée, mais la MÉCANIQUE à N thèmes est
+// intacte — ce tableau garde sa forme de liste, et tout ce qui en dépend
+// (mesures, rapport, résumé) boucle dessus sans savoir combien il en contient.
+// E4-ST1 y remettra une entrée et le contrôle de parité (§6a) revivra sans un
+// mot de code. Le propriétaire a explicitement demandé de ne pas brûler cette
+// mécanique pour économiser quinze lignes.
 const THEMES_ATTENDUS = [
-  { cle: 'clair', mixin: 'jetons-theme-clair', libelle: 'Clair — « papier ivoire »' },
-  { cle: 'sombre', mixin: 'jetons-theme-sombre', libelle: 'Sombre — « ardoise encrée »' },
+  { cle: 'sombre', mixin: 'jetons-theme-sombre', libelle: 'Sombre — « Moniteur ambre »' },
 ];
 
 const jetonsParTheme = new Map();
@@ -569,20 +581,44 @@ for (const theme of THEMES_ATTENDUS) {
   jetonsParTheme.set(theme.cle, lireJetons(corps));
 }
 
-// --- 6a. Les deux thèmes doivent définir exactement les mêmes jetons couleur -
+// --- 6a. Tous les thèmes doivent définir exactement les mêmes jetons couleur -
+// ⚠️ EN VEILLE tant qu'il n'y a qu'un thème : comparer un thème à lui-même ne
+// prouve rien, et un contrôle qui ne peut pas échouer se lit à tort comme une
+// garantie. La condition est explicite plutôt que supprimée — le jour où E4-ST1
+// rouvre une entrée dans `THEMES_ATTENDUS`, la parité est réexigée sans qu'il
+// faille se souvenir de réécrire quoi que ce soit.
 const couleursDe = (m) => [...m.keys()].filter((n) => n.startsWith('--couleur-'));
-const clairs = new Set(couleursDe(jetonsParTheme.get('clair')));
-const sombres = new Set(couleursDe(jetonsParTheme.get('sombre')));
-for (const nom of clairs) {
-  if (!sombres.has(nom)) erreur(`jeton « ${nom} » défini en clair mais absent du thème sombre`);
-}
-for (const nom of sombres) {
-  if (!clairs.has(nom)) erreur(`jeton « ${nom} » défini en sombre mais absent du thème clair`);
+const nomsParTheme = new Map(
+  THEMES_ATTENDUS.map((t) => [t.cle, new Set(couleursDe(jetonsParTheme.get(t.cle)))]),
+);
+const themeDeReference = THEMES_ATTENDUS[0];
+const jetonsDeReference = nomsParTheme.get(themeDeReference.cle);
+
+if (THEMES_ATTENDUS.length > 1) {
+  for (const theme of THEMES_ATTENDUS.slice(1)) {
+    const autres = nomsParTheme.get(theme.cle);
+    for (const nom of jetonsDeReference) {
+      if (!autres.has(nom)) {
+        erreur(
+          `jeton « ${nom} » défini dans le thème ${themeDeReference.cle} mais absent du ` +
+            `thème ${theme.cle}`,
+        );
+      }
+    }
+    for (const nom of autres) {
+      if (!jetonsDeReference.has(nom)) {
+        erreur(
+          `jeton « ${nom} » défini dans le thème ${theme.cle} mais absent du thème ` +
+            `${themeDeReference.cle}`,
+        );
+      }
+    }
+  }
 }
 
 // --- 6b. Couverture : aucun jeton couleur ne doit échapper à la mesure -------
 const jetonsCouverts = new Set(PAIRES.flatMap(([texte, fond]) => [texte, fond]));
-for (const nom of clairs) {
+for (const nom of jetonsDeReference) {
   if (!jetonsCouverts.has(nom) && !EXEMPTIONS[nom]) {
     erreur(
       `jeton « ${nom} » n'apparaît dans aucune paire et n'est pas exempté — ` +
@@ -591,7 +627,7 @@ for (const nom of clairs) {
   }
 }
 for (const nom of Object.keys(EXEMPTIONS)) {
-  if (!clairs.has(nom)) erreur(`exemption obsolète : le jeton « ${nom} » n'existe plus`);
+  if (!jetonsDeReference.has(nom)) erreur(`exemption obsolète : le jeton « ${nom} » n'existe plus`);
   // Une exemption redondante est pire qu'inutile : la branche ne s'exécute jamais,
   // et le rapport publie « exempté de mesure » pour un jeton bel et bien mesuré.
   else if (jetonsCouverts.has(nom)) {
@@ -761,6 +797,253 @@ for (const theme of THEMES_ATTENDUS) {
   resultats.set(theme.cle, lignes);
 }
 
+// --- 6d. Les ENCRES DE COLORATION SYNTAXIQUE, mesurées sur la surface de code ---
+// POURQUOI CE BLOC EXISTE — la dette que `CLAUDE.md` nommait pour E6.
+// `src/styles/_coloration-syntaxique-generee.scss` peint désormais TOUT bloc de code
+// sur `--couleur-code-surface`, le jeton du design system, alors que ses ENCRES restent
+// celles de github-dark, calibrées par Shiki pour SON fond à lui (#24292e). La table
+// `PAIRES` ne connaît que `--couleur-code-encre` : les encres de coloration
+// échappaient donc à toute mesure, sur une paire que le site assemble pourtant à
+// chaque bloc de code. C'est le trou même que ce gate existe pour fermer — « une paire
+// jamais assemblée n'est jamais mesurée » vaut aussi pour une paire assemblée par un
+// fichier GÉNÉRÉ.
+//
+// ⚠️ CE FICHIER EST GÉNÉRÉ ET NON VERSIONNÉ (`npm run content:build`). Son absence sur
+// un clone frais N'EST PAS une erreur : on SAUTE EN LE DISANT. Un saut muet rendrait ce
+// gate vert sur une mesure qui n'a pas eu lieu — le mode d'échec exact que l'en-tête de
+// ce fichier refuse au §2 de sa liste.
+//
+// ⚠️ ON ANALYSE, ON N'APPARIE PAS (`.claude/rules/security.md` §4, famille S-003/S-014) :
+// les blocs sont découpés par APPARIEMENT D'ACCOLADES, les déclarations lues nom par
+// nom, et toute propriété hors de la liste blanche NOMINATIVE ci-dessous — comme toute
+// valeur que `resoudreCouleur` ne sait pas résoudre — fait ÉCHOUER EN SE NOMMANT. Une
+// feuille dont le format aurait changé ne peut donc pas produire « 0 mesure » en
+// silence : zéro classe `.clr-…` dans un fichier PRÉSENT est un échec, pas un vide.
+//
+// ⚠️ CES MESURES NE SONT PAS TABULÉES DANS LE RAPPORT VERSIONNÉ, et c'est délibéré :
+// le jeu de classes dépend du CONTENU publié (Shiki n'émet que les couleurs des langages
+// réellement colorés). Les tabuler rendrait `docs/design/contrastes-jetons.md` non
+// déterministe, donc `--check` rouge sur un clone frais ET à chaque leçon nouvelle,
+// pour une raison qui n'a rien à voir avec le design system. Le rapport dit où elles
+// vivent ; la console les affiche ; un échec sort en code 1 comme n'importe quelle paire.
+
+/** Liste blanche NOMINATIVE des propriétés qu'une classe `.clr-…` a le droit de porter. */
+const PROPRIETES_COLORATION = new Set([
+  '--shiki-light',
+  '--shiki-dark',
+  '--shiki-light-bg',
+  '--shiki-dark-bg',
+]);
+
+/** L'encre servie À L'ÉCRAN : la feuille générée l'applique sans condition depuis E6. */
+const ENCRE_COLORATION = '--shiki-dark';
+/** Le fond servi à l'écran sous ces encres — le jeton du design system, plus celui de Shiki. */
+const FOND_COLORATION = '--couleur-code-surface';
+/** Du code est du texte : le seuil est celui du texte normal, pas celui du non-texte. */
+const SEUIL_COLORATION = 'texte-normal';
+
+/**
+ * Lit une feuille FACULTATIVE : `null` si elle n'existe pas, une exception pour toute
+ * autre panne (droits, disque). Un `catch` fourre-tout confondrait « pas encore
+ * générée » — normal sur un clone frais — et « illisible », qui doit rester bruyant.
+ * @param {string} chemin
+ * @returns {string | null}
+ */
+function lireSiGeneree(chemin) {
+  try {
+    return readFileSync(chemin, 'utf8');
+  } catch (e) {
+    const code = /** @type {{ code?: string } | null} */ (e)?.code;
+    if (code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
+/**
+ * Retire les commentaires SCSS. Un `//` qui survivrait en fin de ligne de code tomberait
+ * dans une VALEUR, que `resoudreCouleur` refuse en se nommant : fail-closed, jamais muet.
+ * @param {string} source
+ * @returns {string}
+ */
+function sansCommentairesScss(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((ligne) => (ligne.trimStart().startsWith('//') ? '' : ligne))
+    .join('\n');
+}
+
+/**
+ * Découpe une feuille en blocs `sélecteur { corps }` de PREMIER NIVEAU, par appariement
+ * d'accolades — même geste que `corpsDuMixin`, et pour la même raison : une regex non
+ * appariée casse au premier bloc imbriqué (`@media print` en porte un).
+ * Renvoie `null` si une accolade reste ouverte : mieux vaut un échec nommé qu'une liste
+ * tronquée, qui se lirait comme une feuille sans classes.
+ * @param {string} source
+ * @returns {{ selecteur: string, corps: string }[] | null}
+ */
+function decouperBlocs(source) {
+  /** @type {{ selecteur: string, corps: string }[]} */
+  const blocs = [];
+  let debut = 0;
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] !== '{') {
+      i += 1;
+      continue;
+    }
+    let profondeur = 0;
+    let fin = -1;
+    for (let j = i; j < source.length; j += 1) {
+      if (source[j] === '{') profondeur += 1;
+      else if (source[j] === '}') {
+        profondeur -= 1;
+        if (profondeur === 0) {
+          fin = j;
+          break;
+        }
+      }
+    }
+    if (fin === -1) return null;
+    blocs.push({ selecteur: source.slice(debut, i).trim(), corps: source.slice(i + 1, fin) });
+    i = fin + 1;
+    debut = i;
+  }
+  return blocs;
+}
+
+/**
+ * Lit les déclarations `propriété: valeur` d'un corps de bloc. Une déclaration non
+ * analysable est RENDUE, jamais sautée.
+ * @param {string} corps
+ * @returns {{ declarations: { propriete: string, valeur: string }[] } | { probleme: string }}
+ */
+function lireDeclarations(corps) {
+  /** @type {{ propriete: string, valeur: string }[]} */
+  const declarations = [];
+  for (const morceau of corps.split(';')) {
+    const brut = morceau.trim();
+    if (!brut) continue;
+    const m = brut.match(/^([\w-]+)[ \t]*:[ \t]*([^]+)$/);
+    if (!m) return { probleme: `déclaration non analysable « ${brut} »` };
+    declarations.push({ propriete: m[1], valeur: m[2].trim() });
+  }
+  return { declarations };
+}
+
+/** Encres distinctes (dédoublonnées par hex : Shiki écrit la même couleur en deux casses). */
+/** @type {{ hex: string, rvb: number[], classes: string[] }[]} */
+const encresColoration = [];
+/** @type {Map<string, { ratio: number, hex: string, classe: string }>} */
+const ratioMinColoration = new Map();
+/** Message de saut — imprimé au §8 avec le reste du résumé, jamais avalé. */
+let colorationSautee = '';
+
+const sourceColoration = lireSiGeneree(COLORATION);
+if (sourceColoration === null) {
+  colorationSautee =
+    `⏭  encres de coloration syntaxique NON MESURÉES — ${relative(RACINE, COLORATION)} ` +
+    `est absent. Ce n'est pas un échec : ce fichier est GÉNÉRÉ par « npm run content:build » ` +
+    `et non versionné, il n'existe donc pas sur un clone frais. Relancer ce gate après ` +
+    `« content:build » pour mesurer les encres sur ${FOND_COLORATION}.`;
+} else {
+  const blocs = decouperBlocs(sansCommentairesScss(sourceColoration));
+  if (blocs === null) {
+    erreur(
+      `coloration syntaxique : ${relative(RACINE, COLORATION)} n'est pas analysable — une ` +
+        `accolade ouvrante n'est jamais refermée. Le gate refuse de mesurer une feuille ` +
+        `qu'il ne sait pas lire en entier.`,
+    );
+  } else {
+    /** @type {Map<string, { rvb: number[], classes: string[] }>} */
+    const parEncre = new Map();
+    for (const bloc of blocs) {
+      // Seules les classes de coloration sont dans le périmètre : `.shiki` et `@media print`
+      // ne portent que des `var(…)` déjà couverts par la table des paires.
+      if (!/^\.clr-[\w-]+$/.test(bloc.selecteur)) continue;
+      const lu = lireDeclarations(bloc.corps);
+      if ('probleme' in lu) {
+        erreur(`coloration syntaxique [${bloc.selecteur}] : ${lu.probleme}`);
+        continue;
+      }
+      for (const { propriete, valeur } of lu.declarations) {
+        if (!PROPRIETES_COLORATION.has(propriete)) {
+          erreur(
+            `coloration syntaxique [${bloc.selecteur}] : propriété « ${propriete} » hors de la ` +
+              `liste blanche (${[...PROPRIETES_COLORATION].join(', ')}) — le format de la feuille ` +
+              `générée a changé, et ce gate ne mesure donc plus ce qu'il croit mesurer.`,
+          );
+          continue;
+        }
+        if (propriete !== ENCRE_COLORATION) continue;
+        const couleur = resoudreCouleur(valeur, primitives);
+        if (couleur.probleme || !couleur.hex || !couleur.rvb) {
+          erreur(
+            `coloration syntaxique [${bloc.selecteur}] ${propriete} : ` +
+              `${couleur.probleme ?? 'couleur non résolue'}`,
+          );
+          continue;
+        }
+        const entree = parEncre.get(couleur.hex) ?? { rvb: couleur.rvb, classes: [] };
+        entree.classes.push(bloc.selecteur);
+        parEncre.set(couleur.hex, entree);
+      }
+    }
+
+    if (parEncre.size === 0) {
+      // CONTRÔLE DE CONSERVATION — jumeau de celui des blocs `<script>` du générateur de CSP :
+      // zéro mesure sur une feuille PRÉSENTE n'est pas un dépôt sain, c'est un format qui a
+      // changé sous nos pieds. Un « 0 » muet passerait vert pour toujours.
+      erreur(
+        `coloration syntaxique : aucune classe « .clr-… » porteuse de « ${ENCRE_COLORATION} » ` +
+          `dans ${relative(RACINE, COLORATION)}, alors que le fichier EXISTE. Zéro mesure sur ` +
+          `une feuille présente est un changement de format, pas un dépôt sain.`,
+      );
+    } else {
+      for (const [hex, { rvb, classes }] of parEncre) {
+        encresColoration.push({ hex, rvb, classes: [...classes].sort() });
+      }
+      encresColoration.sort((a, b) => a.hex.localeCompare(b.hex));
+    }
+  }
+
+  // Mesure dans CHAQUE thème attendu : la feuille générée applique `--shiki-dark` sans
+  // condition à l'écran, donc le jour où E4-ST1 rouvre un thème clair, ces encres y
+  // seront servies telles quelles — et rougiront ici avant d'atteindre un visiteur.
+  for (const theme of THEMES_ATTENDUS) {
+    if (encresColoration.length === 0) break;
+    const brutFond = jetonsParTheme.get(theme.cle)?.get(FOND_COLORATION);
+    if (brutFond === undefined) {
+      erreur(
+        `[${theme.cle}] ${FOND_COLORATION} non défini — impossible de mesurer les encres de ` +
+          `coloration syntaxique.`,
+      );
+      continue;
+    }
+    const fond = resoudreCouleur(brutFond, primitives);
+    if (fond.probleme || !fond.hex || !fond.rvb) {
+      erreur(`[${theme.cle}] ${FOND_COLORATION} : ${fond.probleme ?? 'couleur non résolue'}`);
+      continue;
+    }
+    const min = SEUILS[SEUIL_COLORATION].min;
+    for (const encre of encresColoration) {
+      const ratio = arrondiPrudent(ratioContraste(encre.rvb, fond.rvb));
+      if (ratio < min) {
+        erreur(
+          `[${theme.cle}] encre de coloration ${encre.hex} (${encre.classes.join(', ')}) sur ` +
+            `${FOND_COLORATION} ${fond.hex} — ${ratio.toFixed(2)}:1 < ${min}:1 requis ` +
+            `(${SEUILS[SEUIL_COLORATION].critere}) · thème Shiki github-dark, calibré pour un ` +
+            `AUTRE fond que celui du design system.`,
+        );
+      }
+      const courant = ratioMinColoration.get(theme.cle);
+      if (!courant || ratio < courant.ratio) {
+        ratioMinColoration.set(theme.cle, { ratio, hex: encre.hex, classe: encre.classes[0] });
+      }
+    }
+  }
+}
+
 // =============================================================================
 // 7 · Rapport Markdown — livrable exigé par le backlog (E1-ST1)
 // =============================================================================
@@ -876,6 +1159,13 @@ md.push(
   '  ou un fond intermédiaire sortirait de cette mesure. C’est le rôle de **G-axe** (E1-ST2),',
   '  qui teste les pages ; les deux gates sont complémentaires, aucun ne remplace l’autre.',
   '- Les images et diagrammes (Mermaid, SVG de leçon) — hors jetons.',
+  '- Le DÉTAIL des **encres de coloration syntaxique** (`--shiki-dark`) : elles sont bel et bien',
+  '  mesurées par ce gate contre `--couleur-code-surface`, et une encre sous son seuil le fait',
+  '  sortir en **code 1** — mais elles ne sont pas tabulées ici. Elles viennent d’un fichier',
+  '  **généré et non versionné** (`src/styles/_coloration-syntaxique-generee.scss`, produit par',
+  '  `content:build`) dont le jeu de classes dépend du **contenu publié** : les tabuler rendrait',
+  '  ce rapport non déterministe, donc `--check` rouge sur un clone frais et à chaque leçon',
+  '  nouvelle. Le détail s’affiche sur la **console** du gate.',
   '- Le critère **1.4.12** (espacement du texte) et **1.4.4** (zoom 200 %), qui relèvent des',
   '  échelles typographiques, pas des couleurs.',
   '',
@@ -922,7 +1212,8 @@ console.log(
   `  Gate du design system — contrastes (WCAG 2, AA) + échelles${MODE_CHECK ? ' · mode --check' : ''}`,
 );
 console.log(
-  `  ${clairs.size} jetons couleur par thème · ${PAIRES.length} paires déclarées · ${totalPaires} mesures`,
+  `  ${jetonsDeReference.size} jetons couleur par thème · ${THEMES_ATTENDUS.length} thème(s) · ` +
+    `${PAIRES.length} paires déclarées · ${totalPaires} mesures`,
 );
 console.log(
   `  échelles : ${taillesPx.length} paliers typo (ratio ≥ ${RATIO_TYPO_MIN}) · ` +
@@ -937,6 +1228,22 @@ for (const theme of THEMES_ATTENDUS) {
       `plus bas ${bas ? bas.ratio.toFixed(2) : '—'}:1 (${bas ? bas.texte : '—'} / ${bas ? bas.fond : '—'})` +
       (echecsTheme ? ` · ${echecsTheme} SOUS LE SEUIL` : ''),
   );
+}
+if (colorationSautee) {
+  console.log(`  ${colorationSautee}`);
+} else if (encresColoration.length) {
+  console.log(
+    `  · coloration : ${encresColoration.length} encre(s) ${ENCRE_COLORATION} distincte(s) ` +
+      `mesurée(s) sur ${FOND_COLORATION} (${relative(RACINE, COLORATION)})`,
+  );
+  for (const theme of THEMES_ATTENDUS) {
+    const bas = ratioMinColoration.get(theme.cle);
+    if (bas) {
+      console.log(
+        `    ${theme.cle.padEnd(7)} plus bas ${bas.ratio.toFixed(2)}:1 (${bas.hex}, ${bas.classe})`,
+      );
+    }
+  }
 }
 console.log(
   `  Rapport : ${relative(RACINE, RAPPORT)}${MODE_CHECK ? ' (comparé, non réécrit)' : ' (réécrit)'}`,

@@ -29,38 +29,101 @@ function compilerAvecMixins(scss: string): string {
   }).css;
 }
 
-/** Extrait le corps d'un bloc `@media <condition>` par appariement d'accolades. */
+/**
+ * Extrait le corps de TOUS les blocs `@media <condition>`, concaténés.
+ *
+ * 🔴 IL Y EN A PLUSIEURS DEPUIS E6, et n'en lire qu'un faisait échouer ce test
+ * sur un produit parfaitement sain. `styles.scss` porte la cascade d'impression
+ * du site ; la feuille de coloration syntaxique GÉNÉRÉE porte la sienne, et elle
+ * arrive en premier dans le CSS compilé. L'ancienne version rendait donc le bloc
+ * de Shiki en croyant rendre celui du site, puis cherchait `--couleur-encre`
+ * dedans et ne l'y trouvait pas — un diagnostic qui accusait le produit.
+ *
+ * Ce qui compte à l'impression n'est de toute façon pas « le premier bloc » mais
+ * TOUT ce que `@media print` applique : la concaténation est aussi la mesure
+ * juste.
+ */
 function blocMedia(css: string, condition: string): string | null {
-  const debut = css.indexOf(`@media ${condition}`);
-  if (debut === -1) return null;
-  const ouvrante = css.indexOf('{', debut);
-  let profondeur = 0;
-  for (let i = ouvrante; i < css.length; i += 1) {
-    if (css[i] === '{') profondeur += 1;
-    else if (css[i] === '}') {
-      profondeur -= 1;
-      if (profondeur === 0) return css.slice(ouvrante + 1, i);
+  const corps: string[] = [];
+  let curseur = 0;
+
+  for (;;) {
+    const debut = css.indexOf(`@media ${condition}`, curseur);
+    if (debut === -1) break;
+    const ouvrante = css.indexOf('{', debut);
+    if (ouvrante === -1) break;
+
+    let profondeur = 0;
+    let fin = -1;
+    for (let i = ouvrante; i < css.length; i += 1) {
+      if (css[i] === '{') profondeur += 1;
+      else if (css[i] === '}') {
+        profondeur -= 1;
+        if (profondeur === 0) { fin = i; break; }
+      }
     }
+    if (fin === -1) break;
+
+    corps.push(css.slice(ouvrante + 1, fin));
+    curseur = fin + 1;
   }
-  return null;
+
+  return corps.length > 0 ? corps.join('\n') : null;
 }
 
 describe('Feuille globale — cascade d’impression (M1)', () => {
   const css = compile(FEUILLE_GLOBALE, { loadPaths: [RACINE_STYLES] }).css;
 
-  it('force les jetons clairs pour un visiteur NON épinglé', () => {
+  it('imprime en encre SOMBRE sur papier clair — mesuré, pas supposé', () => {
+    // 🔴 CE TEST A CHANGÉ DE FORME À LA BASCULE E6, PAS D'OBJET. Il épinglait le
+    // hex du papier ivoire et les deux sélecteurs qui neutralisaient la cascade à
+    // deux thèmes ; ces trois valeurs sont mortes avec le thème clair (D-2). Ce
+    // qu'il protégeait — une page qui ne s'imprime pas en clair sur blanc, mesuré
+    // à ~1.1:1 avant correctif — reste EXACTEMENT le même risque, et il est
+    // même plus aigu maintenant : la surface d'écran est un noir de tube, que les
+    // navigateurs ne peignent pas au papier. Sans inversion, il ne resterait que
+    // l'encre #d6e2e6 sur blanc.
+    //
+    // On ne mesure donc plus un hex attendu mais le CONTRASTE RÉELLEMENT OBTENU :
+    // le bloc `@media print` reste libre de choisir ses valeurs, il n'est pas
+    // libre de rendre la page illisible.
     const print = blocMedia(css, 'print');
     expect(print).not.toBeNull();
 
-    // C'est LE sélecteur qui manquait : sans lui, `:root` (0,1,0) perd contre le
-    // `:root:not([data-theme])` (0,2,0) du bloc sombre, et la page s'imprime en
-    // encre claire sur papier blanc (~1.1:1).
-    expect(print).toContain(':root:not([data-theme])');
-    // Et celui qui couvre le cas épinglé sombre (déjà correct avant la revue).
-    expect(print).toContain(':root[data-theme]');
-    // Preuve que le bloc pose bien les jetons du thème clair, pas seulement
-    // `color-scheme` : la surface claire est le papier ivoire.
-    expect(print).toContain('--couleur-surface: #f7f4ec');
+    const valeur = (jeton: string): string | null =>
+      new RegExp(`${jeton}:\\s*(#[0-9a-fA-F]{6})`).exec(print ?? '')?.[1]?.toLowerCase() ?? null;
+
+    const encre = valeur('--couleur-encre');
+    const surface = valeur('--couleur-surface');
+    expect(encre, '`@media print` doit redéfinir --couleur-encre').not.toBeNull();
+    expect(surface, '`@media print` doit redéfinir --couleur-surface').not.toBeNull();
+
+    const canal = (huit: number): number => {
+      const s = huit / 255;
+      return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (hex: string): number => {
+      const canaux = [1, 3, 5].map((i) => canal(Number.parseInt(hex.slice(i, i + 2), 16)));
+      const [r, v, b] = canaux;
+      // `map` sur un littéral de trois indices rend toujours trois canaux, mais
+      // l'indexation reste `number | undefined` pour TypeScript. On LÈVE plutôt
+      // que de retomber sur des zéros : une couleur illisible donnerait sinon une
+      // luminance de 0, donc un ratio faussement flatteur — un gate de contraste
+      // qui ment vert est pire que pas de gate.
+      if (r === undefined || v === undefined || b === undefined) {
+        throw new Error(`Couleur illisible, 6 chiffres hexadécimaux attendus : ${hex}`);
+      }
+      return 0.2126 * r + 0.7152 * v + 0.0722 * b;
+    };
+    const lEncre = luminance(encre as string);
+    const lSurface = luminance(surface as string);
+    const ratio =
+      (Math.max(lEncre, lSurface) + 0.05) / (Math.min(lEncre, lSurface) + 0.05);
+
+    expect(ratio, `encre ${encre} sur papier ${surface}`).toBeGreaterThanOrEqual(4.5);
+    // Et le sens compte : au papier, c'est l'ENCRE qui est sombre. Une page
+    // imprimée « juste » à l'envers gaspillerait un aplat de toner par feuille.
+    expect(lEncre, 'l’encre doit être plus sombre que le papier').toBeLessThan(lSurface);
   });
 
   it('fait REVENIR LE CODE À LA LIGNE au papier — sinon il disparaît sans trace', () => {
@@ -81,10 +144,19 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
 
   it('ne laisse aucun bloc `prefers-color-scheme: dark` hors du média `screen`', () => {
     // La cause racine : Firefox et Safari évaluent encore la préférence système à
-    // l'impression. Restreindre au type `screen` retire le bloc sombre du champ
+    // l'impression. Restreindre au type `screen` retire un bloc sombre du champ
     // du papier, quelle que soit la spécificité.
+    //
+    // ⚠️ LE COMPTE N'EST PLUS EXIGÉ > 0, ET C'EST DÉLIBÉRÉ. Depuis D-2 (sombre
+    // seul), AUCUNE occurrence ne subsiste dans la feuille compilée : ni
+    // `_themes.scss`, ni la feuille de coloration syntaxique générée par le
+    // pipeline de contenu — `compiler-markdown.mjs` a lui aussi cessé d'émettre
+    // son bloc `prefers-color-scheme` dans ce même lot. Il n'y a donc plus rien
+    // à arbitrer, et exiger qu'il en reste au moins un ferait échouer le test
+    // sur la BONNE issue. La règle, elle, ne s'assouplit pas : elle reste écrite
+    // pour E4-ST1 (retour du thème clair), et le premier bloc qui réapparaîtra
+    // devra être borné à `screen` ou ce test rougira.
     const requetesSombres = [...css.matchAll(/@media ([^{]*prefers-color-scheme:\s*dark[^{]*)\{/g)];
-    expect(requetesSombres.length).toBeGreaterThan(0);
     for (const [, condition] of requetesSombres) {
       expect(condition).toContain('screen');
     }
@@ -93,8 +165,9 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
   it('n’émet plus aucune graisse en dur — l’axe passe par les jetons', () => {
     // Les blocs `@font-face` sont retirés AVANT la mesure, et ce n'est pas un
     // assouplissement du contrôle : dans un `@font-face`, `font-weight` est un
-    // DESCRIPTEUR — il déclare la graisse que le fichier contient (700 pour
-    // Fraunces, l'intervalle 100 900 pour la variable Inter). Il ne style aucun
+    // DESCRIPTEUR — il déclare la graisse que le fichier contient (400 et 700
+    // pour IBM Plex Mono, l'intervalle 100 900 pour la variable Inter, 400 pour
+    // Silkscreen et Press Start 2P). Il ne style aucun
     // élément et ne peut donc pas court-circuiter un jeton. La règle visée par
     // ce test — aucune graisse en dur sur une RÈGLE de style — reste vérifiée
     // partout ailleurs, sur tout le reste de la feuille.
@@ -105,13 +178,23 @@ describe('Feuille globale — cascade d’impression (M1)', () => {
   });
 
   it('déclare les polices auto-hébergées, et aucun hôte externe (CSP font-src \'self\')', () => {
-    // G3 : la pile de titres commence par Fraunces, celle du corps par Inter.
-    // Sass retire les guillemets en interpolant la pile dans une custom
-    // property : la valeur émise est `Fraunces, Iowan Old Style, …`, pas
-    // `"Fraunces", …`. On assied donc le test sur le CSS RÉEL. Ce qui compte
-    // est le rang : la police auto-hébergée passe AVANT les replis système.
-    expect(css).toMatch(/--police-titres:\s*Fraunces,/);
+    // G3 : chaque jeton de police commence par sa famille auto-hébergée. Sass
+    // retire les guillemets en interpolant la pile dans une custom property : la
+    // valeur émise est `IBM Plex Mono, ui-monospace, …`, pas `"IBM Plex Mono", …`.
+    // On assied donc le test sur le CSS RÉEL. Ce qui compte est le rang : la
+    // police servie passe AVANT les replis système.
+    //
+    // 🔴 `--police-code` EST DANS LA LISTE DEPUIS E6, et ce n'est pas cosmétique :
+    // les blocs de code sont passés d'une pile SYSTÈME à une police servie parce
+    // que le cours ancre des annotations à la ligne et oppose des paires
+    // vulnérable/corrigé où l'alignement porte du sens. Un retour à la pile
+    // système rendrait le même extrait en Consolas chez l'un et en SF Mono chez
+    // l'autre — c'est ce test qui l'attrape.
+    expect(css).toMatch(/--police-titres:\s*IBM Plex Mono,/);
     expect(css).toMatch(/--police-corps:\s*Inter,/);
+    expect(css).toMatch(/--police-code:\s*IBM Plex Mono,/);
+    expect(css).toMatch(/--police-micro:\s*Silkscreen,/);
+    expect(css).toMatch(/--police-jalon:\s*Press Start 2P,/);
 
     // Le contrat de sécurité, mesuré sur le CSS émis plutôt que supposé : la CSP
     // du site est `font-src 'self'`. Une seule `src:` pointant un hôte externe
@@ -137,23 +220,28 @@ describe('Jetons de provenance pédagogique — 📘 cours / 🧩 complément', 
   const valeursDe = (jeton: string): string[] =>
     [...css.matchAll(new RegExp(`${jeton}:\\s*([^;]+);`, 'g'))].map((m) => (m[1] ?? '').trim());
 
-  it('porte les quatre jetons DANS LES DEUX THÈMES, sur les primitives attendues', () => {
-    // Le gate `tools/design/verifier-contrastes.mjs` refuse déjà un jeton défini
-    // dans un seul thème ; ce test épingle en plus la PRIMITIVE choisie, sur le
-    // CSS réellement émis. Un remappage (E6) est légitime — il doit alors être
-    // délibéré, donc passer par ici, pas se glisser dans un diff de peau.
-    const attendu: Record<string, [string, string]> = {
-      // jeton: [valeur en thème clair, valeur en thème sombre]
-      '--couleur-provenance-cours': ['#10508f', '#94bdf0'],
-      '--couleur-provenance-cours-surface': ['#eee8da', '#1f2531'],
-      '--couleur-provenance-complement': ['#4e586e', '#a3abbb'],
-      '--couleur-provenance-complement-surface': ['#fffdf7', '#262e3c'],
+  it('porte les quatre jetons, sur les primitives attendues du thème sombre', () => {
+    // Le gate `tools/design/verifier-contrastes.mjs` mesure le CONTRASTE de ces
+    // jetons ; ce test épingle la VALEUR choisie, sur le CSS réellement émis. Un
+    // remappage est légitime — il doit alors être délibéré, donc passer par ici,
+    // pas se glisser dans un diff de peau. Les valeurs ci-dessous sont celles de
+    // la bascule E6 « Moniteur ambre » (le cyan de provenance est choisi hors du
+    // vocabulaire rouge/vert/ambre pour ne rien lui voler).
+    //
+    // ⚠️ UN SEUL CALIBRAGE PAR JETON DEPUIS D-2 (sombre seul). Le compte exact
+    // reste vérifié, et il compte : `size === 1` interdit qu'un composant
+    // redéfinisse le jeton dans son coin — c'est le garde-fou G7, mesuré sur la
+    // sortie et pas seulement promis dans l'en-tête de `_themes.scss`.
+    const attendu: Record<string, string> = {
+      '--couleur-provenance-cours': '#5bc8e8',
+      '--couleur-provenance-cours-surface': '#0a1e26',
+      '--couleur-provenance-complement': '#8ca1aa',
+      '--couleur-provenance-complement-surface': '#0f1619',
     };
-    for (const [jeton, [clair, sombre]] of Object.entries(attendu)) {
+    for (const [jeton, sombre] of Object.entries(attendu)) {
       const valeurs = new Set(valeursDe(jeton));
-      expect(valeurs, jeton).toContain(clair);
       expect(valeurs, jeton).toContain(sombre);
-      expect(valeurs.size, `${jeton} — exactement deux calibrages, un par thème`).toBe(2);
+      expect(valeurs.size, `${jeton} — un seul calibrage tant qu’il n’y a qu’un thème`).toBe(1);
     }
   });
 
