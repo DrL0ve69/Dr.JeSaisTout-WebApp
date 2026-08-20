@@ -1,0 +1,50 @@
+// =============================================================================
+// PluieGlyphes — le décor de scène, en CSS : une couche, et deux refus
+// -----------------------------------------------------------------------------
+// ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
+// `:root`) : un style de composant est une unité de compilation séparée.
+//
+// G7 : aucune couleur, taille ni distance littérale. Ce fichier n'en a besoin
+// d'aucune — il ne fait que POSITIONNER une couche. Toutes les couleurs du décor
+// sont lues sur les jetons calculés, côté TypeScript.
+//
+// 🔴 PARADE 1/2 DE `prefers-reduced-motion` (l'autre est le `matchMedia` de
+// `pluie-glyphes.ts`). Celle-ci est la seule qui vaille AVANT l'hydratation et
+// SANS JavaScript : à ce moment-là le composant n'a pas encore été exécuté, et
+// seule une règle CSS peut garantir qu'aucun pixel de décor n'est peint. Elle ne
+// remplace pas l'autre — un `display: none` n'empêche pas une boucle
+// `requestAnimationFrame` déjà lancée de continuer à calculer.
+//
+// EN CONTRASTE FORCÉ, LA COUCHE DISPARAÎT AUSSI. Le système y remplace notre
+// palette par la sienne : un décor de glyphes deviendrait du `CanvasText` plein
+// écran derrière du `CanvasText` — c'est-à-dire du bruit exactement à la
+// luminance du texte qu'il faut lire (G11).
+//
+// `pointer-events: none` : la couche est déjà `inert` côté balisage ; on ne
+// compte pas deux fois sur la même parade, et celle-ci couvre le cas d'un
+// navigateur sans prise en charge d'`inert`.
+// =============================================================================
+
+@use '../../../../styles/mixins' as m;
+
+:host {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  pointer-events: none;
+
+  @include m.mouvement-reduit {
+    display: none;
+  }
+
+  @include m.contraste-force {
+    display: none;
+  }
+}
+
+.toile {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}

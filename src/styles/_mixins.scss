@@ -81,19 +81,30 @@
 }
 
 // -----------------------------------------------------------------------------
-// Décor de carnet — règlure et marge
+// Décor de scène — scanlines (direction « Moniteur ambre »)
 // -----------------------------------------------------------------------------
-// La règlure est du DÉCOR PUR : elle ne porte aucune information et n'est donc
-// pas soumise à 1.4.11 (elle est exemptée explicitement dans le gate de
-// contraste). C'est aussi le seul endroit où une opacité serait tolérable —
-// ici elle n'est même pas nécessaire, le jeton `--couleur-reglure` suffit.
-// Elle disparaît en contraste forcé : le système ne saurait pas la recolorer.
+// Remplace l'ancien mixin `reglure` du « Carnet de laboratoire » (E6). Le
+// mécanisme est le même — c'est le VOCABULAIRE qui change : ce ne sont plus les
+// lignes d'un feuillet, ce sont les lignes de balayage d'un moniteur cathodique.
 //
-// $pas — hauteur d'une ligne de carnet. Par défaut, exactement la hauteur d'une
-// ligne de corps de texte : une règlure qui ne tombe pas sur les lignes se voit
+// Ce sont des BANDES, pas un dégradé (G1). `repeating-linear-gradient` n'est ici
+// qu'un générateur de motif : les arrêts de couleur sont FRANCS (même position
+// pour la fin d'une bande et le début de la suivante), donc aucune transition
+// n'est peinte. Un dégradé décoratif reste interdit.
+//
+// DÉCOR PUR : aucune information ne passe par ce motif, il est donc exempté de
+// 1.4.11 (exemption écrite noir sur blanc dans `tools/design/verifier-contrastes.mjs`
+// pour `--couleur-reglure`). Il disparaît en `forced-colors: active` — le système
+// ne saurait pas le recolorer — et sous `prefers-reduced-motion` quand il est
+// employé en ambiance de scène (G6 : c'est à l'APPELANT de poser cette variante,
+// voir `app.scss`, parce que seul l'appelant sait s'il pose une ambiance ou une
+// texture locale).
+//
+// $pas — hauteur d'une ligne de balayage. Par défaut, exactement la hauteur d'une
+// ligne de corps de texte : un balayage qui ne tombe pas sur les lignes se voit
 // immédiatement, et l'ancrer sur l'échelle d'espacement (24 px) plutôt que sur
 // l'interligne réel (16 × 1.6 = 25.6 px) produirait précisément ce décalage.
-@mixin reglure($pas: calc(var(--taille-s) * var(--interligne-corps))) {
+@mixin scanlines($pas: calc(var(--taille-s) * var(--interligne-corps))) {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
@@ -107,15 +118,64 @@
   }
 }
 
-// Marge d'un feuillet de carnet — DÉCOR. Son défaut est `--couleur-filet-fort`
-// (trait neutre, mesuré ≥ 3:1), volontairement PAS `--couleur-danger-vuln` :
-// l'encre rouge est la signature sémantique « vulnérable » du site, et l'employer
-// en décor la dilue avant même le premier module. Un bloc qui veut dire quelque
-// chose n'utilise pas ce mixin, il utilise `marque-pedagogique` ci-dessous.
+// -----------------------------------------------------------------------------
+// Cartouche — le cadre net de la direction « Moniteur ambre »
+// -----------------------------------------------------------------------------
+// L'unité de délimitation du site : un bloc se borne par un TRAIT sur ses quatre
+// côtés, jamais par sa seule teinte de fond (G7-a — deux surfaces voisines ne
+// délimitent rien en `forced-colors: active`, où toutes les couleurs deviennent un
+// unique `CanvasText`).
+//
+// `border-radius: 0` est ÉCRIT, pas sous-entendu (G2 : aucun rayon d'arrondi
+// générique). Un `0` n'est pas une valeur de design qu'un jeton devrait porter —
+// c'est l'absence d'arrondi, et l'écrire ici évite qu'un rayon hérité d'un
+// sélecteur plus général (un `<button>`, un `<fieldset>`) rentre par la fenêtre.
+//
+// En contraste forcé, le trait est rebranché sur `CanvasText` : sans cela le
+// cadre disparaîtrait, et avec lui la seule délimitation du bloc.
+@mixin cartouche($couleur: var(--couleur-filet), $epaisseur: var(--filet-fin)) {
+  border: #{$epaisseur} solid #{$couleur};
+  border-radius: 0;
+
+  @include contraste-force {
+    border-color: CanvasText;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Micro-étiquette — capitales espacées de la police d'interface pixel
+// -----------------------------------------------------------------------------
+// Remplace le traitement « tampon » du carnet (encre, capitales, chasse ouverte).
+// `--police-micro` (Silkscreen) est une police BITMAP : elle est lisible en petit
+// et devient rapidement lourde en grand — d'où l'emploi réservé aux étiquettes
+// courtes (« Menu », « Chantier en cours », « Erreur »), jamais à de la prose.
+//
+// ⚠️ `text-transform: uppercase` NE CHANGE PAS le texte lu par une technologie
+// d'assistance : le nom accessible reste celui du contenu. C'est voulu — la
+// capitalisation est ici une affaire de rendu, pas de sens.
+@mixin micro-etiquette($taille: var(--taille-xs)) {
+  color: var(--couleur-encre-secondaire);
+  font-family: var(--police-micro);
+  font-size: #{$taille};
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+  text-transform: uppercase;
+}
+
+// Marge de bloc — DÉCOR. Son défaut est `--couleur-filet-fort` (trait neutre,
+// mesuré ≥ 3:1), volontairement PAS `--couleur-danger-vuln` : le rouge est la
+// signature sémantique « vulnérable » du site, et l'employer en décor la dilue.
+// Un bloc qui veut dire quelque chose n'utilise pas ce mixin, il utilise
+// `marque-pedagogique` ci-dessous.
+//
+// ⚠️ NOM HÉRITÉ DU « CARNET DE LABORATOIRE », CONSERVÉ VOLONTAIREMENT (E6, lot
+// « coquille »). Cinq feuilles de `src/app/features/**` l'appellent encore ; le
+// retirer ou le renommer ici casserait leur compilation, et ces fichiers
+// appartiennent à un lot ultérieur de la bascule. À renommer (`accent-lateral`)
+// quand ce lot-là passera — pas avant.
 //
 // En contraste forcé le système ne recolore pas les bordures d'après notre
-// palette : on les rebranche explicitement sur `CanvasText` pour que la marge ne
-// disparaisse pas (les autres décors, eux, sont retirés — cf. `reglure`).
+// palette : on les rebranche explicitement sur `CanvasText`.
 @mixin marge-carnet($couleur: var(--couleur-filet-fort)) {
   border-inline-start: var(--filet-marge) solid #{$couleur};
 
@@ -123,6 +183,7 @@
     border-inline-start-color: CanvasText;
   }
 }
+
 
 // -----------------------------------------------------------------------------
 // Marque pédagogique — WCAG 1.4.1 (l'information jamais par la seule couleur)
