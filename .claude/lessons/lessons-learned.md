@@ -477,6 +477,13 @@ invisible à `grep` qu'une porte de sortie silencieuse l'est à un statut de CI.
 
 **Réfs.** `tools/a11y/verifier-axe.mjs` ; `.claude/rules/security.md` §2 ; branche `feat/e1-st2-layout-navigation`.
 
+**Addendum (2026-08-19, lot de dette sécurité pré-E3-ST1).** Récidive dans
+`src/workflows-github.spec.ts` : un octet NUL littéral dans le fichier a fait répondre « Binary file
+matches » à un `grep` de diagnostic et a fait **échouer silencieusement** une édition par
+correspondance de chaîne (la chaîne cherchée « matchait » selon l'outil, mais rien n'était réellement
+remplacé). Même geste que l'entrée d'origine : un « binary file matches » sur un `.ts`/`.mjs` connu
+pour être du texte est un signal à inspecter, jamais une non-correspondance à accepter.
+
 ---
 
 ## L-018 · Une assertion de « non-lecture » (ex. aucun paramètre d'URL lu) ne prouve que ce que le gabarit rend, pas ce que le code lit
@@ -1010,6 +1017,24 @@ choisi, ET viser le **mauvais côté de la frontière** (l'appelant plutôt que 
 (`appelerVerifierAncres`, test « ANCRE — le garde-fou du COMPILATEUR refuse… ») ; revue
 `code-reviewer` du 2026-08-18 ; branche `feat/e2-st4-lot-a2`.
 
+**Addendum (2026-08-19, lot de dette sécurité pré-E3-ST1) — la même question de mutation
+(« ce test aurait-il échoué avant le correctif ? ») se pose aussi sur une CHARGE de contournement
+et sur un contrôle de SUPPRESSION.** Deux variantes trouvées sur les quatre PR du lot :
+(1) une charge de contournement citée en exemple pour S-003 (`<script data-x=a"b">`) portait un
+nombre **pair** de guillemets — déjà refusée par l'ancien analyseur, donc inutile à rejouer telle
+quelle ; toute charge de contournement doit d'abord se **rejouer contre l'ancien code**, avant même
+d'écrire le test, pour confirmer qu'elle serait passée à travers. (2) un contrôle positif écrit pour
+prouver « cette dépendance/cet outil n'est plus nécessaire » (Chromium pour Mermaid, un script CI
+retiré) hérite de la **même contrainte** que ce qu'il prétend démontrer absent : mesuré sur une
+machine qui possède déjà la ressource retirée, il reste vert en ne prouvant rien (le cache Mermoid
+localisait sa dépendance à la **construction du composant**, avant toute consultation du cache — un
+run sans Chromium l'aurait fait échouer partout) ; un spec censé prouver qu'un outil n'est plus requis
+exécutait lui-même un run de chauffage qui le requérait (même famille que [[L-007]], précédent
+PR #17). **Règle étendue** : avant d'écrire un contrôle qui affirme une absence (de faille, de
+dépendance, de nécessité), vérifier qu'il tournerait dans les conditions **exactes** où l'absence
+doit être vraie — machine sans la ressource, ancien code sans le correctif — pas dans l'environnement
+confortable où l'agent travaille.
+
 ---
 
 ## L-037 · « UNE définition, N appelants, dette PAYÉE » n'est vrai que si les N appelants ont été RECENSÉS — pas seulement ceux qui vivent dans le même dossier que l'outil
@@ -1503,6 +1528,70 @@ lourde est un fichier du dépôt lui-même (un spec existant volumineux), pas un
 `~/.claude/CLAUDE.md`) : **120k visé / 150k gros maximum / 200k exceptionnel à justifier** — les
 chiffres antérieurs (150k/200k/250k) cités ailleurs dans ce fichier sont désormais **périmés**, ne
 pas les reproduire dans une leçon neuve.
+
+---
+
+## L-056 · Le lot de dette sécurité pré-E3-ST1 (4 PR, 2 Critiques + 8 Majeurs) : AUCUN défaut n'était de logique — tous étaient des défauts de PREUVE. Une question unique les couvre tous : « ce test/cette mesure aurait-il échoué dans les conditions exactes où l'échec doit se produire ? »
+
+**Symptôme.** Sur les PR #27-#30 (dette S-003 : garde-fou de motif `style=`, CSP servie comparée
+structurellement, portée du sceau d'artéfact, épinglage `Azure/static-web-apps-deploy@v1`), toutes
+les revues ont trouvé des analyseurs **justes**, des listes blanches **nominatives**, des refus
+**fail-closed** — et malgré ça 2 Critiques et 8 Majeurs, tous du même patron : le garde-fou ne
+faisait pas ce que son test prétendait prouver. C'est [[S-003]] (« ce garde-fou ne prouve pas qu'il a
+tout vu ») un cran plus haut : la même question s'applique aux **tests qui gardent les garde-fous**.
+
+**Variantes mesurées, chacune une déclinaison d'une leçon déjà ouverte — aucune n'est un cas neuf :**
+- Une charge de contournement ou un contrôle de suppression de dépendance non rejoués contre l'état
+  **avant correctif** → addendum [[L-036]].
+- Une fixture **plus pauvre que le réel** (`element.content` supposé objet alors qu'il est une
+  **chaîne** sur `<meta name="viewport">` en production) : 15 tests verts sur un générateur incapable
+  de tourner en production. Le revers compte autant : ne pas enrichir une fixture **au-delà** du
+  réel non plus — une branche morte en production doit rester documentée comme morte, pas simulée
+  vivante. Cousine de [[L-046]] (un contrôle n'a de sens que relatif à un corpus déclaré) et de
+  [[L-035]] (une prémisse de test fausse rougit — ici c'est l'inverse : une fixture trop optimiste
+  laisse passer un produit cassé).
+- Une **dérivation qui réimplémente la production** (le test recomptait les blocs Mermaid au lieu
+  d'appeler `extraireDiagrammes`, en ignorant les suffixes d'info-string) : divergence silencieuse,
+  suite entière verte. Variante directe de [[L-034]] (mutualiser une vérification déplace le
+  risque) côté inverse — ici c'est l'**absence** de mutualisation qui a laissé deux vérités diverger.
+- Une clause déclarée « inatteignable » sur la seule foi des entrées imaginées
+  (`trim() === ''` ne couvre pas `";"`) : la bonne réponse est un test qui **atteint** la clause, pas
+  sa suppression — suivre le constat tel quel aurait supprimé un garde-fou vivant. Cousine de
+  [[L-029]] (une règle appliquée par accident disparaît quand on refactorise l'accident sans avoir
+  nommé ce qu'elle refusait).
+- Trois occurrences, **dans le même lot**, d'une boucle `for … if (introuvable) continue` qui se
+  saute elle-même : partir de la liste **filtrée** et l'assertionner non vide plutôt que de boucler
+  sur une collection dont les absences se taisent. Variante de [[L-019]] (un contrôle négatif seul
+  ne prouve rien sans contrôle positif).
+- Remplacer un balayage de texte brut par un parcours du **DOM** (`querySelectorAll('*')`) rétrécit
+  le périmètre sans le dire — `<template>.content` n'est pas descendu. Tout passage motif → analyseur
+  (le patron prescrit par `.claude/rules/security.md` §4) doit poser un contrôle de **conservation**
+  pour la branche migrée, sinon le gain de rigueur (liste blanche) cache une perte de portée.
+- Un garde-fou textuel à portée fichier qui accuse sa **propre prose** : un commentaire
+  d'avertissement citant `npm run e2e:install` en exemple d'interdit a fait rougir le test qui
+  interdit ce script. Variante de [[L-043]] (un garde-fou par motif ne distingue pas un usage d'une
+  mention) — ici sur un script CI plutôt qu'un appel de sanitizer ; on reformule la **prose**, jamais
+  la portée du garde-fou.
+- Un commentaire qui **sous-estime** une garantie est aussi faux qu'un qui la surestime : « `gates`
+  ne revérifie rien » était faux (le cache repasse par l'analyseur) et invite à poser une protection
+  redondante qui existe déjà — symétrique de [[L-016]]/S-009 (une justification qui promet plus que
+  le code n'applique), sur l'axe inverse : ici la prose promettait **moins**.
+- `build.mjs` refuse un `--sortie` hors dépôt, mais **après** avoir rendu les diagrammes — le run
+  échoué peuple quand même le cache. Un refus fail-closed n'est complet que s'il est aussi
+  **atomique** : un effet de bord qui survit à un échec est une preuve manquante de plus, pas
+  seulement un défaut de propreté.
+
+**Règle.** Avant de déclarer un garde-fou de sécurité (ou son test) fermé, poser explicitement la
+question sur laquelle toutes ces variantes échouent : **« cette preuve tournerait-elle, et
+échouerait-elle bien, dans les conditions exactes qu'elle prétend couvrir — l'ancien code, la
+machine sans la dépendance, le DOM réel, la liste non filtrée, l'entrée hostile réelle ? »** Un
+analyseur juste et une liste blanche nominative ne suffisent pas si le harnais qui les garde peut
+répondre vert sans jamais avoir traversé le chemin qu'il prétend garder — c'est exactement le
+niveau où [[S-003]] déplace le doute pour ce lot : de l'analyseur vers son propre test.
+
+**Réfs.** PR #27, #28, #29, #30 (lot de dette sécurité pré-E3-ST1) ; `.claude/lessons/security-lessons.md`
+**S-003** ; [[L-036]], [[L-034]], [[L-029]], [[L-019]], [[L-043]], [[L-016]], [[L-046]], [[L-035]] ;
+`.claude/rules/security.md` §4.
 
 ---
 
