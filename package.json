@@ -19,6 +19,7 @@
     "e2e:install:navigateur": "playwright install chromium",
     "config:swa": "node tools/deploiement/generer-config-swa.mjs",
     "content:build": "node tools/content-pipeline/build.mjs",
+    "content:mermaid:prechauffer": "node tools/content-pipeline/rendre-mermaid.mjs --racine tools/content-pipeline/__fixtures__/temoin/cours/securite-web && node tools/content-pipeline/rendre-mermaid.mjs --racine tools/content-pipeline/__fixtures__/mermaid-deux-diagrammes",
     "content:valider": "node tools/content-pipeline/valider.mjs",
     "content:valider:fixtures": "node tools/content-pipeline/valider.mjs --fixtures tools/content-pipeline/__fixtures__/invalides",
     "content:compiler": "node tools/content-pipeline/compiler-markdown.mjs",

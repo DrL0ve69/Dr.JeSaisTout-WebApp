@@ -43,6 +43,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { parse } from 'yaml';
 
 const ORCHESTRATEUR = 'tools/content-pipeline/build.mjs';
 const RACINE_TEMOIN = 'tools/content-pipeline/__fixtures__/temoin/cours/securite-web';
@@ -541,12 +542,61 @@ describe('câblage de `content:build`', () => {
         // c'est un `apt-get` en ROOT sur le workflow qui détient le jeton de déploiement, et son
         // retrait est écrit dans `deploy.yml` comme une moitié de dette de sécurité PAYÉE. Un
         // retour silencieux rendrait ce commentaire faux (patron S-009).
-        const appels = [...contenu.matchAll(/npm run e2e:install:navigateur(?![:\w-])/g)];
-        expect(appels, '« npm run e2e:install:navigateur » doit apparaître exactement une fois').
-          toHaveLength(1);
-        expect(contenu.indexOf('npm run e2e:install:navigateur')).toBeLessThan(
-          contenu.indexOf(`npm run ${SCRIPT}`),
+        // 🔧 (3) RÉÉCRIT PAR LE LOT C de la dette sécurité pré-E3-ST1, le 2026-08-19 — l'invariant
+        //     change de FORME, pas d'esprit, et il devient PLUS fort. `deploy.yml` porte désormais
+        //     trois jobs : `contenu` compile (donc rend les diagrammes, donc installe le
+        //     navigateur), et `gates` bâtit `dist/` sur une machine qu'aucun binaire CDN n'a
+        //     touchée — il ne réinstalle le navigateur qu'APRÈS le sceau d'artéfact, pour G-e2e
+        //     seul. Deux installations vivent donc dans ce fichier, dans deux jobs DISTINCTS et
+        //     sur deux machines distinctes : un comptage sur le TEXTE du fichier accuserait à tort
+        //     une topologie qui est précisément le correctif.
+        //
+        //     Ce que « exactement une fois » protégeait — ne pas payer deux fois le même
+        //     téléchargement — se dit maintenant PAR JOB. Et l'exigence d'ordre reste tenue là où
+        //     elle mord : dans le job qui compile réellement `content/`, l'installation précède la
+        //     compilation, sinon `mmdc` échoue dès la première leçon à diagramme.
+        //     On analyse le YAML au lieu de chercher des motifs dans le texte : un commentaire qui
+        //     PARLE de l'installation ne doit pas compter comme une étape qui l'EXÉCUTE
+        //     (`.claude/rules/security.md` §4 — on analyse, puis on confronte).
+        const APPEL_INSTALLATION = /npm run e2e:install:navigateur(?![:\w-])/;
+        const APPEL_COMPILATION = new RegExp(`npm run ${SCRIPT}(?![:\\w-])`);
+        const jobs = Object.entries(
+          (parse(contenu) as { jobs?: Record<string, { steps?: { run?: string }[] }> }).jobs ?? {},
         );
+        // Filet propre (L-019) : sans lui, un fichier sans `jobs:` passerait ce test sur une
+        // boucle VIDE — vert en n'ayant rien mesuré.
+        expect(jobs.length, `${workflow} n'expose aucun job à inspecter`).toBeGreaterThan(0);
+
+        let installationsTotales = 0;
+        for (const [nom, job] of jobs) {
+          const commandes = (job.steps ?? []).map((etape) => String(etape.run ?? ''));
+          const installations = commandes.filter((c) => APPEL_INSTALLATION.test(c)).length;
+          expect(
+            installations,
+            `le job « ${nom} » de ${workflow} installe le navigateur ${installations} fois : ` +
+              `ce serait le même binaire téléchargé deux fois sur la même machine`,
+          ).toBeLessThanOrEqual(1);
+          installationsTotales += installations;
+
+          const rangCompilation = commandes.findIndex((c) => APPEL_COMPILATION.test(c));
+          if (rangCompilation === -1) continue;
+          const rangInstallation = commandes.findIndex((c) => APPEL_INSTALLATION.test(c));
+          expect(
+            rangInstallation,
+            `le job « ${nom} » de ${workflow} compile \`content/\` SANS avoir installé le ` +
+              `navigateur : \`rendre-mermaid.mjs\` impose ce Chromium-là à \`mmdc\`, et la ` +
+              `compilation échouerait dès la première leçon à diagramme`,
+          ).not.toBe(-1);
+          expect(
+            rangInstallation,
+            `dans le job « ${nom} » de ${workflow}, l'installation du navigateur SUIT la ` +
+              `compilation du contenu — elle doit la précéder`,
+          ).toBeLessThan(rangCompilation);
+        }
+        expect(
+          installationsTotales,
+          `${workflow} n'installe le navigateur nulle part : G-e2e n'aurait aucun Chromium`,
+        ).toBeGreaterThanOrEqual(1);
 
         // Ni la moitié apt, ni le script combiné qui l'enchaîne : les deux ramèneraient
         // l'`apt-get` en root dans la CI, l'un ouvertement, l'autre par la bande.

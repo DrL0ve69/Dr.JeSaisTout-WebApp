@@ -7,26 +7,44 @@ name: Déploiement (main → SWA Free)
 # privilège — seulement le jeton de déploiement de la Static Web App, dont la portée se limite à
 # téléverser du contenu statique dans cette ressource.
 #
-# ⚠️ DEUX JOBS, ET LA SÉPARATION EST UNE MESURE DE SÉCURITÉ — PAS UNE COMMODITÉ.
-# `gates` exécute toute la vérification et ne reçoit AUCUN secret ; `publication` détient le jeton
-# et ne fait que téléverser l'artéfact produit, puis constater le résultat en ligne.
+# ⚠️ TROIS JOBS, ET LES DEUX COUPES SONT DES MESURES DE SÉCURITÉ — PAS DES COMMODITÉS.
+# `contenu` compile `content/` (donc rend les diagrammes, donc exécute un navigateur) ; `gates`
+# exécute toute la vérification et ne reçoit AUCUN secret ; `publication` détient le jeton et ne
+# fait que téléverser l'artéfact produit, puis constater le résultat en ligne.
 #
-# Ce qui a imposé cette coupe : ce job installe un navigateur (`playwright install --with-deps`,
-# étape remontée en tête depuis E2-ST1 car Mermaid le partage), c'est-à-dire un binaire téléchargé
-# depuis un CDN — HORS du contrôle d'intégrité
-# de `package-lock.json`, et installé avec les droits root du runner. Tant que cette étape
-# partageait le job du déploiement, du code téléchargé s'exécutait sur la machine qui détient le
-# jeton de publication. Constat de la revue de sécurité d'E1-ST2 ; arbitrage du propriétaire.
+# COUPE N°1 — `publication` À PART, POUR PROTÉGER LE JETON. Ce qui l'a imposée : la compilation et
+# les gates exécutent un navigateur Playwright, c'est-à-dire un binaire téléchargé depuis un CDN,
+# HORS du contrôle d'intégrité de `package-lock.json`. Tant que cette étape partageait le job du
+# déploiement, du code téléchargé s'exécutait sur la machine qui détient le jeton de publication.
+# Constat de la revue de sécurité d'E1-ST2 ; arbitrage du propriétaire.
 #
-# ⚠️ CE QUE LA COUPE NE FAIT PAS, ET QUI EST COUVERT AUTREMENT. Isoler le secret protège le JETON,
-# pas l'ARTÉFACT : dans le job `gates`, G-axe et G-e2e s'exécutent toujours entre la construction
-# de `dist/` et son envoi, et pourraient donc le réécrire. C'est le **sceau d'empreintes** (étapes
-# « Sceller l'artéfact » / « Vérifier le sceau avant publication ») qui ferme cette seconde
-# fenêtre — pas la coupe. Les deux mesures sont nécessaires ; aucune ne remplace l'autre.
+# COUPE N°2 — `contenu` À PART, POUR RENDRE AU SCEAU SA PORTÉE PLEINE (lot C de la dette sécurité
+# pré-E3-ST1). `rendre-mermaid.mjs` impose à `mmdc` le Chromium de Playwright ; la compilation du
+# contenu exige donc ce binaire, et elle doit précéder lint/test/build. Tant que les deux vivaient
+# dans le même job, le binaire CDN s'exécutait sur la machine qui bâtit `dist/`, EN AMONT du sceau :
+# celui-ci ne couvrait plus que la fenêtre construction → téléversement. `contenu` porte désormais
+# seul le navigateur et la compilation ; il remet ses sorties en artéfact, et `gates` bâtit `dist/`
+# sur une machine où AUCUN binaire CDN n'a encore tourné. Le tripwire de cette promesse est
+# structurel, pas déclaratif : si le cache Mermaid transféré était incomplet, `content:build`
+# rappellerait `mmdc` dans `gates` et échouerait faute de Chromium — bruyamment, en le nommant.
+#
+# ⚠️ CE QUE CES COUPES NE FONT PAS, ET QUI EST COUVERT AUTREMENT — ou pas du tout.
+#   · Isoler le secret protège le JETON, pas l'ARTÉFACT : dans `gates`, G-axe et G-e2e s'exécutent
+#     entre la construction de `dist/` et son envoi, et pourraient donc le réécrire. C'est le
+#     **sceau d'empreintes** (étapes « Sceller l'artéfact » / « Vérifier le sceau avant
+#     publication ») qui ferme cette fenêtre — pas la coupe.
+#   · 🔴 ET CE QUI RESTE ENTIER, dit ici pour que personne ne lise ce bloc comme « la dette est
+#     réglée » (patron S-009) : `gates` CONSOMME les sorties de `contenu`, et `src/content-generated/`
+#     finit dans `dist/`. Un Chromium compromis dans `contenu` pourrait donc encore empoisonner ce
+#     qui part en ligne. Ce que la coupe n°2 retire, c'est l'exécution du binaire CDN sur la machine
+#     de construction ; ce qu'elle ne retire pas, c'est la confiance dans les SVG qu'il a produits.
+#     Ces SVG passent, eux, par l'analyseur à liste blanche de `rendre-mermaid.mjs` — c'est là, et
+#     nulle part dans ce fichier, que ce reliquat de risque est traité.
 #
 # La règle qui en découle, pour tout gate ajouté plus tard : un gate va dans `gates`, jamais dans
-# `publication`. Si une étape a besoin du jeton, elle ne vérifie rien ; si elle vérifie quelque
-# chose, elle n'a pas besoin du jeton.
+# `publication` ni dans `contenu`. Si une étape a besoin du jeton, elle ne vérifie rien ; si elle
+# vérifie quelque chose, elle n'a pas besoin du jeton. Et si elle a besoin d'un navigateur AVANT
+# G-build, elle va dans `contenu` — sinon elle rouvre la fenêtre que la coupe n°2 vient de fermer.
 on:
   push:
     branches: [main]
@@ -42,13 +60,102 @@ permissions:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # JOB 1 — toute la vérification, et AUCUN secret.
-  # C'est ici, et seulement ici, que tourne du code : dépendances npm, compilation,
-  # navigateur Playwright. Rien de ce qui s'exécute dans ce job n'a accès au jeton de
-  # publication, parce que ce job ne le reçoit pas.
+  # JOB 1 — la compilation du contenu, et RIEN d'autre. LE SEUL JOB QUI EXÉCUTE UN
+  # NAVIGATEUR AVANT LA CONSTRUCTION DE `dist/`.
+  # Il ne vérifie rien, ne bâtit pas `dist/`, ne reçoit aucun secret. Il rend les diagrammes
+  # Mermaid (donc démarre `mmdc`, donc le Chromium de Playwright) et remet ses sorties en
+  # artéfact. Tout ce qui a touché au binaire CDN reste enfermé ici.
+  # ---------------------------------------------------------------------------
+  contenu:
+    name: contenu (compilation — navigateur isolé ici)
+    runs-on: ubuntu-latest
+    # Même filet que partout ailleurs, et pour la même panne du 2026-08-19 : ce job porte
+    # désormais l'étape d'installation du navigateur qui a pendu. Raisonnement dans `ci.yml`.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Installer (verrouillé)
+        run: npm ci
+
+      # LE BINAIRE CDN, ET IL NE SORT PAS DE CE JOB. `rendre-mermaid.mjs` impose CE Chromium-là à
+      # `mmdc` (`.puppeteerrc.cjs` interdit à Puppeteer de télécharger le sien). Il est téléchargé
+      # hors du contrôle d'intégrité de `package-lock.json` : c'est pour l'éloigner de la machine
+      # qui bâtit `dist/` que ce job existe.
+      # ⚠️ `e2e:install:navigateur`, jamais `e2e:install` ni `e2e:install:deps` — le script combiné
+      # enchaîne un `apt-get` en root, retiré de la CI le 2026-08-19 et interdit par un test.
+      - name: Installer le navigateur (Chromium — pour `mmdc` uniquement)
+        timeout-minutes: 5
+        run: npm run e2e:install:navigateur
+
+      # ⚠️ CE PRÉCHAUFFAGE N'EST PAS UNE OPTIMISATION — C'EST CE QUI REND LA COUPE POSSIBLE.
+      # `gates` exécute G-test, et les specs du pipeline (`pipeline-contenu-orchestration`,
+      # `garde-fou-lecons-non-publiees`) compilent les FIXTURES, qui portent des diagrammes. Sans
+      # leurs entrées de cache, `mmdc` serait rappelé dans `gates` — donc un Chromium y serait
+      # requis, donc la coupe n°2 ne servirait à rien. Mesuré le 2026-08-19 : ces deux racines
+      # produisent 4 entrées de cache, et la suite complète (744 tests) n'en fait apparaître
+      # AUCUNE de plus. Le compte est le contrôle : s'il bougeait, `gates` rougirait faute de
+      # Chromium, en nommant la commande manquante.
+      # Il tourne AVANT la compilation de production : `rendre-mermaid.mjs --racine` n'écrit que le
+      # cache, jamais `src/content-generated/` — mais garder cet ordre rend l'étape suivante seule
+      # responsable de ce qui est empaqueté.
+      - name: Préchauffer le cache Mermaid des fixtures (pour que `gates` reste vierge)
+        run: npm run content:mermaid:prechauffer
+
+      # Même étape que dans ci.yml, et AVANT G-lint (L-007 : un gate câblé dans un seul workflow
+      # n'est pas câblé). `src/styles.scss` fait `@use` sur une feuille GITIGNORÉE que seul ce
+      # pipeline produit : sans elle, G-test tombe le premier, sur une erreur Sass qui ne nomme pas
+      # la cause. C'est aussi le gate du contenu — un `lecon.md` ou un `quiz.json` malformé fait
+      # échouer la construction ici, en nommant le fichier et le champ fautifs, plutôt que de
+      # publier une page vide.
+      - name: Compiler `content/` (pipeline)
+        run: npm run content:build
+
+      # UN TAR, ET PAS TROIS `path:` DANS `upload-artifact` — deux pièges, tous deux SILENCIEUX.
+      #   · `upload-artifact` exclut les fichiers cachés par défaut : `.cache/mermaid/` serait omis
+      #     sans un mot, et `gates` rappellerait `mmdc` sans Chromium ;
+      #   · la racine de l'artéfact est le plus proche ancêtre COMMUN des fichiers trouvés. Tant que
+      #     `content/` est vide, aucun diagramme de production n'existe, `.cache/mermaid/` est vide,
+      #     et cette racine glisserait de la racine du dépôt à `src/` — les fichiers seraient alors
+      #     restaurés au MAUVAIS endroit, sans erreur.
+      # Le tar fige les chemins et échoue en nommant ce qui manque. Le `mkdir -p` garantit que
+      # l'entrée existe même sans diagramme de production : elle est vide aujourd'hui, elle se
+      # remplira à la première leçon d'E3-ST1.
+      - name: Empaqueter les sorties compilées
+        run: |
+          set -euo pipefail
+          mkdir -p .cache/mermaid
+          tar -czf "$RUNNER_TEMP/contenu-compile.tgz" \
+            src/content-generated \
+            src/styles/_coloration-syntaxique-generee.scss \
+            .cache/mermaid
+          echo "$(tar -tzf "$RUNNER_TEMP/contenu-compile.tgz" | wc -l) entrée(s) empaquetée(s)."
+
+      - name: Transmettre les sorties compilées
+        uses: actions/upload-artifact@v7
+        with:
+          name: contenu-compile
+          path: ${{ runner.temp }}/contenu-compile.tgz
+          retention-days: 1
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # JOB 2 — toute la vérification, et AUCUN secret.
+  # C'est ici que `dist/` est bâti — sur une machine où AUCUN binaire téléchargé d'un CDN n'a
+  # tourné avant la construction : le navigateur ne s'installe qu'APRÈS le sceau, pour G-e2e.
+  # Rien de ce qui s'exécute dans ce job n'a accès au jeton de publication, parce que ce job
+  # ne le reçoit pas.
   # ---------------------------------------------------------------------------
   gates:
     name: gates (sans secret)
+    needs: contenu
     runs-on: ubuntu-latest
     # Même filet que dans `ci.yml`, et pour la même panne du 2026-08-19 : ce job porte l'étape
     # d'installation du navigateur qui a pendu, à l'identique. Raisonnement complet là-bas.
@@ -72,62 +179,41 @@ jobs:
       - name: Installer (verrouillé)
         run: npm ci
 
-      # ⚠️ REMONTÉE ICI EXPRÈS — ne pas la redescendre près de G-e2e.
-      # `rendre-mermaid.mjs` invoque `mmdc` en lui imposant CE Chromium-là (`.puppeteerrc.cjs`
-      # interdit à Puppeteer de télécharger le sien). L'étape suivante compile `content/`, donc
-      # rend les diagrammes : une installation restée en aval ferait échouer la compilation dès la
-      # première leçon à diagramme d'E3-ST1, dans les DEUX workflows. Coût net nul — même
-      # installation, plus tôt.
+      # LE PASSAGE DE TÉMOIN DU JOB `contenu`, ET LE TRIPWIRE DE LA COUPE N°2.
+      # Ce job ne compile plus `content/` lui-même : il récupère ce que `contenu` a produit sur la
+      # machine où tournait le navigateur. Ce qui arrive ici : `src/content-generated/` (leçons
+      # compilées, manifeste de routes, carte d'imports), la feuille SCSS gitignorée que
+      # `src/styles.scss` importe, et le CACHE MERMAID par hachage.
       #
-      # ⚠️ ET CE QUE CE DÉPLACEMENT CHANGE POUR LE SCEAU, dit à voix haute plutôt que subi.
-      # `playwright install --with-deps` télécharge un binaire HORS du contrôle d'intégrité de
-      # `package-lock.json` et installe des paquets système en root. Tant qu'il tournait APRÈS
-      # « Sceller l'artéfact », le sceau prouvait qu'il n'avait pas réécrit `dist/`. Il tourne
-      # désormais AVANT la construction : le sceau ne couvre plus ce risque-là, il ne couvre que la
-      # fenêtre construction → téléversement (G-axe, G-e2e), qui reste sa raison d'être. Le
-      # déplacement est IMPOSÉ par le pipeline de contenu (compiler exige le navigateur, et
-      # compiler doit précéder lint/test/build) ; il n'est pas une commodité. La coupe en deux jobs
-      # continue, elle, de protéger le JETON — ce job n'en reçoit aucun (vérifié en revue : la
-      # seule occurrence de `secrets.` du fichier est dans `publication`).
-      #
-      # PARADE RETENUE, ET CELLE QU'ON A ÉCARTÉE (revue de sécurité du 2026-08-16, E2-ST1).
-      # Épingler le binaire par empreinte ne couvre que LA MOITIÉ du risque : aucun digest
-      # n'épingle le `apt-get install` que `--with-deps` lance en root. La parade complète est un
-      # JOB PROPRE qui compile `content/` et remet `src/content-generated/` + la feuille SCSS en
-      # artéfact à `gates` — `dist/` se bâtirait alors sur une machine qu'aucun binaire CDN n'a
-      # touchée. Elle n'est pas payée ici : E2-ST1 est le chemin critique J3→J4, et le trou ne
-      # devient concret qu'avec le PREMIER DIAGRAMME, donc en E3-ST1. Elle est donc inscrite au
-      # lot de dette sécurité qui précède E3-ST1 (backlog §E2, nœud 1), avec S-003 et la
-      # vérification structurelle de la CSP. En attendant, le nom de l'étape de scellement dit sa
-      # portée réduite, pour qu'on n'ait pas à lire ce commentaire pour la connaître.
-      # Scindée en deux le 2026-08-19, puis amputée de sa moitié apt le même jour — mesure et
-      # raisonnement complets dans `ci.yml`, au-dessus de la même étape.
-      #
-      # ⚠️ CE QUE L'AMPUTATION CHANGE POUR LA DETTE CI-DESSUS, exactement — parce qu'elle en paie
-      # une moitié, et une seule. Le paragraphe ci-dessus décrit DEUX risques hors du sceau :
-      #   · l'`apt-get install` lancé en ROOT → **il n'existe plus dans ce workflow.** Les
-      #     bibliothèques de Chromium sont déjà sur l'image du runner (mesuré) ; les 21 Mo que la
-      #     commande téléchargeait étaient neuf paquets de POLICES non latines, qu'aucun rendu de ce
-      #     site ne peint. Cette moitié de la dette est donc RÉELLEMENT payée, pas déplacée.
-      #   · le binaire téléchargé d'un CDN, hors du contrôle d'intégrité de `package-lock.json`,
-      #     puis EXÉCUTÉ dans ce job (par `mmdc` au `content:build`, puis par Playwright à G-e2e)
-      #     → **il reste entier**, et c'était de toute façon le plus exposé des deux : apt vérifie
-      #     les signatures GPG des dépôts Ubuntu, ce binaire-ci n'a que HTTPS.
-      # Le job propre du lot de dette pré-E3-ST1 garde donc sa raison d'être, pour ce second risque.
-      # Ne pas relire ce bloc comme « la dette est réglée » (patron S-009 : une justification ne
-      # promet jamais plus que ce qui est appliqué).
-      - name: Installer le navigateur (Chromium — partagé Mermaid/Playwright)
-        timeout-minutes: 5
-        run: npm run e2e:install:navigateur
+      # ⚠️ CE CACHE EST CE QUI TIENT LA PROMESSE, et il faut savoir pourquoi. Les crochets `pretest`
+      # et le script `build` rappellent `content:build` DANS ce job — c'est voulu, on ne le
+      # court-circuite pas. Grâce au cache transféré, il relit les SVG au lieu de les redessiner et
+      # n'invoque JAMAIS `mmdc`. Si une entrée manquait, il tenterait de le faire et échouerait
+      # faute de Chromium, en nommant la commande d'installation. C'est un tripwire STRUCTUREL, pas une
+      # promesse écrite : il prouve à chaque run que la machine qui bâtit `dist/` est vierge de
+      # binaire CDN. Ne pas « corriger » un tel échec en réinstallant le navigateur ici — ce serait
+      # rouvrir la fenêtre que la coupe n°2 ferme ; il se corrige dans `contenu`.
+      - name: Récupérer les sorties compilées de `contenu`
+        uses: actions/download-artifact@v7
+        with:
+          name: contenu-compile
+          path: ${{ runner.temp }}
 
-      # Même étape que dans ci.yml, au même rang, et AVANT G-lint (L-007 : un gate câblé dans un
-      # seul workflow n'est pas câblé). `src/styles.scss` fait `@use` sur une feuille GITIGNORÉE que
-      # seul ce pipeline produit : sans cette étape, G-test tombe le premier sur un checkout frais,
-      # sur une erreur Sass qui ne nomme pas la cause. C'est aussi le gate du contenu — un
-      # `lecon.md` ou un `quiz.json` malformé fait échouer la construction ici, en nommant le
-      # fichier et le champ fautifs, plutôt que de publier une page vide.
-      - name: Compiler `content/` (pipeline)
-        run: npm run content:build
+      # `set -euo pipefail` puis deux contrôles nommés : le tar échouerait déjà si l'archive était
+      # incomplète, mais un `@use` sur une feuille absente donne une erreur Sass qui ne nomme PAS
+      # sa cause (piège documenté dans CLAUDE.md). On nomme donc les deux sorties ici, où l'échec
+      # est lisible, plutôt que trois gates plus loin.
+      - name: Déballer les sorties compilées
+        run: |
+          set -euo pipefail
+          tar -xzf "$RUNNER_TEMP/contenu-compile.tgz"
+          for attendu in src/content-generated src/styles/_coloration-syntaxique-generee.scss; do
+            if [ ! -e "$attendu" ]; then
+              echo "::error::« $attendu » manque après déballage — le job « contenu » ne l'a pas produit."
+              exit 1
+            fi
+          done
+          echo "Sorties du pipeline restaurées ; cache Mermaid : $(find .cache/mermaid -type f | wc -l) entrée(s)."
 
       - name: G-lint
         run: npm run lint
@@ -169,27 +255,44 @@ jobs:
         run: npm run build
 
       # LE SCEAU — posé ici, rompu nulle part, revérifié juste avant le téléversement.
-      # Séparer les jobs (voir l'en-tête) empêche le code téléchargé d'atteindre le JETON ; ça ne
-      # l'empêche pas d'atteindre l'ARTÉFACT, puisque G-axe et G-e2e — qui pilote un navigateur
-      # téléchargé hors de `package-lock.json` — tournent entre la construction et l'envoi. Depuis
-      # E2-ST1, l'INSTALLATION de ce navigateur a été remontée avant la compilation du contenu
-      # (Mermaid le partage) : elle sort donc de la fenêtre que ce sceau surveille, ce qui est dit
-      # en toutes lettres à l'étape d'installation. Ces deux gates LISENT
-      # `dist/` ; aucun n'a de raison de l'écrire. L'empreinte le prouve au lieu de l'espérer.
+      # Séparer `publication` (voir l'en-tête, coupe n°1) empêche le code téléchargé d'atteindre le
+      # JETON ; ça ne l'empêche pas d'atteindre l'ARTÉFACT, puisque tout ce qui suit tourne entre la
+      # construction de `dist/` et son envoi. Ce que ce sceau couvre est donc, DEPUIS LE LOT C de la
+      # dette pré-E3-ST1, l'INTÉGRALITÉ de ce qui s'exécute après la construction : l'installation du
+      # navigateur (binaire hors du contrôle d'intégrité de `package-lock.json`), G-axe, G-e2e et
+      # G-audit. C'est ce que la coupe n°2 a rendu possible — le navigateur ne sert plus à compiler
+      # le contenu, il est donc redescendu ICI, dans la fenêtre surveillée, au lieu de la précéder.
+      # Aucun de ces gates n'a de raison d'écrire `dist/` ; l'empreinte le prouve au lieu de l'espérer.
       # Le manifeste est écrit dans `RUNNER_TEMP`, donc HORS de `dist/` : à l'intérieur, il ferait
       # partie de ce qu'il mesure et se réécrirait lui-même.
+      #
+      # ⚠️ CE QUE CE SCEAU NE COUVRE TOUJOURS PAS, et il faut le lire avant de le croire complet :
+      # ce qui a été construit AVANT lui. `npm ci` et le job `contenu` alimentent `dist/` ; un
+      # paquet ou un SVG compromis y serait scellé de bonne foi. Un sceau atteste qu'un dossier n'a
+      # pas bougé, jamais qu'il est sain (patron S-009).
       # ⚠️ NOM ENTRE QUOTES, ET IL DOIT LE RESTER. Il contient « portée : construction », donc un
       # « : » suivi d'une espace — en YAML, dans un scalaire NON quoté, cette séquence ouvre une
       # clef de mapping et rend le fichier illisible. GitHub ne signale alors pas une erreur de
       # syntaxe utile : il crée un run en ÉCHEC INSTANTANÉ (0 s) « workflow file issue », sur
       # n'importe quel push, y compris ceux qu'aucun déclencheur du fichier ne visait. Payé ici le
       # 2026-08-16.
-      - name: "Sceller l'artéfact (portée : construction → téléversement UNIQUEMENT)"
+      - name: "Sceller l'artéfact (portée : construction → téléversement, tout ce qui suit compris)"
         run: |
           set -euo pipefail
           find dist/dr-je-sais-tout/browser -type f -exec sha256sum {} + \
             | sort -k 2 > "$RUNNER_TEMP/sceau-dist.txt"
           echo "$(wc -l < "$RUNNER_TEMP/sceau-dist.txt") fichier(s) scellé(s)."
+
+      # LE NAVIGATEUR, REDESCENDU ICI PAR LE LOT C — et c'est le point de tout le lot.
+      # Il n'est plus nécessaire à la compilation du contenu (le job `contenu` s'en charge, et son
+      # cache Mermaid voyage jusqu'ici) : il ne sert plus qu'à G-e2e. Le poser APRÈS le sceau le
+      # remet dans la fenêtre surveillée — si ce binaire réécrivait `dist/`, « Vérifier le sceau
+      # avant publication » refuserait de publier.
+      # ⚠️ NE PAS LE REMONTER. Au-dessus du sceau, il redevient invisible à celui-ci, et la portée
+      # réduite que ce lot vient de corriger se réinstalle en silence.
+      - name: Installer le navigateur (Chromium — pour G-e2e uniquement)
+        timeout-minutes: 5
+        run: npm run e2e:install:navigateur
 
       # Même gate que dans ci.yml, au même rang — juste après G-build, dont il consomme l'artéfact.
       # Il compte doublement ici : ce sont EXACTEMENT les pages téléversées à l'étape de déploiement
@@ -208,8 +311,8 @@ jobs:
       # LA CSP QU'ELLES EMPORTENT. C'est la seule vérification du dépôt qui presse de vraies touches
       # sur la page interactive avant qu'elle parte en ligne — l'angle mort de la leçon S-005. Voir
       # la note de `ci.yml` pour ce qu'il couvre (clavier, focus, taille de cible) et l'en-tête de
-      # `playwright.config.ts` pour le choix du serveur. Le navigateur, lui, est installé bien plus
-      # haut : Mermaid le partage, et la compilation du contenu passe avant tous les gates.
+      # `playwright.config.ts` pour le choix du serveur. Le navigateur, lui, est installé juste
+      # après le sceau — c'est le SEUL gate de ce job qui en a besoin (lot C, coupe n°2).
       - name: G-e2e (accessibilité au clavier, sous CSP réelle)
         run: npm run e2e
 

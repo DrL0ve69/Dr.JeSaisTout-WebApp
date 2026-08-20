@@ -481,3 +481,125 @@ describe('le harnais de leçon interactive (décision E-2)', () => {
     ).not.toMatch(/--racine\s/);
   });
 });
+
+// =============================================================================
+// LA PORTÉE DU SCEAU D'ARTÉFACT EST-ELLE ENCORE PLEINE ? (lot C, dette sécurité pré-E3-ST1)
+// -----------------------------------------------------------------------------
+// CE QUE LE LOT C A CORRIGÉ. `rendre-mermaid.mjs` impose à `mmdc` le Chromium de Playwright ; la
+// compilation de `content/` exigeait donc ce binaire — téléchargé d'un CDN, hors du contrôle
+// d'intégrité de `package-lock.json` — et devait précéder lint/test/build. L'installation avait
+// donc été remontée AVANT la construction de `dist/`, et le sceau posé après `npm run build` ne
+// couvrait plus que la fenêtre construction → téléversement. La parade est un JOB PROPRE
+// (`contenu`) qui compile et transmet ses sorties ; `gates` bâtit alors `dist/` sur une machine
+// vierge de binaire CDN, et n'installe le navigateur qu'APRÈS le sceau, pour G-e2e.
+//
+// CE QUE CE BLOC MORD, ET POURQUOI IL EST EXÉCUTABLE PLUTÔT QU'ÉCRIT. La régression est d'une
+// facilité redoutable : il suffit de remonter trois lignes d'installation pour « réparer » un
+// build rouge, et RIEN ne rougirait — le sceau continuerait de se poser et de se vérifier, en ne
+// surveillant qu'une fenêtre amputée. C'est la famille L-008/L-016 (une garantie qui ne vit que
+// dans un commentaire ne garantit rien) et le patron S-009 (une justification ne doit jamais
+// promettre plus que ce qui est appliqué) : le commentaire du workflow affirme cette portée, ces
+// tests sont ce qui la rend vraie.
+//
+// ⚠️ CE QU'ILS NE MORDENT PAS, dit ici pour ne pas les surestimer : ils prouvent une TOPOLOGIE,
+// pas une innocuité. `gates` consomme les sorties de `contenu`, et un SVG empoisonné y serait
+// scellé de bonne foi. Ce reliquat est traité par l'analyseur à liste blanche de
+// `rendre-mermaid.mjs`, pas ici.
+// =============================================================================
+
+describe('la portée du sceau d’artéfact de deploy.yml (lot C)', () => {
+  const analyseSceau = parse(readFileSync('.github/workflows/deploy.yml', 'utf8')) as {
+    jobs?: Record<string, { needs?: unknown; steps?: { name?: string; run?: string }[] }>;
+  };
+  const jobsSceau = Object.entries(analyseSceau.jobs ?? {});
+  const INSTALLATION_NAVIGATEUR = /npm run e2e:install:navigateur(?![:\w-])/;
+
+  // Filet propre (L-019) : sans lui, un `jobs:` absent rendrait VERTES toutes les boucles
+  // ci-dessous en n'ayant mesuré aucun job.
+  it('expose des jobs à inspecter', () => {
+    expect(jobsSceau.length, 'deploy.yml n’expose aucun job').toBeGreaterThan(0);
+  });
+
+  it('fait compiler `content/` par un job SÉPARÉ de celui qui bâtit `dist/`', () => {
+    const compilent = jobsSceau
+      .filter(([, job]) =>
+        (job.steps ?? []).some((etape) => /npm run content:build(?![:\w-])/.test(etape.run ?? '')),
+      )
+      .map(([nom]) => nom);
+    const batissent = jobsSceau
+      .filter(([, job]) => (job.steps ?? []).some((etape) => (etape.name ?? '').startsWith('G-build')))
+      .map(([nom]) => nom);
+    expect(compilent, 'aucun job de deploy.yml ne compile `content/`').not.toEqual([]);
+    expect(batissent, 'aucun job de deploy.yml ne porte G-build').not.toEqual([]);
+    // L'intersection doit être VIDE : un job qui ferait les deux porterait le navigateur avant la
+    // construction, et la portée réduite serait de retour.
+    expect(
+      compilent.filter((nom) => batissent.includes(nom)),
+      'le même job compile `content/` ET bâtit `dist/` : il exécute donc le Chromium de `mmdc` ' +
+        'avant la construction, et le sceau retombe à la portée réduite que le lot C a corrigée',
+    ).toEqual([]);
+  });
+
+  it('n’installe AUCUN navigateur avant G-build dans le job qui bâtit `dist/`', () => {
+    for (const [nom, job] of jobsSceau) {
+      const etapes = job.steps ?? [];
+      const rangBuild = etapes.findIndex((etape) => (etape.name ?? '').startsWith('G-build'));
+      if (rangBuild === -1) continue;
+      const avant = etapes
+        .slice(0, rangBuild)
+        .filter((etape) => INSTALLATION_NAVIGATEUR.test(etape.run ?? ''))
+        .map((etape) => etape.name ?? '(sans nom)');
+      expect(
+        avant,
+        `le job « ${nom} » installe le navigateur AVANT G-build : le binaire CDN s'exécute donc ` +
+          `sur la machine qui bâtit \`dist/\`, en amont du sceau. Cette installation appartient au ` +
+          `job « contenu », ou à une étape POSTÉRIEURE au sceau.`,
+      ).toEqual([]);
+    }
+  });
+
+  // ⚠️ CE TEST NE SE LAISSE PAS SAUTER. Une première version bouclait sur les jobs et passait au
+  // suivant quand elle ne trouvait pas d'étape de scellement — un simple RENOMMAGE du sceau
+  // l'aurait donc rendu VERT en n'ayant rien mesuré (L-019, le vice de la boucle vide). Il part
+  // maintenant du job qui porte G-build, et EXIGE d'y trouver le sceau.
+  it('installe le navigateur APRÈS le sceau — donc dans la fenêtre qu’il surveille', () => {
+    const batisseurs = jobsSceau.filter(([, job]) =>
+      (job.steps ?? []).some((etape) => (etape.name ?? '').startsWith('G-build')),
+    );
+    expect(batisseurs.map(([nom]) => nom), 'aucun job de deploy.yml ne porte G-build').not.toEqual(
+      [],
+    );
+    for (const [nom, job] of batisseurs) {
+      const etapes = job.steps ?? [];
+      const rangSceau = etapes.findIndex((etape) => (etape.name ?? '').startsWith('Sceller'));
+      expect(
+        rangSceau,
+        `le job « ${nom} » bâtit \`dist/\` sans étape de scellement dont le nom commence par ` +
+          `« Sceller » : le sceau a disparu, ou son nom a changé sans que ce test le suive`,
+      ).not.toBe(-1);
+      const rangInstallation = etapes.findIndex((etape) =>
+        INSTALLATION_NAVIGATEUR.test(etape.run ?? ''),
+      );
+      expect(
+        rangInstallation,
+        `le job « ${nom} » scelle l'artéfact mais n'installe jamais le navigateur : G-e2e ne ` +
+          `pourrait pas démarrer`,
+      ).not.toBe(-1);
+      expect(
+        rangInstallation,
+        `dans « ${nom} », l'installation du navigateur précède le sceau : elle échappe donc à ce ` +
+          `que le sceau prouve`,
+      ).toBeGreaterThan(rangSceau);
+    }
+  });
+
+  it('fait dépendre le job de construction du job de compilation', () => {
+    const gates = analyseSceau.jobs?.['gates'];
+    expect(gates, 'deploy.yml n’a plus de job « gates »').toBeDefined();
+    expect(
+      JSON.stringify(gates?.needs ?? null),
+      'le job « gates » ne dépend plus de « contenu » : il bâtirait `dist/` sans les sorties du ' +
+        'pipeline, donc sur une erreur Sass qui ne nomme pas sa cause',
+    ).toContain('contenu');
+  });
+});
