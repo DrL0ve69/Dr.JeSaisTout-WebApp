@@ -40,8 +40,12 @@ jobs:
           node-version: '24' # Angular 22 exige ≥ 24.15
           cache: npm
 
+      # `--ignore-scripts` : voir le raisonnement mesuré dans `deploy.yml`, job `contenu`, à la même
+      # étape. Résumé — aucun script de cycle de vie propre au projet, binaires natifs livrés par les
+      # optionalDependencies de plateforme, seul `keytar` (dev, chemin de connexion de `swa`) en
+      # dépend. Tenu par un tripwire dans `src/workflows-github.spec.ts`.
       - name: Installer (verrouillé)
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       # ⚠️ REMONTÉE ICI EXPRÈS — ne pas la redescendre près de G-e2e.
       # Ce n'est plus seulement le navigateur du gate de bout en bout : `rendre-mermaid.mjs`
@@ -262,5 +266,10 @@ jobs:
       #
       # ⚠️ Cette liste de gates doit rester ALIGNÉE avec celle de deploy.yml, qui les rejoue avant
       # publication. Un gate ajouté ici et pas là-bas ne protège pas ce qui part en ligne.
+      # ⚠️ L'alignement porte sur la LISTE DES GATES, PAS SUR LA TOPOLOGIE DES JOBS. `deploy.yml`
+      # est scindé en trois jobs (`contenu` → `gates` → `publication`) à dessein : il détient un
+      # jeton, pose un sceau d'artéfact et publie. Ce workflow-ci ne fait aucun des trois, donc les
+      # deux coupes n'y protégeraient rien et coûteraient deux transferts d'artéfact par run. Ce
+      # fichier reste MONO-JOB volontairement — ce n'est pas un oubli à « réparer ».
       #
       # Les gates Terraform vivent dans infra.yml, déclenché par un filtre `paths` natif.

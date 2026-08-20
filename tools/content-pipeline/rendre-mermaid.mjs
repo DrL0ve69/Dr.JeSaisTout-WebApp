@@ -536,6 +536,44 @@ function localiserChromium() {
 }
 
 /**
+ * @typedef {object} Outils
+ * @property {string} mmdc chemin absolu du script `mmdc`
+ * @property {string} chromium chemin absolu du binaire Chromium de Playwright
+ */
+
+/** @type {Outils | undefined} mémoïsation — la résolution est identique pour tout le processus */
+let outilsMemoises;
+
+/**
+ * 🔴 RÉSOLUTION PARESSEUSE, ET C'EST LE POINT DE TOUT CE BLOC.
+ *
+ * Ces deux chemins ne sont demandés QUE lorsqu'un rendu est réellement nécessaire
+ * — c'est-à-dire quand il reste au moins un socle à fabriquer après consultation
+ * du cache. Un cache CHAUD ne doit rien exiger : la compilation relit ses SVG du
+ * disque, les repasse par l'analyseur à liste blanche, et n'a aucun besoin d'un
+ * navigateur.
+ *
+ * Ce n'était pas le cas jusqu'au 2026-08-19 : `creerRendeurMermaid()` résolvait à
+ * LA CONSTRUCTION, sur le raisonnement « mieux vaut échouer avant d'avoir compilé
+ * douze leçons ». Mesuré : cache à 4 SVG intacts + `PLAYWRIGHT_BROWSERS_PATH`
+ * pointant un dossier vide ⇒ code 1, « Chromium de Playwright introuvable », alors
+ * qu'il n'y avait STRICTEMENT rien à rendre. Or le job `gates` de `deploy.yml`
+ * exécute G-test AVANT d'installer le navigateur : le déploiement serait rouge à
+ * chaque fois, et son message ordonnerait d'installer Chromium — c'est-à-dire de
+ * rétablir la régression que ce lot existe pour supprimer.
+ *
+ * ⚠️ CE N'EST PAS UN REPLI SILENCIEUX. Quand un rendu EST nécessaire et que l'outil
+ * manque, l'échec reste exactement le même : bruyant, nommé, avec la commande à
+ * lancer. Seul le MOMENT de l'exigence change.
+ *
+ * @returns {Outils}
+ */
+function localiserOutils() {
+  outilsMemoises ??= { mmdc: localiserMmdc(), chromium: localiserChromium() };
+  return outilsMemoises;
+}
+
+/**
  * @returns {string} chemin absolu du script `mmdc`
  */
 function localiserMmdc() {
@@ -1076,11 +1114,13 @@ export function nettoyerSvg(brut, nomFichier, rang) {
 
 /**
  * @param {readonly string[]} codes sources normalisées à rendre
- * @param {{ mmdc: string, chromium: string }} outils
  * @param {string} nomFichier
  * @returns {string[]} SVG bruts, dans l'ordre des `codes`
  */
-function invoquerMmdc(codes, outils, nomFichier) {
+function invoquerMmdc(codes, nomFichier) {
+  // C'EST ICI, ET NULLE PART PLUS TÔT, que `mmdc` et Chromium deviennent exigibles —
+  // voir `localiserOutils`. Cette fonction n'est appelée que sur des socles manquants.
+  const outils = localiserOutils();
   const bac = mkdtempSync(join(tmpdir(), 'drjst-mermaid-'));
   try {
     const entree = join(bac, 'lot.md');
@@ -1172,14 +1212,14 @@ function invoquerMmdc(codes, outils, nomFichier) {
  */
 
 /**
- * Fabrique le rendeur. Le Chromium et `mmdc` sont localisés MAINTENANT, à la
- * construction : mieux vaut échouer avant d'avoir compilé douze leçons.
+ * Fabrique le rendeur. Il NE localise NI Chromium NI `mmdc` : construire un rendeur
+ * n'exige aucun outil, seul un rendu réel en exige — voir `localiserOutils`, qui
+ * porte la mesure et la raison.
  *
  * @param {{ cache?: string }} [options]
  * @returns {RendeurMermaid}
  */
 export function creerRendeurMermaid(options = {}) {
-  const outils = { mmdc: localiserMmdc(), chromium: localiserChromium() };
   const dossierCache = resolve(RACINE_DEPOT, options.cache ?? DOSSIER_CACHE);
   mkdirSync(dossierCache, { recursive: true });
 
@@ -1258,7 +1298,6 @@ export function creerRendeurMermaid(options = {}) {
         const debut = Date.now();
         const bruts = invoquerMmdc(
           manquants.map((m) => m.code),
-          outils,
           nomFichier,
         );
         stats.millisecondes += Date.now() - debut;
