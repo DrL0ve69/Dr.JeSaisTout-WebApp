@@ -113,7 +113,64 @@ comme prévu. Coût : **0 $**.
 |---|---|---|
 | `.github/workflows/ci.yml` | PR vers `main` | G-lint → G-typage-outils → G-contraste → G-glyphes → G-test → G-build → G-axe → G-e2e → G-audit. Aucun déploiement. **G-build y est bâti sur la FIXTURE TÉMOIN** (voir ci-dessous). |
 | `.github/workflows/infra.yml` | PR/push touchant `infra/**` | `terraform fmt -check` + `validate` (`-backend=false` : aucun identifiant Azure en CI). |
-| `.github/workflows/deploy.yml` | push sur `main` | Mêmes gates, **sauf G-build : racine de PRODUCTION** (voir ci-dessous), puis publication, puis **vérification des en-têtes servis en ligne**. |
+| `.github/workflows/deploy.yml` | push sur `main` | **Trois jobs** — `contenu` → `gates` → `publication` (voir ci-dessous). Mêmes gates, **sauf G-build : racine de PRODUCTION**, puis publication, puis **vérification des en-têtes servis en ligne**. |
+
+### La topologie de `deploy.yml` : trois jobs, et pourquoi (lot de dette pré-E3-ST1, 2026-08-20)
+
+`rendre-mermaid.mjs` impose à `mmdc` le Chromium de Playwright — un binaire **téléchargé d'un CDN**,
+hors du contrôle d'intégrité de `package-lock.json`, dont l'installation tire en plus un `apt-get` en
+root. Comme le pipeline de contenu en dépend, cette installation avait dû remonter **avant** la
+construction de `dist/` : le sceau d'empreintes ne couvrait donc plus que la fenêtre construction →
+téléversement.
+
+**La parade n'est pas un digest** — aucun digest n'épingle un `apt-get`. C'est une **coupe de jobs** :
+
+| Job | Ce qu'il fait | Navigateur |
+|---|---|---|
+| `contenu` | `npm ci` → installe le navigateur → **préchauffe le cache Mermaid des fixtures** → `content:build` → empaquette ses sorties en `.tgz` | **oui**, isolé ici |
+| `gates` | récupère et **déballe** ces sorties → G-lint … G-build → **sceau** → installe le navigateur → G-axe, G-e2e, G-audit → **revérifie le sceau** → transmet | **après le sceau seulement** |
+| `publication` | détient le jeton, déploie, vérifie les en-têtes servis | non |
+
+**Ce qui rend la coupe vérifiable plutôt que déclarative :**
+
+- La localisation de Chromium est **paresseuse** (`localiserOutils()` n'est appelée que depuis
+  `invoquerMmdc`, donc uniquement s'il reste un diagramme à rendre). Sans ça, un cache chaud exigeait
+  quand même le binaire et `gates` aurait été rouge à chaque déploiement.
+- Le **cache Mermaid transféré** fait que `content:build` ne rappelle jamais `mmdc` dans `gates` ; si
+  une entrée manquait, l'échec serait **bruyant et nommé**. C'est le tripwire structurel.
+- Le seuil d'entrées de cache est **dérivé** des blocs ```` ```mermaid ```` réellement présents dans
+  les fixtures, pas écrit en dur.
+- L'archive `contenu → gates` est traitée comme **une entrée** : refus des segments `..`/`.`, liste
+  blanche **nominative** des membres, contrôle du **type** d'entrée, puis extraction des membres
+  nommés (**S-021**).
+- `src/workflows-github.spec.ts` épingle la **fenêtre avant le sceau** par une liste blanche
+  **ordonnée**, avec **empreinte du corps exécuté** de chaque étape — le nom seul laissait greffer un
+  `&& npx playwright install` dans une étape existante (**S-018**).
+- Les trois `npm ci` des workflows portent **`--ignore-scripts`** (SonarCloud `githubactions:S6505`).
+  Mesuré avant de l'appliquer : le build, le rendu Mermaid et `swa start` fonctionnent sans les
+  scripts de cycle de vie ; seul `keytar` casse, sur un chemin du CLI Azure que la CI n'emprunte pas.
+
+⚠️ **Ce que la coupe NE ferme PAS** : `gates` **consomme** les sorties de `contenu`. On retire
+l'exécution du binaire CDN de la machine qui bâtit `dist/`, **pas** la confiance dans ce qu'il a
+produit. Dit en toutes lettres dans `deploy.yml` lui-même.
+
+### La CSP servie est comparée **structurellement** (lot de dette pré-E3-ST1, 2026-08-20)
+
+`tools/deploiement/verifier-csp-servie.mjs` (sans aucune dépendance npm — le job `publication` n'a pas
+de `node_modules`) parse la CSP en `Map directive → sources` et exige l'égalité **directive par
+directive** entre la CSP **servie**, celle de l'artéfact, et `config/staticwebapp.config.source.json`
+modulo les jetons `__HACHAGES_*__` — un jeton ne pouvant résoudre **que** des `'sha256-…'`, vérifié
+source par source (**S-005**). Avant, seuls des `grep` de présence tournaient : **une directive
+entière rendue permissive passait**.
+
+🔴 **Ce que le journal doit montrer, sinon le gate n'a rien lu** (**L-005**) : `En-têtes appliqués
+(tentative N).`, puis `CSP servie ≡ CSP de l'artéfact — N directives comparées une à une :` **suivi de
+l'énumération**, puis la ligne de résolution des jetons. Un « OK » ne distingue pas 11 directives
+comparées de 0.
+
+L'action de déploiement est **épinglée au SHA** `1a947af9992250f3bc2e68ad0754c0b0c11566c9` — le
+**tag** `v1`, relevé dans le journal d'un run réel. ⚠️ Le dépôt amont porte **aussi une branche `v1`**
+qui diverge : ne pas la prendre pour une mise à jour, un épinglage **fige**, il n'upgrade pas.
 
 ### ⚠️ Les deux workflows ne construisent PAS le même artéfact (décision E-2, E2-ST3 lot E)
 
