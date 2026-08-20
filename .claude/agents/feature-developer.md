@@ -24,8 +24,8 @@ d'abord.
 
 ## Avant d'écrire la moindre ligne
 
-1. Lis `CLAUDE.md` (racine) pour les conventions, et `.claude/lessons/lessons-learned.md` pour les
-   pièges connus — **ne réintroduis pas une erreur déjà corrigée**.
+1. Lis `CLAUDE.md` (racine) pour les conventions, puis `.claude/lessons/INDEX.md` (~3 900 tokens, plages de lignes incluses) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : `lessons-learned.md` fait 33 600 tokens et `security-lessons.md` 18 000, pour deux entrées utiles en pratique (mesuré le 2026-08-20 — voir `.claude/rules/agent-context-budget.md` §7).
+   **Ne réintroduis pas une erreur déjà corrigée.**
 2. Si on t'a donné un plan d'architecte, **suis-le**. Sinon, et si la tâche est non triviale,
    esquisse d'abord le plan au niveau fichier.
 3. **Au démarrage du projet, il n'y a pas encore de code** : la référence est

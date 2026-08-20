@@ -123,7 +123,10 @@ const SCRIPT_ETAT =
 const HACHAGE_SCRIPT_ATTENDU = 'sha256-hIxkAZ0KC2VIDD2cWnG1AoQYrZGTH4AxI7h8JYMUs8M=';
 
 /** Le compte de hachages de style épinglé par le générateur — en dur ici aussi, même raison. */
-const NOMBRE_HACHAGES_ATTENDU = 10;
+// 10 → 13 le 2026-08-20 : ce n’est pas une permission élargie mais la TAILLE DE LA FIXTURE de ce
+// fichier — elle doit égaler le compte que le générateur épingle par défaut, sinon un artéfact
+// synthétique SAIN se ferait refuser et le contrôle positif ne prouverait plus rien.
+const NOMBRE_HACHAGES_ATTENDU = 13;
 
 /** Autant de blocs Angular conformes, tous de contenus DISTINCTS — le générateur dédoublonne. */
 const BLOCS_CONFORMES = Array.from(

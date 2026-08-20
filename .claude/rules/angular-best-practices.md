@@ -1,3 +1,25 @@
+---
+paths:
+  - "src/**/*.ts"
+  - "src/**/*.html"
+  - "src/**/*.scss"
+  - "e2e/**/*.ts"
+---
+
+<!--
+PORTÉE DE CHEMIN, posée le 2026-08-20. Sans le `paths:` ci-dessus, ce fichier était chargé
+INCONDITIONNELLEMENT dans chaque session et chaque sous-agent (doc officielle : « Rules without
+a `paths` field are loaded unconditionally »). Mesuré le même jour : ~74 000 tokens de préambule
+permanent par sous-agent, dont ~10 600 pour les cinq fichiers de `.claude/rules/`.
+
+POURQUOI CELUI-CI EST SCOPABLE. Guidance de framework : elle ne sert que devant du code Angular. Filet de sécurité, en plus de la portée — le hook `PostToolUse` (`post-edit-guardrail.mjs`) pointe ce fichier après CHAQUE édition de front, donc un agent qui écrirait un composant sans jamais LIRE un `.ts` reçoit quand même le rappel.
+
+⚠️ CE QUE LA PORTÉE COÛTE, dit ici pour que personne ne le redécouvre : une règle à `paths:`
+n'est PAS réinjectée après un `/compact` (doc : elle se recharge à la prochaine lecture d'un
+fichier apparié). Une règle dont la perte en cours de session serait grave — sécurité, budget —
+reste donc SANS portée, délibérément. Voir `.claude/rules/agent-context-budget.md` §7.
+-->
+
 # Angular — bonnes pratiques (cache local du MCP angular-cli)
 
 > **Copié le 2026-08-03** depuis le cache du projet frère **AbrisTempo Local**

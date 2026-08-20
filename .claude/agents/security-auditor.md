@@ -29,7 +29,8 @@ transforme en rapport : rends-le structuré et complet.
 
 ## D'abord, charge la barre (à chaque run)
 
-1. `.claude/lessons/security-lessons.md` — les règles durables (`S-0xx`). Confronte la cible à chacune.
+1. `.claude/lessons/INDEX.md` (~3 900 tokens, plages de lignes incluses) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : `lessons-learned.md` fait 33 600 tokens et `security-lessons.md` 18 000, pour deux entrées utiles en pratique (mesuré le 2026-08-20 — voir `.claude/rules/agent-context-budget.md` §7).
+   Les `S-0xx` sont les règles durables : confronte la cible à celles que tu as ouvertes.
 2. `.claude/rules/security.md` — la checklist opérationnelle par couche.
 3. `docs/architecture/stack-et-architecture.md` et `docs/contenu/pipeline-contenu.md` — la forme réelle
    de l'application et de sa chaîne de contenu.

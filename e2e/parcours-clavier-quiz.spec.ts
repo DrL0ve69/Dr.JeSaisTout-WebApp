@@ -16,9 +16,9 @@
 //
 //  1. UN GROUPE DE RADIOS NE COÛTE QU'UNE TABULATION. C'est l'attribut `name`
 //     partagé — et lui seul — qui fait qu'un groupe natif se traverse d'un Tab et
-//     se parcourt aux flèches. Quatre `name` distincts par question donneraient
-//     des cases à cocher déguisées : même rendu, même HTML valide, même passe axe,
-//     mais QUATORZE arrêts au lieu de quatre, et plus aucune sémantique « 2 sur 3 ».
+//     se parcourt aux flèches. Un `name` distinct par choix donnerait des cases à
+//     cocher déguisées : même rendu, même HTML valide, même passe axe, mais autant
+//     d'arrêts que de radios, et plus aucune sémantique « 2 sur 3 ».
 //     Le gabarit lie `[name]="question.idDocument"` ; cette hypothèse n'était
 //     vérifiée nulle part. Elle l'est ici.
 //
@@ -32,7 +32,8 @@
 //     n'en sort plus. Seul Maj+Tab jusqu'au bout le dit.
 //
 //  4. LA CORRECTION S'ATTEINT ET SE LIT. Corriger GÈLE les radios (`disabled`) :
-//     huit arrêts disparaissent d'un coup du parcours, et le bouton qui portait le
+//     tous les arrêts de questions disparaissent d'un coup du parcours, et le
+//     bouton qui portait le
 //     focus est REMPLACÉ par « Recommencer le quiz ». Un focus laissé sur un
 //     élément retiré retombe sur `<body>` — 2.4.3, invisible à tout gate statique.
 //     `Quiz.corriger()` déplace donc le focus vers la région `role="status"` ; c'est
@@ -46,11 +47,25 @@
 //
 // ⚠️ LE PRÉAMBULE DE LA PAGE N'EST PAS ÉPINGLÉ, ET C'EST DÉLIBÉRÉ. Les arrêts qui
 // précèdent le quiz (liens de sommaire, `<summary>` de description de diagramme,
-// blocs de code défilables) appartiennent au CONTENU de la fixture : les épingler
-// ferait rougir ce fichier à chaque retouche de la leçon-témoin, pour une faute qui
+// blocs de code défilables) appartiennent au CONTENU de la leçon : les épingler
+// ferait rougir ce fichier à chaque retouche éditoriale, pour une faute qui
 // ne serait pas la sienne. On tabule donc JUSQU'AU quiz, on imprime le compte au
 // journal (« … tabulation(s) avant le quiz », plus bas), et on épingle ce qui
-// appartient au quiz : ses huit arrêts, dans l'ordre.
+// appartient au quiz : ses arrêts, dans l'ordre.
+//
+// 🔴 CE FICHIER EST AGNOSTIQUE AU CONTENU ÉDITORIAL — RECALIBRAGE DU 2026-08-20,
+// à la clôture d'E3-ST1. Il visait la fixture témoin et ses CINQ questions, avec
+// des littéraux partout : huit arrêts, onze radios, « sur 5 questions corrigées »,
+// « quatre tabulations jusqu'au premier `<select>` ». La leçon 01 en publie HUIT,
+// d'où douze arrêts et vingt-quatre radios — et dix-huit leçons restent à écrire.
+// Un spec qui rougit parce qu'un auteur ajoute une question est un défaut, pas un
+// gate. Tout compte est donc DÉRIVÉ, et de DEUX sources indépendantes :
+//   • la STRUCTURE attendue vient du `quiz.json` de la leçon mesurée, lu sur le
+//     DISQUE — types de questions, nombre de choix, nombre de lignes d'un
+//     `associer`, lignes de code d'un `trouver-la-faille` ;
+//   • le RENDU vient du DOM servi.
+// L'assertion est leur ÉGALITÉ. C'est la parade au patron S-014 : un compte tiré
+// du seul DOM se prouverait lui-même, et un test auto-validant est un gate vide.
 //
 // ⚠️ AUCUN CHIFFRE N'EST ÉCRIT ICI, ET C'EST UN CORRECTIF (revue du lot B, E2-ST4).
 // Ce commentaire annonçait « 19 arrêts », un compte devenu faux DEUX FOIS dans le
@@ -76,13 +91,29 @@ import {
 } from './aides/indicateur-focus';
 
 import { attendreHydratation } from './aides/hydratation';
-import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+import { ROUTE_LECON_QUIZ, exigerUneLeconAvecQuiz } from './aides/artefact-mesure';
+import {
+  citationDeReponse,
+  lireQuizSource,
+  mecaniqueDeSaisie,
+  radiosAttendues,
+} from './aides/quiz-source';
 
-exigerLaPageDeLecon('le parcours clavier du quiz (8 arrêts, flèches, focus visible)');
+exigerUneLeconAvecQuiz('le parcours clavier du quiz (arrêts, flèches, focus visible)');
 
+/** La page de leçon à quiz que l'artéfact sous mesure porte réellement. */
+const CHEMIN_LECON = ROUTE_LECON_QUIZ;
 
-/** Voir l'en-tête de `quiz-pre-hydratation.spec.ts` : cette route vient de la fixture témoin. */
-const CHEMIN_LECON = '/cours/securite-web/lecon-temoin/';
+/**
+ * La SOURCE de vérité indépendante du DOM : le `quiz.json` de cette leçon-là.
+ *
+ * 🔴 LA LECTURE A DÉMÉNAGÉ DANS `e2e/aides/quiz-source.ts` (2026-08-20), et la dette
+ * qui était nommée ici est payée. Elle vivait en TROIS exemplaires — un par spec du
+ * quiz — et les trois avaient déjà divergé sur le contrat qu'ils lisaient. Le
+ * fichier d'aide est inscrit dans `src/configuration-typescript.spec.ts` comme
+ * L-034 l'exige, dans ce même diff.
+ */
+const QUESTIONS_SOURCE = lireQuizSource();
 
 /**
  * Borne de la marche d'approche vers le quiz. Généreuse mais finie : sans elle, un
@@ -91,26 +122,46 @@ const CHEMIN_LECON = '/cours/securite-web/lecon-temoin/';
 const LIMITE_APPROCHE = 60;
 
 /**
- * LES HUIT ARRÊTS DU QUIZ, DANS L'ORDRE DU DOCUMENT — le cœur épinglé de ce fichier.
+ * LES ARRÊTS DU QUIZ, DANS L'ORDRE DU DOCUMENT — le cœur épinglé de ce fichier.
  *
- * Quatre questions à radios = QUATRE arrêts (un par groupe `name`, entré sur son
- * premier membre puisque rien n'est coché), puis les TROIS `<select>` de
- * l'`associer` — un par ligne de gauche, donc trois arrêts bien distincts — puis le
- * bouton de correction. Quatorze radios pour quatre arrêts : c'est tout l'intérêt.
+ * ⚠️ DÉRIVÉS DE `quiz.json`, PLUS ÉCRITS À LA MAIN (2026-08-20). La règle de rendu
+ * est stable, elle : une question à radios coûte UN arrêt (le groupe `name` partagé,
+ * entré sur son premier membre puisque rien n'est coché), une question `associer`
+ * en coûte UN PAR LIGNE (un `<select>` par ligne de gauche), et le bouton de
+ * correction en coûte un dernier. Vingt-quatre radios pour huit arrêts de question
+ * sur la leçon 01 : c'est tout l'intérêt, et c'est ce que le test mesure.
  */
-const ARRETS_DU_QUIZ = [
-  { nom: 'q1 · choix-multiple — 1er choix', selecteur: '#quiz-q1 input[type="radio"] >> nth=0' },
-  { nom: 'q2 · vrai-faux — « Vrai »', selecteur: '#quiz-q2 input[type="radio"] >> nth=0' },
-  { nom: 'q3 · choix-multiple — 1er choix', selecteur: '#quiz-q3 input[type="radio"] >> nth=0' },
-  {
-    nom: 'q4 · trouver-la-faille — « Ligne 1 »',
-    selecteur: '#quiz-q4 input[type="radio"] >> nth=0',
-  },
-  { nom: 'q5 · associer — select de la 1re ligne', selecteur: '#quiz-q5 select >> nth=0' },
-  { nom: 'q5 · associer — select de la 2e ligne', selecteur: '#quiz-q5 select >> nth=1' },
-  { nom: 'q5 · associer — select de la 3e ligne', selecteur: '#quiz-q5 select >> nth=2' },
+const ARRETS_DU_QUIZ: readonly { readonly nom: string; readonly selecteur: string }[] = [
+  ...QUESTIONS_SOURCE.flatMap((question) =>
+    mecaniqueDeSaisie(question) === 'selects'
+      ? (question.paires ?? []).map((paire, ligne) => ({
+          nom: `${question.id} · associer — select de « ${paire.gauche} »`,
+          selecteur: `#quiz-${question.id} select >> nth=${ligne}`,
+        }))
+      : [
+          {
+            nom: `${question.id} · ${question.type} — 1er membre du groupe`,
+            selecteur: `#quiz-${question.id} input[type="radio"] >> nth=0`,
+          },
+        ],
+  ),
   { nom: 'bouton « Corriger mes réponses »', selecteur: '.quiz button' },
-] as const;
+];
+
+/** Le compte de radios que la source annonce, toutes questions confondues. */
+const RADIOS_ATTENDUES = QUESTIONS_SOURCE.reduce(
+  (somme, question) => somme + radiosAttendues(question),
+  0,
+);
+
+/** Le rang, dans le parcours, du premier arrêt appartenant à la question `id`. */
+function rangDuPremierArret(id: string): number {
+  const rang = ARRETS_DU_QUIZ.findIndex((arret) => arret.selecteur.startsWith(`#quiz-${id} `));
+  if (rang < 0) {
+    throw new Error(`la question « ${id} » n'a produit aucun arrêt : le parcours dérivé est faux`);
+  }
+  return rang;
+}
 
 /**
  * Tabule depuis le début du document jusqu'au PREMIER arrêt situé dans le quiz, et
@@ -139,11 +190,20 @@ function arretsDuQuiz(page: Page): readonly { readonly nom: string; readonly ele
   return ARRETS_DU_QUIZ.map((arret) => ({ nom: arret.nom, element: page.locator(arret.selecteur) }));
 }
 
-test('les huit arrêts du quiz se parcourent au clavier seul, dans l’ordre du document', async ({
+test('les arrêts du quiz se parcourent au clavier seul, dans l’ordre du document', async ({
   page,
 }) => {
   await page.goto(CHEMIN_LECON);
   await attendreHydratation(page);
+
+  // LE CROISEMENT DES DEUX SOURCES, POSÉ AVANT TOUT LE RESTE. Le DOM rend-il
+  // exactement ce que `quiz.json` déclare ? Sans cette ligne, le parcours dérivé
+  // se prouverait lui-même : une question perdue au rendu retirerait à la fois un
+  // arrêt attendu et l'arrêt réel, et le test resterait vert (S-014).
+  await expect(
+    page.locator('.quiz fieldset.question'),
+    `le DOM rend un nombre de questions différent de ce que « quiz.json » déclare (${QUESTIONS_SOURCE.length}) : le rendu a perdu ou inventé une question`,
+  ).toHaveCount(QUESTIONS_SOURCE.length);
 
   const approche = await tabulerJusquAuQuiz(page);
   console.log(`Parcours clavier — ${approche} tabulation(s) avant le quiz (préambule de la leçon).`);
@@ -163,26 +223,30 @@ test('les huit arrêts du quiz se parcourent au clavier seul, dans l’ordre du 
     await expect(arret.element, `arrêt attendu : ${arret.nom}`).toBeFocused();
   }
 
-  // LE COMPTE, ET CE QU'IL GARDE. Il porte sur un tableau littéral de ce fichier :
-  // il ne peut donc rien dire du nombre RÉEL d'arrêts de la page (même geste, même
-  // réserve, que le `toHaveLength(7)` de `navigation-clavier.spec.ts`). Ce qu'il
-  // garde est réel : une boucle sur une liste vidée ou amputée passerait VERTE sans
-  // presser une seule touche.
-  expect(arrets).toHaveLength(8);
+  // ANTI-VACUITÉ. Le parcours est dérivé de la source ; ce garde-fou dit qu'il n'a
+  // pas été dérivé à VIDE. Une liste amputée de tous ses arrêts de question, ou de
+  // son bouton, passerait la boucle ci-dessus VERTE sans presser une seule touche.
+  // Le quiz porte au moins un arrêt par question, plus le bouton : le strict
+  // supérieur tient même sans `associer`.
+  expect(
+    arrets.length,
+    'le parcours dérivé ne couvre pas toutes les questions : la boucle ci-dessus serait verte et vide',
+  ).toBeGreaterThan(QUESTIONS_SOURCE.length);
 
-  // CE QUE LA LIGNE SUIVANTE PROUVE, ELLE, SUR LE DOM RÉEL : onze radios pour quatre
-  // arrêts. C'est le `name` partagé par question, et c'est la seule assertion du
-  // fichier qui rougirait si quelqu'un remplaçait `[name]="question.idDocument"` par
-  // un identifiant unique par choix.
+  // CE QUE LA LIGNE SUIVANTE PROUVE, ELLE, SUR LE DOM RÉEL : vingt-quatre radios
+  // pour huit arrêts de question sur la leçon 01. C'est le `name` partagé par
+  // question, et c'est la seule assertion du fichier qui rougirait si quelqu'un
+  // remplaçait `[name]="question.idDocument"` par un identifiant unique par choix.
   //
-  // ⚠️ ONZE, PAS QUATORZE. La page en porte bien quatorze — c'est le chiffre inscrit
-  // en clôture du lot E-b2 — mais TROIS d'entre elles sont la bascule de thème de la
-  // coquille, hors du `.quiz`. Le sélecteur est borné au quiz : le compte l'est
-  // aussi. Mesuré sur l'artéfact (`quiz-q1` 3, `quiz-q2` 2, `quiz-q3` 3, `quiz-q4` 3).
+  // ⚠️ LE COMPTE VIENT DE `quiz.json`, PAS DU DOM (2026-08-20 — il valait 11 en dur,
+  // calibré sur la fixture témoin). Chaque question annonce ses membres : les choix
+  // d'un `choix-multiple`, les deux d'un `vrai-faux`, une radio par ligne de code
+  // d'un `trouver-la-faille`. Le sélecteur est borné au `.quiz` : les trois radios
+  // de la bascule de thème de la coquille n'entrent pas dans ce compte.
   await expect(
     page.locator('.quiz input[type="radio"]'),
-    'le compte de radios a changé : la fixture témoin ou le gabarit a bougé, l’ordre épinglé plus haut n’est plus le bon',
-  ).toHaveCount(11);
+    `le DOM ne rend pas les ${RADIOS_ATTENDUES} radios que « quiz.json » annonce : le gabarit a bougé, ou une question n’est pas rendue`,
+  ).toHaveCount(RADIOS_ATTENDUES);
 
   // La tabulation qui SUIT le quiz en sort — le bouton n'est pas un cul-de-sac.
   //
@@ -194,32 +258,84 @@ test('les huit arrêts du quiz se parcourent au clavier seul, dans l’ordre du 
   // du quiz. On le dit donc désormais par la région quittée, pas par le nom d'un
   // voisin qui peut encore changer ; l'arrivée dans la simulation, elle, est mesurée
   // nommément par `parcours-clavier-simulation.spec.ts`.
+  //
+  // 🔴 ASSERTION RETIRÉE LE 2026-08-20, ET LE DIRE FAIT PARTIE DU CORRECTIF. Une
+  // seconde assertion exigeait ici que le focus entre dans `.simulation .commandes a`.
+  // La leçon 01 n'a PAS de simulation (décision du propriétaire : sujet abstrait,
+  // schéma statique) — l'exiger ferait rougir ce fichier sur un produit sain, et
+  // l'ancrer à un voisin éditorial est exactement ce que le paragraphe ci-dessus
+  // reproche. Ce qui reste mesuré est le sujet du test — on SORT du quiz. Ce qui
+  // n'est plus mesuré ici — le voisin d'après — l'est par
+  // `parcours-clavier-simulation.spec.ts` le jour où une leçon publiée en porte une.
+  //
+  // ⚠️ « SORTIR DU QUIZ » ET « PERDRE LE FOCUS » SONT DEUX ÉTATS DISTINCTS, et le
+  // second est un défaut (correctif du 2026-08-20). `closest('.quiz') === null` est
+  // AUSSI vrai quand `document.activeElement` est `<body>` — c'est-à-dire quand le
+  // focus est tombé nulle part, exactement le mode d'échec 2.4.3 que ce fichier
+  // existe pour attraper. On exige donc les deux moitiés : il y a un focalisable
+  // focalisé, ET il est hors du quiz.
   await page.keyboard.press('Tab');
+  const sortie = await page.evaluate(() => {
+    const actif = document.activeElement;
+    return {
+      focalise: actif !== null && actif !== document.body,
+      horsDuQuiz: actif?.closest('.quiz') === null,
+      description: actif === null ? '(aucun)' : `${actif.tagName.toLowerCase()}`,
+    };
+  });
   expect(
-    await page.evaluate(() => document.activeElement?.closest('.quiz') === null),
-    'la tabulation après le bouton de correction ne sort pas du quiz',
+    sortie.focalise,
+    `la tabulation après le bouton de correction laisse le focus dans le vide (${sortie.description}) : ` +
+      'le focus n’est PAS sorti du quiz, il a été PERDU — 2.4.3',
   ).toBe(true);
-  await expect(
-    page.locator('.simulation .commandes a').first(),
-    'la tabulation après le quiz n’entre pas dans la simulation : l’ordre du document de la page de leçon a changé',
-  ).toBeFocused();
+  expect(sortie.horsDuQuiz, 'la tabulation après le bouton de correction ne sort pas du quiz').toBe(
+    true,
+  );
 });
 
-test('les flèches déplacent la coche dans chacune des trois mécaniques à radios', async ({
+test('les flèches déplacent la coche dans chaque mécanique à radios de la leçon', async ({
   page,
 }) => {
   await page.goto(CHEMIN_LECON);
   await attendreHydratation(page);
   await tabulerJusquAuQuiz(page);
 
-  // Les trois mécaniques à radios du contrat, avec le nombre de membres de chaque
-  // groupe dans la fixture témoin. `q3` est omis : c'est la même mécanique que `q1`,
-  // et le parcours complet est déjà épinglé par le premier test.
+  // LES MÉCANIQUES À RADIOS QUE CETTE LEÇON-LÀ PUBLIE, une par forme — la PREMIÈRE
+  // question de chaque forme suffit : les suivantes de la même forme rendent le même
+  // gabarit, et le parcours complet est déjà épinglé par le premier test.
+  // Le rang de tabulation vient du parcours dérivé, plus d'un littéral (2026-08-20 :
+  // il valait 0/1/3 sur la fixture témoin ; il vaut 0/1/6 sur la leçon 01, où
+  // l'`associer` et ses quatre lignes s'intercalent).
+  // ⚠️ LE FILTRE PORTE SUR LA MÉCANIQUE, PAS SUR `type !== 'associer'` : la liste
+  // blanche de `mecaniqueDeSaisie` REFUSE un type inconnu en le nommant, là où la
+  // comparaison négative l'aurait rangé d'office parmi les groupes de radios.
   const mecaniques = [
-    { forme: 'choix-multiple', fieldset: '#quiz-q1', tabulationsDepuisLeQuiz: 0 },
-    { forme: 'vrai-faux', fieldset: '#quiz-q2', tabulationsDepuisLeQuiz: 1 },
-    { forme: 'trouver-la-faille', fieldset: '#quiz-q4', tabulationsDepuisLeQuiz: 3 },
-  ] as const;
+    ...new Set(
+      QUESTIONS_SOURCE.filter((question) => mecaniqueDeSaisie(question) === 'radios').map(
+        (question) => question.type,
+      ),
+    ),
+  ]
+    .map((forme) => {
+      const question = QUESTIONS_SOURCE.find((candidate) => candidate.type === forme);
+      if (question === undefined || radiosAttendues(question) < 2) {
+        throw new Error(`la forme « ${forme} » n'a pas de groupe à deux membres : rien à parcourir`);
+      }
+      return {
+        forme,
+        fieldset: `#quiz-${question.id}`,
+        tabulationsDepuisLeQuiz: rangDuPremierArret(question.id),
+      };
+    })
+    .sort((a, b) => a.tabulationsDepuisLeQuiz - b.tabulationsDepuisLeQuiz);
+
+  // ANTI-VACUITÉ, ET C'EST UN CROISEMENT : toute forme à radios déclarée par la
+  // source est parcourue ici. Une forme oubliée ferait un test vert sur une
+  // mécanique jamais pressée.
+  expect(
+    mecaniques.length,
+    'aucune mécanique à radios parcourue : le test serait vert et vide',
+  ).toBeGreaterThan(0);
 
   let tabulationsFaites = 0;
   for (const mecanique of mecaniques) {
@@ -252,16 +368,32 @@ test('les flèches déplacent la coche dans chacune des trois mécaniques à rad
 test('un `<select>` d’associer se remplit au clavier seul, et le composant enregistre le choix', async ({
   page,
 }) => {
+  // La leçon mesurée ne porte pas forcément d'`associer` — le saut se NOMME plutôt
+  // que de faire rougir un produit sain (2026-08-20 ; la fixture témoin en avait un,
+  // la leçon 01 aussi, mais rien ne l'impose aux dix-huit suivantes).
+  const associer = QUESTIONS_SOURCE.find((question) => question.type === 'associer');
+  test.skip(
+    associer === undefined,
+    'la leçon mesurée ne publie aucune question « associer » : pas de `<select>` à remplir au clavier',
+  );
+  if (associer === undefined) return;
+  const premiereLigne = associer.paires?.[0];
+  if (premiereLigne === undefined) {
+    throw new Error(`l'« associer » ${associer.id} ne déclare aucune paire : rien à mesurer`);
+  }
+
   await page.goto(CHEMIN_LECON);
   await attendreHydratation(page);
   await tabulerJusquAuQuiz(page);
 
-  // Quatre tabulations depuis le 1er arrêt du quiz pour atteindre le 1er `<select>`.
-  for (let n = 0; n < 4; n++) {
+  // Le rang du 1er `<select>` vient du parcours dérivé (2026-08-20 : quatre
+  // tabulations sur la fixture témoin, deux sur la leçon 01, où l'`associer` est
+  // la troisième question).
+  for (let n = 0; n < rangDuPremierArret(associer.id); n++) {
     await page.keyboard.press('Tab');
   }
 
-  const premierChamp = page.locator('#quiz-q5 select').first();
+  const premierChamp = page.locator(`#quiz-${associer.id} select`).first();
   await expect(premierChamp).toBeFocused();
   await expect(premierChamp, 'le champ ne part pas de « Choisir… »').toHaveValue('');
 
@@ -270,30 +402,48 @@ test('un `<select>` d’associer se remplit au clavier seul, et le composant enr
   // aucun `selectOption()` : `selectOption` est une commande de Playwright, pas une
   // touche, et l'employer ici viderait le test de son sujet.
   //
-  // 🔴 DEUX FLÈCHES, ET LA SECONDE N'EST PAS DÉCORATIVE. La première amène sur
-  // « la liste des routes à prerendre », qui est la BONNE réponse de cette ligne —
-  // et une association juste se corrige par un simple « Association correcte », qui
-  // ne cite RIEN. On viserait alors une citation qui n'a aucune raison d'exister, et
-  // le test rougirait sur un composant parfaitement sain. La seconde flèche choisit
-  // donc délibérément la réponse de la ligne SUIVANTE : la correction cite la
-  // réponse du visiteur quand elle est fausse, et c'est cette citation — elle seule —
-  // qui prouve que le `(change)` a couru. Même raisonnement, mêmes raisons, que
-  // `REPONSE_SELECT` dans `quiz-pre-hydratation.spec.ts`.
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  const valeurChoisie = await premierChamp.inputValue();
+  // 🔴 ON DESCEND JUSQU'À UNE RÉPONSE FAUSSE, ET CE N'EST PAS DÉCORATIF. Une
+  // association JUSTE se corrige par un simple « Association correcte », qui ne cite
+  // RIEN : on viserait alors une citation qui n'a aucune raison d'exister, et le test
+  // rougirait sur un composant parfaitement sain. La citation de la réponse du
+  // visiteur n'existe que sur une ligne FAUSSE, et c'est elle — elle seule — qui
+  // prouve que le `(change)` a couru.
+  //
+  // ⚠️ LA BONNE RÉPONSE VIENT DE `quiz.json`, PLUS D'UN COMPTE DE FLÈCHES EN DUR
+  // (2026-08-20 : « deux ArrowDown » était calibré sur l'ordre des options de la
+  // fixture témoin). On presse tant que la valeur choisie est vide ou correcte,
+  // borné par le nombre d'options réellement rendues. Même raisonnement, mêmes
+  // raisons, que `REPONSE_SELECT` dans `quiz-pre-hydratation.spec.ts`.
+  const nombreDOptions = await premierChamp.locator('option').count();
+  let valeurChoisie = '';
+  for (let n = 0; n < nombreDOptions; n++) {
+    await page.keyboard.press('ArrowDown');
+    valeurChoisie = await premierChamp.inputValue();
+    if (valeurChoisie !== '' && valeurChoisie !== premiereLigne.droite) break;
+  }
   expect(valeurChoisie, 'la flèche n’a rien changé : le champ n’est pas opérable au clavier').not.toBe(
     '',
   );
+  expect(
+    valeurChoisie,
+    'aucune option FAUSSE n’a pu être atteinte à la flèche : la correction ne citerait pas la réponse, et le test ne prouverait plus rien',
+  ).not.toBe(premiereLigne.droite);
 
   // ET LE COMPOSANT L'A-T-IL ENREGISTRÉ ? Une valeur dans le DOM ne prouve pas que
   // le `(change)` a couru. La correction cite la réponse du visiteur quand elle est
   // fausse : c'est cette citation qui prouve l'enregistrement.
+  //
+  // ⚠️ LA CITATION EST UNE EXPRESSION RÉGULIÈRE, PAS UNE CHAÎNE (2026-08-20). Le
+  // gabarit écrit une U+00A0 avant le deux-points ; `toContainText` NORMALISE les
+  // blancs quand on lui passe une chaîne, donc l'espace ordinaire écrite ici
+  // passait sans rien mesurer — et son jumeau de `quiz-pre-hydratation.spec.ts`
+  // annonçait l'inverse en commentaire (L-008). `citationDeReponse` tranche pour
+  // les deux fichiers, et elle MESURE l'insécable.
   await page.getByRole('button', { name: 'Corriger mes réponses' }).click();
   await expect(
-    page.locator('#quiz-q5 .ligne-corrigee').first(),
+    page.locator(`#quiz-${associer.id} .ligne-corrigee`).first(),
     'la correction ne cite pas la valeur choisie à la flèche : le `(change)` du `<select>` n’a pas couru',
-  ).toContainText(`votre réponse : ${valeurChoisie}`);
+  ).toContainText(citationDeReponse(valeurChoisie));
 });
 
 test('la correction s’atteint à la touche Entrée, et le focus va au résumé plutôt que dans le vide', async ({
@@ -303,8 +453,10 @@ test('la correction s’atteint à la touche Entrée, et le focus va au résumé
   await attendreHydratation(page);
   await tabulerJusquAuQuiz(page);
 
-  // Sept tabulations depuis le 1er arrêt du quiz : le bouton de correction.
-  for (let n = 0; n < 7; n++) {
+  // Le bouton de correction est le DERNIER arrêt du quiz : on tabule d'autant
+  // (2026-08-20 : sept tabulations en dur sur la fixture témoin, onze sur la
+  // leçon 01 — le compte est désormais celui du parcours dérivé).
+  for (let n = 0; n < ARRETS_DU_QUIZ.length - 1; n++) {
     await page.keyboard.press('Tab');
   }
   const bouton = page.getByRole('button', { name: 'Corriger mes réponses' });
@@ -315,11 +467,15 @@ test('la correction s’atteint à la touche Entrée, et le focus va au résumé
 
   // La correction est là, et le RÉSUMÉ porte enfin un texte — la région
   // `role="status"` existe dès le premier rendu, vide, précisément pour être annoncée.
-  await expect(page.locator('.quiz .verdict')).toHaveCount(5);
-  await expect(page.getByRole('status')).toContainText('sur 5 questions corrigées');
+  // Un verdict par question DÉCLARÉE par la source, et le résumé qui les compte —
+  // deux sources, une égalité (2026-08-20 : « 5 » en dur, calibré sur la fixture).
+  await expect(page.locator('.quiz .verdict')).toHaveCount(QUESTIONS_SOURCE.length);
+  await expect(page.getByRole('status')).toContainText(
+    `sur ${QUESTIONS_SOURCE.length} questions corrigées`,
+  );
 
   // 🔴 LE POINT QUE RIEN D'AUTRE NE VOIT (WCAG 2.4.3). Le bouton qui portait le
-  // focus vient d'être REMPLACÉ par « Recommencer le quiz », et les quatorze radios
+  // focus vient d'être REMPLACÉ par « Recommencer le quiz », et toutes les radios
   // sont passées `disabled` : sans déplacement explicite, le focus retomberait sur
   // `<body>` et la personne au clavier repartirait du haut du document.
   await expect(
@@ -340,7 +496,7 @@ test('la correction s’atteint à la touche Entrée, et le focus va au résumé
   ).toBeFocused();
 });
 
-test('aucun piège du focus dans le quiz : Maj+Tab remonte les huit arrêts en miroir', async ({
+test('aucun piège du focus dans le quiz : Maj+Tab remonte tous les arrêts en miroir', async ({
   page,
 }) => {
   await page.goto(CHEMIN_LECON);
@@ -400,6 +556,23 @@ test('chaque arrêt du quiz porte un indicateur de focus calculé, et il n’est
   }
 
   journaliserMesures('le quiz de « ' + CHEMIN_LECON + ' »', mesures);
+
+  // 🔴 L'ANTI-VACUITÉ EST CELLE-CI, PAS LA SUIVANTE (correctif du 2026-08-20, L-056).
+  // `mesures.length === ARRETS_DU_QUIZ.length` ne peut PAS échouer : la boucle pousse
+  // exactement un élément par itération ou lève. À zéro arrêt elle passe même (0 === 0)
+  // — le cas exact que son message annonçait attraper. La question de L-056 (« ce test
+  // aurait-il échoué là où l'échec doit se produire ? ») se répondait donc NON.
+  // Le compte qui MORD est celui du parcours dérivé confronté à la source : un arrêt
+  // par question (ou un par ligne d'`associer`, donc davantage) PLUS le bouton de
+  // correction — le parcours est strictement plus long que la liste des questions.
+  // Un `ARRETS_DU_QUIZ` réduit à zéro, ou amputé de son bouton, rougit ici.
+  expect(
+    ARRETS_DU_QUIZ.length,
+    `le parcours dérivé compte ${String(ARRETS_DU_QUIZ.length)} arrêt(s) pour ` +
+      `${String(QUESTIONS_SOURCE.length)} question(s) déclarée(s) : il devrait en compter au moins ` +
+      'un de plus (le bouton « Corriger mes réponses »). La dérivation depuis `quiz.json` est ' +
+      'vide ou tronquée — tout ce qui suit serait vert sans avoir rien parcouru.',
+  ).toBeGreaterThan(QUESTIONS_SOURCE.length);
 
   expect(
     mesures.length,

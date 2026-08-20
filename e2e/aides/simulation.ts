@@ -28,8 +28,16 @@
 
 import { Locator, Page, expect } from '@playwright/test';
 
-/** La route de la page de leçon dans l'artéfact de FIXTURE (voir `artefact-mesure.ts`). */
-export const CHEMIN_LECON_TEMOIN = '/cours/securite-web/lecon-temoin/';
+/**
+ * La route de la page de leçon qui porte une SIMULATION dans l'artéfact sous mesure.
+ *
+ * 📉 Le littéral `'/cours/securite-web/lecon-temoin/'` a disparu le 2026-08-20, avec le harnais
+ * de fixture de `ci.yml` (clôture d'E3-ST1). Une route écrite en dur n'aurait plus de sens : les
+ * deux workflows bâtissent le contenu RÉEL, et la leçon qui portera une simulation (E3-ST3,
+ * `03-injection`) n’est pas encore publiée. `artefact-mesure.ts` la DÉCOUVRE dans l’artéfact,
+ * ou fait sauter le fichier en nommant ce qui n’a pas été mesuré.
+ */
+export { ROUTE_LECON_SIMULATION } from './artefact-mesure';
 
 /** L'`id` de la région — cible du lien « Réinitialiser ». */
 export const ID_REGION = 'simulation';

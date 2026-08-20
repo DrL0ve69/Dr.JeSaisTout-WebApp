@@ -41,11 +41,11 @@
 
 import { Page, expect, test } from '@playwright/test';
 
-import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+import { exigerUneLeconAvecSimulation } from './aides/artefact-mesure';
 import { attendreHydratation } from './aides/hydratation';
 import { exigerCspServie, lireViolations, surveiller } from './aides/sonde-csp';
 import {
-  CHEMIN_LECON_TEMOIN,
+  ROUTE_LECON_SIMULATION,
   COMMANDES,
   ID_REGION,
   NOMBRE_ACTEURS,
@@ -61,7 +61,7 @@ import {
   lireEtat,
 } from './aides/simulation';
 
-exigerLaPageDeLecon('la mécanique de la simulation (modèle C′, lien profond, anchorScrolling)');
+exigerUneLeconAvecSimulation('la mécanique de la simulation (modèle C′, lien profond, anchorScrolling)');
 
 /** Tous les numéros d'étape SAUF celui-là — ce que « repliée sur N » veut dire. */
 function toutesSaufCelleCi(numero: number): number[] {
@@ -82,7 +82,7 @@ test.describe('sans JavaScript — l’état final du prerender', () => {
   test.use({ javaScriptEnabled: false });
 
   test('les M étapes et les M liens d’étape sont là, aucun n’est masqué', async ({ page }) => {
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(ROUTE_LECON_SIMULATION);
 
     const etat = await lireEtat(page);
 
@@ -111,7 +111,7 @@ test.describe('sans JavaScript — l’état final du prerender', () => {
   });
 
   test('le lien profond mène à l’étape visée même sans JavaScript', async ({ page }) => {
-    await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(3)}`);
+    await page.goto(`${ROUTE_LECON_SIMULATION}#${idEtape(3)}`);
 
     // Sans JavaScript, personne ne déplace le focus ni ne marque l'étape : ce qui
     // doit tenir, c'est que la cible EXISTE et soit visible. Un `id` absent ferait
@@ -126,7 +126,7 @@ test.describe('sans JavaScript — l’état final du prerender', () => {
 test('après hydratation, RIEN ne se replie tant que le lecteur n’a rien demandé', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   const etat = await lireEtat(page);
@@ -145,7 +145,7 @@ test('après hydratation, RIEN ne se replie tant que le lecteur n’a rien deman
 test('un clic sur un lien d’étape replie la vue sur cette étape, et sur elle seule', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   await lienEtape(page, 4).click();
@@ -177,7 +177,7 @@ test('un clic sur un lien d’étape replie la vue sur cette étape, et sur elle
 test('« précédente », « suivante » et « réinitialiser » déplacent l’étape courante', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   // Au premier pas, « précédente » est BORNÉE à l'étape 1 : elle pointe une cible
@@ -221,7 +221,7 @@ test('« précédente », « suivante » et « réinitialiser » déplacent l’
 // -----------------------------------------------------------------------------
 
 test('ouvrir directement …#simulation-etape-3 affiche l’étape 3 (L-033)', async ({ page }) => {
-  await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(3)}`);
+  await page.goto(`${ROUTE_LECON_SIMULATION}#${idEtape(3)}`);
   await attendreHydratation(page);
   // `amorcerDepuisLeFragment` court dans `afterNextRender`, et son effet est peint
   // sur une frame ultérieure : `[ngh]`=0 ne dit rien de CETTE écriture-là.
@@ -270,7 +270,7 @@ const DIAGNOSTIC_ANCRE =
  * n'est jamais focalisée). C'est donc bien lui qui tient l'option.
  */
 test('le focus suit le lien d’étape — la dépendance à `anchorScrolling`', async ({ page }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   // Prémisse explicite : le focus n'est pas DÉJÀ sur la cible avant le geste,
@@ -301,7 +301,7 @@ test('le focus suit le lien d’étape — la dépendance à `anchorScrolling`',
  * l'option est le test précédent, et lui seul.
  */
 test('le focus atterrit sur l’étape visée à l’ouverture par lien profond', async ({ page }) => {
-  await page.goto(`${CHEMIN_LECON_TEMOIN}#${idEtape(2)}`);
+  await page.goto(`${ROUTE_LECON_SIMULATION}#${idEtape(2)}`);
   await attendreHydratation(page);
 
   await expect(
@@ -318,7 +318,7 @@ test('actionner la simulation ne produit aucune violation de la CSP servie', asy
   // AVANT `goto` : une violation survenue au chargement serait perdue autrement.
   const journal = await surveiller(page);
 
-  const reponse = await page.goto(CHEMIN_LECON_TEMOIN);
+  const reponse = await page.goto(ROUTE_LECON_SIMULATION);
   // La politique servie est comparée à celle du dépôt : un `npx swa start` démarré
   // sur un artéfact périmé sert une AUTRE politique — dans le sens permissif, il
   // rendrait ce test vert pour rien.
@@ -370,7 +370,7 @@ test('la transition des boîtes est neutralisée sous `prefers-reduced-motion: r
 }) => {
   // `playwright.config.ts` place TOUTE la suite sous `reduce` : c'est l'état par
   // défaut ici, et c'est bien celui qu'un gate d'accessibilité doit mesurer.
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   const duree = await dureeDeTransition(page);
@@ -388,7 +388,7 @@ test.describe('sans préférence de mouvement', () => {
   test.use({ contextOptions: { reducedMotion: 'no-preference' } });
 
   test('la transition existe bel et bien quand rien n’est demandé', async ({ page }) => {
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(ROUTE_LECON_SIMULATION);
     await attendreHydratation(page);
 
     const duree = await dureeDeTransition(page);
@@ -404,7 +404,7 @@ test.describe('en couleurs forcées', () => {
   test.use({ contextOptions: { forcedColors: 'active', reducedMotion: 'reduce' } });
 
   test('rien d’essentiel ne disparaît sous `forced-colors: active`', async ({ page }) => {
-    await page.goto(CHEMIN_LECON_TEMOIN);
+    await page.goto(ROUTE_LECON_SIMULATION);
     await attendreHydratation(page);
 
     // Le système repeint TOUT : les deux encres de marqueur tombent sur `CanvasText`.

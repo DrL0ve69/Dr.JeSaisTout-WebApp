@@ -163,55 +163,12 @@ describe('les workflows GitHub', () => {
   }
 });
 
-// =============================================================================
-// LE HARNAIS DE LEÇON INTERACTIVE EST-IL ENCORE CÂBLÉ ? (E2-ST3, lot E-b2)
-// -----------------------------------------------------------------------------
-// Décision E-2 : `ci.yml` bâtit son artéfact depuis la FIXTURE TÉMOIN, parce que
-// `content/` est vide jusqu'à E3-ST1 et qu'un artéfact sans page de leçon rend
-// G-axe, G-e2e et le générateur de CSP aveugles au premier composant interactif
-// du site. Un harnais est exactement le genre de chose qui se décâble en silence
-// (L-007, L-019) : le chemin de la fixture peut être renommé par un lot de
-// contenu, et le drapeau `--hachages-style` peut disparaître dans une résolution
-// de conflit — dans les deux cas, la CI resterait VERTE en ayant cessé de
-// regarder ce qu'elle a été câblée pour voir.
-//
-// CE QUE CE BLOC MORD :
-//   · le chemin de fixture nommé dans `ci.yml` EXISTE réellement sur le disque ;
-//   · `ci.yml` passe bien un `--hachages-style <entier>` — sans quoi le compte
-//     retomberait sur celui de la production et le gate rougirait à chaque run,
-//     avec la pression S-011 à la clef ;
-//   · `deploy.yml` ne bascule PAS sur la fixture et ne pose PAS ce drapeau : il
-//     publie, donc il construit ce qui part en ligne.
-//
-// ⏳ À RETIRER AVEC LE HARNAIS, à la clôture d'E3-ST1.
-// =============================================================================
-
-/** Le compte de hachages `style-src` épinglé dans `ci.yml`, RECOPIÉ ICI EN DUR — jamais lu du YAML
- * qu'il vérifie. La duplication EST le garde-fou : côté production, `NOMBRE_HACHAGES_STYLE_ATTENDU`
- * (9) a déjà son miroir dans `config-swa-provenance-style.spec.ts`, donc le bouger coûte deux
- * fichiers et une revue ; la valeur de CI n'avait pas ce miroir, et passer 12 → 13 dans `ci.yml`
- * ne faisait rougir personne — alors que c'est exactement l'écriture qui autorise un hachage de
- * style NON REVU, au moment de pression maximale (build rouge, cf. S-011). Le voici.
- *
- * 📈 13 → 14 le 2026-08-19 (E2-ST6, lot C2c). Le hachage de plus vient de la BASCULE DE ROUTE :
- * `PageAVenir` fournissait UN bloc `<style>` sur `cours/securite-web` ; il est remplacé par DEUX
- * — l'adaptateur de route `PageSommaireSecuriteWeb` (`.page`, 362 o) et le composant `Sommaire`
- * (`.vide`, 3 216 o). Net +1, et les deux ont été NOMMÉS avant d'être épinglés (mesure du
- * 2026-08-19 : 14 blocs distincts sur l'artéfact de fixture, 10 sur celui de production). Le
- * compte de hachages de SCRIPT reste à 1. ⚠️ La fixture porte pourtant DEUX leçons depuis le lot
- * B : la seconde est en `statut: brouillon` et n'est PAS prerendue (`leconsPubliees` filtre
- * `parametresDePrerender`), donc elle n'apporte aucun bloc.
- *
- * 📈 12 → 13 le 2026-08-19 (E2-ST5, lot b2). Le hachage de plus était le bloc `<style>` du
- * `SimulationComponent`, apparu quand l'ancre `[[simulation]]` a cessé de rendre le vide. Il a été
- * NOMMÉ avant d'être épinglé : la page de leçon de la fixture passe de 7 à 8 blocs `<style>`, et
- * le treizième bloc distinct de l'artéfact commence par `.simulation[_ngcontent-…]`. Aucune des
- * quatre autres pages prerendues n'a bougé, et le compte de hachages de SCRIPT reste à 1.
- * `NOMBRE_HACHAGES_STYLE_ATTENDU` (production, 9) ne bouge PAS : `content/` est vide, donc aucune
- * simulation n'est rendue en ligne. */
-const HACHAGES_STYLE_CI_ATTENDU = 14;
-
-/** Racine du cours réel. Tant qu'elle ne porte aucune leçon, le harnais de fixture est légitime. */
+/**
+ * Racine du cours réel. Le harnais de fixture qui la doublait a été RETIRÉ le 2026-08-20, à la
+ * clôture d'E3-ST1 : les deux workflows bâtissent désormais depuis ici. Le compte de hachages de
+ * style qui lui correspond vit dans `src/config-swa-provenance-style.spec.ts` — il n'y a plus
+ * qu'un seul artéfact, donc plus qu'un seul compte à relire.
+ */
 const RACINE_COURS_PRODUCTION = 'content/cours/securite-web';
 
 /**
@@ -245,8 +202,15 @@ function runDeLEtape(chemin: string, prefixe: string): string {
   return String(trouvees[0]?.run ?? '');
 }
 
-/** Les leçons RÉELLEMENT publiées sous `content/cours/securite-web/` (gabarit `<nn>-<slug>/lecon.md`). */
-function leconsPubliees(): readonly string[] {
+/**
+ * Les `lecon.md` PRÉSENTES sous `content/cours/securite-web/` (gabarit `<nn>-<slug>/lecon.md`).
+ *
+ * ⚠️ Le nom dit « présentes » et non « publiées », parce que ce prédicat ne regarde PAS `statut`
+ * — il s'appelait `leconsPubliees()` et mentait sur ce qu'il mesurait. Le filtre de statut vit
+ * dans `capacitesPubliees()`, où il compte réellement. Ici, la question est plus large et plus
+ * bête : `content/` a-t-il disparu (filet L-019) ?
+ */
+function leconsPresentes(): readonly string[] {
   if (!existsSync(RACINE_COURS_PRODUCTION)) return [];
   return readdirSync(RACINE_COURS_PRODUCTION, { withFileTypes: true })
     .filter((entree) => entree.isDirectory())
@@ -258,196 +222,335 @@ const ci = commandes('.github/workflows/ci.yml');
 const deploiement = commandes('.github/workflows/deploy.yml');
 
 // =============================================================================
-// « G-BUILD DE ci.yml » EST-IL ENCORE « npm run build », DÉPLIÉ ?
+// `npm run build` ENCHAÎNE-T-IL ENCORE SES TROIS SEGMENTS ?
 // -----------------------------------------------------------------------------
-// `ci.yml` ne peut plus appeler `npm run build` : le script compile la racine de PRODUCTION, et la
-// décision E-2 exige un artéfact bâti sur la fixture témoin. Il DÉPLIE donc les trois commandes du
-// script — et jusqu'ici, personne ne gardait l'équivalence.
+// ✅ CE BLOC A RÉTRÉCI LE 2026-08-20, ET C'EST UNE BONNE NOUVELLE. Il gardait l'ÉQUIVALENCE
+// entre `npm run build` et les trois commandes que `ci.yml` dépliait à sa place — un dépliage
+// rendu nécessaire par la décision E-2, qui exigeait un artéfact bâti sur la fixture témoin.
+// Le harnais est retiré (clôture d'E3-ST1) : `ci.yml` appelle de nouveau le VRAI script, donc
+// l'équivalence n'a plus rien à garder, et les crochets npm (`prebuild`…) ne peuvent plus être
+// sautés d'un côté puisqu'il n'y a plus qu'un côté.
 //
-// LE MODE D'ÉCHEC, ET IL EST SÉRIEUX. Une PR qui retire `&& npm run config:swa` du script `build`
-// passe la CI VERTE : la CI, elle, appelle `config:swa` explicitement. Puis `deploy.yml` exécute le
-// VRAI script, produit un `dist/` SANS `staticwebapp.config.json`, et PUBLIE. Seule la vérification
-// « en-têtes servis », APRÈS le déploiement, rougit : le site est en ligne sans CSP ni en-têtes
-// pendant toute la fenêtre. Symétrique pour un ajout : une 4ᵉ commande au script resterait hors de
-// la CI, la PR verte, et `deploy.yml` rougirait après fusion sur une cause qui semblera étrangère.
-//
-// CE QUE CE BLOC MORD : même NOMBRE de segments, même ORDRE, et chaque ligne de `ci.yml` porte la
-// cible du segment npm de même rang — modulo les paramètres propres au harnais (`--racine`,
-// `--hachages-style`) et le préfixe `npx`, qui appelle le MÊME binaire de `node_modules/.bin`.
-//
-// ⚠️ CE QU'IL MORD AUSSI, ET QUI EST MOINS VISIBLE : les crochets npm. Un `precontent:build` ou un
-// `prebuild` ajouté un jour à `package.json` serait exécuté par `npm run build` (donc par
-// `deploy.yml`) et SAUTÉ par le dépliage de `ci.yml` — une divergence que le comptage de segments
-// ne peut pas voir, puisqu'aucun segment n'apparaît. Ils sont donc interdits nommément.
+// CE QUI RESTE À GARDER, ET QUI EST RÉEL. Le script `build` est ce que les DEUX workflows
+// exécutent : si `&& npm run config:swa` en disparaissait, `dist/` partirait en ligne SANS
+// `staticwebapp.config.json` — donc sans CSP et sans en-têtes de sécurité — et seule la
+// vérification « en-têtes servis », APRÈS le déploiement, rougirait. Le site serait public et
+// nu pendant toute la fenêtre. Le contenu du script est donc une LISTE BLANCHE ORDONNÉE, revue
+// à la main ici (S-018 : on énumère ce qui est permis, dans l'ordre, jamais ce qui est interdit).
 // =============================================================================
 
-describe('G-build de ci.yml ≡ `npm run build` déplié (décision E-2)', () => {
+/**
+ * Les segments que `scripts.build` doit enchaîner, DANS CET ORDRE — recopiés en dur, jamais
+ * dérivés du `package.json` qu'ils vérifient (L-012). Bouger cette liste, c'est décider de
+ * changer ce que la publication exécute : la revue est le point.
+ */
+const SEGMENTS_DE_BUILD = ['npm run content:build', 'ng build', 'npm run config:swa'] as const;
+
+/**
+ * 🔴 LE CORPS EXACT des deux scripts que `build` appelle — la surface que ce bloc ne gardait PAS,
+ * et par laquelle tout revenait (S-018, 6ᵉ occurrence, constatée le 2026-08-20).
+ *
+ * Épingler `npm run config:swa` comme SEGMENT ne dit rien de ce que ce segment EXÉCUTE. Tant que
+ * le garde-fou ne portait que sur les `run:` des workflows, un
+ * `"config:swa": "node tools/deploiement/generer-config-swa.mjs --hachages-style 20"` posé dans
+ * `package.json` passait TOUS les gates — rien ne lisait `scripts['config:swa']` — et desserrait
+ * une autorisation CSP dans les deux workflows à la fois. Le corps du script npm est le maillon
+ * entre le workflow et l'outil : c'est une liste blanche NOMINATIVE, revue à la main, en `toBe`.
+ *
+ * ⚠️ `toBe`, jamais `toContain` : un `toContain` laisserait passer tout ce qu'on APPEND.
+ */
+const CORPS_DE_SCRIPT_REVUS: Readonly<Record<string, string>> = {
+  'content:build': 'node tools/content-pipeline/build.mjs',
+  'config:swa': 'node tools/deploiement/generer-config-swa.mjs',
+};
+
+/**
+ * 🔴 LES CROCHETS npm, INTERDITS AUTOUR DE LA CHAÎNE DE PUBLICATION — restaurés le 2026-08-20
+ * (ils avaient disparu avec un `describe` devenu obsolète, or le risque, lui, n'a pas disparu).
+ *
+ * npm exécute `pre<nom>` et `post<nom>` AUTOUR de chaque script, sans qu'aucun workflow ne les
+ * nomme. Un `postconfig:swa` réécrirait `staticwebapp.config.json` APRÈS que le générateur l'a
+ * validé — donc après le seul contrôle qui regarde la CSP — et il le ferait dans les DEUX
+ * workflows, `deploy.yml` compris. Un `prebuild` sauterait, lui, la compilation du contenu.
+ *
+ * `prestart`, `pretest` et `prewatch` restent légitimes et ne sont PAS dans cette liste : ils
+ * n'encadrent pas ce qui part en ligne.
+ */
+const CROCHETS_INTERDITS = [
+  'prebuild',
+  'postbuild',
+  'precontent:build',
+  'postcontent:build',
+  'preconfig:swa',
+  'postconfig:swa',
+] as const;
+
+describe('le script `build`, celui que les deux workflows exécutent', () => {
   const scripts = (
     JSON.parse(readFileSync('package.json', 'utf8')) as { scripts?: Record<string, string> }
   ).scripts;
 
-  /** Les segments de `scripts.build`, dans l'ordre — la référence. */
-  const segmentsNpm = String(scripts?.['build'] ?? '')
-    .split('&&')
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
+  it('enchaîne exactement les segments revus, dans leur ordre', () => {
+    const segments = (scripts?.['build'] ?? '')
+      .split('&&')
+      .map((segment) => segment.trim())
+      .filter((segment) => segment !== '');
 
-  /** Les commandes dépliées de G-build, dans l'ordre — ce qui doit lui correspondre. */
-  const lignesCi = runDeLEtape('.github/workflows/ci.yml', 'G-build')
-    .split('\n')
-    .map((ligne) => ligne.trim())
-    .filter((ligne) => ligne.length > 0);
-
-  /**
-   * Ce qu'une ligne de `ci.yml` doit contenir pour valoir le segment npm de même rang. Un
-   * `npm run <nom>` vaut par son NOM (la CI peut l'appeler tel quel, avec des paramètres après
-   * `--`) ou par la CIBLE de son corps (le `.mjs` qu'il lance, que la CI invoque alors
-   * directement). Une commande qui n'est pas un `npm run` ne vaut que par elle-même — d'où
-   * `npx ng build` ⊇ `ng build`, et non l'inverse.
-   */
-  function empreintes(segment: string): readonly string[] {
-    const nom = /^npm run ([\w:.-]+)$/.exec(segment)?.[1];
-    if (nom === undefined) return [segment];
-    const corps = scripts?.[nom];
-    if (corps === undefined) {
-      throw new Error(`scripts.build appelle « npm run ${nom} », absent de package.json`);
-    }
-    return [nom, /(\S+\.mjs)/.exec(corps)?.[1] ?? corps];
-  }
-
-  it('déplie AUTANT de commandes que `scripts.build` a de segments, dans le même ordre', () => {
-    expect(segmentsNpm.length, 'scripts.build est vide ou illisible').toBeGreaterThan(0);
     expect(
-      lignesCi,
-      `divergence entre les deux workflows :\n` +
-        `  · package.json → npm run build : ${segmentsNpm.join(' · ')}\n` +
-        `  · ci.yml       → G-build       : ${lignesCi.join(' · ')}\n` +
-        `Tout segment présent d'un seul côté part en ligne sans avoir été vu par la CI (ou l'inverse).`,
-    ).toHaveLength(segmentsNpm.length);
+      segments,
+      `« scripts.build » a changé :\n` +
+        `  · revu ici   : ${SEGMENTS_DE_BUILD.join(' · ')}\n` +
+        `  · package.json : ${segments.join(' · ')}\n` +
+        `Un segment retiré part en ligne sans avoir été exécuté — « config:swa » en moins, c'est ` +
+        `un artéfact publié sans CSP ni en-têtes de sécurité, et seule la vérification EN LIGNE ` +
+        `d'après-déploiement le dirait.`,
+    ).toEqual([...SEGMENTS_DE_BUILD]);
   });
 
-  it('fait porter à chaque commande dépliée la cible du segment npm de même rang', () => {
-    expect(segmentsNpm.length).toBeGreaterThan(0);
-    segmentsNpm.forEach((segment, rang) => {
-      const ligne = lignesCi[rang] ?? '';
-      const attendues = empreintes(segment);
+  it.each(Object.keys(CORPS_DE_SCRIPT_REVUS))(
+    'exécute pour « %s » exactement la commande revue, sans drapeau appendu',
+    (nom) => {
       expect(
-        attendues.some((empreinte) => ligne.includes(empreinte)),
-        `rang ${rang + 1} : « ${segment} » (package.json) n'a pas d'équivalent dans « ${ligne} » (ci.yml) — ` +
-          `attendu l'une de : ${attendues.join(' | ')}`,
-      ).toBe(true);
-    });
-  });
+        scripts?.[nom],
+        `« scripts.${nom} » a changé de CORPS. C'est le maillon entre le workflow et l'outil, et ` +
+          `rien d'autre ne le lit : un drapeau appendu ici passe les deux workflows sans qu'aucun ` +
+          `« run: » ne le montre (S-018). Attendu, revu à la main : « ${CORPS_DE_SCRIPT_REVUS[nom] ?? ''} ».`,
+      ).toBe(CORPS_DE_SCRIPT_REVUS[nom]);
+    },
+  );
 
-  it('n’autorise aucun crochet npm que le dépliage sauterait en silence', () => {
-    const crochets = ['prebuild', 'postbuild'].concat(
-      segmentsNpm.flatMap((segment) => {
-        const nom = /^npm run ([\w:.-]+)$/.exec(segment)?.[1];
-        return nom === undefined ? [] : [`pre${nom}`, `post${nom}`];
-      }),
+  it('ne pose aucun crochet npm autour de la chaîne de publication', () => {
+    const poses = Object.keys(scripts ?? {}).filter((nom) =>
+      (CROCHETS_INTERDITS as readonly string[]).includes(nom),
     );
-    expect(crochets.length).toBeGreaterThan(2);
-    for (const crochet of crochets) {
-      expect(
-        scripts?.[crochet],
-        `« ${crochet} » existe : \`npm run build\` (deploy.yml) l'exécuterait, le dépliage de ci.yml le sauterait`,
-      ).toBeUndefined();
-    }
+    expect(
+      poses,
+      `« package.json » porte un crochet npm autour de la chaîne de publication : ${poses.join(', ')}. ` +
+        `npm l'exécute AUTOUR du script sans qu'aucun workflow ne le nomme — un « postconfig:swa » ` +
+        `réécrirait « staticwebapp.config.json » APRÈS la seule validation qui regarde la CSP, et ` +
+        `dans les DEUX workflows.`,
+    ).toEqual([]);
   });
 });
 
 // =============================================================================
-// LE HARNAIS DE LEÇON INTERACTIVE EST-IL ENCORE CÂBLÉ ? (E2-ST3, lot E-b2)
+// LA COUVERTURE E2E DE LA PAGE DE LEÇON — le trou est COMPTÉ, jamais silencieux
 // -----------------------------------------------------------------------------
-// Décision E-2 : `ci.yml` bâtit son artéfact depuis la FIXTURE TÉMOIN, parce que
-// `content/` est vide jusqu'à E3-ST1 et qu'un artéfact sans page de leçon rend
-// G-axe, G-e2e et le générateur de CSP aveugles au premier composant interactif
-// du site. Un harnais est exactement le genre de chose qui se décâble en silence
-// (L-007, L-019) : le chemin de la fixture peut être renommé par un lot de
-// contenu, et le drapeau `--hachages-style` peut disparaître dans une résolution
-// de conflit — dans les deux cas, la CI resterait VERTE en ayant cessé de
-// regarder ce qu'elle a été câblée pour voir.
+// ✅ CE QUI A REMPLACÉ QUOI, LE 2026-08-20 (clôture d'E3-ST1). Ce bloc gardait le
+// HARNAIS DE FIXTURE de la décision E-2 : `ci.yml` bâtissait son artéfact depuis
+// `tools/content-pipeline/__fixtures__/temoin/…` parce que `content/` était vide, et un
+// tripwire auto-périmant devait rougir le jour où une vraie leçon arriverait. Ce jour est
+// venu, le harnais est retiré, et le tripwire a fait son travail. Ce qui suit garde ce que
+// le retrait a créé : un TROU DE COUVERTURE, borné et daté.
 //
-// CE QUE CE BLOC MORD :
-//   · le chemin de fixture nommé dans `ci.yml` porte réellement une `lecon.md` — un dossier vide
-//     existe aussi, et ne prerenderait aucune page ;
-//   · `ci.yml` passe bien `--hachages-style 13`, à la valeur près — sans quoi le compte retomberait
-//     sur celui de la production et le gate rougirait à chaque run, avec la pression S-011 à la clef ;
-//   · `deploy.yml` ne bascule PAS sur une racine de fixture, ne pose PAS ce drapeau, et exécute
-//     encore `npm run build` : il publie, donc il construit ce qui part en ligne ;
-//   · ⏳ ET IL SE PÉRIME TOUT SEUL — voir le dernier cas.
+// 🔴 LE TROU, DIT À VOIX HAUTE. Les huit specs de la page de leçon ne visent plus une route
+// écrite en dur : `e2e/aides/artefact-mesure.ts` DÉCOUVRE dans l'artéfact bâti une page qui
+// porte un quiz, une page qui porte une simulation, et fait sauter les fichiers sans sujet.
+// Sur l'artéfact publié aujourd'hui :
+//   · la leçon 01 `fondamentaux` porte un QUIZ  → les 6 specs de quiz s'exécutent ;
+//   · AUCUNE leçon publiée ne porte de SIMULATION → les 3 specs de simulation SAUTENT
+//     (pour `simulation-sous-csp.spec.ts`, seul son lien profond saute : ses DEUX mesures de
+//     `style-src` sont gardées par le quiz, parce qu'elles sont la seule preuve live que cette
+//     directive est appliquée — les éteindre pendant qu'elle passe de 10 à 13 hachages aurait
+//     été un « enabler ≠ enforcement », `.claude/rules/security.md` §1).
+// La leçon 01 n'a pas de simulation par DÉCISION du propriétaire (2026-08-20) : le module est
+// abstrait, sa kill chain est un schéma statique. La couverture revient à E3-ST3
+// (`03-injection`), qui en porte une au plan — environ trois semaines, assumées ici par écrit.
 //
-// ⏳ À RETIRER AVEC LE HARNAIS, à la clôture d'E3-ST1 (backlog §E2-ST2, réserve 4).
+// 🔴 POURQUOI CE FILET DOIT VIVRE ICI, ET NULLE PART AILLEURS. Un saut est la seule chose qui
+// empêche ces specs d'être rouges là où leur sujet n'existe pas ; il faut donc, par symétrie,
+// quelque chose qui les empêche d'être SAUTÉS PARTOUT. Ce quelque chose ne peut pas vivre dans
+// la suite e2e — un fichier entièrement sauté ne peut pas s'assertionner (L-005/L-014). Il vit
+// dans G-test, qui tourne toujours, et il ne lit rien de la suite e2e : il lit `content/`.
+//
+// 🔴 CE QUE CE BLOC MORD, ET DANS LES DEUX SENS :
+//   · le jour où une leçon publiée porte une simulation, ce fichier ROUGIT — parce que le
+//     littéral revu à la main dirait encore « aucune », alors que trois specs viennent de se
+//     rallumer sans que personne ait vérifié qu'ils passent. C'est la fermeture du trou qui
+//     réclame la revue, pas son ouverture ;
+//   · le jour où plus aucune leçon publiée ne porte de quiz, il ROUGIT aussi — quatre specs se
+//     seraient mis à sauter en silence, et le vert de G-e2e ne voudrait plus rien dire ;
+//   · les trois specs de simulation doivent EXISTER et appeler leur garde. Sauter pendant trois
+//     semaines est le mode d'échec où un spec se fait supprimer « puisqu'il ne tourne pas ».
+//   · `ci.yml` ne doit ramener NI `--racine` NI `--hachages-style` : le premier ferait auditer
+//     un double de test à la place du contenu publié, le second desserrerait un contrôle
+//     d'égalité exacte sur la CSP sans passer par `config-swa-provenance-style.spec.ts`.
 // =============================================================================
 
 /**
- * Le slug de la leçon que les trois specs e2e de la page de leçon vont chercher.
+ * Ce que la suite e2e mesure AUJOURD'HUI sur l'artéfact publié — littéral REVU À LA MAIN, et
+ * surtout PAS dérivé de `content/`.
  *
- * Écrit ici EN DUR, et c'est le point : ce fichier ne compile pas avec la suite e2e, donc il ne peut
- * pas importer la constante. C'est exactement ce qu'on veut (L-012) — un test qui importerait la
- * valeur qu'il contrôle ne prouverait que la cohérence d'un fichier avec lui-même.
+ * ⚠️ Le dériver le viderait de tout sens : un compte que son entrée peut fabriquer n'est pas un
+ * garde-fou (S-014). C'est la CONFRONTATION entre ce littéral et ce que `content/` porte
+ * réellement qui fait le gate — la même mécanique que `NOMBRE_HACHAGES_STYLE_ATTENDU`.
+ *
+ * 📉 `simulation: false` depuis le 2026-08-20 (clôture d'E3-ST1). À repasser à `true` en
+ * publiant E3-ST3 (`03-injection`), dans le MÊME commit que la leçon — et ce fichier rougira
+ * pour l'exiger.
  */
-const SLUG_LECON_MESUREE_EN_E2E = 'lecon-temoin';
+const CAPACITES_MESUREES_EN_E2E = { quiz: true, simulation: false } as const;
 
-describe('le harnais de leçon interactive (décision E-2)', () => {
-  it('nomme dans ci.yml une racine de fixture qui porte vraiment une leçon', () => {
-    const racine = /--racine\s+(\S+)/.exec(ci)?.[1];
-    expect(racine, 'aucun « --racine » exécuté par ci.yml : le harnais a été décâblé').toBeDefined();
-    // `existsSync` sur le dossier ne suffit pas : une racine qui existe SANS leçon laisserait ce
-    // gate vert tout en prerendant zéro page interactive — exactement le trou que le harnais bouche.
-    const lecons = existsSync(racine ?? '')
-      ? readdirSync(racine ?? '', { withFileTypes: true })
-          .filter((entree) => entree.isDirectory())
-          .map((entree) => join(racine ?? '', entree.name, 'lecon.md'))
-          .filter((chemin) => existsSync(chemin))
-      : [];
+/** Les trois specs qui n'ont plus de sujet tant qu'aucune leçon publiée n'a de simulation. */
+const SPECS_DE_SIMULATION = [
+  'e2e/parcours-clavier-simulation.spec.ts',
+  'e2e/simulation-mecanique.spec.ts',
+  'e2e/simulation-sous-csp.spec.ts',
+] as const;
+
+/**
+ * Les specs qui exigent une page de leçon portant un quiz — inventaire EXHAUSTIF, tenu à la main.
+ *
+ * ⚠️ `e2e/sommaire.spec.ts` a été AJOUTÉ le 2026-08-20 : il appelle `exigerUneLeconAvecQuiz` et
+ * n'était dans AUCUNE liste, donc sa disparition ne faisait rougir rien (famille L-037).
+ * `e2e/simulation-sous-csp.spec.ts` figure dans les DEUX listes depuis la même date : ses deux
+ * mesures de `style-src` sont gardées par le quiz, son lien profond par la simulation.
+ */
+const SPECS_DE_QUIZ = [
+  'e2e/parcours-clavier-quiz.spec.ts',
+  'e2e/quiz-pre-hydratation.spec.ts',
+  'e2e/quiz-sous-csp.spec.ts',
+  'e2e/defileurs-clavier.spec.ts',
+  'e2e/sommaire.spec.ts',
+  'e2e/simulation-sous-csp.spec.ts',
+] as const;
+
+/**
+ * Le frontmatter d'une `lecon.md` — le bloc entre les deux premiers `---`.
+ *
+ * On le borne au lieu de balayer le fichier entier : une leçon qui CITE `statut: publiee` dans
+ * un bloc de code (ce module enseigne le contenu-as-code) ferait mentir un balayage global.
+ */
+function frontmatter(chemin: string): string {
+  const brut = readFileSync(chemin, 'utf8');
+  const fin = brut.indexOf('\n---', brut.indexOf('---') + 3);
+  return fin === -1 ? '' : brut.slice(0, fin);
+}
+
+/** Ce que `content/` publie RÉELLEMENT — mesuré, jamais déclaré. */
+function capacitesPubliees(): { readonly quiz: boolean; readonly simulation: boolean } {
+  const dossiers = existsSync(RACINE_COURS_PRODUCTION)
+    ? readdirSync(RACINE_COURS_PRODUCTION, { withFileTypes: true })
+        .filter((entree) => entree.isDirectory())
+        .map((entree) => join(RACINE_COURS_PRODUCTION, entree.name))
+    : [];
+
+  // Une leçon en `statut: brouillon` n'est PAS prerendue (D-1 d'E2-ST6) : sa simulation
+  // n'existerait dans aucun artéfact, et la compter ici rendrait le gate rouge pour rien.
+  const publiees = dossiers.filter((dossier) => {
+    const lecon = join(dossier, 'lecon.md');
+    return existsSync(lecon) && /^statut:[ \t]*publiee[ \t]*$/m.test(frontmatter(lecon));
+  });
+
+  // 🔴 LE FICHIER **ET** L'ANCRE RENDUE — pas l'un des deux (constat du 2026-08-20).
+  // `e2e/aides/artefact-mesure.ts` cherche `<app-quiz` dans le HTML PRERENDU ; mesurer ici la
+  // seule présence de `quiz.json` était donc un PRÉDICAT DIFFÉRENT de celui du garde qu'on
+  // protège. Une leçon qui garde son `quiz.json` mais perd son ancre `[[quiz]]` dans `lecon.md`
+  // ne rend aucun `<app-quiz` : les specs de quiz sauteraient EN SILENCE pendant que ce gate
+  // resterait vert — le mode d'échec exact que ce bloc existe pour interdire.
+  // L'ancre est exigée SEULE SUR SA LIGNE, comme le compilateur la reconnaît : une occurrence
+  // citée en prose ou dans un bloc de code ne rend rien.
+  const porte = (dossier: string, fichier: string, ancre: RegExp): boolean =>
+    existsSync(join(dossier, fichier)) && ancre.test(readFileSync(join(dossier, 'lecon.md'), 'utf8'));
+
+  return {
+    quiz: publiees.some((dossier) => porte(dossier, 'quiz.json', /^\[\[quiz\]\]\s*$/m)),
+    simulation: publiees.some((dossier) =>
+      porte(dossier, 'simulation.json', /^\[\[simulation\]\]\s*$/m),
+    ),
+  };
+}
+
+describe('la couverture e2e de la page de leçon (clôture du harnais, E3-ST1)', () => {
+  // Filet propre (L-019) : sans lui, un `content/` disparu rendrait les deux cas suivants
+  // verts en n'ayant mesuré aucune leçon.
+  it('trouve au moins une leçon à mesurer', () => {
     expect(
-      lecons.length,
-      `ci.yml compile « ${racine ?? ''} », qui ne porte aucune « lecon.md » — la CI ne prerendrait plus de page de leçon`,
+      leconsPresentes().length,
+      `aucune « lecon.md » sous ${RACINE_COURS_PRODUCTION} : le contenu a disparu, ` +
+        `et tout ce qui suit mesurerait le vide`,
     ).toBeGreaterThan(0);
   });
 
-  // 🔴 CE TEST FERME LE DERNIER TROU DU SAUT DE `e2e/aides/artefact-mesure.ts`, ET LUI SEUL LE PEUT.
-  // Depuis le déploiement rouge du 2026-08-18, les trois specs de la page de leçon se SAUTENT quand
-  // l'artéfact mesuré ne porte pas cette page — c'est ce qui rend `deploy.yml` (racine de production,
-  // `content/` vide) vert sans exiger que la fixture parte en ligne. Le saut est donc la seule chose
-  // qui les empêche d'être rouges partout ; il faut par symétrie quelque chose qui les empêche d'être
-  // SAUTÉS partout, et ce quelque chose ne peut pas vivre dans la suite e2e elle-même (un fichier
-  // entièrement sauté ne peut pas s'assertionner).
-  //
-  // Le test voisin exige que la racine de fixture porte UNE leçon, n'importe laquelle. Ça ne suffit
-  // pas : les specs visent une ROUTE, `/cours/securite-web/lecon-temoin/`, qui vient du nom du
-  // dossier. Renommer la fixture laisserait ce gate-là vert, `ci.yml` prerendrait toujours une page
-  // interactive — et les dix specs se sauteraient EN SILENCE des deux côtés, sans qu'un seul run ne
-  // rougisse. Le gate le plus vide du dépôt, déplacé d'un cran (L-005/L-014).
-  it('fait porter à la fixture de ci.yml la leçon dont les specs e2e attendent la ROUTE', () => {
-    const racine = /--racine\s+(\S+)/.exec(ci)?.[1] ?? '';
-    // Le slug est la moitié de fin du dossier `<nn>-<slug>`, et c'est lui qui devient la route.
-    const slugs = existsSync(racine)
-      ? readdirSync(racine, { withFileTypes: true })
-          .filter((entree) => entree.isDirectory() && existsSync(join(racine, entree.name, 'lecon.md')))
-          .map((entree) => entree.name.replace(/^\d+-/, ''))
-      : [];
+  it('confronte les capacités RÉELLEMENT publiées au littéral revu à la main', () => {
+    const reelles = capacitesPubliees();
+
     expect(
-      slugs,
-      `la fixture « ${racine} » ne porte aucune leçon de slug « ${SLUG_LECON_MESUREE_EN_E2E} » — or c'est la route ` +
-        `que visent e2e/parcours-clavier-quiz, e2e/quiz-pre-hydratation et e2e/quiz-sous-csp. Ils se sauteraient ` +
-        `des DEUX côtés, en silence. Renommer la fixture impose de renommer la route dans les trois specs.`,
-    ).toContain(SLUG_LECON_MESUREE_EN_E2E);
+      reelles.quiz,
+      `le littéral dit « quiz: ${String(CAPACITES_MESUREES_EN_E2E.quiz)} », la mesure dit ` +
+        `« ${String(reelles.quiz)} ». Si plus aucune leçon publiée ne porte à la fois un ` +
+        `« quiz.json » ET son ancre « [[quiz]] » rendue (les DEUX : sans l’ancre, aucun ` +
+        `« <app-quiz » n’est prerendu et le garde e2e ne trouve rien), les ` +
+        `${SPECS_DE_QUIZ.length} specs de quiz (${SPECS_DE_QUIZ.join(', ')}) se sautent EN SILENCE ` +
+        `et le vert de G-e2e ne prouve plus rien sur le seul composant interactif du site.`,
+    ).toBe(CAPACITES_MESUREES_EN_E2E.quiz);
+
+    expect(
+      reelles.simulation,
+      `le littéral dit « simulation: ${String(CAPACITES_MESUREES_EN_E2E.simulation)} », la mesure ` +
+        `dit « ${String(reelles.simulation)} ». ✅ SI LA MESURE EST « true », C'EST UNE BONNE ` +
+        `NOUVELLE : une leçon publiée porte enfin une simulation, donc les ${SPECS_DE_SIMULATION.length} ` +
+        `specs de simulation viennent de se RALLUMER tout seuls. Ce rouge existe pour qu'un humain ` +
+        `les fasse tourner avant de basculer le littéral à « true » — c'est la FERMETURE du trou ` +
+        `qui réclame la revue, pas son ouverture. Trou ouvert le 2026-08-20 (leçon 01 sans ` +
+        `simulation, décision du propriétaire), refermeture prévue à E3-ST3 « 03-injection ».`,
+    ).toBe(CAPACITES_MESUREES_EN_E2E.simulation);
   });
 
-  it('passe dans ci.yml le compte de hachages de style épinglé, à la valeur près', () => {
-    const compte = /--hachages-style\s+(\S+)/.exec(ci)?.[1];
-    expect(compte, 'aucun « --hachages-style » exécuté par ci.yml').toBeDefined();
-    expect(compte ?? '').toMatch(/^\d+$/);
+  // 🔴 LE MODE D'ÉCHEC QUE CE CAS SEUL ATTRAPE : un spec qui saute pendant trois semaines a
+  // toutes les apparences d'un spec mort. Le supprimer, ou lui retirer son garde « pour qu'il
+  // tourne enfin », ne ferait rougir RIEN — et la couverture ne reviendrait jamais à E3-ST3.
+  it.each([...SPECS_DE_SIMULATION])('garde %s vivant et gardé pendant le trou', (chemin) => {
+    expect(existsSync(chemin), `${chemin} a été SUPPRIMÉ pendant que ses tests sautaient`).toBe(true);
     expect(
-      Number(compte),
-      `ci.yml autorise ${String(compte)} hachages de style, ce fichier en a revu ${HACHAGES_STYLE_CI_ATTENDU} : ` +
-        `mettre à jour les DEUX, après passe du security-reviewer (S-002, S-011) — jamais le YAML seul.`,
-    ).toBe(HACHAGES_STYLE_CI_ATTENDU);
+      readFileSync(chemin, 'utf8'),
+      `${chemin} n'appelle plus « exigerUneLeconAvecSimulation » EN POSITION D'INSTRUCTION : sans ` +
+        `ce garde, il partira en 404 sur l'artéfact publié — exactement le déploiement rouge du ` +
+        `2026-08-18 (L-007).`,
+      // 🔴 UN APPEL, PAS UNE MENTION (L-043). Un `toContain` sur le texte source ne distingue pas
+      // l'instruction du commentaire : mettre l'appel en commentaire laissait ce gate VERT et
+      // renvoyait les specs en 404. L'ancre est donc « début de ligne, éventuellement indenté »
+      // — indenté parce que l'appel vit dans un `describe` dans plusieurs fichiers.
+    ).toMatch(/^\s*exigerUneLeconAvecSimulation\(/m);
   });
 
-  it('laisse deploy.yml sur la racine de production, sans drapeau de compte', () => {
+  it.each([...SPECS_DE_QUIZ])('garde %s gardé par la capacité qu’il exige', (chemin) => {
+    expect(existsSync(chemin), `${chemin} a été SUPPRIMÉ`).toBe(true);
+    expect(
+      readFileSync(chemin, 'utf8'),
+      `${chemin} n'appelle plus « exigerUneLeconAvecQuiz » EN POSITION D'INSTRUCTION : il partirait ` +
+        `en 404 sur tout artéfact dont aucune leçon ne porte de quiz.`,
+      // Même ancre que ci-dessus, et pour la même raison (L-043) : un appel mis en commentaire
+      // laissait ce gate vert.
+    ).toMatch(/^\s*exigerUneLeconAvecQuiz\(/m);
+  });
+
+  it('interdit le retour du harnais de fixture dans ci.yml', () => {
+    expect(
+      ci,
+      `« --racine » est de retour dans une commande de ci.yml : la CI auditerait de nouveau un ` +
+        `double de test à la place du contenu publié (mode d'échec L-007, et c'est ce que le ` +
+        `tripwire de la décision E-2 a passé trois semaines à annoncer).`,
+    ).not.toMatch(/--racine\s/);
+    expect(
+      ci,
+      `« --hachages-style » est de retour dans une commande de ci.yml : le compte attendu ne serait ` +
+        `plus « NOMBRE_HACHAGES_STYLE_ATTENDU », donc plus celui que « config-swa-provenance-style.spec.ts » ` +
+        `fait relire. Un contrôle d'égalité exacte sur « style-src » se desserrerait sans revue (S-002, S-011).`,
+    ).not.toMatch(/--hachages-style\s/);
+  });
+
+  it('laisse les DEUX workflows sur `npm run build`, le script qui publie', () => {
+    for (const workflow of ['.github/workflows/ci.yml', '.github/workflows/deploy.yml']) {
+      expect(
+        runDeLEtape(workflow, 'G-build').trim(),
+        `${workflow} ne bâtit plus par « npm run build » : le vert d'un workflow ne dirait plus ` +
+          `rien de l'autre, et c'est le script de « deploy.yml » qui produit ce qui part en ligne.`,
+      ).toBe('npm run build');
+    }
+  });
+
+  it('garde deploy.yml sur la racine de production', () => {
     // Le JETON `--racine <chemin>`, pas la sous-chaîne « __fixtures__ » : câbler un jour
     // `content:valider:fixtures` dans `deploy.yml` — ce que L-007 réclame — rougirait ce test pour
     // une raison qui n'a rien à voir avec la racine de construction.
@@ -457,31 +560,6 @@ describe('le harnais de leçon interactive (décision E-2)', () => {
       'deploy.yml construit depuis une fixture : ce qui serait PUBLIÉ ne serait pas le contenu réel',
     ).toEqual([]);
     expect(deploiement).not.toContain('--hachages-style');
-    expect(
-      runDeLEtape('.github/workflows/deploy.yml', 'G-build').trim(),
-      'deploy.yml doit rester sur `npm run build` — c’est lui qui construit ce qui part en ligne',
-    ).toBe('npm run build');
-  });
-
-  // ⏳ LE TRIPWIRE DE PÉREMPTION — il vaut mieux que trois rappels en prose.
-  // Le harnais masque le vrai `content/` : le jour où une leçon y est publiée, le laisser en place
-  // ferait auditer une fixture à la place du contenu réel, sans que rien ne l'annonce. C'est le
-  // patron `mentionChantier` / L-007, que ce dépôt a déjà payé. Une règle qui s'auto-périme bat une
-  // note qu'il faut penser à relire : ce cas rougit tout seul le jour J, et son correctif est le
-  // retrait du harnais (backlog §E2-ST2, réserve 4).
-  it('se retire de lui-même dès que `content/` porte une vraie leçon', () => {
-    const publiees = leconsPubliees();
-    if (publiees.length === 0) {
-      // Tant qu'aucune leçon n'existe, le harnais est légitime — et doit être là.
-      expect(ci, 'le harnais a disparu alors que `content/` est encore vide').toMatch(/--racine\s/);
-      return;
-    }
-    expect(
-      ci,
-      `${publiees.length} leçon(s) publiée(s) sous ${RACINE_COURS_PRODUCTION} (${publiees.join(', ')}) : ` +
-        `LE HARNAIS A FAIT SON TEMPS et masque désormais le contenu réel. Le retirer — G-build de ci.yml ` +
-        `redevient \`npm run build\`, \`--hachages-style\` disparaît, et ce describe avec.`,
-    ).not.toMatch(/--racine\s/);
   });
 });
 

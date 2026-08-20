@@ -78,7 +78,21 @@ const SCRIPT_THEME = (() => {
  * endroit revu quand le compte change. Un composant neuf porteur de styles rougit donc ici aussi,
  * une fois, et c'est la revue qu'on veut ; éditer un `.scss` existant ne change rien au compte.
  */
-const NOMBRE_HACHAGES_ATTENDU = 10;
+// 📈 10 → 13 le 2026-08-20 (E3-ST1, clôture) : `content/` porte sa PREMIÈRE LEÇON PUBLIÉE
+// (`01-fondamentaux`), donc l’artéfact de production prerend enfin une page de leçon. Les trois
+// blocs de plus ont été ÉNUMÉRÉS ET NOMMÉS un par un avant cet épinglage (⚠️ c’est le NOMBRE qui
+// est épinglé et revu ; le CONTENU de chaque bloc reste dérivé de l’artéfact — `style-src` n’est
+// PAS une liste blanche nominative comme `script-src`, S-002/S-009), et ils n’apparaissent QUE sur
+// `cours/securite-web/fondamentaux/index.html` :
+//   · 4 196 o — l’adaptateur de route de la page de leçon `[_nghost-…]{display:block;padding:…}`
+//   · 6 998 o — le rendeur de blocs, `.prose[_ngcontent-…]`
+//   · 5 669 o — le quiz, `.quiz[_ngcontent-…]`
+// ⚠️ IL N’Y EN A QUE TROIS, ET C’EST LA MESURE QUI LE DIT. L’artéfact de FIXTURE en portait
+// QUATRE de plus (14) : le quatrième était `.simulation[_ngcontent-…]`. La leçon 01 n’a pas de
+// simulation — sujet abstrait, schéma statique (décision du propriétaire du 2026-08-20) — donc
+// ce bloc n’est pas rendu. Il reviendra avec E3-ST3, et rougira ici une fois, comme prévu.
+// Le compte de hachages de SCRIPT reste à 1.
+const NOMBRE_HACHAGES_ATTENDU = 13;
 
 /** Autant de blocs Angular conformes, tous de contenus DISTINCTS — le générateur dédoublonne. */
 function blocsAngular(nombre: number): string[] {
@@ -287,58 +301,53 @@ describe('le garde-fou de provenance de `style-src`', () => {
 });
 
 // =============================================================================
-// `--hachages-style <n>` — DEUX ARTÉFACTS, DEUX COMPTES, AUCUN DESSERRAGE
+// UN SEUL COMPTE, ÉPINGLÉ — ET PLUS AUCUN LEVIER POUR LE REMPLACER
 // -----------------------------------------------------------------------------
-// Depuis la décision E-2 (lot E-b2), la CI bâtit l'artéfact depuis la fixture
-// témoin — donc AVEC une page de leçon interactive et les blocs `<style>` de ses
-// composants — tandis que `deploy.yml` le bâtit depuis `content/`, vide jusqu'à
-// E3-ST1. Une constante unique ne peut pas satisfaire les deux comptes, et
-// « au moins n » desserrerait le contrôle.
+// ✅ CE QUI A CHANGÉ LE 2026-08-20. Le générateur portait `--hachages-style <n>`,
+// qui remplaçait le compte épinglé POUR CET APPEL. Le drapeau existait pour la
+// décision E-2 (lot E-b2), où la CI bâtissait l'artéfact depuis la fixture témoin
+// pendant que `deploy.yml` le bâtissait depuis `content/` : deux artéfacts, deux
+// comptes. Le harnais est retiré à la clôture d'E3-ST1 — il n'y a plus qu'un
+// artéfact — et le drapeau est SUPPRIMÉ avec lui.
 //
-// CE QUE CES CAS PROUVENT — et ils portent tous sur le MÊME risque : qu'un
-// drapeau devienne une porte de sortie.
-//   · absent      → la valeur épinglée s'applique, jamais « pas de vérification » ;
-//   · présent     → égalité EXACTE avec la valeur donnée, dans les deux sens
-//                   (un bloc de moins rougit autant qu'un bloc de plus) ;
-//   · illisible   → code 1, jamais un repli permissif ;
-//   · zéro        → code 1 : c'est la seule écriture qui viderait le contrôle de
-//                   son sens, et elle est nommément refusée ;
-//   · inconnu     → code 1, un drapeau mal tapé ne s'ignore pas en silence.
+// 🔴 POURQUOI SUPPRIMER PLUTÔT QUE SURVEILLER (S-018, 6ᵉ occurrence). Le garde-fou
+// qui interdisait le retour du drapeau ne lisait que les `run:` des workflows. Le
+// CORPS d'un script npm est une surface qu'il ne voyait pas : un
+// `"config:swa": "node …/generer-config-swa.mjs --hachages-style 20"` passait tous
+// les gates et desserrait une autorisation CSP dans les DEUX workflows. Un levier
+// qui n'existe plus ne se rallume pas en silence.
+//
+// CE QUE CES CAS PROUVENT :
+//   · l'égalité est EXACTE, dans les deux sens (un bloc de moins rougit autant
+//     qu'un bloc de plus) — jamais « au moins n » ;
+//   · TOUT argument est refusé en se nommant, jamais ignoré : y compris celui qui
+//     vient d'être supprimé, dont le retour ne doit pas être silencieux.
 // =============================================================================
 
-describe('le compte de hachages de style, paramétré au point d’appel', () => {
-  // L'écart réel mesuré est 9 → 13 depuis E2-ST5 lot b2 (la page de leçon ajoute `lecon`, le
-  // rendeur de blocs, `quiz` et `simulation`). Ce nombre-ci n'a PAS à le suivre : l'artéfact
-  // exercé ci-dessous est fabriqué, et ce qu'on mesure est le drapeau, pas le contenu du site.
+describe('le compte de hachages de style, épinglé et sans levier', () => {
   const AUTRE_COMPTE = NOMBRE_HACHAGES_ATTENDU + 3;
 
   it(
-    `accepte ${AUTRE_COMPTE} blocs quand l’appel demande ${AUTRE_COMPTE} — et écrit les ${AUTRE_COMPTE} hachages`,
+    `accepte exactement ${NOMBRE_HACHAGES_ATTENDU} blocs — et écrit les ${NOMBRE_HACHAGES_ATTENDU} hachages`,
     () => {
-      const { sortie, code, config } = lancer(blocsAngular(AUTRE_COMPTE), [
-        '--hachages-style',
-        String(AUTRE_COMPTE),
-      ]);
+      const { sortie, code, config } = lancer(blocsAngular(NOMBRE_HACHAGES_ATTENDU));
       expect(code).toBe(0);
-      expect(sortie).toContain(`${AUTRE_COMPTE} hachage(s) de style distinct(s)`);
+      expect(sortie).toContain(`${NOMBRE_HACHAGES_ATTENDU} hachage(s) de style distinct(s)`);
       const directive = /style-src[^;]*/.exec(config)?.[0] ?? '';
-      expect(directive.match(/sha256-/g) ?? []).toHaveLength(AUTRE_COMPTE);
+      expect(directive.match(/sha256-/g) ?? []).toHaveLength(NOMBRE_HACHAGES_ATTENDU);
     },
     DELAI,
   );
 
   it(
-    'reste une ÉGALITÉ : un bloc de moins que le compte demandé rougit aussi',
+    'reste une ÉGALITÉ : un bloc de MOINS que le compte épinglé rougit aussi',
     () => {
       // Le sens « en moins » compte autant que le sens « en plus » : un `.scss` disparu change la
       // directive servie tout autant, et un contrôle « au moins n » ne le verrait jamais.
-      const { sortie, code, config } = lancer(blocsAngular(AUTRE_COMPTE - 1), [
-        '--hachages-style',
-        String(AUTRE_COMPTE),
-      ]);
+      const { sortie, code, config } = lancer(blocsAngular(NOMBRE_HACHAGES_ATTENDU - 1));
       expect(code).toBe(1);
       expect(sortie).toContain(
-        `${AUTRE_COMPTE - 1} hachage(s) de style distinct(s) dans l’artéfact — ${AUTRE_COMPTE} attendu(s)`,
+        `${NOMBRE_HACHAGES_ATTENDU - 1} hachage(s) de style distinct(s) dans l’artéfact — ${NOMBRE_HACHAGES_ATTENDU} attendu(s)`,
       );
       expect(config).toBe('');
     },
@@ -346,7 +355,7 @@ describe('le compte de hachages de style, paramétré au point d’appel', () =>
   );
 
   it(
-    `sans drapeau, applique la valeur épinglée (${NOMBRE_HACHAGES_ATTENDU}) — jamais « pas de vérification »`,
+    `un bloc de PLUS rougit — la valeur épinglée (${NOMBRE_HACHAGES_ATTENDU}) s’applique toujours`,
     () => {
       const { sortie, code, config } = lancer(blocsAngular(AUTRE_COMPTE));
       expect(code).toBe(1);
@@ -360,29 +369,31 @@ describe('le compte de hachages de style, paramétré au point d’appel', () =>
 
   const ARGS_REFUSES: readonly { nom: string; args: readonly string[]; cause: RegExp }[] = [
     {
-      nom: 'une valeur manquante',
+      // 🔴 LE CAS QUI COMPTE LE PLUS : le drapeau supprimé ne revient pas en silence. Tant qu'il
+      // existait, il pouvait desserrer une autorisation CSP depuis le corps d'un script npm.
+      nom: 'le drapeau SUPPRIMÉ --hachages-style, même avec une valeur valide',
+      args: ['--hachages-style', String(NOMBRE_HACHAGES_ATTENDU)],
+      cause: /option inconnue : « --hachages-style »/,
+    },
+    {
+      nom: 'le drapeau supprimé sans valeur',
       args: ['--hachages-style'],
-      cause: /--hachages-style attend un entier ≥ 1 — reçu « undefined »/,
+      cause: /option inconnue : « --hachages-style »/,
     },
     {
-      nom: 'une valeur non numérique',
-      args: ['--hachages-style', 'douze'],
-      cause: /--hachages-style attend un entier ≥ 1 — reçu « douze »/,
-    },
-    {
-      nom: 'une valeur négative',
-      args: ['--hachages-style', '-1'],
-      cause: /--hachages-style attend un entier ≥ 1 — reçu « -1 »/,
-    },
-    {
-      nom: 'zéro — la seule écriture qui viderait le contrôle de son sens',
-      args: ['--hachages-style', '0'],
-      cause: /--hachages-style refuse 0/,
-    },
-    {
-      nom: 'une option inconnue, plutôt que de l’ignorer',
+      nom: 'une option approchante, plutôt que de l’ignorer',
       args: ['--hachages-styles', '12'],
       cause: /option inconnue : « --hachages-styles »/,
+    },
+    {
+      nom: 'une racine de construction, que ce script n’a jamais acceptée',
+      args: ['--racine', 'tools/content-pipeline/__fixtures__/temoin'],
+      cause: /option inconnue : « --racine »/,
+    },
+    {
+      nom: 'un argument nu',
+      args: ['13'],
+      cause: /option inconnue : « 13 »/,
     },
   ];
 
@@ -390,8 +401,8 @@ describe('le compte de hachages de style, paramétré au point d’appel', () =>
     it(
       `refuse ${cas.nom}`,
       () => {
-        // L'artéfact est CONFORME au défaut : seul l'argument peut faire échouer ces cas, donc un
-        // rouge ici ne peut venir que de ce qu'on teste.
+        // L'artéfact est CONFORME au compte épinglé : seul l'argument peut faire échouer ces cas,
+        // donc un rouge ici ne peut venir que de ce qu'on teste.
         const { sortie, code, config } = lancer(blocsAngular(NOMBRE_HACHAGES_ATTENDU), cas.args);
         expect(code).toBe(1);
         expect(sortie).toMatch(cas.cause);

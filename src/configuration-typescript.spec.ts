@@ -386,7 +386,7 @@ describe('rigueur du compilateur', () => {
      * d'échec que le commentaire annonçait était donc réel, et le gate n'était pas
      * décoratif.
      *
-     * ⚠️ LES CINQ `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
+     * ⚠️ LES SIX `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
      * QUAND MÊME — c'est le point le plus important de cette liste depuis le lot E.
      * Ce sont eux qui portent désormais la MESURE elle-même : `indicateur-focus.ts`
      * décide ce qu'est « un anneau de focus dessiné » pour trois fichiers,
@@ -410,6 +410,7 @@ describe('rigueur du compilateur', () => {
       'e2e/aides/artefact-mesure.ts',
       'e2e/aides/hydratation.ts',
       'e2e/aides/indicateur-focus.ts',
+      'e2e/aides/quiz-source.ts',
       'e2e/aides/simulation.ts',
       'e2e/aides/sonde-csp.ts',
       'e2e/bascule-theme.spec.ts',

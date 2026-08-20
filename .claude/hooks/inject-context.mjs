@@ -62,6 +62,18 @@ out.push(
 );
 out.push('');
 
+// Rafraîchit `.claude/lessons/INDEX.md` — la table de routage AVEC PLAGES DE LIGNES que les
+// SOUS-AGENTS lisent (eux ne reçoivent pas forcément la sortie de ce hook, et l'index imprimé
+// plus bas ne porte pas de numéros de ligne : sans le fichier, un agent n'a pas d'autre choix
+// que d'ouvrir un corpus de 33 600 tokens pour deux entrées utiles). Mesuré le 2026-08-20 :
+// ~74 000 tokens de préambule permanent par sous-agent, dont 51 600 pour les deux corpus.
+// ⚠️ En `try` mutique : ce hook ne doit JAMAIS faire échouer un démarrage de session.
+try {
+  await import('./generer-index-lecons.mjs');
+} catch {
+  // Index non régénéré — les agents retombent sur les corpus entiers, plus cher mais pas faux.
+}
+
 try {
   const lessons = readFileSync(join(projectDir, '.claude', 'lessons', 'lessons-learned.md'), 'utf8');
   // Inject only an INDEX (one line per lesson: "L-0xx · title") + a pointer — NOT the full file.

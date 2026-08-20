@@ -44,13 +44,12 @@
  *      hachage global dans `style-src` — divergence d'analyseurs de la famille **S-001**.
  *   2. NOMBRE ÉPINGLÉ : `NOMBRE_HACHAGES_STYLE_ATTENDU` ci-dessous. Le compte de hachages distincts
  *      de l'artéfact est comparé à une valeur **revue**, exactement comme `hachagesScript.size`
- *      l'est à 1. Depuis la décision E-2 (lot E d'E2-ST3), DEUX artéfacts différents sortent de ce
- *      même code — celui du déploiement (`content/` vide) et celui de la CI (bâti sur la fixture
- *      témoin, donc avec une page de leçon interactive et les blocs `<style>` de ses composants).
- *      Le compte attendu est donc un PARAMÈTRE DU POINT D'APPEL (`--hachages-style <n>`), et les
- *      deux valeurs sont écrites dans le dépôt : la constante ci-dessous pour la production, le
- *      drapeau de l'étape G-build de `ci.yml` pour la CI. Un drapeau absent retombe sur la
- *      constante — jamais sur « pas de vérification ». Détail : `lireNombreHachagesStyleAttendu`.
+ *      l'est à 1. Il n'y a qu'UN artéfact depuis la clôture d'E3-ST1 (le harnais de fixture de la
+ *      décision E-2 est retiré), donc qu'un seul compte : la constante ci-dessous, et rien
+ *      d'autre. L'option `--hachages-style <n>` qui permettait de la remplacer au point d'appel a
+ *      été **supprimée** le 2026-08-20 — c'était un levier capable de desserrer une autorisation
+ *      CSP depuis le corps d'un script npm, hors de portée du garde-fou qui la surveillait
+ *      (S-018). Ce script n'accepte plus **aucun** argument. Détail : `refuserToutArgument`.
  *   · CE QUI EST FERMÉ : qu'un hachage de style **apparaisse dans la CSP sans que personne ne le
  *     voie**. Un composant neuf qui porte des styles fait rougir la construction UNE fois, et cette
  *     fois-là passe par une revue.
@@ -183,18 +182,30 @@ const PARENTS_STYLE_ADMIS = new Set(['head', 'body']);
  * Valeur mesurée sur l'artéfact du 2026-08-18 : 9 hachages distincts pour 4 fichiers HTML inspectés
  * (17 blocs, dédupliqués — les mises en page partagées se répètent d'une page à l'autre).
  *
- * ⚠️ CE NOMBRE EST CELUI DE L'ARTÉFACT DE PRODUCTION — `content/` vide, donc AUCUNE page de leçon
- * prerendue (état du dépôt jusqu'à E3-ST1). Il est la valeur PAR DÉFAUT, celle qu'emploient
- * `npm run build` en local et `deploy.yml`. La CI, elle, construit le même artéfact depuis la
- * FIXTURE TÉMOIN pour que les gates voient une page de leçon interactive (décision E-2 du lot E) :
- * son artéfact porte quatre blocs de plus, et elle passe donc `--hachages-style` — voir juste
- * en dessous. Un drapeau absent retombe ICI : jamais sur « pas de vérification ».
+ * ⚠️ CE NOMBRE EST CELUI DE L'ARTÉFACT DE PRODUCTION, et c'est désormais le SEUL — le harnais de
+ * fixture de la décision E-2 a été retiré à la clôture d'E3-ST1, et l'option qui permettait de
+ * remplacer ce compte au point d'appel avec lui. `npm run build` en local, `ci.yml` et
+ * `deploy.yml` bâtissent tous le même artéfact et relisent tous cette constante.
  */
 // 📈 9 → 10 le 2026-08-19 (E2-ST6) : `PageAVenir` (un bloc) cède `cours/securite-web` à
-// l'adaptateur `PageSommaireSecuriteWeb` (`.page`) ET au composant `Sommaire` (`.vide`). Les dix
-// blocs ont été énumérés et nommés un par un avant cet épinglage (S-005 : la liste blanche reste
-// NOMINATIVE, jamais dérivée de l'artéfact).
-const NOMBRE_HACHAGES_STYLE_ATTENDU = 10;
+// l'adaptateur `PageSommaireSecuriteWeb` (`.page`) ET au composant `Sommaire` (`.vide`). Le bloc
+// de plus a été énuméré et nommé avant cet épinglage.
+// 📈 10 → 13 le 2026-08-20 (E3-ST1, clôture) : `content/` porte sa PREMIÈRE LEÇON PUBLIÉE
+// (`01-fondamentaux`), donc l’artéfact de production prerend enfin une page de leçon. Les trois
+// blocs de plus ont été ÉNUMÉRÉS ET NOMMÉS un par un avant cet épinglage (⚠️ c’est le NOMBRE qui
+// est épinglé et revu ; le CONTENU de chaque bloc reste dérivé de l’artéfact — `style-src` n’est
+// PAS une liste blanche nominative comme `script-src`, voir l’en-tête de ce fichier, S-002/S-009),
+// et ils n’apparaissent QUE sur
+// `cours/securite-web/fondamentaux/index.html` :
+//   · 4 196 o — l’adaptateur de route de la page de leçon `[_nghost-…]{display:block;padding:…}`
+//   · 6 998 o — le rendeur de blocs, `.prose[_ngcontent-…]`
+//   · 5 669 o — le quiz, `.quiz[_ngcontent-…]`
+// ⚠️ IL N’Y EN A QUE TROIS, ET C’EST LA MESURE QUI LE DIT. L’artéfact de FIXTURE en portait
+// QUATRE de plus (14) : le quatrième était `.simulation[_ngcontent-…]`. La leçon 01 n’a pas de
+// simulation — sujet abstrait, schéma statique (décision du propriétaire du 2026-08-20) — donc
+// ce bloc n’est pas rendu. Il reviendra avec E3-ST3, et rougira ici une fois, comme prévu.
+// Le compte de hachages de SCRIPT reste à 1.
+const NOMBRE_HACHAGES_STYLE_ATTENDU = 13;
 
 /**
  * @typedef {{ name: string }} AttributHtml
@@ -537,75 +548,40 @@ function echec(message, details = []) {
 // --- 0. Ligne de commande ------------------------------------------------------
 
 /**
- * Lit `--hachages-style <n>` : le nombre de hachages de style attendu POUR CET APPEL.
+ * 🔴 CE GÉNÉRATEUR N'ACCEPTE AUCUNE OPTION, ET C'EST LE CORRECTIF DU 2026-08-20.
  *
- * POURQUOI UN PARAMÈTRE DU POINT D'APPEL, ET NON UNE SECONDE CONSTANTE. Depuis la décision E-2
- * (lot E d'E2-ST3), deux artéfacts différents sortent du même code : celui du DÉPLOIEMENT, bâti
- * sur `content/` (vide jusqu'à E3-ST1, donc aucune page de leçon), et celui de la CI, bâti sur la
- * FIXTURE TÉMOIN pour que G-axe, G-e2e et ce générateur voient en permanence une page de leçon
- * INTERACTIVE. Le second porte les blocs `<style>` des composants de leçon en plus : une constante
- * unique ne peut pas satisfaire les deux, et « au moins n » desserrerait le contrôle.
+ * Il en portait une : `--hachages-style <n>`, qui remplaçait le compte épinglé POUR CET APPEL.
+ * Elle existait pour la décision E-2 (lot E d'E2-ST3), qui faisait sortir DEUX artéfacts du même
+ * code — celui du déploiement (`content/` vide) et celui de la CI (bâti sur la fixture témoin,
+ * donc avec une page de leçon interactive). Le harnais de fixture est RETIRÉ depuis la clôture
+ * d'E3-ST1 : il n'y a plus qu'un artéfact, donc plus qu'un compte, et plus AUCUN appelant du
+ * drapeau.
  *
- * LES DEUX VALEURS RESTENT ÉCRITES DANS LE DÉPÔT, DONC REVUES : la valeur de production est
- * `NOMBRE_HACHAGES_STYLE_ATTENDU` ci-dessus (défaut), celle de la CI est écrite en clair dans
- * `.github/workflows/ci.yml`, à l'étape G-build. Aucune n'est dérivée de l'artéfact (S-002).
+ * POURQUOI LE SUPPRIMER PLUTÔT QUE LE LAISSER DORMIR. Le drapeau était un levier capable de
+ * DESSERRER une autorisation CSP, et le garde-fou qui le surveillait ne portait que sur les
+ * `run:` des workflows — pas sur le corps des scripts npm. Un
+ * `"config:swa": "node …/generer-config-swa.mjs --hachages-style 20"` posé dans `package.json`
+ * passait tous les gates (S-018, 6ᵉ occurrence). Supprimer le levier vaut mieux que le garder
+ * sous surveillance : ce qui n'existe pas ne se rallume pas en silence.
  *
- * FAIL-CLOSED, ET IL N'Y A AUCUNE FORME QUI TAIT LE CONTRÔLE :
- *   · drapeau absent            → la valeur épinglée par défaut, jamais « pas de vérification » ;
- *   · valeur manquante / non entière / négative → code 1 ;
- *   · zéro                      → code 1 (un artéfact sans aucun bloc de style est une anomalie ;
- *                                 l'accepter serait la seule écriture qui rendrait le contrôle
- *                                 vide de sens) ;
- *   · option inconnue           → code 1, plutôt qu'un drapeau mal tapé ignoré en silence.
- *   · drapeau RÉPÉTÉ            → code 1. « Le dernier gagne » est la règle habituelle des
- *                                 parseurs, et c'est précisément la mauvaise ici : le jour où
- *                                 `scripts.config:swa` porterait un défaut, un
- *                                 `npm run config:swa -- --hachages-style N` appendu l'écraserait
- *                                 SANS BRUIT. Une autorisation CSP ne se surcharge pas en silence.
- * La comparaison finale reste une ÉGALITÉ EXACTE, jamais un minimum.
+ * FAIL-CLOSED : tout argument, connu ou non, est refusé en se nommant — jamais ignoré.
+ * Le compte attendu est donc TOUJOURS `NOMBRE_HACHAGES_STYLE_ATTENDU`, revu à la main, et la
+ * comparaison finale reste une ÉGALITÉ EXACTE, jamais un minimum.
  *
- * @returns {number}
+ * @returns {void}
  */
-function lireNombreHachagesStyleAttendu() {
+function refuserToutArgument() {
   const args = process.argv.slice(2);
-  let attendu = NOMBRE_HACHAGES_STYLE_ATTENDU;
-  let dejaVu = false;
-
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-    if (arg !== '--hachages-style') {
-      echec(`option inconnue : « ${String(arg)} »`, [
-        'usage : node tools/deploiement/generer-config-swa.mjs [--hachages-style <entier ≥ 1>]',
-        `sans ce drapeau, le compte attendu est celui de l’artéfact de production : ${NOMBRE_HACHAGES_STYLE_ATTENDU}`,
-      ]);
-    }
-    if (dejaVu) {
-      echec('l’option --hachages-style est répétée', [
-        'le dernier gagnerait, en silence — et ce nombre est une AUTORISATION CSP :',
-        'une valeur revue serait écrasée par une valeur appendue, sans que rien ne le dise.',
-      ]);
-    }
-    dejaVu = true;
-    const valeur = args[i + 1];
-    if (valeur === undefined || !/^\d+$/.test(valeur)) {
-      echec(`l’option --hachages-style attend un entier ≥ 1 — reçu « ${String(valeur)} »`, [
-        'ce nombre est une AUTORISATION CSP : une valeur illisible ne peut pas devenir un défaut permissif.',
-      ]);
-    }
-    const nombre = Number(valeur);
-    if (nombre < 1) {
-      echec('l’option --hachages-style refuse 0', [
-        'un artéfact prerendu sans aucun bloc <style> est une anomalie, pas un cas nominal :',
-        'accepter 0 serait la seule écriture de ce drapeau qui viderait le contrôle de son sens.',
-      ]);
-    }
-    attendu = nombre;
-    i += 1;
-  }
-  return attendu;
+  if (args.length === 0) return;
+  echec(`option inconnue : « ${String(args[0])} »`, [
+    'usage : node tools/deploiement/generer-config-swa.mjs (aucune option)',
+    `le compte attendu est épinglé dans le code : NOMBRE_HACHAGES_STYLE_ATTENDU = ${NOMBRE_HACHAGES_STYLE_ATTENDU}.`,
+    'l’option --hachages-style a été SUPPRIMÉE le 2026-08-20 avec le harnais de fixture :',
+    'c’était un levier capable de desserrer une autorisation CSP depuis le corps d’un script npm.',
+  ]);
 }
 
-const nombreHachagesStyleAttendu = lireNombreHachagesStyleAttendu();
+refuserToutArgument();
 
 // --- 1. Vérifications préalables ---------------------------------------------
 let source;
@@ -865,20 +841,21 @@ if (hachagesScript.size !== 1) {
 // sans qu'aucun humain ne le voie — mesuré, 9 → 10, code 0. Le compte, lui, ne bouge pas quand un
 // `.scss` existant est édité : le rouge arrive une fois par composant porteur de styles, et c'est
 // exactement la revue qu'on veut.
-if (hachagesStyle.size !== nombreHachagesStyleAttendu) {
+if (hachagesStyle.size !== NOMBRE_HACHAGES_STYLE_ATTENDU) {
   echec(
-    `${hachagesStyle.size} hachage(s) de style distinct(s) dans l’artéfact — ${nombreHachagesStyleAttendu} attendu(s)`,
+    `${hachagesStyle.size} hachage(s) de style distinct(s) dans l’artéfact — ${NOMBRE_HACHAGES_STYLE_ATTENDU} attendu(s)`,
     [
       'Un bloc <style> de plus (ou de moins) CHANGE la permission style-src réellement servie.',
       'Faire relire l’artéfact et la nouvelle directive par `security-reviewer`,',
       'PUIS reporter le nouveau compte. Jamais l’inverse.',
-      // DEUX endroits, parce que DEUX artéfacts (décision E-2) : sans ce rappel, la moitié de la
-      // mise à jour se fait et l'autre workflow rougit plus tard sur une cause qui semblera étrangère.
-      'Où : NOMBRE_HACHAGES_STYLE_ATTENDU (artéfact de production, `deploy.yml`) pour un appel sans',
-      'drapeau ; le `--hachages-style` de l’étape G-build de `.github/workflows/ci.yml` pour l’artéfact',
-      'bâti sur la fixture témoin. Les deux comptes diffèrent, et c’est normal — la CI porte en plus',
-      'les blocs <style> des composants de la page de leçon.',
-      'Attendu ~3-4 fois d’ici la fin d’E2 : un composant neuf porteur de styles rougit une fois.',
+      // TROIS endroits depuis le retrait du harnais : le compte est recopié en dur là où il doit
+      // être RELU. Sans ce rappel, la moitié de la mise à jour se fait et un autre gate rougit
+      // plus tard sur une cause qui semblera étrangère.
+      'Où : NOMBRE_HACHAGES_STYLE_ATTENDU ici, son jumeau recopié dans',
+      '`src/config-swa-provenance-style.spec.ts`, et BLOCS_STYLE_PAGE_LECON de',
+      '`e2e/simulation-sous-csp.spec.ts` (qui compte les blocs de la seule page de leçon).',
+      'Attendu une fois par composant neuf porteur de styles, et une fois par leçon qui',
+      'introduit un composant que les précédentes n’avaient pas.',
     ],
   );
 }
@@ -932,7 +909,7 @@ console.log(`✔ staticwebapp.config.json généré dans ${relative(RACINE, ARTE
 console.log(`  ${pages.length} page(s) inspectée(s)`);
 console.log(`  ${cibles.length} cible(s) interne(s) vérifiée(s) présente(s) dans l’artéfact`);
 console.log(
-  `  ${hachagesStyle.size} hachage(s) de style distinct(s) (provenance ${ATTRIBUT_PROVENANCE_STYLE}="${VALEUR_PROVENANCE_STYLE}", ${nombreHachagesStyleAttendu} attendu(s)), ${hachagesScript.size} de script`,
+  `  ${hachagesStyle.size} hachage(s) de style distinct(s) (provenance ${ATTRIBUT_PROVENANCE_STYLE}="${VALEUR_PROVENANCE_STYLE}", ${NOMBRE_HACHAGES_STYLE_ATTENDU} attendu(s)), ${hachagesScript.size} de script`,
 );
 // L'ancienne note « aucun bloc <style> inline — style-src reste à 'self' » a été retirée : le
 // compte étant désormais épinglé à NOMBRE_HACHAGES_STYLE_ATTENDU, arriver ici avec 0 hachage est

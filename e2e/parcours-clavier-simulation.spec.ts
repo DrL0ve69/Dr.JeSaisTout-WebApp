@@ -26,7 +26,7 @@
 
 import { Locator, Page, expect, test } from '@playwright/test';
 
-import { exigerLaPageDeLecon } from './aides/artefact-mesure';
+import { exigerUneLeconAvecSimulation } from './aides/artefact-mesure';
 import { attendreHydratation } from './aides/hydratation';
 import {
   MesureFocus,
@@ -36,7 +36,7 @@ import {
   releverEtatAuRepos,
 } from './aides/indicateur-focus';
 import {
-  CHEMIN_LECON_TEMOIN,
+  ROUTE_LECON_SIMULATION,
   COMMANDES,
   NOMBRE_ETAPES,
   NOMBRE_LIENS,
@@ -47,7 +47,7 @@ import {
   lireEtat,
 } from './aides/simulation';
 
-exigerLaPageDeLecon('le parcours clavier de la simulation (9 arrêts, focus visible, sortie)');
+exigerUneLeconAvecSimulation('le parcours clavier de la simulation (9 arrêts, focus visible, sortie)');
 
 /**
  * La borne de l'approche. La simulation est en bas de la page de leçon, derrière le
@@ -104,7 +104,7 @@ async function tabulerJusquALaSimulation(page: Page): Promise<number> {
 test('les neuf arrêts de la simulation se parcourent au clavier seul, dans l’ordre du document', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   const approche = await tabulerJusquALaSimulation(page);
@@ -143,7 +143,7 @@ test('les neuf arrêts de la simulation se parcourent au clavier seul, dans l’
 });
 
 test('Maj+Tab remonte les neuf arrêts en miroir', async ({ page }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   await tabulerJusquALaSimulation(page);
@@ -173,7 +173,7 @@ test('Maj+Tab remonte les neuf arrêts en miroir', async ({ page }) => {
 test('chacun des neuf arrêts porte un indicateur de focus visible et non masqué', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   // Relevé AVANT toute tabulation : à cet instant aucun élément n'a le focus, donc
@@ -218,7 +218,7 @@ test('chacun des neuf arrêts porte un indicateur de focus visible et non masqu�
 test('activer un lien d’étape au clavier replie la vue ET garde le focus dans le document', async ({
   page,
 }) => {
-  await page.goto(CHEMIN_LECON_TEMOIN);
+  await page.goto(ROUTE_LECON_SIMULATION);
   await attendreHydratation(page);
 
   await tabulerJusquALaSimulation(page);

@@ -61,3 +61,9 @@ incident isolé qui ne mérite pas de règle permanente.
 2. Rends un résumé de 2 à 4 lignes : quels IDs tu as ajoutés ou changés et l'enseignement en une
    phrase pour chacun — pour que le fil principal puisse le relayer. Si rien ne méritait d'être
    capturé, dis-le franchement : **ne fabrique pas** une leçon pour avoir l'air occupé.
+
+> 🔴 **DERNIER GESTE, OBLIGATOIRE : `npm run lecons:index`.** Tu es l’un des deux seuls agents
+> qui lisent `.claude/lessons/lessons-learned.md` EN ENTIER — tous les autres passent par
+> `.claude/lessons/INDEX.md`, qui porte les **plages de lignes** de chaque entrée. Ajouter,
+> fusionner ou élaguer une entrée décale ces plages : sans régénération, l’index envoie chaque
+> agent lire le mauvais passage, en silence. Un index qui ment coûte plus cher que pas d’index.

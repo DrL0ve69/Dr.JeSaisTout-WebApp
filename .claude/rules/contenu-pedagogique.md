@@ -1,3 +1,25 @@
+---
+paths:
+  - "content/**"
+  - "tools/content-pipeline/**"
+  - "docs/contenu/**"
+  - "src/app/features/cours/**"
+---
+
+<!--
+PORTÉE DE CHEMIN, posée le 2026-08-20. Sans le `paths:` ci-dessus, ce fichier était chargé
+INCONDITIONNELLEMENT dans chaque session et chaque sous-agent (doc officielle : « Rules without
+a `paths` field are loaded unconditionally »). Mesuré le même jour : ~74 000 tokens de préambule
+permanent par sous-agent, dont ~10 600 pour les cinq fichiers de `.claude/rules/`.
+
+POURQUOI CELUI-CI EST SCOPABLE. Barre de qualité éditoriale : elle ne sert que devant du contenu. ⚠️ Filet indispensable, parce qu’une règle à portée de chemin se déclenche quand Claude LIT un fichier apparié — un agent qui CRÉE une leçon pourrait n’en lire aucune : `professeur-web` (§2 de sa définition) et `verificateur-theorie` (§3) chargent donc ce fichier NOMMÉMENT, sans dépendre de la portée.
+
+⚠️ CE QUE LA PORTÉE COÛTE, dit ici pour que personne ne le redécouvre : une règle à `paths:`
+n'est PAS réinjectée après un `/compact` (doc : elle se recharge à la prochaine lecture d'un
+fichier apparié). Une règle dont la perte en cours de session serait grave — sécurité, budget —
+reste donc SANS portée, délibérément. Voir `.claude/rules/agent-context-budget.md` §7.
+-->
+
 # Contenu pédagogique — la barre de qualité d'une leçon (Dr. Je-Sais-Tout)
 
 > **Ce que c'est.** La barre **non négociable** qu'une leçon de `content/` doit franchir avant
