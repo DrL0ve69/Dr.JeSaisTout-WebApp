@@ -237,7 +237,13 @@ const PARENTS_STYLE_ADMIS = new Set(['head', 'body']);
 // épinglé, pas les VALEURS — voir l'en-tête de ce fichier, S-002/S-009). La parade n'est pas
 // technique, elle est procédurale : énumérer les blocs et nommer le delta, comme ci-dessus.
 // 🔴 Le compte de hachages de SCRIPT est passé de 1 à ZÉRO — voir `hachagesScript.size !== 0`.
-const NOMBRE_HACHAGES_STYLE_ATTENDU = 13;
+// 📈 13 → 14 le 2026-08-21 (E3-ST3) : la leçon « 03-injection » est la PREMIÈRE leçon publiée à
+// porter un « simulation.json », donc le composant de simulation est rendu pour la première fois
+// sur l'artéfact de production. Le bloc de plus a été MESURÉ et NOMMÉ avant cet épinglage :
+//   · 4 775 o — `.simulation[_ngcontent-…]`, sur la SEULE page `cours/securite-web/injection/`.
+// C'est exactement le bloc que la clôture d'E3-ST1 annonçait (« il reviendra avec E3-ST3 »).
+// Le compte de hachages de SCRIPT reste à ZÉRO.
+const NOMBRE_HACHAGES_STYLE_ATTENDU = 14;
 
 /**
  * @typedef {{ name: string }} AttributHtml

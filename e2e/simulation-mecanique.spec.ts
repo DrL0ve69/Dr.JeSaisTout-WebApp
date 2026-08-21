@@ -49,6 +49,7 @@ import {
   COMMANDES,
   ID_REGION,
   NOMBRE_ACTEURS,
+  NOMBRE_MARQUEURS_DANGER,
   NOMBRE_ETAPES,
   NOMBRE_LIENS,
   attendreCourante,
@@ -419,8 +420,22 @@ test.describe('en couleurs forcées', () => {
     }
 
     const danger = page.locator('.simulation .marqueur-danger');
-    await expect(danger, 'la fixture témoin porte exactement une surbrillance').toHaveCount(1);
-    await expect(danger, 'le mot « danger » a disparu en couleurs forcées').toBeVisible();
+    await expect(
+      danger,
+      'le compte de marqueurs « danger » ne suit plus les `surbrillance` déclarées par la source',
+    ).toHaveCount(NOMBRE_MARQUEURS_DANGER);
+    // 🔴 UN SAUT ANNONCÉ, PAS UN `if` MUET (revue du 2026-08-21). Une simulation sans
+    // aucune `surbrillance` est légale — `etatVisuel.surbrillance` est optionnel au
+    // schéma — et il n'y aurait alors rien à prouver ici. Mais un compte dérivé d'un
+    // champ OPTIONNEL hérite de son optionalité : `toHaveCount(0)` deviendrait une
+    // assertion d'absence, vraie d'office, et un `if` aurait retiré le `toBeVisible()`
+    // SANS LAISSER DE TRACE dans la sortie du run. `test.skip` conditionnel, lui,
+    // s'imprime : la couverture perdue se voit.
+    test.skip(
+      NOMBRE_MARQUEURS_DANGER === 0,
+      'la simulation publiée ne déclare aucune `surbrillance` : il n’y a aucun marqueur « danger » dont prouver la survie en couleurs forcées',
+    );
+    await expect(danger.first(), 'le mot « danger » a disparu en couleurs forcées').toBeVisible();
 
     await expect(
       page.locator('.simulation .liens-etapes a[aria-current="step"] span'),

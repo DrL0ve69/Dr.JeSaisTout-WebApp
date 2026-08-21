@@ -1,0 +1,168 @@
+{
+  "lecon": "evaluation-cvss",
+  "titre": "Quiz — évaluation et priorisation des vulnérabilités",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "associer",
+      "consigne": "Associe chaque système à la question à laquelle il répond, et à lui seul.",
+      "paires": [
+        {
+          "gauche": "CVE",
+          "droite": "Identifie une faille précise, dans un produit et une version donnés"
+        },
+        {
+          "gauche": "CWE",
+          "droite": "Nomme le type de faiblesse, indépendamment du produit"
+        },
+        {
+          "gauche": "CVSS",
+          "droite": "Note la sévérité technique, de 0 à 10"
+        },
+        {
+          "gauche": "EPSS",
+          "droite": "Estime la probabilité d'exploitation dans les 30 prochains jours"
+        },
+        {
+          "gauche": "KEV",
+          "droite": "Confirme qu'une exploitation est déjà observée dans la nature"
+        }
+      ],
+      "explication": "Les cinq répondent à cinq questions différentes, et les confondre est l'erreur la plus fréquente du domaine. Retiens le raccourci de vocabulaire du module précédent : on CORRIGE un CWE (un type de défaut, dans n'importe quel produit — c'est la vue du développeur) et on PATCHE un CVE (cette instance-là, dans ce produit-là — c'est la vue de l'exploitant). La paire la plus délicate est EPSS contre KEV : EPSS PRÉDIT, avec un modèle statistique recalculé chaque jour, alors que KEV CONSTATE — une CVE y est ou n'y est pas, sur la foi d'une exploitation observée. Une prédiction peut se tromper ; un constat, non.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "Une injection SQL qui permet d'extraire toute la base de données dédiée à l'application se score Scope Changed, parce que l'impact sort du code applicatif pour atteindre la base.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le piège numéro un de CVSS. Scope ne mesure pas jusqu'où l'attaquant « va », il mesure si l'impact franchit une FRONTIÈRE D'AUTORITÉ DE SÉCURITÉ. La spécification de FIRST tranche explicitement ce cas : un composant utilisé exclusivement par l'application vulnérable — ici, sa propre base de données — reste dans le même périmètre, même s'il possède techniquement son propre système de comptes. Le vecteur correct est donc S:U. Le contre-exemple à garder en tête est le XSS : le serveur est vulnérable, mais c'est le navigateur de la victime qui subit l'impact, et lui relève d'une autre autorité — d'où S:C.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "Mise en situation à scorer : « Un plugin mal conçu permet à n'importe quel visiteur de téléverser un fichier PHP sur le serveur et de le faire exécuter. » Quel vecteur CVSS v3.1 de base correspond ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H — score 9.8, Critical"
+        },
+        {
+          "id": "b",
+          "texte": "AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H — score 8.8, High"
+        },
+        {
+          "id": "c",
+          "texte": "AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H — score 10.0, Critical"
+        },
+        {
+          "id": "d",
+          "texte": "AV:N/AC:H/PR:N/UI:R/S:U/C:H/I:N/A:N — score 5.3, Medium"
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est le vecteur canonique d'une exécution de code à distance non authentifiée, celui qu'on retrouve constamment dans les vraies CVE : joignable depuis Internet (AV:N), fiable et sans condition externe (AC:L), aucun compte requis puisque « n'importe quel visiteur » suffit (PR:N), aucune victime tierce à faire agir (UI:N), et exécution de code arbitraire donc les trois impacts au maximum (C:H/I:H/A:H). La réponse b se trompe sur PR : « n'importe quel visiteur » veut dire justement qu'aucun privilège n'est requis. La réponse c se trompe sur Scope : le plugin s'exécute dans le même processus PHP et sous la même autorité que le reste de l'application — il n'y a pas de franchissement de frontière, contrairement au cas du XSS. La réponse d contredit l'énoncé sur trois points à la fois : rien n'indique de condition externe, aucune victime n'intervient, et l'exécution de code touche bien plus que la confidentialité.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Mise en situation à scorer : « Un champ du formulaire de connexion permet d'injecter du SQL pour extraire toute la base de données. » Quelles valeurs donner à C, I et A ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "C:H / I:H / A:H — une injection SQL compromet toujours les trois principes."
+        },
+        {
+          "id": "b",
+          "texte": "C:H / I:N / A:N — l'énoncé décrit une extraction, donc une divulgation seule."
+        },
+        {
+          "id": "c",
+          "texte": "C:L / I:L / A:N — l'attaquant n'obtient qu'un accès partiel tant qu'il n'est pas authentifié."
+        },
+        {
+          "id": "d",
+          "texte": "C:N / I:H / A:N — l'injection modifie la requête, donc elle porte sur l'intégrité."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "On score l'impact DÉCRIT DANS L'ÉNONCÉ, jamais le pire cas générique du type de faille. L'énoncé parle d'extraction : la confidentialité tombe entièrement (C:H), rien n'indique de modification (I:N) ni d'interruption de service (A:N). Le vecteur complet est CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N, soit 7.5 High. La réponse a est le réflexe le plus courant et le plus coûteux : si l'énoncé avait mentionné une modification ou une suppression, I et A monteraient à High et le score passerait à 9.8 — mais deux mots manquent, et on ne les invente pas. La réponse c confond le privilège requis pour attaquer (PR, une métrique d'exploitabilité) avec l'ampleur de l'impact obtenu. La réponse d confond le MOYEN et la CONSÉQUENCE : l'injection modifie la requête envoyée, ce qui n'est pas une modification des données de l'application.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Devant une CVE notée 9.8 mais absente du catalogue KEV et une CVE notée 5.9 inscrite au KEV, il faut corriger la 9.8 en premier, puisque son score est nettement plus élevé.",
+      "bonneReponse": false,
+      "justification": "Faux : c'est le message central du module. L'inscription au catalogue KEV signifie que l'exploitation est CONFIRMÉE dans la nature, aujourd'hui — ce n'est plus une hypothèse sur la gravité, c'est un fait observé, et il prime sur les deux autres signaux. La 5.9 se corrige donc d'abord. Attention à la lecture inverse, qui serait tout aussi fausse : la 9.8 ne se déprécie pas pour autant. CVSS reste un PLANCHER de sévérité — l'absence de preuve d'exploitation n'est pas une preuve d'absence — et elle passe immédiatement après. L'ordre correct est donc KEV en urgence absolue, CVSS comme plancher, EPSS pour trancher l'ordre à l'intérieur d'un même palier.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q6",
+      "type": "choix-multiple",
+      "question": "Que remplace le critère Scope, retiré de CVSS v4.0 ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Rien : v4.0 supprime la notion de franchissement de frontière, jugée trop théorique."
+        },
+        {
+          "id": "b",
+          "texte": "Deux jeux d'impact séparés : Vulnerable System (VC/VI/VA) et Subsequent System (SC/SI/SA)."
+        },
+        {
+          "id": "c",
+          "texte": "Le nouveau critère AT (Attack Requirements), qui note les conditions de déploiement."
+        },
+        {
+          "id": "d",
+          "texte": "Le groupe Supplemental, qui décrit l'effet d'une faille sur les systèmes voisins."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "v4.0 abandonne la question binaire « est-ce le même composant ? », qui était la source d'ambiguïté la plus critiquée de v3.1, et demande à la place de noter directement l'impact des DEUX côtés : sur le système vulnérable (VC/VI/VA) et sur les systèmes affectés en aval (SC/SI/SA). La notion de franchissement de frontière n'a donc pas disparu — elle est devenue mesurable au lieu d'être devinée, ce qui invalide la réponse a. La réponse c décrit un vrai critère neuf de v4.0, mais il traite d'autre chose : AT sépare les conditions de déploiement de la complexité technique pure, aux côtés de AC. La réponse d existe aussi, mais le groupe Supplemental est purement INFORMATIF — il ne modifie jamais le score chiffré.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Une équipe trie sa file de correctifs uniquement par score CVSS de base. Quelle est l'objection la plus solide ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Le score de base ne dit rien de la probabilité que la faille soit réellement attaquée, ni du contexte de déploiement."
+        },
+        {
+          "id": "b",
+          "texte": "Le score de base est recalculé chaque jour, donc l'ordre change en permanence."
+        },
+        {
+          "id": "c",
+          "texte": "Le score de base est un standard américain, donc sans valeur juridique ailleurs."
+        },
+        {
+          "id": "d",
+          "texte": "Aucune : le score de base est précisément conçu pour donner l'ordre de correction."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "CVSS de base répond à « si ça marche, quels dégâts ? » et à rien d'autre : il est calculé une fois, par quelqu'un qui ne connaît pas ton installation. Deux failles notées 9.8 peuvent avoir des destins opposés, l'une jamais exploitée en quatre ans, l'autre attaquée en masse une semaine après sa publication — d'où EPSS et KEV. Le contexte manquant a d'ailleurs un nom dans la norme elle-même : c'est le groupe Environnemental, qui existe et que presque personne ne remplit. La réponse b inverse exactement la propriété : c'est EPSS qui est recalculé chaque jour ; le score CVSS de base est FIGÉ à sa publication. La réponse c se trompe de terrain : CVSS est au contraire exigé par des normes et des contrats internationaux comme PCI-DSS ou ISO 27001, ce qui est une raison de le calculer, pas de s'y fier seul. La réponse d est le malentendu que ce module existe pour dissiper.",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "Cette page de recherche affiche deux valeurs venues de l'URL. Quelle ligne porte la vulnérabilité à scorer, et quel vecteur en découle ?",
+      "langage": "php",
+      "code": "$page = $_GET['page'];\n$titre = htmlspecialchars($_GET['titre'], ENT_QUOTES, 'UTF-8');\necho '<h1>' . $titre . '</h1>';\necho '<p>Section demandée : ' . $page . '</p>';",
+      "ligneFautive": 4,
+      "faille": "XSS réfléchi (CWE-79) — vecteur CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N, score 6.1 Medium",
+      "explication": "La ligne 4 écrit dans la page une valeur venue de l'URL sans aucun encodage : tout balisage qu'elle contient est interprété par le navigateur de la victime comme s'il venait du site. C'est bien la ligne d'ÉCRITURE qui est fautive, pas la ligne 1 qui se contente de lire un paramètre — lire une entrée n'est jamais un défaut en soi, et c'est une confusion qui coûte cher : la parade se pose au moment de la sortie, parce que c'est le contexte de sortie qui détermine l'encodage correct. La ligne 2 est le distracteur principal, et elle n'est PAS la vulnérabilité : htmlspecialchars y fait exactement son travail, et la ligne 3 n'affiche donc qu'une valeur déjà encodée. Remarque tout de même où le corrigé place l'encodage — sur les DEUX lignes d'écho, pas sur les lignes de lecture : tant que la valeur encodée ne sert qu'une fois, juste après, encoder à la lecture donne le même résultat, mais c'est le contexte de SORTIE qui décide de l'encodage correct, et la même variable réutilisée dans un attribut, une URL ou du JavaScript en demanderait un autre. Encoder à la sortie est donc l'habitude à prendre, pas une préférence de style. Côté scorage, retiens surtout le S:C — le composant vulnérable est le serveur, mais le composant impacté est le navigateur de la victime, sous une autre autorité de sécurité. Avec S:U par erreur, le même vecteur donnerait 5.4 au lieu de 6.1.",
+      "correction": "$page = $_GET['page'];\n$titre = $_GET['titre'];\necho '<h1>' . htmlspecialchars($titre, ENT_QUOTES, 'UTF-8') . '</h1>';\necho '<p>Section demandée : ' . htmlspecialchars($page, ENT_QUOTES, 'UTF-8') . '</p>';",
+      "ficheSource": "web/securite/evaluation-vulnerabilites-cvss.md"
+    }
+  ]
+}

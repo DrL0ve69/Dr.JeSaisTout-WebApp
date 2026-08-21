@@ -389,7 +389,13 @@ describe('le script `build`, celui que les deux workflows exécutent', () => {
  * publiant E3-ST3 (`03-injection`), dans le MÊME commit que la leçon — et ce fichier rougira
  * pour l'exiger.
  */
-const CAPACITES_MESUREES_EN_E2E = { quiz: true, simulation: false } as const;
+// ✅ `simulation` BASCULÉ À `true` le 2026-08-21 (E3-ST3) — le trou ouvert le 2026-08-20 est
+// REFERMÉ, et par le geste que ce test exigeait : les 3 specs de simulation ont été exécutées
+// AVANT la bascule, sur l'artéfact de production réel (17 passés / 2 échecs, les deux dus à des
+// prémisses de test héritées de la fixture témoin — 6 étapes et 1 surbrillance écrites en dur —
+// corrigées en dérivant ces comptes du `simulation.json` de l'auteur, L-035). Elles sont vertes
+// depuis. C'est la FERMETURE qui réclamait la revue, pas l'ouverture : elle a eu lieu.
+const CAPACITES_MESUREES_EN_E2E = { quiz: true, simulation: true } as const;
 
 /** Les trois specs qui n'ont plus de sujet tant qu'aucune leçon publiée n'a de simulation. */
 const SPECS_DE_SIMULATION = [

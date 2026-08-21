@@ -418,6 +418,18 @@ un fichier sur disque, jamais un one-liner passé en argument de commande.
 **Réfs addendum 3.** lot E6 « Moniteur ambre » ; `src/app/pages/accueil/design-system.spec.ts` ;
 `tools/design/verifier-contrastes.mjs`.
 
+**Addendum (E3-ST2/E3-ST3, 2026-08-21) — le piège CRLF mord aussi la REVUE, pas seulement le test ou
+le générateur.** `src/workflows-github.spec.ts` a été réécrit en CRLF alors que le blob de HEAD est
+LF pur : `git diff --stat` annonçait **2 678 lignes** changées, `git diff -w --stat` en annonçait
+**8** — pendant qu'une revue de sécurité tournait au même moment sur ce spec, le plus structurant du
+dépôt. Un diff gonflé par une fin de ligne noie le vrai changement dans un bruit que la revue doit
+trier à la main, ou pire, ne trie pas. **Règle** : avant de committer un fichier `.ts`/`.mjs`/`.yml`
+touché, comparer `git diff --stat` à `git diff -w --stat` — un écart entre les deux signale une
+réécriture de fin de ligne, à annuler en réalignant sur celle de HEAD (jamais sur celle de
+l'éditeur), pas à committer tel quel en espérant que la revue filtre le bruit elle-même.
+
+**Réfs addendum 4.** branche `feat/e3-st2-st3-lecons` ; `src/workflows-github.spec.ts`.
+
 ---
 
 ## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
@@ -1045,6 +1057,20 @@ un autre, il se remesure avant d'être recopié dans un livrable.** Le coordinat
 sans être recompté est un chiffre recopié, pas mesuré.
 
 **Réfs addendum.** briefs de lot E6 « Moniteur ambre », arrêts de tabulation du composant en-tête.
+
+**Addendum (E3-ST2/E3-ST3, 2026-08-21) — un chiffre nommé d'après « LA » page/le composant devient
+ambigu dès que le dépôt en publie un DEUXIÈME.** `BLOCS_STYLE_PAGE_LECON` a d'abord été porté de 6 à
+7 « puisque la simulation ajoute un bloc », avant que la mesure ne montre que le test qui l'emploie
+navigue la page du **quiz** (sans simulation), pas celle de la simulation. Le littéral n'était pas
+faux à l'écriture (une seule leçon publiée, un seul référent possible) ; il l'est devenu quand la
+**population** qu'il nomme est passée de un à plusieurs sans que son nom le signale. **Règle
+élargie** : tout littéral/nom de constante au singulier défini (« la page de X », « le composant
+Y ») se relit dès que le dépôt en publie un deuxième exemplaire — le remesurer dans le périmètre
+exact visé (pas supposer que le premier référent tient toujours), et si plusieurs variantes
+coexistent, le nommer au pluriel ou le paramétrer plutôt que de garder un singulier qui ment.
+
+**Réfs addendum 2.** branche `feat/e3-st2-st3-lecons` ; `e2e/aides/` (constante
+`BLOCS_STYLE_PAGE_LECON`).
 
 ---
 
@@ -2050,6 +2076,30 @@ affirmant que « jsdom fournit toujours `matchMedia` » — c'est faux depuis js
 enverra le prochain lecteur dans le mur ; à corriger au prochain passage sur ce fichier.
 
 **Réfs.** `src/app/core/theme/theme.spec.ts` — lot E6 « Moniteur ambre », 2026-08-20.
+
+---
+
+## L-073 · Un compte dérivé d'un champ OPTIONNEL du schéma hérite de son optionalité — un `if` qui retire une assertion sur une valeur à zéro ne laisse AUCUNE trace dans la sortie du run
+
+**Symptôme.** `e2e/aides/simulation.ts` dérive `NOMBRE_ETAPES`, `NOMBRE_ACTEURS` et
+`NOMBRE_MARQUEURS_DANGER` du `simulation.json` de l'auteur. Les deux premiers sont protégés par une
+anti-vacuité qui **lève** si la source est vide. Le troisième vient de `etatVisuel.surbrillance`, un
+champ **sans `required`** au schéma : une simulation légale sans surbrillance donne `0`, ce qui rend
+`toHaveCount(0)` vraie d'office (variante « invariant indéterminé » de [[L-063]]) — et un
+`if (NOMBRE_MARQUEURS_DANGER > 0)` retirait alors l'assertion voisine **sans qu'aucune ligne du run
+ne le signale** : ni skip imprimé, ni avertissement, un test simplement absent du compte.
+
+**Règle.** Dériver un compte d'un champ **optionnel** du schéma oblige à choisir explicitement,
+au moment où le compte peut tomber à zéro, entre deux gestes qui s'impriment tous deux dans la
+sortie : une **garde d'anti-vacuité** qui lève (si la valeur nulle ne devrait structurellement
+jamais arriver dans le corpus visé), ou un **`test.skip` conditionnel**, qui s'annonce dans le
+rapport (si zéro est un cas légal). Un `if` muet qui retire une assertion est la seule option
+interdite — elle est indiscernable d'un test qui n'a jamais existé. Cousine de [[L-019]] (une sonde
+qui collecte a besoin d'un contrôle positif) sur un axe amont : ici ce n'est pas l'instrument de
+mesure qui manque de preuve, c'est la **source** du compte qui peut légitimement produire l'absence
+qu'on croyait garder pour l'anti-vacuité.
+
+**Réfs.** `e2e/aides/simulation.ts` ; branche `feat/e3-st2-st3-lecons`, 2026-08-21.
 
 ---
 

@@ -2505,8 +2505,8 @@ E3-ST1, pas pendant.
 | ID | Module (`NN-slug`) | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|
 | E3-ST1 | `01-fondamentaux` — Fondamentaux de la sécurité web (faille/exploit/0-day, CVE/CWE, OWASP Top 10 2021 **et** 2025, kill chain, types de tests) | `fondamentaux-securite-web.md` | non — schéma kill chain statique | ✅ |
-| E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV). 🔴 **COMPLÉMENT PUR — corrigé le 2026-08-19** : la mention « quiz = les 6 mises en situation corrigées du cours (matière d'examen) » était **fausse**. Mesure : **0 occurrence** de CVSS/CVE/CWE/EPSS/KEV dans les **8 diaporamas publiés** et dans le **plan de cours officiel**. Rien de ce module n'est examinable ; il doit se présenter comme complément. *(Réserve : la mesure porte sur le texte extrait ; un sigle qui n'existerait que dans une image aurait échappé — 95 captures ont été ouvertes sans le rencontrer.)* | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ⬜ |
-| E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ⬜ |
+| E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV). 🔴 **COMPLÉMENT PUR — corrigé le 2026-08-19** : la mention « quiz = les 6 mises en situation corrigées du cours (matière d'examen) » était **fausse**. Mesure : **0 occurrence** de CVSS/CVE/CWE/EPSS/KEV dans les **8 diaporamas publiés** et dans le **plan de cours officiel**. Rien de ce module n'est examinable ; il doit se présenter comme complément. *(Réserve : la mesure porte sur le texte extrait ; un sigle qui n'existerait que dans une image aurait échappé — 95 captures ont été ouvertes sans le rencontrer.)* | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ✅ |
+| E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ✅ |
 | E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ⬜ |
 | E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ⬜ |
 | E3-ST6 | `06-controle-acces` — Contrôle d'accès, IDOR, élévation de privilèges, mass assignment | `controle-acces-idor.md` | **oui** : IDOR par manipulation d'identifiant | ⬜ |
@@ -2604,6 +2604,124 @@ typecheck outils et e2e **0**.
 recensement de provenance ci-dessus (0 📘, complément pur, à annoncer comme tel). En parallèle,
 l'ordre révisé D-3 (`CLAUDE.md`) place **E6 — bascule « Moniteur ambre »** après E3 bloc A : c'est
 le **geste suivant** que le propriétaire a désigné, avant de reprendre E3 blocs B/C.
+
+#### ✅ CLÔTURE — E3-ST2 `02-evaluation-cvss` et E3-ST3 `03-injection` (2026-08-21)
+
+**Livré.** `content/cours/securite-web/02-evaluation-cvss/` (`lecon.md`, `quiz.json` 8 questions,
+**pas** de simulation) et `content/cours/securite-web/03-injection/` (`lecon.md`, `quiz.json`
+8 questions, **`simulation.json` — la PREMIÈRE du dépôt**, 10 étapes / 3 acteurs, appariée une pour
+une au `sequenceDiagram` de la leçon). Routes `/cours/securite-web/evaluation-cvss/` et
+`/cours/securite-web/injection/`. Le cours publie donc **3 modules sur 13**.
+
+**Décision de coordination, à confirmer par le propriétaire (voir « nœuds » plus bas)** :
+`section: « Fondamentaux »` pour la 02, `section: « Attaques classiques »` pour la 03. La 03 est
+donc la **première leçon à ouvrir une deuxième section** — le sommaire bascule du rendu à plat au
+rendu groupé, qui était testé mais jamais exercé en production.
+
+**Ce que les deux passes de vérification ont attrapé** — les deux leçons sont sorties **À CORRIGER**,
+et aucun des constats n'était cosmétique :
+
+- **02** : un score CVSS **faux** dans un distracteur de quiz (4.7 au lieu de 5.3, recalculé à la
+  formule), une affirmation EPSS fausse d'un **ordre de grandeur** (« 2 % ≈ centile supérieur » ;
+  FIRST situe 10 % au 88ᵉ percentile), et surtout **deux supports qui enseignaient des algorithmes
+  incompatibles** — le flowchart de priorisation ne produisait sous aucun seuil l'ordre que le texte
+  annonçait. Corrigé en alignant les deux (EPSS devient un **départage** à l'intérieur d'un palier,
+  pas un filtre) et en ramenant CVE-C de 7.5 à 6.5 pour que le palier annoncé soit vrai.
+- **03** : la datation OWASP (le 6 novembre 2025 est la **RC1**, pas la liste finale), « `&` lance en
+  arrière-plan sous Windows » (**faux** : sous `cmd.exe` c'est un séparateur), « les pilotes PHP vers
+  MySQL n'exécutent qu'une instruction » (vrai de `mysqli`, **faux de PDO_MySQL** en configuration
+  par défaut), et une **simulation dont la requête reconstruite ne découlait pas de la charge
+  affichée** — le `%` du gabarit `LIKE '%…%'` était compté deux fois, dans la simulation qui existe
+  précisément pour montrer comment la concaténation fabrique la requête.
+
+**Deux corrections appliquées à la KnowledgeBase** (écritures hors dépôt, signalées ici parce
+qu'elles doivent rester visibles) : `web/securite/evaluation-vulnerabilites-cvss.md` (le délai KEV
+attribué à **BOD 22-01**, révoquée le 2026-06-10 et remplacée par **BOD 26-04**, à quatre critères)
+et `web/securite/injection.md` (datation OWASP RC1/finale ; `mysqli` vs PDO_MySQL sur les requêtes
+empilées). Les deux fiches portent `maj: 2026-08-21` et la correction consignée en `## Sources`.
+
+**🔴 LA DETTE OUVERTE À E3-ST1 EST REFERMÉE, et par le geste que le tripwire exigeait.**
+`CAPACITES_MESUREES_EN_E2E.simulation` passe à `true` — **après** exécution des 3 specs de simulation
+sur l'artéfact de production, pas avant. Résultat de cette exécution : **17 passés, 2 échecs**, et
+les deux échecs étaient des **prémisses de test fausses sur un produit sain** (L-035), héritées de la
+fixture témoin :
+
+- `NOMBRE_ETAPES = 6` et `NOMBRE_ACTEURS = 4`, annotés « mesuré sur la fixture témoin » — la leçon
+  publiée en porte **10 et 3** ;
+- `toHaveCount(1)` sur `.marqueur-danger`, avec le message « la fixture témoin porte exactement une
+  surbrillance » — la simulation publiée en porte **8** (somme des `surbrillance` : un marqueur par
+  acteur mis en évidence, à chaque étape).
+
+**Correctif structurel, et c'est le vrai livrable technique du lot.** Ces trois comptes sont
+désormais **dérivés du `simulation.json` de l'auteur**, comme ceux du quiz le sont déjà de
+`quiz.json` : deux sources indépendantes confrontées, jamais un compte tiré du DOM (qui se prouverait
+lui-même). La recherche « quel dossier de `content/` publie ce slug ? » — qui vivait dans
+`quiz-source.ts` et que la simulation allait dupliquer — est extraite dans
+**`e2e/aides/lecon-source.ts`** (fichier neuf, épinglé dans `src/configuration-typescript.spec.ts`,
+L-034). Conséquence pratique : **publier une leçon avec une simulation de N étapes n'oblige plus à
+toucher aucun spec.**
+
+**⚠️ « LA PAGE DE LEÇON » N'EST PLUS UN OBJET UNIQUE — le piège de ce lot, à connaître.**
+`BLOCS_STYLE_PAGE_LECON` (`e2e/simulation-sous-csp.spec.ts`) a été porté à 7 par réflexe, puis
+**ramené à 6 par la mesure** : le test qui l'emploie navigue `ROUTE_LECON_QUIZ`, c'est-à-dire la
+**première** page prerendue portant `<app-quiz` — aujourd'hui `evaluation-cvss`, qui n'a pas de
+simulation. La page de simulation, elle, en porte 7. Depuis qu'il y a trois leçons, tout littéral qui
+se dit « la page de leçon » doit dire **laquelle**.
+
+**CSP** : `style-src` **13 → 14 hachages**, le 14ᵉ mesuré et nommé avant épinglage —
+`.simulation[_ngcontent-…]`, **4 775 o**, sur la **seule** page `cours/securite-web/injection/`.
+C'est exactement le bloc que la clôture d'E3-ST1 annonçait (« il reviendra avec E3-ST3 »).
+`script-src` reste `'self'` **sans aucun hachage**. Report fait aux **trois** endroits épinglés
+(`generer-config-swa.mjs`, `config-swa-provenance-style.spec.ts`, `config-swa-contournements.spec.ts`).
+
+**Accueil** : `MODULES_PUBLIES` **1 → 3**, et le texte de la carte (« le premier module est en
+ligne ») corrigé dans le même commit — c'est le réveille-matin posé à E3-ST1 qui a mordu, exactement
+comme il avait été écrit pour le faire.
+
+**Chiffres de clôture** : G-lint vert · G-test **887 passés / 42 fichiers / 0 échec** · G-build
+6 routes, **14 hachages de style / 0 de script** · G-axe **6 pages, 516 vérifications, 0 violation**
+· G-e2e **49 passés / 1 sauté / 0 échec** (contre 33 passés / 18 sautés avant le lot — les specs de
+simulation se sont rallumés) · `npm audit --omit=dev` **0** · typecheck outils et e2e **0**.
+Poids compilé : `injection` **164,1 Ko**, `evaluation-cvss` **129,3 Ko**, `fondamentaux` 112,5 Ko.
+
+##### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — aucun ne bloque la suite, tous méritent une décision
+
+1. **Les deux `section:` sont un choix de coordinateur, pas une décision du propriétaire.**
+   `Fondamentaux` (01, 02) et `Attaques classiques` (03). Le champ est **tout-ou-rien par sujet** :
+   il engage les 16 modules restants. Si le découpage voulu est autre (par bloc du backlog, par
+   séance du cours…), c'est **maintenant** qu'il coûte le moins cher à changer.
+2. **La leçon 03 pèse 164,1 Ko, au-dessus du seuil d'avertissement de 150 Ko du pipeline.** Le gate
+   ne rougit qu'à 300 Ko, donc rien ne bloque. Reste la question : leçon légitimement dense
+   (injection SQL + commande + XXE + NoSQL, 7 blocs `comparaison`), ou module **à scinder** ? Quatre
+   familles d'attaques dans un seul module est peut-être le vrai sujet, pas le poids du fichier.
+3. **🔴 Contrat contradictoire dans le harnais — corrigé, à valider.** Le skill `/lecon` demande au
+   `professeur-web` de poser des marqueurs `à-vérifier:` ; `valider.mjs` §6 les **interdit** dès
+   `statut: publiee` — que mon brief imposait. Les deux rédacteurs ont donc livré leurs doutes **dans
+   leur rapport** plutôt que dans le fichier : ça a marché, mais ça ne laisse aucune trace dans le
+   dépôt. La séquence correcte est `statut: verifiee` (non publié, marqueurs autorisés) →
+   vérification → bascule à `publiee`. Le skill a été amendé en ce sens ; à confirmer.
+4. **🔴 Les deux rédacteurs ont dépassé le plafond de contexte** : **197 798** et **206 884** tokens
+   (le plafond « exceptionnel » est à 200k). La cause est un défaut de **brief**, pas d'agent : j'ai
+   dimensionné au livrable (« une leçon ») alors que la variable réelle était le couple *fiche source
+   (540 et 740 lignes) × volume produit* (609 et 869 lignes de leçon, plus quiz, plus simulation).
+   Les deux agents de **correctifs**, périmètre serré, ont fini à **103k** et **115k**. Correctif
+   proposé pour les 16 leçons restantes, à valider : **scinder en deux agents** — (a) `lecon.md`,
+   (b) `quiz.json` + `simulation.json` écrits depuis la leçon déjà rédigée.
+5. **La KnowledgeBase se contredit sur un point que le vérificateur n'a pas pu trancher** :
+   `web/securite/injection.md` dit « diapositives **14** à 18 » à un endroit et « **15 à 18** » à un
+   autre (la note de rattrapage, plus récente et plus précise). La leçon a retenu la seconde. À
+   trancher à la prochaine passe d'archivage, le diaporama en main.
+6. **Le module 02 s'annonce comme complément pur** — c'était la consigne du backlog, et elle est
+   tenue (section dédiée en position 2 du document, redite dans « À retenir »). ⚠️ Cette annonce
+   repose sur une **mesure de texte extrait** : un sigle qui n'existerait que dans une image des
+   diaporamas y aurait échappé (réserve déjà consignée au tableau du bloc A).
+
+**Suite** : E3 bloc A continue avec **E3-ST4** (`04-xss`, fiche `xss-cross-site-scripting.md`,
+683 lignes) — et c'est le module où le piège **S-011** mord le plus fort : une charge XSS d'exemple
+contient par nature un `on…=`, que le garde-fou du build refuse dans le HTML prerendu. La parade est
+**éditoriale** (guillemets typographiques, entité), jamais un assouplissement du garde-fou, sur un
+site qui enseigne la CSP.
+
 
 ### Bloc B — Identités & données *(cible : ~12 octobre, J5)*
 

@@ -26,21 +26,10 @@
 // une source introuvable en suite verte.
 // =============================================================================
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 
 import { LECON_AVEC_QUIZ } from './artefact-mesure';
-
-/**
- * Les deux racines où une leçon peut être RÉDIGÉE. La seconde est la fixture
- * témoin : `--racine tools/content-pipeline/__fixtures__/temoin/…` reste une façon
- * légitime de bâtir l'artéfact en local, et les specs du quiz doivent s'y mesurer
- * aussi. L'ordre compte : `content/` d'abord, la fixture en repli.
- */
-const RACINES_CONTENU = [
-  'content/cours/securite-web',
-  'tools/content-pipeline/__fixtures__/temoin/cours/securite-web',
-] as const;
+import { RACINES_CONTENU, fichierSourceDeLaLecon, laLeconEstDeclaree } from './lecon-source';
 
 /** Une ligne d'une question `associer`, dans l'ordre de la source. */
 export interface PaireSource {
@@ -70,42 +59,6 @@ export interface QuestionSource {
   readonly paires?: readonly PaireSource[];
 }
 
-/** Le `slug` déclaré au frontmatter d'un `lecon.md`, ou `''` s'il n'en porte pas. */
-function slugDeclare(cheminLecon: string): string {
-  // Le frontmatter est le premier bloc encadré de `---`. `\r?\n` parce que les fins
-  // de ligne de ce poste sont mixtes (L-015).
-  const brut = readFileSync(cheminLecon, 'utf8');
-  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(brut)?.[1] ?? '';
-  return (/^slug:[ \t]*(.*)$/m.exec(frontmatter)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
-}
-
-/**
- * Le dossier source qui PUBLIE ce slug-là, sous une racine donnée.
- *
- * 🔴 ON LIT LE FRONTMATTER, ON NE DEVINE PAS LE NOM DU DOSSIER (correctif du
- * 2026-08-20). Les trois copies retiraient `^\d+-` du nom de dossier et appariaient
- * là-dessus — or `content/…/01-fondamentaux/` publie la route `fondamentaux` par
- * son champ `slug:`, et rien n'oblige le dossier à porter le slug. `sommaire.spec.ts`
- * rejette nommément cette devinette (« le slug n'est pas le nom du dossier ») ; la
- * garder ici aurait fait diverger deux vérités dans le même diff. Le jour où un
- * auteur écrit `slug: fondamentaux-du-web` dans `02-bases/`, la devinette aurait
- * fait rougir les trois specs du quiz sur un produit parfaitement sain (L-035).
- */
-function dossierQuiPublie(racine: string, slug: string): string | undefined {
-  if (!existsSync(racine)) return undefined;
-
-  for (const entree of readdirSync(racine, { withFileTypes: true })) {
-    if (!entree.isDirectory()) continue;
-    const lecon = join(racine, entree.name, 'lecon.md');
-    if (!existsSync(lecon)) continue;
-    const declare = slugDeclare(lecon);
-    // Un `slug:` absent donne `''` : on refuse de l'apparier, sinon une leçon sans
-    // frontmatter complet capterait n'importe quelle recherche vide.
-    if (declare !== '' && declare === slug) return entree.name;
-  }
-  return undefined;
-}
-
 /**
  * Lit le `quiz.json` de la leçon RÉELLEMENT mesurée par l'artéfact sous test.
  *
@@ -117,23 +70,28 @@ export function lireQuizSource(): readonly QuestionSource[] {
   const slug = LECON_AVEC_QUIZ?.slug;
   if (slug === undefined) return [];
 
-  for (const racine of RACINES_CONTENU) {
-    const dossier = dossierQuiPublie(racine, slug);
-    if (dossier === undefined) continue;
-
-    const brut: unknown = JSON.parse(readFileSync(join(racine, dossier, 'quiz.json'), 'utf8'));
-    const questions = (brut as { questions?: readonly QuestionSource[] }).questions ?? [];
-    if (questions.length === 0) {
-      throw new Error(`le quiz de « ${slug} » ne déclare aucune question — la source est vide`);
-    }
-    return questions;
+  const chemin = fichierSourceDeLaLecon(slug, 'quiz.json');
+  if (chemin === undefined) {
+    // 🔴 DEUX CAUSES, DEUX MESSAGES (revue du 2026-08-21). L'ancienne forme laissait
+    // `readFileSync` lever un ENOENT quand la leçon existait sans son `quiz.json` ;
+    // regrouper les deux cas sous « aucune racine ne déclare ce slug » accuserait le
+    // mauvais coupable — la leçon EST déclarée, c'est le fichier qui manque.
+    throw new Error(
+      laLeconEstDeclaree(slug)
+        ? `la leçon « ${slug} » ne porte pas de « quiz.json », alors que l'artéfact prerend bien ` +
+          'un « <app-quiz » sur sa page : la source et l’artéfact ont divergé'
+        : `aucun « lecon.md » de ${RACINES_CONTENU.join(' ni ')} ne déclare « slug: ${slug} », que ` +
+          "l'artéfact prerend pourtant : le frontmatter et le manifeste de routes ont divergé, ou la " +
+          'leçon mesurée a été bâtie depuis une racine que ce fichier ne connaît pas',
+    );
   }
 
-  throw new Error(
-    `aucun « lecon.md » de ${RACINES_CONTENU.join(' ni ')} ne déclare « slug: ${slug} », que ` +
-      "l'artéfact prerend pourtant : le frontmatter et le manifeste de routes ont divergé, ou la " +
-      'leçon mesurée a été bâtie depuis une racine que ce fichier ne connaît pas',
-  );
+  const brut: unknown = JSON.parse(readFileSync(chemin, 'utf8'));
+  const questions = (brut as { questions?: readonly QuestionSource[] }).questions ?? [];
+  if (questions.length === 0) {
+    throw new Error(`le quiz de « ${slug} » ne déclare aucune question — la source est vide`);
+  }
+  return questions;
 }
 
 /** La mécanique de saisie que le gabarit rend pour une question. */
