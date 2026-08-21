@@ -721,6 +721,76 @@ export function verifierAncres(html, code, nomFichier) {
 }
 
 /**
+ * Les encres du thème SOMBRE que ce dépôt corrige — liste NOMINATIVE, une entrée par couleur,
+ * chacune avec sa mesure. Rien d'autre n'est touché.
+ *
+ * 🔴 POURQUOI CETTE CORRECTION EXISTE (2026-08-21, E3-ST3). Le thème `github-dark` est calibré
+ * pour SON fond (`#24292e`), pas pour celui du design system : depuis la bascule « Moniteur
+ * ambre », `--couleur-code-surface` vaut `#0b1114`, nettement plus sombre. Les encres claires y
+ * gagnent du contraste ; l'encre de COMMENTAIRE, elle, est déjà la plus faible du thème et tombe
+ * à **3,94:1** — sous la barre de 4,5:1 de WCAG 1.4.3 AA pour du texte normal.
+ *
+ * ⚠️ CE N'EST PAS UN DÉFAUT NEUF : il dormait depuis E6, et il ne s'est révélé qu'à la première
+ * leçon publiée portant des COMMENTAIRES dans ses blocs de code (`02-evaluation-cvss`). La
+ * feuille générée ne contient que les classes réellement employées par `content/` — une encre
+ * qu'aucune leçon n'emploie n'est jamais émise, donc jamais mesurée. Le gate G-contraste
+ * (`tools/design/verifier-contrastes.mjs`) l'a attrapé en CI, sur le contenu réel.
+ *
+ * On corrige l'ENCRE plutôt que le FOND parce que le fond est un jeton du design system, mesuré
+ * contre 40 paires : le déplacer pour arranger une couleur de thème tiers reviendrait à laisser
+ * la coloration syntaxique dicter la palette du site.
+ *
+ * @type {ReadonlyMap<string, { remplacement: string, note: string }>}
+ */
+const ENCRES_SOMBRES_CORRIGEES = new Map([
+  [
+    '#6A737D',
+    {
+      remplacement: '#848D99',
+      // Même teinte (hsl ~210°, 8 %), luminosité portée de 45 % à 55 % : 3,94:1 → 5,70:1 sur
+      // `--couleur-code-surface` (#0b1114). Le commentaire reste NETTEMENT plus discret que le
+      // texte courant du code (#E1E4E8, ~14:1) — la hiérarchie visuelle est conservée, c'est
+      // seulement le plancher légal qui est franchi.
+      note: 'encre de commentaire de github-dark — 3,94:1 sur #0b1114, sous le seuil AA',
+    },
+  ],
+]);
+
+/**
+ * Applique les corrections d'encre ci-dessus au CSS que Shiki vient de produire.
+ *
+ * ⚠️ La substitution ne porte que sur la propriété `--shiki-dark` : l'impression garde les
+ * encres CLAIRES du thème, qui sont mesurées contre le papier blanc et n'ont pas ce défaut.
+ * Et elle se VÉRIFIE au lieu de s'affirmer — une casse hexadécimale inattendue ou un changement
+ * de thème laisserait sinon passer l'encre fautive en silence, et le gate G-contraste ne
+ * rougirait qu'en CI, une fois la leçon écrite.
+ *
+ * @param {string} css
+ * @returns {string}
+ */
+function corrigerEncresSombres(css) {
+  let corrige = css;
+  for (const [encre, { remplacement }] of ENCRES_SOMBRES_CORRIGEES) {
+    // La chaîne inspectée est du CSS GÉNÉRÉ (noms de classes et couleurs) : elle ne contient
+    // aucune entrée d'auteur, contrairement au HTML colorisé que `verifierZeroStyle` doit,
+    // lui, analyser (S-014).
+    const motif = new RegExp(`(--shiki-dark:\\s*)${encre}\\b`, 'gi');
+    corrige = corrige.replace(motif, `$1${remplacement}`);
+  }
+
+  const restantes = [...ENCRES_SOMBRES_CORRIGEES.keys()].filter((encre) =>
+    new RegExp(`--shiki-dark:\\s*${encre}\\b`, 'i').test(corrige),
+  );
+  if (restantes.length > 0) {
+    throw new Error(
+      `coloration : la correction d'encre n'a pas pris sur ${restantes.join(', ')} — la feuille ` +
+        'générée porterait une encre sous le seuil de contraste AA sans que rien ne le dise',
+    );
+  }
+  return corrige;
+}
+
+/**
  * @returns {Promise<Colorateur>}
  */
 async function creerColorateur() {
@@ -751,7 +821,7 @@ async function creerColorateur() {
       return html;
     },
     feuille() {
-      return transformateur.getCSS();
+      return corrigerEncresSombres(transformateur.getCSS());
     },
   };
 }

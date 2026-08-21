@@ -2678,11 +2678,39 @@ C'est exactement le bloc que la clôture d'E3-ST1 annonçait (« il reviendra av
 ligne ») corrigé dans le même commit — c'est le réveille-matin posé à E3-ST1 qui a mordu, exactement
 comme il avait été écrit pour le faire.
 
-**Chiffres de clôture** : G-lint vert · G-test **887 passés / 42 fichiers / 0 échec** · G-build
+**Chiffres de clôture** : G-lint vert · **G-contraste 40 paires + 6 encres de coloration, plus bas 5,65:1** · G-test **887 passés / 42 fichiers / 0 échec** · G-build
 6 routes, **14 hachages de style / 0 de script** · G-axe **6 pages, 516 vérifications, 0 violation**
 · G-e2e **49 passés / 1 sauté / 0 échec** (contre 33 passés / 18 sautés avant le lot — les specs de
 simulation se sont rallumés) · `npm audit --omit=dev` **0** · typecheck outils et e2e **0**.
 Poids compilé : `injection` **164,1 Ko**, `evaluation-cvss` **129,3 Ko**, `fondamentaux` 112,5 Ko.
+
+**🔴 CE QUE LA CI A ATTRAPÉ ET QUE MES GATES LOCAUX N'AVAIENT PAS VU — G-contraste, et c'est un
+défaut qui dormait depuis E6.** La première exécution de la PR est sortie **rouge** sur
+`design:contrastes:check` : l'encre de **commentaire** du thème Shiki `github-dark` (`#6A737D`)
+mesure **3,94:1** sur `--couleur-code-surface` (`#0b1114`), sous la barre de **4,5:1** de
+WCAG 1.4.3 AA pour du texte normal.
+
+**Ce n'était pas un défaut neuf, et c'est ce qui le rend instructif.** Le thème est calibré pour
+SON fond (`#24292e`) ; la bascule « Moniteur ambre » a rendu la surface de code bien plus sombre,
+ce qui *améliore* le contraste de toutes les encres claires et *dégrade* la seule qui soit déjà
+faible. Le défaut dormait donc depuis E6 — mais la feuille générée ne contient **que les classes
+réellement employées par `content/`**, et aucune leçon publiée ne portait de **commentaire** dans
+un bloc de code avant `02-evaluation-cvss`. Une encre qu'aucune leçon n'emploie n'est jamais
+émise, donc jamais mesurée : le gate ne pouvait pas rougir plus tôt.
+
+**Correctif** : une liste **nominative** d'encres corrigées dans `compiler-markdown.mjs`
+(`ENCRES_SOMBRES_CORRIGEES`), une entrée, avec sa mesure — `#6A737D` → `#848D99`, même teinte,
+luminosité 45 % → 55 %, **3,94:1 → 5,65:1**. La substitution ne porte que sur `--shiki-dark`
+(l'impression garde les encres claires, mesurées contre le papier) et **se vérifie** au lieu de
+s'affirmer : si la correction ne prend pas — casse hexadécimale inattendue, changement de thème —
+le build **lève** au lieu de laisser passer l'encre fautive en silence. On corrige l'**encre** et
+non le **fond** parce que le fond est un jeton du design system mesuré contre 40 paires : le
+déplacer pour arranger une couleur de thème tiers laisserait la coloration syntaxique dicter la
+palette du site.
+
+⚠️ **Leçon de méthode, pour moi** : j'avais lancé lint, test, build, axe, e2e, audit et les deux
+typecheck, mais **pas** `design:contrastes:check` — un gate que la CI exécute et que j'avais oublié
+de la liste. Le vert local ne vaut que pour les gates qu'on a effectivement lancés.
 
 ##### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — aucun ne bloque la suite, tous méritent une décision
 
