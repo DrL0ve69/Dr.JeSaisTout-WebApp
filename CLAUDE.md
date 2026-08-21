@@ -62,31 +62,59 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-21
 >
-> **✅ QUATRE LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss`, `03-injection` et
-> `04-xss`. **E0, E1, E2, E6 et E3-ST1 à ST4 sont CLOS EN ENTIER** ; E6 (« Moniteur ambre ») avait
-> gagné son pari avec **zéro défaut G7**. Détail, chiffres et **nœuds laissés au propriétaire** :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc « ✅ CLÔTURE — E3-ST4
-> `04-xss` (2026-08-21) » — dont **deux nœuds neufs qui engagent des modules à venir** : `html` et
-> `javascript` sont **absents** de la liste fermée des langages colorables (`compiler-markdown.mjs:133`
-> — six valeurs : `php, csharp, typescript, sql, bash, json`), ce qui a forcé trois contournements
-> dans la 04 et remordra à **E3-ST13** ; et le **poids des leçons monte** (`xss` 184,6 Ko, `injection`
-> 165,7 Ko, tous deux au-dessus de l'avertissement de 150 Ko).
+> **✅ CINQ LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss`, `03-injection`,
+> `04-xss` et `05-csrf`. **E0, E1, E2, E6 et E3-ST1 à ST5 sont CLOS EN ENTIER** ; E6 (« Moniteur
+> ambre ») avait gagné son pari avec **zéro défaut G7**. Détail, chiffres et **nœuds laissés au
+> propriétaire** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc
+> « ✅ CLÔTURE — E3-ST5 `05-csrf` (2026-08-21) ».
 >
-> **Le geste suivant : E3-ST5 — `05-csrf`** (fiche `web/securite/csrf.md`, **559 lignes**, avec
-> simulation « requête forgée depuis un site tiers »), par le skill `/lecon`. La leçon 04 lui donne
-> un appui direct : son `q5` établit qu'un XSS contourne **tout** token anti-CSRF, double-submit
-> compris.
+> **Le geste suivant : E3-ST6 — `06-controle-acces`** (fiche `web/securite/controle-acces-idor.md`,
+> avec simulation « IDOR par manipulation d'identifiant »), par le skill `/lecon`.
 >
-> ⚠️ **DÉCOUPE DU RÉDACTEUR — mesuré sur E3-ST4, à appliquer à la 05.** Scinder « leçon » et
-> « quiz+simulation » en deux agents **valide pour les livrables dérivés** (73k à 138k), mais **ne
-> suffit pas** au rédacteur de leçon : 163 798 tokens, au-dessus des 150k. Sa variable dominante est
-> le couple *volume de source × volume produit*, que sortir les JSON n'allège qu'à la marge. Piste à
-> tenter et à **mesurer** : découper **par moitié de leçon** (théorie / défenses), pas par livrable.
+> ⚠️ **PIÈGE D'AUTEUR, actif à chaque leçon : la liste des langages colorables est FERMÉE à six
+> valeurs** — `php, csharp, typescript, sql, bash, json` (`compiler-markdown.mjs:133`). **`html` et
+> `javascript` n'existent pas et cassent le build.** Quatrième leçon de suite à devoir contourner.
+> 🔴 **Élément neuf mesuré à E3-ST5** : le contournement n'est **pas** interne — `rendu-blocs` compose
+> « Exemple n°N — **php** » et le pose **à la fois** en `<figcaption>` visible et en `aria-label`. Le
+> lecteur **voit**, et le lecteur d'écran **entend**, une langue que le bloc ne contient pas. Échéance
+> utile pour le lot correctif : **avant E3-ST13**. ⚠️ Ce n'est pas un ajout d'une ligne — une grammaire
+> Shiki neuve fait apparaître des encres neuves, donc le risque de contraste qui a mordu à E3-ST4.
 >
-> ⚠️ **LA BASCULE `verifiee` → `publiee` N'EST PAS UNE FORMALITÉ.** Une leçon en `verifiee` n'est pas
-> prerendue : **G-axe, G-e2e et le compte de hachages CSP ne mesurent alors RIEN**. La 04 portait une
-> violation `empty-table-header` invisible jusqu'à la bascule. Publier, puis relancer ces trois gates.
+> ⚠️ **Le poids du contenu compilé franchit un cap** : `csrf` **262,9 Ko**, total **862,8 Ko** pour 5
+> leçons (avertissement à 150 Ko par leçon, échec à 300). À ce rythme, 13 leçons dépasseraient
+> **2,2 Mo** — arbitrage « densité légitime ou modules à scinder » à faire **avant le bloc B**.
 >
+> ✅ **DÉCOUPE DU RÉDACTEUR — la piste d'E3-ST4 est VALIDÉE, avec une limite neuve.** Découper la
+> leçon **par moitié** (théorie / défenses) plutôt que par livrable a donné **113 786** et
+> **147 765** tokens — première fois qu'un rédacteur passe sous la cible, contre 163k à E3-ST4 et
+> 197k/206k avant. 🔴 **Mais le lot « quiz + simulation » a fini à 160 336** : il doit lire toute la
+> leçon pour l'évaluer. **Au-delà de ~800 lignes de leçon : un agent pour le quiz, un autre pour la
+> simulation.** ⚠️ Les **revues** débordent aussi (171k et 145k sur un diff mixte contenu + code).
+>
+> 🔴 **`readdirSync` NE TRIE PAS — corrigé le 2026-08-21, à ne pas réintroduire.** Plusieurs specs
+> raisonnaient sur « la première page prerendue portant tel marqueur, **dans l'ordre alphabétique** » :
+> la phrase était **fausse**, vraie par accident sur le NTFS du poste, jamais garantie sur le runner.
+> `e2e/aides/artefact-mesure.ts` trie désormais explicitement. **Un compte épinglé sur une cible
+> DÉCOUVERTE doit être invariant sur toutes les cibles possibles, ou la découverte doit être
+> totalement ordonnée** (S-010, 6ᵉ occurrence).
+>
+> 🔴 **Un commentaire de correctif qui affirme une CAUSE doit l'avoir mesurée PAR RETRAIT** (**L-074**,
+> née à ce lot). Sur trois règles CSS posées contre un débordement, une était **inerte** — le retrait
+> ne changeait rien, sur aucune page — et l'attribution écrite dans les deux autres était fausse. Une
+> mesure d'**état** (« l'enfant le plus large est X ») ne donne jamais une causalité : X remplissait
+> la largeur que son parent avait déjà prise. ⚠️ Et toute mesure par mutation doit **imprimer la
+> preuve que la mutation a eu lieu** — sur ce poste en **CRLF**, un remplacement de littéral en `\n`
+> ne mord pas, et on mesure alors la référence en croyant mesurer la variante (L-015).
+>
+> ⚠️ **LA BASCULE `verifiee` → `publiee` N'EST PAS UNE FORMALITÉ — deux fois sur deux, elle a révélé
+> un défaut.** Une leçon en `verifiee` n'est pas prerendue : **G-axe, G-e2e et le compte de hachages
+> CSP ne mesurent alors RIEN**. La 04 portait une violation `empty-table-header` invisible jusqu'à la
+> bascule ; la 05 en portait **deux** (même famille — un coin de tableau comparatif laissé vide),
+> **plus** un débordement horizontal de page qui a fait peindre un anneau de focus **hors de l'écran**
+> (WCAG 2.4.11). Publier, **puis** relancer G-axe, G-e2e et le build — dans cet ordre, et attendre
+> qu'ils rougissent avant de croire la leçon finie.
+>
+> <!-- RÉCIT CLOS — dette E3-ST1, payée le 2026-08-21. Le correctif est en place et tenu par un test ; ce qui reste actif vit dans .claude/rules et dans le backlog.
 > **✅ LA DETTE OUVERTE PAR E3-ST1 EST REFERMÉE (2026-08-21).**
 > `CAPACITES_MESUREES_EN_E2E.simulation` est passé à `true`, **après** exécution des 3 specs de
 > simulation, comme le tripwire l'exigeait. Ce qu'il faut en retenir pour la suite : les deux échecs
@@ -95,6 +123,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > publiée qui en porte 10, 3 et 8. Ces comptes sont désormais **dérivés du `simulation.json` de
 > l'auteur** (`e2e/aides/simulation.ts`, alimenté par le fichier neuf `e2e/aides/lecon-source.ts`).
 > **Publier une leçon avec une simulation de N étapes n'oblige donc plus à toucher aucun spec.**
+> -->
 >
 > **🔴 « LA PAGE DE LEÇON » N'EST PLUS UN OBJET UNIQUE — le piège neuf, et il n'a pas de garde-fou.**
 > À trois leçons publiées, deux littéraux nommés `…_PAGE_LECON` désignaient deux pages
@@ -107,15 +136,25 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **🔴 CE QUI A CHANGÉ DANS LA MÉCANIQUE DES SPECS E2E, et qui vaut pour toute leçon à venir.** Les
 > specs **ne visent plus une route écrite en dur**. `e2e/aides/artefact-mesure.ts` DÉCOUVRE dans
 > `dist/` une page portant `<app-quiz` ou `<app-simulation` et expose `exigerUneLeconAvecQuiz` /
-> `exigerUneLeconAvecSimulation` + `ROUTE_LECON_QUIZ` / `ROUTE_LECON_SIMULATION`. ⚠️ Ces deux routes
-> désignent aujourd'hui **deux pages distinctes** (`evaluation-cvss` et `injection`) : la découverte
-> prend la **première** page prerendue portant le marqueur, dans l'ordre alphabétique du dossier.
+> `exigerUneLeconAvecSimulation` + `ROUTE_LECON_QUIZ` / `ROUTE_LECON_SIMULATION`. La découverte prend
+> la **première** page prerendue portant le marqueur, dans l'ordre alphabétique — **explicitement
+> trié depuis le 2026-08-21**, voir plus haut.
+> ⚠️ **Ces deux routes désignent aujourd'hui LA MÊME page** (`csrf`, qui porte les deux composants et
+> prend la tête de l'ordre alphabétique) — elles visaient `evaluation-cvss` et `injection` jusqu'à
+> E3-ST4. **Publier une leçon peut donc déplacer la cible de plusieurs specs sans qu'aucun ne
+> s'éteigne** : quand un littéral épinglé rougit après une publication, la première question est
+> « quelle page mesure-t-il maintenant ? », jamais « quel chiffre y mettre ? ».
 > ⚠️ `exigerLaPageDeLecon` **n'existe plus** — si un document du dépôt la prescrit encore, il est
 > périmé. Un artéfact **sans aucune** page de leçon **LÈVE** au lieu de sauter.
 >
 > **🔴 CSP : `style-src` est à 14 hachages, `script-src` à ZÉRO.** Le 14ᵉ a été mesuré et nommé avant
-> épinglage (S-005) : `.simulation[_ngcontent-…]`, **4 775 o**, sur la **seule** page
-> `cours/securite-web/injection/`. Le compte est recopié à la main aux **trois** endroits épinglés
+> épinglage (S-005) : `.simulation[_ngcontent-…]`, **4 775 o**, porté depuis E3-ST5 par **trois**
+> pages (`csrf`, `injection`, `xss`) — publier une leçon avec simulation **n'ajoute aucun hachage**,
+> un même bloc `<style>` sur une page de plus produisant le même hachage.
+> ⚠️ **Sept de ces quatorze hachages n'ont AUCUN énumérateur live** : `e2e/simulation-sous-csp.spec.ts`
+> est le seul énumérateur du dépôt et ne navigue que des pages de **leçon** ; l'accueil (4), le
+> sommaire (2) et la 404 (1) ne sont couverts que par le **compte global**. Dette consignée au backlog.
+> Le compte est recopié à la main aux **trois** endroits épinglés
 > (`tools/deploiement/generer-config-swa.mjs`, `src/config-swa-provenance-style.spec.ts`,
 > `src/config-swa-contournements.spec.ts`) — plus deux comptes **par page** dans
 > `e2e/simulation-sous-csp.spec.ts` (`BLOCS_STYLE_PAGE_QUIZ` = 6, `BLOCS_STYLE_PAGE_SIMULATION` = 7).
@@ -146,6 +185,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **(c)** Un compteur qui remplace un littéral **doit mesurer LE MÊME PRÉDICAT que le garde qu'il
 > protège** — ici « `quiz.json` existe » vs « `<app-quiz` est rendu ».
 >
+> <!-- RÉCIT CLOS — mesure de contexte du 2026-08-20, corrigée. La méthode vit désormais dans .claude/rules/agent-context-budget.md §7, chargé de toute façon.
 > **📉 CONTEXTE DES AGENTS — mesuré le 2026-08-20, et corrigé.** Un sous-agent portait **~74 000 tokens
 > de préambule** avant d'avoir lu une ligne de son lot, dont **51 600** pour les deux corpus de leçons
 > que six définitions d'agents faisaient lire **en entier**. ⚠️ **Un sous-agent n'hérite PAS du contexte
@@ -154,6 +194,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > 2-4 entrées par `Read(offset, limit)`. Les deux `mentor` **régénèrent l'index** (`npm run lecons:index`)
 > après toute édition, et `src/index-lecons.spec.ts` le vérifie. Détail et méthode :
 > `.claude/rules/agent-context-budget.md` §7.
+> -->
 >
 > <!--
 > **Chiffres de clôture d'E3-ST1 (2026-08-20)** : G-test **867 passés / 41 fichiers / 0 échec** (3 runs)

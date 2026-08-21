@@ -1,0 +1,226 @@
+{
+  "lecon": "csrf",
+  "titre": "Requête forgée depuis un site tiers — du formulaire caché au rejet par le jeton anti-CSRF",
+  "acteurs": [
+    { "id": "attaquant", "libelle": "Attaquant", "type": "attaquant" },
+    { "id": "site-tiers", "libelle": "Site tiers (evil.example)", "type": "serveur" },
+    { "id": "victime", "libelle": "Navigateur de la victime, session ouverte", "type": "navigateur" },
+    { "id": "banque", "libelle": "Application ciblée (banque.example)", "type": "serveur" },
+    { "id": "session", "libelle": "Sessions côté serveur", "type": "stockage" }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "La victime se connecte, tout à fait normalement",
+      "narration": "Rien d'anormal ici, et c'est important : l'attaque ne commence pas par une intrusion. La victime saisit ses identifiants sur banque.example, le serveur crée une session et pose un cookie dans son navigateur. Regarde les attributs de ce cookie, ils décident de toute la suite. HttpOnly est bien posé, et il ne changera strictement rien à cette histoire, puisque l'attaquant ne cherchera jamais à LIRE le cookie. SameSite=None, en revanche, est le détail qui rend le scénario possible : la banque l'a déclaré pour qu'un widget partenaire hébergé sur un autre site continue de fonctionner. Retiens la nuance, elle est décisive — depuis 2020, un cookie SANS attribut SameSite est traité comme Lax par les navigateurs fondés sur Chromium, et la requête forgée en POST que tu vas voir ne porterait alors aucun cookie (hors la fenêtre de 2 minutes dite Lax+POST, propre au défaut implicite). Il a fallu que la banque déclare explicitement None.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "fleche": {
+          "de": "victime",
+          "vers": "banque",
+          "libelle": "POST /connexion — identifiants corrects"
+        },
+        "panneaux": {
+          "banque": {
+            "code": "HTTP/1.1 200 OK\nSet-Cookie: session=8f2c4d1b7e; Path=/; Secure; HttpOnly; SameSite=None",
+            "langage": "bash"
+          }
+        }
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "La session reste ouverte, et c'est tout ce que l'attaque demande",
+      "narration": "La victime ne se déconnecte pas — personne ne se déconnecte. Son navigateur conserve le cookie et le rejoindra désormais à TOUTE requête visant banque.example, quelle que soit la page qui a déclenché cette requête. C'est ce qu'on appelle l'autorité ambiante du cookie : l'autorité ne vient pas de ce que l'appelant présente, elle vient de l'environnement dans lequel la requête part. Le cookie est là, sa seule présence suffit. C'est ce réflexe, et lui seul, que l'attaque va détourner. La seule chose qu'on attendra de la victime, dans les étapes qui suivent, est d'ouvrir une page — n'importe laquelle — sur le site de l'attaquant.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "panneaux": {
+          "victime": {
+            "texte": "Onglet banque.example toujours ouvert. Cookie conservé : session=8f2c4d1b7e. Aucune action supplémentaire n'est requise de la victime sur ce site."
+          }
+        }
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "L'attaquant publie une page ordinaire qui cache un formulaire",
+      "narration": "L'attaquant n'attaque pas le serveur de la banque : il écrit une page sur SON site. Cette page est du HTML parfaitement ordinaire, et le gestionnaire onload qu'elle porte s'exécute avec l'origine d'evil.example. Ce n'est donc PAS un XSS : à aucun moment du code n'est injecté dans banque.example. Deux propriétés du web, toutes deux voulues, rendent le fragment possible. D'abord, un formulaire a toujours eu le droit de pointer vers n'importe quel site — c'est ce qui fait fonctionner les boutons de paiement et les redirections d'authentification. Ensuite, son type de contenu par défaut, application/x-www-form-urlencoded, en fait une « requête simple » au sens de CORS : aucun contrôle préalable ne sera déclenché, il n'y a donc rien à contourner.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "site-tiers",
+          "libelle": "Met en ligne cadeau.html"
+        },
+        "panneaux": {
+          "site-tiers": {
+            "code": "<!-- evil.example/cadeau.html : du HTML ordinaire, servi par le site de l'attaquant -->\n<body onload=\"document.forms[0].submit()\">\n  <form action=\"https://banque.example/transfert\" method=\"POST\" style=\"display:none\">\n    <input name=\"vers\" value=\"attaquant\">\n    <input name=\"montant\" value=\"1000\">\n  </form>\n</body>",
+            "langage": "php"
+          }
+        }
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "La victime ouvre la page piégée",
+      "narration": "Un lien reçu par courriel, un message dans un forum, une publicité : peu importe le chemin, la victime clique et la page s'ouvre dans un onglet. Elle n'a aucun moyen de savoir ce que cette page contient avant de l'ouvrir, et le formulaire y est masqué par une simple règle de style. C'est le seul geste que l'attaque lui demande, et ce geste est parfaitement banal. Note bien ce qu'elle NE fait pas : elle ne saisit rien, elle ne clique sur aucun bouton de la page piégée, et elle ne quitte pas sa session bancaire.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "fleche": {
+          "de": "victime",
+          "vers": "site-tiers",
+          "libelle": "GET /cadeau.html"
+        },
+        "panneaux": {
+          "victime": {
+            "texte": "Deux onglets ouverts : banque.example (session active) et evil.example (page qui vient de s'ouvrir). Rien de suspect à l'écran."
+          }
+        }
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "La page arrive et se soumet toute seule",
+      "narration": "Le site tiers répond, et le navigateur fait ce qu'on lui demande : dès la fin du chargement, le gestionnaire onload appelle la soumission du formulaire. Aucune interaction n'est nécessaire, aucun clic, aucune confirmation. C'est ici que la responsabilité de la victime s'arrête : elle a ouvert une page, rien de plus. Tout ce qui suit est le travail du navigateur, qui applique des règles écrites bien avant que cette page n'existe.",
+      "etatVisuel": {
+        "acteurActif": "site-tiers",
+        "fleche": {
+          "de": "site-tiers",
+          "vers": "victime",
+          "libelle": "200 OK — HTML ordinaire, formulaire caché"
+        },
+        "panneaux": {
+          "site-tiers": {
+            "texte": "Réponse servie par evil.example. Le gestionnaire onload soumet le formulaire dès la fin du chargement, sans interaction de la victime."
+          }
+        }
+      }
+    },
+    {
+      "numero": 6,
+      "titre": "Le navigateur envoie la requête et y joint le cookie tout seul",
+      "narration": "L'étape centrale de toute la leçon. Le navigateur ne juge pas les intentions : il voit une requête destinée à banque.example, il y joint les cookies de banque.example. Deux choses sont à lire dans ce dump, et la seconde surprend toujours. Le cookie de session est présent, alors que la victime n'a rien demandé. Et l'en-tête Origin nomme honnêtement evil.example : le navigateur SAIT parfaitement d'où part la requête, il le dit même à qui veut l'entendre. C'est le serveur qui, dans sa version actuelle, ne regarde pas cette information. Toutes les défenses que la leçon présente consistent, d'une manière ou d'une autre, à ajouter à cette requête une information que le cookie ne porte pas, ou à faire regarder celle qui s'y trouve déjà.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "surbrillance": ["victime"],
+        "fleche": {
+          "de": "victime",
+          "vers": "banque",
+          "libelle": "POST /transfert — cookie de session joint automatiquement"
+        },
+        "panneaux": {
+          "victime": {
+            "code": "POST /transfert HTTP/1.1\nHost: banque.example\nOrigin: https://evil.example\nContent-Type: application/x-www-form-urlencoded\nCookie: session=8f2c4d1b7e\n\nvers=attaquant&montant=1000",
+            "langage": "bash"
+          }
+        }
+      }
+    },
+    {
+      "numero": 7,
+      "titre": "Le serveur ne voit qu'une session parfaitement valide",
+      "narration": "Le contrôle d'authentification s'exécute et il réussit — à juste titre, puisque c'est bien la session de la victime. Mais regarde la question qu'il pose : QUI agit. Il ne pose jamais l'autre question, celle qui déciderait ici : est-ce que cette personne a VOULU agir. Le serveur n'a aucun moyen natif de les distinguer, parce que l'intention ne voyage pas sur le réseau et que le cookie, seule preuve qu'il reçoit, ne dit rien de la page qui a déclenché la requête. Ce n'est pas un bogue de programmation : le code d'authentification est correct, il répond exactement à ce qu'on lui a demandé. C'est le trou que le CSRF exploite.",
+      "etatVisuel": {
+        "acteurActif": "banque",
+        "surbrillance": ["banque"],
+        "fleche": {
+          "de": "banque",
+          "vers": "session",
+          "libelle": "La session 8f2c4d1b7e est-elle connue ?"
+        },
+        "panneaux": {
+          "session": {
+            "texte": "session=8f2c4d1b7e → utilisatrice n° 17, connectée depuis 08:12, session valide. Ce que la session ne dit pas, et ne peut pas dire : quelle page a déclenché la requête."
+          }
+        }
+      }
+    },
+    {
+      "numero": 8,
+      "titre": "L'effet de bord s'exécute, et il est irréversible",
+      "narration": "Mille dollars changent de compte. La réponse 200 revient dans l'onglet où le formulaire a été soumis, et il faut être précis sur ce qui s'y passe : une soumission de formulaire est une navigation de premier niveau, l'onglet quitte donc evil.example et affiche la réponse de banque.example. Un vrai attaquant viserait une iframe cachée pour éviter ce signal. Dans les deux cas, il ne peut pas LIRE cette réponse : la same-origin policy le lui interdit, et il n'en a de toute façon aucun besoin. C'est ce qui sépare le CSRF d'un vol de session — le cookie n'a jamais quitté le navigateur de la victime, l'attaquant ne l'a ni vu ni copié. D'où le mot forgery, falsification, et non theft, vol. Une attaque en écriture, aveugle par construction. Du côté de la victime, un onglet qui affiche une page de banque qu'elle n'a pas demandée — ou rien du tout si l'attaquant a pris soin de viser une iframe cachée ; du côté du serveur, une opération indiscernable d'un virement légitime.",
+      "etatVisuel": {
+        "acteurActif": "banque",
+        "surbrillance": ["banque", "attaquant"],
+        "fleche": {
+          "de": "banque",
+          "vers": "victime",
+          "libelle": "200 OK — le virement est exécuté"
+        },
+        "panneaux": {
+          "banque": {
+            "code": "UPDATE comptes SET solde = solde - 1000 WHERE id_client = 17;\nUPDATE comptes SET solde = solde + 1000 WHERE id_client = 4093;",
+            "langage": "sql"
+          }
+        }
+      }
+    },
+    {
+      "numero": 9,
+      "titre": "Rejouons la même attaque : la banque a posé un jeton anti-CSRF",
+      "narration": "On reprend le même scénario, avec une seule différence côté serveur. Quand la victime charge /transfert dans son onglet bancaire — une visite parfaitement légitime, antérieure à l'attaque —, la banque génère une valeur aléatoire cryptographiquement forte, la range dans la session de cette utilisatrice, et l'écrit dans un champ caché du formulaire qu'elle lui renvoie. Trois propriétés à noter. La valeur est imprévisible, random_bytes étant un générateur sûr — on ne la devine pas. Elle est liée à UNE session précise : celle d'un autre utilisateur, ou celle d'une session expirée, sera refusée. Et elle est encodée par htmlspecialchars avant d'entrer dans un attribut, parce qu'un jeton est une donnée comme une autre.",
+      "etatVisuel": {
+        "acteurActif": "banque",
+        "fleche": {
+          "de": "banque",
+          "vers": "session",
+          "libelle": "Range le jeton attendu pour cette session"
+        },
+        "panneaux": {
+          "banque": {
+            "code": "// page-transfert.php\nif (empty($_SESSION['csrf_token'])) {\n    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));\n}\n?>\n<form method=\"POST\" action=\"/transfert\">\n    <input type=\"hidden\" name=\"csrf_token\" value=\"<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>\">",
+            "langage": "php"
+          },
+          "session": {
+            "texte": "Session 8f2c4d1b7e → jeton attendu : a91f0c7d... (valeur complète de 64 caractères, conservée côté serveur, jamais devinable de l'extérieur)."
+          }
+        }
+      }
+    },
+    {
+      "numero": 10,
+      "titre": "La requête forgée repart, exactement la même, et sans jeton",
+      "narration": "Du côté du navigateur, rien n'a changé : la page piégée se soumet, la requête part, le cookie de session est joint automatiquement. Le jeton ne modifie EN RIEN la manière dont une requête est envoyée — c'est le point que l'examen demande de savoir formuler. Il modifie ce que le serveur peut VÉRIFIER avant d'agir. Et l'attaquant est coincé sur les deux tableaux : il ne peut pas deviner la valeur, et il ne peut pas la lire, parce que la same-origin policy interdit à une page d'evil.example d'ouvrir la page de transfert de banque.example pour en extraire le champ caché. Il peut déclencher une requête ; il ne peut pas lire un contenu.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "fleche": {
+          "de": "victime",
+          "vers": "banque",
+          "libelle": "POST /transfert — cookie joint, aucun jeton"
+        },
+        "panneaux": {
+          "site-tiers": {
+            "texte": "Ce que evil.example ne peut PAS faire : ouvrir la page de transfert de banque.example et y lire le champ caché csrf_token. La same-origin policy le lui interdit."
+          },
+          "victime": {
+            "code": "POST /transfert HTTP/1.1\nHost: banque.example\nOrigin: https://evil.example\nCookie: session=8f2c4d1b7e\n\nvers=attaquant&montant=1000",
+            "langage": "bash"
+          }
+        }
+      }
+    },
+    {
+      "numero": 11,
+      "titre": "Rejet avant le moindre effet de bord",
+      "narration": "Le jeton ABSENT est refusé explicitement, et c'est essentiel : un attaquant qui ne peut pas deviner la valeur se contente de ne rien envoyer, si bien qu'une vérification qui ne s'active qu'en présence du jeton ne protège de rien. hash_equals compare en temps constant, pour ne pas laisser reconstituer la valeur attendue caractère par caractère. Le refus tombe AVANT tout effet de bord, et le message ne révèle rien du jeton attendu. Une borne, pour finir, parce qu'elle est le point le plus important de la leçon : ce rejet repose entièrement sur l'hypothèse que l'attaquant est à l'EXTÉRIEUR de la page. Un script injecté par XSS dans une page de banque.example lirait ce champ caché dans le document et rejouerait la requête avec un jeton parfaitement valide, une Origin correcte et le cookie joint. Corriger le XSS d'abord n'est pas une priorisation, c'est un prérequis.",
+      "etatVisuel": {
+        "acteurActif": "banque",
+        "surbrillance": ["banque"],
+        "fleche": {
+          "de": "banque",
+          "vers": "victime",
+          "libelle": "403 — jeton absent, aucun virement"
+        },
+        "panneaux": {
+          "banque": {
+            "code": "if (\n    empty($_POST['csrf_token'])\n    || empty($_SESSION['csrf_token'])\n    || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])\n) {\n    http_response_code(403);\n    exit('Requete invalide : jeton CSRF absent ou incorrect.');\n}",
+            "langage": "php"
+          },
+          "session": {
+            "texte": "Jeton attendu pour la session 8f2c4d1b7e : a91f0c7d... — Jeton reçu dans la requête : aucun. Aucun UPDATE n'est exécuté."
+          }
+        }
+      }
+    }
+  ]
+}

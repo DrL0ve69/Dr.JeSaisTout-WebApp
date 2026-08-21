@@ -2103,4 +2103,54 @@ qu'on croyait garder pour l'anti-vacuité.
 
 ---
 
+## L-074 · Un commentaire de correctif qui affirme une CAUSE doit l'avoir MESURÉE par retrait, pas inférée du symptôme
+
+**Symptôme.** Un débordement horizontal (`scrollWidth` 1446 pour 1280) a été corrigé par trois
+règles CSS, chacune justifiée par un commentaire affirmant sa cause. La deuxième désignait le
+`<legend>` comme coupable, sur la foi d'une mesure d'**état** (« enfant le plus large » = 1029 px).
+Un regard neuf a contesté l'attribution par arithmétique et l'a signalée comme **inférée, non
+mesurée** — famille [[L-063]] (invariant que rien n'observe). Mesure par **retrait, une règle à la
+fois** : la règle 2 était **inerte** (retrait → aucun changement, sur les 5 pages) ; les règles 1 et
+3 étaient **toutes deux nécessaires, aucune suffisante**. Le `<legend>` à 1029 px était une
+**conséquence** — il remplissait la largeur que le parent avait déjà prise — pas la cause.
+
+**Règle.** Une mesure d'**état** (largeur d'un enfant, valeur `getComputedStyle`) ne donne jamais
+une causalité ; seule une mesure par **retrait** ou **bascule** (une règle à la fois, effet
+observé) la donne. Tout commentaire de correctif qui affirme « c'est X qui cause Y » se vérifie en
+retirant X isolément — sinon, écrire « corrèle avec », pas « cause ». Le coût de se tromper n'est
+pas le correctif lui-même : c'est le **commentaire**, qui survit et que le prochain lecteur croira
+sur parole (cousine de [[L-016]]).
+⚠️ **Piège méthodologique attenant** : une première tentative de mesure par retrait/mutation peut ne
+rien mesurer du tout et le taire — ici un chemin POSIX passé à `node` sous Windows, puis des
+littéraux `\n` contre un fichier en CRLF ([[L-015]]), ont produit un script qui rapportait « 2 → 2 »
+en silence. Toute mesure par mutation **imprime la preuve que la mutation a eu lieu** (un diff, un
+compte avant/après distinct), sans quoi on mesure la référence en croyant mesurer la variante —
+variante de [[L-062]] (l'instrument accuse le produit).
+
+**Réfs.** correctifs de mise en page de la leçon `05-csrf`, revue `code-reviewer` (2026-08-21) ;
+[[L-063]], [[L-015]], [[L-016]], [[L-062]].
+
+---
+
+## L-075 · Un bloc de commentaire dont l'en-tête annonce qu'il a été RÉÉCRIT ne doit laisser AUCUN inventaire périmé en dessous
+
+**Symptôme.** `e2e/simulation-sous-csp.spec.ts` porte un bloc en toutes lettres : « CE BLOC A ÉTÉ
+RÉÉCRIT, PAS ANNOTÉ … un chiffre de sécurité faux dans un commentaire est ce qui fabrique la
+prochaine erreur de compte ». Un correctif y a ajouté une note **au-dessus** en laissant
+l'inventaire faux **en dessous** — quatre valeurs périmées, dont « `injection` porte le 14ᵉ
+hachage, et elle seule » alors que trois pages le portent désormais. Le prochain lecteur recompose
+l'ancien inventaire, pas le neuf, parce que les deux coexistent dans le même bloc.
+
+**Règle.** Un lot qui touche un bloc de commentaire s'annonçant lui-même comme « réécrit, pas
+annoté » **réécrit** — il ne superpose pas une addition à un inventaire qu'il rend faux. Avant
+d'ajouter une note à un bloc de ce type, relire s'il reste des valeurs que la note vient de
+périmer, et les corriger dans le même geste. Cousine de [[L-008]] (une garantie qui ne vit que dans
+un commentaire ne protège rien) sur l'axe inverse : ici le commentaire protégeait quelque chose,
+mais deux versions concurrentes du même fait cohabitaient.
+
+**Réfs.** `e2e/simulation-sous-csp.spec.ts` ; correctifs de la leçon `05-csrf` (2026-08-21) ;
+constat nommé par `code-reviewer` ; [[L-008]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

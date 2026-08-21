@@ -94,8 +94,17 @@ const SOURCE_CONFIG = readFileSync(resolve('config/staticwebapp.config.source.js
 // Le compte de hachages de SCRIPT reste à 1.
 // 📈 13 → 14 le 2026-08-21 (E3-ST3) : « 03-injection » est la première leçon publiée portant un
 // « simulation.json ». Le bloc de plus, MESURÉ et NOMMÉ avant épinglage : 4 775 o,
-// `.simulation[_ngcontent-…]`, sur la SEULE page `cours/securite-web/injection/index.html`.
+// `.simulation[_ngcontent-…]`, alors sur la SEULE page `cours/securite-web/injection/index.html`.
 // C'est le retour annoncé ci-dessus (« il reviendra avec E3-ST3, et rougira ici une fois »).
+//
+// ⏳ « SUR LA SEULE PAGE » EST PÉRIMÉ — corrigé le 2026-08-21 (E3-ST5), sur constat de revue de
+// sécurité. Trois pages portent aujourd'hui le bloc `.simulation` : `injection` (E3-ST3), `xss`
+// (E3-ST4) et `csrf` (E3-ST5). ⚠️ Le compte, lui, N'A PAS BOUGÉ et c'est normal : un même bloc
+// `<style>` rendu sur une page de plus produit le MÊME hachage, donc aucune permission neuve.
+// C'est précisément ce qui rend la phrase dangereuse — le test n'épingle qu'un NOMBRE, il ne
+// rougira jamais sur une cartographie hachage → page devenue fausse. Or c'est le seul endroit du
+// dépôt qui prétend en tenir une. Un chiffre de sécurité faux dans un commentaire est ce qui
+// fabrique la prochaine erreur de compte (S-005) : cette ligne se relit à chaque publication.
 const NOMBRE_HACHAGES_ATTENDU = 14;
 
 /** Autant de blocs Angular conformes, tous de contenus DISTINCTS — le générateur dédoublonne. */

@@ -90,16 +90,33 @@ import { ROUTE_LECON_SIMULATION, attendreCourante, idEtape, lireEtat } from './a
  * compte (S-005).
  *
  * ⚠️ CE QUI A CHANGÉ, ET QUI VAUT POUR TOUT LITTÉRAL DU DÉPÔT NOMMÉ « …_PAGE_LECON » :
- * depuis qu'il y a TROIS leçons publiées, « la page de leçon » n'est plus un objet unique.
- * Les deux constantes ci-dessous décrivent deux pages DIFFÉRENTES, et le disent.
+ * depuis qu'il y a plusieurs leçons publiées, « la page de leçon » n'est plus un objet
+ * unique. Les deux constantes ci-dessous décrivent un RÔLE chacune, pas une page fixe.
  *
- * L'état mesuré au 2026-08-21, page par page — 6 pages, 14 hachages distincts en union :
- *   · accueil                        7 blocs
- *   · `cours/securite-web/injection` 7 blocs — coquille (1 746 o), en-tête (5 305 o),
- *     pied (473 o), `lecon` (5 782 o), `.prose` (7 190 o), `.simulation` (4 775 o),
- *     `.quiz` (6 108 o). C'est ELLE qui porte le 14ᵉ hachage, et elle seule.
- *   · `cours/securite-web/evaluation-cvss` 6 blocs · `…/fondamentaux` 6 blocs
- *   · sommaire 5 blocs · 404 4 blocs
+ * 🔴 CE BLOC A ÉTÉ RÉÉCRIT UNE SECONDE FOIS LE 2026-08-21 (E3-ST5), toujours PAS annoté.
+ * La publication de `csrf` l'avait rendu faux sur quatre points — 6 pages (il y en a 8),
+ * `.quiz` à 6 108 o, `injection` porteuse du 14ᵉ hachage « et elle seule », et l'absence
+ * de `csrf` de la liste. Un premier jet de ce lot avait ajouté une note AU-DESSUS en
+ * laissant l'inventaire faux en dessous : deux inventaires concurrents dans le même
+ * fichier, dont le périmé était le premier lu. C'est exactement ce que l'avertissement
+ * ci-dessus interdit.
+ *
+ * L'état MESURÉ au 2026-08-21 (après les correctifs de mise en page de ce lot) — 8 pages
+ * prerendues, **14 hachages distincts en union**, recomptés bloc par bloc :
+ *   · les 3 blocs de COQUILLE, sur les 8 pages : `.lien-evitement` 1 746 o,
+ *     `.en-tete` 5 305 o, `.pied` 473 o
+ *   · les 3 blocs de LEÇON, sur les 5 leçons : `.lecon` 5 782 o, `.prose` 7 190 o,
+ *     `.quiz` 6 183 o
+ *   · `.simulation` 4 775 o — le 14ᵉ hachage, sur `csrf`, `injection` ET `xss` (trois
+ *     pages, plus « une seule ») ⇒ leçons AVEC simulation 7 blocs, SANS 6 blocs
+ *   · accueil 7 blocs (dont `.accueil` 4 039 o, `.toile` 327 o, `.piece` 1 073 o,
+ *     `.carte` 2 266 o) · sommaire 5 (dont `.page` 362 o, `.vide` 4 241 o) · 404 4
+ *     (dont `.cartouche-erreur` 1 172 o)
+ *
+ * ⚠️ Ce que cet inventaire rend visible d'un coup d'œil, et qu'aucun test ne dit :
+ * les tests d'ici ne naviguent que des pages de LEÇON, donc ils énumèrent 7 hachages
+ * sur 14. Les 7 autres — accueil (4), sommaire (2), 404 (1) — n'ont aucun énumérateur
+ * live. Voir la note des constantes plus bas.
  *
  * 📉 Historique du compte de la page du QUIZ : 8 → 7 le 2026-08-20 (clôture d'E3-ST1 — le
  * 8ᵉ bloc était `.simulation`, qui n'existait que sur l'artéfact de FIXTURE), puis 7 → 6 le
@@ -113,16 +130,45 @@ import { ROUTE_LECON_SIMULATION, attendreCourante, idEtape, lireEtat } from './a
  * duplication qui fait de ce fichier le second endroit revu quand un composant porteur de
  * styles entre dans une page de leçon.
  */
-// La page du QUIZ : `ROUTE_LECON_QUIZ`, première page prerendue portant `<app-quiz` —
-// aujourd'hui `evaluation-cvss`, qui n'a PAS de simulation. D'où 6 et non 7.
-// ⚠️ Il rougira le jour où la première leçon de l'ordre alphabétique portera une simulation,
-// et ce sera une revue légitime, pas un faux positif.
-const BLOCS_STYLE_PAGE_QUIZ = 6;
+// 🔴 LE JOUR ANNONCÉ EST ARRIVÉ — 2026-08-21, publication de `05-csrf` (E3-ST5).
+// La note ci-dessus prévoyait que le compte du quiz rougirait « le jour où la première leçon
+// de l'ordre alphabétique portera une simulation, et ce sera une revue légitime ». C'est ce
+// qui s'est produit : `csrf` précède `evaluation-cvss` ET `injection`, et il porte les deux
+// composants. Mesuré sur l'artéfact : `csrf` 7 blocs · `injection` 7 · `xss` 7 ·
+// `evaluation-cvss` 6 · `fondamentaux` 6. Le compte global de `style-src` n'a PAS bougé
+// (14 hachages) — aucune permission n'a été ajoutée : les deux composants étaient déjà
+// autorisés, et un même bloc `<style>` sur une page de plus produit le même hachage.
+//
+// ⚠️ CE QUE CETTE BASCULE A COÛTÉ — MESURÉ, après une première rédaction qui l'AVAIT SUREVALUÉ.
+// `ROUTE_LECON_QUIZ` et `ROUTE_LECON_SIMULATION` désignent désormais LA MÊME PAGE : les deux
+// tests couvraient deux pages distinctes, ils en couvrent une seule. La première version de ce
+// commentaire en concluait qu'on perdait la couverture de la forme « leçon SANS simulation ».
+// La revue de sécurité a mesuré, et c'est FAUX en hachages : les 6 blocs d'`evaluation-cvss`
+// sont un SOUS-ENSEMBLE STRICT, hachages identiques, des 7 de `csrf`. Union énumérée avant la
+// bascule (evaluation-cvss 6 ∪ injection 7) = 7 ; union après (csrf 7) = 7. **Aucun hachage ne
+// perd sa couverture live** — ce qu'on perd est l'INDÉPENDANCE des deux tests, pas un hachage.
+// Le bloc `.simulation` reste énuméré là où il naît : la garantie exigée après E3-ST3 tient.
+//
+// 🔴 LE VRAI TROU EST AILLEURS, ET IL EST PLUS GROS — mesuré au même moment, préexistant, ni
+// créé ni aggravé par ce lot. Ce fichier est le SEUL énumérateur live de blocs `<style>` du
+// dépôt, et il ne navigue que des pages de leçon. Les blocs de l'ACCUEIL (4), du SOMMAIRE (2)
+// et de la 404 (1) — soit **7 hachages sur 14, la moitié de la directive** — ne sont énumérés
+// par aucun instrument live, ni avant ni après ce lot. Le ticket utile au backlog n'est donc
+// PAS « viser une page par nom » (0 hachage gagné) : c'est « énumérer les blocs de l'accueil,
+// du sommaire et de la 404 ». Consigné au backlog, pas corrigé ici — c'est un lot à soi.
+//
+// Les deux constantes restent SÉPARÉES bien qu'égales aujourd'hui : elles décrivent deux rôles
+// qui se sépareront de nouveau dès qu'une leçon sans simulation reprendra la tête de l'ordre
+// alphabétique. Les fusionner ferait perdre la distinction au moment précis où elle revient.
 
-// La page de la SIMULATION : `ROUTE_LECON_SIMULATION`, aujourd'hui `injection`. Elle porte le
-// 14ᵉ hachage de l'artéfact — donc c'est la seule page dont la mesure « 0 orphelin » couvre
-// le bloc `.simulation`. Sans le test qui l'emploie, le hachage le plus récemment ajouté à
-// `style-src` serait le seul que rien n'énumère sur la page qui le produit.
+// La page du QUIZ : `ROUTE_LECON_QUIZ`, première page prerendue portant `<app-quiz` —
+// aujourd'hui `csrf`, qui porte AUSSI une simulation. D'où 7 et non plus 6.
+const BLOCS_STYLE_PAGE_QUIZ = 7;
+
+// La page de la SIMULATION : `ROUTE_LECON_SIMULATION`, aujourd'hui `csrf` (était `injection`).
+// Elle porte le 14ᵉ hachage de l'artéfact — donc c'est la seule page dont la mesure
+// « 0 orphelin » couvre le bloc `.simulation`. Sans le test qui l'emploie, le hachage le plus
+// récemment ajouté à `style-src` serait le seul que rien n'énumère sur la page qui le produit.
 const BLOCS_STYLE_PAGE_SIMULATION = 7;
 
 /**
@@ -408,6 +454,16 @@ test.describe('la CSP à l’amorçage d’une simulation par lien profond', () 
   // C'est le patron « quand un lot augmente un compte de permission, recenser ce que les
   // instruments existants cessent de couvrir » — ici la couverture n'était pas éteinte,
   // elle avait simplement changé de page sous nos pieds.
+  //
+  // ⏳ « UNE PAGE SANS SIMULATION » EST PÉRIMÉ depuis le 2026-08-21 (E3-ST5) : `csrf` porte
+  // les DEUX composants et prend la tête de l'ordre alphabétique, donc `ROUTE_LECON_QUIZ` et
+  // `ROUTE_LECON_SIMULATION` désignent aujourd'hui LA MÊME page — et ce test-ci navigue la
+  // même URL que le test (a). ⚠️ Il est donc, momentanément, REDONDANT : le test (a) énumère
+  // désormais `.simulation` lui-même. On le GARDE quand même, et ce n'est pas de la
+  // superstition : il redeviendra distinct dès qu'une leçon sans simulation reprendra la tête
+  // alphabétique — ce que la publication d'un module `02-…` ou `04-…` suffirait à provoquer.
+  // Le retirer aujourd'hui ferait payer sa réécriture à un lot futur qui n'aurait aucune
+  // raison de savoir qu'il a existé. Ce qu'il coûte en attendant : une navigation de plus.
   test('chaque bloc `<style>` de la page de SIMULATION actionnée est NOMMÉ dans le `style-src` servi', async ({
     page,
   }) => {
