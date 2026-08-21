@@ -68,13 +68,14 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
 /**
  * Modules du cours réellement publiés. Confronté au manifeste par le spec.
  *
- * 📈 1 → 3 le 2026-08-21 (E3-ST2 et E3-ST3) : `02-evaluation-cvss` et
+ * 📈 3 → 4 le 2026-08-21 (E3-ST4) : `04-xss` rejoint les trois premiers. Étape
+ * précédente : 1 → 3 le 2026-08-21 (E3-ST2 et E3-ST3), `02-evaluation-cvss` et
  * `03-injection` rejoignent `01-fondamentaux`. Le littéral est délibéré — c'est
  * lui qui force la revue humaine d'une page d'accueil dont le texte, lui, n'est
  * dérivé de rien (voir la `description` de la carte, corrigée dans le même
  * commit : elle annonçait « le premier module est en ligne »).
  */
-const MODULES_PUBLIES = 3;
+const MODULES_PUBLIES = 4;
 
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;

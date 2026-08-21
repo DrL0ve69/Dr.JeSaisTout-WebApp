@@ -2507,7 +2507,7 @@ E3-ST1, pas pendant.
 | E3-ST1 | `01-fondamentaux` — Fondamentaux de la sécurité web (faille/exploit/0-day, CVE/CWE, OWASP Top 10 2021 **et** 2025, kill chain, types de tests) | `fondamentaux-securite-web.md` | non — schéma kill chain statique | ✅ |
 | E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV). 🔴 **COMPLÉMENT PUR — corrigé le 2026-08-19** : la mention « quiz = les 6 mises en situation corrigées du cours (matière d'examen) » était **fausse**. Mesure : **0 occurrence** de CVSS/CVE/CWE/EPSS/KEV dans les **8 diaporamas publiés** et dans le **plan de cours officiel**. Rien de ce module n'est examinable ; il doit se présenter comme complément. *(Réserve : la mesure porte sur le texte extrait ; un sigle qui n'existerait que dans une image aurait échappé — 95 captures ont été ouvertes sans le rencontrer.)* | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ✅ |
 | E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ✅ |
-| E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ⬜ |
+| E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ✅ |
 | E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ⬜ |
 | E3-ST6 | `06-controle-acces` — Contrôle d'accès, IDOR, élévation de privilèges, mass assignment | `controle-acces-idor.md` | **oui** : IDOR par manipulation d'identifiant | ⬜ |
 | E3-ST7 | `07-inclusion-ssrf` — Path traversal, LFI/RFI, SSRF (métadonnées cloud) | `inclusion-fichiers-ssrf.md` | **oui** : SSRF vers l'endpoint de métadonnées | ⬜ |
@@ -2744,11 +2744,156 @@ de la liste. Le vert local ne vaut que pour les gates qu'on a effectivement lanc
    repose sur une **mesure de texte extrait** : un sigle qui n'existerait que dans une image des
    diaporamas y aurait échappé (réserve déjà consignée au tableau du bloc A).
 
-**Suite** : E3 bloc A continue avec **E3-ST4** (`04-xss`, fiche `xss-cross-site-scripting.md`,
-683 lignes) — et c'est le module où le piège **S-011** mord le plus fort : une charge XSS d'exemple
-contient par nature un `on…=`, que le garde-fou du build refuse dans le HTML prerendu. La parade est
-**éditoriale** (guillemets typographiques, entité), jamais un assouplissement du garde-fou, sur un
-site qui enseigne la CSP.
+
+#### ✅ CLÔTURE — E3-ST4 `04-xss` (2026-08-21)
+
+**Ce qui a été livré.** `content/cours/securite-web/04-xss/` — `lecon.md` (790 l.), `quiz.json`
+(8 questions : 3 `choix-multiple`, 2 `trouver-la-faille`, 2 `vrai-faux`, 1 `associer`) et
+`simulation.json` (**5 acteurs, 10 étapes**, XSS stocké : dépôt de la charge → exécution chez la
+victime → exfiltration du cookie → rejeu de session). Route `/cours/securite-web/xss/`,
+`section: Attaques classiques`, `prerequis: [fondamentaux, injection]`. Source unique :
+`web/securite/xss-cross-site-scripting.md` (683 l.).
+
+**Chiffres de clôture.** G-test **887 passés / 42 fichiers / 0 échec** · G-build **7 routes**,
+**14 hachages de style / 0 de script** (inchangés — la page XSS n'introduit aucun bloc `<style>`
+neuf, ses composants étant ceux de la 03) · G-axe **7 fichiers, 602 vérifications, 0 violation** ·
+G-e2e **50 passés / 1 sauté / 0 échec** · `npm audit --omit=dev` **0** · G-lint, G-contrastes
+(40 paires, plus bas 3,41:1) et les deux typecheck **verts**.
+
+##### 🔴 S-011 EST PARTIELLEMENT PÉRIMÉE — mesuré, et trois documents mentaient
+
+Ce module devait être « celui où S-011 mord le plus fort ». **Il ne mord pas.** Depuis la fermeture
+de S-003 (lot de dette du 2026-08-19), `generer-config-swa.mjs` **analyse** chaque page avec jsdom
+et n'inspecte plus, pour `style` et `on…`, que des **attributs analysés** — le balayage de texte
+brut a été abandonné, et ses propres commentaires (l. 124-131) citent nommément « la leçon XSS qui
+affiche littéralement `onerror="alert(1)"` » comme le cas à ne **pas** refuser.
+
+**Preuve empirique, prise sur l'artéfact et non déduite d'une lecture** : la page prerendue
+`cours/securite-web/xss/index.html` porte **2 occurrences littérales de `onerror=alert(1)`** en
+nœuds texte et **16 `&lt;script` échappées**, et le build est **vert**. Les 2 seules occurrences
+brutes de `<script` sont celles d'Angular (`main-*.js`, `ng-state` de type inerte) : le contrôle de
+conservation tient.
+
+⚠️ **Ce que ça coûtait de ne pas le mesurer.** `docs/contenu/pipeline-contenu.md`,
+`simulation.ts` et `quiz.ts` prescrivaient encore la parade éditoriale (guillemets typographiques).
+Appliquée sans nécessité sur un module XSS, elle **dégrade la pédagogie** : elle enseigne au lecteur
+une charge utile qui ne fonctionne pas. Les trois sites sont corrigés dans ce lot, S-011 est datée
+et bornée. **Ce qui subsiste** : (a) le compte brut de `<script`/`<style>` reste un contrôle de
+conservation, donc un `<script` placé dans une **valeur d'attribut** casserait le build — parade
+éditoriale, là, justifiée ; (b) le patron « à deux mains » est intact.
+
+##### Ce que les deux vérifications ont attrapé, et qui vaut pour les leçons à venir
+
+**(a) La leçon recommandait la combinaison de drapeaux qui VIDE la chaîne.**
+`htmlspecialchars($v, ENT_QUOTES | ENT_HTML5, 'UTF-8')` **remplace** le défaut de PHP 8.1+
+(`ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401`) et lui **retire `ENT_SUBSTITUTE`** : sur une séquence
+UTF-8 invalide, la fonction renvoie une **chaîne vide**. La leçon attribuait de surcroît ce retour
+vide au 3ᵉ argument, ce qui est faux. Corrigé aux **8 emplacements** (4 dans `lecon.md`, 4 dans
+`quiz.json`). ⚠️ Le constat de revue n'en nommait qu'un dans `q2` — l'agent correcteur a trouvé que
+le bloc en portait **deux** : *un constat de revue est un pointeur, pas un inventaire.*
+
+**(b) Une question de quiz sans aucune bonne réponse.** `q7` décrivait un filtre supprimant « la
+chaîne `<script>` ». Or `</script>` **ne contient pas** la sous-chaîne `<script>` (le `<` y est
+suivi d'un `/`) : la fermante survit, le corps du script devient un littéral non terminé, et
+`alert(1)` **ne s'exécute pas**. La bonne réponse annoncée était fausse. Corrigé en « supprime les
+balises `<script>` **et** `</script>` ».
+
+**(c) Le garde-fou du compteur de la page d'accueil a mordu comme prévu.** `MODULES_PUBLIES = 3`
+dans `accueil.ts` est un littéral **délibéré**, confronté au manifeste par `accueil.spec.ts` : la
+4ᵉ leçon l'a fait rougir, forçant la revue humaine du texte éditorial voisin (relu : la
+`description` de la carte reste exacte). Passé à **4**. C'est le modèle à suivre pour toute dette
+datée — *elle se pose avec son réveille-matin, ou ne se pose pas.*
+
+**(d) Une violation AXE que seule la publication révèle.** `empty-table-header` sur le tableau de
+comparaison SQLi/XSS (première cellule d'en-tête vide). ⚠️ **Invisible tant que la leçon est en
+`statut: verifiee`** : elle n'est alors pas prerendue, donc G-axe ne la voit pas. Corollaire pour
+les 15 leçons restantes : **G-axe, G-e2e et le compte de hachages CSP ne mesurent rien avant la
+bascule en `publiee`** — cette bascule n'est donc pas une formalité de clôture, c'est le moment où
+la moitié des gates commencent à s'appliquer.
+
+##### 📉 Budget de contexte — la découpe en deux agents a marché À MOITIÉ
+
+| Agent | Périmètre | Tokens |
+|---|---|---|
+| Rédacteur `lecon.md` | 683 l. de fiche → 774 l. produites | **163 798** ⚠️ |
+| Rédacteur `quiz.json` + `simulation.json` | depuis la leçon écrite | 138 094 ✅ |
+| Vérificateur `lecon.md` | + 4 corrections KB | 137 343 ✅ |
+| Vérificateur des 2 JSON | | 126 025 ✅ |
+| Correctifs `lecon.md` | 15 constats | 99 842 ✅ |
+| Correctifs `quiz.json` | 4 champs | 73 152 ✅ |
+
+La découpe proposée en clôture d'E3-ST2/ST3 (nœud 4) **est validée pour les livrables dérivés** :
+tous les agents à périmètre étroit finissent entre 73k et 138k. Elle **ne suffit pas pour le
+rédacteur de leçon**, qui reste à 163 798 — mieux que les 197k/206k de la veille, mais au-dessus
+des 150k. Sortir les JSON de son lot n'allège que marginalement sa variable dominante, qui est le
+couple *volume de source × volume produit*. **Piste pour E3-ST5** : la vraie découpe d'un rédacteur
+de leçon est **par moitié de leçon** (théorie et familles d'attaques / défenses et exemples), pas
+par type de livrable — à tenter et à mesurer, pas à décréter.
+
+##### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — aucun ne bloque E3-ST5, tous méritent une décision
+
+1. **🔴 `html` et `javascript` sont absents de la liste des langages colorables, et ça a mordu sur
+   CE module.** Mesuré : `tools/content-pipeline/compiler-markdown.mjs:133` et le `enum` de
+   `quiz.schema.json` fixent une liste **fermée** à six valeurs — `php, csharp, typescript, sql,
+   bash, json`. Le module qui enseigne l'injection **dans le navigateur** ne peut donc colorer ni
+   une charge HTML, ni un puits DOM en JavaScript. Contournements réellement employés dans la 04 :
+   charges HTML en **code en ligne dans la prose**, exemple « framework » en **Razor** faute de
+   Blade, trois blocs étiquetés ```typescript pour du JavaScript qui ne typecheckerait pas, et un
+   en-tête HTTP étiqueté ```bash. Le vérificateur a d'ailleurs proposé de les réétiqueter — refusé,
+   ça aurait cassé le build.
+   ⚠️ **Ce n'est pas un ajout d'une ligne.** Ajouter un langage Shiki fait apparaître de nouvelles
+   **portées de coloration**, donc de nouvelles encres, donc le risque exact qui a mordu la veille
+   (`#6A737D` à 3,94:1, corrigé en `#848D99`). Le lot serait : ajouter les langages, **mesurer**
+   les encres neuves contre `--couleur-code-surface`, étendre `ENCRES_SOMBRES_CORRIGEES` si besoin.
+   **Échéance utile : avant E3-ST13** (`13-durcissement-serveur`), qui est bâti sur des en-têtes
+   HTTP, et qui reprendra ce contournement.
+
+2. **Le poids des leçons monte, et ce n'est plus un cas isolé.** `xss` **184,6 Ko** et `injection`
+   **165,7 Ko** dépassent tous deux l'avertissement à 150 Ko (échec à 300 Ko) ; 4 leçons pèsent
+   **599,9 Ko**. La question posée en clôture d'E3-ST3 pour la seule 03 se repose plus fermement :
+   densité légitime, ou modules à **scinder** ? Les deux fiches sources concernées comptent
+   respectivement 4 familles d'attaques (03) et 3 familles + 6 défenses (04). ⚠️ À 13 leçons de ce
+   calibre, le total dépasserait 2 Mo de contenu compilé — à arbitrer avant le bloc B, pas après.
+
+3. **La numérotation des diapositives de la séance 7 est irrécupérable sans le diaporama.** La
+   fiche KB donne **quatre** bornes incompatibles : « 20-32, treize » (en-tête de provenance),
+   « 21-31 » (§XSS stocké), « 25 à 31 » (titre de la démo), « 25 à 30 » (§Sources). Le vérificateur
+   a **refusé de deviner** et n'a corrigé que ce qui était certain ; la leçon retient « 20 à 32 » et
+   « 25 à 30 » (seule borne cohérente avec le « six diapositives en captures »). À trancher deck en
+   main, puis à propager **en un seul geste** dans la fiche et dans `lecon.md`.
+
+4. **🔴 La KnowledgeBase porte des corrections NON COMMITÉES sur quatre fiches.** `git status` dans
+   `C:\Users\phili\ProjetsPortfolio\KnowledgeBase` : `xss-cross-site-scripting.md`, `injection.md`,
+   `fondamentaux-securite-web.md`, `evaluation-vulnerabilites-cvss.md` — les passes de vérification
+   des leçons 01 à 04 y ont écrit sans que rien ne soit versionné. C'est un dépôt **distinct**, hors
+   du périmètre de ce lot, mais du travail de vérification sourcé y dort sans filet. Les quatre
+   corrections de la 04 sont tracées en §Sources avec leurs URL.
+
+5. **Rappel — les nœuds 1 et 2 d'E3-ST2/ST3 restent ouverts** : le découpage `section:`
+   (`Fondamentaux` / `Attaques classiques`, champ **tout-ou-rien** qui engage les 15 modules
+   restants — la 04 a suivi le choix du coordinateur sans décision du propriétaire), et la
+   validation du contrat `verifiee` → `publiee` du skill `/lecon`, qui a **bien fonctionné** ce
+   coup-ci : 4 marqueurs `à-vérifier:` posés, 4 tranchés, 4 retirés.
+
+6. **⚠️ UNE INTERMITTENCE E2E NEUVE, observée le 2026-08-21 — famille déclarée close, symptôme
+   inédit.** `e2e/parcours-clavier-quiz.spec.ts:535` a échoué **une fois sur deux exécutions
+   complètes** de la suite, non pas sur son assertion mais sur la **barrière d'hydratation** :
+   `attendreHydratation` (`e2e/aides/hydratation.ts:37`) a expiré avec **27 attributs `ngh`
+   toujours présents**. Rejeu ciblé `--repeat-each=4` : **24/24 passés** ; deuxième exécution
+   complète : **50 passés / 1 sauté / 0 échec**. **Ce n'est donc pas une régression de ce lot** — la
+   page visée est `evaluation-cvss` (première page prerendue portant `<app-quiz` dans l'ordre
+   alphabétique), qu'E3-ST4 n'a pas touchée.
+   ⚠️ Ce qui mérite l'attention : le correctif du 2026-08-20 (**L-057**) portait sur une *autre*
+   cause — une valeur lue par une `page.evaluate` unique, jamais réessayée. Ici l'attente **est**
+   une assertion de locator auto-réessayée, et elle expire quand même. Le symptôme (« l'hydratation
+   ne se termine jamais ») n'a **pas** été observé lors de ce lot-là. À instrumenter avant de
+   conclure : une seule occurrence ne dit pas si la cause est la charge de la machine, un délai trop
+   court, ou une hydratation réellement bloquée sur la page la plus lourde.
+
+**Suite** : E3 bloc A continue avec **E3-ST5** (`05-csrf`, fiche `web/securite/csrf.md`, **559 l.**,
+avec simulation « requête forgée depuis un site tiers »). ⚠️ La fiche dépasse déjà le seuil de
+scission de 500 l. de `CONVENTIONS.md`. La leçon 04 lui donne un appui direct : son `q5` établit
+qu'un XSS contourne **tout** token anti-CSRF, y compris le double-submit — c'est le pont à reprendre.
 
 
 ### Bloc B — Identités & données *(cible : ~12 octobre, J5)*

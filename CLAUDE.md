@@ -62,18 +62,30 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-21
 >
-> **✅ TROIS LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss` et `03-injection` —
-> cette dernière portant la **PREMIÈRE simulation** du dépôt. **E0, E1, E2, E6, E3-ST1, E3-ST2 et
-> E3-ST3 sont CLOS EN ENTIER** ; E6 (« Moniteur ambre ») avait gagné son pari avec **zéro défaut
-> G7**. Détail, chiffres et **nœuds laissés au propriétaire** :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc « ✅ CLÔTURE — E3-ST2 et
-> E3-ST3 (2026-08-21) ».
+> **✅ QUATRE LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss`, `03-injection` et
+> `04-xss`. **E0, E1, E2, E6 et E3-ST1 à ST4 sont CLOS EN ENTIER** ; E6 (« Moniteur ambre ») avait
+> gagné son pari avec **zéro défaut G7**. Détail, chiffres et **nœuds laissés au propriétaire** :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc « ✅ CLÔTURE — E3-ST4
+> `04-xss` (2026-08-21) » — dont **deux nœuds neufs qui engagent des modules à venir** : `html` et
+> `javascript` sont **absents** de la liste fermée des langages colorables (`compiler-markdown.mjs:133`
+> — six valeurs : `php, csharp, typescript, sql, bash, json`), ce qui a forcé trois contournements
+> dans la 04 et remordra à **E3-ST13** ; et le **poids des leçons monte** (`xss` 184,6 Ko, `injection`
+> 165,7 Ko, tous deux au-dessus de l'avertissement de 150 Ko).
 >
-> **Le geste suivant : E3-ST4 — `04-xss`** (fiche `web/securite/xss-cross-site-scripting.md`,
-> 683 lignes), par le skill `/lecon`. ⚠️ **C'est LE module où le piège S-011 mord** : une charge XSS
-> d'exemple contient par nature un `on…=`, que le garde-fou du build refuse dans le HTML prerendu.
-> La parade est **éditoriale** (guillemets typographiques, entité), jamais un assouplissement du
-> garde-fou — sur un site qui enseigne la CSP.
+> **Le geste suivant : E3-ST5 — `05-csrf`** (fiche `web/securite/csrf.md`, **559 lignes**, avec
+> simulation « requête forgée depuis un site tiers »), par le skill `/lecon`. La leçon 04 lui donne
+> un appui direct : son `q5` établit qu'un XSS contourne **tout** token anti-CSRF, double-submit
+> compris.
+>
+> ⚠️ **DÉCOUPE DU RÉDACTEUR — mesuré sur E3-ST4, à appliquer à la 05.** Scinder « leçon » et
+> « quiz+simulation » en deux agents **valide pour les livrables dérivés** (73k à 138k), mais **ne
+> suffit pas** au rédacteur de leçon : 163 798 tokens, au-dessus des 150k. Sa variable dominante est
+> le couple *volume de source × volume produit*, que sortir les JSON n'allège qu'à la marge. Piste à
+> tenter et à **mesurer** : découper **par moitié de leçon** (théorie / défenses), pas par livrable.
+>
+> ⚠️ **LA BASCULE `verifiee` → `publiee` N'EST PAS UNE FORMALITÉ.** Une leçon en `verifiee` n'est pas
+> prerendue : **G-axe, G-e2e et le compte de hachages CSP ne mesurent alors RIEN**. La 04 portait une
+> violation `empty-table-header` invisible jusqu'à la bascule. Publier, puis relancer ces trois gates.
 >
 > **✅ LA DETTE OUVERTE PAR E3-ST1 EST REFERMÉE (2026-08-21).**
 > `CAPACITES_MESUREES_EN_E2E.simulation` est passé à `true`, **après** exécution des 3 specs de
@@ -368,14 +380,22 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **sera prerendue publique et indexable**. Elle se lève en clôture d'E3-ST1. Les réserves (1) et (2)
 > -->
 >
-> **🔴 LEÇON S-011, née du lot C, à connaître avant d'écrire une question de leçon.**
-> `generer-config-swa.mjs` refuse dans le HTML prerendu **deux** motifs — le style en ligne **et**
-> tout gestionnaire d'événement en ligne (`on…=` suivi d'un guillemet) — et l'interpolation
-> d'Angular n'échappe que `&`, `<` et `>`. Un `onerror=` entre guillemets dans une question de la
-> leçon **XSS** arrive donc **intact** dans la sortie et fait échouer le build sur un message
-> accusant la CSP. Fail-closed, donc sain ; le piège est la **pression à assouplir le garde-fou pour
-> publier**, sur un site qui enseigne la CSP. La parade est **éditoriale** (guillemets
-> typographiques, entité), jamais une exclusion de balayage.
+> **🟢 LEÇON S-011 — PARTIELLEMENT PÉRIMÉE, mesurée le 2026-08-21 sur la leçon XSS publiée.**
+> Le texte qui vivait ici annonçait que `generer-config-swa.mjs` balaie le HTML prerendu et refuse
+> tout `on…=` suivi d'un guillemet — donc qu'une charge XSS d'exemple casserait le build. **C'est
+> faux depuis la fermeture de S-003** (2026-08-19) : le générateur **analyse** chaque page avec
+> jsdom et n'inspecte, pour `style` et `on…`, que des **attributs analysés**. Mesure : la page
+> `cours/securite-web/xss/` porte **2 `onerror=alert(1)` littéraux** en nœuds texte et **16
+> `&lt;script` échappées**, build **vert**. ⚠️ **N'invente donc aucune parade typographique dans une
+> charge utile** — elle enseignerait au lecteur une charge qui ne fonctionne pas.
+> **Ce qui subsiste :** le compte brut de `<script`/`<style>` reste un **contrôle de conservation**,
+> et la sérialisation n'échappe pas `<` dans une **valeur d'attribut** — un `<script` placé dans un
+> champ d'auteur rendu en attribut (**trois le sont aujourd'hui : `simulation.titre`,
+> `etapes[].titre`, l'`accTitle` d'un mermaid — plus `paires[].droite` en `<option value>`**) casse
+> le build ; là, la parade éditoriale est **requise**, pas seulement justifiée. ⚠️ L'attribut n'est
+> **qu'un des QUATRE écarts** possibles de ce contrôle, énumérés à ne pas reformuler de mémoire :
+> `tools/deploiement/generer-config-swa.mjs:755-763` — dont le `<script` **en commentaire HTML**,
+> celui qui a réellement mordu (E6, `src/index.html`). Le patron « à deux mains » est intact.
 >
 > **Ce que les lots A et B avaient posé, et qui reste vrai :** (a) `ficheSource` **n'est pas** dans
 > l'artéfact, c'est voulu — la voie publiée vers les sources est « Aller plus loin » ; (b) ce qui

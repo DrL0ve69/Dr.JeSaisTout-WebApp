@@ -110,13 +110,25 @@
 // `.html` et refuse la simple mention hors du seul fichier autorisé),
 // dans aucune circonstance, et aucune colorisation (Shiki tourne au build et ne part
 // jamais au navigateur : décision inscrite au contrat). Même consigne pour `texte`.
-// ⚠️ COLLISION S-011, exactement comme dans `quiz.ts` : `generer-config-swa.mjs` balaie
-// le HTML prerendu et refuse le style en ligne comme le gestionnaire d'événement en
-// ligne, or l'interpolation d'Angular n'échappe pas les guillemets. Tout nœud TEXTE
-// portant du texte d'auteur peut donc faire échouer le build sur un message parlant de
-// CSP. Les sites concernés ici, NOMMÉMENT : `panneaux[].texte`, `panneaux[].code`,
-// `etapes[].narration`, `etapes[].titre`, `fleche.libelle`, `acteurs[].libelle` et le
-// `titre` de la simulation. La parade est ÉDITORIALE — jamais d'assouplir le garde-fou.
+// ✅ COLLISION S-011 — REFERMÉE LE 2026-08-19, exactement comme dans `quiz.ts` (voir la
+// note « COLLISION S-011 » de l'en-tête de ce fichier-là pour le détail complet).
+// `generer-config-swa.mjs` ne balaie plus le HTML prerendu en texte brut : la décision
+// porte sur les ATTRIBUTS réellement construits par un parse jsdom, et un nœud TEXTE
+// n'en produit aucun. Les sites de texte d'auteur ici, NOMMÉMENT : `panneaux[].texte`,
+// `panneaux[].code`, `etapes[].narration`, `etapes[].titre`, `fleche.libelle`,
+// `acteurs[].libelle` et le `titre` de la simulation, peuvent tous porter un
+// `onerror="alert(1)"` ou un `style="…"` en toutes lettres sans faire échouer le build —
+// MESURÉ le 2026-08-21 sur la leçon `04-xss` publiée. Aucune parade éditoriale n'est
+// requise pour un champ rendu en nœud texte.
+// ⚠️ MAIS DEUX DE CES CHAMPS SONT DÉJÀ EN VALEUR D'ATTRIBUT, ici même — ce n'est pas un
+// risque futur : `titre` (→ `nomDeLaRegion()`, l. 500, rendu en `aria-label` l. 278) et
+// `etapes[].titre` (→ `etape.nom`, l. 721, rendu en `aria-label` l. 381). La
+// sérialisation HTML n'échappe pas `<` dans une valeur d'attribut : un `<script` ou un
+// `<style` dans l'un des deux casse le contrôle de CONSERVATION du build
+// (`<script[\s>/]` / `<style[\s>/]`, `tools/deploiement/generer-config-swa.mjs`). La
+// parade éditoriale y est donc REQUISE (« la balise script », `‹script›`). Les cinq
+// autres champs nommés ci-dessus sont en nœud texte et n'exigent rien. Ne pas défaire ce
+// diagnostic sans relire S-011 dans `.claude/lessons/security-lessons.md`.
 //
 // AUCUN SVG. Les flèches sont du TEXTE plus un trait CSS : le sanitizer d'Angular efface
 // la totalité du SVG (mesuré : 24 éléments → 0, `src/sonde-sanitizer-svg.spec.ts`). Et

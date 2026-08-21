@@ -482,6 +482,32 @@ du compte. Ce n'est pas qu'une leçon publiée qui peut déclencher S-011 — n'
 commentaire de code du dépôt qui documente ce garde-fou en citant son motif littéralement le peut
 aussi.
 
+**✅ MESURÉE EMPIRIQUEMENT le 2026-08-21, sur la vraie leçon `04-xss` publiée.**
+`dist/dr-je-sais-tout/browser/cours/securite-web/xss/index.html` porte **2 occurrences littérales**
+de `onerror=alert(1)` dans des nœuds texte (à l'intérieur de `<code>`) — et `npm run build` est
+**VERT**. La parade éditoriale (guillemets typographiques, entités) n'a donc **plus lieu d'être**
+pour du texte d'auteur en nœud texte : elle **dégraderait la pédagogie** sans corriger de risque
+réel — mettre des guillemets typographiques dans une charge XSS destinée à être lue et comprise
+apprend au lecteur une charge qui ne fonctionne pas. **L'issue** : le lot de dette pré-E3-ST1
+(2026-08-19) a remplacé le balayage de texte brut par un parse jsdom structurel ; cette collision
+est donc **structurellement close** pour tout nœud texte, et le restera tant que le générateur
+n'ajoute pas de contrôle de conservation sur la branche attributs (voir « CE QUI LA ROUVRIRAIT »
+dans le commentaire d'en-tête de `quiz.ts`).
+**Ce qui subsiste, à ne pas perdre — les QUATRE écarts nommés à la source
+(`generer-config-swa.mjs:755-763`, jumeaux `<script>`/`<style>`), pas de mémoire :**
+(1) un `<script`/`<style` dans un **commentaire HTML** — celui qui a réellement mordu (occurrence
+E6 sur `src/index.html`, voir plus haut) ; (2) dans un `<template>` inerte ; (3) dans la **chaîne
+d'un script** ; (4) dans une **valeur d'attribut** — la sérialisation HTML n'échappe pas `<` à cet
+endroit, et c'est **mesuré, pas hypothétique** : trois champs d'auteur y sont aujourd'hui rendus —
+`simulation.titre`/`etapes[].titre` → `aria-label` (`simulation.ts` l. 278 et 381),
+`paires[].droite` → `<option value>` (`quiz.ts`), l'`accTitle` d'un bloc `mermaid` → `aria-label`
+(`rendu-blocs.ts:551`). Le compte brut reste donc un contrôle de **conservation** actif sur ces
+quatre fronts ; (5) le patron « à deux mains » (charge affichée entière **et** aucun nœud engendré)
+reste la bonne forme de test pour tout champ d'auteur nouvellement rendu au DOM, indépendamment de
+l'état de cette collision précise.
+**Réfs.** `docs/contenu/pipeline-contenu.md` (section réécrite le 2026-08-21),
+`src/app/features/cours/simulation/simulation.ts` (commentaire d'en-tête corrigé le 2026-08-21).
+
 ## S-012 · `npx` dans un job de CI qui produit l'artéfact publié est une résolution de code NON ÉPINGLÉE au moment de l'exécution (A08 · CICD-SEC)
 
 **Symptôme.** `ci.yml` bâtissait l'artéfact avec `npx ng build`. `npx` installe depuis le registre
@@ -911,3 +937,37 @@ peut aussi bien signifier « le garde-fou a cessé de regarder ».
 **Réfs.** `tools/deploiement/generer-config-swa.mjs` (boucle d'accumulation `hachagesScript`),
 `src/app/**` (retrait de l'anti-flash de thème, D-2 thème sombre seul), lot E6 « Moniteur ambre »,
 `docs/agile/backlog-phase-1.md` §E6. Croise [[S-005]], [[L-005]], [[L-019]], [[L-063]].
+
+## S-024 · Fermer une leçon de sécurité exige de mesurer le RÉSIDU sur l'artéfact du lot, jamais de le raisonner de mémoire — le mécanisme et l'état du produit sont deux régimes de preuve distincts (A05 · discipline de clôture)
+
+**Symptôme.** Le lot E3-ST4 (leçon `04-xss`) a déclaré [[S-011]] partiellement périmée — à raison :
+le balayage de texte brut a bien disparu de `generer-config-swa.mjs`. Mais la note de clôture
+écrite au même lot commettait deux fautes trouvées par une revue indépendante : (a) elle citait
+« le » résidu au singulier, en oubliant l'occurrence commentaire (celle qui avait réellement mordu
+en E6) parmi les quatre écarts que le garde-fou énumère lui-même en commentaire source ; (b) elle
+écrivait au **conditionnel** — « la collision rouvrirait si un champ passait en valeur d'attribut »
+— alors que **trois champs d'auteur étaient, dans ce même commit, déjà rendus en attribut**
+(`aria-label`/`<option value>` de la simulation, du quiz, d'un bloc mermaid). Le mécanisme mesuré
+était juste ; l'état du produit décrit à côté était faux, et personne ne l'a remarqué parce que
+rien ne signalait le changement de régime de preuve entre les deux phrases.
+
+**Pourquoi c'est distinct de [[L-070]] et pourquoi ça mord précisément à la clôture.** Le moment où
+l'on prouve qu'une collision est close est le moment où l'on cesse, par construction, de la
+chercher ailleurs — la charge cognitive de la clôture se dépense sur « est-ce fermé », pas sur « où
+d'autre est-ce ouvert ». Une condition de réouverture écrite au futur («·rouvrirait si·») est un
+énoncé qu'on peut rédiger sans consulter le dépôt ; elle se glisse donc sans le contrôle qu'une
+formulation au présent («·est ouvert sur·») aurait imposé par sa syntaxe même.
+
+**Règle.** Fermer une leçon S-0xx par « mesurée/close » exige de rejouer le résidu **sur l'artéfact
+du lot en cours**, jamais de mémoire ni par confiance dans une note antérieure — même quand la
+mesure du mécanisme est, elle, vérifiée. Toute clause de réouverture écrite au futur (« rouvrirait
+si… ») doit être **retestée contre le dépôt avant d'être écrite** : si la condition est déjà vraie,
+elle se rédige au présent et cesse d'être une clause de veille pour devenir un fait déclaré. Et une
+énumération de cas (« les écarts possibles sont… ») se **compte à la source au moment de la
+clôture**, jamais recopiée d'une clôture précédente — [[S-011]] elle-même l'exigeait déjà
+(« compter ses motifs, pas nommer celui auquel on pensait ») ; ici c'est la note de clôture qui a
+raté sa propre règle.
+
+**Réfs.** `.claude/lessons/security-lessons.md` [[S-011]] (résidu complété au même geste),
+[[S-005]] (mécanisme juste, périmètre faux — même famille), [[S-009]] (texte qui promet plus que
+le code n'applique), lot E3-ST4 (2026-08-21).

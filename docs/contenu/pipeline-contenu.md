@@ -409,23 +409,38 @@ pas tourné.
 ⚠️ **Le champ est OPTIONNEL** (`simulation?`), à la différence de `quiz` : une leçon qui ne décrit
 aucun flux n'a pas de `simulation.json`, et le contrat n'invente pas de simulation vide.
 
-### 🔴 Deux motifs qui font ÉCHOUER LE BUILD s'ils atteignent le HTML prerendu
+### 🟢 Ce qui reste à surveiller côté HTML prerendu (le balayage de texte brut a disparu)
 
-`tools/deploiement/generer-config-swa.mjs` balaie les pages produites et refuse **deux** motifs —
-` style="` et ` on<événement>="` (`onerror=`, `onclick=`, `onload=`…). L'interpolation d'Angular
-n'échappe que `&`, `<` et `>` : **les guillemets droits et le `=` arrivent intacts** dans la sortie.
-Or l'exemple canonique d'une simulation est une **attaque XSS** — c'est-à-dire précisément le texte
-qui contient ces motifs. Une `narration`, un `fleche.libelle`, un `panneaux.texte` ou un
-`panneaux.code` portant `<img src=x onerror="alert(1)">` ou `<div style="…">` fera **échouer
-`npm run build` sur un message qui accuse la CSP**, au moment exact de publier la leçon XSS. Le
-garde-fou est *fail-closed*, donc sain : on ne l'assouplit pas sur un site qui enseigne la CSP.
+`tools/deploiement/generer-config-swa.mjs` **analysait autrefois** le HTML prerendu par recherche
+de texte brut (` style="`, ` on<événement>="`) — ce garde-fou a été remplacé, au lot de dette
+sécurité pré-E3-ST1 (2026-08-19), par un **parse jsdom structurel** : la décision porte désormais
+sur les **attributs réellement construits par l'analyseur**, jamais sur une séquence de caractères
+trouvée dans un nœud texte. **Un nœud texte ne produit aucun attribut.** Résultat mesuré sur la
+leçon `04-xss` publiée (2026-08-21) : `panneaux.code`/`narration`/etc. peuvent écrire
+`<img src=x onerror="alert(1)">` ou `onerror=alert(1)` **en toutes lettres**, `npm run build` reste
+**vert**. **La parade éditoriale (guillemets typographiques, entités) N'EST PLUS NÉCESSAIRE pour du
+texte d'auteur rendu en nœud texte** — l'imposer dégraderait la pédagogie sans corriger de risque
+réel : une charge XSS d'exemple avec des guillemets typographiques n'illustre plus la charge
+canonique du sujet.
 
-**La parade est éditoriale, et seulement pour la prose** (`narration`, `titre`, `libelle`,
-`panneaux.texte`) : guillemets **typographiques** (`onerror=«…»`), entité (`onerror=&quot;…&quot;`),
-ou reformulation sans guillemet autour de la valeur. **Elle ne s'applique PAS à `panneaux.code`** —
-on ne met pas de guillemets typographiques dans du code destiné à être lu et copié : un panneau qui
-doit montrer un gestionnaire en ligne entre guillemets droits se rend en **bloc `comparaison` de la
-leçon**, pas dans la simulation. Voir `.claude/lessons/security-lessons.md` **S-011** et **S-015**.
+**Ce qui reste un site de collision réel, et où la parade éditoriale est REQUISE — ce n'est pas
+hypothétique :** la sérialisation HTML n'échappe **pas** `<` dans une **valeur d'attribut**, et
+**des champs d'auteur sont AUJOURD'HUI rendus en valeur d'attribut** — trois en `aria-label`, un en
+`<option value>` (mesuré le 2026-08-21 sur l'artéfact publié de `04-xss`) :
+
+| Champ d'auteur | Rendu en | Où |
+|---|---|---|
+| `simulation.titre` | `aria-label` | `src/app/features/cours/simulation/simulation.ts:278` (alimenté l. 500) |
+| `simulation.etapes[].titre` | `aria-label` | `src/app/features/cours/simulation/simulation.ts:381` (alimenté l. 721) |
+| `quiz.paires[].droite` | `<option value>` | `src/app/features/cours/quiz/quiz.ts` |
+| `accTitle` d'un bloc `mermaid` | `aria-label` | `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts:551` |
+
+Sur **ces champs-là**, un `<script` ou un `<style` suivi d'un blanc, d'un `/` ou d'un `>` casse le
+contrôle de **conservation** que le générateur fait toujours sur le compte brut de
+`<script[\s>/]`/`<style[\s>/]` confronté au compte analysé — donc **casse le build**. La parade
+éditoriale (« la balise script », `‹script›`) y est **requise**. **Partout ailleurs — c'est-à-dire
+pour tout champ rendu par interpolation en nœud texte — elle ne l'est pas**, et l'imposer
+dégraderait la pédagogie. Voir `.claude/lessons/security-lessons.md` **S-011** et **S-015**.
 
 ### La règle « ancre ⇔ fichier »
 
