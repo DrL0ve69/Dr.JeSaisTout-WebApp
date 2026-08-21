@@ -79,34 +79,51 @@ import {
 import { ROUTE_LECON_SIMULATION, attendreCourante, idEtape, lireEtat } from './aides/simulation';
 
 /**
- * Le nombre de blocs `<style>` que la page de leçon porte — MESURÉ sur l'artéfact
- * de PRODUCTION le 2026-08-20, jamais déduit : coquille (1 746 o), en-tête
- * (5 394 o), pied (473 o), puis les trois feuilles de la page elle-même — `lecon`
- * (5 782 o), `rendu-blocs`/`.prose` (7 190 o), `quiz`/`.quiz` (6 108 o). C'est la
- * page la plus chargée de l'artéfact ; les 13 hachages distincts de `style-src` sont
- * l'union de celle-ci et des trois autres (accueil : 7 blocs, sommaire : 5, 404 : 4).
+ * Les blocs `<style>` que porte la page mesurée par CE test — MESURÉS sur l'artéfact de
+ * PRODUCTION, jamais déduits.
  *
- * 📉 8 → 7 le 2026-08-20 (clôture d'E3-ST1). Le 8ᵉ bloc était `.simulation` : il
- * n'existait que sur l'artéfact de FIXTURE, retiré avec le harnais. La leçon 01
- * publiée n'a pas de simulation (décision du propriétaire), donc ce bloc n'est
- * plus rendu. Il reviendra à E3-ST3, et rougira ici une fois, comme prévu.
+ * 🔴 CE BLOC A ÉTÉ RÉÉCRIT LE 2026-08-21 (E3-ST3), PAS ANNOTÉ, parce que ce qu'il disait
+ * était devenu faux sur trois points à la fois : le compte de l'artéfact (13), le nombre de
+ * pages (4) et la promesse « il reviendra à E3-ST3, et rougira ici ». Un relecteur qui
+ * recomposait l'union depuis cette liste obtenait le mauvais total — et un chiffre de
+ * sécurité faux dans un commentaire est exactement ce qui fabrique la prochaine erreur de
+ * compte (S-005).
  *
- * 📉 7 → 6 le 2026-08-20 (bascule E6). Le bloc sorti est celui de `BasculeTheme` :
- * le sélecteur de thème est retiré de l'en-tête (phase 1 à thème unique, décision
- * D-2) ; le composant reste au dépôt sans consommateur, donc son bloc n'est plus
- * rendu sur AUCUNE page. ⚠️ CE N'EST PAS UN RELÂCHEMENT DE LA MESURE DE SÉCURITÉ, et
- * l'ordre des assertions le prouve : `orphelins` — « chaque bloc du DOM vivant est
- * NOMMÉ par le `style-src` servi » — est évalué AVANT ce compte, et il est passé vert
- * (0 orphelin sur 6) pendant que ce littéral rougissait. La directive n'a rien perdu :
- * `NOMBRE_HACHAGES_STYLE_ATTENDU` reste à 13 sur l'artéfact entier, la bascule ayant
- * ajouté ailleurs (bande d'ouverture, ambiance, pièce à conviction) autant de blocs
- * qu'elle en retirait ici.
+ * ⚠️ CE QUI A CHANGÉ, ET QUI VAUT POUR TOUT LITTÉRAL DU DÉPÔT NOMMÉ « …_PAGE_LECON » :
+ * depuis qu'il y a TROIS leçons publiées, « la page de leçon » n'est plus un objet unique.
+ * Les deux constantes ci-dessous décrivent deux pages DIFFÉRENTES, et le disent.
  *
- * ⚠️ RECOPIÉ EN DUR, jamais importé de l'outil qui le calcule (L-012) : c'est la
- * duplication qui fait de ce fichier le second endroit revu quand un composant
- * porteur de styles entre dans la page de leçon.
+ * L'état mesuré au 2026-08-21, page par page — 6 pages, 14 hachages distincts en union :
+ *   · accueil                        7 blocs
+ *   · `cours/securite-web/injection` 7 blocs — coquille (1 746 o), en-tête (5 305 o),
+ *     pied (473 o), `lecon` (5 782 o), `.prose` (7 190 o), `.simulation` (4 775 o),
+ *     `.quiz` (6 108 o). C'est ELLE qui porte le 14ᵉ hachage, et elle seule.
+ *   · `cours/securite-web/evaluation-cvss` 6 blocs · `…/fondamentaux` 6 blocs
+ *   · sommaire 5 blocs · 404 4 blocs
+ *
+ * 📉 Historique du compte de la page du QUIZ : 8 → 7 le 2026-08-20 (clôture d'E3-ST1 — le
+ * 8ᵉ bloc était `.simulation`, qui n'existait que sur l'artéfact de FIXTURE), puis 7 → 6 le
+ * 2026-08-20 (bascule E6 — sortie du bloc de `BasculeTheme`, le sélecteur de thème étant
+ * retiré en phase 1 à thème unique). ⚠️ Ce second retrait n'a RIEN relâché, et l'ordre des
+ * assertions le prouve : `orphelins` — « chaque bloc du DOM vivant est NOMMÉ par le
+ * `style-src` servi » — est évalué AVANT le compte, et il est passé vert pendant que le
+ * littéral rougissait.
+ *
+ * ⚠️ RECOPIÉS EN DUR, jamais importés de l'outil qui les calcule (L-012) : c'est la
+ * duplication qui fait de ce fichier le second endroit revu quand un composant porteur de
+ * styles entre dans une page de leçon.
  */
-const BLOCS_STYLE_PAGE_LECON = 6;
+// La page du QUIZ : `ROUTE_LECON_QUIZ`, première page prerendue portant `<app-quiz` —
+// aujourd'hui `evaluation-cvss`, qui n'a PAS de simulation. D'où 6 et non 7.
+// ⚠️ Il rougira le jour où la première leçon de l'ordre alphabétique portera une simulation,
+// et ce sera une revue légitime, pas un faux positif.
+const BLOCS_STYLE_PAGE_QUIZ = 6;
+
+// La page de la SIMULATION : `ROUTE_LECON_SIMULATION`, aujourd'hui `injection`. Elle porte le
+// 14ᵉ hachage de l'artéfact — donc c'est la seule page dont la mesure « 0 orphelin » couvre
+// le bloc `.simulation`. Sans le test qui l'emploie, le hachage le plus récemment ajouté à
+// `style-src` serait le seul que rien n'énumère sur la page qui le produit.
+const BLOCS_STYLE_PAGE_SIMULATION = 7;
 
 /**
  * Actionne le QUIZ juste assez pour que la page soit VIVANTE : une réponse, une
@@ -238,8 +255,8 @@ test.describe('`style-src` mesuré sur la page de leçon hydratée (S-016)', () 
 
     expect(
       blocs.length,
-      `la page de leçon ne porte plus ${String(BLOCS_STYLE_PAGE_LECON)} blocs <style> : un composant porteur de styles est entré ou sorti. Faire relire l’artéfact par « security-reviewer », PUIS reporter le nouveau compte ICI et dans NOMBRE_HACHAGES_STYLE_ATTENDU de « tools/deploiement/generer-config-swa.mjs » (recopié dans « src/config-swa-provenance-style.spec.ts »). Jamais l’inverse`,
-    ).toBe(BLOCS_STYLE_PAGE_LECON);
+      `la page de leçon ne porte plus ${String(BLOCS_STYLE_PAGE_QUIZ)} blocs <style> : un composant porteur de styles est entré ou sorti. Faire relire l’artéfact par « security-reviewer », PUIS reporter le nouveau compte ICI et dans NOMBRE_HACHAGES_STYLE_ATTENDU de « tools/deploiement/generer-config-swa.mjs » (recopié dans « src/config-swa-provenance-style.spec.ts »). Jamais l’inverse`,
+    ).toBe(BLOCS_STYLE_PAGE_QUIZ);
 
     console.log(
       `style-src servi : ${String(hachagesServis.size)} hachage(s) sur l’artéfact entier, ` +
@@ -368,8 +385,93 @@ test.describe('la CSP à l’amorçage d’une simulation par lien profond', () 
       violations,
       `l’amorçage par lien profond a produit un refus de CSP. Journal : ${violations.join(' · ')}`,
     ).toEqual([]);
+    // Le SECOND collecteur (S-016) : un refus vu par la console mais pas par l’événement
+    // « securitypolicyviolation » resterait invisible sans lui — et L-041 a mesuré qu’une
+    // écriture CSSOM refusée ne lève AUCUN événement.
+    expect(
+      journal.messages.filter((message) => MOTIFS_CSP.test(message)),
+      'la console porte un refus qui ressemble à une violation de CSP à l’amorçage par lien profond',
+    ).toEqual([]);
     expect(journal.erreurs, 'exception(s) non rattrapée(s) à l’amorçage par lien profond').toEqual(
       [],
     );
+  });
+
+  // 🔴 CE TEST EST NÉ D'UNE REVUE DE SÉCURITÉ (2026-08-21, E3-ST3), ET IL COMBLE UN TROU
+  // QUE LE LOT AVAIT OUVERT SANS LE VOIR. Le lot fait passer `style-src` de 13 à
+  // 14 hachages ; le 14ᵉ est le bloc `.simulation`, et il n'apparaît que sur CETTE page.
+  // Or le test (a) — le seul qui ÉNUMÈRE les blocs du DOM et exige que chacun soit NOMMÉ
+  // par la directive servie — navigue `ROUTE_LECON_QUIZ`, une page sans simulation. Le
+  // hachage le plus récemment ajouté à la permission était donc le seul qu'aucun
+  // instrument n'énumérait sur la page qui le produit : il ne restait que le compte
+  // GLOBAL de l'artéfact, qui ne dit rien de l'origine d'un bloc.
+  // C'est le patron « quand un lot augmente un compte de permission, recenser ce que les
+  // instruments existants cessent de couvrir » — ici la couverture n'était pas éteinte,
+  // elle avait simplement changé de page sous nos pieds.
+  test('chaque bloc `<style>` de la page de SIMULATION actionnée est NOMMÉ dans le `style-src` servi', async ({
+    page,
+  }) => {
+    const journal = await surveiller(page);
+
+    const reponse = await page.goto(ROUTE_LECON_SIMULATION);
+    const politique = exigerCspServie(reponse);
+
+    await attendreHydratation(page);
+
+    // La page doit être VIVANTE : un « zéro orphelin » mesuré sur une page inerte ne
+    // dirait rien du bloc que le composant monte en s'animant. On replie donc la vue sur
+    // une étape, et on attend que le composant — pas le DOM natif — ait répondu.
+    await page.locator(`.simulation .liens-etapes a[href$="#${idEtape(3)}"]`).click();
+    await attendreCourante(
+      page,
+      3,
+      'la simulation n’a pas répondu au clic : la mesure porterait sur une page morte',
+    );
+
+    const directive = /style-src[^;]*/.exec(politique)?.[0] ?? '';
+    const hachagesServis = new Set(directive.match(/'sha256-[^']+'/g) ?? []);
+    expect(
+      directive,
+      'la CSP servie ne porte plus `style-src` : les blocs de style de la page ne sont plus contraints du tout',
+    ).not.toBe('');
+
+    const blocs = await hachagesDesBlocsStyle(page);
+
+    // Le journal fait foi (L-005) : chaque bloc est IMPRIMÉ, pour qu'un humain puisse
+    // vérifier que `.simulation` est bien du nombre plutôt que de nous croire.
+    for (const [rang, bloc] of blocs.entries()) {
+      console.log(
+        `style [${String(rang)}] ${String(bloc.taille)} o · <${bloc.parent}> · ` +
+          `${hachagesServis.has(bloc.hachage) ? 'NOMMÉ' : '🔴 ABSENT'} · ${bloc.hachage.slice(0, 22)}… · ${bloc.debut}`,
+      );
+    }
+
+    const orphelins = blocs.filter((bloc) => !hachagesServis.has(bloc.hachage));
+    expect(
+      orphelins.map((bloc) => `${String(bloc.taille)} o — ${bloc.debut}`),
+      'un bloc `<style>` de la page de simulation n’est PAS nommé par le `style-src` servi. Soit il a été monté au RUNTIME (transposition de S-005 à `style-src`, dérivé de l’artéfact et non du DOM vivant), soit l’artéfact servi n’est pas celui qui a produit la politique',
+    ).toEqual([]);
+
+    expect(
+      blocs.length,
+      `la page de simulation ne porte plus ${String(BLOCS_STYLE_PAGE_SIMULATION)} blocs <style> : un composant porteur de styles est entré ou sorti. Faire relire l’artéfact par « security-reviewer », PUIS reporter le nouveau compte ICI et dans NOMBRE_HACHAGES_STYLE_ATTENDU de « tools/deploiement/generer-config-swa.mjs ». Jamais l’inverse`,
+    ).toBe(BLOCS_STYLE_PAGE_SIMULATION);
+
+    // 🔴 L'ANTI-VACUITÉ. Sans elle, une page dont le bloc `.simulation` aurait disparu
+    // passerait « 0 orphelin » avec les honneurs — c'est bien le bloc de la simulation
+    // qu'on veut voir nommé, pas six blocs de coquille.
+    expect(
+      blocs.some((bloc) => bloc.debut.includes('.simulation')),
+      'aucun bloc `<style>` de cette page ne porte `.simulation` : le 14ᵉ hachage de `style-src` n’est plus produit ici, et ce test ne mesure plus ce pour quoi il existe',
+    ).toBe(true);
+
+    expect(
+      journal.messages.filter((message) => MOTIFS_CSP.test(message)),
+      'la console porte un refus qui ressemble à une violation de CSP',
+    ).toEqual([]);
+    expect(
+      (await lireViolations(page, journal)).length,
+      'la CSP a refusé une ressource pendant l’actionnement de la simulation',
+    ).toBe(0);
   });
 });

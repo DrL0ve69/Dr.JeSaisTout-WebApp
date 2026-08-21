@@ -60,45 +60,68 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
-> ## ⏭️ REPRISE — état au 2026-08-20
+> ## ⏭️ REPRISE — état au 2026-08-21
 >
-> **✅ E6 EST CLOS EN ENTIER — la bascule « Moniteur ambre » est en ligne.** Pari de l'épic
-> **GAGNÉ et re-mesuré indépendamment en revue de code : ZÉRO défaut G7.** `script-src` passe à
-> **zéro hachage** (`script-src 'self'`), revue de sécurité approuvée. **E0, E1, E2, E3-ST1, E6 sont
-> CLOS EN ENTIER.** Détail complet (chiffres, dette neuve, corrections de faits) :
-> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E6, bloc « ✅ CLÔTURE —
-> 2026-08-20 ».
+> **✅ TROIS LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss` et `03-injection` —
+> cette dernière portant la **PREMIÈRE simulation** du dépôt. **E0, E1, E2, E6, E3-ST1, E3-ST2 et
+> E3-ST3 sont CLOS EN ENTIER** ; E6 (« Moniteur ambre ») avait gagné son pari avec **zéro défaut
+> G7**. Détail, chiffres et **nœuds laissés au propriétaire** :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc « ✅ CLÔTURE — E3-ST2 et
+> E3-ST3 (2026-08-21) ».
 >
-> **Le geste suivant : E3 blocs B/C — les leçons 02 et suivantes** (ordre révisé D-3 : E2 → E3-ST0 →
-> E3 bloc A → E6 → **E3 blocs B/C** → E4 → E5), par le skill `/lecon`.
+> **Le geste suivant : E3-ST4 — `04-xss`** (fiche `web/securite/xss-cross-site-scripting.md`,
+> 683 lignes), par le skill `/lecon`. ⚠️ **C'est LE module où le piège S-011 mord** : une charge XSS
+> d'exemple contient par nature un `on…=`, que le garde-fou du build refuse dans le HTML prerendu.
+> La parade est **éditoriale** (guillemets typographiques, entité), jamais un assouplissement du
+> garde-fou — sur un site qui enseigne la CSP.
 >
-> **⏳ LA DETTE OUVERTE PAR E3-ST1, nommée et datée — elle se referme à E3-ST3 (`03-injection`).**
-> La leçon 01 n'a **pas** de simulation (décision du propriétaire du 2026-08-20 : module abstrait,
-> kill chain en schéma statique), donc **3 specs e2e de simulation SAUTENT** sur l'artéfact publié.
-> Le trou n'est pas silencieux : `CAPACITES_MESUREES_EN_E2E` (`src/workflows-github.spec.ts`) est un
-> **littéral revu à la main** confronté à ce que `content/` publie réellement — **fichier ET ancre
-> rendue** —, et il **ROUGIT le jour où une leçon publiée gagne une simulation**. C'est la **fermeture**
-> du trou qui réclame une revue, pas son ouverture : ce jour-là, faire tourner les 3 specs AVANT de
-> basculer le littéral à `true`.
+> **✅ LA DETTE OUVERTE PAR E3-ST1 EST REFERMÉE (2026-08-21).**
+> `CAPACITES_MESUREES_EN_E2E.simulation` est passé à `true`, **après** exécution des 3 specs de
+> simulation, comme le tripwire l'exigeait. Ce qu'il faut en retenir pour la suite : les deux échecs
+> de cette exécution étaient des **prémisses de test fausses sur un produit sain** (L-035) — des
+> comptes « mesurés sur la fixture témoin » (6 étapes, 4 acteurs, 1 surbrillance) contre une leçon
+> publiée qui en porte 10, 3 et 8. Ces comptes sont désormais **dérivés du `simulation.json` de
+> l'auteur** (`e2e/aides/simulation.ts`, alimenté par le fichier neuf `e2e/aides/lecon-source.ts`).
+> **Publier une leçon avec une simulation de N étapes n'oblige donc plus à toucher aucun spec.**
+>
+> **🔴 « LA PAGE DE LEÇON » N'EST PLUS UN OBJET UNIQUE — le piège neuf, et il n'a pas de garde-fou.**
+> À trois leçons publiées, deux littéraux nommés `…_PAGE_LECON` désignaient deux pages
+> **différentes** sans que rien ne le dise, et le 14ᵉ hachage de `style-src` s'est retrouvé le seul
+> qu'aucun instrument n'énumérait sur la page qui le produit. ⚠️ **Aucun spec n'avait été éteint** :
+> c'est la *population* qui a changé sous l'instrument, si bien que la règle « un lot qui augmente
+> une permission ET passe un spec en `skip` doit recenser ce que ce spec prouvait seul » ne pouvait
+> pas mordre. Écrit en checklist dans `.claude/rules/security.md` §1 ; famille **S-010**.
 >
 > **🔴 CE QUI A CHANGÉ DANS LA MÉCANIQUE DES SPECS E2E, et qui vaut pour toute leçon à venir.** Les
 > specs **ne visent plus une route écrite en dur**. `e2e/aides/artefact-mesure.ts` DÉCOUVRE dans
 > `dist/` une page portant `<app-quiz` ou `<app-simulation` et expose `exigerUneLeconAvecQuiz` /
-> `exigerUneLeconAvecSimulation` + `ROUTE_LECON_QUIZ` / `ROUTE_LECON_SIMULATION`. Conséquence :
-> **publier la leçon 02, 03… n'oblige à toucher AUCUN spec**, et les specs de simulation se
-> **rallumeront seuls**. ⚠️ `exigerLaPageDeLecon` **n'existe plus** — si un document du dépôt la
-> prescrit encore, il est périmé. Un artéfact **sans aucune** page de leçon **LÈVE** au lieu de sauter.
+> `exigerUneLeconAvecSimulation` + `ROUTE_LECON_QUIZ` / `ROUTE_LECON_SIMULATION`. ⚠️ Ces deux routes
+> désignent aujourd'hui **deux pages distinctes** (`evaluation-cvss` et `injection`) : la découverte
+> prend la **première** page prerendue portant le marqueur, dans l'ordre alphabétique du dossier.
+> ⚠️ `exigerLaPageDeLecon` **n'existe plus** — si un document du dépôt la prescrit encore, il est
+> périmé. Un artéfact **sans aucune** page de leçon **LÈVE** au lieu de sauter.
 >
-> **🔴 CSP : le compte de hachages `style-src` est passé de 10 à 13**, et les trois blocs de plus ont
-> été **mesurés et nommés un par un** avant épinglage (S-005) : l'adaptateur de route de la page de
-> leçon (4 196 o), `RenduBlocs` `.prose` (6 998 o), `QuizComponent` `.quiz` (5 669 o). Le compte se
-> recompose 10 + 3 ; aucun `.simulation`, ce qui est cohérent.
-> ⚠️ **CE COMPTE A ÉTÉ REMPLACÉ PAR CELUI D'E6 (2026-08-20)** : **13 hachages de style, ZÉRO de
-> script**. `script-src 'self'` est écrit en dur et le jeton `__HACHAGES_SCRIPT__` a disparu de la
-> source ; sa réapparition est refusée nominativement. Remettre un script inline exige une revue
+> **🔴 CSP : `style-src` est à 14 hachages, `script-src` à ZÉRO.** Le 14ᵉ a été mesuré et nommé avant
+> épinglage (S-005) : `.simulation[_ngcontent-…]`, **4 775 o**, sur la **seule** page
+> `cours/securite-web/injection/`. Le compte est recopié à la main aux **trois** endroits épinglés
+> (`tools/deploiement/generer-config-swa.mjs`, `src/config-swa-provenance-style.spec.ts`,
+> `src/config-swa-contournements.spec.ts`) — plus deux comptes **par page** dans
+> `e2e/simulation-sous-csp.spec.ts` (`BLOCS_STYLE_PAGE_QUIZ` = 6, `BLOCS_STYLE_PAGE_SIMULATION` = 7).
+> `script-src 'self'` est écrit en dur et le jeton `__HACHAGES_SCRIPT__` a disparu de la source ; sa
+> réapparition est refusée nominativement. Remettre un script inline exige une revue
 > `security-reviewer`, jamais une édition d'`index.html`.
 > ⚠️ **L'option `--hachages-style` a été SUPPRIMÉE** du générateur : plus aucun appelant ne l'employait
 > depuis le retrait du harnais, et supprimer un levier vaut mieux que le garder (S-018).
+>
+> **⚠️ DEUX CONTRAINTES DE MÉTHODE PAYÉES À CE LOT, avant d'écrire la leçon suivante.**
+> **(a)** Le skill `/lecon` impose désormais `statut: verifiee` au rédacteur, **jamais `publiee`** :
+> `valider.mjs` §6 interdit les marqueurs `à-vérifier:` dès `publiee`, si bien qu'un brief qui
+> impose `publiee` force le professeur à taire ses doutes. La bascule à `publiee` est le **dernier**
+> geste, après le verdict.
+> **(b)** **« Une leçon » n'est pas « un agent ».** Les deux rédacteurs de ce lot ont fini à
+> **197 798** et **206 884** tokens — au-delà du plafond. La variable n'est pas le nombre de
+> livrables mais le **volume de source × le volume produit** (L-047). Au-delà d'environ 500 lignes
+> de fiche source, ou dès qu'une simulation s'ajoute au quiz : **scinder en deux agents**.
 >
 > **⚠️ CE QUE LES DEUX REVUES ONT ATTRAPÉ, ET QUI SE REPRODUIRA SI ON N'Y PENSE PAS.**
 > **(a)** Le lot élargissait `style-src` de 3 permissions **et éteignait dans le même commit la seule

@@ -140,7 +140,9 @@ const CORPS_ANCIEN_SCRIPT_THEME = 'document.title=document.title';
 // 10 → 13 le 2026-08-20 : ce n’est pas une permission élargie mais la TAILLE DE LA FIXTURE de ce
 // fichier — elle doit égaler le compte que le générateur épingle par défaut, sinon un artéfact
 // synthétique SAIN se ferait refuser et le contrôle positif ne prouverait plus rien.
-const NOMBRE_HACHAGES_ATTENDU = 13;
+// 13 → 14 le 2026-08-21 (E3-ST3, première simulation publiée) — même raison : la fixture doit
+// égaler le compte que le générateur épingle, pas la permission qu'on souhaiterait.
+const NOMBRE_HACHAGES_ATTENDU = 14;
 
 /** Autant de blocs Angular conformes, tous de contenus DISTINCTS — le générateur dédoublonne. */
 const BLOCS_CONFORMES = Array.from(

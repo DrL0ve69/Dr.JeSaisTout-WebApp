@@ -92,7 +92,11 @@ const SOURCE_CONFIG = readFileSync(resolve('config/staticwebapp.config.source.js
 // simulation — sujet abstrait, schéma statique (décision du propriétaire du 2026-08-20) — donc
 // ce bloc n’est pas rendu. Il reviendra avec E3-ST3, et rougira ici une fois, comme prévu.
 // Le compte de hachages de SCRIPT reste à 1.
-const NOMBRE_HACHAGES_ATTENDU = 13;
+// 📈 13 → 14 le 2026-08-21 (E3-ST3) : « 03-injection » est la première leçon publiée portant un
+// « simulation.json ». Le bloc de plus, MESURÉ et NOMMÉ avant épinglage : 4 775 o,
+// `.simulation[_ngcontent-…]`, sur la SEULE page `cours/securite-web/injection/index.html`.
+// C'est le retour annoncé ci-dessus (« il reviendra avec E3-ST3, et rougira ici une fois »).
+const NOMBRE_HACHAGES_ATTENDU = 14;
 
 /** Autant de blocs Angular conformes, tous de contenus DISTINCTS — le générateur dédoublonne. */
 function blocsAngular(nombre: number): string[] {

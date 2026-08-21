@@ -1,0 +1,145 @@
+{
+  "lecon": "injection",
+  "titre": "Quiz — injection",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Une page de connexion construit sa requête ainsi : SELECT * FROM compte WHERE code = '<entree>' AND motdepasse = '<entree>'. L'attaquant saisit le code utilisateur maxime et le mot de passe ' or ''='. Que retourne la requête finale ?",
+      "choix": [
+        { "id": "a", "texte": "Uniquement la ligne du compte maxime." },
+        { "id": "b", "texte": "Toutes les lignes de la table compte." },
+        { "id": "c", "texte": "Aucune ligne : la requête devient syntaxiquement invalide." },
+        {
+          "id": "d",
+          "texte": "Uniquement les lignes dont le mot de passe est vide."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "La charge referme la chaîne du mot de passe, ajoute un OR, et son guillemet final se referme sur le guillemet fermant que l'application avait déjà écrit — la requête devient WHERE code = 'maxime' AND motdepasse = '' OR ''=''. Le point que presque tout le monde rate est la PORTÉE : le OR s'applique à toute la clause WHERE, pas seulement à la condition sur le mot de passe. Comme '' = '' est vrai, la condition entière est vraie pour chaque ligne, d'où la réponse b — et l'application connecte alors typiquement le PREMIER compte de la table, pas maxime. La réponse a est exactement l'erreur d'analyse à éviter. La réponse c est fausse et c'est tout l'intérêt de cette charge : elle est valide SANS aucun caractère de commentaire, ce qui la rend utilisable quand -- et # sont filtrés. La réponse d confondrait le OR avec un AND.",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q2",
+      "type": "trouver-la-faille",
+      "consigne": "Voici l'extrait de connexion.php projeté à la séance 7. Quelle ligne rend ce code injectable, alors qu'il appelle pourtant une requête préparée ?",
+      "langage": "php",
+      "code": "$utilisateur = $_POST['code_utilisateur'];\n$mdp = $_POST['mot_de_passe'];\n$stmt = $conn->prepare(\"SELECT id_utilisateur FROM utilisateur WHERE code_utilisateur='$utilisateur' AND mot_de_passe='$mdp'\");\n$stmt->bind_result($id_utilisateur);\n$stmt->execute();",
+      "ligneFautive": 3,
+      "faille": "Injection SQL — les valeurs sont interpolées dans le texte de la requête avant que prepare() ne le reçoive",
+      "explication": "La ligne 3 est la seule fautive : PHP interpole $utilisateur et $mdp dans la chaîne AVANT que prepare() ne la reçoive, si bien que le pilote se voit remettre une requête déjà empoisonnée et n'a aucun moyen de le savoir. La présence de prepare() ne protège donc rien du tout — c'est le piège central de ce module. Les lignes 1 et 2 ne sont pas fautives : lire une valeur du client est normal, ce qui compte est ce qu'on en fait ensuite ; les désigner reviendrait à interdire tout formulaire. La ligne 4, souvent choisie parce que son nom ressemble à la solution, lie la SORTIE (la colonne lue) et non l'entrée : c'est bind_param() qui manque, pas bind_result() qui serait en trop. La ligne 5 ne fait qu'exécuter ce qui a déjà été construit. Signal à retenir en revue de code : cherche un $ ou un point de concaténation À L'INTÉRIEUR des guillemets de la requête.",
+      "correction": "$utilisateur = $_POST['code_utilisateur'];\n$stmt = $conn->prepare(\n    'SELECT id_utilisateur, mot_de_passe FROM utilisateur WHERE code_utilisateur = ?'\n);\n$stmt->bind_param('s', $utilisateur);\n$stmt->execute();\n$stmt->bind_result($id_utilisateur, $hachage);",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Dès qu'une requête passe par prepare(), l'injection SQL est impossible sur cette requête.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est précisément l'ambiguïté que la séance 7 laisse ouverte en montrant un code vulnérable qui appelle déjà prepare() puis en énonçant « requête préparée » comme parade sans montrer de code corrigé. Ce qui protège n'est pas l'appel : c'est le fait que la valeur ne soit JAMAIS présente dans le texte SQL au moment où le pilote l'envoie au serveur. Si le langage interpole les variables dans la chaîne avant l'appel, la requête est déjà empoisonnée quand prepare() la reçoit. Le marqueur fiable est la liaison des paramètres — bind_param() en mysqli, tableau de liants passé à execute() en PDO — et l'absence de toute variable entre les guillemets de la requête.",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associe chaque technique d'injection SQL au signal que l'attaquant observe pour savoir si elle a fonctionné.",
+      "paires": [
+        {
+          "gauche": "Tautologie sur un formulaire de connexion",
+          "droite": "Une session s'ouvre sans que le mot de passe soit connu"
+        },
+        {
+          "gauche": "UNION SELECT sur une page de recherche",
+          "droite": "Des données d'une autre table s'affichent dans la page"
+        },
+        {
+          "gauche": "Injection à l'aveugle booléenne",
+          "droite": "La page change selon que la condition testée est vraie ou fausse"
+        },
+        {
+          "gauche": "Injection à l'aveugle temporelle",
+          "droite": "La réponse met plusieurs secondes de plus à revenir"
+        },
+        {
+          "gauche": "Sondage par une apostrophe seule",
+          "droite": "Un message d'erreur SQL brut nomme le moteur"
+        }
+      ],
+      "explication": "Ces cinq techniques partagent la même cause racine mais se distinguent par le CANAL DE RETOUR dont l'attaquant dispose. La tautologie ne cherche pas à lire des données : elle vise le verdict d'authentification, et son signal est l'accès obtenu. Le UNION exige un canal de retour riche — les résultats doivent être affichés — et permet donc de lire d'autres tables directement. Quand ce canal disparaît, on passe à l'aveugle : la version booléenne exploite la moindre différence visible entre deux réponses, et la version temporelle sert de dernier recours quand même cette différence n'existe pas, en forçant le moteur à attendre avec SLEEP ou WAITFOR DELAY. Le sondage par apostrophe, enfin, ne vise aucune donnée : il vérifie seulement que le caractère atteint le moteur, et le message d'erreur lui offre en prime le nom du SGBD, donc la bonne syntaxe de commentaire. Retiens la progression : moins le canal de retour est riche, plus l'extraction est lente, mais aucune de ces situations n'est sûre.",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Une page de catalogue laisse l'utilisateur choisir la colonne de tri, et le code écrit : $pdo->prepare(\"SELECT nom, prix FROM produit WHERE actif = :actif ORDER BY $colonne\"). La valeur actif est correctement liée. Ce code est-il sûr ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Oui : dès qu'une requête est préparée, tout ce qu'elle contient est protégé."
+        },
+        {
+          "id": "b",
+          "texte": "Non : $colonne est un identifiant SQL, qu'aucun paramètre ne peut porter ; il faut une liste blanche des colonnes triables."
+        },
+        {
+          "id": "c",
+          "texte": "Non : il faut échapper $colonne avec une fonction du type real_escape_string."
+        },
+        {
+          "id": "d",
+          "texte": "Non : il faut interdire les mots-clés dangereux comme DROP et UNION dans $colonne."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Une requête préparée transporte des VALEURS, jamais des IDENTIFIANTS — nom de colonne, nom de table, sens du tri. La raison est structurelle : le serveur fige la structure de la requête avant de recevoir les valeurs, et un nom de colonne fait partie de cette structure. La seule parade correcte est donc d'énumérer les colonnes de tri autorisées et de retomber sur une valeur par défaut quand l'entrée n'y figure pas. La réponse a est le raisonnement exact qui laisse ce cas survivre dans des bases de code par ailleurs saines : une revue rapide voit un prepare() et passe à la suite. La réponse c propose l'échappement, que l'OWASP qualifie de fortement déconseillé (OWASP, option 4) et qui ne couvre justement pas le contexte des identifiants, non entourés de guillemets. La réponse d est une liste NOIRE : elle ne refuse que ce que son auteur a imaginé, et donne toutes les apparences de la rigueur — c'est l'anti-patron à reconnaître, la bonne forme étant toujours d'énumérer ce qui est permis.",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q6",
+      "type": "vrai-faux",
+      "affirmation": "Le point-virgule de la charge admin';# en fait une requête empilée (stacked query) : une seconde instruction SQL y est exécutée.",
+      "bonneReponse": false,
+      "justification": "Faux, pour deux raisons distinctes qu'il vaut la peine de séparer. D'abord, ce point-virgule joue bien son rôle de terminateur d'instruction — il n'est pas « avalé » par le commentaire, il le PRÉCÈDE —, mais RIEN NE LE SUIT : tout le reste de la ligne, guillemet orphelin compris, est commenté par le croisillon. Il n'y a donc aucune seconde instruction à exécuter, et le point-virgule est même facultatif : admin'# suffit. Ensuite, même si l'attaquant en écrivait une, mysqli::query() et mysqli::prepare() n'exécutent qu'une seule instruction par appel ; il faudrait mysqli::multi_query() pour en enchaîner plusieurs. Les vraies requêtes empilées sont surtout un sujet MSSQL, dont les pilotes exécutent nativement des lots séparés par des points-virgules — ce qui ne rend pas MySQL sûr pour autant, puisque UNION et l'injection à l'aveugle y restent parfaitement exploitables.",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Une API Node interroge MongoDB avec db.users.findOne({ username: req.body.username, password: req.body.password }). Un client envoie un JSON où password vaut { \"$ne\": null }. Que se passe-t-il, et quelle est la parade ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Rien : MongoDB n'utilise pas SQL, il n'y a donc pas d'injection possible."
+        },
+        {
+          "id": "b",
+          "texte": "Le filtre devient « mot de passe différent de nul », donc vrai pour tout compte ; la parade est de valider le TYPE des entrées avant de les placer dans le filtre."
+        },
+        {
+          "id": "c",
+          "texte": "Le filtre lève une exception ; la parade est d'entourer l'appel d'un bloc try/catch."
+        },
+        {
+          "id": "d",
+          "texte": "Le filtre échappe automatiquement le symbole dollar ; aucune parade n'est nécessaire."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "L'attaquant n'injecte ici aucune syntaxe : il place un OPÉRATEUR de requête MongoDB là où l'application attendait une chaîne. Le filtre cesse alors de comparer un mot de passe et se contente d'exiger qu'il ne soit pas nul, ce qui est vrai pour tout compte qui en possède un — l'authentification est contournée. La cause racine est exactement celle de l'injection SQL : une donnée du client entre dans la structure de la commande. La réponse a est le raccourci le plus dangereux du sujet : ce n'est pas SQL qui crée la faille, c'est le mélange donnée/commande, et il existe dans toutes les grammaires. La réponse c décrit un comportement qui ne se produit pas — la requête est parfaitement valide, c'est bien ce qui la rend dangereuse. La réponse d suppose une protection automatique qui n'existe pas : le pilote transmet l'objet tel qu'il l'a reçu. En pratique, on délègue le contrôle de type à un schéma de validation plutôt que de l'écrire champ par champ.",
+      "ficheSource": "web/securite/injection.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "Un point d'entrée de diagnostic teste la joignabilité d'une machine. Quelle ligne permet à un visiteur d'exécuter ses propres commandes sur le serveur ?",
+      "langage": "php",
+      "code": "$hote = $_GET['hote'];\n$sortie = [];\nexec(\"ping -c 4 $hote\", $sortie);\nprint_r($sortie);",
+      "ligneFautive": 3,
+      "faille": "Injection de commande système — l'entrée est concaténée dans une chaîne remise au shell",
+      "explication": "La ligne 3 construit une chaîne de commande par interpolation puis la remet au shell du système, qui y reconnaît sa propre grammaire : avec hote valant 127.0.0.1; whoami, deux commandes partent au lieu d'une, et la seconde est choisie par le visiteur. Les métacaractères point-virgule, barre verticale et esperluette y jouent le rôle que le guillemet joue en SQL. La ligne 1 lit une entrée cliente, ce qui n'est pas fautif en soi — c'est son usage non contrôlé qui l'est. La ligne 4 ne fait qu'afficher un résultat déjà obtenu ; elle aggrave la fuite d'information mais ne crée pas l'exécution. La correction met la validation de format en premier — une adresse IP ou rien — parce qu'une valeur qui n'est pas une adresse IP ne peut plus contenir de métacaractère. escapeshellarg n'est que la ceinture par-dessus, et l'OWASP qualifie l'échappement de fortement déconseillé (OWASP, option 4). Retiens la vraie règle générale : la meilleure défense n'est pas d'échapper les métacaractères, c'est de NE JAMAIS PASSER PAR UN SHELL — execFile plutôt qu'exec en Node, ArgumentList avec UseShellExecute à false en .NET. Les fonctions PHP employées ici, system et exec, passent toutes deux par un shell ; c'est pourquoi la validation de format y devient la ligne de défense principale.",
+      "correction": "$hote = filter_var($_GET['hote'] ?? '', FILTER_VALIDATE_IP);\nif ($hote === false) {\n    http_response_code(400);\n    exit('Adresse invalide');\n}\n$sortie = [];\nexec('ping -c 4 ' . escapeshellarg($hote), $sortie);\nprint_r($sortie);",
+      "ficheSource": "web/securite/injection.md"
+    }
+  ]
+}

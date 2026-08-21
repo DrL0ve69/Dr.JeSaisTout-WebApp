@@ -45,6 +45,19 @@ vulnérables, secrets qui fuitent dans le bundle, XSS via contenu Markdown mal r
       par un hachage : **la liste blanche reste NOMINATIVE**, jamais dérivée de l'artéfact — une
       liste dérivée autorise tout ce qu'une future version du framework y injectera, sans qu'aucun
       humain l'ait vu. Détail : `.claude/lessons/security-lessons.md` **S-005**.
+- [ ] **🔴 QUAND UN COMPTE DE PERMISSION AUGMENTE, DEMANDER *QUELLE PAGE* LE PRODUIT — puis vérifier
+      qu'un instrument ÉNUMÈRE les blocs de CETTE page-là** (constaté le 2026-08-21, E3-ST3 ;
+      cinquième occurrence de **S-010**). Mesuré : `style-src` passe de 13 à 14 hachages, le 14ᵉ
+      étant le bloc `.simulation` — présent sur **une seule** page de l'artéfact. Or le seul test
+      qui énumère les blocs `<style>` du DOM vivant et exige que **chacun soit nommé** par la
+      directive servie navigue une **autre** page. Le hachage le plus récemment autorisé était donc
+      le seul qu'aucun instrument n'énumérait là où il naît ; il ne restait que le compte **global**,
+      qui ne dit rien de l'origine d'un bloc. ⚠️ **Le garde-fou existant ne pouvait pas l'attraper** :
+      son déclencheur est un spec passé en `skip`, et rien n'avait été éteint — c'est la
+      **population** qui a changé sous l'instrument. Corollaire de nommage : tout littéral dit
+      « **la** page de leçon » (`…_PAGE_LECON`) se **renomme d'après la page qu'il mesure** dès
+      qu'une deuxième variante de page publiée existe. Une promesse au singulier a une date de
+      péremption implicite.
 - [ ] **Retirer** tout header `Server`/`X-Powered-By` exposant la stack.
 
 ### 2 · Aucun secret côté client (A02/A04)

@@ -65,8 +65,16 @@ import { PluieGlyphes } from '../../core/ambiance/pluie-glyphes/pluie-glyphes';
 import { CarteCours } from './carte-cours/carte-cours';
 import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
 
-/** Modules du cours réellement publiés. Confronté au manifeste par le spec. */
-const MODULES_PUBLIES = 1;
+/**
+ * Modules du cours réellement publiés. Confronté au manifeste par le spec.
+ *
+ * 📈 1 → 3 le 2026-08-21 (E3-ST2 et E3-ST3) : `02-evaluation-cvss` et
+ * `03-injection` rejoignent `01-fondamentaux`. Le littéral est délibéré — c'est
+ * lui qui force la revue humaine d'une page d'accueil dont le texte, lui, n'est
+ * dérivé de rien (voir la `description` de la carte, corrigée dans le même
+ * commit : elle annonçait « le premier module est en ligne »).
+ */
+const MODULES_PUBLIES = 3;
 
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;
@@ -126,7 +134,7 @@ const MODULES_TOTAL = 13;
 
       <app-carte-cours
         titre="Sécurité des applications web"
-        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. Le premier module est en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
+        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. Les premiers modules sont en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
         lien="/cours/securite-web"
         [modulesPublies]="modulesPublies"
         [modulesTotal]="modulesTotal"

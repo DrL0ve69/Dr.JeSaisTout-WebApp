@@ -1,0 +1,187 @@
+{
+  "lecon": "injection",
+  "titre": "Déroulé d'une injection SQL — de l'entrée saisie à la fuite de données",
+  "acteurs": [
+    { "id": "attaquant", "libelle": "Attaquant", "type": "attaquant" },
+    { "id": "application", "libelle": "Application web", "type": "serveur" },
+    { "id": "base", "libelle": "Base de données", "type": "stockage" }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "Le sondage : une apostrophe seule",
+      "narration": "L'attaquant ne connaît encore aucun compte. Il saisit une simple apostrophe dans le champ « Code utilisateur » du formulaire de connexion et soumet la page. Son but n'est pas d'entrer : c'est de voir si ce caractère, qui a un sens grammatical en SQL, atteint le moteur de base de données sans avoir été neutralisé.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "application",
+          "libelle": "POST /connexion — code utilisateur : une apostrophe"
+        },
+        "panneaux": {
+          "attaquant": {
+            "texte": "Code utilisateur : '        Mot de passe : (peu importe)"
+          }
+        }
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "L'erreur trahit le moteur",
+      "narration": "L'application renvoie un message d'erreur SQL brut. Deux informations en sortent d'un coup : l'apostrophe est bien arrivée jusqu'au moteur, donc l'injection est possible ; et le texte du message nomme le moteur employé, ici MySQL, ce qui indique à l'attaquant quelle grammaire de commentaire utiliser ensuite. En production, ce message devrait être remplacé par une page d'erreur neutre.",
+      "etatVisuel": {
+        "acteurActif": "application",
+        "fleche": {
+          "de": "application",
+          "vers": "attaquant",
+          "libelle": "Message d'erreur SQL brut"
+        },
+        "surbrillance": ["application"],
+        "panneaux": {
+          "application": {
+            "texte": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''' AND mot_de_passe = ''' at line 1"
+          }
+        }
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "La charge utile est saisie",
+      "narration": "L'attaquant saisit maintenant admin';# dans le champ « Code utilisateur » et laisse le champ du mot de passe entièrement vide. Trois caractères font tout le travail : l'apostrophe referme la chaîne juste après le mot admin, le point-virgule termine l'instruction (facultatif ici : admin'# suffit), et le croisillon ouvre un commentaire de fin de ligne propre à MySQL.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "application",
+          "libelle": "POST /connexion — la charge utile"
+        },
+        "panneaux": {
+          "attaquant": { "texte": "Code utilisateur : admin';#        Mot de passe : (vide)" }
+        }
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "L'application construit sa requête",
+      "narration": "Le code PHP interpole les deux valeurs reçues dans le texte de sa requête, entre les guillemets qu'il a écrits lui-même. C'est l'instant décisif, et il se passe entièrement côté serveur : à partir d'ici, plus personne dans la chaîne d'exécution ne sait quelle portion du texte venait de l'utilisateur. La donnée et la commande ne forment plus qu'une seule chaîne.",
+      "etatVisuel": {
+        "acteurActif": "application",
+        "surbrillance": ["application"],
+        "panneaux": {
+          "application": {
+            "code": "SELECT id_utilisateur FROM utilisateur\nWHERE code_utilisateur = 'admin'; #' AND mot_de_passe = ''",
+            "langage": "sql"
+          }
+        }
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "La requête part vers la base",
+      "narration": "Le pilote envoie cette chaîne unique au serveur de base de données. Le moteur l'analyse et applique sa grammaire : tout ce qui suit le croisillon est un commentaire, y compris le guillemet devenu orphelin et la condition sur le mot de passe. La requête effectivement exécutée ne demande donc plus qu'une seule chose : la ligne dont le code utilisateur vaut admin.",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": {
+          "de": "application",
+          "vers": "base",
+          "libelle": "Requête envoyée, vérification du mot de passe commentée"
+        },
+        "panneaux": {
+          "base": {
+            "code": "SELECT id_utilisateur FROM utilisateur\nWHERE code_utilisateur = 'admin';",
+            "langage": "sql"
+          }
+        }
+      }
+    },
+    {
+      "numero": 6,
+      "titre": "La base renvoie la ligne de l'administrateur",
+      "narration": "Le moteur fait son travail correctement : la ligne existe, il la renvoie. Il n'y a aucune anomalie de son point de vue, rien à journaliser, rien à refuser. C'est le point que le cours souligne le moins et qui compte le plus : la base de données n'est pas compromise, elle exécute une requête parfaitement valide que l'application lui a demandée.",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": {
+          "de": "base",
+          "vers": "application",
+          "libelle": "1 ligne : id_utilisateur = 1"
+        },
+        "surbrillance": ["base"],
+        "panneaux": { "base": { "texte": "1 ligne renvoyée — id_utilisateur = 1 (compte admin)" } }
+      }
+    },
+    {
+      "numero": 7,
+      "titre": "La session s'ouvre sans mot de passe",
+      "narration": "Le code de l'application teste seulement si une ligne est revenue. Une ligne est revenue, donc il conclut que l'authentification a réussi : il ouvre une session au nom de l'identifiant reçu et redirige vers la page protégée. Aucun mot de passe n'a jamais été comparé à quoi que ce soit. Le contournement d'authentification est terminé, et c'est exactement l'écran projeté à la diapositive 17 du cours.",
+      "etatVisuel": {
+        "acteurActif": "application",
+        "fleche": {
+          "de": "application",
+          "vers": "attaquant",
+          "libelle": "302 vers la page protégée, session ouverte"
+        },
+        "surbrillance": ["application", "attaquant"],
+        "panneaux": {
+          "application": { "code": "$_SESSION['id_utilisateur'] = 1;", "langage": "php" }
+        }
+      }
+    },
+    {
+      "numero": 8,
+      "titre": "Seconde charge : lire au-delà de la table visée",
+      "narration": "Entrer ne suffit plus. L'attaquant s'en prend maintenant à un champ de recherche de la même application, également concaténé, et y place un UNION SELECT. Cet opérateur colle les résultats d'une seconde requête à ceux de la première, à condition que les deux aient le même nombre de colonnes : il a d'abord trouvé ce nombre, deux, en essayant des NULL un par un jusqu'à la disparition de l'erreur, et il demande maintenant les deux colonnes qui l'intéressent. Cette partie du déroulé est un complément de la base de connaissances, hors du programme 2026.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "application",
+          "libelle": "GET /recherche — charge UNION SELECT"
+        },
+        "panneaux": {
+          "attaquant": {
+            "texte": "Recherche : zzz%' UNION SELECT code_utilisateur, mot_de_passe FROM utilisateur -- -"
+          }
+        }
+      }
+    },
+    {
+      "numero": 9,
+      "titre": "La requête élargie atteint la table des comptes",
+      "narration": "L'application concatène de nouveau, et la requête qui part au moteur ne porte plus sur les seuls articles : sa seconde moitié lit la table des comptes. Regarde le détail qui fait tout : le gabarit du code est LIKE '%…%', et la charge apporte elle-même le pourcent et l'apostrophe qui referment ce motif — le %' que le code ajoute à la fin se retrouve alors derrière le commentaire -- -, donc ignoré. Le moteur exécute les deux moitiés et fusionne les résultats, parce que la requête est syntaxiquement valide et que le compte de connexion à la base a le droit de lire cette table.",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": {
+          "de": "application",
+          "vers": "base",
+          "libelle": "Requête élargie à la table des comptes"
+        },
+        "surbrillance": ["application"],
+        "panneaux": {
+          "base": {
+            "code": "SELECT titre, resume FROM article WHERE titre LIKE '%zzz%'\nUNION SELECT code_utilisateur, mot_de_passe FROM utilisateur -- -%'",
+            "langage": "sql"
+          }
+        }
+      }
+    },
+    {
+      "numero": 10,
+      "titre": "La fuite de données",
+      "narration": "La base renvoie les identifiants et les hachages de mots de passe de tous les comptes, et l'application les affiche dans sa liste de résultats de recherche, à la place des articles attendus. C'est la fuite de données proprement dite. Deux couches auraient limité les dégâts : un compte de base de données restreint aux seules tables du catalogue, et des mots de passe hachés par un algorithme lent, qui ne se cassent pas au dictionnaire comme du MD5 non salé.",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": {
+          "de": "base",
+          "vers": "application",
+          "libelle": "Comptes et hachages de mots de passe"
+        },
+        "surbrillance": ["base", "application"],
+        "panneaux": {
+          "base": {
+            "texte": "admin | 5f4dcc3b5aa765d61d8327deb882cf99 · maxime | 21232f297a57a5a743894a0e4a801fc3"
+          }
+        }
+      }
+    }
+  ]
+}

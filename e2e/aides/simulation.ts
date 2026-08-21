@@ -26,16 +26,24 @@
 // d'un coup, ce qui est le comportement souhaité pour un contrat de document.
 // =============================================================================
 
+import { readFileSync } from 'node:fs';
+
 import { Locator, Page, expect } from '@playwright/test';
+
+import { LECON_AVEC_SIMULATION } from './artefact-mesure';
+import { fichierSourceDeLaLecon, laLeconEstDeclaree } from './lecon-source';
 
 /**
  * La route de la page de leçon qui porte une SIMULATION dans l'artéfact sous mesure.
  *
  * 📉 Le littéral `'/cours/securite-web/lecon-temoin/'` a disparu le 2026-08-20, avec le harnais
  * de fixture de `ci.yml` (clôture d'E3-ST1). Une route écrite en dur n'aurait plus de sens : les
- * deux workflows bâtissent le contenu RÉEL, et la leçon qui portera une simulation (E3-ST3,
- * `03-injection`) n’est pas encore publiée. `artefact-mesure.ts` la DÉCOUVRE dans l’artéfact,
- * ou fait sauter le fichier en nommant ce qui n’a pas été mesuré.
+ * deux workflows bâtissent le contenu RÉEL. `artefact-mesure.ts` la DÉCOUVRE dans l’artéfact, ou
+ * fait sauter le fichier en nommant ce qui n’a pas été mesuré.
+ *
+ * ✅ DEPUIS LE 2026-08-21, elle est découverte pour de bon : `03-injection` (E3-ST3) est la
+ * première leçon publiée à porter une simulation, et les trois specs se sont rallumés seuls, comme
+ * la clôture d'E3-ST1 l'avait annoncé.
  */
 export { ROUTE_LECON_SIMULATION } from './artefact-mesure';
 
@@ -45,15 +53,98 @@ export const ID_REGION = 'simulation';
 /** Le préfixe des `id` d'étape : l'étape N porte `simulation-etape-N`. */
 export const PREFIXE_ID_ETAPE = 'simulation-etape-';
 
-/** Mesuré sur la fixture témoin. */
-export const NOMBRE_ETAPES = 6;
+/** Une étape, réduite à ce que les specs ont le droit d'en LIRE. */
+interface EtapeSource {
+  readonly etatVisuel?: { readonly surbrillance?: readonly string[] };
+}
 
-/** Mesuré sur la fixture témoin. */
-export const NOMBRE_ACTEURS = 4;
+/** Ce qu'un `simulation.json` déclare, réduit à ce que les specs ont le droit de LIRE. */
+interface SimulationSource {
+  readonly acteurs: readonly unknown[];
+  readonly etapes: readonly EtapeSource[];
+}
+
+/**
+ * Lit le `simulation.json` de la leçon RÉELLEMENT mesurée par l'artéfact sous test.
+ *
+ * Rend des tableaux VIDES — plutôt que de lever — quand l'artéfact ne porte aucune
+ * leçon à simulation : les trois specs appelants sont déjà sautés par
+ * `exigerUneLeconAvecSimulation`, et lever à l'import transformerait un saut
+ * annoncé en erreur de chargement (même raison que `lireQuizSource`).
+ *
+ * En revanche, il LÈVE en se nommant sur les deux incohérences réelles : une leçon
+ * dont l'artéfact rend `<app-simulation` sans que sa source déclare la moindre
+ * étape, et une leçon prerendue qu'aucune racine de contenu ne déclare. Un retour
+ * muet y ferait passer les trois specs VERTS sur zéro étape.
+ */
+function lireSimulationSource(): SimulationSource {
+  const slug = LECON_AVEC_SIMULATION?.slug;
+  if (slug === undefined) return { acteurs: [], etapes: [] };
+
+  const chemin = fichierSourceDeLaLecon(slug, 'simulation.json');
+  if (chemin === undefined) {
+    throw new Error(
+      laLeconEstDeclaree(slug)
+        ? `la leçon « ${slug} » ne porte pas de « simulation.json », alors que l'artéfact prerend ` +
+          "bien un « <app-simulation » sur sa page : la source et l'artéfact ont divergé"
+        : `aucune racine de contenu ne déclare « slug: ${slug} », que l'artéfact prerend pourtant : ` +
+          'le frontmatter et le manifeste de routes ont divergé, ou la leçon mesurée a été bâtie ' +
+          "depuis une racine qu'« aides/lecon-source.ts » ne connaît pas",
+    );
+  }
+
+  const brut = JSON.parse(readFileSync(chemin, 'utf8')) as Partial<SimulationSource>;
+  const acteurs = brut.acteurs ?? [];
+  const etapes = brut.etapes ?? [];
+  if (etapes.length === 0 || acteurs.length === 0) {
+    throw new Error(
+      `la simulation de « ${slug} » déclare ${String(acteurs.length)} acteur(s) et ` +
+        `${String(etapes.length)} étape(s) — une source vide rendrait les trois specs vacuously verts`,
+    );
+  }
+  return { acteurs, etapes };
+}
+
+/**
+ * Ce que la SOURCE de la leçon mesurée déclare — jamais ce que le DOM affiche.
+ *
+ * 📉 Les littéraux `6` et `4` ont disparu le 2026-08-21 (E3-ST3). Ils étaient
+ * annotés « mesuré sur la fixture témoin », et c'était exact tant que la fixture
+ * était le seul artéfact à porter une simulation. `03-injection` en publie une de
+ * **10 étapes et 3 acteurs** : les trois specs de simulation, qui venaient de se
+ * rallumer seuls comme prévu, rougissaient tous sur un produit parfaitement SAIN —
+ * le mode d'échec exact de L-035 (une prémisse de test fausse accuse le produit).
+ *
+ * 🔴 CE N'EST PAS UN AFFAIBLISSEMENT DE L'ASSERTION, et c'est le même geste que
+ * `quiz-source.ts` : le compte reste confronté à une source INDÉPENDANTE du rendu.
+ * L'auteur déclare N étapes dans `simulation.json` ; les specs exigent que le
+ * prerender en porte N, qu'aucune ne soit masquée et que N-1 se replient. Un compte
+ * tiré du DOM se prouverait lui-même — c'est CELA qui aurait vidé le gate.
+ */
+const SOURCE = lireSimulationSource();
+
+/** Les étapes que l'auteur déclare. `0` quand l'artéfact n'a aucune simulation. */
+export const NOMBRE_ETAPES = SOURCE.etapes.length;
+
+/** Les acteurs que l'auteur déclare. `0` quand l'artéfact n'a aucune simulation. */
+export const NOMBRE_ACTEURS = SOURCE.acteurs.length;
+
+/**
+ * Les marqueurs « danger » que la page entière doit porter : le gabarit en pose UN
+ * par acteur mis en surbrillance, à chaque étape — donc la SOMME des `surbrillance`,
+ * pas le nombre d'étapes qui en portent.
+ *
+ * 📉 Le littéral `1` (« la fixture témoin porte exactement une surbrillance ») a
+ * disparu ici le 2026-08-21 pour la même raison que les comptes d'étapes.
+ */
+export const NOMBRE_MARQUEURS_DANGER = SOURCE.etapes.reduce(
+  (total, etape) => total + (etape.etatVisuel?.surbrillance?.length ?? 0),
+  0,
+);
 
 /**
  * Les arrêts de tabulation de la région : 3 commandes (précédente / suivante /
- * réinitialiser) puis un lien par étape. Mesuré : 9 sur la fixture témoin.
+ * réinitialiser) puis un lien par étape.
  */
 export const NOMBRE_LIENS = 3 + NOMBRE_ETAPES;
 

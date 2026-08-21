@@ -370,6 +370,35 @@ les deux moitiés d'un seul geste correct.
 **Réfs additionnelles.** `src/app/features/cours/contenu-compile.ts` (`ANCRES_RESERVEES`),
 `src/app/features/cours/simulation/simulation.ts`, `docs/agile/backlog-phase-1.md` §E2-ST5 lot a.
 
+**Cinquième occurrence, E3-ST2/E3-ST3 (2026-08-21) — la promesse générique « LA page de leçon »
+se rompt en silence dès qu'une deuxième leçon existe, SANS qu'aucun spec ne passe en `skip`.**
+`style-src` gagne un 14ᵉ hachage (bloc `.simulation`, 4 775 o) en ajoutant la leçon `injection/`,
+seule page de l'artéfact à porter `<app-simulation`. Le seul test qui **énumère** les blocs
+`<style>` du DOM vivant et exige que chacun soit **nommé** par la CSP servie visait
+`ROUTE_LECON_QUIZ` — la première page portant `<app-quiz` (`evaluation-cvss`), qui n'a **pas** de
+simulation. Le bloc neuf n'était donc couvert par **aucun** instrument d'énumération : seul
+subsistait le **compte global** de l'artéfact, qui ne dit rien de la **page d'origine** d'un bloc.
+**Ce qui rend ce cas distinct de la règle ci-dessus et de [[S-023]] point 2 : rien n'a été
+supprimé ni passé en `skip`.** Tant qu'une seule leçon existait, « la page de leçon » désignait un
+objet unique par construction et deux constantes nommées d'après cet objet convergeaient
+forcément ; à trois leçons, `ROUTE_LECON_QUIZ` et `ROUTE_LECON_SIMULATION` désignent deux pages
+**différentes** sans qu'aucun texte ne le dise — la promesse d'unicité était vraie à l'écriture et
+**devient fausse par la seule croissance du corpus publié**, sans qu'aucun diff ne la touche.
+**Règle renforcée.** Quand un lot augmente un compte de permission CSP, recenser **quelle page**
+produit chaque hachage neuf, puis vérifier qu'un instrument **énumère** les blocs de CETTE page
+précise — un compte global ou un test visant « la » page de leçon ne suffit pas dès qu'il en existe
+plusieurs. Tout littéral/constante nommé au singulier générique (`…_PAGE_LECON`) se renomme
+d'après la page qu'il mesure réellement (`…_PAGE_QUIZ`, `…_PAGE_SIMULATION`) dès qu'une deuxième
+variante de page apparaît dans le corpus publié — le renommage rend visible ce que le nom générique
+masquait. Corollaire pour tout corpus qui grossit (leçons, pages, routes) : une promesse d'unicité
+« la page de X » a une **date de péremption implicite**, le jour où un deuxième X publié existe ;
+la revoir à ce moment-là n'est pas optionnel.
+**Correctif appliqué.** `BLOCS_STYLE_PAGE_LECON` renommé `BLOCS_STYLE_PAGE_QUIZ` ; ajout de
+`BLOCS_STYLE_PAGE_SIMULATION = 7` et d'un test qui rejoue « 0 orphelin » + le compte de blocs sur
+`ROUTE_LECON_SIMULATION`, avec anti-vacuité exigeant qu'un bloc porte `.simulation`.
+**Réfs additionnelles.** `e2e/aides/sonde-csp.ts`, `e2e/aides/artefact-mesure.ts`
+(`ROUTE_LECON_QUIZ`, `ROUTE_LECON_SIMULATION`), branche `feat/e3-st2-st3-lecons` (2026-08-21).
+
 ## S-011 · Un garde-fou qui balaie la SORTIE rencontre un jour le contenu qui enseigne le motif qu'il refuse (A05 · pression d'assouplissement)
 
 **Symptôme.** `tools/deploiement/generer-config-swa.mjs` lit le HTML prerendu et refuse deux
