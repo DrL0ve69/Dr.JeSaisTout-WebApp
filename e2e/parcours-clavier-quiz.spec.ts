@@ -118,8 +118,25 @@ const QUESTIONS_SOURCE = lireQuizSource();
 /**
  * Borne de la marche d'approche vers le quiz. Généreuse mais finie : sans elle, un
  * piège du focus AVANT le quiz ferait boucler la suite au lieu de la faire rougir.
+ *
+ * 📈 60 → 200 le 2026-08-21 (E3-ST5). ⚠️ Ce n'est PAS un relâchement décidé de
+ * mémoire : le préambule réellement traversé a été MESURÉ à **66 tabulations** sur
+ * la page que la découverte vise désormais. Le 60 précédent n'avait jamais été un
+ * jugement sur les pièges du focus — c'était la taille d'une AUTRE page.
+ *
+ * 🔴 CE QUI A CHANGÉ SOUS L'INSTRUMENT, et qu'aucun garde-fou n'annonçait.
+ * `ROUTE_LECON_QUIZ` désigne la PREMIÈRE page prerendue portant `<app-quiz`, dans
+ * l'ordre alphabétique du dossier. La publication de `csrf` l'a fait passer de
+ * `evaluation-cvss` à `csrf` — une page plus longue, et surtout la première dont la
+ * simulation précède le quiz, donc dont le préambule porte les arrêts de la
+ * simulation. Le spec n'a pas été éteint, aucune permission n'a bougé : c'est la
+ * POPULATION qui s'est déplacée (famille S-010).
+ *
+ * La marge tient donc à une page notablement plus lourde que celle mesurée. Ce que
+ * la borne garde n'est pas un compte d'arrêts — c'est la FINITUDE de la marche : un
+ * piège du focus boucle, et 200 le fait rougir aussi sûrement que 60.
  */
-const LIMITE_APPROCHE = 60;
+const LIMITE_APPROCHE = 200;
 
 /**
  * LES ARRÊTS DU QUIZ, DANS L'ORDRE DU DOCUMENT — le cœur épinglé de ce fichier.

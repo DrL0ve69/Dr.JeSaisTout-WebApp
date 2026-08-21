@@ -1,0 +1,184 @@
+{
+  "lecon": "csrf",
+  "titre": "Quiz — CSRF",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Une utilisatrice est connectée à banque.example dans un onglet. Le cookie de session de ce site est posé avec SameSite=None; Secure, une contrainte héritée d'un widget partenaire hébergé ailleurs. Dans un autre onglet, elle ouvre une page de evil.example qui soumet toute seule un formulaire vers banque.example. De quoi l'attaquant a-t-il eu besoin pour que le virement s'exécute ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "De rien de plus que l'URL de l'action et le nom de ses paramètres : le navigateur joint le cookie de session tout seul, parce que la requête vise banque.example."
+        },
+        {
+          "id": "b",
+          "texte": "De la valeur du cookie de session, qu'il doit d'abord voler par un script ou par une écoute du réseau."
+        },
+        {
+          "id": "c",
+          "texte": "D'une faille XSS sur banque.example : sans code injecté dans ce site, aucune requête ne peut partir vers lui."
+        },
+        {
+          "id": "d",
+          "texte": "Que l'utilisatrice clique elle-même sur un bouton de la page piégée : un navigateur n'envoie jamais de requête sans un geste explicite."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est la définition même du CSRF, et le mot qui la résume est autorité ambiante : l'autorité de la requête ne vient pas de ce que l'appelant présente, elle vient de l'environnement dans lequel la requête part. Le cookie est là, sa seule présence suffit. L'attaquant n'a donc besoin ni de le lire, ni de le connaître, ni de le voler. La réponse b décrit un vol de session, qui est une autre attaque : dans un CSRF, le cookie ne quitte jamais le navigateur de la victime et l'attaquant ne voit jamais la réponse du serveur — d'où le mot forgery, falsification, et non theft, vol. La réponse c confond CSRF et XSS : la page piégée est du HTML parfaitement ordinaire servi par evil.example, son script s'exécute avec l'origine d'evil.example, et rien n'est injecté dans banque.example ; le web autorise depuis toujours un formulaire à pointer vers n'importe quel site. La réponse d est fausse : une balise d'image part au chargement de la page, et un formulaire soumis par un gestionnaire onload part sans le moindre clic. Une nuance décide toutefois de ce scénario, et l'énoncé la pose exprès : depuis 2020, un cookie SANS attribut SameSite est traité comme Lax par les navigateurs fondés sur Chromium, et ce POST venu d'un autre site ne porterait alors aucun cookie (hors la fenêtre de 2 minutes dite Lax+POST, propre au défaut implicite). Il a fallu que la banque déclare explicitement SameSite=None; Secure — c'est précisément ce que SameSite protège, et c'est pourquoi tout cookie de session posé sans attribut doit être considéré comme une décision, pas comme un oubli sans conséquence.",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q2",
+      "type": "trouver-la-faille",
+      "consigne": "Ce traitement PHP reçoit la soumission du formulaire de changement de mot de passe. La page qui affiche ce formulaire génère bien un jeton anti-CSRF, le range dans la session et l'écrit dans un champ caché. Quelle ligne laisse malgré tout passer une requête forgée depuis un site tiers ?",
+      "langage": "php",
+      "code": "session_start();\nif (!isset($_SESSION['utilisateur'])) {\n    http_response_code(403);\n    exit('Non authentifie.');\n}\n\nif (isset($_POST['csrf_token']) && $_POST['csrf_token'] !== $_SESSION['csrf_token']) {\n    http_response_code(403);\n    exit('Jeton CSRF incorrect.');\n}\n\nchanger_mot_de_passe($_SESSION['utilisateur'], $_POST['password_new']);",
+      "ligneFautive": 7,
+      "faille": "CSRF — la vérification du jeton est conditionnée à la PRÉSENCE du jeton : une requête qui n'en envoie aucun n'est jamais vérifiée",
+      "explication": "La ligne 7 ne vérifie le jeton que s'il est présent. Or une requête forgée depuis un site tiers n'en envoie aucun : isset() renvoie faux, la condition entière est fausse, aucun rejet n'a lieu, et la ligne 12 exécute le changement de mot de passe. L'attaquant n'a même pas eu à deviner la valeur du jeton — il lui a suffi de ne rien envoyer, ce qui est le cas le plus fréquent en attaque réelle. Un contrôle anti-CSRF doit donc refuser explicitement le jeton ABSENT, exactement comme le jeton faux. Second défaut, sur la même ligne et moins visible : !== compare deux chaînes en temps variable, la comparaison s'arrêtant au premier caractère différent ; en mesurant des milliers de réponses, on reconstitue le jeton caractère par caractère. On emploie hash_equals(), qui compare en temps constant. La ligne 2 n'est PAS fautive : vérifier la session est juste et nécessaire, mais elle répond à une autre question — QUI agit, jamais SI la personne a voulu agir. C'est même le cœur du sujet : le cookie ayant été joint automatiquement, ce contrôle réussit parfaitement pour une requête déclenchée par evil.example. La ligne 12 n'est pas fautive non plus : c'est l'action métier, elle fait ce qu'on lui demande ; elle ne devient forgeable que parce que rien n'a été vérifié avant elle. Retiens les trois propriétés d'une vérification correcte : elle refuse le jeton absent, elle compare en temps constant, et elle tranche AVANT tout effet de bord.",
+      "correction": "session_start();\nif (!isset($_SESSION['utilisateur'])) {\n    http_response_code(403);\n    exit('Non authentifie.');\n}\n\nif (\n    empty($_POST['csrf_token'])\n    || empty($_SESSION['csrf_token'])\n    || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])\n) {\n    http_response_code(403);\n    exit('Requete invalide : jeton CSRF absent ou incorrect.');\n}\n\nchanger_mot_de_passe($_SESSION['utilisateur'], $_POST['password_new']);",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Poser SameSite=Strict sur le cookie de session dispense d'implémenter un jeton anti-CSRF : si le cookie ne part jamais avec une requête venue d'un autre site, il n'y a plus rien à falsifier.",
+      "bonneReponse": false,
+      "justification": "Faux, et l'OWASP le formule explicitement : SameSite est une défense en profondeur, jamais un remplacement du jeton. Quatre trous, tous réels. Premièrement, les sous-domaines : same-site se juge sur le SITE, c'est-à-dire le domaine enregistrable, pas sur l'origine. boutique.exemple.com et banque.exemple.com sont same-site — un sous-domaine compromis, ou simplement loué à un tiers en hébergement partagé, attaque le domaine principal sans jamais franchir la frontière que SameSite surveille. Deuxièmement, l'attribut n'est pas fail-safe : c'est le CLIENT qui l'applique, et un client qui ne l'implémente pas retombe sur l'ancien comportement, équivalent à None. Une défense dont l'échec est silencieux et décidé par la partie qu'on ne contrôle pas ne peut pas être la seule. Troisièmement, Strict coûte cher en usage — la personne qui arrive par un lien externe est vue déconnectée — ce qui fait retomber la plupart des sites sur Lax, lequel laisse en plus passer la navigation de premier niveau en GET : si une action d'état est accessible en GET, un simple lien cliqué dans un courriel la déclenche. Quatrièmement, un XSS est same-site par construction : le script s'exécute dans une page du site lui-même, et le cookie Strict est joint sans hésitation. À noter pour ne pas se tromper de conclusion : depuis 2020, les navigateurs fondés sur Chromium traitent déjà un cookie sans attribut comme Lax, si bien qu'une bonne part de cette protection est acquise par défaut — raison de plus pour ne pas la compter deux fois et pour garder le jeton, qui est la seule défense complète contre la forge depuis un site tiers.",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Dans l'exercice du cours, la charge fetch() est livrée par un point d'injection XSS de DVWA lui-même : le script s'exécute donc dans une page servie par le même hôte que le module CSRF visé. En niveau Medium, ce module vérifie que le nom du serveur apparaît dans l'en-tête Referer de la requête. Que donne l'attaque ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Elle réussit : la requête part d'une page DVWA, son Referer contient donc bien l'hôte attendu. Un contrôle de Referer n'arrête que la forge depuis un vrai site tiers."
+        },
+        {
+          "id": "b",
+          "texte": "Elle échoue : le niveau Medium exige un user_token que la fetch ne peut pas connaître."
+        },
+        {
+          "id": "c",
+          "texte": "Elle échoue : un navigateur ne joint jamais d'en-tête Referer à une requête émise par fetch()."
+        },
+        {
+          "id": "d",
+          "texte": "Elle réussit, mais seulement parce que l'action est accessible en GET ; le contrôle de Referer l'aurait bloquée si le formulaire avait été en POST."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est le résultat contre-intuitif de l'exercice, et il enseigne plus que la gradation elle-même : une défense fondée sur l'ORIGINE de la requête ne distingue rien quand l'attaquant a déjà obtenu de faire exécuter son code DEPUIS le site visé. La charge du cours est injectée dans une page DVWA, donc servie par le même hôte ; le Referer envoyé contient cet hôte, le stripos() du niveau Medium le trouve, et la requête passe. Les quatre niveaux de DVWA, à connaître exactement parce qu'on les confond souvent : Low ne vérifie rien du tout ; Medium compare le nom du serveur à l'en-tête Referer et refuse sinon, avec le message « That request didn't look correct. » ; High, et lui seul, introduit le jeton anti-CSRF user_token, comparé à la valeur rangée en session, avec le message « CSRF token is incorrect » ; Impossible exige en plus le mot de passe COURANT. La réponse b est l'erreur la plus répandue sur ce module : elle attribue à Medium le jeton, qui n'apparaît qu'en High. La réponse c est fausse : une requête fetch() de même origine part avec son Referer. La réponse d confond deux mécanismes indépendants — le Referer ne dépend pas de la méthode HTTP, et le contrôle passerait tout autant sur un POST déclenché depuis une page DVWA. Le raisonnement à emporter : contre un attaquant qui exécute du code dans le site, la seule défense qui ne s'effondre pas immédiatement est la ré-authentification du niveau Impossible, parce que le mot de passe courant n'est écrit nulle part dans le document. Attention toutefois à ne pas en faire une garantie : elle n'y résiste pas non plus. Ce même script injecté peut enregistrer la frappe au clavier, ou peindre un faux formulaire de ré-authentification et récolter la saisie. Elle augmente le coût de l'attaque, elle ne l'annule pas.",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Un jeton anti-CSRF placé en champ caché — ou sa variante double-submit — protège encore l'application si une de ses pages affiche, sans échappement, un nom saisi par un utilisateur.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le point le plus important du module. Une page qui affiche sans échappement une valeur saisie porte un XSS : un attaquant y dépose un script, et ce script s'exécute DANS la page, dans l'origine du site. Or le jeton doit, par construction, être présent dans le document pour que la page légitime puisse l'envoyer — champ caché, variable JavaScript ou cookie lisible pour le double-submit. Le script injecté n'a donc qu'à le lire, puis à émettre la requête depuis la page : le jeton est valide, l'en-tête Origin nomme le site lui-même, et le cookie de session est joint même en SameSite=Strict puisque rien n'est cross-site. Les défenses répondent toutes correctement — à la mauvaise question, car elles vérifient une seule hypothèse : que l'attaquant est à l'EXTÉRIEUR de la page. Le double-submit n'y change rien : dans la variante où le JavaScript de la page recopie le cookie dans un en-tête, ce cookie ne peut pas être HttpOnly, puisque le script doit précisément le lire ; les implémentations modernes, comme celle que la leçon montre, gardent au contraire le cookie HttpOnly et livrent le jeton par un point d'entrée dédié — ce qui ne change rien ici, le script injecté appelle simplement ce point d'entrée depuis la page. C'est la règle générale posée au module 04 — un XSS rend caduque toute défense CSRF, parce qu'il travaille à l'intérieur du périmètre que ces défenses gardent. Deux conséquences pratiques. L'ordre de correction n'est pas une priorisation mais un prérequis : on corrige le XSS d'abord, sans quoi ajouter des jetons donne seulement l'impression d'avoir refermé le chemin d'attaque, ce qui est pire que de le savoir ouvert. Et la seule parade qui ne s'effondre pas immédiatement est la ré-authentification, parce que le mot de passe courant, lui, n'est écrit nulle part dans le document — mais elle n'y résiste pas non plus : le même script peut enregistrer la frappe au clavier, ou peindre un faux formulaire de ré-authentification et récolter la saisie. Elle augmente le coût de l'attaque, elle ne l'annule pas.",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q6",
+      "type": "associer",
+      "consigne": "Chaque défense anti-CSRF ajoute à la requête une information que le cookie ne porte pas. Associe chaque besoin à la défense qui y répond, en gardant en tête qu'une seule d'entre elles couvre tous les vecteurs de forge externe.",
+      "paires": [
+        {
+          "gauche": "Rejeter une requête forgée depuis evil.example, quel que soit le vecteur employé",
+          "droite": "Jeton lié à la session, secret imprévisible posé dans la page"
+        },
+        {
+          "gauche": "Protéger une API qui ne conserve aucune session côté serveur",
+          "droite": "Double-submit signé par HMAC, vérifié sans rien stocker"
+        },
+        {
+          "gauche": "Demander au navigateur lui-même de ne pas joindre le cookie à une requête venue d'un autre site",
+          "droite": "Attribut SameSite, posé sur le cookie et appliqué par le client"
+        },
+        {
+          "gauche": "Faire dire au serveur quel site a déclenché la requête",
+          "droite": "Vérification de l'en-tête Origin, écrit par le navigateur"
+        },
+        {
+          "gauche": "Empêcher qu'une balise d'image ou un lien dans un courriel suffise à déclencher l'action",
+          "droite": "Sémantique HTTP : aucune action d'état derrière une route GET"
+        },
+        {
+          "gauche": "Ne pas s'effondrer immédiatement quand un script injecté a lu le jeton dans la page",
+          "droite": "Ré-authentification : redemander le mot de passe courant"
+        }
+      ],
+      "explication": "La clé pour ne pas les confondre est de nommer l'information ajoutée : un secret imprévisible (le jeton, produit par le serveur dans la page qu'il a servie), une propriété constatée par le navigateur (SameSite, Origin), ou une preuve de présence humaine (la ré-authentification). Comme les informations sont distinctes, les défenses ne se remplacent pas : le consensus est une combinaison, jamais un choix. Le jeton lié à la session est la défense principale parce qu'il est le seul à couvrir TOUS les vecteurs externes — image, lien, formulaire auto-soumis, fetch, iframe — et sa force tient à deux propriétés cumulées : l'attaquant ne peut ni deviner la valeur, ni la lire, la same-origin policy lui interdisant d'ouvrir la page légitime. Le double-submit répond à un besoin différent, celui d'une API qui ne conserve aucune session côté serveur : la MÊME valeur voyage deux fois, une fois dans un cookie et une fois dans un en-tête ou un champ de formulaire, et le serveur compare les deux sans rien mémoriser. Sa version naïve suppose que personne ne peut écrire de cookie sur le domaine, ce qu'un sous-domaine compromis dément — il lui suffit de poser un cookie qui remonte au domaine parent, puis d'envoyer la même valeur en en-tête pour que l'égalité soit vraie. D'où la variante signée par HMAC, où le serveur ne vérifie plus une égalité mais SA PROPRE signature, qu'un sous-domaine ne sait pas produire. L'attribut SameSite, lui, n'ajoute rien à la requête : il demande au navigateur de ne pas joindre le cookie, ce qui en fait une défense en profondeur gratuite — un attribut à écrire, aucun code à maintenir — mais lui laisse deux angles morts, à retenir ensemble. D'abord il juge sur le SITE, c'est-à-dire le domaine enregistrable et non l'origine : il est donc aveugle à un sous-domaine compromis. Ensuite c'est le CLIENT qui l'applique : il est donc inopérant sur un navigateur qui l'ignore. La vérification de l'en-tête Origin, elle, tient toute sa valeur d'une propriété que rien d'autre ne donne : cet en-tête est écrit par le navigateur, hors de portée du code de l'attaquant, qui ne peut donc ni le falsifier ni le supprimer depuis sa page. La règle « aucune action d'état en GET » ne bloque aucun CSRF à elle seule — un POST se forge aussi — mais elle supprime le vecteur le plus simple et le plus discret, et c'est elle qui rend inoffensif le trou que SameSite=Lax laisse ouvert sur la navigation de premier niveau : les deux règles se tiennent l'une l'autre. La ré-authentification, enfin, est la seule qui ne s'effondre pas immédiatement sous un XSS — le mot de passe courant n'est pas dans le document, le script injecté ne peut donc pas simplement l'y lire — mais elle n'y résiste pas non plus : ce script peut enregistrer la frappe au clavier ou peindre un faux formulaire de ré-authentification. Elle augmente le coût de l'attaque, elle ne l'annule pas, et sa friction bien réelle la réserve aux actions à fort impact. Provenance : ce que le cours te fait observer, c'est l'effet du jeton sur DVWA ; SameSite, la vérification d'Origin, le double-submit et la ré-authentification sont des compléments de la base de connaissances, incontournables en emploi mais non exigibles à l'examen 2026.",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Un rapport d'audit signale un risque CSRF sur une API authentifiée par cookie. Un développeur propose de « verrouiller CORS » en n'autorisant que l'origine du front. Que faut-il en penser ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Cela ne fermera pas le CSRF : CORS gouverne la LECTURE des réponses par un script d'une autre origine, pas l'ENVOI des requêtes. Un formulaire classique est une requête simple : elle part, le cookie est joint, l'effet de bord a lieu — et l'attaquant ne demande jamais à lire la réponse."
+        },
+        {
+          "id": "b",
+          "texte": "C'est la bonne parade : une politique CORS restrictive empêche un site tiers d'émettre une requête POST vers l'API."
+        },
+        {
+          "id": "c",
+          "texte": "C'est la bonne parade, à condition d'ajouter Access-Control-Allow-Credentials: true pour que le navigateur refuse les cookies venus d'ailleurs."
+        },
+        {
+          "id": "d",
+          "texte": "Cela ne changera rien, mais l'inverse est vrai aussi : la configuration CORS est neutre vis-à-vis du CSRF, permissive comme restrictive."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "CORS et CSRF ne gardent pas le même passage : le premier décide si un script d'une autre origine a le droit de LIRE une réponse, le second est une attaque en ÉCRITURE dont l'effet de bord se produit côté serveur avant même que la question de la lecture ne se pose. Croire que CORS protège du CSRF, c'est mettre un verrou sur la boîte aux lettres en pensant qu'il empêche d'entrer par la porte. La réponse b est la confusion classique : rien dans CORS n'empêche une requête de partir, et un formulaire HTML en application/x-www-form-urlencoded est une requête simple, sans aucun contrôle préalable à contourner. La réponse c inverse le sens de l'en-tête : Access-Control-Allow-Credentials autorise la lecture d'une réponse obtenue AVEC les cookies, il ne refuse rien du tout. La réponse d est fausse, et c'est le point à retenir : une politique CORS permissive AGGRAVE le CSRF. En reflétant n'importe quelle origine avec Allow-Credentials: true, le serveur laisse le script de l'attaquant lire ses pages authentifiées — donc y lire le jeton anti-CSRF et le rejouer — et fait réussir le contrôle préalable, ce qui annule du même coup la défense par en-tête personnalisé. D'où une nuance à ne pas retourner contre la bonne réponse : resserrer CORS reste utile — c'est bien la permissivité qui aggravait — mais ce n'est pas une défense anti-CSRF, et une API dont le CORS est resserré reste entièrement forgeable tant qu'aucun jeton n'est vérifié. Ce croisement est d'ailleurs le seul endroit où les deux sujets se rencontrent utilement : une requête qui porte un en-tête personnalisé ou un corps JSON n'est plus « simple », elle déclenche un contrôle préalable que l'attaquant ne peut pas faire réussir sans la complicité du serveur. Ici, CORS ne protège pas du CSRF : il rend vérifiable une propriété que l'attaquant ne peut pas produire.",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "Cette application Express protège ses routes avec csrf-sync, le paquet maintenu qui remplace csurf. La protection fonctionne, et on la voit fonctionner. Quelle ligne rouvre pourtant la porte à une requête forgée ?",
+      "langage": "typescript",
+      "code": "import { csrfSync } from 'csrf-sync';\nconst { csrfSynchronisedProtection } = csrfSync({\n  getTokenFromRequest: (req) => req.body._csrf,\n});\n\napp.post('/profil', csrfSynchronisedProtection, (req, res) => {\n  mettreAJourProfil(req.session.utilisateur, req.body);\n  res.redirect('/profil');\n});\n\napp.post('/changer-mot-de-passe', (req, res) => {\n  changerMotDePasse(req.session.utilisateur, req.body.passwordNew);\n  res.redirect('/profil');\n});",
+      "ligneFautive": 11,
+      "faille": "CSRF — l'intergiciel de vérification est posé route par route, et la route la plus sensible a été oubliée",
+      "explication": "La ligne 11 déclare une route qui change un état sans placer csrfSynchronisedProtection devant son gestionnaire : la requête atteint le code métier quel que soit le jeton, ou en son absence totale. Compare-la à la ligne 6, qui est correcte : la même protection y est posée, et le gestionnaire n'est jamais atteint si le jeton est invalide. C'est tout l'intérêt de l'exercice — la protection existe, elle est bien configurée, elle marche ; il a suffi qu'on oublie de l'écrire une fois, sur la route la plus sensible du fichier. Un attaquant n'a pas besoin des autres. La ligne 2 n'est pas fautive : la création de l'intergiciel est correcte, et lire le jeton dans le corps de la requête est un choix légitime — l'important est qu'il ne voyage JAMAIS dans l'URL, où il finirait dans les journaux du serveur et dans l'historique du navigateur. La ligne 12 n'est pas fautive : changer un mot de passe est une opération parfaitement légitime, elle ne devient forgeable que parce que rien ne la précède. Le correctif ne consiste donc pas à ajouter un troisième argument à la ligne 11 — cela referme ce trou-ci et laissera le suivant — mais à poser la protection GLOBALEMENT avec app.use(), APRÈS les analyseurs de corps et AVANT les routes. On passe ainsi d'une liste des routes protégées à une liste des routes dispensées : ce qui n'est pas nommé est refusé, pas autorisé. C'est le même renversement que AutoValidateAntiforgeryTokenAttribute en ASP.NET Core, et la même logique de liste blanche qu'au module 04. Une protection qu'il faut penser à poser est une protection qui manquera un jour. Deux précisions sur l'ordre, parce qu'il décide du bon fonctionnement du correctif. D'abord, l'intergiciel doit venir après express.urlencoded() ou express.json() : getTokenFromRequest lit req.body._csrf, si bien qu'un app.use() posé avant les analyseurs trouverait req.body à undefined et lèverait une TypeError sur chaque requête protégée — une protection qui refuse tout n'est pas une protection, c'est une panne. Ensuite, la pose globale ne casse pas la page qui SERT le formulaire : csrf-sync dispense par défaut les méthodes GET, HEAD et OPTIONS, celles qui ne changent aucun état. Provenance : ce que le cours évalue, c'est le principe du jeton observé sur DVWA ; les exemples de framework — ASP.NET Core et Node/Express — viennent de la base de connaissances et ne sont pas exigibles à l'examen 2026, même s'ils sont ce que tu écriras en emploi.",
+      "correction": "import { csrfSync } from 'csrf-sync';\nconst { csrfSynchronisedProtection } = csrfSync({\n  getTokenFromRequest: (req) => req.body._csrf,\n});\n\n// Analyseurs de corps EN PREMIER : getTokenFromRequest lit req.body._csrf,\n// qui n'existe pas encore tant que le corps n'a pas ete analyse.\napp.use(express.urlencoded({ extended: false }));\napp.use(express.json());\n\n// Pose globale, APRES les analyseurs de corps et AVANT les routes :\n// toute route d'etat est couverte, y compris celles qui n'existent pas encore.\napp.use(csrfSynchronisedProtection);\n\napp.post('/profil', (req, res) => {\n  mettreAJourProfil(req.session.utilisateur, req.body);\n  res.redirect('/profil');\n});\n\napp.post('/changer-mot-de-passe', (req, res) => {\n  changerMotDePasse(req.session.utilisateur, req.body.passwordNew);\n  res.redirect('/profil');\n});",
+      "ficheSource": "web/securite/csrf.md"
+    },
+    {
+      "id": "q9",
+      "type": "choix-multiple",
+      "question": "Une application vire de l'argent sur une route GET /transfert?vers=…&montant=…. Son cookie de session ne porte aucun attribut SameSite, et les visiteurs emploient un navigateur fondé sur Chromium. L'attaquant place dans un forum une balise <img src=\"https://banque.example/transfert?vers=attaquant&montant=1000\">. Que se passe-t-il, et que faut-il en conclure ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Ce vecteur-là échoue : l'image est une sous-ressource cross-site, et le défaut Lax ne joint pas le cookie. Mais un LIEN cliqué vers la même URL est une navigation de premier niveau en GET, que Lax laisse passer avec le cookie — l'action reste donc forgeable par un lien dans un courriel."
+        },
+        {
+          "id": "b",
+          "texte": "L'image déclenche le virement : le cookie est joint parce que la requête vise banque.example, et le défaut du navigateur n'y change rien."
+        },
+        {
+          "id": "c",
+          "texte": "Rien ne passe : le défaut Lax bloque toute requête venue d'un autre site, un lien cliqué compris. L'application est protégée sans rien faire."
+        },
+        {
+          "id": "d",
+          "texte": "Le navigateur bloque la requête au titre de CORS, puisque le forum et la banque sont deux origines différentes."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Depuis 2020, les navigateurs fondés sur Chromium traitent un cookie sans attribut SameSite comme SameSite=Lax. Or Lax pose exactement une frontière : le cookie n'est PAS joint aux requêtes déclenchées en arrière-plan depuis un autre site — image, fetch, iframe, formulaire auto-soumis en POST (hors la fenêtre de 2 minutes dite Lax+POST, propre au défaut implicite, qui est justement le cas ici) — mais il EST joint sur une navigation de premier niveau en GET, c'est-à-dire quand la personne clique un lien externe et que la page du site s'ouvre dans l'onglet. La balise d'image tombe du côté bloqué, le lien cliqué du côté qui passe. La réponse b ignore ce défaut moderne, la réponse c en exagère la portée — et les deux erreurs sont symétriques : Lax n'est ni inutile, ni total. La réponse d confond encore CORS et CSRF : CORS gouverne la lecture d'une réponse par un script, il n'empêche jamais un navigateur d'aller chercher une image. Le vrai enseignement est la conclusion : puisque le seul trou de Lax est la navigation GET, une application qui n'expose AUCUNE action d'état en GET rend ce trou sans conséquence. C'est pourquoi « une requête GET ne change jamais d'état » n'est pas une coquetterie de puriste — les deux règles se tiennent l'une l'autre. Et rappelle-toi que le défaut du navigateur n'est pas une garantie : un client qui n'implémente pas l'attribut retombe sur l'ancien comportement, où même la balise d'image passerait.",
+      "ficheSource": "web/securite/csrf.md"
+    }
+  ]
+}

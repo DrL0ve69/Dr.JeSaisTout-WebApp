@@ -60,14 +60,33 @@ export interface PageDeLecon {
 }
 
 /**
- * Toutes les pages de leçon prerendues de l'artéfact sous mesure.
+ * Toutes les pages de leçon prerendues de l'artéfact sous mesure, **triées par slug**.
  *
  * Un dossier ne compte que s'il porte un `index.html` : `cours/securite-web/index.html`
  * (le sommaire) n'est pas un dossier, et un dossier vide n'est pas une page.
+ *
+ * 🔴 POURQUOI LE TRI EST EXPLICITE — ajouté le 2026-08-21 (E3-ST5), sur constat de
+ * revue de sécurité. Plusieurs specs et leurs littéraux épinglés raisonnent sur « la
+ * PREMIÈRE page portant tel marqueur, dans l'ordre alphabétique ». Cette phrase était
+ * **fausse** : `readdirSync` ne trie pas — il rend l'ordre du système de fichiers. Elle
+ * n'était vraie que par accident sur le NTFS du poste de développement, et rien ne la
+ * garantit sur l'ext4 du runner de CI. Mesuré ici : l'ordre de CRÉATION des cinq pages
+ * est `csrf, xss, injection, fondamentaux, evaluation-cvss` — l'ordre de fin d'un
+ * prerender parallèle, ni alphabétique, ni stable.
+ *
+ * Le risque n'était pas théorique : un compte épinglé sur une cible découverte doit
+ * être invariant sur TOUTES les cibles possibles, ou la découverte doit être totalement
+ * ordonnée. `BLOCS_STYLE_PAGE_QUIZ` valait 6, satisfait par deux candidats sur quatre —
+ * il vaut 7, satisfait par un seul sur cinq. Le pari devenait perdant.
+ *
+ * `localeCompare(…, 'en')` plutôt que le `.sort()` par défaut : l'ordre par unité de
+ * code UTF-16 dépendrait des accents et des majuscules d'un futur slug. Les slugs sont
+ * en ASCII minuscule aujourd'hui — c'est précisément le moment de ne pas en dépendre.
  */
 export const LECONS_PRERENDUES: readonly PageDeLecon[] = existsSync(RACINE_PRERENDUE)
   ? readdirSync(RACINE_PRERENDUE, { withFileTypes: true })
       .filter((entree) => entree.isDirectory())
+      .sort((a, b) => a.name.localeCompare(b.name, 'en'))
       .map((entree) => ({
         slug: entree.name,
         document: join(RACINE_PRERENDUE, entree.name, 'index.html'),

@@ -80,6 +80,16 @@
   margin-block-start: var(--espace-4);
 }
 
+// ⚠️ CE QUI N'EST PAS ÉCRIT ICI, ET POURQUOI — mesuré le 2026-08-21 (E3-ST5).
+// Un `<fieldset>` porte `min-inline-size: min-content` dans la feuille de l'AGENT
+// UTILISATEUR : il ne peut donc pas rétrécir sous son contenu le plus large. Un
+// `min-inline-size: 0` a été posé ici puis RETIRÉ, parce qu'une mesure par retrait a
+// montré qu'il ne changeait RIEN — ni sur `csrf`, ni sur les quatre autres leçons.
+// Les deux règles qui portent réellement la charge sont ailleurs (`.champ-droite` et
+// `.associations`, chacune commentée sur place). Garder une règle inerte accompagnée
+// d'un commentaire qui la dit décisive, c'est fabriquer le faux dossier que le
+// prochain lecteur recomposera. La contrainte de l'agent utilisateur reste vraie et
+// pourrait mordre un jour : elle est consignée au backlog, pas parée à l'aveugle.
 .question {
   margin: 0;
   padding: var(--espace-3);
@@ -149,6 +159,18 @@
 .associations,
 .detail-association {
   display: grid;
+  // 🔴 PORTEUSE — mesurée le 2026-08-21 (E3-ST5). Une piste de grille implicite est
+  // dimensionnée `auto`, et le MINIMUM d'une piste `auto` est le `min-content` de ses
+  // items : six `<li>` de 1029 px se sont installés dans une grille de 673 px,
+  // poussant le `scrollWidth` du document à 1446 px pour une fenêtre de 1280.
+  // `minmax(0, 1fr)` retire ce plancher — la piste occupe la place disponible, sans
+  // jamais réclamer celle que son contenu voudrait.
+  //
+  // ⚠️ NÉCESSAIRE MAIS PAS SUFFISANTE : la mesure par retrait (détaillée sur
+  // `.champ-droite`) donne 1446 quand elle est seule. Elle fait rentrer le `<li>` à
+  // 673 px, mais le `<select>` qu'il contient déborde alors son propre `<li>`. Les
+  // deux règles se lisent ensemble ; retirer l'une rouvre le défaut.
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--espace-2);
   margin-block-start: var(--espace-2);
   padding: 0;
@@ -162,6 +184,33 @@
 
 .champ-droite {
   flex: 1 1 18ch;
+  // 🔴 PORTEUSE — mesurée le 2026-08-21 (E3-ST5). La taille minimale automatique d'un
+  // item flex (`min-inline-size: auto`) se résout, pour un `<select>`, sur la largeur
+  // de son option la PLUS LONGUE : le champ ne peut donc pas rétrécir, quoi que dise
+  // `flex-shrink`. `min-inline-size: 0` rend le rétrécissement possible,
+  // `max-inline-size: 100%` le borne au conteneur.
+  //
+  // ⚠️ ELLE NE SUFFIT PAS SEULE, et c'est le point à ne pas perdre. Mesure par
+  // RETRAIT, une règle à la fois, `scrollWidth` du document sur `csrf` à 1280 px de
+  // large (le débordement initial valait 1446) :
+  //   · les deux règles porteuses                        → 1280 ✔
+  //   · sans celle-ci (`minmax` gardée)                  → 1446 ✘
+  //   · sans `minmax` de `.associations` (celle-ci gardée) → 1446 ✘
+  // Les deux sont NÉCESSAIRES, aucune n'est SUFFISANTE : retirer l'une rouvre le
+  // défaut. Elles se lisent ensemble ou pas du tout.
+  //
+  // Ce que le défaut donnait à voir : un `<select>` de 1029 px posé en x=417, donc un
+  // bord droit à 1446 pour une fenêtre de 1280 — l'anneau de focus peint HORS DE
+  // L'ÉCRAN (WCAG 2.2 AA, 2.4.11), attrapé par `e2e/parcours-clavier-quiz.spec.ts`.
+  // Le défaut était LATENT : le contenu de `csrf` l'a révélé, il ne l'a pas causé.
+  //
+  // ⚠️ Conséquence assumée : le texte de l'option est ROGNÉ à l'écran, sans ellipse —
+  // le `<select>` coupe au caractère, donc la phrase a l'air terminée. La parade n'est
+  // pas ici mais dans le contenu : les libellés `droite` d'un `associer` se tiennent
+  // sous ~70 caractères. Le nom accessible, lui, reste entier (il vient du `<label>`),
+  // et la correction réaffiche la valeur attendue repliée.
+  min-inline-size: 0;
+  max-inline-size: 100%;
   min-block-size: var(--espace-6);
   padding-inline: var(--espace-1);
   border: var(--filet-fin) solid var(--couleur-filet-fort);

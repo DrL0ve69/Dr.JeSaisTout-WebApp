@@ -2508,7 +2508,7 @@ E3-ST1, pas pendant.
 | E3-ST2 | `02-evaluation-cvss` — Évaluation des vulnérabilités (CVSS v3.1/v4.0, EPSS, KEV). 🔴 **COMPLÉMENT PUR — corrigé le 2026-08-19** : la mention « quiz = les 6 mises en situation corrigées du cours (matière d'examen) » était **fausse**. Mesure : **0 occurrence** de CVSS/CVE/CWE/EPSS/KEV dans les **8 diaporamas publiés** et dans le **plan de cours officiel**. Rien de ce module n'est examinable ; il doit se présenter comme complément. *(Réserve : la mesure porte sur le texte extrait ; un sigle qui n'existerait que dans une image aurait échappé — 95 captures ont été ouvertes sans le rencontrer.)* | `evaluation-vulnerabilites-cvss.md` | non — calculateur de scénario dans le quiz | ✅ |
 | E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ✅ |
 | E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ✅ |
-| E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ⬜ |
+| E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ✅ |
 | E3-ST6 | `06-controle-acces` — Contrôle d'accès, IDOR, élévation de privilèges, mass assignment | `controle-acces-idor.md` | **oui** : IDOR par manipulation d'identifiant | ⬜ |
 | E3-ST7 | `07-inclusion-ssrf` — Path traversal, LFI/RFI, SSRF (métadonnées cloud) | `inclusion-fichiers-ssrf.md` | **oui** : SSRF vers l'endpoint de métadonnées | ⬜ |
 
@@ -2890,10 +2890,148 @@ par type de livrable — à tenter et à mesurer, pas à décréter.
    conclure : une seule occurrence ne dit pas si la cause est la charge de la machine, un délai trop
    court, ou une hydratation réellement bloquée sur la page la plus lourde.
 
-**Suite** : E3 bloc A continue avec **E3-ST5** (`05-csrf`, fiche `web/securite/csrf.md`, **559 l.**,
-avec simulation « requête forgée depuis un site tiers »). ⚠️ La fiche dépasse déjà le seuil de
-scission de 500 l. de `CONVENTIONS.md`. La leçon 04 lui donne un appui direct : son `q5` établit
-qu'un XSS contourne **tout** token anti-CSRF, y compris le double-submit — c'est le pont à reprendre.
+#### ✅ CLÔTURE — E3-ST5 `05-csrf` (2026-08-21)
+
+**Livrables** : `content/cours/securite-web/05-csrf/` — `lecon.md` **1 111 l.**, `quiz.json`
+**9 questions** (4 choix-multiple, 2 vrai-faux, 2 trouver-la-faille, 1 associer à 6 paires),
+`simulation.json` **5 acteurs / 11 étapes** (« requête forgée depuis un site tiers »).
+**CINQ LEÇONS SONT EN LIGNE.**
+
+**Chiffres de clôture** : G-lint ✔ · G-test **887 passés / 42 fichiers / 0 échec** · G-typage-outils ✔
+· G-content 5 leçons valides · G-build **14 hachages de style / 0 de script** (inchangés) ·
+G-axe 8 pages, **688 vérifications, 0 violation** · G-e2e **50 passés / 1 sauté / 0 échec** ·
+`npm audit --omit=dev` **0**.
+
+##### 📏 Ce que la découpe « par moitié de leçon » a donné — la piste d'E3-ST4 est VALIDÉE
+
+| Agent | Périmètre | Tokens |
+|---|---|---|
+| Rédacteur moitié A (théorie, source l. 1-217) | `lecon.md` l. 1-412 | **113 786** ✅ |
+| Rédacteur moitié B (défenses, source l. 218-559) | `lecon.md` l. 412-1033 | **147 765** ⚠️ |
+| Rédacteur `quiz.json` + `simulation.json` | les deux JSON | **160 336** ❌ |
+| Vérificateur moitié A | rapport | 98 783 ✅ |
+| Vérificateur moitié B | rapport | 121 741 ✅ |
+| Vérificateur des deux JSON | rapport | 120 225 ✅ |
+| Correctifs KB (`csrf.md`) | 8 corrections | 84 702 ✅ |
+| Correctifs `lecon.md` | 19 constats | 132 769 ✅ |
+| Correctifs des deux JSON | 8 constats | 100 779 ✅ |
+| Correctifs des libellés `associer` | 1 champ × 6 | 85 541 ✅ |
+| `code-reviewer` | diff entier | **171 102** ❌ |
+| `security-reviewer` | diff entier | 145 229 ⚠️ |
+
+**La découpe par moitié tient** : 113k et 147k, contre **163 798** au rédacteur unique d'E3-ST4 et
+197k/206k à E3-ST2/ST3. C'est la première fois qu'un rédacteur de leçon finit sous la cible de 120k.
+🔴 **Le lot à scinder la prochaine fois est « quiz + simulation »** : 160 336 sur une leçon de
+1 000+ lignes, parce qu'il doit lire toute la leçon pour l'évaluer. Règle à appliquer à E3-ST6 :
+**au-delà de ~800 lignes de leçon, un agent pour le quiz, un autre pour la simulation.**
+⚠️ **Les REVUES aussi débordent** — 171k et 145k sur un diff de 1 621 insertions dont 1 521 de
+contenu. Une revue de diff mixte « contenu neuf + code » mériterait deux agents.
+
+##### 🔴 CE QUE LES DEUX REVUES ONT ATTRAPÉ, ET QUI SE REPRODUIRA
+
+**(a) `readdirSync` NE TRIE PAS — et trois littéraux épinglés en dépendaient.** Plusieurs specs
+raisonnent sur « la première page prerendue portant tel marqueur, **dans l'ordre alphabétique du
+dossier** ». La phrase était **fausse** : `readdir` rend l'ordre du système de fichiers, vrai par
+accident sur le NTFS du poste, jamais garanti sur l'ext4 du runner. Mesuré : l'ordre de **création**
+des cinq pages est `csrf, xss, injection, fondamentaux, evaluation-cvss` — l'ordre de fin d'un
+prerender parallèle, à 82 ms d'écart. Et le pari **empirait en silence** : `BLOCS_STYLE_PAGE_QUIZ`
+valait 6, satisfait par **deux** candidats sur quatre ; à 7, il n'en a plus qu'**un** sur cinq.
+Correctif : `.sort((a, b) => a.name.localeCompare(b.name, 'en'))` dans `artefact-mesure.ts`, qui
+rend la phrase vraie **par construction** au lieu de vraie par plateforme.
+
+**(b) Un commentaire de correctif qui affirme une CAUSE doit l'avoir mesurée PAR RETRAIT** (leçon
+**L-074**, née ici). Trois règles CSS ont été posées contre le débordement, chacune avec un
+commentaire dense affirmant sa cause. Mesure par retrait, une règle à la fois : `min-inline-size: 0`
+sur le `<fieldset>` est **inerte** (retrait → aucun changement, sur aucune des cinq pages) ;
+`.champ-droite` et `minmax(0, 1fr)` sont **toutes deux nécessaires et aucune suffisante**. La règle
+inerte a été **retirée**. Ce que j'avais mesuré (« l'enfant le plus large est le `<legend>` ») était
+une **conséquence** — l'enfant remplissait la largeur que le parent avait déjà prise. Une mesure
+d'ÉTAT ne donne jamais une causalité.
+
+**(c) Annoter un bloc qui s'annonce « réécrit, pas annoté » fabrique deux inventaires concurrents**
+(leçon **L-075**). `simulation-sous-csp.spec.ts` porte l'avertissement en toutes lettres ; le premier
+jet a ajouté une note **au-dessus** en laissant quatre valeurs fausses **en dessous**, dont
+« `injection` porte le 14ᵉ hachage, **et elle seule** » — trois pages le portent. Réécrit depuis.
+
+**(d) Une perte de couverture s'établit en comparant des UNIONS de hachages, jamais des comptes de
+pages.** J'avais écrit que la bascule de page faisait perdre la couverture de la forme « leçon sans
+simulation ». **Mesuré faux** : les 6 blocs d'`evaluation-cvss` sont un sous-ensemble **strict,
+hachages identiques**, des 7 de `csrf` — union avant = 7, après = 7, **zéro hachage perdu**.
+
+##### 🔴 UN DÉFAUT DE MISE EN PAGE ÉTAIT DÉJÀ EN PRODUCTION, et personne ne l'avait vu
+
+La leçon a fait déborder la page horizontalement (`scrollWidth` **1446** pour une fenêtre de 1280),
+révélé par un `<select>` d'appariement dont l'anneau de focus était peint **hors écran** (WCAG 2.2
+AA, **2.4.11**), attrapé par `parcours-clavier-quiz.spec.ts`. ⚠️ **Le défaut était latent depuis la
+naissance du composant** : mesuré sur `xss`, le fieldset faisait déjà **854 px dans un parent de
+721** — il débordait, sans atteindre le bord de la fenêtre. `csrf`, aux libellés plus longs, l'y a
+poussé. **Ce n'était pas un défaut de contenu** : raccourcir les énoncés aurait reverdi le gate en
+laissant le défaut intact, prêt à mordre à la leçon suivante. Corrigé dans le composant, plus un
+correctif de contenu séparé (les six libellés `associer` passaient de **83-126** à **55-63**
+caractères, le `<select>` coupant au caractère **sans ellipse** — la phrase avait l'air terminée).
+
+##### 📚 Corrections portées à la KnowledgeBase (dépôt distinct, **poussées**)
+
+**Le nœud 4 d'E3-ST4 est REFERMÉ** : les corrections des passes 01 à 04 dormaient non commitées.
+Trois commits poussés sur `DrL0ve69/KnowledgeBase` — les quatre fiches des leçons 01-04, une fiche
+`ai/agents/claude-code/`, puis **huit corrections sourcées de `csrf.md`** issues de ce lot : DVWA
+(*Medium* ne porte **aucun** jeton, il vérifie le `Referer` — et la charge du cours, livrée depuis
+DVWA, **passe** à ce niveau) · `SameSite=Lax` bloque le vecteur `<img>`, seule la navigation de
+premier niveau passe · Firefox n'a **jamais** adopté le défaut `Lax` (Bugzilla 1617609 **WONTFIX**) —
+et **c'est l'OWASP qui est périmé** sur ce point · `csurf` déprécié sans CVE public · `fetch` en
+`no-cors` · `csrf-csrf` (`getSessionIdentifier` requis, et rattachement de voie corrigé) · `TRACE`
+ajoutée aux méthodes sûres de la RFC 9110.
+
+##### 💸 Dette neuve, mesurée, NON corrigée
+
+1. **🔴 Sept hachages sur quatorze n'ont AUCUN énumérateur live.** `e2e/simulation-sous-csp.spec.ts`
+   est le **seul** énumérateur de blocs `<style>` du dépôt, et il ne navigue que des pages de
+   **leçon** : il couvre 7 hachages sur 14. Les 7 autres — accueil (`.accueil` 4 039 o, `.toile`
+   327 o, `.piece` 1 073 o, `.carte` 2 266 o), sommaire (`.page` 362 o, `.vide` 4 241 o), 404
+   (`.cartouche-erreur` 1 172 o) — ne sont couverts que par le **compte global**, qui ne dit rien de
+   l'origine d'un bloc. Préexistant, ni créé ni aggravé par ce lot. **C'est le ticket utile**, pas
+   « viser une page par nom » (qui gagnerait 0 hachage).
+2. **Les deux tests de `simulation-sous-csp` naviguent aujourd'hui la MÊME URL.** `csrf` porte les
+   deux composants et prend la tête de l'ordre alphabétique. Redondance **temporaire** et assumée :
+   ils redeviendront distincts dès qu'une leçon sans simulation reprendra la tête. Le second est
+   gardé pour cette raison, écrite sur place.
+3. **Un `<fieldset>` porte `min-inline-size: min-content` dans la feuille de l'agent utilisateur.**
+   La parade a été mesurée **inerte aujourd'hui** et retirée ; la contrainte, elle, reste vraie et
+   pourrait mordre sur un contenu futur non repliable. Consignée, pas parée à l'aveugle.
+4. **Le poids du contenu compilé franchit un cap** : `csrf` **262,9 Ko** — la plus lourde des cinq,
+   au-dessus de l'avertissement de 150 Ko (échec à 300). Total **862,8 Ko** pour 5 leçons, contre
+   599,9 Ko pour 4. ⚠️ À ce rythme, 13 leçons dépasseraient **2,2 Mo**. Le nœud 2 d'E3-ST4 se pose
+   désormais fermement.
+5. **`html` et `javascript` restent absents de la liste fermée des langages colorables.** Quatrième
+   occurrence. ⚠️ **Élément neuf** : le contournement n'est pas seulement interne — `rendu-blocs`
+   compose « Exemple n°N — **php** » et le pose **à la fois** en `<figcaption>` visible et en
+   `aria-label`. Le lecteur **voit**, et le lecteur d'écran **entend**, une langue que le bloc ne
+   contient pas. Échéance utile inchangée : **avant E3-ST13**.
+
+##### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — aucun ne bloque E3-ST6
+
+1. **Le poids des leçons** (dette 4 ci-dessus) — densité légitime, ou modules à scinder ? À arbitrer
+   **avant le bloc B**, pas après.
+2. **Les langages colorables** (dette 5) — le lot n'est pas d'une ligne : ajouter une grammaire fait
+   apparaître des encres neuves, donc le risque de contraste qui a déjà mordu à E3-ST4.
+3. **Le découpage `section:`** (`Fondamentaux` / `Attaques classiques`) reste un champ tout-ou-rien
+   engageant les 14 modules restants ; la 05 a suivi le choix du coordinateur, comme la 03 et la 04,
+   sans décision du propriétaire.
+4. **L'intermittence e2e du nœud 6 d'E3-ST4 n'a PAS reparu** sur les cinq exécutions complètes de ce
+   lot. Piste identifiée mais **non corrigée** : `attendreHydratation` (`e2e/aides/hydratation.ts:33`)
+   s'appuie sur le délai `expect` par défaut ; sur la page la plus lourde et une machine chargée,
+   « 27 attributs `ngh` restants » décrit une hydratation **lente**, pas bloquée. Un délai explicite
+   serait un lot propre — délibérément **hors** du périmètre de celui-ci.
+5. **La numérotation des diapositives de la séance 7** (nœud 3 d'E3-ST4) reste irrécupérable sans le
+   diaporama. Même situation ici : le vérificateur a confirmé l'existence, la date et le titre du
+   « Cours 7 · 18 septembre · Sécurité du code », mais `Cours07_securite_app_web.pptx` est un binaire
+   qu'aucun outil d'agent ne lit. Le périmètre du millésime 2026 reste une **affirmation de la KB non
+   recoupée** ; la leçon reste prudente là-dessus.
+
+**Suite** : E3 bloc A continue avec **E3-ST6** (`06-controle-acces`, fiche
+`web/securite/controle-acces-idor.md`, avec simulation « IDOR par manipulation d'identifiant »).
+⚠️ **Appliquer la découpe mesurée ici** : deux agents pour la leçon (par moitié), **et deux de plus
+pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 
 
 ### Bloc B — Identités & données *(cible : ~12 octobre, J5)*

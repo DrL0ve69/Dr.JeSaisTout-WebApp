@@ -399,6 +399,48 @@ la revoir à ce moment-là n'est pas optionnel.
 **Réfs additionnelles.** `e2e/aides/sonde-csp.ts`, `e2e/aides/artefact-mesure.ts`
 (`ROUTE_LECON_QUIZ`, `ROUTE_LECON_SIMULATION`), branche `feat/e3-st2-st3-lecons` (2026-08-21).
 
+**Sixième occurrence, E3-ST5 (2026-08-21) — un instrument dont la CIBLE est DÉCOUVERTE à
+l'exécution déplace le problème vers la DÉTERMINATION de la population, pas la population
+elle-même.** `e2e/aides/artefact-mesure.ts` documentait sa découverte de page comme « la première
+page prerendue portant `<app-quiz>`/`<app-simulation>`, dans l'ordre alphabétique du dossier » —
+phrase reprise par trois littéraux épinglés. **Fausse** : elle appelait `readdirSync`, qui ne trie
+pas mais rend l'ordre du système de fichiers. Vraie par accident sur le NTFS du poste de revue.
+Mesuré : l'ordre de création des cinq pages (`csrf, xss, injection, fondamentaux,
+evaluation-cvss`) suit la fin d'un prerender **parallèle**, à 82 ms d'écart — ni alphabétique, ni
+stable, rien ne garantit un ordre identique sur ext4 côté runner. Le risque empirait en silence :
+`BLOCS_STYLE_PAGE_QUIZ` (6) était satisfait par 2 candidats sur 4 avant `csrf` ; après (7), par
+**un seul sur cinq** — le pari devenait perdant sans qu'aucun gate ne le signale.
+**Règle renforcée.** Distincte de la règle ci-dessus (qui dit « recense ce qu'un instrument cesse
+de couvrir quand la population change ») : celle-ci dit **assure-toi d'abord que l'instrument vise
+la même cible deux fois de suite**. Un compte épinglé sur une cible *découverte* doit soit être
+invariant sur toutes les cibles possibles de la population, soit la découverte doit être
+**totalement ordonnée** (`.sort(localeCompare)`), jamais confiée à l'ordre du système de fichiers —
+qui diffère entre poste de revue et runner CI.
+**Réfs additionnelles.** `e2e/aides/artefact-mesure.ts`, branche `feat/e3-st5-lecon-csrf`
+(2026-08-21).
+
+## S-025 · Un instrument d'énumération LIVE d'une directive DÉRIVÉE ne couvre que les formes de page déjà visitées par un test — jamais toutes les formes qui contribuent à la directive (A05 · trou de couverture non signalé, croisement [[S-010]]/[[S-016]])
+
+**Symptôme.** `e2e/simulation-sous-csp.spec.ts` est le seul énumérateur live de blocs `<style>` du
+dépôt, et il ne navigue que des pages de **leçon**. Mesure de l'artéfact E3-ST5 : `style-src` porte
+**14** hachages, dont **7 seulement** naissent sur une page de leçon (couverts) ; les **7 autres**
+— accueil (`.accueil`, `.toile`, `.piece`, `.carte`), sommaire (`.page`, `.vide`), 404
+(`.cartouche-erreur`) — ne sont énumérés par **aucun** instrument live, avant comme après ce lot.
+Seul le compte global les couvre, et un compte ne dit rien de l'origine d'un bloc.
+**Règle.** Quand une directive CSP est **dérivée de l'artéfact** (ici `style-src`, S-005), la
+couverture live doit énumérer **toutes les formes de page** qui contribuent à cette directive
+(accueil, sommaire, 404, leçon quiz, leçon simulation…), pas seulement celle qui a motivé le
+dernier lot. La couverture s'étend par accident, page par page, au gré de ce qu'on a testé — jamais
+par conception ; recenser les formes de page **une fois**, puis vérifier l'union des hachages
+qu'elles portent contre la directive servie.
+**Corollaire de méthode, pour évaluer une perte de couverture.** Comparer des **unions de
+hachages**, jamais des comptes de pages : la bascule d'une page de référence de S-010 (occurrence
+5) semblait faire perdre la forme « leçon sans simulation », mais mesuré, les 6 blocs
+d'`evaluation-cvss` sont un sous-ensemble strict des 7 de `csrf` — union avant = après = 7, zéro
+hachage perdu. Un compte de pages aurait fait conclure à tort.
+**Réfs.** `e2e/simulation-sous-csp.spec.ts`, `e2e/aides/sonde-csp.ts`, `docs/agile/backlog-phase-1.md`
+§E3-ST5 (revue du 2026-08-21).
+
 ## S-011 · Un garde-fou qui balaie la SORTIE rencontre un jour le contenu qui enseigne le motif qu'il refuse (A05 · pression d'assouplissement)
 
 **Symptôme.** `tools/deploiement/generer-config-swa.mjs` lit le HTML prerendu et refuse deux
