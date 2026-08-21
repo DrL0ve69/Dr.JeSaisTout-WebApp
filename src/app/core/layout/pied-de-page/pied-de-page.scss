@@ -34,4 +34,15 @@
   // du critère, et lui donner du rembourrage vertical décollerait les lignes du
   // paragraphe. Le focus, lui, est bien dessiné : il vient de `:focus-visible`
   // dans la feuille globale.
+
+  // 🔴 LE SOULIGNEMENT N'EST PAS DÉCORATIF, ET IL EST ÉCRIT ICI PLUTÔT QUE
+  // HÉRITÉ. C'est la règle `link-in-text-block` d'axe : un lien à l'intérieur
+  // d'un bloc de texte ne peut pas se signaler par la SEULE couleur — il lui
+  // faut un second canal visuel (WCAG 1.4.1). Le repeindre en ambre le rendrait
+  // moins distinguable de la prose environnante, pas plus : le trait reste donc
+  // obligatoire, et l'écrire ici empêche qu'un futur `text-decoration: none`
+  // posé plus haut le retire sans que rien ne rougisse.
+  a {
+    text-decoration-line: underline;
+  }
 }

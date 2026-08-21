@@ -91,8 +91,9 @@ const EXIGES = [
 ];
 
 /**
- * ÉCARTS CONNUS — caractères que NI Fraunces NI Inter ne portent, tels que
- * livrés par le fournisseur, et qui seront donc rendus par la police de repli.
+ * ÉCARTS CONNUS — caractères qu'AUCUNE des quatre familles servies ne porte,
+ * tels que livrés par le fournisseur, et qui seront donc rendus par la police de
+ * repli.
  *
  * Ils ne sont pas retirés de la vérification : ils sont AFFICHÉS à chaque run.
  * Un écart qu'on efface de la liste des contrôles est un écart qu'on oubliera ;
@@ -107,13 +108,15 @@ const REPLI_DOCUMENTE = [
   [
     0x202f,
     'espace fine insécable',
-    "Absente des deux familles. La typographie française la veut avant ; : ! ? " +
-      'et à l’intérieur des guillemets « », mais le fournisseur ne la livre dans ' +
+    'Absente des quatre familles servies (mesuré le 2026-08-20, bascule E6 ' +
+      'comprise). La typographie française la veut avant ; : ! ? et à ' +
+      'l’intérieur des guillemets « », mais le fournisseur ne la livre dans ' +
       'aucun de ses sous-ensembles, et tailler un sous-ensemble maison est ' +
       'interdit (ST1-B). CONSIGNE DE RÉDACTION : le contenu emploie U+00A0, ' +
-      'seule blanche insécable réellement couverte par les deux familles. ' +
-      '(Inter porte U+2009, Fraunces non — donc U+2009 non plus n’est pas une ' +
-      'issue : elle rendrait titres et corps différemment.)',
+      'seule blanche insécable réellement couverte par les quatre familles. ' +
+      '(U+2009 n’est pas une issue non plus : MESURÉ, seule Inter la porte — ni ' +
+      'IBM Plex Mono, ni Silkscreen, ni Press Start 2P — donc elle rendrait ' +
+      'corps, titres et code différemment.)',
   ],
   [
     0x2192,

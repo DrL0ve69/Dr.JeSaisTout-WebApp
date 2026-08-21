@@ -1,13 +1,21 @@
 // =============================================================================
-// EnTete — bande de tête, direction « Carnet de laboratoire »
+// EnTete — bande de tête, direction « Moniteur ambre » (E6)
 // -----------------------------------------------------------------------------
 // ⚠️ On `@use` `mixins` (qui n'émet rien) et JAMAIS `themes` (qui émet le bloc
 // `:root`) : un style de composant est une unité de compilation séparée.
 //
 // G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
+// G1/G2 : surfaces mates, traits nets, aucun rayon d'arrondi générique.
 // =============================================================================
 
 @use '../../../../styles/mixins' as m;
+
+// Point de rupture du menu compact. 52.5rem = 840 px : au-dessous, le logotype,
+// les deux liens de navigation et la bascule de thème ne tiennent plus sur une
+// ligne sans que les liens ne se replient en pavé. C'est la SEULE largeur de
+// bascule de ce composant ; elle est nommée une fois pour que les trois blocs
+// `@media` ci-dessous ne puissent pas diverger.
+$rupture-menu: 52.5rem;
 
 :host {
   display: block;
@@ -32,40 +40,150 @@
   }
 }
 
-// Logotype typographique (direction visuelle §identité : serif + tampon, aucune
-// mascotte). C'est un LIEN, pas un titre : voir l'en-tête d'`en-tete.ts`.
+// -----------------------------------------------------------------------------
+// Logotype — identité TYPOGRAPHIQUE, aucun avatar (décision D-4)
+// -----------------------------------------------------------------------------
+// C'est un LIEN, pas un titre : voir l'en-tête d'`en-tete.ts`.
+//
+// `gap: 0` est délibéré : les deux moitiés du logotype sont accolées, la césure
+// se lisant au changement de traitement (aplat ambre / cartouche). ⚠️ Ne pas en
+// conclure que l'espace du nom accessible pourrait venir du contenu — il ne le
+// peut pas, `preserveWhitespaces: false` l'ayant déjà retiré (L-024) : c'est
+// l'`aria-label` qui le porte, et lui seul.
 .logotype {
   display: inline-flex;
-  gap: var(--espace-0-5);
-  align-items: baseline;
+  gap: 0;
+  align-items: stretch;
 
   // Cible confortable au doigt (WCAG 2.2 · 2.5.5, barre haute) : 3rem = 48 px.
   min-block-size: var(--espace-6);
-  color: var(--couleur-encre);
-  font-family: var(--police-titres);
-  font-size: var(--taille-m);
-  font-weight: var(--graisse-titre);
-  letter-spacing: var(--chasse-titre);
   text-decoration: none;
 
   @include m.focus-visible;
 }
 
+// LA SEULE SURFACE PLEINE AMBRE DU SITE. L'ambre est la couleur de marque ; le
+// vert reste réservé à « corrigé » et le rouge à « vulnérable » (signature
+// chromatique pédagogique). Un second aplat de marque ailleurs la diluerait.
 .titre-court {
-  color: var(--couleur-danger-vuln);
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--espace-1);
+  background-color: var(--couleur-accent);
+  color: var(--couleur-sur-accent);
+  font-family: var(--police-micro);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-tampon);
+  letter-spacing: var(--chasse-tampon);
+
+  // Le trait a EXACTEMENT la couleur de l'aplat : invisible en temps normal, il
+  // est ce qui délimite encore le bloc quand `forced-colors: active` écrase le
+  // fond (G7-a — une teinte de fond ne délimite rien à ce moment-là).
+  @include m.cartouche(var(--couleur-accent));
+
+  @include m.contraste-force {
+    background-color: Canvas;
+    color: CanvasText;
+  }
+}
+
+.titre-long {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: var(--espace-1);
+  color: var(--couleur-encre);
+
+  @include m.micro-etiquette;
+  @include m.cartouche;
+
+  // Le cartouche du nom long s'accole à l'aplat : un seul trait entre les deux.
+  border-inline-start: 0;
+}
+
+// -----------------------------------------------------------------------------
+// Menu compact — `<details>`/`<summary>` natif, UN SEUL `<nav>`
+// -----------------------------------------------------------------------------
+// Sous le point de rupture, `<details>` occupe sa propre ligne de la bande : le
+// panneau s'ouvre DANS le flux, sous le résumé. Aucun positionnement absolu,
+// aucun `z-index`, aucun `order` — l'ordre de tabulation reste exactement l'ordre
+// du document (WCAG 2.4.3), ce qu'un `order` CSS aurait rompu en silence.
+.menu {
+  flex: 1 1 100%;
+
+  // Un élément de flexbox a `min-width: auto` : sans ceci, un lien long
+  // (« Sécurité des applications web ») empêcherait la bande de rétrécir et
+  // ferait déborder la page à l'horizontale (WCAG 1.4.10).
+  min-inline-size: 0;
+}
+
+.bascule-menu {
+  display: inline-flex;
+  gap: var(--espace-1);
+  align-items: center;
+
+  // Cible ≥ 44 px (barre maison, au-dessus des 24 px de WCAG 2.5.8).
+  min-block-size: var(--espace-6);
+  padding-inline: var(--espace-2);
+  cursor: pointer;
+
+  // Retire le TRIANGLE de divulgation de l'agent utilisateur. `list-style: none`
+  // suffit à Firefox et à Chrome ; `::-webkit-details-marker` couvre les Safari
+  // antérieurs, qui ignorent le premier. L'état ouvert/fermé reste annoncé par
+  // `<summary>` lui-même — on retire le DESSIN, jamais l'information.
+  list-style: none;
+
+  @include m.cartouche;
+  @include m.micro-etiquette;
+  @include m.focus-visible;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+}
+
+// Trois barres dessinées au trait (G4 : un seul langage graphique). Jamais un
+// emoji, jamais une icône importée. `currentcolor` et non un jeton : le
+// pictogramme suit la couleur du texte du bouton, y compris quand le système la
+// remplace en `forced-colors: active` — c'est ce qui le fait survivre là où un
+// jeton figé aurait disparu.
+.barres {
+  position: relative;
+  display: block;
+  inline-size: var(--espace-3);
+  block-size: var(--filet-moyen);
+  background-color: currentcolor;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    block-size: var(--filet-moyen);
+    background-color: currentcolor;
+  }
+
+  &::before {
+    inset-block-start: calc(var(--espace-1) * -1);
+  }
+
+  &::after {
+    inset-block-start: var(--espace-1);
+  }
 }
 
 .navigation {
-  // La navigation prend la place disponible entre logotype et bascule, mais ne
-  // pousse rien hors de la bande sur un écran étroit.
-  flex: 1 1 auto;
+  // Respire sous le résumé quand le panneau est ouvert. Au-delà du point de
+  // rupture, le résumé disparaît et cette marge est reprise à zéro.
+  padding-block-start: var(--espace-2);
 }
 
 .liens {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--espace-1) var(--espace-3);
-  align-items: center;
+
+  // Repli : une colonne de liens, chacun une cible franche.
+  flex-direction: column;
+  gap: var(--espace-1);
+  align-items: stretch;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -75,11 +193,9 @@
     align-items: center;
     min-block-size: var(--espace-6);
     color: var(--couleur-encre-secondaire);
-    font-size: var(--taille-xs);
-    font-weight: var(--graisse-tampon);
-    letter-spacing: var(--chasse-tampon);
     text-decoration: none;
-    text-transform: uppercase;
+
+    @include m.micro-etiquette;
 
     // Le soulignement de la page courante est réservé, en transparent, sur TOUS
     // les liens : l'état actif ne doit pas décaler la ligne de navigation quand
@@ -106,3 +222,65 @@
     }
   }
 }
+
+// -----------------------------------------------------------------------------
+// Au-delà du point de rupture — la barre horizontale, sur LE MÊME balisage
+// -----------------------------------------------------------------------------
+// 🔴 `display: none` SUR LE `<summary>` N'OUVRE PAS LE `<details>`. Le contenu
+// d'un `<details>` fermé n'est pas masqué par le résumé : il l'est par
+// `::details-content { content-visibility: hidden }` dans la feuille de l'agent
+// utilisateur. Masquer le résumé sans toucher au pseudo-élément servirait donc un
+// en-tête SANS AUCUNE navigation — invisible, introuvable au `Ctrl+F`, hors de
+// l'ordre de tabulation. Les deux règles vont ensemble, toujours.
+//
+// 🔴 D'OÙ LA CONDITION EN POSITIF, ET C'EST TOUTE LA GARANTIE. Écrite en négatif
+// (`@supports not selector(…)`, avec le repli à l'intérieur), la condition est
+// INCONNUE sur un moteur qui n'implémente pas `@supports selector()` : le bloc
+// entier est alors ignoré — donc le repli aussi — pendant que `display: none`
+// s'appliquerait. C'est exactement le scénario « navigation disparue ». En
+// positif, un moteur qui ne sait pas répondre ignore les DEUX règles couplées :
+// le `<summary>` reste visible et le menu reste un disclosure à toutes les
+// largeurs. Le pire cas devient une mise en page datée, jamais une navigation
+// injoignable — c'est ça, fail-safe, et ça ne tient qu'au sens de la condition.
+@supports selector(details::details-content) {
+  @media (min-width: $rupture-menu) {
+    .menu {
+      > summary {
+        display: none;
+      }
+
+      &::details-content {
+        content-visibility: visible;
+        block-size: auto;
+      }
+    }
+  }
+}
+
+@media (min-width: $rupture-menu) {
+  .menu {
+    flex: 1 1 auto;
+  }
+
+  .navigation {
+    padding-block-start: 0;
+  }
+
+  .liens {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--espace-1) var(--espace-3);
+    align-items: center;
+  }
+}
+
+// ⚠️ IL N'Y A PLUS DE BLOC DE REPLI, ET SON ABSENCE EST LE CORRECTIF. La version
+// précédente restaurait le résumé depuis un `@supports not selector(…)` —
+// inopérant précisément dans le cas qu'il prétendait couvrir (condition inconnue
+// ⇒ bloc ignoré), et fautif dans le cas où il s'appliquait : `display: revert`
+// rend au `<summary>` le `display` de la feuille de l'agent utilisateur avec une
+// spécificité (0,1,1) supérieure à celle de `.bascule-menu { display: inline-flex }`
+// (0,1,0) — le résumé revenait donc en `block`, barres et libellé empilés. En
+// portant la condition en positif, le résumé n'est jamais retiré tant que le
+// pseudo-élément n'est pas prouvé pris en charge : il garde son `inline-flex`
+// d'origine, sans qu'aucune règle n'ait à le restaurer.

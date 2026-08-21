@@ -58,14 +58,20 @@
   box-sizing: border-box;
 }
 
-// `color-scheme` déclare au navigateur que le site SAIT rendre les deux modes :
-// il en tire les couleurs par défaut des contrôles de formulaire, des barres de
-// défilement et du fond avant même le premier octet de CSS peint. Les valeurs
-// épinglées (`light` seul / `dark` seul) sont posées par les sélecteurs
-// `[data-theme]` de `_themes.scss`.
+// 🔴 `color-scheme` N'EST PAS DÉCLARÉ ICI, ET C'EST DÉLIBÉRÉ (bascule E6, 2026-08-20).
+// L'AUTORITÉ EST `src/styles/_themes.scss`, qui pose `color-scheme: dark` sur ce
+// MÊME sélecteur `:root`. Cette feuille-ci l'importe par `@use` en tête, donc ses
+// propres règles sont écrites APRÈS dans la cascade : une déclaration de même
+// spécificité posée ici GAGNERAIT contre celle de `_themes.scss`. C'est ce qui
+// arrivait — `light dark` était servi alors que la phase 1 est SOMBRE SEULE (D-2),
+// et le navigateur en tirait des contrôles de formulaire et un ascenseur CLAIRS au
+// milieu d'une page noire. Une seule déclaration, dans le fichier qui définit les
+// thèmes : c'est là qu'E4-ST1 rouvrira `light dark` en même temps que le thème clair
+// (et que le `<meta name="color-scheme">` de `src/index.html`).
+// ⚠️ L'exception est le bloc `@media print` en bas de ce fichier, qui force
+// `color-scheme: light` : l'impression est une cascade claire assumée (encre sombre
+// sur papier blanc) et ne dépend d'aucun thème d'écran.
 :root {
-  color-scheme: light dark;
-
   // Empêche le regrossissement automatique du texte d'iOS/Safari en paysage,
   // qui casse l'échelle typographique fixe.
   text-size-adjust: 100%;
@@ -185,29 +191,56 @@ video {
 }
 
 // -----------------------------------------------------------------------------
-// 4 · Impression — le carnet se photocopie en clair
+// 4 · Impression — le moniteur se photocopie en encre sombre sur papier clair
 // -----------------------------------------------------------------------------
-// Une page imprimée depuis le thème sombre gaspille l'encre et sort illisible.
-// On force donc les jetons du thème CLAIR dans les DEUX cas — épinglé ou non —
-// et la liste de sélecteurs ci-dessous n'est pas redondante :
+// 🔴 CE BLOC A CHANGÉ DE MÉCANIQUE À LA BASCULE E6, ET LE RISQUE QU'IL COUVRE EST
+// LE MÊME — en plus aigu. Jusqu'ici il rappelait le mixin `jetons-theme-clair` ;
+// le thème clair est mort avec la décision D-2 (sombre seul en phase 1), et avec
+// lui les trois sélecteurs qui neutralisaient une cascade à deux thèmes. Ce qui
+// reste vrai : les navigateurs NE PEIGNENT PAS le fond au papier. Sans inversion
+// explicite, il ne resterait donc que l'encre claire du thème sombre sur du blanc
+// — mesuré à ~1.1:1 avant le correctif d'origine, c'est-à-dire une page vierge.
 //
-//   · `:root[data-theme]` (0,2,0) neutralise `:root[data-theme='sombre']` (0,2,0),
-//     à égalité de spécificité, gagné par l'ordre source (le CSS d'un module
-//     `@use` est émis en TÊTE de fichier, ce bloc vient donc après) ;
-//   · `:root:not([data-theme])` (0,2,0) neutralise le bloc
-//     `prefers-color-scheme: dark` de `_themes.scss`, dont le sélecteur a lui
-//     aussi 0,2,0 — le simple `:root` (0,1,0) PERDAIT contre lui. Firefox et
-//     Safari évaluent encore `prefers-color-scheme` à l'impression : sans cette
-//     ligne, un visiteur non épinglé sur un OS en sombre imprimait de l'encre
-//     claire sur papier blanc (~1.1:1). `_themes.scss` porte la ceinture
-//     (`@media screen and …`), celle-ci est la bretelle.
+// ⚠️ LES VALEURS SONT ÉCRITES EN DUR ICI, ET C'EST LA SEULE EXCEPTION ADMISE À G7.
+// La raison n'est pas la commodité : il n'existe plus de second jeu de jetons à
+// invoquer, et le papier n'est pas un thème du site — c'est un MÉDIUM, dont les
+// contraintes (fond non peint, toner, absence de `color-scheme`) ne se dérivent
+// d'aucune valeur d'écran. Le garde-fou correspondant ne vérifie donc pas des hex
+// attendus mais le CONTRASTE RÉELLEMENT OBTENU et son SENS (encre plus sombre que
+// papier) : `src/styles/design-system.spec.ts`, « cascade d'impression (M1) ».
+// Mesures de ce jeu-ci : encre #111111 sur papier #ffffff = 18.9:1 · encre
+// tertiaire #555555 = 7.5:1 · lien #7a4b00 = 7.4:1 · filet #666666 = 5.7:1.
+//
+// L'ambre de marque N'EST PAS IMPRIMABLE TEL QUEL : #FFB454 sur blanc plafonne
+// vers 1.7:1. Les liens passent donc à une terre d'ombre — même famille chaude,
+// contraste tenu.
 @media print {
-  :root,
-  :root:not([data-theme]),
-  :root[data-theme] {
+  :root {
     color-scheme: light;
 
-    @include themes.jetons-theme-clair;
+    // Papier et encre — les deux jetons que le garde-fou mesure.
+    --couleur-surface: #ffffff;
+    --couleur-encre: #111111;
+
+    --couleur-surface-elevee: #ffffff;
+    --couleur-surface-creuse: #f2f2f2;
+    --couleur-encre-secondaire: #333333;
+    --couleur-encre-tertiaire: #555555;
+    --couleur-encre-filigrane: #767676;
+
+    --couleur-filet: #666666;
+    --couleur-filet-fort: #333333;
+
+    // Le décor de scène ne s'imprime pas : des scanlines au toner sont une rame
+    // de papier grise pour zéro information (le motif est du décor pur).
+    --couleur-reglure: transparent;
+
+    --couleur-accent: #7a4b00;
+    --couleur-accent-survol: #7a4b00;
+    --couleur-sur-accent: #ffffff;
+
+    --couleur-code-surface: #f2f2f2;
+    --couleur-code-encre: #111111;
   }
 
   body {

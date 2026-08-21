@@ -80,21 +80,33 @@ import { ROUTE_LECON_SIMULATION, attendreCourante, idEtape, lireEtat } from './a
 
 /**
  * Le nombre de blocs `<style>` que la page de leçon porte — MESURÉ sur l'artéfact
- * de PRODUCTION le 2026-08-20, jamais déduit : coquille, en-tête, pied, bascule de
- * thème, puis les trois feuilles de la page elle-même (`lecon`, `rendu-blocs`,
- * `quiz`). C'est la page la plus chargée de l'artéfact ; les 13 hachages distincts
- * de `style-src` sont l'union de celle-ci et des trois autres.
+ * de PRODUCTION le 2026-08-20, jamais déduit : coquille (1 746 o), en-tête
+ * (5 394 o), pied (473 o), puis les trois feuilles de la page elle-même — `lecon`
+ * (5 782 o), `rendu-blocs`/`.prose` (7 190 o), `quiz`/`.quiz` (6 108 o). C'est la
+ * page la plus chargée de l'artéfact ; les 13 hachages distincts de `style-src` sont
+ * l'union de celle-ci et des trois autres (accueil : 7 blocs, sommaire : 5, 404 : 4).
  *
  * 📉 8 → 7 le 2026-08-20 (clôture d'E3-ST1). Le 8ᵉ bloc était `.simulation` : il
  * n'existait que sur l'artéfact de FIXTURE, retiré avec le harnais. La leçon 01
  * publiée n'a pas de simulation (décision du propriétaire), donc ce bloc n'est
  * plus rendu. Il reviendra à E3-ST3, et rougira ici une fois, comme prévu.
  *
+ * 📉 7 → 6 le 2026-08-20 (bascule E6). Le bloc sorti est celui de `BasculeTheme` :
+ * le sélecteur de thème est retiré de l'en-tête (phase 1 à thème unique, décision
+ * D-2) ; le composant reste au dépôt sans consommateur, donc son bloc n'est plus
+ * rendu sur AUCUNE page. ⚠️ CE N'EST PAS UN RELÂCHEMENT DE LA MESURE DE SÉCURITÉ, et
+ * l'ordre des assertions le prouve : `orphelins` — « chaque bloc du DOM vivant est
+ * NOMMÉ par le `style-src` servi » — est évalué AVANT ce compte, et il est passé vert
+ * (0 orphelin sur 6) pendant que ce littéral rougissait. La directive n'a rien perdu :
+ * `NOMBRE_HACHAGES_STYLE_ATTENDU` reste à 13 sur l'artéfact entier, la bascule ayant
+ * ajouté ailleurs (bande d'ouverture, ambiance, pièce à conviction) autant de blocs
+ * qu'elle en retirait ici.
+ *
  * ⚠️ RECOPIÉ EN DUR, jamais importé de l'outil qui le calcule (L-012) : c'est la
  * duplication qui fait de ce fichier le second endroit revu quand un composant
  * porteur de styles entre dans la page de leçon.
  */
-const BLOCS_STYLE_PAGE_LECON = 7;
+const BLOCS_STYLE_PAGE_LECON = 6;
 
 /**
  * Actionne le QUIZ juste assez pour que la page soit VIVANTE : une réponse, une

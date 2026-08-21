@@ -84,8 +84,18 @@ const EN_TETE_CSP = 'content-security-policy';
  * ⚠️ La liste est NOMINATIVE et doit le rester : un jeton inconnu de ce script serait
  * traité comme une source CSP littérale, donc exigé tel quel dans l'artéfact — ce qui
  * ferait rougir le gate au lieu de l'ouvrir. C'est le sens de défaillance voulu.
+ *
+ * 🔴 `__HACHAGES_SCRIPT__` A ÉTÉ RETIRÉ DE CETTE LISTE le 2026-08-20 (bascule E6), et ce
+ * retrait DURCIT la comparaison au lieu de l'affaiblir. `script-src` s'écrit désormais
+ * « 'self' » EN DUR dans la source versionnée, sans jeton : la branche
+ * `jetons.length === 0 && surplus.length > 0` d'`exigerResolutionDesJetons` s'applique donc
+ * à cette directive, et TOUTE source ajoutée à `script-src` entre la source revue et
+ * l'artéfact — un hachage compris — est refusée par « Rien n'autorisait cet ajout ».
+ * Le laisser dormir ici aurait fait exactement l'inverse : un jeton mort continuerait
+ * d'autoriser l'ajout silencieux de `'sha256-…'` à la directive la plus sensible du site,
+ * pour du code qui n'existe plus (S-005).
  */
-const JETONS_HACHAGES = new Set(['__HACHAGES_STYLE__', '__HACHAGES_SCRIPT__']);
+const JETONS_HACHAGES = new Set(['__HACHAGES_STYLE__']);
 
 /**
  * Ce qu'un jeton a le droit de devenir, et RIEN d'autre.

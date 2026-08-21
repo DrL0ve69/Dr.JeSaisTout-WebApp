@@ -109,7 +109,7 @@ import {
   viewChild,
 } from '@angular/core';
 
-import { ProgressionService } from '../../../core/progression/progression';
+import { ProgressionService, SEUIL_REUSSITE } from '../../../core/progression/progression';
 import { PREFIXE_ID_QUESTION } from '../contenu-compile';
 
 /**
@@ -199,6 +199,17 @@ type QuestionPreparee =
 
 /** Le verdict d'une question corrigée — TROIS états, pas deux (WCAG 1.4.1). */
 type Verdict = 'juste' | 'faux' | 'absente';
+
+/**
+ * Le verdict de RÉUSSITE du quiz entier — UNE seule occurrence, à la fin, jamais
+ * pendant la correction question par question.
+ *
+ * Il porte le vocabulaire de la maîtrise du sommaire du cours (« Maîtrisé »), pas
+ * un « Bravo » : la seule chose que ce site sait dire à cet instant, c'est qu'un
+ * seuil a été franchi. Le mot est ÉCRIT et il est aussi la dernière phrase du
+ * résumé annoncé — la couleur verte et la police de jalon ne font que l'appuyer.
+ */
+const MOT_DE_REUSSITE = 'Module maîtrisé';
 
 /** Le mot ÉCRIT de chaque verdict. La couleur ne porte jamais l'information seule. */
 const MOTS_DU_VERDICT: Record<Verdict, string> = {
@@ -550,6 +561,16 @@ function porteUnDoublonIndiscernable(valeurs: readonly string[]): boolean {
         après correction, parce que le bouton qui l'a déclenchée est remplacé.
       -->
       <p #regionResume class="resume" role="status" tabindex="-1">{{ resume() }}</p>
+
+      <!--
+        Le verdict de réussite, DESSINÉ (E6). Toujours présent, texte vide tant que
+        le seuil n'est pas franchi : aucun bloc conditionnel, aucun nœud inséré,
+        donc rien qui puisse bouger sous la région live voisine.
+
+        aria-hidden parce que le MÊME verdict est déjà la dernière phrase du
+        résumé, que le role="status" annonce — voir verdictReussite, plus bas.
+      -->
+      <p class="verdict-reussite" aria-hidden="true">{{ verdictReussite() }}</p>
     </section>
   `,
 })
@@ -737,8 +758,39 @@ export class Quiz implements OnInit {
         }.`,
       );
     }
+    if (this.reussi()) {
+      phrases.push(MOT_DE_REUSSITE + '.');
+    }
     return phrases.join(' ');
   });
+
+  /**
+   * Le quiz est-il RÉUSSI, au sens de la maîtrise du module ?
+   *
+   * Le seuil est celui de `core/progression/` — importé, jamais recopié : c'est le
+   * MÊME nombre qui décide du badge « Maîtrisé » du sommaire du cours, et deux
+   * copies finiraient par diverger sur un verdict que le visiteur voit deux fois.
+   * `total() > 0` écarte la division par zéro d'un quiz sans question.
+   */
+  readonly reussi = computed(
+    () => this.corrige() && this.total() > 0 && this.score() / this.total() >= SEUIL_REUSSITE,
+  );
+
+  /**
+   * Le verdict DESSINÉ — vide tant que le quiz n'est pas réussi.
+   *
+   * 🔴 IL EST `aria-hidden` DANS LE GABARIT, ET CE N'EST PAS UNE DÉGRADATION.
+   * Le même verdict est déjà la dernière phrase de `resume()`, c'est-à-dire du
+   * `role="status"` qui l'ANNONCE : le rendre deux fois le ferait entendre deux
+   * fois. La règle du lot est tenue à l'endroit qui compte — le verdict est
+   * annoncé indépendamment de la police qui le dessine, puisque la voix ne lit
+   * pas l'élément qui porte Press Start 2P.
+   *
+   * Le texte est LIÉ plutôt que gardé par un `@if` : la région live voisine se
+   * repère par `:not(:empty)`, et un bloc `@if` y insérerait un nœud commentaire
+   * d'ancrage qui rendrait ce sélecteur toujours vrai.
+   */
+  readonly verdictReussite = computed(() => (this.reussi() ? MOT_DE_REUSSITE : ''));
 
   /** La réponse en cours pour une question, ou `undefined`. */
   reponseDe(id: string): string | undefined {

@@ -384,6 +384,13 @@ const ATTRIBUTS_PERMIS: readonly string[] = [
   'tabindex',
   'aria-live',
   'aria-atomic',
+  // DÉCISION REVUE (E6, lot « réparations ») : le verdict DESSINÉ
+  // `<p class="verdict-reussite" aria-hidden="true">` est un doublon VISUEL du
+  // dernier membre de phrase de `resume()`, que le `role="status"` annonce déjà —
+  // le masquer aux lecteurs d'écran évite la double annonce. L'attribut est
+  // LITTÉRAL dans le gabarit, jamais dérivé d'une donnée de contenu ; seul le
+  // texte du nœud est interpolé.
+  'aria-hidden',
   'data-champ',
   'data-verdict',
 ];

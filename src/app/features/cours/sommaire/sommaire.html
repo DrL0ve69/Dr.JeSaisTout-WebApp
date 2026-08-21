@@ -26,6 +26,28 @@
       <span class="chiffre">{{ libelleCommences() }}</span>
     </p>
 
+    <!--
+      La jauge de maîtrise — SEGMENTÉE, un segment par module publié, jamais une
+      barre lisse.
+
+      🔴 ELLE EST INVARIANTE SUR LA PROGRESSION (L-033), comme le badge : le nombre
+      de segments vient du MANIFESTE, donc il est le même dans le HTML prerendu et
+      après hydratation. Seule la classe d'un segment change, et le texte qui
+      l'accompagne change avec elle.
+
+      Les segments sont `aria-hidden` et l'information passe par le TEXTE voisin,
+      toujours visible : c'est lui, et non la jauge, qui dit où en est le lecteur
+      (WCAG 1.4.1). Aucun `role="progressbar"` — il exigerait un trio
+      `aria-valuenow`/`min`/`max` cohérent, et un rôle ARIA à moitié posé dégrade
+      l'accessibilité au lieu de l'améliorer.
+    -->
+    <p class="jauge-libelle">{{ libelleJauge() }}</p>
+    <div class="jauge" aria-hidden="true">
+      @for (module of modules(); track module.slug) {
+        <span class="segment" [class.segment-rempli]="module.etat === 'maitrise'"></span>
+      }
+    </div>
+
     @for (groupe of groupes(); track groupe.cle) {
       <div class="groupe">
         @if (groupe.section; as titreSection) {

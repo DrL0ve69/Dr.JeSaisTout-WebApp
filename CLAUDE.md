@@ -62,14 +62,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-20
 >
-> **✅ E3-ST1 EST CLOSE, FUSIONNÉE ET EN LIGNE** (PR #32). `content/cours/securite-web/01-fondamentaux/`
-> est la **première leçon publiée**, vérifiée sur le site déployé et non sur le vert d'un workflow :
-> `/cours/securite-web/fondamentaux/` répond **200**, porte son quiz, le sommaire la liste, et la CSP
-> servie garde `script-src` à **un seul hachage nominatif**. **E0, E1, E2 sont CLOS EN ENTIER.**
+> **✅ E6 EST CLOS EN ENTIER — la bascule « Moniteur ambre » est en ligne.** Pari de l'épic
+> **GAGNÉ et re-mesuré indépendamment en revue de code : ZÉRO défaut G7.** `script-src` passe à
+> **zéro hachage** (`script-src 'self'`), revue de sécurité approuvée. **E0, E1, E2, E3-ST1, E6 sont
+> CLOS EN ENTIER.** Détail complet (chiffres, dette neuve, corrections de faits) :
+> [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E6, bloc « ✅ CLÔTURE —
+> 2026-08-20 ».
 >
-> **Le geste suivant : E6 — la bascule « Moniteur ambre »** (ordre révisé D-3 : E2 → E3-ST0 → E3 bloc A
-> → **E6** → E3 blocs B/C → E4 → E5). Le pari explicite d'E6 est qu'**aucun composant n'a besoin
-> d'être touché** pour changer de peau : tout composant qui l'exigera est un **défaut G7**, à consigner.
+> **Le geste suivant : E3 blocs B/C — les leçons 02 et suivantes** (ordre révisé D-3 : E2 → E3-ST0 →
+> E3 bloc A → E6 → **E3 blocs B/C** → E4 → E5), par le skill `/lecon`.
 >
 > **⏳ LA DETTE OUVERTE PAR E3-ST1, nommée et datée — elle se referme à E3-ST3 (`03-injection`).**
 > La leçon 01 n'a **pas** de simulation (décision du propriétaire du 2026-08-20 : module abstrait,
@@ -91,7 +92,11 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **🔴 CSP : le compte de hachages `style-src` est passé de 10 à 13**, et les trois blocs de plus ont
 > été **mesurés et nommés un par un** avant épinglage (S-005) : l'adaptateur de route de la page de
 > leçon (4 196 o), `RenduBlocs` `.prose` (6 998 o), `QuizComponent` `.quiz` (5 669 o). Le compte se
-> recompose 10 + 3 ; aucun `.simulation`, ce qui est cohérent. **Hachages de script inchangés à 1.**
+> recompose 10 + 3 ; aucun `.simulation`, ce qui est cohérent.
+> ⚠️ **CE COMPTE A ÉTÉ REMPLACÉ PAR CELUI D'E6 (2026-08-20)** : **13 hachages de style, ZÉRO de
+> script**. `script-src 'self'` est écrit en dur et le jeton `__HACHAGES_SCRIPT__` a disparu de la
+> source ; sa réapparition est refusée nominativement. Remettre un script inline exige une revue
+> `security-reviewer`, jamais une édition d'`index.html`.
 > ⚠️ **L'option `--hachages-style` a été SUPPRIMÉE** du générateur : plus aucun appelant ne l'employait
 > depuis le retrait du harnais, et supprimer un levier vaut mieux que le garder (S-018).
 >
@@ -245,8 +250,9 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > relit dans le DOM, `getComputedStyle` ne bouge pas : un contrôle positif e2e bâti sur l'événement
 > serait un no-op silencieux accusant le produit (**L-041**/**S-016**, à relire avant tout nouveau
 > spec e2e qui teste un refus de style).
-> **Dettes neuves → E6** : `--couleur-code-fond` vient des thèmes github (fichier gitignoré), hors
-> du gate de contraste ; huit `tabindex="0"` posés par le lot B sont **sans emploi à 1280 px**
+> **Dettes neuves → E6 : `--couleur-code-fond` PAYÉE au lot E6** (le jeton n'existait même pas ; le
+> vrai sujet était la feuille de coloration générée, corrigée). Restait : huit `tabindex="0"` posés
+> par le lot B, **sans emploi à 1280 px**
 > (aucun défileur ne déborde à cette largeur — bruit clavier, pas un échec WCAG). **Dette neuve →
 > sécurité** : le contrôle positif CSP (`e2e/aides/sonde-csp.ts`) ne couvre que `script-src` ;
 > `style-src` (la directive la plus mouvante) n'a **aucun** contrôle positif prouvant qu'il bloque
@@ -338,10 +344,6 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **⚠️ RESTE OUVERT après E2-ST3** — la réserve **(3)** d'E2-ST2 : une leçon en `statut: brouillon`
 > **sera prerendue publique et indexable**. Elle se lève en clôture d'E3-ST1. Les réserves (1) et (2)
 > -->
-> **⚠️ RESTE OUVERT, et c'est le seul reliquat de ce bloc** — un avertissement de build **antérieur
-> au lot E** : `quiz.scss` dépasse son budget
-> de **88 o** (4,09 Ko pour 4,00 Ko) — relever le budget ou alléger la feuille, à trancher en E2-ST4
-> ou dans le lot de dette.
 >
 > **🔴 LEÇON S-011, née du lot C, à connaître avant d'écrire une question de leçon.**
 > `generer-config-swa.mjs` refuse dans le HTML prerendu **deux** motifs — le style en ligne **et**
@@ -409,8 +411,6 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **(3) Le sanitizer d'Angular efface TOUT le SVG** — mesuré (`src/sonde-sanitizer-svg.spec.ts`,
 > gardée comme tripwire) : 24 éléments → 0, 71 attributs → 0. D'où le `bypassSecurityTrustHtml`
 > **scopé au seul bloc `mermaid`**, justifié nominativement au point d'appel. Ne pas l'élargir.
-> **(4) Retirer la `mentionChantier` « Chantier en cours »** de la carte le jour où la première leçon
-> est publiée, sinon l'accueil ment. Rappel repris en **E6-ST4**.
 >
 > <!--
 > **❓ NŒUDS : tous tranchés le 2026-08-16, ne pas les rouvrir** (détail : §E2 du backlog). Dette
@@ -622,9 +622,9 @@ périmée). Reste à venir : `dotnet build`/`dotnet test` (**phase 2**).
 - **Qualité pédagogique** : chaque concept = théorie + exemple simple ET complexe + analogie bornée
   + support visuel ; jamais de fait non sourcé : `.claude/rules/contenu-pedagogique.md`.
 - **Design anti-AI-slop** : direction **« Moniteur ambre »** (rétro-arcade + Matrix, sombre seul en
-  phase 1) + garde-fous **G1–G11** : `docs/design/direction-visuelle.md`. ⚠️ La direction
-  « Carnet de laboratoire » est **abandonnée depuis le 2026-08-17** mais **encore en production**
-  jusqu'à E6 — le code que tu lis peut être en retard sur le document, jamais l'inverse.
+  phase 1) + garde-fous **G1–G11** : `docs/design/direction-visuelle.md`. La direction « Carnet de
+  laboratoire » est **abandonnée depuis le 2026-08-17 et n'est plus en production depuis E6**
+  (2026-08-20).
 
 ## Système d'agents (guide complet : `.claude/README.md`)
 

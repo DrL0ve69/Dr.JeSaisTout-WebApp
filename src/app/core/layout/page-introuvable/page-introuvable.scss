@@ -1,4 +1,4 @@
-// Page 404 — le dernier « feuillet de carnet » du site.
+// Page 404 — direction « Moniteur ambre » (E6).
 //
 // Ces règles ressemblaient à celles de `page-a-venir.scss`, et le commentaire
 // disait pourquoi on ne les avait PAS mutualisées : un mixin extrait de deux
@@ -21,27 +21,53 @@
   padding: var(--espace-6) var(--espace-3);
 }
 
-.carnet {
-  @include m.reglure;
-
-  // Marge NEUTRE : une adresse erronée n'est pas une faille de sécurité, et
-  // l'encre rouge est réservée à la signature sémantique « vulnérable ».
-  @include m.marge-carnet;
-
+// AUCUNE SCANLINE ICI, ET C'EST UNE DÉCISION (G11 : la lecture prime). La
+// texture de scène est posée une fois pour toutes en fond de coquille
+// (`app.scss`) ; la redoubler derrière le seul bloc de prose de la page la
+// rendrait plus dure à lire pour rien gagner en identité.
+.cartouche-erreur {
   max-width: var(--largeur-lecture);
   margin-inline: auto;
   padding: var(--espace-4) var(--espace-3);
   background-color: var(--couleur-surface-creuse);
-  border: var(--filet-fin) solid var(--couleur-filet);
+
+  // G7-a : le bloc se borne par un TRAIT sur ses quatre côtés, pas par sa seule
+  // teinte de fond — deux surfaces voisines ne délimitent plus rien dès que
+  // `forced-colors: active` les écrase toutes les deux.
+  @include m.cartouche;
 }
 
-.tampon {
-  margin-block-end: var(--espace-2);
-  color: var(--couleur-danger-vuln);
+// Micro-étiquette : ce qui était un « tampon » d'encre dans le carnet.
+.etiquette {
+  @include m.micro-etiquette;
+}
+
+// 🔴 SEUL EMPLOI DE `--police-jalon` (Press Start 2P) DANS LA COQUILLE, ET SON
+// RÔLE EST FERMÉ : la police du jalon marque un repère de parcours, jamais de la
+// prose ni un titre courant. Deux contraintes vont avec elle, et aucune n'est
+// négociable :
+//
+//  1. LA TAILLE EST EXPLICITEMENT RÉDUITE, ET LE PLAFOND EST MESURÉ, PAS ESTIMÉ.
+//     La chasse de Press Start 2P vaut ~2× celle d'IBM Plex Mono : réglée comme
+//     un titre, elle déborde de sa boîte au premier zoom. Le plafond du dépôt est
+//     `--taille-s` (1 rem) ; on prend `--taille-xs`, donc franchement sous la
+//     barre — à ce corps-là, « 404 » pèse déjà visuellement comme un titre.
+//     Ce n'est pas une valeur en dur : c'est un jeton choisi plus bas.
+//  2. L'INTERLIGNE RESTE ≥ 1,5 (WCAG 1.4.12, espacement du texte). Une police
+//     bitmap dont les glyphes occupent presque toute la boîte d'em se serre
+//     immédiatement si on la laisse hériter d'un interligne de titre.
+//     `--interligne-corps` vaut 1,6 : au-dessus du plancher, et par un jeton
+//     plutôt que par un littéral (G7).
+//
+// Les deux contraintes sont tenues par un garde-fou exécutable —
+// `src/styles/police-jalon.spec.ts`, liste blanche `EMPLOIS_ADMIS` : tout emploi
+// de la police du jalon absent de cette liste FAIT ÉCHOUER en se nommant.
+.code-erreur {
+  margin-block: var(--espace-1) var(--espace-2);
+  color: var(--couleur-accent);
+  font-family: var(--police-jalon);
   font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
+  line-height: var(--interligne-corps);
 }
 
 .titre {
@@ -52,8 +78,10 @@
   font-size: var(--taille-m);
 }
 
-// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`).
-.reglure {
+// Le trait lui-même vient de la règle globale `hr` (mixin `filet-horizontal`),
+// qui porte le correctif L-025 (`margin-inline: 0`, sans quoi un `<hr>` item de
+// grille ou de flexbox retombe à une largeur de ZÉRO tout en gardant sa place).
+.separateur {
   margin-block: var(--espace-4);
 }
 

@@ -52,13 +52,18 @@ const CSP_SOURCE: string = ((): string => {
 /** Deux hachages plausibles, distincts, de forme réelle (`'sha256-' + base64`). */
 const HACHAGE_A = "'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='";
 const HACHAGE_B = "'sha256-K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols='";
-const HACHAGE_C = "'sha256-uU0nuZNNPgilLlLX2n2r+sSE7+N6U4DukIj3rOLvzek='";
 
-/** La CSP telle que `generer-config-swa.mjs` l'écrirait : les deux jetons résolus. */
-const CSP_ARTEFACT = CSP_SOURCE.replace('__HACHAGES_STYLE__', `${HACHAGE_A} ${HACHAGE_B}`).replace(
-  '__HACHAGES_SCRIPT__',
-  HACHAGE_C,
-);
+/**
+ * 🔴 UN TROISIÈME HACHAGE EXISTAIT ICI (`HACHAGE_C`), CELUI DE `script-src`, ET IL A DISPARU AVEC
+ * LE JETON QU'IL RÉSOLVAIT (bascule E6, 2026-08-20). `script-src` s'écrit désormais `'self'` EN DUR
+ * dans la source versionnée : il n'y a plus de `__HACHAGES_SCRIPT__` à substituer, donc plus de
+ * valeur à inventer ici. Ce hachage-là ne sert plus qu'une chose — jouer la SOURCE ILLÉGITIME
+ * qu'aucun jeton n'autorise (voir « la liste blanche de `script-src` est VIDE » plus bas).
+ */
+const HACHAGE_INTRUS = "'sha256-uU0nuZNNPgilLlLX2n2r+sSE7+N6U4DukIj3rOLvzek='";
+
+/** La CSP telle que `generer-config-swa.mjs` l'écrirait : le SEUL jeton restant, résolu. */
+const CSP_ARTEFACT = CSP_SOURCE.replace('__HACHAGES_STYLE__', `${HACHAGE_A} ${HACHAGE_B}`);
 
 interface Resultat {
   readonly code: number;
@@ -123,12 +128,31 @@ function verifier(options: {
 
 describe('CSP servie — comparaison structurelle (tools/deploiement/verifier-csp-servie.mjs)', () => {
   describe('la référence employée par ce spec est bien la source versionnée', () => {
-    it('porte encore les deux jetons de hachages', () => {
-      // Si la source cessait d'employer les jetons, tous les cas « jeton résolu en autre
-      // chose qu'un hachage » ci-dessous testeraient le vide — verts pour rien (L-005).
+    it('porte encore le jeton de style — et AUCUN jeton de script', () => {
+      // ✅ CE QUE CETTE ASSERTION EST DEVENUE, ET POURQUOI ELLE EST PLUS FORTE.
+      // Elle exigeait « les DEUX jetons » ; elle exige désormais le premier ET L'ABSENCE du
+      // second. Ce qu'elle prouvait seule reste couvert dans les deux sens :
+      //   · côté STYLE, rien n'a changé — sans le jeton, tous les cas « jeton résolu en autre
+      //     chose qu'un hachage » ci-dessous testeraient le vide, verts pour rien (L-005) ;
+      //   · côté SCRIPT, l'ancienne assertion garantissait qu'un jeton EXISTE. La garantie utile
+      //     est maintenant l'inverse : `__HACHAGES_SCRIPT__` n'est plus résolu par personne
+      //     (`generer-config-swa.mjs`, `JETON_SCRIPT_INTERDIT`), donc s'il revenait dans la source
+      //     la directive `script-src` porterait un jeton NON RÉSOLU que le navigateur lit comme un
+      //     nom d'hôte et ignore en silence. L'absence est le contrat ; on l'assertionne.
       expect(CSP_SOURCE).toContain('__HACHAGES_STYLE__');
-      expect(CSP_SOURCE).toContain('__HACHAGES_SCRIPT__');
+      expect(CSP_SOURCE).not.toContain('__HACHAGES_SCRIPT__');
       expect(CSP_ARTEFACT).not.toContain('__HACHAGES_');
+    });
+
+    it("écrit `script-src 'self'` sans le moindre hachage — la liste blanche est VIDE", () => {
+      // 🔴 LE REMPLACEMENT DIRECT DE CE QUE L'ANCIEN HARNAIS PROUVAIT SEUL. Avant la bascule E6,
+      // `HACHAGE_C` faisait de `script-src` une liste NOMINATIVE à exactement un élément, et
+      // plusieurs cas ci-dessous en dépendaient. Le contrat neuf est plus dur : ZÉRO hachage,
+      // donc aucune exception possible. Sans cette assertion, un hachage réintroduit dans la
+      // source versionnée traverserait ce fichier entier sans le faire rougir une seule fois.
+      const directive = /script-src[^;]*/.exec(CSP_SOURCE)?.[0] ?? '';
+      expect(directive).toBe("script-src 'self'");
+      expect(directive).not.toContain('sha256-');
     });
   });
 
@@ -197,10 +221,7 @@ describe('CSP servie — comparaison structurelle (tools/deploiement/verifier-cs
       // refusé même si `SOURCE_HACHAGE` était relâché en `/sha256-/`, qui autoriserait
       // pourtant `https://malveillant.invalide/sha256-x`. Ici la valeur PORTE `sha256-`
       // et doit malgré tout être refusée, parce que `!!` n'appartient pas au base64.
-      const artefactFautif = CSP_SOURCE.replace('__HACHAGES_STYLE__', "'sha256-abc!!'").replace(
-        '__HACHAGES_SCRIPT__',
-        HACHAGE_C,
-      );
+      const artefactFautif = CSP_SOURCE.replace('__HACHAGES_STYLE__', "'sha256-abc!!'");
       const { code, sortie } = verifier({ servie: artefactFautif, artefact: artefactFautif });
       expect(code).toBe(1);
       expect(sortie).toContain('style-src');
@@ -214,7 +235,7 @@ describe('CSP servie — comparaison structurelle (tools/deploiement/verifier-cs
       const artefactFautif = CSP_SOURCE.replace(
         '__HACHAGES_STYLE__',
         HACHAGE_A.replaceAll("'", ''),
-      ).replace('__HACHAGES_SCRIPT__', HACHAGE_C);
+      );
       const { code, sortie } = verifier({ servie: artefactFautif, artefact: artefactFautif });
       expect(code).toBe(1);
       expect(sortie).toContain('style-src');
@@ -224,10 +245,7 @@ describe('CSP servie — comparaison structurelle (tools/deploiement/verifier-cs
     it("refuse un jeton `__HACHAGES_*__` résolu en autre chose qu'un hachage", () => {
       // Le cœur de S-005 : la liste blanche reste NOMINATIVE. Un jeton ne résout que des
       // `'sha256-…'` — jamais un `'unsafe-inline'` glissé par une génération fautive.
-      const artefactFautif = CSP_SOURCE.replace('__HACHAGES_STYLE__', "'unsafe-inline'").replace(
-        '__HACHAGES_SCRIPT__',
-        HACHAGE_C,
-      );
+      const artefactFautif = CSP_SOURCE.replace('__HACHAGES_STYLE__', "'unsafe-inline'");
       const { code, sortie } = verifier({ servie: artefactFautif, artefact: artefactFautif });
       expect(code).toBe(1);
       expect(sortie).toContain('style-src');
@@ -244,6 +262,40 @@ describe('CSP servie — comparaison structurelle (tools/deploiement/verifier-cs
       expect(code).toBe(1);
       expect(sortie).toContain('connect-src');
       expect(sortie).toContain('AUCUN jeton');
+    });
+
+    it("refuse un HACHAGE réintroduit dans `script-src` par la GÉNÉRATION — plus aucun jeton ne l'autorise", () => {
+      // 🔴 CE CAS REMPLACE, EN PLUS DUR, TOUT CE QUE `HACHAGE_C` PROUVAIT AVANT LA BASCULE E6.
+      // Tant que `script-src` portait `__HACHAGES_SCRIPT__`, un hachage y était LÉGITIME et la
+      // seule chose vérifiable était sa FORME. Le jeton retiré, la directive n'admet plus AUCUNE
+      // source au-delà de ce que la source versionnée écrit : un hachage y est désormais un ajout
+      // que rien n'autorise, quelle que soit sa forme. C'est le sens du retrait de
+      // `__HACHAGES_SCRIPT__` de `JETONS_HACHAGES` dans `verifier-csp-servie.mjs`.
+      const artefactFautif = CSP_ARTEFACT.replace(
+        "script-src 'self'",
+        `script-src 'self' ${HACHAGE_INTRUS}`,
+      );
+      expect(artefactFautif).not.toBe(CSP_ARTEFACT);
+      const { code, sortie } = verifier({ servie: artefactFautif, artefact: artefactFautif });
+      expect(code).toBe(1);
+      expect(sortie).toContain('script-src');
+      expect(sortie).toContain('AUCUN jeton');
+    });
+
+    it("refuse un HACHAGE ajouté à `script-src` entre l'artéfact et ce qui est SERVI", () => {
+      // L'autre moitié de la pince, sur la même charge : le cas ci-dessus attrape une GÉNÉRATION
+      // fautive (artéfact ≠ source), celui-ci attrape une politique servie qui a divergé de
+      // l'artéfact scellé (servi ≠ artéfact). Deux comparaisons distinctes, deux chemins de code —
+      // fermer l'une laisserait l'autre grande ouverte.
+      const servieFautive = CSP_ARTEFACT.replace(
+        "script-src 'self'",
+        `script-src 'self' ${HACHAGE_INTRUS}`,
+      );
+      const { code, sortie } = verifier({ servie: servieFautive });
+      expect(code).toBe(1);
+      expect(sortie).toContain('script-src');
+      expect(sortie).toContain('DIFFÉRENTE');
+      expect(sortie).toContain('sources en TROP');
     });
 
     it('refuse une directive que la génération a PERDUE par rapport à la source versionnée', () => {

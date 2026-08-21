@@ -15,10 +15,17 @@
 //
 // CONFINEMENT DES CONTRASTES — zéro paire neuve. Chaque encre employée ci-dessous
 // forme avec son fond une paire DÉJÀ MESURÉE par `tools/design/verifier-contrastes.mjs` :
-//   · `--couleur-danger-vuln` et `--couleur-encre` sur `--couleur-surface-creuse`
-//     (paires reprises telles quelles de la table du gate, aucune neuve) ;
+//   · `--couleur-encre` et `--couleur-encre-secondaire` sur `--couleur-surface-creuse`
+//     (l'encre secondaire vient de `micro-etiquette` ; c'est la paire que `quiz.scss`
+//     emploie déjà, aucune neuve) ;
 //   · `--couleur-accent` et `--couleur-encre-tertiaire` sur `--couleur-surface-creuse` ;
+//   · `--couleur-sur-accent` sur `--couleur-accent` — la pastille du cartouche, en
+//     aplat ambre plein ; c'est la paire du bouton plein du quiz ;
 //   · `--couleur-encre` sur `--couleur-surface` (la surface de page par défaut).
+//
+// ⚠️ `--couleur-danger-vuln` A QUITTÉ CETTE FEUILLE avec la bascule E6 : le tampon
+// de module est devenu une micro-étiquette d'interface, et le rouge est la seule
+// signature « vulnérable » du site — l'employer en décor de page la diluait.
 //
 // CIBLES DE POINTAGE. Les liens du sommaire et ceux des leçons voisines sont des
 // liens AUTONOMES, pas des liens dans une phrase : l'exception « en ligne » de WCAG
@@ -28,41 +35,107 @@
 
 @use '../../../../styles/mixins' as m;
 
+// -----------------------------------------------------------------------------
+// Les deux mesures du RAIL, et pourquoi elles vivent ici
+// -----------------------------------------------------------------------------
+// G7 interdit une distance littérale dans une DÉCLARATION. Ces deux-là n'en sont
+// pas : ce sont un point de bascule de mise en page et une largeur de piste de
+// grille, pour lesquels la couche des jetons sémantiques n'a rien — un jeton est
+// une décision de DESIGN réutilisable, un point de rupture est une mesure locale
+// à une disposition. Le dépôt a déjà ce précédent, documenté au même titre :
+// `$rupture-menu: 52.5rem` dans `en-tete.scss`.
+//
+// 80rem = 1280 px : au-dessous, la piste du rail (18rem) plus la colonne de
+// lecture (78ch) ne tiennent pas côte à côte sans étrangler la prose, et le
+// sommaire retourne au-dessus d'elle, en flux. C'est le seul `@media` de largeur
+// de cette feuille.
+$rupture-rail: 80rem;
+$largeur-rail: 18rem;
+
 :host {
   display: block;
   padding: var(--espace-6) var(--espace-3);
 }
 
+// La page de lecture reste à la largeur de lecture tant qu'il n'y a qu'une
+// colonne ; elle s'élargit à la largeur de PAGE quand le rail prend sa place à
+// côté d'elle, sans quoi le rail mangerait la colonne de prose.
 .lecon {
   max-width: var(--largeur-lecture);
   margin-inline: auto;
+
+  @media (min-width: $rupture-rail) {
+    max-width: var(--largeur-page);
+  }
 }
 
 // -----------------------------------------------------------------------------
-// Page de garde
+// Page de garde et cartouche de module
 // -----------------------------------------------------------------------------
 
+// G7-a : le contour est porté par un filet mesuré à 3:1, jamais par la seule
+// différence de teinte entre deux fonds voisins — elle disparaît en contraste
+// forcé. `cartouche` pose le trait sur les QUATRE côtés et écrit `border-radius: 0`
+// (il remplace ici l'appel à `marge-carnet`, déprécié par la bascule E6).
 .page-de-garde {
-  @include m.marge-carnet;
+  @include m.cartouche;
 
   padding: var(--espace-4) var(--espace-3);
   background-color: var(--couleur-surface-creuse);
+}
 
-  // Le contour est porté par un filet mesuré à 3:1, jamais par la seule différence
-  // de teinte entre deux fonds voisins — elle disparaît en contraste forcé.
-  border: var(--filet-fin) solid var(--couleur-filet);
+// Le cartouche : la pastille du numéro, puis l'identité du module. `align-items:
+// start` garde la pastille alignée sur la première ligne du libellé même quand le
+// titre se replie sur trois lignes.
+// 🔴 EMPLOI ADMIS N°1 DE LA POLICE DE JALON (`src/styles/police-jalon.spec.ts`).
+// Press Start 2P a une chasse d'environ le DOUBLE de celle d'IBM Plex Mono : la
+// taille est donc explicitement redescendue à `--taille-m` (20 px), où elle pèse
+// visuellement comme un `--taille-xl` en police de titres. `line-height` reste à
+// l'interlignage de corps (1.6) : WCAG 1.4.12 veut qu'un lecteur puisse imposer
+// le sien, ce qu'une hauteur bloquée lui refuserait.
+//
+// Fond AMBRE PLEIN sur encre `--couleur-sur-accent` — la paire du bouton plein du
+// quiz, déjà mesurée par `tools/design/verifier-contrastes.mjs`. Aucune paire neuve.
+.cartouche-module {
+  display: flex;
+  gap: var(--espace-3);
+
+  // La pastille reste alignée sur la première ligne du libellé, même quand le
+  // titre se replie sur trois lignes.
+  align-items: start;
+
+  .pastille {
+    flex: none;
+    padding: var(--espace-1) var(--espace-2);
+    background-color: var(--couleur-accent);
+    color: var(--couleur-sur-accent);
+    font-family: var(--police-jalon);
+    font-size: var(--taille-m);
+    line-height: var(--interligne-corps);
+
+    // Le jalon est un bloc PLEIN : en contraste forcé, l'aplat tombe et il ne
+    // resterait aucune limite. On lui rend un trait.
+    @include m.contraste-force {
+      border: var(--filet-fin) solid CanvasText;
+      background-color: Canvas;
+      color: CanvasText;
+    }
+  }
+
+  .identite {
+    // Un item de flexbox a `min-width: auto` : sans ceci, un titre long refuse de
+    // se replier et pousse la pastille hors du cartouche.
+    min-inline-size: 0;
+  }
 }
 
 .tampon {
+  @include m.micro-etiquette;
+
   margin-block-end: var(--espace-2);
-  color: var(--couleur-danger-vuln);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
 }
 
-.page-de-garde > .titre {
+.cartouche-module .titre {
   margin-block-end: var(--espace-3);
 }
 
@@ -77,11 +150,7 @@
 
 .repere {
   > dt {
-    color: var(--couleur-encre-tertiaire);
-    font-size: var(--taille-xs);
-    font-weight: var(--graisse-tampon);
-    letter-spacing: var(--chasse-tampon);
-    text-transform: uppercase;
+    @include m.micro-etiquette;
   }
 
   > dd {
@@ -105,17 +174,70 @@
 }
 
 // -----------------------------------------------------------------------------
+// Disposition : le rail de sommaire et le corps de la leçon
+// -----------------------------------------------------------------------------
+// 🔴 AUCUN `order` NI `grid-row` DANS CE FICHIER, ET C'EST LA RÈGLE, PAS UNE
+// COÏNCIDENCE. Le `<nav>` précède déjà le corps dans le gabarit : la grille se
+// contente donc de l'ORDRE DU DOCUMENT, en une colonne comme en deux. Réordonner
+// visuellement en CSS désynchroniserait l'ordre de lecture et l'ordre de
+// tabulation de l'ordre perçu (WCAG 1.3.2 « Ordre séquentiel logique » et 2.4.3
+// « Parcours du focus »), sans qu'aucun gate de ce dépôt ne puisse le voir.
+.disposition-lecon {
+  display: grid;
+  gap: var(--espace-4);
+
+  // La marge que portait le sommaire avant qu'il ne devienne un item de grille :
+  // elle sépare la page de garde de tout ce qui suit, dans les deux dispositions.
+  margin-block-start: var(--espace-4);
+
+  @media (min-width: $rupture-rail) {
+    grid-template-columns: $largeur-rail minmax(0, var(--largeur-lecture));
+    gap: var(--espace-6);
+
+    // Sans `start`, les deux pistes s'étirent à la hauteur de la plus haute et
+    // `position: sticky` n'a plus rien à faire glisser : le rail collerait déjà
+    // sur toute la page.
+    align-items: start;
+  }
+}
+
+// `min-inline-size: 0` : un item de grille a `min-width: auto`, donc un bloc de
+// code large repousserait la piste au lieu de défiler dans son propre conteneur.
+.corps-lecon {
+  min-inline-size: 0;
+}
+
+// -----------------------------------------------------------------------------
 // Sommaire ancré
 // -----------------------------------------------------------------------------
 // Une navigation, pas une décoration : elle est nommée par son propre titre
 // (`aria-labelledby`), et ses liens fonctionnent sans JavaScript.
+//
+// G11 : aucune texture ambiante ici — le rail borde le champ de lecture d'une
+// leçon, et un motif de balayage derrière une liste de titres est exactement
+// l'effet décoratif que la direction visuelle y interdit.
 
 .sommaire {
-  @include m.marge-carnet(var(--couleur-accent));
+  @include m.cartouche(var(--couleur-accent));
 
-  margin-block-start: var(--espace-4);
+  // Le rail reçoit le focus (`tabindex="0"` dans le gabarit, exigé par axe dès
+  // qu'il défile) : il doit donc dessiner l'anneau comme n'importe quel élément
+  // focalisable du site.
+  @include m.focus-visible;
+
   padding: var(--espace-3);
   background-color: var(--couleur-surface-creuse);
+
+  @media (min-width: $rupture-rail) {
+    position: sticky;
+
+    // Le décalage haut et la hauteur maximale se répondent : la seconde retranche
+    // le premier (et autant de respiration en bas), sinon le rail déborderait la
+    // fenêtre par le bas d'exactement ce dont il a été décollé du haut.
+    inset-block-start: var(--espace-4);
+    max-block-size: calc(100dvh - var(--espace-8));
+    overflow: auto;
+  }
 
   > h2 {
     font-size: var(--taille-m);
@@ -177,30 +299,22 @@
 }
 
 .voisine {
+  @include m.cartouche;
+  @include m.focus-visible;
+
   display: grid;
   gap: var(--espace-0-5);
   min-block-size: var(--espace-6);
   padding: var(--espace-3);
   color: var(--couleur-accent);
   background-color: var(--couleur-surface-creuse);
-  border: var(--filet-fin) solid var(--couleur-filet);
-
-  @include m.focus-visible;
-
-  @include m.contraste-force {
-    border-color: CanvasText;
-  }
 }
 
 // Le SENS du lien (« précédente » / « suivante ») est ÉCRIT, jamais porté par la
 // seule position ni par une flèche colorée (WCAG 1.4.1). L'encre tertiaire suffit
 // pour cette ligne de service, dont le contraste est mesuré sur cette surface.
 .sens {
-  color: var(--couleur-encre-tertiaire);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
+  @include m.micro-etiquette;
 }
 
 .titre-voisine {

@@ -110,12 +110,15 @@
 // explicitement qu'il ne peut pas poser le troisième à la place du gabarit : le mot.
 // Le voici. En `forced-colors: active`, la couleur tombe et seul ce mot, avec le
 // style du trait, distingue encore « vulnérable » de « corrigé ».
+//
+// ⚠️ AUCUNE COULEUR ICI, ET C'EST VOULU : `micro-etiquette` pose son encre
+// secondaire, que chaque variante d'encadré RÉÉCRIT plus bas (`> .etiquette {
+// color: … }`, spécificité supérieure). L'étiquette prend donc la teinte de sa
+// marque pédagogique, jamais celle du mixin.
 .etiquette {
+  @include m.micro-etiquette;
+
   margin-block-end: var(--espace-2);
-  font-size: var(--taille-xs);
-  font-weight: var(--graisse-tampon);
-  letter-spacing: var(--chasse-tampon);
-  text-transform: uppercase;
 }
 
 // -----------------------------------------------------------------------------
@@ -301,9 +304,15 @@
   }
 }
 
+// `note` — cadre net, avec un montant de gauche appuyé. `cartouche` remplace
+// l'appel à `marge-carnet` que la bascule E6 a déprécié : le bloc se borne
+// désormais sur ses quatre côtés (G7-a), le rail de gauche n'étant plus que
+// l'accent qui le distingue des autres tons.
 .encadre[data-variante='note'] {
-  @include m.marge-carnet;
+  @include m.cartouche;
 
+  border-inline-start-width: var(--filet-marge);
+  border-inline-start-color: var(--couleur-filet-fort);
   background-color: var(--couleur-surface-creuse);
 
   > .etiquette {
@@ -311,9 +320,12 @@
   }
 }
 
+// `a-retenir` — même cadre, en ambre, avec un montant de gauche DOUBLE : c'est la
+// forme, pas la teinte, qui le sépare de `note` en contraste forcé.
 .encadre[data-variante='a-retenir'] {
-  @include m.marge-carnet(var(--couleur-accent));
+  @include m.cartouche(var(--couleur-accent));
 
+  border-inline-start-width: var(--filet-marge);
   border-inline-start-style: double;
   background-color: var(--couleur-surface-creuse);
 
@@ -331,6 +343,12 @@
 .encadre[data-variante='cours'] > .etiquette,
 .encadre[data-variante='complement'] > .etiquette,
 .encadre[data-variante='correction-du-cours'] > .etiquette {
+  // 🔴 LA POLICE EST LEVÉE AVEC LE RESTE DEPUIS E6, ET C'EST LA MOITIÉ QUI COMPTE.
+  // `micro-etiquette` pose `--police-micro` (Silkscreen), une police BITMAP faite
+  // pour des étiquettes de deux mots ; une phrase entière rendue avec elle devient
+  // pénible bien avant d'être illisible. Ces trois-là retournent donc à la police
+  // de corps, pour la même raison qui leur rend la bas de casse.
+  font-family: var(--police-corps);
   letter-spacing: normal;
   text-transform: none;
 }
@@ -352,13 +370,21 @@
   }
 }
 
-// 🧩 « complément » — bordure de gauche seulement, en TIRETS : un ajout accolé au
-// cours, pas une partie de son cadre. `dashed` est le seul des quatre styles que
-// les variantes de ton n'emploient pas.
+// 🧩 « complément » — cadre COMPLET en TIRETS. `dashed` est le seul des quatre
+// styles que les variantes de ton n'emploient pas : c'est lui, et lui seul, qui
+// oppose le complément au cadre PLEIN de `cours` — une opposition qui survit à
+// `forced-colors: active`, là où les deux teintes de provenance tombent ensemble
+// sur `CanvasText`.
+//
+// ⚠️ CE N'EST PLUS UNE BORDURE DE GAUCHE. La bascule E6 a déprécié `marge-carnet`
+// au profit de `cartouche` (G7-a : un bloc se borne sur ses quatre côtés), et
+// l'ancienne justification — « un ajout accolé au cours, pas une partie de son
+// cadre » — ne décrivait plus le code. Le contraste de FORME entre les deux
+// provenances, lui, est intact : plein contre tireté.
 .encadre[data-variante='complement'] {
-  @include m.marge-carnet(var(--couleur-provenance-complement));
+  @include m.cartouche(var(--couleur-provenance-complement), var(--filet-marge));
 
-  border-inline-start-style: dashed;
+  border-style: dashed;
   background-color: var(--couleur-provenance-complement-surface);
 
   > .etiquette {

@@ -156,14 +156,23 @@ test('chaque cible de pointeur tient la barre AA de 24 × 24 px (2.5.8)', async 
   }
 
   // Garde-fou : une énumération qui ne trouve rien passerait verte en ne prouvant
-  // rien. LA PAGE « / » EN COMPTE 9 AUJOURD'HUI, dans l'ordre du document : lien
+  // rien. LA PAGE « / » EN COMPTE 8 AUJOURD'HUI, dans l'ordre du document : lien
   // d'évitement · logotype · lien « Accueil » · lien « Sécurité des applications
-  // web » · les 3 radios du thème (mesurés chacun sur son `<label>`, voir
-  // l'en-tête — ils comptent pour 3 cibles de POINTEUR là où ils ne valent qu'UN
-  // arrêt de tabulation) · l'appel à l'action « Commencer le cours » de l'accueil ·
-  // lien du pied de page. Le neuvième est le CTA : il est arrivé avec E1-ST3, où la
-  // route « / » a cessé de rendre `PageAVenir`, qui n'offrait aucune cible propre.
-  expect(cibles.length, "aucune cible mesurée : l'énumération ne trouve plus rien").toBe(9);
+  // web » · « Commencer le module 01 » · « Voir les 13 modules » · « Commencer le
+  // cours » · lien du pied de page.
+  //
+  // 📉 NEUF → HUIT le 2026-08-20 (bascule E6), MESURÉ sur l'artéfact : les 3 radios
+  // du thème sortent (−3, phase 1 à thème unique, décision D-2), les deux appels à
+  // l'action de la bande d'ouverture entrent (+2).
+  //
+  // ⚠️ LE `<summary>` DU MENU COMPACT N'EST PAS MESURÉ, ET C'EST UN TROU CONNU.
+  // `SELECTEUR_CIBLES` ne l'énumère pas (ce n'est ni un `a[href]`, ni un `button`,
+  // ni un porteur de `tabindex`), et de toute façon il est en `display: none` à
+  // 1280 px — la fenêtre de `devices['Desktop Chrome']`. Sa taille de cible n'est
+  // donc contrôlée par AUCUN gate au point de rupture où il est visible (< 840 px).
+  // Constat porté au rapport du lot ; l'élargir demanderait de mesurer cette page à
+  // une seconde largeur, ce qui n'est pas le périmètre de ce fichier.
+  expect(cibles.length, "aucune cible mesurée : l'énumération ne trouve plus rien").toBe(8);
 
   const tropPetites = cibles.filter(
     (cible) =>

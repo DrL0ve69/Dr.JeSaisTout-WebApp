@@ -46,19 +46,21 @@
 // bricolée, ce qui rejoint le plan arrêté : cette pièce est dessinée « en type et
 // filets seulement ». Le vocabulaire de carnet reste porté par le filet de bord,
 // la marge de `.marginalia` et le trait du cartel.
+// ⚠️ CETTE FIGURE N'A PLUS DE CADRE À ELLE, ET C'EST VOULU (bascule E6). Depuis
+// que l'accueil la pose dans un CADRE À BARRE DE TITRE (`.cadre` d'`accueil.scss`,
+// qui porte le trait, le fond `--couleur-surface-creuse` et le libellé de la
+// barre), un second filet ici produirait deux cadres emboîtés à un pixel d'écart —
+// le bruit visuel typique de G7-a mal appliqué. G7-a reste tenu : le bloc EST
+// borné par un trait, celui de son cadre. Le jour où ce composant est monté
+// ailleurs qu'à l'intérieur d'un `.cadre`, c'est à l'appelant de le border.
 .piece {
   display: grid;
   gap: var(--espace-3);
 
   // `<figure>` porte une marge par défaut de 1em 40px dans tous les navigateurs.
   margin: 0;
-  padding: var(--espace-3);
-  border: var(--filet-fin) solid var(--couleur-filet);
-  background-color: var(--couleur-surface-creuse);
-
-  @include m.contraste-force {
-    border-color: CanvasText;
-  }
+  padding: 0;
+  background-color: transparent;
 }
 
 // Le bloc de preuve, posé sur le feuillet. `overflow-x: auto` est ICI et nulle
@@ -76,13 +78,17 @@
   }
 }
 
-// L'annotation en marge — le geste du carnet : un trait dans la marge, une note
-// plus petite que le corps. Trait NEUTRE : l'encre rouge reste la signature
+// L'annotation — « en clair », ce que les en-têtes ci-dessus veulent dire.
+//
+// ⚠️ `m.marge-carnet` A ÉTÉ REMPLACÉ PAR `m.cartouche` (bascule E6) : le trait de
+// marge unique appartenait au vocabulaire du carnet. Le cartouche en fait un
+// encadré à part entière, ce que ce texte est réellement — une glose, pas une
+// note griffonnée à côté. Trait NEUTRE : l'encre rouge reste la signature
 // « vulnérable » du site et ne sert jamais d'ornement.
 .marginalia {
-  @include m.marge-carnet;
+  @include m.cartouche;
 
-  padding-inline-start: var(--espace-2);
+  padding: var(--espace-2);
   color: var(--couleur-encre-tertiaire);
   font-size: var(--taille-xs);
 }

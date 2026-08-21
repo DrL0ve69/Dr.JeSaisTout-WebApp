@@ -413,10 +413,18 @@ describe('rigueur du compilateur', () => {
       'e2e/aides/quiz-source.ts',
       'e2e/aides/simulation.ts',
       'e2e/aides/sonde-csp.ts',
-      'e2e/bascule-theme.spec.ts',
       'e2e/cibles-pointeur.spec.ts',
       'e2e/defileurs-clavier.spec.ts',
       'e2e/focus-visible.spec.ts',
+      // ⬇️ `e2e/bascule-theme.spec.ts` a été SUPPRIMÉ le 2026-08-20 (bascule E6,
+      // retrait de la commande de thème). Ses deux tests que rien d'autre ne
+      // portait ont été RE-HÉBERGÉS, pas perdus : le parcours interactif sous CSP
+      // et le contrôle positif de `script-src` vivent dans
+      // `menu-compact-sous-csp.spec.ts`, la preuve d'absence de flash dans
+      // `theme-sombre-sans-flash.spec.ts`. Les deux fichiers neufs sont épinglés
+      // ici comme les autres — sans quoi ils sortiraient du programme e2e et un
+      // défaut de typage y serait invisible depuis la CI (L-034).
+      'e2e/menu-compact-sous-csp.spec.ts',
       'e2e/navigation-clavier.spec.ts',
       'e2e/parcours-clavier-quiz.spec.ts',
       'e2e/parcours-clavier-simulation.spec.ts',
@@ -426,6 +434,7 @@ describe('rigueur du compilateur', () => {
       'e2e/simulation-sous-csp.spec.ts',
       'e2e/skip-link.spec.ts',
       'e2e/sommaire.spec.ts',
+      'e2e/theme-sombre-sans-flash.spec.ts',
       'playwright.config.ts',
     ] as const;
 

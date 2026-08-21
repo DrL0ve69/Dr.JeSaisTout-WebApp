@@ -1,21 +1,29 @@
-# Polices auto-hébergées — provenance et procédure
+# Polices auto-hébergées — décisions, écarts et procédure
 
-> Fichiers versés au dépôt le **2026-08-04** (E1-ST1 · ST1-B). Ce document existe pour qu'on puisse
-> **refaire** l'opération et **vérifier** que rien n'a bougé, sans avoir à se souvenir de quoi que ce
-> soit. Les commentaires de `src/styles/_polices.scss` disent *pourquoi* ; ce fichier dit *d'où*.
+> Premiers fichiers versés au dépôt le **2026-08-04** (E1-ST1 · ST1-B), corpus **recomposé le
+> 2026-08-20** par la bascule **E6 « Moniteur ambre »** (décision D-1,
+> [`direction-visuelle.md`](direction-visuelle.md)). Ce document existe pour qu'on puisse **refaire**
+> l'opération et **comprendre** ce qui a été tranché, sans avoir à se souvenir de quoi que ce soit.
+> Les commentaires de `src/styles/_polices.scss` disent *pourquoi* ; celui-ci dit *ce qui a été
+> décidé et mesuré*.
 >
-> ⚠️ **2026-08-17 — la bascule de direction visuelle change la moitié de ce document.** Décision
-> D-1 (`docs/design/direction-visuelle.md`) : **Fraunces sera retirée** en **E6-ST2** (une serif à
-> graisses optiques est l'opposé d'un moniteur ambre ; ~113 Ko livrés en moins), et remplacée par une
-> **mono d'affichage** encore à choisir. **Inter est conservée** — c'est précisément parce qu'elle est
-> déjà passée au gate de glyphes qu'elle survit à la bascule.
->
-> Tout ce que ce document dit de la **procédure** et du **gate** reste vrai, et devient plus
-> important, pas moins : les polices pixel/arcade couvrent notoirement mal le français.
-> **Aucune police d'affichage n'entre dans le dépôt sans être passée à
-> `tools/design/verifier-glyphes.mjs` D'ABORD** — c'est lui qui a interdit le sous-ensemble maison,
-> sur `œ`, `« »` et `’`. La contrainte de rédaction (**U+00A0**, jamais U+202F ni U+2009) ne bouge
-> pas tant qu'Inter porte le corps de texte, et sera **remesurée** sur la police d'affichage retenue.
+> 🔴 **La source d'autorité sur les FICHIERS — URL exacte, SHA-256, taille, procédure de
+> retéléchargement — est [`public/polices/PROVENANCE.md`](../../public/polices/PROVENANCE.md)**, posé
+> à côté des `.woff2`. Ce fichier-ci n'en tient pas une seconde copie, délibérément : deux tables
+> d'empreintes dérivent, et celle qu'on oublie de mettre à jour est celle qui ment.
+
+## Les quatre familles et leur rôle
+
+| Rôle | Famille | Jeton | Fichiers |
+|---|---|---|---|
+| Corps de texte et interface | **Inter** 100-900 (variable) | `--police-corps` | 2 (`latin`, `latin-ext`) |
+| Titres | **IBM Plex Mono** 700 | `--police-titres` | 2 |
+| Blocs de code | **IBM Plex Mono** 400 | `--police-code` | 2 |
+| Micro-étiquettes en capitales | **Silkscreen** 400 | `--police-micro` | 2 |
+| Jalons (rôle fermé) | **Press Start 2P** 400 | `--police-jalon` | 2 |
+
+**Fraunces est retirée** avec le « Carnet de laboratoire » : une serif à graisses optiques est
+l'opposé d'un moniteur ambre.
 
 ## Pourquoi ces fichiers sont dans le dépôt
 
@@ -26,64 +34,97 @@ de bord voulu : aucune adresse IP de lecteur n'est transmise à Google au charge
 
 ## Licences
 
-Les deux familles sont sous **SIL Open Font License 1.1**, qui autorise explicitement
-l'auto-hébergement et la redistribution. Textes intégraux versés à côté des fichiers, dans `public/polices/` :
+Les quatre familles sont sous **SIL Open Font License 1.1**, qui autorise explicitement
+l'auto-hébergement et la redistribution. Textes intégraux versés à côté des fichiers :
 
 | Famille | Licence | Auteurs |
 |---|---|---|
-| Fraunces | [`public/polices/LICENCE-fraunces-OFL.txt`](../../public/polices/LICENCE-fraunces-OFL.txt) | The Fraunces Project Authors |
-| Inter | [`public/polices/LICENCE-inter-OFL.txt`](../../public/polices/LICENCE-inter-OFL.txt) | The Inter Project Authors |
+| Inter | [`LICENCE-inter-OFL.txt`](../../public/polices/LICENCE-inter-OFL.txt) | The Inter Project Authors |
+| IBM Plex Mono | [`LICENCE-ibm-plex-mono-OFL.txt`](../../public/polices/LICENCE-ibm-plex-mono-OFL.txt) | IBM Corp. |
+| Silkscreen | [`LICENCE-silkscreen-OFL.txt`](../../public/polices/LICENCE-silkscreen-OFL.txt) | Jason Kottke |
+| Press Start 2P | [`LICENCE-press-start-2p-OFL.txt`](../../public/polices/LICENCE-press-start-2p-OFL.txt) | Cody « CodeMan38 » Boisclair |
 
 L'OFL impose de conserver l'avis de droit d'auteur et interdit de vendre les fichiers seuls — les
 deux sont respectés. Elle interdit aussi d'employer les **noms réservés** ; nous ne renommons ni ne
 modifions les fontes, nous les servons telles quelles.
 
-## Ce qui est livré
+## Bilan de poids — LIVRÉ et CHARGÉ ne vont pas dans le même sens
 
-| Fichier | Taille | SHA-256 |
-|---|---|---|
-| `fraunces-700-latin-v38.woff2` | 35 512 o | `3f3e815263760b8a9c9d149a0cdfd69d05744a15829a6079fdb57480b50e4c51` |
-| `fraunces-700-latin-ext-v38.woff2` | 32 304 o | `65499769ebe7e20e95b2a15d6e7ae609837b347d7a916e677582a1d79f030af5` |
-| `inter-latin-v20.woff2` | 48 256 o | `3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62` |
-| `inter-latin-ext-v20.woff2` | 85 068 o | `34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956` |
+Mesuré le 2026-08-20 (`wc -c`, Fraunces relue depuis git avant suppression) :
 
-**196,4 Kio au total**, mais une page française n'en télécharge que les deux `latin` — **83 Kio** :
-les `latin-ext` ne sont récupérés que si un caractère de leur `unicode-range` apparaît réellement.
+| | Avant | Après | Delta |
+|---|---:|---:|---:|
+| **Livré** (tous fichiers) | 201 140 o | 223 876 o | **+22 736 o** |
+| **Chargé** sur une page de leçon complète (5 sous-ensembles `latin`) | 83 768 o | 98 788 o | **+15 020 o** |
 
-### Deux choix chiffrés, pas devinés
+**La bascule COÛTE du poids chargé, elle n'en fait pas gagner** — et le poste responsable est la
+**police de code** (+14 708 o), assumé plus bas. Le reste s'équilibre presque : IBM Plex Mono 700
+`latin` (14 908 o) remplace Fraunces `latin` (35 512 o). Le chiffre ci-dessus est le **cas le plus
+chargé** : une page qui ne porterait ni pastille de jalon ni micro-étiquette ne chargerait que
+77 872 o, soit moins qu'avant la bascule. Une page française ne télécharge que les sous-ensembles
+`latin` : les `latin-ext` ne sont récupérés que si un caractère de leur `unicode-range` apparaît
+réellement.
+
+⚠️ `direction-visuelle.md` et le backlog §E6-ST2 annonçaient « ~113 Ko livrés en moins » au retrait
+de Fraunces. **Les deux fichiers pesaient 67 816 o** ; le chiffre du plan était faux et a été corrigé
+dans les deux documents le 2026-08-20.
+
+### Trois choix chiffrés, pas devinés
 
 - **Inter : un seul fichier par sous-ensemble.** Demander `wght@400` puis `wght@700` au fournisseur
   renvoie deux URL différentes mais des octets **rigoureusement identiques** (même SHA-256, même
   taille) : Inter est servie en police **variable**. Livrer les deux graisses aurait ajouté **133 Kio
   de doublon pur**. D'où `font-weight: 100 900` dans `_polices.scss` — c'est l'intervalle réellement
   porté par le fichier.
-- **Fraunces : graisse 700 fixe.** La graisse variable `100..900` pèse **67 304 o** contre
-  **35 512 o** en 700 fixe sur le seul sous-ensemble latin, soit **+32 Ko** pour des graisses
-  qu'aucun jeton du design system n'utilise (`$graisse-titre: 700` est la seule déclarée). L'axe
-  `opsz` (9→144) reste variable dans le fichier retenu : le dessin s'adapte encore à la taille.
+- **IBM Plex Mono : deux fichiers par sous-ensemble, et c'est inévitable.** Contrairement à Inter,
+  elle n'est **pas** servie en variable par le fournisseur : la 400 et la 700 ont des SHA-256
+  distincts. Chaque graisse coûte donc son fichier — vérifié, pas supposé.
+- **Le code passe d'une pile SYSTÈME à une police servie** (décision du propriétaire, 2026-08-20).
+  C'est **+14 708 o** sur une page qui contient du code, assumés : le cours ancre des annotations *à
+  la ligne* et oppose des paires vulnérable/corrigé où l'alignement vertical porte du sens. Une pile
+  système rendait le même extrait en Consolas chez l'un et en SF Mono chez l'autre — deux chasses,
+  deux découpes de lignes longues, deux lectures d'une même figure.
+
+## Préchargement — deux fichiers, pas cinq
+
+`src/index.html` ne précharge que **Inter `latin`** et **IBM Plex Mono 700 `latin`** : les seuls que
+le premier écran touche à coup sûr. IBM Plex Mono 400 (code, plus bas dans la page), Silkscreen et
+Press Start 2P (emplois rares) ne le sont **pas** — `preload` est prioritaire, et précharger une
+police dont le premier écran n'a pas besoin vole de la bande passante au contenu. `crossorigin` reste
+**obligatoire** même en même origine : une police est toujours récupérée en mode CORS, et sans cet
+attribut le fichier est téléchargé **deux fois**.
 
 ## Noms versionnés — obligatoire, pas cosmétique
 
 `public/**` est copié dans l'artéfact **sans empreinte de contenu**, alors que
 `staticwebapp.config.source.json` sert les `.woff2` en `Cache-Control: immutable` pendant **un an**.
 Un fichier remplacé sous le même nom resterait donc en cache chez les lecteurs jusqu'en 2027. La
-version du fournisseur (`v20`, `v38`) est portée par le **nom** : la changer, c'est changer l'URL.
+version du fournisseur (`v20`, `v16`, `v6`) est portée par le **nom** : la changer, c'est changer
+l'URL.
 
-Trois endroits pointent ces noms et doivent bouger **ensemble** :
-`src/styles/_polices.scss` · `src/index.html` (les deux `<link rel="preload">`) · ce fichier.
+Trois endroits pointent ces noms et doivent bouger **ensemble** : `src/styles/_polices.scss` ·
+`src/index.html` (les deux `<link rel="preload">`) · `public/polices/PROVENANCE.md`.
 
-## Écarts de couverture assumés
+## Couverture mesurée, et écarts assumés
 
 Vérifiés, pas supposés — le gate `tools/design/verifier-glyphes.mjs` ouvre les `.woff2` et lit leur
-table `cmap` à chaque exécution.
+table `cmap` à chaque exécution. Relevé du **2026-08-20** : **4 familles · 10 fichiers · 40
+caractères exigés · 160 vérifications · 40/40 pour chacune des quatre familles.**
 
-- **U+202F, espace fine insécable — absente des deux familles.** La typographie française la veut
+⚠️ **Une réputation ne remplace pas une mesure.** `direction-visuelle.md` affirmait que « les polices
+pixel couvrent notoirement mal le français ». C'est **faux pour les deux retenues** : Silkscreen et
+Press Start 2P portent `œ Œ « » ’` et U+00A0 comme les autres. L'exigence qui accompagnait cette
+crainte — *aucune police n'entre sans passer le gate D'ABORD* — reste entière, et c'est elle qui a
+permis de le savoir.
+
+- **U+202F, espace fine insécable — absente des QUATRE familles.** La typographie française la veut
   avant `; : ! ?` et à l'intérieur des guillemets `« »`, mais le fournisseur ne la livre dans aucun
   de ses sous-ensembles, et tailler un sous-ensemble maison est exclu (il casserait `œ`, `« »` et
   `’` en silence, c'est précisément le risque que ST1-B devait fermer).
-  **→ Consigne de rédaction : le contenu emploie U+00A0**, seule blanche insécable réellement
-  couverte par les deux familles. U+2009 n'est pas une issue : Inter la porte, Fraunces non — titres
-  et corps ne s'espaceraient pas pareil.
+  **→ Consigne de rédaction, INCHANGÉE : le contenu emploie U+00A0**, seule blanche insécable
+  réellement couverte par les quatre familles. **U+2009 n'est pas une issue** : mesuré le
+  2026-08-20, **seule Inter la porte** — ni IBM Plex Mono, ni Silkscreen, ni Press Start 2P — donc
+  corps, titres et code ne s'espaceraient pas pareil.
 - **U+2192 (`→`) — hors du sous-ensemble latin**, qui ne retient que U+2191 et U+2193. Sans
   conséquence : les flèches du cours vivent dans les diagrammes Mermaid, qui portent leur propre
   rendu. Une flèche isolée en pleine prose tomberait sur la police de repli — c'est un symbole, pas
@@ -92,38 +133,30 @@ table `cmap` à chaque exécution.
 Le gate **échoue** si l'un de ces deux caractères devenait couvert : la consigne de rédaction
 ci-dessus serait alors fausse, et doit être corrigée plutôt que dériver en silence.
 
+## Le rôle FERMÉ de Press Start 2P
+
+Trois emplois, décidés par le propriétaire, et **tenus par un test** —
+`src/styles/police-jalon.spec.ts`, liste blanche nominative `(fichier, sélecteur)` :
+
+1. le numéro de module dans la pastille du cartouche de leçon ;
+2. le verdict d'un quiz réussi ;
+3. le code d'erreur de la page 404.
+
+Chaque emploi doit porter un `line-height` ≥ **1.5** (WCAG 1.4.12 — le lecteur peut imposer son
+interlignage) et une taille explicitement réduite : la chasse de Press Start 2P vaut ~2× celle d'IBM
+Plex Mono. **Jamais en prose.** Élargir ce rôle est une décision du propriétaire, pas une ligne
+ajoutée à la liste blanche.
+
 ## Refaire l'opération (mise à jour de version, ou ajout d'une graisse)
 
-Commandes **PowerShell**, à exécuter depuis `public/polices/` sauf mention contraire.
+La procédure complète — requête au fournisseur avec agent utilisateur moderne, relevé des
+`unicode-range`, nommage versionné, empreintes — vit dans
+[`public/polices/PROVENANCE.md`](../../public/polices/PROVENANCE.md), au contact des fichiers
+qu'elle décrit. Deux points ne s'y trouvent pas et valent d'être rappelés ici :
 
-1. Demander au fournisseur la feuille de style, **avec un agent utilisateur moderne** — sans lui,
-   l'API renvoie du `ttf` au lieu du `woff2` :
-
-   ```powershell
-   $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
-   $req = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@100..900&display=swap'
-   Invoke-WebRequest -Uri $req -Headers @{ 'User-Agent' = $ua } -OutFile polices.css
-   ```
-
-2. Dans `polices.css`, ne garder que les blocs commentés `/* latin */` et `/* latin-ext */`.
-   Y relever, pour chaque bloc : l'URL du `.woff2`, le numéro de version (`/v38/`, `/v20/` dans le
-   chemin) et le `unicode-range`.
-
-3. Télécharger chaque `.woff2` sous le nom versionné
-   `<famille>[-<graisse>]-<sous-ensemble>-v<N>.woff2` dans ce dossier. La graisse ne figure au nom
-   que si elle est **fixe** (Fraunces) ; une police variable n'en porte pas (Inter).
-
-4. **Recopier les `unicode-range` verbatim** dans `src/styles/_polices.scss`. Ne jamais les retailler
-   à la main.
-
-5. Mettre à jour les deux `<link rel="preload">` de `src/index.html` et le tableau de ce fichier
-   (empreintes comprises) :
-
-   ```powershell
-   Get-FileHash -Algorithm SHA256 *.woff2 | Format-List Path, Hash
-   ```
-
-6. Passer le gate — c'est lui qui fait foi, pas la lecture du diff :
+- **Recopier les `unicode-range` verbatim** dans `src/styles/_polices.scss`. **Ne jamais les
+  retailler à la main** — c'est ce qui casse `œ`, `« »` et `’` en silence, au milieu d'un mot.
+- Passer le gate — c'est lui qui fait foi, pas la lecture du diff :
 
    ```powershell
    npm run design:glyphes

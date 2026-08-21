@@ -441,6 +441,18 @@ et bruit de gate.
 (rendu de `bloc.source`), `tools/content-pipeline/valider.mjs` (règle G3),
 `.claude/rules/contenu-pedagogique.md` §6.
 
+**🔵 NOUVELLE OCCURRENCE le 2026-08-20 (lot E6 « Moniteur ambre ») — le motif surveillé N'A MÊME
+PAS besoin d'un attribut réel, un COMMENTAIRE HTML suffit.** Le contrôle de conservation de
+`generer-config-swa.mjs` compte les occurrences **brutes** de `<script[\s>/]` dans le HTML —
+**commentaires HTML compris**, parce qu'un commentaire n'est pas retiré du texte balayé. Un
+commentaire de `src/index.html` citant la balise en clair (« … le `<script>` anti-flash … ») a
+fait échouer la construction, **code 1 sur les 5 pages**, sur un dépôt par ailleurs sain — le
+même patron que le symptôme d'origine, mais sans qu'aucun texte d'auteur de leçon ne soit en
+cause. La parade reste la même : **éditoriale** (« ‹script› », entité), jamais un assouplissement
+du compte. Ce n'est pas qu'une leçon publiée qui peut déclencher S-011 — n'importe quel
+commentaire de code du dépôt qui documente ce garde-fou en citant son motif littéralement le peut
+aussi.
+
 ## S-012 · `npx` dans un job de CI qui produit l'artéfact publié est une résolution de code NON ÉPINGLÉE au moment de l'exécution (A08 · CICD-SEC)
 
 **Symptôme.** `ci.yml` bâtissait l'artéfact avec `npx ng build`. `npx` installe depuis le registre
@@ -829,3 +841,44 @@ rendu nu silencieux.
 `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts` (`verifierVariante`),
 `.claude/rules/security.md` §4, `.claude/rules/contenu-pedagogique.md` §6,
 branche `fix/intermittence-gates-pre-e3-st1` (2026-08-20).
+
+## S-023 · Retirer une permission CSP nominative devenue sans besoin est un DURCISSEMENT — à condition que le garde-fou qui la comptait reste capable de rougir (A05 · patron réussi, à réemployer)
+
+**Ce que c'est.** Pas un incident — un patron **approuvé en revue** (lot E6 « Moniteur ambre »,
+2026-08-20), consigné parce qu'il n'avait pas d'entrée et qu'il se reproduira à chaque retrait de
+permission. `script-src` est passé de **1 hachage nominatif à ZÉRO** (`script-src 'self'` en dur) :
+le script inline anti-flash de thème n'a plus rien à lire depuis que le site n'a qu'un seul thème
+(sombre, D-2). Un script qui ne fait rien conserve quand même une permission — pour du **code
+mort**. Le retirer transforme la liste blanche en liste **vide** : tout script inline dans
+l'artéfact devient une infraction, **sans exception possible**. C'est plus strict que [[S-005]]
+(un seul hachage revu), pas moins.
+
+**Règle — les trois gestes qui rendent ce retrait sûr, à réemployer pour toute permission CSP
+devenue sans objet.**
+1. 🔴 **Continuer d'ALIMENTER la collection même quand toute valeur constatée serait une
+   infraction.** La boucle doit faire `hachagesScript.add(hacher(corps))` **avant** de pousser
+   l'infraction — jamais l'inverse. Sans ça, `hachagesScript.size !== 0` serait **vrai par
+   construction** (aucun script inline ne peut plus exister sans faire échouer le build ailleurs
+   en premier) : le contrôle final ne pourrait plus jamais rougir sur SA propre condition, et
+   devient une décoration plutôt qu'un garde-fou. C'est exactement le mode d'échec de [[L-005]]
+   (un run vert ne prouve pas qu'une vérification a tourné) appliqué à une collection, pas à un
+   run.
+2. **Re-héberger la preuve AVANT de supprimer le spec qui la portait, en nommant ce que ce spec
+   était le SEUL à prouver.** Le spec e2e supprimé ici portait deux choses à la fois : le contrôle
+   positif (« un script inline non haché est bien refusé ») et la mesure « 0 violation CSP sur un
+   parcours interactif ». Les deux ont été relogées, et le contrôle positif a **gagné** une
+   assertion (aucun `sha256-` dans le `script-src` **servi**, le pendant live du contrôle
+   statique) — au lieu de simplement disparaître avec le spec.
+3. 🔴 **Transformer l'ancienne charge AUTORISÉE en cas de REFUS.** Le script anti-flash, réinjecté
+   verbatim dans un cas de test, doit maintenant échouer. C'est le **seul** moyen de distinguer une
+   exception *supprimée* (le garde-fou refuse activement ce qu'il autorisait) d'une exception
+   *rendue muette* (le garde-fou ne voit plus jamais le cas, donc ne peut plus se prononcer —
+   [[L-063]], un invariant que rien n'observe n'est pas vrai, il est indéterminé).
+
+**Corollaire.** Un compte de permissions qui BAISSE dans un diff CSP n'est pas, en soi, une preuve
+de durcissement — il l'est seulement si (1) et (3) sont vérifiés. Sans eux, une baisse de compte
+peut aussi bien signifier « le garde-fou a cessé de regarder ».
+
+**Réfs.** `tools/deploiement/generer-config-swa.mjs` (boucle d'accumulation `hachagesScript`),
+`src/app/**` (retrait de l'anti-flash de thème, D-2 thème sombre seul), lot E6 « Moniteur ambre »,
+`docs/agile/backlog-phase-1.md` §E6. Croise [[S-005]], [[L-005]], [[L-019]], [[L-063]].
