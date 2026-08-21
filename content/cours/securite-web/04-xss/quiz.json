@@ -1,0 +1,154 @@
+{
+  "lecon": "xss",
+  "titre": "Quiz — XSS",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Un script est injecté dans une page servie par https://clinique.example et s'exécute chez une visiteuse. Qu'est-ce qui le rend dangereux, alors que n'importe qui peut exécuter du JavaScript dans sa propre console de navigateur ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il s'exécute dans l'origine du site vulnérable : il obtient le DOM de la page, les cookies qui ne portent pas HttpOnly, et la possibilité d'émettre des requêtes avec la session de la visiteuse."
+        },
+        {
+          "id": "b",
+          "texte": "Il s'exécute sur le serveur du site, avec les droits du processus PHP."
+        },
+        {
+          "id": "c",
+          "texte": "Il contourne la same-origin policy, qui se trouve désactivée pour la page attaquée."
+        },
+        {
+          "id": "d",
+          "texte": "Il s'exécute avec les droits du compte Windows de la visiteuse, hors du bac à sable du navigateur."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Ce qui compte n'est pas le JavaScript en soi, c'est l'ORIGINE — le triplet schéma + domaine + port — dans laquelle il tourne. Un script écrit dans la console de la visiteuse ne fait de mal qu'à elle-même ; le même code, injecté dans la page du site, hérite de tout ce que le site autorise. La réponse b confond deux moments : la page est déjà partie du serveur quand le script s'exécute, et rien de ce script n'atteint PHP. La réponse c est le contresens le plus fréquent du sujet, et il faut le corriger explicitement : la same-origin policy fonctionne parfaitement pendant toute l'attaque. Elle interdit à une page d'un site d'aller lire un autre site ; elle protège donc une origine contre l'extérieur, mais elle ne peut rien contre une origine dont le propre contenu a été corrompu — le script injecté est à l'INTÉRIEUR, il est légitime à ses yeux. La réponse d suppose une évasion du bac à sable du navigateur, ce qui est une tout autre classe de vulnérabilité, sans rapport avec le XSS.",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q2",
+      "type": "trouver-la-faille",
+      "consigne": "Voici la boucle d'affichage de la liste des clients, celle de la démonstration de la séance 7. La valeur du champ NOM du client n° 6 a été enregistrée par une requête paramétrée. Quelle ligne rend la page vulnérable ?",
+      "langage": "php",
+      "code": "$resultat = $conn->query('SELECT ID_CLIENT, PRENOM, NOM FROM client');\nwhile ($ligne = $resultat->fetch_assoc()) {\n    $nom = $ligne['NOM'];\n    echo \"<tr><td>\" . $ligne['ID_CLIENT'] . \"</td><td>\" . $ligne['PRENOM'] . \"</td><td>\" . $nom . \"</td></tr>\";\n}",
+      "ligneFautive": 4,
+      "faille": "XSS stocké — une valeur relue en base est concaténée dans le flux HTML sans encodage de sortie",
+      "explication": "La ligne 4 est la seule fautive : la valeur atteint le flux HTML sans avoir été encodée, si bien que tout balisage qu'elle contient devient du balisage véritable dans la page. Avec un champ NOM contenant une balise de script, la cellule produite ne contient pas le texte de la charge, elle contient un ÉLÉMENT — c'est exactement la preuve que l'inspecteur du navigateur affiche à la diapositive 28. La ligne 1 n'est pas fautive : cette requête est en lecture et ne concatène aucune entrée. La ligne 3, souvent choisie, ne fait que copier une valeur dans une variable ; une donnée n'est dangereuse ni par son contenu ni par sa provenance, mais par le contexte où on l'écrit, et à la ligne 3 elle n'est écrite nulle part. Surtout, ne cherche pas la faute du côté de l'enregistrement : la requête d'insertion était paramétrée, il n'y a AUCUNE injection SQL dans cette histoire. Le paramétrage protège la base, pas l'affichage — deux interpréteurs, deux parades.",
+      "correction": "$resultat = $conn->query('SELECT ID_CLIENT, PRENOM, NOM FROM client');\nwhile ($ligne = $resultat->fetch_assoc()) {\n    $id_client = (int) $ligne['ID_CLIENT'];\n    $prenom = htmlspecialchars($ligne['PRENOM'], ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');\n    $nom = htmlspecialchars($ligne['NOM'], ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');\n    echo \"<tr><td>$id_client</td><td>$prenom</td><td>$nom</td></tr>\";\n}",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Appeler htmlspecialchars() sur la valeur AVANT de l'enregistrer en base est plus efficace que de l'appeler à l'affichage, puisque toutes les pages qui afficheront cette valeur s'en trouvent protégées d'un coup.",
+      "bonneReponse": false,
+      "justification": "Faux, et le cours 2026 insiste précisément sur ce point : htmlspecialchars() s'appelle au moment d'AFFICHER, pas au moment d'écrire en base. L'erreur est répandue parce que le résultat SEMBLE identique à l'écran. Trois raisons cumulatives montrent qu'il ne l'est pas. Premièrement, la base ne contient plus la donnée mais une de ses représentations : « L'été & 3 < 5 » y dort sous forme d'entités, ce qui fausse les recherches LIKE, les tris, les longueurs et les exports, et rend le double encodage inévitable dès qu'un développeur ré-encode correctement à l'affichage — on voit alors s'afficher &amp;amp;. Deuxièmement, le contexte de sortie n'est pas connu au moment d'insérer : la même valeur peut finir dans un corps HTML, un attribut, une URL, un PDF ou un courriel en texte brut, qui n'exigent pas le même traitement. Troisièmement, et c'est l'argument central : ça ne protège pas. Toute autre voie d'écriture en base — un import de données, une tâche planifiée, un autre service, ou une injection SQL — dépose du HTML non encodé sans passer par le point d'insertion « propre », et l'affichage le ressort tel quel. La règle à retenir : la base stocke la donnée brute, la vue encode. En revue de code, un htmlspecialchars() dans un contrôleur ou un modèle est un signal d'alarme, pas un signe de rigueur.",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Une valeur est affichée à l'intérieur d'un attribut délimité par des apostrophes, du genre href='profil.php?nom=$nom'. Le code appelle htmlspecialchars($nom) sans aucun drapeau, sur un serveur PHP 8.0. Que faut-il en penser ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "C'est correct : htmlspecialchars() encode l'apostrophe dans toutes les versions de PHP."
+        },
+        {
+          "id": "b",
+          "texte": "C'est insuffisant : jusqu'à PHP 8.0 inclus, le drapeau par défaut ENT_COMPAT laisse l'apostrophe intacte, donc la valeur peut refermer l'attribut et en injecter un autre — un gestionnaire d'événement, par exemple — sans écrire la moindre balise de script."
+        },
+        {
+          "id": "c",
+          "texte": "C'est insuffisant : htmlspecialchars() encode les guillemets mais laisse passer le chevron ouvrant, donc une balise s'ouvre quand même."
+        },
+        {
+          "id": "d",
+          "texte": "C'est inutile : dans un attribut, aucun encodage n'est nécessaire tant que la valeur ne contient pas de balise."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "À l'examen, la réponse attendue à « comment corriger ? » reste « passer le contenu dans htmlspecialchars() avant de l'afficher » — c'est la parade du cours, et elle est juste. Ce que cette question ajoute est le détail qui décide en production, et il est vérifiable : jusqu'à PHP 8.0 inclus, l'appel sans drapeaux utilise ENT_COMPAT, qui encode le guillemet double et laisse l'apostrophe ; depuis PHP 8.1, le défaut est passé à ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401, justement parce que l'ancien défaut était jugé dangereux en contexte d'attribut. Comme la version du serveur n'est écrite nulle part dans la démonstration du cours, on ne sait pas laquelle s'applique : d'où la consigne d'écrire les drapeaux explicitement, htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'), et de délimiter les attributs par des guillemets doubles. Attention à la portée de cette parade : elle vaut pour une valeur placée DANS une URL, comme ici. Une valeur qui forme le DÉBUT de l'URL exige en plus de valider le schéma (http/https seulement) — l'encodage HTML ne bloque ni javascript: ni data:. La réponse a est fausse par méconnaissance de ce changement de valeur par défaut. La réponse c est fausse : le chevron ouvrant est encodé dans tous les cas, c'est la fonction même de htmlspecialchars(). La réponse d confond « ne pas contenir de balise » et « être inoffensif » : dans un attribut, il suffit de refermer le délimiteur pour injecter un attribut, aucune balise n'est nécessaire.",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Un token anti-CSRF correctement posé dans les formulaires protège l'application contre les actions déclenchées par un script injecté par XSS.",
+      "bonneReponse": false,
+      "justification": "Faux, et la raison mérite d'être sue par cœur. Un token anti-CSRF défend contre une requête forgée DEPUIS UN SITE TIERS : le site tiers ne peut pas lire le contenu de tes pages, donc il ne peut pas connaître le token, donc sa requête est rejetée. Un script injecté par XSS, lui, s'exécute À L'INTÉRIEUR de la page où le token est affiché : il le lit tout simplement dans le DOM, puis émet la requête depuis la page — avec le cookie de session que le navigateur joint automatiquement. Toutes les vérifications passent, parce qu'elles sont conçues pour distinguer une origine d'une autre, pas pour distinguer deux scripts d'une même page. Retiens la formule générale : un XSS rend caduque toute défense CSRF, parce qu'il travaille à l'intérieur du périmètre que ces défenses protègent. Le cours nomme cet usage parmi les trois usages types d'un attaquant — « agir au nom d'un utilisateur authentifié » ; le détail du token lu dans la page est un complément de la base de connaissances, et le module 05 traite le CSRF pour lui-même.",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q6",
+      "type": "associer",
+      "consigne": "Associe chaque besoin à la défense qui lui convient, en te rappelant qu'une seule d'entre elles supprime la cause du XSS ; les autres limitent les dégâts.",
+      "paires": [
+        {
+          "gauche": "Afficher le nom d'un client dans une cellule de tableau",
+          "droite": "Encodage de sortie, au moment de l'affichage — la défense principale, la seule qui supprime la cause"
+        },
+        {
+          "gauche": "Afficher un commentaire mis en forme, avec du gras et des listes",
+          "droite": "Assainissement : analyser le HTML et ne conserver qu'une liste blanche de balises et d'attributs"
+        },
+        {
+          "gauche": "Empêcher un script externe injecté de démarrer, même si un encodage a été oublié quelque part",
+          "droite": "Content-Security-Policy : filet de sécurité en profondeur, jamais un remplacement de l'encodage"
+        },
+        {
+          "gauche": "Retirer le cookie de session de la portée de document.cookie",
+          "droite": "Attribut de cookie HttpOnly : coupe un vecteur précis, laisse intacts tous les autres pouvoirs du script"
+        },
+        {
+          "gauche": "Rejeter tôt une saisie manifestement absurde dans un champ de date",
+          "droite": "Validation d'entrée : utile en complément, jamais suffisante contre le XSS"
+        }
+      ],
+      "explication": "La hiérarchie est le vrai enseignement ici. L'encodage de sortie est la défense principale parce qu'il agit au seul endroit où le risque se matérialise vraiment : l'écriture dans la page. L'assainissement répond à un besoin DIFFÉRENT — accepter du HTML riche — et ne se substitue pas à l'encodage : encoder afficherait <b> au lieu de mettre en gras, et assainir là où encoder suffisait ouvre une surface inutile. La CSP et HttpOnly agissent après coup : la première peut empêcher un script injecté de démarrer, la seconde retire le cookie de document.cookie, mais ni l'une ni l'autre n'empêche la charge d'être écrite dans la page — un script injecté conserve le hameçonnage, la défiguration et les requêtes authentifiées. La validation d'entrée, enfin, a sa place, mais un champ « nom de liste » doit pouvoir contenir des chevrons dans un usage légitime (« Livres < 300 pages ») : filtrer à l'entrée casse des cas valides sans supprimer le risque. Provenance : l'encodage par htmlspecialchars() et la validation d'entrée sont matière d'examen ; l'assainissement, la CSP et HttpOnly sont des compléments de la base de connaissances, professionnellement centraux mais absents du cours 2026.",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Pour se protéger, un développeur ajoute un filtre qui supprime les balises <script> et </script> des entrées, en une seule passe, avant de les afficher. Un attaquant saisit <scr<script>ipt>alert(1)</scr</script>ipt>. Que se passe-t-il ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "L'entrée est neutralisée : la chaîne interdite a bien été retirée."
+        },
+        {
+          "id": "b",
+          "texte": "La suppression non récursive recolle les morceaux restants et FABRIQUE une balise valide, qui s'exécute."
+        },
+        {
+          "id": "c",
+          "texte": "Le filtre lève une erreur PHP et la page ne s'affiche pas."
+        },
+        {
+          "id": "d",
+          "texte": "La valeur devient vide, donc rien ne s'affiche et il n'y a pas de risque."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Le filtre retire la chaîne du MILIEU, et les moitiés qui l'entouraient se rejoignent : « <scr » + « ipt> » reforme la balise ouvrante, « </scr » + « ipt> » la fermante — le tout redevient un script valide. Un nettoyage non récursif peut donc rendre dangereuse une chaîne qui ne l'était pas encore. La réponse a est le raisonnement du développeur qui a écrit le filtre — c'est bien pour cela qu'il l'a écrit. Les réponses c et d supposent un échec ou un effacement qui ne se produisent pas : une suppression de sous-chaîne ne lève rien et ne vide rien. Le point général dépasse ce cas particulier : une liste noire ne refuse que ce que son auteur a imaginé, alors que HTML et JavaScript offrent un nombre pratiquement illimité de syntaxes équivalentes — casse mélangée, ou aucune balise de script du tout, comme <img src=x onerror=alert(1)>, qui déclenche son gestionnaire dès que le chargement de l'image échoue. Sur un format structuré, on ANALYSE et on confronte à une liste blanche ; on n'apparie jamais des motifs. Provenance et arbitrage : le cours cadre encore la défense en termes de liste noire contre liste blanche à l'entrée ; à l'examen, réponds ce que le cours attend, et en production encode d'abord la sortie, la validation d'entrée n'étant qu'un second rideau.",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "Cette vue Razor affiche la liste des clients. Le moteur de gabarits encode automatiquement ce qu'on lui donne à afficher. Quelle ligne rouvre malgré tout la porte à un XSS stocké ?",
+      "langage": "csharp",
+      "code": "@foreach (var client in Model.Clients)\n{\n    <tr>\n        <td>@client.Prenom</td>\n        <td>@Html.Raw(client.Nom)</td>\n    </tr>\n}",
+      "ligneFautive": 5,
+      "faille": "XSS stocké — l'encodage automatique du moteur de gabarits est explicitement désactivé sur une valeur d'origine utilisateur",
+      "explication": "La ligne 5 désactive volontairement l'encodage et écrit la chaîne telle quelle dans la page : la balise déposée en base redevient une balise. La ligne 4 n'est PAS fautive, et la comparaison des deux lignes est tout l'intérêt de l'exercice — @client.Prenom passe par l'encodage automatique et s'afficherait comme du texte, même piégé. Les lignes 1 et 3 sont de la structure, elles n'écrivent aucune donnée. Le vrai enseignement : dans un framework moderne, un XSS n'est presque jamais un oubli, c'est une désactivation EXPLICITE, et le correctif consiste à retirer quelque chose plutôt qu'à en ajouter. Apprends les noms de ces portes de sortie, ce sont les mots-clés les plus rentables à chercher en revue de code : Html.Raw en Razor, {!! !!} en Blade, dangerouslySetInnerHTML en React, bypassSecurityTrustHtml en Angular. Elles existent pour du HTML DÉJÀ assaini, produit par l'application, jamais pour une entrée utilisateur brute. Provenance : la démonstration du cours est en PHP ; ce cas Razor est un complément de la base de connaissances, utile en stage et en emploi.",
+      "correction": "@foreach (var client in Model.Clients)\n{\n    <tr>\n        <td>@client.Prenom</td>\n        <td>@client.Nom</td>\n    </tr>\n}",
+      "ficheSource": "web/securite/xss-cross-site-scripting.md"
+    }
+  ]
+}

