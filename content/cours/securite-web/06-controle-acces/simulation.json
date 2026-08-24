@@ -1,0 +1,255 @@
+{
+  "lecon": "controle-acces",
+  "titre": "IDOR par manipulation d'identifiant — de la facture 123 à la facture 124, puis le correctif",
+  "acteurs": [
+    { "id": "attaquant", "libelle": "Attaquant (client légitime, compte n° 7)", "type": "attaquant" },
+    { "id": "serveur", "libelle": "Portail de facturation (exemple.invalide)", "type": "serveur" },
+    { "id": "base", "libelle": "Base de données, table factures", "type": "stockage" },
+    { "id": "session", "libelle": "Sessions côté serveur", "type": "stockage" },
+    { "id": "victime", "libelle": "Cliente n° 12, propriétaire de la facture 124", "type": "personne" }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "L'attaquant se connecte avec son propre compte",
+      "narration": "Il faut commencer par ce qui n'est pas une attaque, parce que c'est tout le sujet du module. L'attaquant est un client du portail : il a payé son abonnement, il possède des identifiants, il les saisit et le serveur crée une session pour lui. Rien n'est volé, rien n'est deviné, aucun cookie n'est détourné. Tout ce qui va suivre se fera avec cette session parfaitement authentique. C'est ce qui sépare le contrôle d'accès défaillant du vol de session et du CSRF : ici, l'authentification fonctionne, elle fonctionne même très bien. Le serveur sait exactement qui frappe à la porte. Ce qu'il oubliera de décider, c'est ce que cette personne-là a le droit de demander.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "serveur",
+          "libelle": "POST /connexion — identifiants réels du compte n° 7"
+        },
+        "panneaux": {
+          "session": {
+            "texte": "session=b3d9c40a7f → utilisateur n° 7, authentifié, session valide. L'identité est établie une fois pour toutes ; elle restera disponible au serveur à chaque requête suivante."
+          }
+        }
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "Il demande sa propre facture",
+      "narration": "Premier geste, absolument banal : il ouvre la facture 123, qui est la sienne. Regarde bien la requête. L'identifiant de la ressource voyage dans l'URL, en clair, et c'est normal — c'est comme ça que le web désigne les ressources depuis toujours. Le cookie de session part avec la requête, comme il part avec toutes les requêtes vers ce domaine. Il n'y a strictement rien à reprocher à cet échange, et c'est précisément pour cette raison que la suite est si facile : l'attaquant n'aura rien d'autre à faire que de rejouer cette même requête avec un chiffre différent.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "serveur",
+          "libelle": "GET /facture/123 — sa facture à lui"
+        },
+        "panneaux": {
+          "attaquant": {
+            "code": "GET /facture/123 HTTP/1.1\nHost: exemple.invalide\nCookie: session=b3d9c40a7f",
+            "langage": "bash"
+          }
+        }
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "Le serveur traduit l'URL en requête SQL, la base répond",
+      "narration": "Le serveur prend le dernier segment de l'URL et le pose tel quel dans la clause WHERE. Lis cette requête avec attention, parce que c'est déjà la requête fautive : elle ne mentionne nulle part l'utilisateur n° 7. Elle demande « la facture numéro 123 », jamais « la facture numéro 123 si elle est à moi ». Pourtant, le résultat retourné est correct — la facture 123 appartient bel et bien au compte n° 7. C'est cette coïncidence qui rend la faille invisible : tant qu'on demande sa propre ressource, une requête sans condition de propriétaire et une requête avec condition de propriétaire donnent exactement le même résultat.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "fleche": {
+          "de": "serveur",
+          "vers": "base",
+          "libelle": "SELECT ... WHERE id = 123"
+        },
+        "panneaux": {
+          "serveur": {
+            "code": "-- Requete generee par le serveur pour GET /facture/123\nSELECT numero, montant, client\nFROM   factures\nWHERE  id = 123;",
+            "langage": "sql"
+          },
+          "base": {
+            "texte": "Une ligne trouvée. id = 123, proprietaire_id = 7. La base a répondu exactement à la question posée, et elle a bien travaillé."
+          }
+        }
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "200 OK, la facture s'affiche, tout paraît normal",
+      "narration": "L'écran attendu apparaît. Et c'est ici qu'il faut mesurer pourquoi ce défaut traverse les revues de code et les campagnes de tests. Un test fonctionnel qui vérifie « l'utilisateur connecté voit sa facture » passe au vert sur ce code. Un test qui vérifie « une facture inexistante renvoie 404 » passe aussi. Aucune suite de tests écrite du point de vue de l'utilisateur légitime ne peut faire apparaître le problème, parce que le problème n'existe que du point de vue de quelqu'un qui demande la ressource d'un autre. Tester l'autorisation demande d'écrire un test qui joue l'attaquant : deux comptes, et l'un qui réclame la ressource de l'autre.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "fleche": {
+          "de": "serveur",
+          "vers": "attaquant",
+          "libelle": "200 OK — facture 123"
+        },
+        "panneaux": {
+          "attaquant": {
+            "texte": "Facture F-2026-0123 affichée. Montant, description, coordonnées : ce sont ses propres données. Rien d'anormal ne s'est encore produit."
+          }
+        }
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "Il change un chiffre dans la barre d'adresse",
+      "narration": "Toute l'attaque tient dans ce geste, et il n'y en aura pas d'autre. Pas de proxy d'interception, pas de console de développeur, pas d'outil téléchargé : une touche du clavier dans la barre d'adresse, et la touche Entrée. C'est ici que la première borne de l'analogie de l'hôtel se referme. À l'hôtel, essayer trente portes oblige à marcher dans le couloir et à se faire voir. Sur le web, le numéro de chambre est écrit dans l'adresse de la page, et l'essayer ne coûte rien du tout. Retiens aussi que le geste n'a même pas besoin d'être malveillant au départ : beaucoup d'IDOR sont découverts par accident, par un utilisateur curieux qui voulait revenir à sa facture précédente.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "panneaux": {
+          "attaquant": {
+            "texte": "Barre d'adresse avant : https://exemple.invalide/facture/123 — Barre d'adresse après : https://exemple.invalide/facture/124. Une seule touche a changé. Aucun outil n'a été utilisé."
+          }
+        }
+      }
+    },
+    {
+      "numero": 6,
+      "titre": "La requête repart, avec le même cookie authentique",
+      "narration": "Compare ce paquet à celui de l'étape 2 : un seul caractère diffère. Le cookie est le même, il est valide, il n'a pas été falsifié. Et surtout, il n'y a rien d'hostile dans cette requête. Aucun guillemet, aucune balise, aucun caractère à échapper, aucune charge utile : la valeur 124 est un entier parfaitement légitime, que n'importe quel contrôle d'entrée accepterait sans broncher. C'est la différence de nature entre un IDOR et une injection ou un XSS. Dans ces deux derniers cas, l'attaquant envoie quelque chose que le serveur aurait dû refuser ; ici, il envoie quelque chose de valide, et c'est la décision d'autorisation qui manque en aval. Assainir l'entrée ne protège de rien : il n'y a rien à assainir.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "fleche": {
+          "de": "attaquant",
+          "vers": "serveur",
+          "libelle": "GET /facture/124 — la facture de quelqu'un d'autre"
+        },
+        "panneaux": {
+          "attaquant": {
+            "code": "GET /facture/124 HTTP/1.1\nHost: exemple.invalide\nCookie: session=b3d9c40a7f",
+            "langage": "bash"
+          }
+        }
+      }
+    },
+    {
+      "numero": 7,
+      "titre": "Le serveur authentifie correctement, puis ne pose jamais la seconde question",
+      "narration": "L'étape centrale de la simulation, et le moment à comprendre avant tout le reste. Le serveur pose sa première question et y répond parfaitement : cette session est-elle valide ? Oui, elle appartient à l'utilisateur n° 7. Il détient donc, à cet instant précis, toute l'information nécessaire pour refuser. Puis il construit sa requête, et la seconde question n'apparaît nulle part : la facture 124 appartient-elle à l'utilisateur n° 7 ? La clause WHERE ne porte que sur l'identifiant reçu du client. Ce n'est pas une négligence sur les données, c'est une décision qui n'a jamais été écrite. Le serveur sait qui tu es ; il n'a pas décidé ce que tu as le droit de faire.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "surbrillance": ["serveur"],
+        "fleche": {
+          "de": "serveur",
+          "vers": "base",
+          "libelle": "SELECT ... WHERE id = 124 — aucune condition sur le propriétaire"
+        },
+        "panneaux": {
+          "serveur": {
+            "code": "-- Requete generee par le serveur pour GET /facture/124\nSELECT numero, montant, client\nFROM   factures\nWHERE  id = 124;",
+            "langage": "sql"
+          },
+          "session": {
+            "texte": "session=b3d9c40a7f → utilisateur n° 7. L'identité est disponible, à jour et certaine. Aucune ligne du code de cette route ne la lit."
+          }
+        }
+      }
+    },
+    {
+      "numero": 8,
+      "titre": "La base renvoie la ligne, et elle a raison de le faire",
+      "narration": "La base de données exécute la question qu'on lui a posée, et elle l'exécute correctement. Il n'y a ici aucun défaut de la base, aucun défaut du système de gestion, aucun défaut de la couche d'accès aux données. La ligne 124 existe, elle correspond au critère demandé, elle est renvoyée. Le point vaut d'être écrit noir sur blanc, parce que la recherche du coupable part souvent dans la mauvaise direction : la faille n'est pas dans la base, elle est dans la question qu'on lui pose. Du côté de la cliente n° 12, il ne se passe rigoureusement rien. Elle n'est pas connectée, elle n'a cliqué sur rien, elle n'apprendra jamais que sa facture vient d'être lue.",
+      "etatVisuel": {
+        "acteurActif": "base",
+        "fleche": {
+          "de": "base",
+          "vers": "serveur",
+          "libelle": "Une ligne — facture 124, proprietaire_id = 12"
+        },
+        "panneaux": {
+          "base": {
+            "texte": "Ligne renvoyée : id = 124, proprietaire_id = 12. Le critère demandé est satisfait. La base n'a aucun moyen de savoir que l'appelant n'est pas le propriétaire : on ne le lui a pas demandé."
+          },
+          "victime": {
+            "texte": "La cliente n° 12 n'est pas connectée et n'a effectué aucune action. Aucune notification, aucune trace visible pour elle."
+          }
+        }
+      }
+    },
+    {
+      "numero": 9,
+      "titre": "200 OK sur la facture d'une autre cliente : c'est l'IDOR",
+      "narration": "Les données d'une autre cliente s'affichent dans le navigateur de l'attaquant : montant, description de la prestation, coordonnées de facturation. Prends la mesure de ce que le serveur vient de faire. Il n'a pas planté, il n'a pas renvoyé d'erreur, il n'a écrit aucune ligne « accès refusé » dans ses journaux — parce qu'il n'y a pas eu de refus. Pour le système de journalisation, cette requête est indiscernable de celle de l'étape 2 : même compte, même route, même code de retour. C'est ce qui rend ces fuites si longues à détecter, et parfois découvertes seulement quand les données réapparaissent ailleurs. Voilà la définition complète d'une référence directe non sécurisée à un objet : une référence fournie par le client, utilisée directement pour charger une ressource, sans vérification de propriété.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "surbrillance": ["attaquant", "victime"],
+        "fleche": {
+          "de": "serveur",
+          "vers": "attaquant",
+          "libelle": "200 OK — facture 124, celle de la cliente n° 12"
+        },
+        "panneaux": {
+          "attaquant": {
+            "code": "{\n  \"numero\": \"F-2026-0124\",\n  \"montant\": \"1842.50\",\n  \"client\": \"Clinique dentaire Rive-Nord\"\n}",
+            "langage": "json"
+          },
+          "victime": {
+            "texte": "Ses données de facturation ont été lues par un tiers. Aucun code d'erreur, aucune alerte, aucune entrée de refus dans les journaux du serveur."
+          }
+        }
+      }
+    },
+    {
+      "numero": 10,
+      "titre": "D'une facture à cinq cents : l'énumération",
+      "narration": "Une facture lue par accident est un incident ; une base entière recopiée est une fuite. Le passage de l'un à l'autre tient en trois lignes de script, parce que les identifiants sont séquentiels : recevoir le numéro 124 en créant sa facture, c'est apprendre gratuitement que les numéros 1 à 123 existent probablement. Deux remarques valent plus que la boucle elle-même. D'abord, elle ne contourne rien du tout : ce sont cinq cents requêtes parfaitement valides, avec un cookie authentique. Ensuite, le réflexe qui suit la découverte de cette scène est presque toujours le mauvais — « remplaçons les identifiants séquentiels par des UUID ». Cela rendrait la devinette difficile, et rien d'autre : l'accès resterait aussi ouvert pour un identifiant qui fuit dans un journal ou dans une URL partagée. Troisième borne de l'hôtel : changer les numéros de chambre ne reprogramme aucune serrure.",
+      "etatVisuel": {
+        "acteurActif": "attaquant",
+        "surbrillance": ["attaquant"],
+        "fleche": {
+          "de": "attaquant",
+          "vers": "serveur",
+          "libelle": "500 requêtes valides, identifiants 1 à 500"
+        },
+        "panneaux": {
+          "attaquant": {
+            "code": "# L'attaquant est authentifie avec SON compte ; il parcourt les identifiants des autres\nfor id in $(seq 1 500); do\n  curl -s -o \"facture-$id.json\" \\\n    -H \"Cookie: session=b3d9c40a7f\" \\\n    \"https://exemple.invalide/api/factures/$id\"\ndone",
+            "langage": "bash"
+          },
+          "serveur": {
+            "texte": "500 réponses 200 OK, émises en quelques secondes. La trace est énorme — un même compte sur des identifiants consécutifs — mais elle n'existe que pour qui regarde les journaux."
+          }
+        }
+      }
+    },
+    {
+      "numero": 11,
+      "titre": "Le correctif : la condition de propriété entre dans la requête",
+      "narration": "On rejoue exactement la même attaque, avec une seule différence dans le code du serveur. La requête porte maintenant deux conditions, et il faut être précis sur la provenance de la seconde : le 7 ne vient pas de l'URL ni d'un paramètre, il est lu dans la session validée par le serveur. Un identifiant de propriétaire qu'on accepterait du client ne protégerait rien, il suffirait de mentir. Note aussi pourquoi la condition est placée dans la requête plutôt que dans un « si » écrit après le chargement : les deux conditions voyagent ensemble, il n'existe aucun instant où la facture serait chargée sans être vérifiée, et la clause suit la requête quand un développeur la copie vers la route suivante — ce qu'un « si » oublié en chemin ne fait pas.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "fleche": {
+          "de": "serveur",
+          "vers": "base",
+          "libelle": "SELECT ... WHERE id = 124 AND proprietaire_id = 7"
+        },
+        "panneaux": {
+          "serveur": {
+            "code": "-- Requete generee pour GET /facture/124, appelee par l'utilisateur 7\n-- (identite lue dans la session, PAS dans l'URL)\nSELECT numero, montant, client\nFROM   factures\nWHERE  id = 124\n  AND  proprietaire_id = 7;",
+            "langage": "sql"
+          },
+          "session": {
+            "texte": "session=b3d9c40a7f → utilisateur n° 7. Cette valeur alimente désormais la requête : l'identité n'est plus seulement connue, elle est utilisée pour décider."
+          }
+        }
+      }
+    },
+    {
+      "numero": 12,
+      "titre": "Zéro ligne, donc 404 — et l'attaquant n'apprend rien",
+      "narration": "La facture 124 existe, mais elle ne satisfait plus les deux conditions : la base renvoie zéro ligne, exactement comme si la ressource n'existait pas. Le serveur répond donc 404, et cette indistinction est volontaire. Répondre 403 sur une ressource qui existe mais ne t'appartient pas serait honnête, et c'est le problème : la différence entre les deux codes confirmerait l'existence de la ressource, et la boucle de l'étape 10 deviendrait un recensement de la clientèle sans lire la moindre donnée. Une dernière borne, la plus importante : ce correctif protège cette route-là. Une application prend une décision d'autorisation par action et par ressource, et le contrôleur que quelqu'un écrira demain repose exactement la même question. Le vrai travail n'est pas de réparer une serrure, c'est de n'en oublier aucune.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "fleche": {
+          "de": "serveur",
+          "vers": "attaquant",
+          "libelle": "404 Not Found — aucune donnée servie"
+        },
+        "panneaux": {
+          "base": {
+            "texte": "Zéro ligne. La facture 124 existe, mais aucune ligne ne satisfait à la fois id = 124 et proprietaire_id = 7."
+          },
+          "attaquant": {
+            "texte": "404 sur la facture 124, et 404 sur toutes les autres. Les réponses « cette facture n'existe pas » et « cette facture n'est pas à toi » sont désormais identiques : l'énumération ne rapporte plus aucune information."
+          }
+        }
+      }
+    }
+  ]
+}

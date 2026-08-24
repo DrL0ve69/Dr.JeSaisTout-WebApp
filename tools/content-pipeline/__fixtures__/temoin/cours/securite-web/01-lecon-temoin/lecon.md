@@ -193,7 +193,7 @@ changer la structure.
 :::
 ::::
 
-Et un dernier bloc isolé, en JSON, pour que le témoin couvre les six langages du contrat :
+Et un dernier bloc isolé, en JSON. Ce témoin couvre les six premiers langages du contrat ; les deux entrés le 2026-08-24 (`javascript`, `html`) sont exercés par le banc `__fixtures__/langages-web`, dont les encres sont mesurées par `src/coloration-encres-contraste.spec.ts` :
 
 ```json
 { "sujet": "securite-web", "slug": "lecon-temoin", "ordre": 1 }

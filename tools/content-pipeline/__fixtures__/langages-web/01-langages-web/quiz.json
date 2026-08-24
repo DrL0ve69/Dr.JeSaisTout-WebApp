@@ -1,0 +1,76 @@
+{
+  "lecon": "langages-web",
+  "titre": "Quiz — banc de mesure des grammaires",
+  "melanger": false,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Pourquoi une langue ajoutée au contrat oblige-t-elle à remesurer les contrastes ?",
+      "choix": [
+        { "id": "a", "texte": "Parce que le fond des blocs de code change avec la langue." },
+        {
+          "id": "b",
+          "texte": "Parce qu'une grammaire neuve fait naître des portées, donc des encres, jamais mesurées jusque-là."
+        },
+        { "id": "c", "texte": "Parce que Shiki recalcule le thème à chaque compilation." }
+      ],
+      "bonneReponse": "b",
+      "explication": "La feuille générée n'émet que les classes du contenu compilé : une encre qu'aucun bloc n'emploie n'existe pas dans la feuille, donc n'est jamais mesurée. La réponse a est fausse — le fond est un jeton du design system, constant ; la c décrit un mécanisme inexistant, le thème étant figé.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Quelle particularité rend la grammaire HTML la plus coûteuse à ajouter ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Elle imbrique les grammaires CSS et JavaScript pour le contenu des balises de style et de script."
+        },
+        { "id": "b", "texte": "Elle produit plus de balises que les autres langages." },
+        { "id": "c", "texte": "Elle est la seule à distinguer les commentaires." }
+      ],
+      "bonneReponse": "a",
+      "explication": "La délégation aux grammaires imbriquées fait entrer les portées de trois langages d'un coup. La b confond volume de balisage et nombre de portées, qui sont sans rapport ; la c est fausse, toutes les grammaires du contrat distinguent les commentaires.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q3",
+      "type": "trouver-la-faille",
+      "consigne": "Repérer la ligne qui recopie une entrée du client dans du balisage sans l'encoder.",
+      "langage": "javascript",
+      "code": "const terme = new URL(location.href).searchParams.get('q');\ndocument.querySelector('#resultat').innerHTML = `Recherche : ${terme}`;\n// entrées d'attaque typiques : un chevron ouvrant suivi de « script », une image dont la source échoue",
+      "ligneFautive": 2,
+      "faille": "XSS par puits DOM (innerHTML)",
+      "explication": "La ligne 2 écrit la valeur du client dans innerHTML : le navigateur analyse la chaîne comme du balisage, donc une entrée qui porte des chevrons devient un élément à part entière. Écrire dans textContent — ou encoder pour le contexte HTML — referme la faille ; filtrer des mots-clefs à l'entrée ne la referme pas.",
+      "correction": "document.querySelector('#resultat').textContent = `Recherche : ${terme}`;",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associer chaque artefact au rôle qu'il joue dans la mesure des encres.",
+      "paires": [
+        {
+          "gauche": "_coloration-syntaxique-generee.scss",
+          "droite": "la feuille qui porte les encres émises"
+        },
+        {
+          "gauche": "ENCRES_SOMBRES_CORRIGEES",
+          "droite": "la table nominative des encres remplacées"
+        }
+      ],
+      "explication": "La feuille est la sortie mesurée ; la table est la correction appliquée à cette sortie. Les confondre reviendrait à corriger une encre qui n'est pas émise, ou à mesurer une encre déjà remplacée.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Une encre de coloration sous 4,5:1 est acceptable si elle ne sert qu'aux commentaires.",
+      "bonneReponse": false,
+      "justification": "Un commentaire de code est du texte normal au sens de WCAG 1.4.3 : le seuil est de 4,5:1, quel que soit son rôle éditorial. La hiérarchie visuelle se conserve en restant nettement sous l'encre courante, pas en descendant sous le plancher légal.",
+      "ficheSource": "web/securite/fondamentaux-securite-web.md"
+    }
+  ]
+}

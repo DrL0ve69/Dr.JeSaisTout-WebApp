@@ -123,14 +123,29 @@ const RACINE_PAR_DEFAUT = 'content/cours/securite-web';
 const FEUILLE_COLORATION_PAR_DEFAUT = 'src/styles/_coloration-syntaxique-generee.scss';
 
 /**
- * Les six langues du contrat (`type Langage` de `types.d.ts`) — liste FERMÉE.
+ * Les HUIT langues du contrat (`type Langage` de `types.d.ts`) — liste FERMÉE.
+ *
+ * ⚠️ `javascript` et `html` sont entrés le 2026-08-24, et la raison est pédagogique : un cours de
+ * sécurité WEB montre des charges HTML, des puits DOM et des en-têtes HTTP. Tant que la liste
+ * s'arrêtait à six, l'auteur étiquetait son bloc avec une langue qu'il ne contient pas — et
+ * `rendu-blocs` recopie cette étiquette À LA FOIS dans le `<figcaption>` VISIBLE et dans
+ * l'`aria-label` du défileur. Le lecteur voyait, et le lecteur d'écran entendait, une langue
+ * fausse : ce n'était pas une gêne d'auteur, c'était une information erronée servie à
+ * l'apprenant. Quatre leçons de suite avaient dû contourner.
+ *
+ * 🔴 CE QUE COÛTE UNE LANGUE DE PLUS, à savoir avant d'en ajouter une neuvième : une grammaire
+ * Shiki neuve fait apparaître des PORTÉES neuves, donc des ENCRES neuves, donc des paires de
+ * contraste neuves à mesurer contre `--couleur-code-surface` (voir `ENCRES_SOMBRES_CORRIGEES`).
+ * `html` est le cas lourd et ce n'est pas intuitif : sa grammaire IMBRIQUE celles de JavaScript
+ * et de CSS pour le contenu de `<script>` et `<style>`. On MESURE, on ne suppose pas —
+ * `src/coloration-encres-contraste.spec.ts` est le garde-fou exécutable de cette mesure.
  *
  * Deux formes du même ensemble, et c'est délibéré : la LISTE est typée `Langage[]` (elle alimente
  * Shiki, qui exige des noms de grammaires connus), l'ENSEMBLE est typé sur `string` (il teste une
  * langue lue dans un fichier, donc encore inconnue). Un `Set<Langage>.has(string)` ne compile pas.
  */
 /** @type {readonly Langage[]} */
-const LANGAGES = ['php', 'csharp', 'typescript', 'sql', 'bash', 'json'];
+const LANGAGES = ['php', 'csharp', 'typescript', 'javascript', 'html', 'sql', 'bash', 'json'];
 /** @type {ReadonlySet<string>} */
 const NOMS_LANGAGES = new Set(LANGAGES);
 

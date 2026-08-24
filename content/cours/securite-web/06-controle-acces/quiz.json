@@ -1,0 +1,158 @@
+{
+  "lecon": "controle-acces",
+  "titre": "Quiz — Contrôle d'accès défaillant",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Une équipe passe un scanner de vulnérabilités automatique sur son application avant la mise en production. L'outil ne remonte rien. Trois semaines plus tard, un client signale qu'en changeant le dernier chiffre de l'adresse /facture/123 il voit les factures des autres clients. Pourquoi l'outil n'avait-il rien vu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Parce que la requête est en tout point ordinaire : bien formée, envoyée avec un cookie de session authentique, sans le moindre caractère suspect. Pour juger la réponse, l'outil aurait dû savoir à qui appartient la facture 124 — une connaissance propre au métier de l'application, qu'aucun scanner générique ne possède."
+        },
+        {
+          "id": "b",
+          "texte": "Parce qu'un scanner ne teste que les requêtes qui modifient un état ; une simple lecture de facture ne déclenche aucune de ses sondes."
+        },
+        {
+          "id": "c",
+          "texte": "Parce que le serveur répond 200 : un scanner ne signale que les réponses en 500, révélatrices d'une erreur interne mal gérée."
+        },
+        {
+          "id": "d",
+          "texte": "Parce que la faille ne s'exprime que sur un visiteur non connecté : le scanner s'était authentifié, il ne pouvait donc pas la déclencher."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est ce qui distingue le contrôle d'accès des trois modules précédents, et il faut le voir clairement : ici, rien n'entre d'anormal dans le système. Pas de chaîne qui change le sens d'une requête SQL, pas de contenu qui devient un script, pas de requête forgée depuis un autre site. L'attaquant est connecté avec son propre compte légitime et demande poliment quelque chose qu'il n'a pas le droit d'obtenir. Un outil automatique ne peut donc pas s'appuyer sur la forme de la requête, qui est irréprochable ; il lui faudrait connaître la règle métier — quelle facture appartient à qui — et cette règle n'est écrite nulle part dans le protocole. C'est pour cette raison exacte que la détection reste largement manuelle et que la revue de code compte tant sur ce sujet. La réponse b est fausse sur les faits : les scanners parcourent aussi les routes de lecture, et la fuite de données de cette question se produit précisément sur un GET. La réponse c inverse le raisonnement : le 200 n'est pas ce qui aveugle l'outil, c'est justement la réponse attendue d'une application saine, et c'est bien pourquoi l'outil ne peut pas conclure — le même 200 est légitime sur /facture/123 et fautif sur /facture/124. La réponse d confond authentification et autorisation : la faille exige au contraire un compte valide, puisque la session authentique est ce qui fait passer la requête pour normale. Retiens la conséquence pratique : un rapport de scan vierge ne dit rien du contrôle d'accès ; seule une lecture de code ou un test d'autorisation écrit à la main dit quelque chose.",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q2",
+      "type": "trouver-la-faille",
+      "consigne": "Cette méthode d'un contrôleur Laravel supprime une liste. Un premier correctif a déjà été appliqué après un audit : la requête ne charge plus la liste par sa seule clé primaire, elle filtre aussi sur le propriétaire. La suppression de la liste d'autrui reste pourtant possible. Quelle ligne l'autorise ?",
+      "langage": "php",
+      "code": "// app/Http/Controllers/ListesController.php\npublic function destroy(Request $request, $id)\n{\n    $liste = Liste::where('id', $id)\n        ->where('user_id', $request->input('user_id'))\n        ->firstOrFail();\n    $liste->delete();\n    return redirect()->route('listes.index');\n}",
+      "ligneFautive": 5,
+      "faille": "IDOR — l'identité du propriétaire est lue dans un paramètre envoyé par le client au lieu de la session validée par le serveur",
+      "explication": "La ligne 5 filtre bien sur user_id, mais elle demande cette valeur au client. L'attaquant envoie donc user_id=8, la requête devient « la liste numéro tant, à condition qu'elle appartienne à 8 » — condition parfaitement vraie pour les listes de la victime numéro 8 — et la suppression s'exécute. Le contrôle a l'apparence exacte du correctif enseigné, ce qui le rend redoutable en revue de code : la clause where est là, le mot user_id est là, l'œil s'arrête. Il faut aller lire d'où vient la valeur comparée. La règle générale, valable dans tous les écosystèmes : l'identité de l'appelant se lit dans la session ou dans le jeton validés par le serveur — auth()->id() ici, User.GetUserId() côté ASP.NET Core — jamais dans une donnée que le client contrôle, qu'elle vienne de l'URL, de la chaîne de requête, du corps ou d'un champ caché de formulaire. Un champ caché n'est caché que de l'œil, pas de l'outil qui fabrique la requête. La ligne 4 n'est pas fautive : filtrer sur l'identifiant demandé est exactement ce qu'on veut ; c'est la seconde condition, et elle seule, qui décide de la sécurité. La ligne 6 n'est pas fautive non plus : firstOrFail produit une réponse d'échec quand aucune ligne ne satisfait les deux conditions, ce qui est le comportement recherché — il ne peut simplement rien contre une condition que l'attaquant a lui-même remplie. Quant à la ligne 7, elle est l'action métier : supprimer une liste est une opération légitime, elle ne devient dangereuse que parce que la sélection qui la précède est fausse. Un dernier indice qui vaut pour toute relecture : dans la version corrigée, le paramètre Request devient inutile et disparaît de la signature. Quand un correctif d'autorisation supprime une dépendance à l'entrée du client plutôt que d'en ajouter une, c'est en général bon signe.",
+      "correction": "// app/Http/Controllers/ListesController.php\npublic function destroy($id)\n{\n    $liste = Liste::where('id', $id)\n        ->where('user_id', auth()->id())\n        ->firstOrFail();\n    $liste->delete();\n    return redirect()->route('listes.index');\n}",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Une équipe découvre un IDOR sur la route /listes/47. Elle migre les identifiants publics vers des UUID tirés au hasard, du type 3f2a9c14-8b7e-4d51-9f03-1c6e5a2b7d80. La faille est corrigée : plus personne ne peut deviner l'identifiant de la liste voisine.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le réflexe erroné le plus répandu sur ce sujet — au point que la leçon lui consacre une borne d'analogie entière : changer les numéros de chambre ne reprogramme pas les serrures. Le remplacement d'un identifiant séquentiel par un UUID change une chose et une seule, la DÉCOUVERTE : il devient impraticable de parcourir les identifiants en boucle. L'ACCÈS, lui, reste exactement aussi ouvert, parce que la ligne fautive n'a pas bougé — la requête cherche toujours une ressource par sa référence, sans jamais comparer son propriétaire à l'utilisateur connecté. Il suffit donc qu'un identifiant fuite pour que l'accès soit rendu tel quel, et les fuites sont ordinaires : journaux du serveur, en-tête Referer envoyé à un site tiers, URL recopiée dans un courriel ou dans un ticket de support, capture d'écran, historique du navigateur sur un poste partagé. Autrement dit, on a remplacé une faille exploitable en masse par une faille exploitable au cas par cas, ce qui est un progrès réel mais pas une correction : c'est de la défense en profondeur, jamais un substitut à la vérification d'autorisation. Deux précisions pour ne pas se tromper de conclusion. D'abord, un détail de 2026 qui prend à contre-pied ceux qui croient le sujet clos : l'UUID v7, de plus en plus employé pour ses bonnes propriétés d'indexation en base, encode un horodatage dans son préfixe — deux ressources créées à quelques minutes d'intervalle portent donc des identifiants proches et partiellement prévisibles, nettement moins opaques qu'un v4 tiré au hasard. Le type d'identifiant se choisit pour des raisons de base de données ; ne lui demande pas de faire un travail de sécurité. Ensuite, l'ordre des gestes compte : on corrige l'autorisation d'abord, puisque c'est la vraie faille, et on peut ensuite, en second rideau, exposer une référence publique non séquentielle distincte de la clé primaire interne. Faire l'inverse revient à masquer le symptôme et à perdre l'urgence de corriger la cause.",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Une API expose PUT /users/{id} et liait jusqu'ici le corps JSON directement sur l'entité de base de données, qui porte notamment une colonne IsAdmin. Après un incident, l'équipe introduit un DTO ne portant que Name et Email, et recopie ces deux propriétés une par une sur l'entité chargée. Que peut encore faire un compte authentifié malveillant ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Modifier le nom et le courriel de n'importe quel autre compte : le DTO ferme le mass assignment, il ne dit rien de la LIGNE visée, que l'appelant continue de choisir par le {id} de l'URL."
+        },
+        {
+          "id": "b",
+          "texte": "Plus rien sur cette route : restreindre les champs acceptés est précisément le mécanisme qui empêche d'agir sur le compte d'un autre."
+        },
+        {
+          "id": "c",
+          "texte": "Se promouvoir administrateur en ajoutant isAdmin au corps JSON : un champ absent du DTO est tout de même reporté sur l'entité si la colonne existe en base."
+        },
+        {
+          "id": "d",
+          "texte": "Rien : l'API est authentifiée, il faudrait donc qu'il connaisse le mot de passe du compte visé pour agir sur les données de celui-ci."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Le mass assignment et l'IDOR sont deux failles distinctes qui cohabitent très souvent dans la même méthode, et corriger l'une ne corrige jamais l'autre. Le DTO répond à la question « QUELS CHAMPS le client a-t-il le droit de définir ? » ; il ne répond pas à « SUR QUELLE LIGNE ? ». Tant que la ligne est retrouvée par le seul {id} de l'URL, l'appelant choisit sa cible : il ne peut plus se promouvoir administrateur, mais il peut renommer et changer le courriel de tous les comptes de la base — et changer un courriel est rarement anodin, puisque c'est souvent l'adresse à laquelle part une réinitialisation de mot de passe. Le correctif complet exige la seconde condition : charger la ligne en filtrant à la fois sur l'identifiant demandé ET sur l'identité tirée du jeton validé, puis répondre par un échec si rien ne sort. La réponse b décrit un raisonnement séduisant et faux, celui qui consiste à croire qu'une faille corrigée en corrige une autre parce que les deux vivaient dans la même méthode ; c'est exactement l'erreur que cette question cherche à faire remonter. La réponse c décrit un comportement qui n'existe pas : le liage automatique construit l'objet dont le type est déclaré en paramètre, et ce type ne porte pas isAdmin — la clé JSON surnuméraire est simplement ignorée, et rien ne la reporte ensuite puisque l'affectation est écrite à la main, champ par champ. C'est tout l'intérêt du DTO : la liste blanche est exprimée par le type lui-même, si bien qu'ajouter demain une colonne sensible à l'entité n'élargira pas la surface exposée. La réponse d confond une fois de plus les deux notions au cœur du module : l'authentification établit QUI appelle, elle ne dit rien de ce que cet appelant a le droit de toucher. Le compte de l'attaquant est authentifié — c'est le sien, et c'est bien assez.",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q5",
+      "type": "trouver-la-faille",
+      "consigne": "Cette route ASP.NET Core promeut un compte au rang d'administrateur. Le corps de la requête est lié à un DTO qui ne porte que deux champs : le mass assignment est donc fermé. N'importe quel compte authentifié peut pourtant s'accorder à lui-même les droits d'administration. Quelle ligne le permet ?",
+      "langage": "csharp",
+      "code": "[HttpPost(\"admin/promouvoir\")]\n[Authorize]\npublic async Task<IActionResult> Promouvoir([FromBody] PromotionDto dto)\n{\n    var cible = await _db.Users.FindAsync(dto.UserId);\n    if (cible is null) return NotFound();\n    cible.IsAdmin = dto.IsAdmin;\n    await _db.SaveChangesAsync();\n    return Ok();\n}",
+      "ligneFautive": 2,
+      "faille": "Élévation de privilèges verticale — la route ne vérifie que l'authentification, jamais le rang de l'appelant",
+      "explication": "La ligne 2 est le malentendu le plus coûteux du framework : [Authorize] sans argument vérifie UNIQUEMENT qu'un utilisateur est connecté. Son nom promet de l'autorisation, son comportement par défaut n'en fait pas. N'importe quel compte ordinaire fabrique donc la requête à la main — la console du navigateur suffit — avec son propre identifiant en UserId et IsAdmin à vrai, et il ressort administrateur. C'est le cas d'école de l'élévation VERTICALE : l'attaquant n'obtient pas les droits d'un autre utilisateur de son rang, il obtient les droits d'un rang supérieur. Le correctif est de faire porter à l'annotation une exigence de rang — une policy nommée, évaluée par le framework avant que le gestionnaire ne soit atteint. Trois lignes qui ne sont PAS fautives, et il vaut la peine de savoir dire pourquoi. La ligne 3 est correcte : le DTO est une liste blanche exprimée par le type, il ne porte que ce que la route doit accepter, et c'est lui qui a fermé le mass assignment. La ligne 5 charge la cible par sa clé primaire, ce qui serait un IDOR sur une route de consultation de facture — ici, non : sur une route d'administration, choisir librement le compte cible est justement la fonction attendue, à la seule condition que l'appelant soit administrateur. La même ligne de code est fautive ou correcte selon la décision d'autorisation qui la précède, et c'est une idée à emporter : on ne juge jamais une ligne de chargement sans savoir qui a le droit d'arriver jusqu'à elle. La ligne 7 est l'action métier : écrire IsAdmin est légitime pour un administrateur, elle ne devient dangereuse que parce que rien n'a été vérifié avant elle. Deux gestes complètent le correctif dans une application réelle. D'abord, configurer le framework en refus par défaut, pour qu'une route ajoutée demain SANS annotation soit refusée et non ouverte : le développeur qui oublie obtient alors une route morte, un ticket de support à dix heures du matin, plutôt qu'une faille silencieuse. Ensuite, journaliser les promotions de rôle : une promotion est une opération rare, et une opération rare non tracée est une opération qu'on découvrira par la fuite.",
+      "correction": "[HttpPost(\"admin/promouvoir\")]\n[Authorize(Policy = \"AdministrateurSeulement\")]\npublic async Task<IActionResult> Promouvoir([FromBody] PromotionDto dto)\n{\n    var cible = await _db.Users.FindAsync(dto.UserId);\n    if (cible is null) return NotFound();\n    cible.IsAdmin = dto.IsAdmin;\n    _journal.PromotionDeRole(User.GetUserId(), dto.UserId, dto.IsAdmin);\n    await _db.SaveChangesAsync();\n    return Ok();\n}",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q6",
+      "type": "vrai-faux",
+      "affirmation": "La suite de tests d'intégration contient, pour chaque route protégée, un test qui se connecte avec un compte autorisé et vérifie qu'il obtient bien la ressource attendue. Tous ces tests sont au vert. On peut en conclure que les vérifications d'autorisation sont branchées.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le principe de défense que l'on saute le plus souvent alors qu'il est le seul à PROUVER les quatre autres. Le raisonnement se tient en une phrase : une application qui ne vérifie absolument aucune autorisation ferait passer ces tests exactement de la même façon. Le chemin « ça marche » réussit quand la protection est correcte, et il réussit tout autant quand la protection est absente, mal branchée ou supprimée par un refactoring de routeur — il ne les distingue donc pas, et une preuve qui ne distingue pas les deux cas qu'elle prétend départager n'est pas une preuve. Le test qui mesure vraiment quelque chose est celui du REFUS : se connecter en tant qu'utilisateur B, demander la ressource de l'utilisateur A, et exiger un échec ; se connecter en tant que compte ordinaire, appeler la route d'administration, et exiger un échec. Écrire « la route est protégée » dans une revue de code est une intention ; ce test-là est une mesure, et il continue de mesurer dans six mois, quand personne ne se souviendra de la revue. La bonne granularité est la paire (rôle, endpoint) : le nombre de décisions d'autorisation d'une application est le nombre d'actions multiplié par le nombre de ressources, et c'est précisément l'oubli d'UNE seule de ces décisions qui ouvre la brèche — d'où l'intérêt d'un test qui tombe tout seul le jour de l'oubli. Deux compléments utiles en pratique. Un test de refus doit vérifier que l'accès a échoué ET que rien n'a été écrit : une route qui répond par une erreur après avoir déjà modifié la base n'est pas protégée, elle est bavarde. Et le refus se journalise en production, parce qu'une rafale de refus produite par un même compte sur des identifiants consécutifs est la signature d'une énumération en cours — sans journal, l'attaque reste invisible jusqu'à la fuite elle-même.",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q7",
+      "type": "associer",
+      "consigne": "Chaque situation ci-dessous vient d'une décision d'autorisation absente ou posée au mauvais endroit. Associe chacune au nom exact du défaut, en gardant à l'esprit que verticale et horizontale se distinguent par le RANG de la victime, pas par la gravité.",
+      "paires": [
+        {
+          "gauche": "Le menu Administration est masqué aux comptes ordinaires, mais /admin/utilisateurs répond 200 à qui tape l'adresse directement",
+          "droite": "Navigation forcée : la seule protection vivait dans l'interface, qui ne s'exécute pas sur le serveur"
+        },
+        {
+          "gauche": "Un compte ordinaire lit la facture d'un autre client en changeant un chiffre dans l'adresse",
+          "droite": "Élévation horizontale : les droits d'un autre utilisateur de même rang"
+        },
+        {
+          "gauche": "Un compte ordinaire obtient les fonctions de gestion réservées à l'administrateur",
+          "droite": "Élévation verticale : des droits d'un rang supérieur au sien"
+        },
+        {
+          "gauche": "Le corps JSON porte un champ que le formulaire ne proposait pas, et ce champ est écrit en base",
+          "droite": "Mass assignment : le liage automatique applique tout ce qu'il reçoit"
+        },
+        {
+          "gauche": "Un contrôle posé sur GET /Admin/Users tombe dès qu'on change la casse, la méthode HTTP ou la forme du chemin",
+          "droite": "La décision dépend de la manière dont la route a été atteinte, au lieu de porter sur la ressource"
+        },
+        {
+          "gauche": "Les fichiers créés par l'application sont plus permissifs que le chmod passé la veille à la main",
+          "droite": "umask du processus : ce sont ses bits qui décident des permissions à la création"
+        }
+      ],
+      "explication": "Six situations, une seule cause : quelque chose n'a pas été vérifié, ou l'a été à un endroit qui n'engage pas le serveur. Les deux formes d'élévation se distinguent uniquement par le rang de la victime — horizontale quand la victime est un utilisateur de même rang, ce qui est la forme la plus courante et celle que produit tout IDOR ; verticale quand l'attaquant gagne un rang. La confusion classique consiste à croire que verticale veut dire grave et horizontale veut dire bénin : la fuite de tous les dossiers clients d'une entreprise est horizontale. Le menu masqué et le contrôle contourné par la casse ou la méthode HTTP se ressemblent, et il faut savoir les séparer. Dans le premier cas, la protection n'existe pas côté serveur du tout : le rendu conditionnel d'un menu est une décision d'ergonomie, il évite de montrer un bouton qui échouerait, et il n'a aucune valeur de sécurité — c'est de la sécurité par l'obscurité, dont le défaut n'est pas d'être inutile mais de ne pas être une protection, puisque le détail caché finit toujours par se savoir. Dans le second, une protection existe bel et bien, mais elle est attachée à une écriture particulière de la route plutôt qu'à la ressource, si bien qu'un autre chemin menant au même code la contourne. D'où la règle : toute route sensible doit supposer que son adresse est connue de tous, et la vérification doit être indépendante de la façon dont la route a été atteinte. Le mass assignment, lui, est d'une autre famille : rien n'est contourné, le framework fait exactement ce qu'on lui a demandé — remplir l'objet avec ce qu'il reçoit — et le danger vient de ce que l'objet cible porte des champs que le client ne devrait jamais définir. La parade est une liste blanche, jamais une liste noire : une liste blanche énumère ce qui est permis, une liste noire laisse passer tout ce que son auteur n'a pas imaginé. Le dernier cas semble étranger aux cinq autres et ne l'est pas : c'est la même idée un cran plus bas dans la pile. Le système d'exploitation protège des fichiers contre des processus, l'application protège des enregistrements contre des utilisateurs ; les deux échouent pour la même raison, une vérification qu'on croyait faite ailleurs, et aucun ne remplace l'autre. Un chmod 600 impeccable ne remplace jamais une clause qui filtre sur le propriétaire, et un contrôle applicatif impeccable ne survit pas à un fichier de configuration laissé lisible par tout le monde. Provenance : ce que le cours te fait observer, ce sont les quatre entrées de contrôle d'accès de l'exercice d'intégration et le menu Administration masqué ; le vocabulaire d'IDOR, la distinction verticale contre horizontale, le mass assignment et la navigation forcée sont des ajouts de la base de connaissances, centraux en emploi mais peu probables à l'examen 2026.",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    },
+    {
+      "id": "q8",
+      "type": "choix-multiple",
+      "question": "Une application métier interne : un seul service déployé, trois rôles, une soixantaine de routes à protéger, une équipe de quatre personnes. Un développeur propose de sortir toute la logique d'autorisation dans un moteur de politiques externe, interrogé par le service à chaque requête. Quelle réponse est la mieux fondée ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Le bon défaut ici est l'autorisation par rôle ou par attribut fournie par le framework — policies ASP.NET Core, Gates et Policies Laravel : centralisée, testable isolément, cohérente d'un endpoint à l'autre, et sans service supplémentaire à opérer. Le critère qui fait basculer vers un moteur externe est le partage de la MÊME règle entre plusieurs services indépendants, jamais la complexité ressentie d'un if."
+        },
+        {
+          "id": "b",
+          "texte": "Le moteur externe se justifie : à soixante routes, la règle doit être déclarative et versionnée à part du code, sans quoi elle devient impossible à auditer."
+        },
+        {
+          "id": "c",
+          "texte": "Il vaut mieux au contraire garder une vérification écrite à la main dans chaque contrôleur : c'est ce qui se lit le plus facilement, et la duplication ne pose pas de problème tant que les tests passent."
+        },
+        {
+          "id": "d",
+          "texte": "La question est mal posée : ce qui doit trancher, c'est le coût de l'aller-retour ajouté par toute vérification d'autorisation, et c'est la raison pour laquelle on la retire des endpoints à fort volume."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "La vraie question de conception n'est pas « vérifier ou ne pas vérifier », c'est OÙ VIT la logique d'autorisation — et la réponse dépend d'un seul critère structurel. Les policies du framework sont le bon défaut pour la majorité des applications métier de taille moyenne : elles centralisent la règle en un endroit qui répond « cet utilisateur peut-il faire telle action sur telle ressource », elles se testent isolément, et elles ne coûtent aucune technologie de plus à opérer. La réponse b se trompe de critère : soixante routes est une taille, pas une topologie. Un moteur externe apporte une politique déclarative, versionnée à part et réutilisable ENTRE plusieurs services et plusieurs langages ; sur un service unique, on paie cette réutilisabilité sans jamais la consommer, en échange d'un aller-retour réseau de plus et d'un composant supplémentaire à déployer, surveiller et faire vivre. C'est de la sur-ingénierie, et la sur-ingénierie a un coût de sécurité propre : ce qui est compliqué à opérer finit mal configuré. La réponse c décrit exactement le défaut que les cinq principes de la leçon cherchent à rendre improbable : une vérification recopiée se duplique, s'oublie sur la route ajoutée au troisième mois, et diverge avec le temps entre des endpoints pourtant similaires. La règle pratique est de centraliser dès la DEUXIÈME copie. Et « tant que les tests passent » est une garantie faible tant que la suite ne teste que l'acceptation : c'est le test du refus qui attrape l'oubli. La réponse d contient un fait exact et en tire la conclusion inverse de la bonne : oui, une vérification d'autorisation ajoute un aller-retour en base ou une évaluation de policy à chaque requête portant sur une ressource identifiée, et oui, cela se budgète sur les endpoints à très fort volume. Mais c'est un arbitrage de performance, jamais une raison de retirer la vérification — un endpoint à fort volume dont l'autorisation a été retirée est simplement un endpoint dont la fuite sera à fort volume elle aussi.",
+      "ficheSource": "web/securite/controle-acces-idor.md"
+    }
+  ]
+}
