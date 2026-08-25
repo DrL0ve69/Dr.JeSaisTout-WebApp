@@ -193,7 +193,7 @@ function etapeValider(racineAbsolue) {
  *
  * @param {string} racineAbsolue
  * @param {string | undefined} cacheDiagrammes dossier de cache des SVG, ou `undefined` pour le défaut
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string }>}
+ * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null }>}
  */
 async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
   /** @type {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | undefined} */
@@ -328,17 +328,26 @@ async function principal() {
     );
   }
 
-  const { lecons, feuille } = await etapeCompiler(racineAbsolue, cacheDiagrammes);
+  const { lecons, feuille, horaire } = await etapeCompiler(racineAbsolue, cacheDiagrammes);
 
   // ÉCRITURE INCONDITIONNELLE — c'est le cœur du lot. Voir l'en-tête : zéro leçon écrit quand même
   // la feuille, le manifeste et la carte, sinon `src/styles.scss` perd sa cible sur un clone frais.
   ecrireAtomique(cssAbsolu, feuille);
-  const { entrees, ecartees, incluses } = ecrireContenuGenere(sortieAbsolue, lecons, {
+  const { entrees, ecartees, incluses, horaires } = ecrireContenuGenere(sortieAbsolue, lecons, {
     inclureBrouillons,
+    // UNE racine par exécution, donc au plus un horaire — mais l'écrivain en prend une LISTE :
+    // c'est lui qui refuse deux horaires d'un même sujet, et ce contrôle ne vaut que s'il peut
+    // en recevoir plusieurs.
+    horaires: [horaire],
   });
+  // L'HORAIRE S'ANNONCE MÊME À ZÉRO (L-005) : sans cette ligne, « aucun horaire dans la racine »
+  // et « lecture de l'horaire débranchée » s'écriraient exactement pareil dans le journal.
+  const sujetsAvecHoraire = Object.keys(horaires);
   etape(
     `4/5 sorties — ${afficher(cssAbsolu)} · ${entrees.length} entrée(s) de manifeste · ` +
-      `carte de ${entrees.length} import(s) paresseux`,
+      `carte de ${entrees.length} import(s) paresseux · ` +
+      `${sujetsAvecHoraire.length} horaire(s) de sujet` +
+      (sujetsAvecHoraire.length > 0 ? ` : ${sujetsAvecHoraire.join(', ')}` : ''),
   );
   // LE FILTRE S'ANNONCE TOUJOURS, MÊME À ZÉRO (L-005) : un gate qui n'a rien retiré doit se voir
   // dans le journal, sinon « aucun brouillon » et « filtre débranché » s'écrivent pareil.

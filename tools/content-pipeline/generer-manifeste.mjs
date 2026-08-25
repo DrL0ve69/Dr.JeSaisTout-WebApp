@@ -75,6 +75,24 @@ const FICHIER_MANIFESTE = 'manifeste-routes.json';
 const FICHIER_CARTE = 'carte-lecons.ts';
 
 /**
+ * Nom du fichier d'horaires — la QUATRIÈME sortie, née à E3-ST20.
+ *
+ * 🔴 POURQUOI UN FICHIER À CÔTÉ DU MANIFESTE, ET NON UN CHAMP DEDANS. `manifeste-routes.json` est
+ * un TABLEAU d'`EntreeManifesteRoutes`, et une dizaine de consommateurs le lisent comme tel —
+ * `app.routes.server.ts`, le sommaire, la navigation, la progression, plus leurs specs. L'envelopper
+ * dans un objet `{ lecons, horaires }` pour y loger l'horaire aurait fait de ce lot de PIPELINE un
+ * lot d'application, alors que le rendu appartient au lot B. La capacité demandée par le contrat
+ * (§4 d'`ancrage-au-cours.md`) est intacte : l'horaire est écrit UNE FOIS PAR SUJET dans
+ * `src/content-generated/`, le sommaire y accède sans relire `content/` au runtime — seul le
+ * fichier qui le porte diffère de la lettre du contrat.
+ *
+ * INDEXÉ PAR SUJET, et non écrit à plat : une racine ne porte qu'un sujet aujourd'hui (le
+ * validateur le vérifie), mais `ecrireContenuGenere` peut recevoir plusieurs racines compilées, et
+ * un fichier à plat en écraserait un.
+ */
+const FICHIER_HORAIRES = 'horaires.json';
+
+/**
  * @param {string} message
  * @param {readonly string[]} [details]
  * @returns {never}
@@ -141,6 +159,9 @@ export function construireManifeste(lecons) {
       // celui-ci ne charge pas les `lecons/<slug>.json`, dont c'est tout l'intérêt (un index
       // qui les lirait tous embarquerait le corps des 27 modules).
       if (lecon.frontmatter.section !== undefined) entree.section = lecon.frontmatter.section;
+      // `seance` — même geste, même raison (E3-ST20). Le sommaire annonce la séance de chaque
+      // module et intercale les jalons d'évaluation ; il lit ce manifeste, jamais les corps.
+      if (lecon.frontmatter.seance !== undefined) entree.seance = lecon.frontmatter.seance;
       return entree;
     })
     .sort((a, b) => a.ordre - b.ordre || a.slug.localeCompare(b.slug, 'fr'));
@@ -239,9 +260,11 @@ export function separerPubliees(lecons) {
  *
  * @param {string} dossierSortie chemin absolu
  * @param {readonly LeconCompilee[]} lecons
- * @param {{ inclureBrouillons?: boolean }} [options] `inclureBrouillons` rétablit l'écriture des
- *   leçons non publiées. DÉFAUT FERMÉ : sans ce drapeau, elles ne sont pas écrites du tout.
- * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[] }}
+ * @param {{ inclureBrouillons?: boolean, horaires?: readonly (HoraireCompile | null)[] }} [options]
+ *   `inclureBrouillons` rétablit l'écriture des leçons non publiées. DÉFAUT FERMÉ : sans ce
+ *   drapeau, elles ne sont pas écrites du tout. `horaires` porte l'horaire de chaque racine
+ *   compilée — les `null` (racine sans ancrage au cours) sont simplement ignorés.
+ * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[], horaires: Record<string, HoraireCompile> }}
  */
 export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   const inclureBrouillons = options.inclureBrouillons === true;
@@ -284,11 +307,31 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   const carte = rendreCarteLecons(entrees);
   ecrireAtomique(join(dossierSortie, FICHIER_CARTE), carte);
 
+  // L'HORAIRE N'EST PAS FILTRÉ PAR `statut`, et il n'y a rien à filtrer : c'est le calendrier du
+  // COURS, pas un contenu de module. Un horaire écrit alors qu'aucune leçon n'est publiée décrit un
+  // cours dont le site n'affiche encore rien — ce qui est exact, et ne divulgue aucun brouillon.
+  /** @type {Record<string, HoraireCompile>} */
+  const horaires = {};
+  for (const horaire of options.horaires ?? []) {
+    if (horaire === null) continue;
+    const dejaVu = horaires[horaire.sujet];
+    if (dejaVu !== undefined) {
+      echec(`deux horaires compilés portent le sujet « ${horaire.sujet} »`, [
+        'le second écraserait le premier en silence, et le sommaire daterait les séances du mauvais',
+      ]);
+    }
+    horaires[horaire.sujet] = horaire;
+  }
+  // Indenté, comme le manifeste et pour la même raison : c'est un artéfact court qu'un humain ouvre
+  // pour comprendre ce que le build a vu.
+  ecrireAtomique(join(dossierSortie, FICHIER_HORAIRES), `${JSON.stringify(horaires, null, 2)}\n`);
+
   return {
     entrees,
     fichiers,
     manifeste,
     carte,
+    horaires,
     // Les slugs réellement ÉCARTÉS (vide quand le drapeau est levé) et ceux réellement INCLUS
     // alors qu'ils ne sont pas publiés. Les deux servent au journal de `build.mjs` : un filtre
     // qui n'annonce pas ce qu'il a retiré — ni ce qu'il a laissé passer sur demande — est un

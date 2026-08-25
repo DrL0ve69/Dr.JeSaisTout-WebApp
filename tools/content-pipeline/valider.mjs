@@ -12,19 +12,25 @@
  *
  * CE QU'IL VÉRIFIE, ET DANS QUEL ORDRE (l'ordre compte : c'est la PREMIÈRE anomalie d'une leçon qui
  * est rapportée en mode `--fixtures`, donc chaque cas de test est écrit pour n'en porter qu'une) :
+ *   0. `horaire.json` du sujet      — OPTIONNEL ; schéma + « numero » strictement croissants +
+ *                                     `portee` qui ne cite que des séances existantes et non
+ *                                     évaluées. Examiné EN PREMIER : les leçons s'y confrontent
  *   1. frontmatter lisible          — sous-ensemble YAML strict, voir `analyserFrontmatter`
  *   2. frontmatter conforme         — `schemas/lecon.frontmatter.schema.json` (Ajv)
  *   3. cohérence dossier ↔ leçon    — `<nn>-<slug>` = `slug` + `ordre`, slugs uniques
+ *  3bis. `seance` vs `horaire.json` — le numéro existe et ne désigne pas une séance d'évaluation
  *   4. sections du gabarit          — présentes, uniques, dans l'ordre
  *   5. espaces fines interdites     — U+202F et U+2009 hors blocs de code
  *   6. marqueurs `à-vérifier:`      — interdits dès `statut: publiee`
  *   7. conteneurs `:::`             — liste FERMÉE
  *   8. marqueurs 📘/🧩 littéraux    — interdits hors bloc de code (G1)
- *   9. `correction-du-cours`        — `{source="…"}` obligatoire et non vide (G3)
+ *   9. attributs des encadrés       — matrice `source`/`diapos`/`seance` par variante (G3
+ *                                     comprise), grammaire de `diapos`, séance dérivable
  *  10. provenance vs statut         — ≥ 1 encadré `cours`/`complement` dès `statut: publiee` (G2)
  *  11. `quiz.json`                  — obligatoire ; schéma + cohérences inter-champs
  *  12. `simulation.json`            — optionnel ; schéma + cohérences inter-champs
  *  13. `section` tout-ou-rien       — à l'échelle du SUJET, après le passage de toutes les leçons
+ *  14. `sujet` de l'horaire         — concorde avec celui déclaré par les leçons de la racine
  *
  * POURQUOI DES RÈGLES « HORS SCHÉMA ».
  * JSON Schema décrit la forme d'UN document ; il ne sait pas comparer deux branches du même
@@ -139,9 +145,57 @@ const CONTENEURS_AUTORISES = new Set([
  */
 const VARIANTES_PROVENANCE = new Set(['cours', 'complement']);
 
-/** La seule variante qui exige un attribut, et le nom de cet attribut. */
+/** La seule variante qui EXIGE un attribut, et le nom de cet attribut. */
 const VARIANTE_SOURCEE = 'correction-du-cours';
 const ATTRIBUT_SOURCE = 'source';
+
+/** Les deux attributs de RENVOI AU COURS (E3-ST20, `docs/contenu/ancrage-au-cours.md` §3). */
+const ATTRIBUT_DIAPOS = 'diapos';
+const ATTRIBUT_SEANCE = 'seance';
+
+/**
+ * LA MATRICE D'ATTRIBUTS DES SIX ENCADRÉS — liste blanche NOMINATIVE, une entrée par variante.
+ *
+ * C'est la table du §3 d'`ancrage-au-cours.md`, et elle GÉNÉRALISE le refus qui n'existait que
+ * pour `source` : jusqu'à E3-ST20, `source` était admis sur `correction-du-cours` et refusé
+ * partout ailleurs, ce qui tenait en une comparaison. Trois attributs et six variantes ne tiennent
+ * plus dans un `if` — d'où une table, lue par une SEULE fonction de jugement.
+ *
+ * ⚠️ POURQUOI `complement` REFUSE `diapos`, ALORS QUE `cours` L'ADMET. Un complément est, par
+ * définition, ce que la KnowledgeBase ajoute et que le cours ne dit pas : lui laisser citer une
+ * diapositive enverrait l'étudiant chercher dans le cours une matière qui n'y est pas, c'est-à-dire
+ * exactement l'échec que `.claude/rules/contenu-pedagogique.md` §6 appelle « présenter comme
+ * examinable ce que l'enseignant n'a jamais enseigné ».
+ *
+ * ⚠️ LES TROIS CONTENEURS DE COMPARAISON (`comparaison`, `vulnerable`, `corrige`) NE SONT PAS ICI :
+ * ils ne sont pas des encadrés, ils portent leurs propres attributs (`langage`), et leur grammaire
+ * appartient au compilateur. Cette table ne juge que ce qu'elle nomme.
+ *
+ * @type {ReadonlyMap<string, readonly string[]>}
+ */
+const ATTRIBUTS_ADMIS_PAR_VARIANTE = new Map([
+  ['attention', []],
+  ['note', []],
+  ['a-retenir', []],
+  ['cours', [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
+  ['complement', []],
+  [VARIANTE_SOURCEE, [ATTRIBUT_SOURCE, ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
+]);
+
+/**
+ * Bornes de la grammaire de `diapos`, écrites plutôt que laissées implicites.
+ *
+ * `DIAPO_MAX` : un cours de session ne dépasse pas quelques centaines de diapositives ; un numéro
+ * à quatre chiffres est une faute de frappe, pas un renvoi.
+ * `AMPLITUDE_MAX_PLAGE` : les plages sont DÉPLIÉES dans l'artéfact compilé (contrat §4). Sans
+ * borne, `{diapos="1-999"}` écrirait 999 entiers dans le JSON servi au visiteur — et un renvoi qui
+ * couvre tout le cours ne renvoie à rien.
+ */
+const DIAPO_MAX = 999;
+const AMPLITUDE_MAX_PLAGE = 100;
+
+/** Nom du fichier d'horaire, à la racine d'un sujet. Voir `docs/contenu/ancrage-au-cours.md` §1. */
+const FICHIER_HORAIRE = 'horaire.json';
 
 /**
  * Les marqueurs de provenance LITTÉRAUX, interdits dans le corps d'une leçon (règle G1).
@@ -482,6 +536,7 @@ const ajv = new Ajv({ allErrors: true, strict: true, allowUnionTypes: false });
 const validerFrontmatter = ajv.compile(lireSchema('lecon.frontmatter.schema.json'));
 const validerQuiz = ajv.compile(lireSchema('quiz.schema.json'));
 const validerSimulation = ajv.compile(lireSchema('simulation.schema.json'));
+const validerHoraire = ajv.compile(lireSchema('horaire.schema.json'));
 
 /**
  * Rend une erreur Ajv EN FRANÇAIS.
@@ -820,8 +875,16 @@ function verifierMarqueursDeProvenanceLitteraux(lignes, signaler) {
  * en trois contrôles, et les deux copies sont appariées par
  * `src/pipeline-contenu-validation.spec.ts` via des fixtures, pas par un commentaire (L-008).
  *
- * La règle est écrite en DEUX morceaux, juste en dessous : `causeDeCorrectionNonSourcee` juge une
- * ouverture isolée et rend sa cause, `verifierSourceDesCorrections` parcourt les lignes et signale.
+ * La règle est écrite en DEUX morceaux, juste en dessous : `causeDAttributsDEncadre` juge une
+ * ouverture isolée et rend sa cause, `verifierAttributsDesEncadres` parcourt les lignes et signale.
+ *
+ * 🔴 DEPUIS E3-ST20, CETTE RÈGLE EN PORTE TROIS — et c'est une GÉNÉRALISATION, pas un doublon.
+ * `source` n'était qu'un cas particulier d'« attribut admis sur une variante et refusé sur les
+ * autres » ; `diapos` et `seance` en sont deux de plus, avec une matrice à quatre lignes
+ * (`docs/contenu/ancrage-au-cours.md` §3). Dupliquer la mécanique aurait donné deux lecteurs
+ * d'attributs qui divergeraient sur la forme acceptée — la faute même que le paragraphe ci-dessus
+ * décrit. La table `ATTRIBUTS_ADMIS_PAR_VARIANTE` est donc la SEULE autorité, et la fonction de
+ * jugement est unique.
  */
 
 /**
@@ -843,28 +906,148 @@ const FORME_ATTENDUE_CORRECTION = `forme attendue : ::: ${VARIANTE_SOURCEE} {${A
 const MOTIF_PAIRE_ATTRIBUT = /\b([a-z-]+)="([^"]*)"/g;
 
 /**
- * Lit la partie attributs d'une ouverture `::: correction-du-cours` et rend la CAUSE du refus.
+ * La forme d'auteur attendue, PAR VARIANTE. Un auteur qui se trompe doit lire la forme correcte
+ * de SA variante, pas celle d'une autre — citer `{source="…"}` à qui écrit `::: cours` l'enverrait
+ * commettre la faute d'à côté.
+ *
+ * @param {string} variante
+ * @returns {string}
+ */
+function formeAttendue(variante) {
+  if (variante === VARIANTE_SOURCEE) return FORME_ATTENDUE_CORRECTION;
+  if (variante === 'cours') {
+    return `forme attendue : ::: cours {${ATTRIBUT_DIAPOS}="13, 17"}, ou ::: cours {${ATTRIBUT_SEANCE}="5" ${ATTRIBUT_DIAPOS}="45-50"} pour citer une AUTRE séance`;
+  }
+  return `forme attendue : ::: ${variante} seul — cette variante n'admet aucun attribut`;
+}
+
+/**
+ * Énonce, en toutes lettres, ce que la variante admet. Une liste blanche qui ne se dit pas oblige
+ * l'auteur à retrouver la table dans un document ; ici, le message la porte.
+ *
+ * @param {string} variante
+ * @param {readonly string[]} admis
+ * @returns {string}
+ */
+function libelleDesAttributsAdmis(variante, admis) {
+  if (admis.length === 0) return `« ::: ${variante} » n'admet AUCUN attribut`;
+  const cites = admis.map((a) => `« ${a} »`).join(', ');
+  return `attributs admis sur « ::: ${variante} » : ${cites}`;
+}
+
+/**
+ * --- Grammaire de `diapos` (E3-ST20, `docs/contenu/ancrage-au-cours.md` §3) ---
+ *
+ * 🔴 ON DÉCOUPE, PUIS ON VALIDE CHAQUE JETON CONTRE UNE GRAMMAIRE TOTALE — jamais un motif global
+ * « qui a l'air bon ». C'est la famille S-003/S-009/S-014 de `.claude/rules/security.md` §4 : un
+ * motif unique lâché sur la chaîne entière n'accepte que ce que son auteur a imaginé, et il
+ * n'aurait rien à NOMMER quand il refuse. Ici, la séparation par virgules est structurelle, chaque
+ * jeton est confronté à `N` ou `N-M`, et tout ce qui n'est pas exactement l'une des deux formes
+ * est refusé EN SE NOMMANT.
+ *
+ * ⚠️ POURQUOI LA CROISSANCE STRICTE EST UNE RÈGLE ET NON UNE COQUETTERIE. Un renvoi faux envoie
+ * l'étudiant réviser la mauvaise diapositive, en silence : c'est le seul défaut de ce lot qu'aucun
+ * gate en aval ne peut voir. `{diapos="17, 13"}` est presque toujours une inversion de frappe, et
+ * `{diapos="13, 13"}` un copier-coller. Exiger l'ordre strict transforme les deux en échec de
+ * construction, là où l'auteur a encore sa diapositive sous les yeux.
+ *
+ * La grammaire TOTALE d'UN jeton : « N » ou « N-M », décimal, sans zéro de tête (« 013 » est une
+ * faute de frappe, pas un numéro) et sans signe. Ancrée aux deux bouts : rien ne se glisse autour.
+ * Tout jeton hors de cette forme est refusé EN SE NOMMANT.
+ *
+ * Isolée de la boucle qui l'appelle, comme `causeDAttributsDEncadre` l'est de la sienne : la boucle
+ * parcourt, cette fonction juge — et chacune des cinq fautes possibles est une décision distincte.
+ *
+ * @param {string} jeton déjà rogné, jamais vide
+ * @param {number} precedent borne haute du jeton précédent (0 pour le premier)
+ * @param {string} valeur la liste entière, citée dans la cause : un auteur corrige un jeton EN
+ *   VOYANT la liste où il vit
+ * @returns {{ debut: number, fin: number, cause?: undefined } | { cause: string, debut?: undefined, fin?: undefined }}
+ */
+function analyserUnJetonDeDiapos(jeton, precedent, valeur) {
+  const decoupe = /^([1-9]\d*)(?:-([1-9]\d*))?$/.exec(jeton);
+  if (decoupe === null) {
+    return {
+      cause: `jeton « ${jeton} » illisible dans « ${ATTRIBUT_DIAPOS}="${valeur}" » — un jeton s'écrit « N » ou « N-M », en chiffres décimaux, sans zéro de tête`,
+    };
+  }
+  const debut = Number(decoupe[1]);
+  const estUnePlage = decoupe[2] !== undefined;
+  const fin = estUnePlage ? Number(decoupe[2]) : debut;
+  if (estUnePlage && fin <= debut) {
+    const forme = fin === debut ? 'plate' : 'inversée';
+    return { cause: `jeton « ${jeton} » : une plage s'écrit « N-M » avec N < M — celle-ci est ${forme}` };
+  }
+  if (fin > DIAPO_MAX) {
+    return {
+      cause: `jeton « ${jeton} » : ${fin} dépasse le maximum admis (${DIAPO_MAX}) — un numéro à quatre chiffres est une faute de frappe`,
+    };
+  }
+  if (fin - debut + 1 > AMPLITUDE_MAX_PLAGE) {
+    const largeur = fin - debut + 1;
+    return {
+      cause: `jeton « ${jeton} » : une plage de ${largeur} diapositives (maximum ${AMPLITUDE_MAX_PLAGE}) n'est plus un renvoi`,
+    };
+  }
+  if (debut <= precedent) {
+    return {
+      cause: `jeton « ${jeton} » : les jetons de « ${ATTRIBUT_DIAPOS} » sont STRICTEMENT croissants, or ${precedent} le précède`,
+    };
+  }
+  return { debut, fin };
+}
+
+/**
+ * @param {string} valeur valeur brute de l'attribut, guillemets déjà retirés
+ * @returns {{ diapos: number[], cause?: undefined } | { cause: string, diapos?: undefined }}
+ */
+function analyserDiapos(valeur) {
+  /** @type {number[]} */
+  const diapos = [];
+  let precedent = 0;
+  for (const brut of valeur.split(',')) {
+    const jeton = brut.trim();
+    if (jeton === '') {
+      return {
+        cause: `jeton VIDE dans « ${ATTRIBUT_DIAPOS}="${valeur}" » — deux virgules qui se suivent, ou une virgule en bout de liste`,
+      };
+    }
+    const lu = analyserUnJetonDeDiapos(jeton, precedent, valeur);
+    if (lu.cause !== undefined) return { cause: lu.cause };
+    for (let n = lu.debut; n <= lu.fin; n += 1) diapos.push(n);
+    precedent = lu.fin;
+  }
+  return { diapos };
+}
+
+/**
+ * Lit la partie attributs d'une ouverture d'encadré et rend la CAUSE du refus.
  *
  * Fonction séparée de la boucle qui l'appelle pour une raison qui n'est pas cosmétique : chacune
- * des quatre fautes possibles est une décision distincte, et les tenir dans la boucle mêlait le
- * parcours des lignes à l'analyse d'une ligne (complexité cognitive au-dessus du seuil du dépôt).
- * Ici, la boucle parcourt, cette fonction juge — et la cause qu'elle rend est testable seule.
+ * des fautes possibles est une décision distincte, et les tenir dans la boucle mêlait le parcours
+ * des lignes à l'analyse d'une ligne (complexité cognitive au-dessus du seuil du dépôt). Ici, la
+ * boucle parcourt, cette fonction juge — et la cause qu'elle rend est testable seule.
  *
+ * @param {string} variante nom de l'encadré, déjà connu de `ATTRIBUTS_ADMIS_PAR_VARIANTE`
  * @param {string} reste ce qui suit le nom du conteneur, déjà rogné
+ * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
+ *   `seanceFrontmatter` : la séance du module, ou `null` s'il n'en déclare pas.
+ *   `seancesConnues` : les numéros de `horaire.json`, ou `null` si la racine n'en porte pas.
  * @returns {string | null} la cause du refus, sans le préfixe « corps ligne N : » ; `null` si conforme
  */
-function causeDeCorrectionNonSourcee(reste) {
+function causeDAttributsDEncadre(variante, reste, ancrage) {
+  const admis = ATTRIBUTS_ADMIS_PAR_VARIANTE.get(variante) ?? [];
+  const exigeSource = variante === VARIANTE_SOURCEE;
   if (reste === '') {
-    return (
-      `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ` +
-      FORME_ATTENDUE_CORRECTION
-    );
+    return exigeSource
+      ? `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ${FORME_ATTENDUE_CORRECTION}`
+      : null;
   }
   const accolade = /^\{(.*)\}$/.exec(reste);
   if (accolade === null) {
     return (
-      `« ::: ${VARIANTE_SOURCEE} » suivi de « ${reste} » — les attributs d'un conteneur ` +
-      `s'écrivent ENTRE ACCOLADES ; ${FORME_ATTENDUE_CORRECTION}`
+      `« ::: ${variante} » suivi de « ${reste} » — les attributs d'un conteneur ` +
+      `s'écrivent ENTRE ACCOLADES ; ${formeAttendue(variante)}`
     );
   }
   const corpsAttributs = accolade[1] ?? '';
@@ -878,43 +1061,96 @@ function causeDeCorrectionNonSourcee(reste) {
   // `lireAttributs`. Sans lui, `{source=X}` (guillemets oubliés) rendrait un objet VIDE et
   // sortirait sous la cause « attribut absent », qui n'est pas la faute commise.
   const residu = corpsAttributs.replace(MOTIF_PAIRE_ATTRIBUT, '').trim();
-  const clefsInconnues = Object.keys(attributs).filter((clef) => clef !== ATTRIBUT_SOURCE);
+  const clefsInconnues = Object.keys(attributs).filter((clef) => !admis.includes(clef));
   if (residu !== '' || clefsInconnues.length > 0) {
     const detail = residu !== '' ? `« ${residu} »` : `attribut « ${clefsInconnues[0]} » inconnu`;
     return (
-      `attributs illisibles sur « ::: ${VARIANTE_SOURCEE} » — ${detail} ; ` +
-      `seul « ${ATTRIBUT_SOURCE} » est admis, ${FORME_ATTENDUE_CORRECTION}`
+      `attributs illisibles sur « ::: ${variante} » — ${detail} ; ` +
+      `${libelleDesAttributsAdmis(variante, admis)}, ${formeAttendue(variante)}`
     );
   }
-  const valeur = attributs[ATTRIBUT_SOURCE];
-  if (valeur === undefined) {
+  if (exigeSource) {
+    const valeur = attributs[ATTRIBUT_SOURCE];
+    if (valeur === undefined) {
+      return (
+        `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ` +
+        FORME_ATTENDUE_CORRECTION
+      );
+    }
+    if (valeur.trim() === '') {
+      return (
+        `« ::: ${VARIANTE_SOURCEE} » porte un attribut « ${ATTRIBUT_SOURCE} » vide — ` +
+        "une correction du cours cite la source qui l'autorise"
+      );
+    }
+  }
+  return causeDuRenvoiAuCours(variante, attributs, ancrage);
+}
+
+/**
+ * Juge la partie RENVOI AU COURS (`diapos`, `seance`) d'un encadré dont les clefs sont déjà admises.
+ *
+ * @param {string} variante
+ * @param {Readonly<Record<string, string>>} attributs
+ * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
+ * @returns {string | null}
+ */
+function causeDuRenvoiAuCours(variante, attributs, ancrage) {
+  const diaposBrutes = attributs[ATTRIBUT_DIAPOS];
+  const seanceBrute = attributs[ATTRIBUT_SEANCE];
+  if (diaposBrutes === undefined && seanceBrute === undefined) return null;
+
+  if (diaposBrutes !== undefined) {
+    const lu = analyserDiapos(diaposBrutes);
+    if (lu.cause !== undefined) return `« ::: ${variante} » — ${lu.cause}`;
+  }
+
+  // La séance de l'encadré : celle qu'il déclare, sinon celle du module. Un renvoi qui ne désigne
+  // AUCUNE séance ne désigne rien du tout — d'où l'obligation quand le module n'en porte pas.
+  let seance = ancrage.seanceFrontmatter;
+  if (seanceBrute !== undefined) {
+    if (!/^[1-9]\d?$/.test(seanceBrute)) {
+      return `« ::: ${variante} » — « ${ATTRIBUT_SEANCE}="${seanceBrute}" » n'est pas un numéro de séance (entier de 1 à 99, sans zéro de tête)`;
+    }
+    seance = Number(seanceBrute);
+  }
+  if (seance === null) {
     return (
-      `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ` +
-      FORME_ATTENDUE_CORRECTION
+      `« ::: ${variante} » porte un renvoi au cours sans séance à laquelle le rattacher — ` +
+      `le frontmatter de ce module n'a pas de « ${ATTRIBUT_SEANCE} », l'attribut « ${ATTRIBUT_SEANCE} » ` +
+      'devient donc obligatoire sur cet encadré'
     );
   }
-  if (valeur.trim() === '') {
-    return (
-      `« ::: ${VARIANTE_SOURCEE} » porte un attribut « ${ATTRIBUT_SOURCE} » vide — ` +
-      "une correction du cours cite la source qui l'autorise"
-    );
+  // Vérifiée UNIQUEMENT quand l'encadré la déclare lui-même : la séance héritée du frontmatter a
+  // déjà été confrontée à l'horaire par la règle 3bis, et la resignaler ici donnerait DEUX causes
+  // pour une seule faute — ce que le mode `--fixtures` interdit par contrat.
+  if (seanceBrute === undefined) return null;
+  if (ancrage.seancesConnues === null) {
+    return `« ::: ${variante} » cite la séance ${seance}, mais la racine ne porte pas de « ${FICHIER_HORAIRE} » — un renvoi ne se vérifie contre rien`;
+  }
+  if (!ancrage.seancesConnues.has(seance)) {
+    return `« ::: ${variante} » cite la séance ${seance}, absente de « ${FICHIER_HORAIRE} »`;
   }
   return null;
 }
 
 /**
- * Applique G3 à toutes les lignes du corps : parcourt, délègue le jugement, signale.
+ * Applique la matrice d'attributs (G3 comprise) à toutes les lignes du corps.
  *
  * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
  * @param {(cause: string) => void} signaler
  */
-function verifierSourceDesCorrections(lignes, signaler) {
+function verifierAttributsDesEncadres(lignes, ancrage, signaler) {
   for (const l of lignes) {
     if (l.code) continue;
     const marqueur = marqueurDeConteneur(l.texte);
     if (marqueur === null || marqueur.suite === '') continue;
-    if (nomDeConteneur(marqueur.suite) !== VARIANTE_SOURCEE) continue;
-    const cause = causeDeCorrectionNonSourcee(marqueur.suite.slice(VARIANTE_SOURCEE.length).trim());
+    const nom = nomDeConteneur(marqueur.suite);
+    // `null` : nom illisible, et un conteneur hors de la matrice n'est pas un encadré — les deux
+    // sont déjà nommés par la règle 7, qui en donne la vraie cause.
+    if (nom === null || !ATTRIBUTS_ADMIS_PAR_VARIANTE.has(nom)) continue;
+    const cause = causeDAttributsDEncadre(nom, marqueur.suite.slice(nom.length).trim(), ancrage);
     if (cause !== null) signaler(`corps ligne ${l.numero} : ${cause}`);
   }
 }
@@ -989,9 +1225,10 @@ function verifierProvenanceVsStatut(lignes, statut, signaler) {
  *
  * @param {string} corps
  * @param {string} statut
+ * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
  * @param {(cause: string) => void} signaler
  */
-function verifierCorps(corps, statut, signaler) {
+function verifierCorps(corps, statut, ancrage, signaler) {
   const lignes = lignesDuCorps(corps);
   const { titres, vides } = titresDuCorps(lignes);
 
@@ -1019,13 +1256,13 @@ function verifierCorps(corps, statut, signaler) {
   // --- 8. Marqueurs de provenance littéraux (G1) ---------------------------
   verifierMarqueursDeProvenanceLitteraux(lignes, signaler);
 
-  // --- 9. `correction-du-cours` sourcée (G3) -------------------------------
+  // --- 9. Attributs des encadrés : la matrice à quatre lignes, G3 comprise --
   // ⚠️ AVANT la règle 10, et ce n'est pas cosmétique. Les deux peuvent mordre sur la MÊME leçon
   // publiée ; le mode `--fixtures` ne compare que la PREMIÈRE anomalie. Placer G3 devant est ce qui
   // permet à `provenance-imbriquee-correction-sans-source` d'exercer la descente récursive de G2 :
   // sa cause propre est celle de G3, et une G2 qui se mettrait à mordre (descente débranchée)
   // apparaîtrait en SECONDE anomalie — visible dans le « (+N autre(s)) » que le spec épingle.
-  verifierSourceDesCorrections(lignes, signaler);
+  verifierAttributsDesEncadres(lignes, ancrage, signaler);
 
   // --- 10. Provenance tracée vs statut (G2) --------------------------------
   verifierProvenanceVsStatut(lignes, statut, signaler);
@@ -1469,12 +1706,55 @@ function validerSimulationDeLecon(dossier, slug, anomalies) {
 }
 
 /**
+ * --- 3bis. `seance` du frontmatter vs `horaire.json` (E3-ST20) ---
+ *
+ * `seance` est OPTIONNEL : son absence dit « module complémentaire, hors cours », et c'est un état
+ * légitime — trois modules du sujet le sont (`docs/contenu/ancrage-au-cours.md` §2). Ce qui est
+ * refusé, c'est un numéro qui ne désigne rien, ou qui désigne une séance d'ÉVALUATION : il n'y a
+ * pas de module « Examen 1 », et un module rattaché à la séance 6 s'afficherait sous un jalon
+ * d'examen dans le sommaire.
+ *
+ * POURQUOI CETTE RÈGLE NE PEUT PAS VIVRE DANS LE SCHÉMA. Elle compare DEUX fichiers — le
+ * frontmatter d'un module et l'horaire de son sujet. JSON Schema ne voit qu'un document.
+ *
+ * @param {Record<string, unknown>} frontmatter déjà validé par le schéma
+ * @param {HoraireIndexe | null} horaire
+ * @param {(cause: string) => void} signaler
+ */
+function verifierSeanceContreHoraire(frontmatter, horaire, signaler) {
+  const seance = frontmatter['seance'];
+  if (typeof seance !== 'number') return;
+  if (horaire === null) {
+    signaler(
+      `« seance: ${seance} » est déclarée alors que la racine ne porte aucun « ${FICHIER_HORAIRE} » ` +
+        'valide — le numéro ne se vérifie contre rien, et le sommaire ne saurait ni le dater ni le titrer',
+    );
+    return;
+  }
+  const decrite = horaire.parNumero.get(seance);
+  if (decrite === undefined) {
+    signaler(
+      `« seance: ${seance} » ne figure pas dans « ${FICHIER_HORAIRE} » ` +
+        `(séances déclarées : ${[...horaire.parNumero.keys()].join(', ')})`,
+    );
+    return;
+  }
+  if (decrite.evaluation !== undefined) {
+    signaler(
+      `« seance: ${seance} » désigne « ${decrite.titre} », une séance d'ÉVALUATION ` +
+        `(${decrite.evaluation.libelle}) — il n'y a pas de module de cours pour un examen`,
+    );
+  }
+}
+
+/**
  * Valide UNE leçon (un dossier contenant `lecon.md`).
  *
  * @param {string} dossier chemin absolu du dossier de la leçon
+ * @param {HoraireIndexe | null} horaire horaire du sujet, ou `null` s'il est absent ou refusé
  * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown }}
  */
-function validerLecon(dossier) {
+function validerLecon(dossier, horaire) {
   /** @type {Anomalie[]} */
   const anomalies = [];
   const cheminLecon = join(dossier, 'lecon.md');
@@ -1519,9 +1799,23 @@ function validerLecon(dossier) {
   // --- 3. Cohérence dossier ↔ frontmatter ---------------------------------
   verifierCoherenceDossierEtFrontmatter(decoupe, frontmatter, slug, signalerLecon);
 
-  // --- 4 à 7. Corps --------------------------------------------------------
+  // --- 3bis. `seance` du frontmatter vs l'horaire du sujet ------------------
+  // PLACÉE ICI, ET PAS AILLEURS. C'est une cohérence entre le frontmatter et une AUTRE source de
+  // vérité — exactement ce que fait la règle 3 avec le nom du dossier. Elle appartient donc au
+  // même moment de l'examen, et elle précède le corps : une séance fausse au frontmatter est la
+  // cause RACINE d'un renvoi d'encadré qui hérite d'elle, et la première anomalie doit nommer la
+  // racine, pas l'héritage. (L'ordre des appels est le contrat — voir `verifierCorps`.)
+  verifierSeanceContreHoraire(frontmatter, horaire, signalerLecon);
+
+  // --- 4 à 10. Corps -------------------------------------------------------
+  const seanceDuFrontmatter = frontmatter['seance'];
+  /** @type {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} */
+  const ancrage = {
+    seanceFrontmatter: typeof seanceDuFrontmatter === 'number' ? seanceDuFrontmatter : null,
+    seancesConnues: horaire === null ? null : horaire.numeros,
+  };
   const corps = texte.slice(separation[0].length);
-  verifierCorps(corps, statut, signalerLecon);
+  verifierCorps(corps, statut, ancrage, signalerLecon);
   verifierTitreContreFrontmatter(corps, frontmatter, signalerLecon);
 
   // --- 8. quiz.json (obligatoire) -----------------------------------------
@@ -1672,6 +1966,124 @@ function releverSection(parSujet, resultat, rel) {
 }
 
 /**
+ * --- 0. `horaire.json` — l'horaire du sujet (E3-ST20) ---
+ *
+ * @typedef {{
+ *   sujet: string,
+ *   numeros: ReadonlySet<number>,
+ *   parNumero: ReadonlyMap<number, { titre: string, evaluation?: { libelle: string } }>,
+ * }} HoraireIndexe
+ */
+
+/**
+ * Les deux règles HORS SCHÉMA de l'horaire. JSON Schema sait exiger l'unicité d'éléments entiers ;
+ * il ne sait ni ordonner les valeurs d'un CHAMP d'objet, ni comparer deux branches d'un même
+ * document. Les deux vivent donc ici, chacune avec son message.
+ *
+ * ⚠️ LA CROISSANCE STRICTE COUVRE L'UNICITÉ, et c'est délibéré : deux contrôles séparés diraient
+ * deux fois la même chose sur `[1, 1]`, donc donneraient DEUX causes pour une seule faute.
+ *
+ * ⚠️ POURQUOI UNE `portee` NE PEUT PAS CITER UNE SÉANCE D'ÉVALUATION. « L'examen final couvre
+ * l'examen 1 » n'a pas de sens, et le sommaire afficherait un jalon d'examen dans la portée d'un
+ * autre. La faute est presque toujours un numéro décalé d'un rang.
+ *
+ * @param {{ seances: readonly { numero: number, titre: string, evaluation?: { portee?: readonly number[] } }[] }} horaire
+ * @param {(cause: string) => void} signaler
+ * @returns {boolean} `true` si aucune anomalie — seul cas où l'horaire sert de référence
+ */
+function verifierHoraireHorsSchema(horaire, signaler) {
+  let intact = true;
+  let precedent = 0;
+  for (const seance of horaire.seances) {
+    if (seance.numero <= precedent) {
+      signaler(
+        `« seances » : la séance ${seance.numero} suit la séance ${precedent} — les « numero » ` +
+          "sont STRICTEMENT croissants, donc uniques et dans l'ordre du calendrier",
+      );
+      intact = false;
+    }
+    precedent = seance.numero;
+  }
+  const numeros = new Set(horaire.seances.map((s) => s.numero));
+  const evaluations = new Set(
+    horaire.seances.filter((s) => s.evaluation !== undefined).map((s) => s.numero),
+  );
+  for (const seance of horaire.seances) {
+    for (const vise of seance.evaluation?.portee ?? []) {
+      if (!numeros.has(vise)) {
+        signaler(
+          `« seances » : la portée de l'évaluation de la séance ${seance.numero} cite la séance ` +
+            `${vise}, qui n'existe pas`,
+        );
+        intact = false;
+      } else if (evaluations.has(vise)) {
+        signaler(
+          `« seances » : la portée de l'évaluation de la séance ${seance.numero} cite la séance ` +
+            `${vise}, qui est elle-même une ÉVALUATION — une évaluation ne couvre pas une évaluation`,
+        );
+        intact = false;
+      }
+    }
+  }
+  return intact;
+}
+
+/**
+ * Lit et valide le `horaire.json` d'une racine, s'il y en a un.
+ *
+ * 🔴 OPTIONNEL, ET C'EST UN CHOIX. Le rendre obligatoire ferait rougir les vingt-trois racines de
+ * fixture d'un coup, sur une cause qui n'est pas celle qu'elles exercent — et le mode `--fixtures`
+ * ne compare que la PREMIÈRE anomalie de chaque cas. Ce qui est réellement dangereux n'est pas
+ * l'absence du fichier, c'est un renvoi qui ne se vérifie contre rien : un module qui déclare une
+ * `seance`, ou un encadré qui en cite une, EXIGE donc l'horaire, et le dit (règle 3bis et
+ * `causeDuRenvoiAuCours`). Un contenu sans aucun ancrage reste valide sans horaire, comme il
+ * l'était avant ce lot.
+ *
+ * ⚠️ UN HORAIRE REFUSÉ REND `null`, JAMAIS UN INDEX PARTIEL. Servir de référence à partir d'un
+ * fichier dont on vient de dire qu'il est faux ferait dépendre les causes des leçons d'une donnée
+ * non fiable — et le build échoue de toute façon, puisque l'anomalie de l'horaire est déjà là.
+ *
+ * @param {string} racine chemin absolu
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ * @returns {HoraireIndexe | null}
+ */
+function validerHoraireDeLaRacine(racine, anomalies) {
+  const chemin = join(racine, FICHIER_HORAIRE);
+  if (!existsSync(chemin)) return null;
+  const rel = relative(RACINE_DEPOT, chemin).replaceAll('\\', '/');
+  /** @param {string} cause */
+  const signaler = (cause) => anomalies.push({ fichier: rel, cause });
+  /** @type {HoraireIndexe | null} */
+  let indexe = null;
+  avecJson(
+    chemin,
+    (donnees) => {
+      if (!validerHoraire(donnees)) {
+        signaler(premiereErreurAjv(validerHoraire.errors));
+        return;
+      }
+      const horaire = /** @type {{ sujet: string, seances: { numero: number, titre: string, evaluation?: { libelle: string, portee?: number[] } }[] }} */ (
+        donnees
+      );
+      if (!verifierHoraireHorsSchema(horaire, signaler)) return;
+      /** @type {Map<number, { titre: string, evaluation?: { libelle: string } }>} */
+      const parNumero = new Map();
+      for (const seance of horaire.seances) {
+        parNumero.set(
+          seance.numero,
+          seance.evaluation === undefined
+            ? { titre: seance.titre }
+            : { titre: seance.titre, evaluation: { libelle: seance.evaluation.libelle } },
+        );
+      }
+      indexe = { sujet: horaire.sujet, numeros: new Set(parNumero.keys()), parNumero };
+    },
+    signaler,
+  );
+  return indexe;
+}
+
+/**
  * Valide toutes les leçons d'une racine.
  *
  * @param {string} racine chemin absolu
@@ -1680,6 +2092,9 @@ function releverSection(parSujet, resultat, rel) {
 function validerRacine(racine) {
   /** @type {Anomalie[]} */
   const anomalies = [];
+  // L'HORAIRE D'ABORD : les leçons s'y confrontent, et son anomalie propre doit sortir AVANT les
+  // leurs — sans quoi un horaire faux se lirait comme une faute des modules qui le citent.
+  const horaire = validerHoraireDeLaRacine(racine, anomalies);
   const dossiers = recenserLecons(racine);
 
   /** @type {Map<string, string>} */
@@ -1699,7 +2114,7 @@ function validerRacine(racine) {
 
   for (const dossier of dossiers) {
     const rel = relative(RACINE_DEPOT, dossier).replaceAll('\\', '/');
-    const resultat = validerLecon(dossier);
+    const resultat = validerLecon(dossier, horaire);
     anomalies.push(...resultat.anomalies);
     if (resultat.slug !== null) {
       const slug = resultat.slug;
@@ -1736,6 +2151,16 @@ function validerRacine(racine) {
     anomalies.push({
       fichier: relative(RACINE_DEPOT, racine).replaceAll('\\', '/'),
       cause: `plusieurs « sujet » déclarés sous la même racine : ${[...sujets].join(', ')}`,
+    });
+  }
+
+  // L'horaire déclare un `sujet`, les leçons aussi : deux sources qui disent la même chose doivent
+  // concorder, ou le sommaire d'un cours afficherait l'horaire d'un autre. Vérifié seulement quand
+  // les deux existent — un horaire seul, ou des leçons seules, ne se contredisent pas.
+  if (horaire !== null && sujets.size === 1 && !sujets.has(horaire.sujet)) {
+    anomalies.push({
+      fichier: relative(RACINE_DEPOT, join(racine, FICHIER_HORAIRE)).replaceAll('\\', '/'),
+      cause: `« sujet: ${horaire.sujet} » alors que les leçons de cette racine déclarent « ${[...sujets][0]} »`,
     });
   }
 

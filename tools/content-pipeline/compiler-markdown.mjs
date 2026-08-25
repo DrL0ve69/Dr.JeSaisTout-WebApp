@@ -179,6 +179,32 @@ const ENCADRES = new Set(VARIANTES_ENCADRE);
 const VARIANTE_SOURCEE = 'correction-du-cours';
 const ATTRIBUT_SOURCE = 'source';
 
+/** Les deux attributs de RENVOI AU COURS (E3-ST20, `docs/contenu/ancrage-au-cours.md` §3). */
+const ATTRIBUT_DIAPOS = 'diapos';
+const ATTRIBUT_SEANCE = 'seance';
+
+/**
+ * LA MATRICE D'ATTRIBUTS DES SIX ENCADRÉS — la MÊME que celle de `valider.mjs`, et la duplication
+ * reste assumée pour la raison déjà écrite en tête de `CONTENEURS_AUTORISES` : le compilateur ne
+ * suppose pas que le validateur a tourné. Le lien entre les deux copies n'est PAS un commentaire
+ * (L-008) : `src/pipeline-contenu-validation.spec.ts` les apparie, et le mode `--fixtures` du
+ * validateur exerce chaque ligne de la table.
+ *
+ * @type {ReadonlyMap<VarianteEncadre, readonly string[]>}
+ */
+const ATTRIBUTS_ADMIS_PAR_VARIANTE = new Map([
+  ['attention', []],
+  ['note', []],
+  ['a-retenir', []],
+  ['cours', [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
+  ['complement', []],
+  [VARIANTE_SOURCEE, [ATTRIBUT_SOURCE, ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
+]);
+
+/** Bornes de la grammaire de `diapos` — voir `valider.mjs`, même valeurs, même justification. */
+const DIAPO_MAX = 999;
+const AMPLITUDE_MAX_PLAGE = 100;
+
 /**
  * Conteneurs `:::` autorisés — liste FERMÉE, la MÊME que celle de `valider.mjs`. Deux listes
  * séparées est une redondance assumée : le compilateur ne suppose pas que le validateur a tourné,
@@ -976,6 +1002,10 @@ function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
  * @property {Colorateur} colorateur
  * @property {string} nomFichier
  * @property {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | null} rendreMermaid
+ * @property {number | null} seanceDuModule séance déclarée par le frontmatter, ou `null`. C'est la
+ *   valeur par DÉFAUT du `seance` d'un encadré (`docs/contenu/ancrage-au-cours.md` §3) : à `null`,
+ *   un encadré qui porte un renvoi doit déclarer sa séance lui-même, sans quoi le renvoi ne
+ *   désigne rien et la compilation échoue.
  */
 
 /**
@@ -1477,19 +1507,24 @@ function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
   }
   const variante = /** @type {VarianteEncadre} */ (nom);
 
-  // `source` n'est admis QUE sur `correction-du-cours`. Passer une liste de clefs VIDE aux cinq
-  // autres variantes n'est pas une omission : `lireAttributs` refuse alors nommément tout
-  // attribut, donc `::: note {source="…"}` échoue au lieu d'être avalé. Un attribut ignoré en
-  // silence serait un auteur qui croit sourcer et ne source rien.
+  // La liste de clefs vient de la MATRICE, jamais d'un `if` : `source` sur `::: cours`, `diapos`
+  // sur `::: complement` sont refusés NOMMÉMENT par `lireAttributs` au lieu d'être avalés. Un
+  // attribut ignoré en silence serait un auteur qui croit sourcer — ou renvoyer à une diapositive —
+  // et ne renvoie à rien.
   const attributs = lireAttributs(
     ouverture.info,
     nom,
-    variante === VARIANTE_SOURCEE ? [ATTRIBUT_SOURCE] : [],
+    ATTRIBUTS_ADMIS_PAR_VARIANTE.get(variante) ?? [],
     ctx.nomFichier,
   );
+  const renvoiCours = lireRenvoiAuCours(variante, attributs, ctx);
 
   if (variante !== VARIANTE_SOURCEE) {
-    return { type: 'encadre', variante, blocs: construireBlocs(enfants, ctx) };
+    /** @type {Extract<BlocContenu, { type: 'encadre' }>} */
+    const encadre = { type: 'encadre', variante, blocs: construireBlocs(enfants, ctx) };
+    // Posé seulement s'il existe, jamais à `undefined` — même geste que `section` et `simulation`.
+    if (renvoiCours !== null) encadre.renvoiCours = renvoiCours;
+    return encadre;
   }
 
   // OBLIGATOIRE ET NON VIDE. `{source=""}` passe `lireAttributs` (la forme est correcte) et
@@ -1506,7 +1541,124 @@ function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
       ],
     );
   }
-  return { type: 'encadre', variante, source, blocs: construireBlocs(enfants, ctx) };
+  /** @type {Extract<BlocContenu, { type: 'encadre' }>} */
+  const correction = { type: 'encadre', variante, source, blocs: construireBlocs(enfants, ctx) };
+  if (renvoiCours !== null) correction.renvoiCours = renvoiCours;
+  return correction;
+}
+
+/**
+ * Lit le RENVOI AU COURS d'un encadré — `{diapos="…"}` et/ou `{seance="…"}`, plages DÉPLIÉES.
+ *
+ * 🔴 ON DÉCOUPE, PUIS ON VALIDE CHAQUE JETON CONTRE UNE GRAMMAIRE TOTALE. Même geste, mêmes
+ * bornes et mêmes refus que `analyserDiapos` dans `valider.mjs` — famille S-003/S-009/S-014 de
+ * `.claude/rules/security.md` §4 : sur un format structuré, on analyse, on ne cherche pas un motif
+ * « qui a l'air bon ». Ce filet-ci ne suppose pas que le validateur a tourné ; il échoue en
+ * nommant le jeton fautif, comme lui.
+ *
+ * ⚠️ LES PLAGES SONT DÉPLIÉES ICI, ET NULLE PART AILLEURS (contrat §4 d'`ancrage-au-cours.md`).
+ * Le rendu reçoit `[45, 46, 47, 48, 49, 50]` et n'a plus à connaître la grammaire d'auteur — une
+ * seconde implémentation de « ce que veut dire 45-50 » finirait par en dire autre chose.
+ *
+ * @param {VarianteEncadre} variante
+ * @param {Readonly<Record<string, string>>} attributs déjà restreints aux clefs admises
+ * @param {Contexte} ctx
+ * @returns {{ seance: number, diapos: number[] } | null}
+ */
+function lireRenvoiAuCours(variante, attributs, ctx) {
+  const diaposBrutes = attributs[ATTRIBUT_DIAPOS];
+  const seanceBrute = attributs[ATTRIBUT_SEANCE];
+  if (diaposBrutes === undefined && seanceBrute === undefined) return null;
+
+  const diapos = deplierDiapos(diaposBrutes, ctx);
+
+  let seance = ctx.seanceDuModule;
+  if (seanceBrute !== undefined) {
+    if (!/^[1-9]\d?$/.test(seanceBrute)) {
+      echec(
+        `${ctx.nomFichier} : « ${ATTRIBUT_SEANCE}="${seanceBrute}" » n'est pas un numéro de séance`,
+        ['entier de 1 à 99, sans zéro de tête'],
+      );
+    }
+    seance = Number(seanceBrute);
+  }
+  if (seance === null) {
+    echec(
+      `${ctx.nomFichier} : « ::: ${variante} » porte un renvoi au cours sans séance à laquelle le rattacher`,
+      [
+        `le frontmatter de ce module n'a pas de « ${ATTRIBUT_SEANCE} » — l'attribut « ${ATTRIBUT_SEANCE} » devient obligatoire sur cet encadré`,
+      ],
+    );
+  }
+  return { seance, diapos };
+}
+
+/**
+ * Découpe la valeur de `diapos` en jetons, valide chacun contre la grammaire TOTALE, et rend la
+ * liste DÉPLIÉE. Séparée de `lireRenvoiAuCours` pour la même raison que dans `valider.mjs` : la
+ * boucle parcourt, `refuserLeJetonDeDiapos` juge.
+ *
+ * @param {string | undefined} valeur
+ * @param {Contexte} ctx
+ * @returns {number[]} vide quand l'attribut est ABSENT — `{seance="5"}` seul est une forme légale
+ */
+function deplierDiapos(valeur, ctx) {
+  /** @type {number[]} */
+  const diapos = [];
+  if (valeur === undefined) return diapos;
+  let precedent = 0;
+  for (const brut of valeur.split(',')) {
+    const jeton = brut.trim();
+    if (jeton === '') {
+      echec(`${ctx.nomFichier} : jeton VIDE dans « ${ATTRIBUT_DIAPOS}="${valeur}" »`, [
+        'deux virgules qui se suivent, ou une virgule en bout de liste',
+      ]);
+    }
+    const { debut, fin } = lireUnJetonDeDiapos(jeton, precedent, valeur, ctx);
+    for (let n = debut; n <= fin; n += 1) diapos.push(n);
+    precedent = fin;
+  }
+  return diapos;
+}
+
+/**
+ * La grammaire TOTALE d'UN jeton — « N » ou « N-M », décimal, sans zéro de tête ni signe, ancrée
+ * aux deux bouts. Tout ce qui n'est pas exactement l'une des deux formes fait ÉCHOUER la
+ * construction en se nommant. Mêmes refus, mêmes bornes que `analyserUnJetonDeDiapos` dans
+ * `valider.mjs` — ce filet-ci ne suppose pas que le validateur a tourné.
+ *
+ * @param {string} jeton déjà rogné, jamais vide
+ * @param {number} precedent borne haute du jeton précédent (0 pour le premier)
+ * @param {string} valeur la liste entière, citée dans le message
+ * @param {Contexte} ctx
+ * @returns {{ debut: number, fin: number }}
+ */
+function lireUnJetonDeDiapos(jeton, precedent, valeur, ctx) {
+  const decoupe = /^([1-9]\d*)(?:-([1-9]\d*))?$/.exec(jeton);
+  if (decoupe === null) {
+    echec(
+      `${ctx.nomFichier} : jeton « ${jeton} » illisible dans « ${ATTRIBUT_DIAPOS}="${valeur}" »`,
+      ["un jeton s'écrit « N » ou « N-M », en chiffres décimaux, sans zéro de tête"],
+    );
+  }
+  const debut = Number(decoupe[1]);
+  const estUnePlage = decoupe[2] !== undefined;
+  const fin = estUnePlage ? Number(decoupe[2]) : debut;
+  if (estUnePlage && fin <= debut) {
+    echec(`${ctx.nomFichier} : plage « ${jeton} » — une plage s'écrit « N-M » avec N < M`);
+  }
+  if (fin > DIAPO_MAX || fin - debut + 1 > AMPLITUDE_MAX_PLAGE) {
+    echec(`${ctx.nomFichier} : jeton « ${jeton} » hors des bornes admises`, [
+      `numéro maximum ${DIAPO_MAX}, amplitude maximale d'une plage ${AMPLITUDE_MAX_PLAGE}`,
+    ]);
+  }
+  if (debut <= precedent) {
+    echec(
+      `${ctx.nomFichier} : jeton « ${jeton} » — les jetons de « ${ATTRIBUT_DIAPOS} » sont STRICTEMENT croissants`,
+      [`${precedent} le précède`],
+    );
+  }
+  return { debut, fin };
 }
 
 /**
@@ -2004,6 +2156,7 @@ export function compilerLecon(dossier, outils) {
     colorateur: outils.colorateur,
     nomFichier,
     rendreMermaid: outils.rendreMermaid ?? null,
+    seanceDuModule: typeof donnees['seance'] === 'number' ? donnees['seance'] : null,
   };
   const sections = construireSections(outils.md.parse(nettoye.corps, {}), ctx);
 
@@ -2124,6 +2277,13 @@ export function compilerLecon(dossier, outils) {
   if (donnees['section'] !== undefined) {
     compilee.frontmatter.section = String(donnees['section']);
   }
+  // `seance` — même geste, même raison (E3-ST20). ABSENTE = module complémentaire, hors cours : le
+  // champ ne se pose pas à `undefined`, il n'existe simplement pas, et le rendu lit cette absence
+  // comme un état à part entière plutôt que comme une donnée manquante. Le TITRE et la DATE de la
+  // séance ne sont pas recopiés ici : ils vivent dans `horaire.json`, source unique.
+  if (donnees['seance'] !== undefined) {
+    compilee.frontmatter.seance = Number(donnees['seance']);
+  }
   // Recopiée seulement si elle existe : le contrat la déclare optionnelle, et `undefined`
   // disparaîtrait de toute façon à la sérialisation JSON — même geste que `quiz.melanger`.
   if (simulation !== null) compilee.simulation = simulation;
@@ -2172,9 +2332,16 @@ function recenserLecons(racine) {
  * exigent. Les deux sortent ENSEMBLE parce qu'elles sont indissociables : le HTML référence des
  * classes que seule cette feuille définit.
  *
+ * ⚠️ L'HORAIRE SORT AVEC ELLES (E3-ST20). Il n'appartient à aucune leçon — c'est la donnée du
+ * SUJET — mais il doit voyager jusqu'au manifeste, et `compilerRacine` est la seule fonction qui
+ * voit la racine entière. Il est rendu TEL QUEL, non validé : `valider.mjs` tourne AVANT ce
+ * compilateur (`build.mjs` : valider, puis compiler) et c'est lui qui porte le schéma de l'horaire
+ * et ses deux règles hors schéma. Absent, il vaut `null` — une racine sans ancrage au cours reste
+ * compilable, comme elle l'était avant ce lot.
+ *
  * @param {string} racine chemin absolu
  * @param {{ rendreMermaid?: Contexte['rendreMermaid'] }} [options]
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string }>}
+ * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null }>}
  */
 export async function compilerRacine(racine, options = {}) {
   // `content/cours/securite-web/` n'existe pas encore (E3 l'ouvrira). Sans ce garde-fou, l'appel
@@ -2184,13 +2351,36 @@ export async function compilerRacine(racine, options = {}) {
   const colorateur = await creerColorateur();
   if (!existsSync(racine)) {
     console.error(`compiler-markdown : aucune racine « ${afficher(racine)} » — 0 leçon`);
-    return { lecons: [], feuille: assemblerFeuille(colorateur.feuille()) };
+    return { lecons: [], feuille: assemblerFeuille(colorateur.feuille()), horaire: null };
   }
   const md = creerMarkdownIt();
   const lecons = recenserLecons(racine).map((dossier) =>
     compilerLecon(dossier, { md, colorateur, rendreMermaid: options.rendreMermaid }),
   );
-  return { lecons, feuille: assemblerFeuille(colorateur.feuille()) };
+  return { lecons, feuille: assemblerFeuille(colorateur.feuille()), horaire: lireHoraire(racine) };
+}
+
+/**
+ * Lit le `horaire.json` d'une racine, s'il y en a un.
+ *
+ * ⚠️ AUCUNE VALIDATION ICI, ET C'EST DÉLIBÉRÉ — contrairement au reste de ce fichier, qui refuse
+ * tout ce qu'il ne comprend pas. La raison est la stratification du pipeline : `valider.mjs` porte
+ * `schemas/horaire.schema.json` et les deux règles hors schéma, et `build.mjs` le fait tourner
+ * AVANT ce compilateur. Dupliquer le schéma ici donnerait deux autorités sur la même forme, donc
+ * une occasion de plus qu'elles divergent. Ce qui est refusé, en revanche, c'est un JSON illisible :
+ * un fichier tronqué ne devient pas un horaire vide en silence.
+ *
+ * @param {string} racine chemin absolu
+ * @returns {HoraireCompile | null}
+ */
+function lireHoraire(racine) {
+  const chemin = join(racine, 'horaire.json');
+  if (!existsSync(chemin)) return null;
+  try {
+    return /** @type {HoraireCompile} */ (JSON.parse(readFileSync(chemin, 'utf8')));
+  } catch (e) {
+    return echec(`${afficher(chemin)} : JSON illisible`, [e instanceof Error ? e.message : String(e)]);
+  }
 }
 
 // ---------------------------------------------------------------------------

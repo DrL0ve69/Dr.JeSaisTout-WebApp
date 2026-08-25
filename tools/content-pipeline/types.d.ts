@@ -252,6 +252,23 @@ type BlocContenu =
        * ce que `.claude/rules/contenu-pedagogique.md` §6 classe comme un défaut grave.
        */
       source?: string;
+      /**
+       * RENVOI AU COURS — renseigné UNIQUEMENT sur `cours` et `correction-du-cours`, les deux
+       * seules variantes dont la matrice d'attributs admet `diapos`/`seance`
+       * (`docs/contenu/ancrage-au-cours.md` §3). Le compilateur refuse ces attributs sur les
+       * quatre autres : un `complement` qui citerait une diapositive enverrait l'étudiant
+       * chercher dans le cours une matière qui n'y est pas.
+       *
+       * ⚠️ LES PLAGES SONT DÉJÀ DÉPLIÉES : `{diapos="45-50"}` arrive ici en
+       * `[45, 46, 47, 48, 49, 50]`. Le rendu n'a donc pas à connaître la grammaire d'auteur — une
+       * seconde implémentation de « ce que veut dire 45-50 » finirait par en dire autre chose.
+       * `diapos` peut être VIDE quand l'encadré ne déclare qu'une `seance` : l'étiquette dit alors
+       * la séance et rien de plus.
+       *
+       * `seance` est celle de l'encadré s'il en déclare une, sinon celle du frontmatter. Un renvoi
+       * sans séance dérivable fait ÉCHOUER la compilation : il ne désignerait rien.
+       */
+      renvoiCours?: { seance: number; diapos: number[] };
       blocs: BlocContenu[];
     }
   | { type: 'ancre-quiz' }
@@ -511,6 +528,19 @@ interface LeconCompilee {
      */
     section?: string;
     ordre: number;
+    /**
+     * OPTIONNEL — numéro de la séance du cours réel que ce module couvre
+     * (`docs/contenu/ancrage-au-cours.md` §2). ABSENT = module complémentaire, hors cours :
+     * il n'entre dans la portée d'aucun examen et le rendu l'annonce comme tel.
+     *
+     * ⚠️ CE N'EST PAS `ordre`, et la confusion serait coûteuse : `ordre` est la position de
+     * LECTURE, unique dans le sujet ; une séance donne jusqu'à cinq modules. Le rang dans la
+     * séance (« 1/5 ») se DÉRIVE d'`ordre`, il ne s'écrit pas à la main.
+     *
+     * Le titre et la date de la séance ne sont PAS ici : ils se joignent depuis
+     * `content/cours/<sujet>/horaire.json`, source unique.
+     */
+    seance?: number;
     niveau: string;
     dureeEstimee: number;
     objectifs: string[];
@@ -536,11 +566,62 @@ interface EntreeManifesteRoutes {
   /** Voir `LeconCompilee['frontmatter'].section` — OPTIONNEL, tout-ou-rien par sujet. */
   section?: string;
   ordre: number;
+  /**
+   * Voir `LeconCompilee['frontmatter'].seance` — OPTIONNEL. Il est ICI, et pas seulement dans le
+   * `lecons/<slug>.json`, parce que le SOMMAIRE en a besoin : c'est lui qui annonce la séance de
+   * chaque module et intercale les jalons d'évaluation, et il ne charge aucun corps de leçon
+   * (un index qui les lirait tous embarquerait les 27 modules).
+   */
+  seance?: number;
   titre: string;
   dureeEstimee: number;
   niveau: string;
   statut: 'brouillon' | 'verifiee' | 'publiee';
   // AUCUN champ `factice` : la leçon-témoin ne peut plus atteindre ce manifeste.
+}
+
+/**
+ * L'HORAIRE COMPILÉ D'UN SUJET — la forme de `content/cours/<sujet>/horaire.json`, transportée
+ * TELLE QUELLE jusqu'à `src/content-generated/` (`docs/contenu/ancrage-au-cours.md` §1 et §4).
+ *
+ * C'est la source UNIQUE des numéros de séance, de leurs dates, de leurs titres et de la portée
+ * des évaluations. Aucun frontmatter n'en recopie quoi que ce soit : recopiée pour cinq modules
+ * d'une même séance, l'information divergerait sans que rien ne le signale.
+ *
+ * ⚠️ SON SCHÉMA VIT DANS `tools/content-pipeline/schemas/horaire.schema.json`, et ses deux règles
+ * hors schéma (`numero` strictement croissants ; `portee` qui ne cite que des séances existantes
+ * et non évaluées) dans `valider.mjs`. Le compilateur ne le revalide pas : il tourne après.
+ */
+interface HoraireCompile {
+  sujet: string;
+  cours: {
+    code: string;
+    titre: string;
+    enseignant: string;
+    etablissement: string;
+    session: string;
+  };
+  seances: {
+    numero: number;
+    /** Date ISO courte, `AAAA-MM-JJ` — une CHAÎNE, jamais un objet `Date`. */
+    date: string;
+    titre: string;
+    /**
+     * OPTIONNEL. Présent ⇔ la séance EST une évaluation. Une séance qui en porte une n'est le
+     * support d'aucun module : `seance` ne peut pas la citer.
+     */
+    evaluation?: {
+      libelle: string;
+      /** Pourcentage de la note finale, entier. */
+      ponderation: number;
+      /**
+       * OPTIONNEL — les numéros de séance couverts. ABSENT = portée non publiée par
+       * l'enseignant (cas du projet de session) : le sommaire n'en annonce alors aucune,
+       * plutôt que d'en inventer une.
+       */
+      portee?: number[];
+    };
+  }[];
 }
 
 // -----------------------------------------------------------------------------
