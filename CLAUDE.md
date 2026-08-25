@@ -60,7 +60,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
-> ## ⏭️ REPRISE — état au 2026-08-21
+> ## ⏭️ REPRISE — état au 2026-08-24
 >
 > **✅ CINQ LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss`, `03-injection`,
 > `04-xss` et `05-csrf`. **E0, E1, E2, E6 et E3-ST1 à ST5 sont CLOS EN ENTIER** ; E6 (« Moniteur
@@ -68,21 +68,57 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > propriétaire** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc
 > « ✅ CLÔTURE — E3-ST5 `05-csrf` (2026-08-21) ».
 >
-> **Le geste suivant : E3-ST6 — `06-controle-acces`** (fiche `web/securite/controle-acces-idor.md`,
-> avec simulation « IDOR par manipulation d'identifiant »), par le skill `/lecon`.
+> 🟦 **E3-ST6 `06-controle-acces` EST RÉDIGÉE, PAS ENCORE PUBLIÉE.** `lecon.md` **1367 lignes**,
+> `quiz.json` (8 questions), `simulation.json` (5 acteurs, 12 étapes, IDOR par manipulation
+> d'identifiant). `statut: verifiee` — G-content la valide et l'**écarte** de la publication, ce qui
+> est le comportement voulu. **Le geste suivant : la passe `verificateur-theorie`** (lancée le
+> 2026-08-24, verdict non rendu au moment d'écrire), puis les correctifs, puis la bascule à
+> `publiee`.
+> 🔴 **SIX marqueurs `à-vérifier:` bloquent la publication**, et le plus grave est le n°2 : la leçon
+> attribue la **fuite Optus 2022** à un IDOR, alors que les analyses publiques décrivent un endpoint
+> d'API **sans aucune authentification** — ce qui n'est pas un IDOR, et le module entier repose sur
+> cette distinction. Les cinq autres : statut d'OWASP Top 10:2025 · la règle « 404 et jamais 403 »
+> (absolue selon la fiche KB, arbitrage selon l'OWASP Authorization Cheat Sheet) · le mécanisme de
+> l'incident GitHub 2012 · `Response::denyAsNotFound()` en Laravel · les licences des moteurs
+> d'autorisation externes (enjeu **budget zéro dépense**).
+> ⚠️ **Ni le quiz ni la simulation ne s'appuient sur ces six points** — c'était une consigne de brief :
+> un JSON ne peut pas porter de marqueur de doute, donc un fait qui sera peut-être corrigé y
+> deviendrait de la dette **silencieuse**.
 >
-> ⚠️ **PIÈGE D'AUTEUR, actif à chaque leçon : la liste des langages colorables est FERMÉE à six
-> valeurs** — `php, csharp, typescript, sql, bash, json` (`compiler-markdown.mjs:133`). **`html` et
-> `javascript` n'existent pas et cassent le build.** Quatrième leçon de suite à devoir contourner.
-> 🔴 **Élément neuf mesuré à E3-ST5** : le contournement n'est **pas** interne — `rendu-blocs` compose
-> « Exemple n°N — **php** » et le pose **à la fois** en `<figcaption>` visible et en `aria-label`. Le
-> lecteur **voit**, et le lecteur d'écran **entend**, une langue que le bloc ne contient pas. Échéance
-> utile pour le lot correctif : **avant E3-ST13**. ⚠️ Ce n'est pas un ajout d'une ligne — une grammaire
-> Shiki neuve fait apparaître des encres neuves, donc le risque de contraste qui a mordu à E3-ST4.
+> 🔴 **LA DÉCOUPE DU RÉDACTEUR, MESURÉE UNE FOIS DE PLUS — et la moitié n'est plus le bon axe.**
+> Moitié A **151 375**, moitié B **144 044** : toutes deux au-dessus du maximum de 150k pour une
+> fiche de **659 lignes**. En revanche **quiz et simulation SÉPARÉS ont donné 128k et 97k**, contre
+> **160k** pour le lot combiné d'E3-ST5 — la séparation, elle, tient. ⚠️ Ce qui a permis 97k est
+> **l'injection des plages de lignes exactes dans le brief** : un agent à qui l'on dit « lis
+> l. 195-354 » ne relit pas 1367 lignes. **À reproduire à chaque leçon.**
 >
-> ⚠️ **Le poids du contenu compilé franchit un cap** : `csrf` **262,9 Ko**, total **862,8 Ko** pour 5
-> leçons (avertissement à 150 Ko par leçon, échec à 300). À ce rythme, 13 leçons dépasseraient
-> **2,2 Mo** — arbitrage « densité légitime ou modules à scinder » à faire **avant le bloc B**.
+> ✅ **LA LISTE DES LANGAGES COLORABLES EST OUVERTE À HUIT (2026-08-24)** — `php, csharp, typescript,
+> sql, bash, json` **plus `html` et `javascript`** (`compiler-markdown.mjs:133`, et les `enum` de
+> `quiz.schema.json` **et** `simulation.schema.json`). Le contournement qu'ont subi quatre leçons de
+> suite est mort. 🔴 **Ce que la mesure a établi CONTRE l'attente écrite ici** : les deux grammaires
+> neuves n'apportent **aucune encre à corriger**. La seule sous le seuil (`#6A737D`, 3,95:1) était
+> **déjà** dans `ENCRES_SOMBRES_CORRIGEES` et sort à 5,66:1. Le risque était réel, il ne s'est pas
+> matérialisé — et c'est un banc qui le dit, pas une lecture : `__fixtures__/langages-web/` +
+> `src/coloration-encres-contraste.spec.ts`, qui couvre ce que le **contrat autorise** et non ce que
+> le corpus contient (cousin de S-010). Résidu nommé : `#24292E` et `#2F363D` restent sous le seuil
+> mais ne naissent que d'un `` égaré dans un bloc clôturé ; le spec les attraperait.
+> ⚠️ **DETTE OUVERTE, ET ELLE EST AU CONTENU, PAS AU CODE.** Les leçons **03, 04 et 05 portent encore
+> leurs contournements** — du JavaScript étiqueté ```typescript, un en-tête HTTP étiqueté ```bash.
+> Tant qu'elles ne sont pas réétiquetées, `rendu-blocs` compose « Exemple n°N — **php** » et le pose
+> **à la fois** en `<figcaption>` visible et en `aria-label` : le lecteur **voit**, et le lecteur
+> d'écran **entend**, une langue que le bloc ne contient pas. ⚠️ `etiquetteCode` n'a **aucun défaut**
+> — elle est fidèle à ce que l'auteur déclare ; c'est l'étiquette d'auteur qu'il faut corriger.
+>
+> ✅ **LE POIDS N'ÉTAIT PAS UN PROBLÈME — TRANCHÉ PAR MESURE LE 2026-08-24, seuils relevés à
+> 300/450 Ko.** L'alarme (« 862,8 Ko pour 5 leçons, donc 2,2 Mo à 13 ») commettait deux fautes : elle
+> raisonnait sur un **total que personne ne télécharge** (un chunk par slug — le gate le disait déjà
+> dans son propre commentaire), et elle prenait le **JSON brut pour le poids servi**. Mesuré sur
+> l'artéfact : `csrf` fait 270 156 o de JSON pour **65 866 o compressés**, et le chunk réellement
+> livré fait 264 257 o pour 66 275 o — les deux se suivent **à 1 % près**. Le proxy surestimait le
+> transfert d'un facteur **~4,1**. Les cinq leçons réunies pèsent **205,3 Ko servis**.
+> `verifier-poids.mjs` imprime désormais une colonne **« servi »** : le chiffre honnête est au
+> journal, plutôt que redérivé d'un ratio que personne ne remesurerait. Décision du propriétaire :
+> **densité légitime**, on ne scinde aucun module.
 >
 > ✅ **DÉCOUPE DU RÉDACTEUR — la piste d'E3-ST4 est VALIDÉE, avec une limite neuve.** Découper la
 > leçon **par moitié** (théorie / défenses) plutôt que par livrable a donné **113 786** et

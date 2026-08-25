@@ -699,7 +699,8 @@ describe('pipeline de contenu — compilation Markdown', () => {
     it(
       'refuse un bloc de code dont la langue est hors du contrat',
       () => {
-        // Écrit à la volée : le contrat `Langage` est une liste fermée de six valeurs, et une leçon
+        // Écrit à la volée : le contrat `Langage` est une liste fermée de HUIT valeurs (`javascript`
+        // et `html` y sont entrés le 2026-08-24), et une leçon
         // qui en emploie une septième ne serait pas colorée — E2-ST4 ne saurait pas la rendre.
         // ⚠️ LE `quiz.json` EST RECOPIÉ, et ce n'est pas décoratif : depuis E2-ST3 il est
         // OBLIGATOIRE. Sans lui, ce cas rougirait toujours — mais sur l'absence du quiz, donc

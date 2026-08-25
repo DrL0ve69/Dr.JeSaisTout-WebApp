@@ -63,7 +63,7 @@
     "identifiant": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
     "langage": {
       "type": "string",
-      "enum": ["php", "csharp", "typescript", "sql", "bash", "json"]
+      "enum": ["php", "csharp", "typescript", "javascript", "html", "sql", "bash", "json"]
     },
     "etatVisuel": {
       "type": "object",

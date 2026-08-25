@@ -30,7 +30,15 @@
 // `::::` pour un `comparaison` qui en imbrique d'autres.
 // =============================================================================
 
-type Langage = 'php' | 'csharp' | 'typescript' | 'sql' | 'bash' | 'json';
+type Langage =
+  | 'php'
+  | 'csharp'
+  | 'typescript'
+  | 'javascript'
+  | 'html'
+  | 'sql'
+  | 'bash'
+  | 'json';
 type NiveauTitre = 2 | 3; // <h2>/<h3> réels — pour un sommaire imbriqué correct (E2-ST2)
 
 /**

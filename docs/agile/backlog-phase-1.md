@@ -1001,8 +1001,10 @@ annotation portant sur le bloc entier.
 
 ##### Constats hors périmètre, à ne pas perdre
 
-- **(a)** `Langage` est fermé à six valeurs, donc **aucun bloc de code sans langue n'est possible**.
-  Si le projet en veut un, c'est le **contrat** qui change, pas la fixture.
+- **(a)** `Langage` est une liste fermée, donc **aucun bloc de code sans langue n'est possible**.
+  Si le projet en veut un, c'est le **contrat** qui change, pas la fixture. ⚠️ **Le compte a changé
+  le 2026-08-24** : la liste vaut **huit** valeurs depuis l'ajout de `html` et `javascript` — le
+  constat sur l'absence de bloc sans langue, lui, est intact.
 - **(b)** ~~la note `npm audit` de `CLAUDE.md` est périmée~~ → **corrigée** : l'audit complet est passé
   de 3 *moderate* à **5 vulnérabilités dont 4 *high*** (`adm-zip`/`devcert`/`tmp` via
   `@azure/static-web-apps-cli`, `nanoid` via `@angular/build`) — **préexistantes et dev-only**,
@@ -2509,7 +2511,7 @@ E3-ST1, pas pendant.
 | E3-ST3 | `03-injection` — Injection SQL, commande, XXE, NoSQL ; requêtes paramétrées | `injection.md` | **oui** : déroulé d'une SQLi (entrée → requête → fuite) | ✅ |
 | E3-ST4 | `04-xss` — XSS réfléchi/stocké/DOM ; encodage de sortie contextuel | `xss-cross-site-scripting.md` | **oui** : script injecté exécuté chez la victime | ✅ |
 | E3-ST5 | `05-csrf` — CSRF ; token anti-CSRF + SameSite ; limite si XSS présent | `csrf.md` | **oui** : requête forgée depuis un site tiers | ✅ |
-| E3-ST6 | `06-controle-acces` — Contrôle d'accès, IDOR, élévation de privilèges, mass assignment | `controle-acces-idor.md` | **oui** : IDOR par manipulation d'identifiant | ⬜ |
+| E3-ST6 | `06-controle-acces` — Contrôle d'accès, IDOR, élévation de privilèges, mass assignment | `controle-acces-idor.md` | **oui** : IDOR par manipulation d'identifiant | ✅ |
 | E3-ST7 | `07-inclusion-ssrf` — Path traversal, LFI/RFI, SSRF (métadonnées cloud) | `inclusion-fichiers-ssrf.md` | **oui** : SSRF vers l'endpoint de métadonnées | ⬜ |
 
 > ### 📊 Recensement de provenance — mesuré le 2026-08-19, à la clôture d'E3-ST0
@@ -2832,7 +2834,12 @@ par type de livrable — à tenter et à mesurer, pas à décréter.
 
 ##### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — aucun ne bloque E3-ST5, tous méritent une décision
 
-1. **🔴 `html` et `javascript` sont absents de la liste des langages colorables, et ça a mordu sur
+1. **✅ RÉSOLU LE 2026-08-24 — `html` et `javascript` sont au contrat, la liste vaut huit valeurs.**
+   Le lot a été décidé par le propriétaire et exécuté ; le risque de contraste annoncé ci-dessous
+   **ne s'est pas matérialisé** (aucune encre neuve à corriger, mesuré sur un banc dédié). ⚠️ Ce qui
+   RESTE dû : le **réétiquetage des leçons 03, 04 et 05**, qui portent encore les contournements
+   décrits ici — c'est un lot de contenu. Le constat d'origine, conservé :
+   **🔴 `html` et `javascript` sont absents de la liste des langages colorables, et ça a mordu sur
    CE module.** Mesuré : `tools/content-pipeline/compiler-markdown.mjs:133` et le `enum` de
    `quiz.schema.json` fixent une liste **fermée** à six valeurs — `php, csharp, typescript, sql,
    bash, json`. Le module qui enseigne l'injection **dans le navigateur** ne peut donc colorer ni

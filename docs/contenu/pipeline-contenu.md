@@ -153,8 +153,12 @@ Ce qu'il faut savoir pour écrire un volet :
 - **`::::` pour la comparaison, `:::` pour chaque volet.** Un conteneur qui en imbrique un autre
   prend un deux-points de plus. Les volets vont par paires `vulnerable` → `corrige`, dans cet
   ordre ; une comparaison peut en enchaîner plusieurs (deux langages, deux failles distinctes).
-- **Exactement une clôture de code par volet**, et son langage est un des six du contrat
-  (`php`, `csharp`, `typescript`, `sql`, `bash`, `json`).
+- **Exactement une clôture de code par volet**, et son langage est un des HUIT du contrat
+  (`php`, `csharp`, `typescript`, `javascript`, `html`, `sql`, `bash`, `json`).
+  ⚠️ **N'étiquette jamais un bloc avec une langue qu'il ne contient pas** pour contourner la liste :
+  `rendu-blocs` recopie cette étiquette à la fois dans le `<figcaption>` VISIBLE et dans
+  l'`aria-label` du défileur — le lecteur voit, et le lecteur d'écran entend, une langue fausse.
+  `javascript` et `html` sont entrés le 2026-08-24 précisément pour supprimer ce contournement.
 - **Un volet n'admet que sa clôture de code et des paragraphes** — dans cet ordre : la clôture
   d'abord, les paragraphes d'annotation après. Un item de liste, une citation ou un titre glissé
   dans un volet est un **refus** nommé (`lireExemple`) ; avant le lot B, leur balisage était
