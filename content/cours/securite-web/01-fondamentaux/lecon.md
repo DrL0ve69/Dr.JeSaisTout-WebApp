@@ -2,8 +2,9 @@
 titre: Fondamentaux de la sécurité des applications web
 slug: fondamentaux
 sujet: securite-web
-section: Fondamentaux
+section: Fondements et exploitation du serveur
 ordre: 1
+seance: 1
 niveau: cegep
 duree-estimee: 55
 objectifs:

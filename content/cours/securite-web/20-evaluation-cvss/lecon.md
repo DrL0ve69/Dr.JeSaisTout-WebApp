@@ -2,8 +2,8 @@
 titre: Évaluation et priorisation des vulnérabilités
 slug: evaluation-cvss
 sujet: securite-web
-section: Fondamentaux
-ordre: 2
+section: Compléments hors cours
+ordre: 20
 niveau: cegep
 duree-estimee: 50
 objectifs:

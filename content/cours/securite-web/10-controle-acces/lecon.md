@@ -2,8 +2,9 @@
 titre: Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire
 slug: controle-acces
 sujet: securite-web
-section: Attaques classiques
-ordre: 6
+section: Sécurité du code
+ordre: 10
+seance: 7
 niveau: cegep
 duree-estimee: 70
 objectifs:

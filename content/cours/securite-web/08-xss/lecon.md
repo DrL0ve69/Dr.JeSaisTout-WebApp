@@ -2,8 +2,9 @@
 titre: XSS — quand le navigateur de la victime exécute le code d'un autre
 slug: xss
 sujet: securite-web
-section: Attaques classiques
-ordre: 4
+section: Sécurité du code
+ordre: 8
+seance: 7
 niveau: cegep
 duree-estimee: 60
 objectifs:

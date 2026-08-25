@@ -2,8 +2,9 @@
 titre: CSRF — quand le navigateur de la victime agit à sa place
 slug: csrf
 sujet: securite-web
-section: Attaques classiques
-ordre: 5
+section: Sécurité du code
+ordre: 9
+seance: 7
 niveau: cegep
 duree-estimee: 55
 objectifs:

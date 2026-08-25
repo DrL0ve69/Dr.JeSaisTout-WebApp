@@ -2,8 +2,9 @@
 titre: Injection — quand une donnée devient du code
 slug: injection
 sujet: securite-web
-section: Attaques classiques
-ordre: 3
+section: Sécurité du code
+ordre: 7
+seance: 7
 niveau: cegep
 duree-estimee: 60
 objectifs:
