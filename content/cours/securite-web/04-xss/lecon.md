@@ -104,8 +104,8 @@ professionnellement centrale — elle sert en stage et en emploi, pas à l'exame
 À savoir avant de réviser : la page d'exercices de la séance 7 est **vide** (titre seul, constat
 de la fiche source revérifié le 2026-08-19), alors que la séance 1 annonce que l'examen sort des
 notes **et des exercices**. Les exercices XSS que tu croiseras dans la fiche source — le
-laboratoire DVWA, le faux formulaire de connexion, l'élévation de privilège Laravel — viennent
-tous de l'**édition antérieure** du cours. À lire pour la méthode, pas pour réviser.
+laboratoire DVWA, le faux formulaire de connexion, l'élévation de privilège Laravel — sont des
+**compléments**, pas des exercices du millésime 2026. À lire pour la méthode, pas pour réviser.
 :::
 
 **La règle d'arbitrage, la même que dans tout ce cours :** *à l'examen, donne la réponse du
@@ -638,9 +638,9 @@ guillemets doubles — et, mieux encore, un moteur de gabarits qui encode par d�
 ### 2. La même faute derrière un moteur de gabarits
 
 Les frameworks encodent par défaut, ce qui rend cette famille de bugs plus rare — mais pas
-impossible, parce que chacun offre une porte de sortie. Le bug réel du module d'intégration de
-l'édition antérieure du cours était de cette forme : une vue Laravel écrivait `{!! $liste->nom !!}`
-au lieu de `{{ $liste->nom }}`, et le nom d'une liste devenait exécutable chez tout visiteur — y
+impossible, parce que chacun offre une porte de sortie. Le bug réel prend typiquement cette
+forme : une vue Laravel écrit `{!! $liste->nom !!}`
+au lieu de `{{ $liste->nom }}`, et le nom d'une liste devient exécutable chez tout visiteur — y
 compris l'administrateur. Voici le même bug en Razor, puisque c'est l'écosystème de la phase 2 de
 ce site, et que le module 05 y revient.
 
@@ -774,7 +774,7 @@ parade, et dire ce qu'un token anti-CSRF change — ou ne change pas — face à
   reconstitution diapositive par diapositive de la démonstration du cours, le tableau complet des
   contournements de listes noires, le déroulé de l'exploit Laravel (vol de cookie puis élévation
   de privilège admin), le tableau d'arbitrage des six couches de défense avec leurs angles morts,
-  et les corrigés des exercices DVWA de l'édition antérieure.
+  et les corrigés des exercices du laboratoire DVWA.
 - **Module précédent** — l'injection (module 03) : la même cause racine, un autre interpréteur.
   Relis-en la section « Le principe commun à toutes les injections » avec ce module en tête.
 - **Module suivant** — le CSRF (module 05) : la faille que le XSS rend caduque, et les défenses

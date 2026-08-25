@@ -2434,6 +2434,54 @@ simulation) et l'avertissement de tripwire de fixture à retirer dans le même c
 
 ## E3 · Production du cours sécurité web (13 modules)
 
+> ### 🔴 REPLANIFICATION DU 2026-08-25 — l'ordre des modules ne suivait pas l'horaire du cours
+>
+> **Le constat.** Le propriétaire a déposé `securite-app-web-2026/` : les diaporamas des séances 1
+> à 5 du millésime 2026, les exercices des séances 2 à 4, et l'**horaire officiel**. Mesuré contre
+> ce corpus, le cours **420-B10-HU** est un cours **serveur et système** avant d'être un cours
+> OWASP — ses séances 2 à 5 traitent Linux, SSH/UFW, `cron` et les comptes utilisateurs. Les six
+> modules publiés suivent l'ordre OWASP d'une **édition antérieure** (été 2025), abandonnée.
+>
+> **La portée de l'examen 1 est écrite par le cours lui-même**, et elle n'est pas celle que la KB
+> supposait : `Cours05_Securite_utilisateurs.pptx`, **diapositive 21** — « *Au prochain cours, ce
+> sera l'examen 1. Celui-ci couvrira la matière des cours 1 à 4.* » La séance 5 en est **exclue**.
+> Ce paquet de la séance 5 est d'ailleurs un **squelette de 23 diapositives** (« En résumé (TODO) »,
+> « Références (TODO) ») et son fichier d'exercices est vide : c'est le cours qui manque.
+>
+> **Ce que ça change, et c'est la chose la plus urgente du dépôt.** Les trois modules de l'examen 1
+> — séances 2, 3 et 4 — étaient planifiés **en dernier** (E3-ST14, ST15, ST16, bloc C). Ils passent
+> **en tête**, échéance **11 septembre 2026**. Leurs fiches KB existent déjà et sont riches :
+> `administration-serveur-linux.md` (1096 l.), `securisation-acces-distant-ssh.md` (763 l.),
+> `automatisation-surveillance-cron.md` (792 l.), toutes trois portant **des numéros de
+> diapositives** exploitables.
+>
+> ⚠️ **`01-fondamentaux` est mal aligné sur sa propre séance.** Il a été écrit depuis
+> `fondamentaux-securite-web.md`, mesurée à **6 📘 / 32 🧩**. Le Cours 1 réel (83 diapositives)
+> enseigne le panorama d'attaques (DDoS, injection SQL, XSS, MITM, force brute, librairies tierces,
+> hameçonnage, rançongiciel) et le **montage de l'environnement de travail** (XAMPP, Putty, WinSCP,
+> DigitalOcean, achat d'un nom de domaine) — dont la leçon publiée ne dit presque rien, tandis
+> qu'elle développe CVE/CWE, la kill chain et les types de tests, absents de la séance. Une passe de
+> réalignement est due **avant l'examen 1**.
+>
+> **Décisions du propriétaire, prises le 2026-08-25 — ne pas les rouvrir.**
+> **R-1 · `seance` est un champ de frontmatter, pas le numéro de dossier.** `ordre` reste la
+> position de lecture et le préfixe `nn` du dossier ; une séance peut porter plusieurs modules (la
+> 7 en porte cinq). Contrat complet : [`docs/contenu/ancrage-au-cours.md`](../contenu/ancrage-au-cours.md).
+> **R-2 · L'horaire réel est publié dans l'app**, jalons d'évaluation compris, et **chaque module
+> porte sa portée d'examen** en pastille explicite.
+> **R-3 · Les renvois de diapositives se posent sur l'encadré** (`::: cours {diapos="13, 17"}`),
+> pas en pastille au fil du texte ni en table de fin — une seule place où la provenance se décide.
+> **R-4 · Toute référence à l'édition antérieure disparaît** des leçons et de la KB : elle fait
+> réviser une matière que l'enseignant n'évalue pas.
+>
+> ⚠️ **Contradiction non tranchée, à confirmer auprès de l'enseignant** : l'horaire annonce
+> **20 / 20 / 60 %** pour examen 1 / projet / examen final, la diapositive 6 du Cours 1 annonce
+> **25 / 15 / 60 %**. `horaire.json` retient l'horaire, document contractuel.
+>
+> **Ordre d'exécution retenu** : outillage d'ancrage (E3-ST20) → renumérotation → séances 2, 3, 4
+> par paires → réalignement de la séance 1 → séance 5 après l'examen → puis le bloc « sécurité du
+> code » (séance 7), qui est l'actuel bloc A déjà publié.
+
 **Processus commun à chaque sous-tâche** : skill **`/lecon`** (`professeur-web` rédige →
 `verificateur-theorie` contrôle) à partir de la fiche KB source (lecture seule sur
 `C:\Users\phili\ProjetsPortfolio\KnowledgeBase\web\securite\`). Livrable : `content/cours/securite-web/NN-slug/`

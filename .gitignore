@@ -85,3 +85,11 @@ crash.*.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Supports de cours de l'enseignant — JAMAIS versionnés (2026-08-25).
+# `securite-app-web-2026/` porte les diaporamas et exercices d'Alexandre Mageau-Pétrin
+# (420-B10-HU). Ce dépôt est PUBLIC : les publier serait une rediffusion de matériel
+# pédagogique dont le propriétaire n'a pas les droits. Ils servent de SOURCE locale à la
+# rédaction ; ce qui est publiable, ce sont les leçons réécrites de `content/` et les fiches
+# de la KnowledgeBase, qui citent les diapositives sans les reproduire.
+securite-app-web-2026/

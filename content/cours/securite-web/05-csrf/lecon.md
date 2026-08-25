@@ -90,17 +90,18 @@ Le CSRF appartient à la matière du cours 420-B10-HU, séance 7 — Sécurité 
 toutefois au périmètre du millésime 2026 : les diapositives de cette séance ne traitent
 explicitement que l'**injection SQL** et le **XSS**. Le CSRF n'y figure qu'en filigrane, par une
 seule référence bibliographique en dernière diapositive, portant sur l'ajout d'un jeton anti-CSRF
-en PHP. La matière ci-dessous reste juste et elle est couverte par l'édition antérieure du cours,
-mais son poids à l'examen 2026 est probablement moindre que celui de l'injection SQL et du XSS.
+en PHP. La matière ci-dessous reste juste, mais son poids à l'examen 2026 est probablement
+moindre que celui de l'injection SQL et du XSS.
 :::
 
-::: cours
-Les deux mises en situation détaillées plus bas viennent du cours, **édition antérieure** : le
-laboratoire **DVWA** (*Damn Vulnerable Web Application*, une application volontairement trouée
-servant de banc d'essai) pour le vecteur simple, et l'exercice d'intégration sur l'application
-Laravel « laravulnerable » pour l'enchaînement XSS puis CSRF. Leur présence au millésime 2026
-n'est **pas établie** : rien sur le site actuel du cours ne les nomme. Ce second exercice porte le
-point que la fiche source désigne comme le plus important de tout le sujet.
+::: complement
+Les deux mises en situation détaillées plus bas s'appuient sur deux bancs d'essai publics : le
+laboratoire **DVWA** (*Damn Vulnerable Web Application*, <https://github.com/digininja/DVWA> —
+une application volontairement trouée, **à n'installer qu'en environnement isolé**) pour le
+vecteur simple, et une application Laravel volontairement vulnérable pour l'enchaînement XSS
+puis CSRF. Leur présence au millésime 2026 n'est **pas établie** : rien sur le site actuel du
+cours ne les nomme. Le second scénario porte le point que la fiche source désigne comme le plus
+important de tout le sujet.
 :::
 
 ::: complement

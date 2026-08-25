@@ -81,8 +81,8 @@ connexion.
 :::
 
 ::: complement
-Tout le reste de ce module vient de la base de connaissances ou de l'édition antérieure du
-cours : le sondage par message d'erreur, la forme `' OR '1'='1' -- `, l'extraction par `UNION`,
+Tout le reste de ce module vient de la base de connaissances : le sondage par message d'erreur,
+la forme `' OR '1'='1' -- `, l'extraction par `UNION`,
 l'injection à l'aveugle (*blind*), les requêtes empilées (*stacked queries*), l'injection de
 commande système, la XXE, l'injection NoSQL, et le cas des identifiants non paramétrables. C'est
 de la matière juste et professionnellement centrale — mais elle n'est **pas exigible à
@@ -358,8 +358,8 @@ qu'elle permet quand elle passe quand même.
 ## Quand entrer ne suffit plus : extraire les données
 
 ::: complement
-Toute cette section est un ajout de la base de connaissances et de l'édition antérieure du
-cours. Elle n'est pas exigible à l'examen 2026 — mais c'est elle qui décrit ce que fait
+Toute cette section est un ajout de la base de connaissances.
+Elle n'est pas exigible à l'examen 2026 — mais c'est elle qui décrit ce que fait
 réellement un attaquant après le contournement, et elle explique la seconde moitié de la
 simulation de cette leçon.
 :::
@@ -528,10 +528,10 @@ pointer vers une ressource : un fichier du serveur, ou une URL. Si le parseur la
 contenu de cette ressource est injecté dans le document — et l'application affiche un fichier
 système en croyant afficher une donnée métier.
 
-Le module d'intégration de l'édition antérieure du cours importait un fichier XML avec un
-document ouvrant par `<!DOCTYPE foo [<!ENTITY exemple SYSTEM "/etc/passwd"> ]>` puis employant
-`&exemple;` comme s'il s'agissait d'un nom d'article. C'est le contenu de `/etc/passwd` qui
-s'affichait à sa place.
+Le cas d'école tient en trois lignes : une application importe un fichier XML dont le document
+ouvre par `<!DOCTYPE foo [<!ENTITY exemple SYSTEM "/etc/passwd"> ]>` puis emploie `&exemple;`
+comme s'il s'agissait d'un nom d'article. C'est le contenu de `/etc/passwd` qui s'affiche à sa
+place.
 
 :::: comparaison
 ::: vulnerable
@@ -558,13 +558,13 @@ son chemin dans l'application avec une valeur fausse.
 :::
 ::::
 
-::: correction-du-cours {source="Tableau XXE du module d'intégration de l'édition antérieure du cours 420-B10-HU ; comportement par défaut de libxml supérieur ou égal à 2.9.0 et dépréciation de libxml_disable_entity_loader en PHP 8.0, vérifiés dans la fiche KB web/securite/injection.md"}
-Le cours présente `LIBXML_NOENT` comme « la » cause de la faille, sans dire que PHP moderne est
-protégé **par défaut** en son absence. **À l'examen** : réponds « utilisation de
-`LIBXML_NOENT` » — c'est exact pour ce cas précis. **Sache en plus** que si retirer le drapeau
-suffit à corriger, c'est parce que le défaut de la bibliothèque est déjà sûr. Note au passage
-que `libxml_disable_entity_loader()`, longtemps recommandée partout, est **dépréciée depuis
-PHP 8.0** : elle est devenue inutile dans le cas général.
+::: correction-du-cours {source="Comportement par défaut de libxml supérieur ou égal à 2.9.0 (substitution des entités désactivée) et dépréciation de libxml_disable_entity_loader en PHP 8.0 — documentation PHP, manuel de libxml ; relevé dans la fiche KB web/securite/injection.md"}
+Beaucoup de présentations de la XXE en PHP donnent `LIBXML_NOENT` comme « la » cause de la
+faille, sans dire que PHP moderne est protégé **par défaut** en son absence. L'affirmation est
+exacte **pour ce cas précis** : c'est bien le drapeau qui ouvre la brèche ici. **Sache en plus**
+que si retirer le drapeau suffit à corriger, c'est parce que le défaut de la bibliothèque est
+déjà sûr. Note au passage que `libxml_disable_entity_loader()`, longtemps recommandée partout,
+est **dépréciée depuis PHP 8.0** : elle est devenue inutile dans le cas général.
 :::
 
 ### Injection NoSQL
@@ -611,8 +611,9 @@ donnée reçue.
 ## Exemple simple
 
 Le mécanisme isolé, sans rien autour : une page qui affiche un profil à partir d'un identifiant
-lu dans l'URL. C'est la forme la plus dépouillée de l'injection SQL, et celle du laboratoire
-DVWA de l'édition antérieure du cours.
+lu dans l'URL. C'est la forme la plus dépouillée de l'injection SQL, et celle qu'on rencontre en
+premier dans le laboratoire **DVWA** (<https://github.com/digininja/DVWA>, à n'installer qu'en
+environnement isolé).
 
 :::: comparaison
 ::: vulnerable
@@ -867,7 +868,7 @@ dynamique, et la même cause racine dans deux grammaires différentes.
   temps avec la table des catalogues système par SGBD, les deux formes d'injection à l'aveugle
   avec leurs charges, les requêtes empilées MSSQL, les exemples vulnérables et corrigés dans
   trois écosystèmes (PHP, ASP.NET Core, Node), le tableau d'arbitrage des six approches de
-  défense, et les corrigés des exercices DVWA de l'édition antérieure du cours.
+  défense, et les corrigés des exercices du laboratoire DVWA.
 - **Module précédent** — l'évaluation d'une vulnérabilité : une injection SQL exploitable sans
   authentification et une injection dans un écran d'administration ne se priorisent pas de la
   même façon.

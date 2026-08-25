@@ -134,9 +134,9 @@ tout le monde, et choisit de prioriser sur l'exploitation confirmée.
 ## CVSS v3.1 : trois groupes, et un seul qu'on voit vraiment
 
 ::: complement
-Tout ce qui suit sur CVSS s'appuie sur la spécification officielle de FIRST.org (v3.1, publiée
-en juin 2019) et sur les documents d'une **édition antérieure** de ce cours. C'est un complément,
-au même titre que le reste du module.
+Tout ce qui suit sur CVSS s'appuie sur la **spécification officielle de FIRST.org** (v3.1,
+publiée en juin 2019) et son guide d'utilisation. C'est un complément, au même titre que le
+reste du module.
 :::
 
 CVSS découpe la notation en **trois groupes de métriques**, et une bonne partie des malentendus
@@ -603,8 +603,7 @@ plutôt que de chercher le score de mémoire.
 - **Fiche source** — `web/securite/evaluation-vulnerabilites-cvss.md` (KnowledgeBase) : les huit
   métriques une par une, l'exemple décodé de Log4Shell (`CVE-2021-44228`, vecteur
   `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H`, score 10.0), et cinq mises en situation
-  corrigées de l'édition antérieure du cours, dont la fixation de session (8.0) et l'élévation de
-  privilèges locale (7.8).
+  corrigées, dont la fixation de session (8.0) et l'élévation de privilèges locale (7.8).
 - **Module précédent** — `01-fondamentaux` : la triade CIA, dont C, I et A reprennent exactement
   les trois lettres, et la distinction CVE / CWE dans son contexte de vocabulaire.
 - **Module suivant** — l'injection : la faille dont on vient de calculer le score, cette fois
