@@ -21,7 +21,7 @@ fiches-sources:
   - web/securite/controle-acces-idor.md
 cree: 2026-08-24
 maj: 2026-08-24
-statut: verifiee
+statut: publiee
 ---
 
 # Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire
@@ -156,9 +156,7 @@ pare-feux applicatifs.
 | Édition du classement OWASP | Rang | Ce que le rapport dit |
 |---|---|---|
 | Top 10:2021 | A01, en montée depuis la cinquième place de 2017 | 94 % des applications ont été **testées** pour une forme de contrôle d'accès défaillant, avec un taux d'incidence moyen de 3,81 %, et plus de 318 000 occurrences relevées — le plus grand nombre du jeu de données contribué |
-| Top 10:2025 | A01, inchangé | Le SSRF, qui était A10 en 2021, y est **fusionné** : même logique de fond, laisser le client influencer une ressource ou une destination sans vérification d'autorisation suffisante |
-
-<!-- à-vérifier: l'édition OWASP Top 10:2025 est décrite par la fiche source comme « annoncée novembre 2025, finalisée début 2026 » — statut de publication et numérotation à reconfirmer sur owasp.org, une catégorie renumérotée invaliderait la ligne du tableau -->
+| Top 10:2025 | A01, inchangé | Le SSRF, qui était A10 en 2021, y est **fusionné** : même logique de fond, laisser le client influencer une ressource ou une destination sans vérification d'autorisation suffisante. (Édition annoncée en version candidate le 6 novembre 2025, publiée en version finale en janvier 2026.) |
 
 ::: attention
 Le chiffre de 94 % est très souvent mal lu, y compris dans des articles sérieux. Il ne dit pas que
@@ -169,10 +167,20 @@ détail qu'un correcteur attend.
 :::
 
 Un exemple de l'échelle que la faille peut atteindre : la fuite de données de l'opérateur
-australien Optus en 2022, où de l'ordre de dix millions de dossiers clients ont été récupérés par
-un accès non contrôlé à une interface de programmation.
+australien Optus en septembre 2022, qui a touché jusqu'à dix millions de clients actuels et
+anciens, dont 2,1 millions dont un document d'identité a été dérobé.
 
-<!-- à-vérifier: l'attribution de la fuite Optus 2022 à un IDOR — les analyses publiques décrivent un endpoint d'API accessible SANS authentification du tout, ce qui relève d'un contrôle d'accès absent plutôt que d'une référence directe non sécurisée ; le chiffre exact souvent cité est ~9,8 millions -->
+::: attention
+**Attention à la qualification de ce cas — c'est exactement la distinction que le module enseigne.**
+Optus n'est **pas** un IDOR au sens strict. Le régulateur australien (ACMA) plaide qu'une **erreur
+de codage** avait rendu inopérants les contrôles d'une interface de programmation exposée sur
+Internet, laquelle **n'exigeait aucune authentification** ; il suffisait d'incrémenter un
+identifiant dans l'URL pour dérouler la clientèle. Un IDOR suppose un utilisateur **déjà
+authentifié** dont on ne vérifie pas les droits sur la ressource visée ; ici, il n'y avait **rien à
+vérifier**. Les deux appartiennent à la même famille — A01, contrôle d'accès défaillant — et le
+second est l'échelon en dessous du premier : oublier la vérification de propriété, c'est grave ;
+oublier l'authentification elle-même, c'est publier la base.
+:::
 
 Le diagramme suivant résume la seule question que le serveur doit se poser, et les deux façons de
 ne pas se la poser.
@@ -347,9 +355,16 @@ précisément le problème : la différence entre 403 et 404 **confirme l'existe
 Un attaquant qui reçoit 404 sur les identifiants 1 à 200 et 403 sur les identifiants 201 à 340 n'a
 lu aucune donnée, mais il connaît maintenant la taille exacte de la clientèle et l'intervalle
 d'identifiants utiles. La règle pratique est donc : **une seule réponse pour « ça n'existe pas »
-et « ce n'est pas à toi »**.
+et « ce n'est pas à toi »** — mais c'est un **arbitrage**, pas un dogme.
 
-<!-- à-vérifier: la fiche source pose la règle « 404 et jamais 403 » comme absolue ; l'OWASP Authorization Cheat Sheet la présente plutôt comme un arbitrage entre discrétion et clarté de journalisation, et 403 reste correct sur une ressource dont l'existence n'est pas confidentielle -->
+La norme HTTP (RFC 9110, §15.5.4) dit qu'un serveur qui souhaite *masquer* l'existence d'une
+ressource interdite **peut** répondre 404 à la place de 403 ; elle ne l'impose pas. Le 404 se
+justifie quand l'**existence même** de la ressource est confidentielle : dossier médical, brouillon,
+compte d'un tiers. Le 403 reste correct — et plus clair pour l'utilisateur légitime comme pour le
+support — quand cette existence n'est pas un secret : un document d'entreprise partagé dont on n'a
+pas la permission, une page d'administration. Dans les deux cas, la ligne non négociable est
+ailleurs : **le refus est journalisé**, et la réponse ne varie ni dans son corps ni dans son délai
+selon que la ressource existe ou non — sans quoi le 404 est une façade que le chronomètre traverse.
 
 ## L'énumération favorisée par les identifiants séquentiels
 
@@ -563,11 +578,16 @@ dangereux dès que l'objet cible porte des champs que le client ne devrait jamai
 `isAdmin`, `role`, `solde`, `user_id`. On parle de **mass assignment** (affectation en masse) ou
 d'**over-posting** (sur-envoi) : le client poste plus de champs que le formulaire n'en propose.
 
-L'exemple historique de référence date de 2012 : un chercheur a exploité le mass assignment de
-Ruby on Rails pour associer sa propre clé SSH publique à un compte du dépôt `rails/rails`,
-obtenant le droit d'y écrire — sur la plateforme GitHub elle-même.
+L'exemple historique de référence date de mars 2012 : le chercheur Egor Homakov a exploité le mass
+assignment de Ruby on Rails sur GitHub lui-même. Le formulaire d'ajout de clé SSH existait — il n'a
+pas inventé de champ inconnu ; il a ajouté à la requête un **attribut imbriqué du modèle** que le
+formulaire ne proposait pas, `public_key[user_id]`, avec l'identifiant du compte `rails`. Le
+binding par défaut l'a accepté : sa clé s'est retrouvée associée à un autre compte, et il a pu
+pousser un commit sur `rails/rails`.
 
-<!-- à-vérifier: mécanisme exact de l'incident GitHub 2012 (Egor Homakov) — la fiche source le décrit comme « un champ public_key non prévu dans le formulaire », alors que les analyses publiques décrivent plutôt l'affectation en masse du champ user_id ASSOCIÉ à une clé publique ; formulation à confirmer sur une source primaire -->
+Retiens la forme du défaut, parce que c'est elle qui se reproduit : ce n'est pas un champ
+« exotique » qu'un attaquant devine, c'est un **champ légitime du modèle** que le client n'aurait
+jamais dû pouvoir écrire.
 
 ### L'exemple simple : un contrôleur Laravel qui met à jour un profil
 
@@ -964,8 +984,8 @@ précisément ce qu'on ne voyait pas dans le volet de gauche.
 Un détail qui touche la règle « 404 plutôt que 403 » vue plus haut : `$this->authorize()` déclenche
 par défaut une réponse **403**, ce qui révèle que la liste existe. Pour une ressource dont
 l'existence est elle-même confidentielle, la Policy peut renvoyer un refus explicitement déguisé en
-404 plutôt qu'un simple `false`.
-<!-- à-vérifier: la possibilité pour une Policy Laravel de renvoyer un refus déguisé en 404 (méthode `Response::denyAsNotFound()`) vient de mes connaissances et non de la fiche source — nom exact de la méthode et version de Laravel qui l'introduit à confirmer sur la documentation officielle -->
+404 plutôt qu'un simple `false` — `Response::denyAsNotFound()`, raccourci de
+`Response::denyWithStatus(404)` sur `Illuminate\Auth\Access\Response`, disponible depuis Laravel 9.
 
 ### En C#, avec un handler d'autorisation basé sur la ressource
 
@@ -1218,10 +1238,17 @@ au plus lourd.
 |---|---|---|---|
 | **Vérification ad hoc** dans chaque contrôleur, du type `if (user.Id != resource.OwnerId)` | Zéro dépendance, zéro courbe d'apprentissage, lisible par n'importe qui | Se duplique, s'oublie, et diverge avec le temps entre des endpoints pourtant similaires | Prototype, très petite application, une seule personne aux commandes |
 | **Autorisation par rôle ou par attribut, dans le framework** — policies ASP.NET Core, Gates et Policies Laravel, CASL en JavaScript | Centralisée, testable isolément, cohérente d'un endpoint à l'autre | Demande une discipline de conception dès le départ ; la logique métier se mêle au code applicatif | La majorité des applications métier de taille moyenne. **C'est le bon défaut.** |
-| **Moteur d'autorisation externe** — Open Policy Agent et son langage Rego, Oso, AWS Cedar, Casbin | Politique déclarative, versionnée à part du code, réutilisable entre plusieurs services et plusieurs langages, auditable indépendamment | Un appel ou un aller-retour réseau de plus, une technologie de plus à opérer, sur-ingénierie flagrante pour un monolithe unique | Plateformes multi-services dont les règles d'autorisation sont partagées entre équipes ou entre langages différents |
-| **Autorisation par relations** (*ReBAC*), sur le modèle Google Zanzibar — OpenFGA | Modélise nativement des relations que le rôle exprime mal : « membre d'une équipe qui a accès à un dossier partagé par un tiers » | Complexité de modélisation et d'exploitation significative | Systèmes de partage à la Google Drive ou Notion, hiérarchies d'organisations imbriquées |
+| **Moteur d'autorisation externe** — Open Policy Agent et son langage Rego, AWS Cedar, Casbin (les trois sous licence Apache 2.0 ; OPA est un projet CNCF *graduated*, Casbin est en incubation à l'Apache Software Foundation) | Politique déclarative, versionnée à part du code, réutilisable entre plusieurs services et plusieurs langages, auditable indépendamment | Un appel ou un aller-retour réseau de plus, une technologie de plus à opérer, sur-ingénierie flagrante pour un monolithe unique | Plateformes multi-services dont les règles d'autorisation sont partagées entre équipes ou entre langages différents |
+| **Autorisation par relations** (*ReBAC*), sur le modèle Google Zanzibar — OpenFGA (Apache 2.0, projet CNCF en incubation depuis octobre 2025) | Modélise nativement des relations que le rôle exprime mal : « membre d'une équipe qui a accès à un dossier partagé par un tiers » | Complexité de modélisation et d'exploitation significative | Systèmes de partage à la Google Drive ou Notion, hiérarchies d'organisations imbriquées |
 
-<!-- à-vérifier: la liste des moteurs d'autorisation externes (Open Policy Agent, Oso, AWS Cedar, Casbin, OpenFGA) est reprise de la fiche source dont la dernière mise à jour date du 2026-08-19 — statut de maintenance et modèle de licence de chacun à reconfirmer avant de les recommander en production -->
+::: attention
+**Oso, que tu croiseras dans presque toutes les listes plus anciennes, n'est plus un choix libre.**
+Sa bibliothèque open source est **dépréciée depuis décembre 2023**, l'éditeur ayant basculé sur
+*Oso Cloud*, un service géré commercial. Le réflexe à prendre dépasse ce cas précis : avant de
+retenir une brique d'infrastructure trouvée dans un article, **va lire sa licence et la date de son
+dernier commit**. Une recommandation vieille de deux ans peut t'envoyer vers un produit devenu
+payant.
+:::
 
 ```mermaid
 flowchart TD
@@ -1360,7 +1387,18 @@ passer, et trancher l'ordre de correction quand deux failles se combinent.
   [OWASP Mass Assignment Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Mass_Assignment_Cheat_Sheet.html)
   (les équivalents du mass assignment framework par framework),
   [OWASP — Insecure Direct Object Reference](https://owasp.org/www-community/attacks/insecure_direct_object_reference)
-  (la définition de référence de l'IDOR).
+  (la définition de référence de l'IDOR),
+  [RFC 9110, §15.5.4 — 403 Forbidden](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.4)
+  (le 404 en lieu et place du 403 est une **option** offerte au serveur, pas une obligation),
+  [Laravel — *Customizing policy response status*](https://laravel.com/docs/12.x/authorization#customizing-policy-response-status)
+  (`Response::denyAsNotFound()`),
+  [Egor Homakov — *How to hack any Rails app*](http://homakov.blogspot.com/2012/03/how-to.html)
+  (le mécanisme exact de l'incident GitHub de mars 2012, par son auteur),
+  [ACMA — l'erreur de codage à l'origine de la fuite Optus](https://www.itnews.com.au/news/optus-breach-allegedly-enabled-by-access-control-coding-error-608985)
+  (pourquoi ce cas n'est pas un IDOR),
+  [Oso — avis de dépréciation de la bibliothèque open source](https://www.osohq.com/docs/oss/any/getting-started/deprecation.html)
+  (décembre 2023).
+  *Toutes consultées le 2026-08-25.*
 - **Pour pratiquer** — les laboratoires interactifs gratuits de la
   [Web Security Academy de PortSwigger sur le contrôle d'accès](https://portswigger.net/web-security/access-control) :
   une trentaine d'exercices, du plus simple au plus retors, dans un environnement prévu pour être
