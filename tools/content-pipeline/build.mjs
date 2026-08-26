@@ -5,9 +5,12 @@
  * L'unique point d'entrée du contenu-as-code : `npm run content:build`. Cinq étapes, dans cet
  * ordre, et aucune n'est facultative :
  *
- *   1. PURGE de `src/content-generated/` — avant toute écriture.
- *   2. VALIDATION (`valider.mjs`) — une leçon malformée fait échouer la construction ICI, là où le
- *      message peut encore nommer le fichier et le champ fautifs.
+ *   1. VALIDATION (`valider.mjs`) — une leçon malformée fait échouer la construction ICI, là où le
+ *      message peut encore nommer le fichier et le champ fautifs. ⚠️ ELLE PRÉCÈDE LA PURGE, et c'est
+ *      délibéré : le validateur ne lit que `content/`, donc un refus doit laisser la sortie
+ *      PRÉCÉDENTE intacte plutôt que de vider l'arbre dont `npm test` et `npm start` dépendent.
+ *   2. PURGE de `src/content-generated/` — avant toute écriture, et seulement une fois le contenu
+ *      déclaré conforme.
  *   3. COMPILATION (`compiler-markdown.mjs`), diagrammes Mermaid inclus (`rendre-mermaid.mjs`),
  *      SUIVIE DU CONTRÔLE FINAL des SVG (`controlerSvgCompiles`) — voir `etapeCompiler`.
  *   4. MANIFESTE + CARTE d'imports paresseux (`generer-manifeste.mjs`).
@@ -142,7 +145,7 @@ function estDossier(chemin) {
 // ---------------------------------------------------------------------------
 
 /**
- * Étape 1 — purge. Le dossier de sortie est RECONSTRUIT à chaque exécution, jamais mis à jour.
+ * Étape 2 — purge. Le dossier de sortie est RECONSTRUIT à chaque exécution, jamais mis à jour.
  *
  * Pourquoi : une leçon renommée ou supprimée laisserait sinon son `<slug>.json` sur le disque.
  * Le manifeste ne la citerait plus, la carte non plus — mais le fichier resterait, et le prochain
@@ -154,14 +157,14 @@ function estDossier(chemin) {
  */
 function etapePurger(dossierSortie) {
   rmSync(dossierSortie, { recursive: true, force: true });
-  etape(`1/5 purge — ${afficher(dossierSortie)}`);
+  etape(`2/5 purge — ${afficher(dossierSortie)}`);
 }
 
 /**
- * Étape 2 — validation, EN PROCESSUS FILS.
+ * Étape 1 — validation, EN PROCESSUS FILS.
  *
  * `valider.mjs` n'exporte rien : il exécute sa ligne de commande au chargement du module et sort en
- * `process.exit()`. L'importer ferait valider au moment de l'`import`, avant même la purge, et le
+ * `process.exit()`. L'importer ferait valider au moment de l'`import`, avant même l'analyse des arguments, et le
  * moindre refus tuerait ce processus-ci sans que l'orchestrateur puisse dire ce qu'il faisait. Le
  * processus fils garde la frontière nette : un code de retour, et le journal de l'enfant hérité tel
  * quel (`stdio: 'inherit'`) — l'auteur voit SES anomalies, dans le format du validateur.
@@ -185,7 +188,7 @@ function etapeValider(racineAbsolue) {
       'corriger les fichiers nommés, puis relancer : npm run content:build',
     ]);
   }
-  etape('2/5 validation — contenu conforme au schéma');
+  etape('1/5 validation — contenu conforme au schéma');
 }
 
 /**
@@ -318,15 +321,25 @@ async function principal() {
   }
 
   console.log('');
-  etapePurger(sortieAbsolue);
 
+  // LA VALIDATION PRÉCÈDE LA PURGE, ET CE N'EST PAS UN DÉTAIL D'ORDONNANCEMENT.
+  // Le validateur ne lit que `content/` — jamais la sortie — donc rien ne l'oblige à passer
+  // après l'effacement. L'ordre inverse, tenu jusqu'au 2026-08-26, avait ce défaut mesuré :
+  // un contenu refusé laissait `src/content-generated/` VIDE, et `npm test` / `npm start`
+  // tombaient ensuite sur une erreur Sass (`@use 'styles/coloration-syntaxique-generee'`) qui
+  // ne nommait pas la cause. Ce n'était pas un cas rare : c'est l'état NORMAL pendant la
+  // rédaction d'un module, où `lecon.md` est déposé avant son `quiz.json`. Constaté ce
+  // jour-là : un agent qui ne touchait pas au contenu a attendu que l'arbre redevienne
+  // constructible. Valider d'abord rend l'échec inoffensif — l'arbre précédent survit intact.
   if (racinePresente) {
     etapeValider(racineAbsolue);
   } else {
     etape(
-      `2/5 validation — sautée : ${afficher(racineAbsolue)} n'existe pas encore (attendu avant E3)`,
+      `1/5 validation — sautée : ${afficher(racineAbsolue)} n'existe pas encore (attendu avant E3)`,
     );
   }
+
+  etapePurger(sortieAbsolue);
 
   const { lecons, feuille, horaire, exercices } = await etapeCompiler(
     racineAbsolue,

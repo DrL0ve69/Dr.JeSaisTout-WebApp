@@ -41,7 +41,7 @@
 // =============================================================================
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 
@@ -214,6 +214,16 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       expect(diagnostic(execution)).toBe('');
       expect(execution.code).toBe(0);
       expect(execution.journal).toContain('2 leçon(s) compilée(s)');
+    });
+
+    it('valide AVANT de purger — contrôle positif de l’ordre des étapes', () => {
+      // Le pendant du test « contenu refusé » plus bas : ici les DEUX étiquettes
+      // s’impriment, donc leur ordre est observable. Les deux ensemble couvrent le
+      // contrat — celui-ci l’ordre nominal, l’autre l’effet sur le disque.
+      const rangValidation = execution.journal.indexOf('1/5 validation');
+      const rangPurge = execution.journal.indexOf('2/5 purge');
+      expect(rangValidation).toBeGreaterThanOrEqual(0);
+      expect(rangPurge).toBeGreaterThan(rangValidation);
     });
 
     it('inscrit les leçons au manifeste, avec leurs métadonnées et rien de plus', () => {
@@ -416,6 +426,59 @@ describe("l'orchestrateur du pipeline de contenu", () => {
 
     it('nomme le chemin fautif dans son message', () => {
       expect(execution.journal).toContain('content/cours/ce-cours-n-existe-pas');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LE CONTENU REFUSÉ NE DOIT RIEN DÉTRUIRE — la sortie précédente survit
+  // ---------------------------------------------------------------------------
+  // POURQUOI CE TEST EXISTE. Jusqu'au 2026-08-26, la purge passait AVANT la
+  // validation. Un contenu refusé laissait donc `src/content-generated/` vide, et
+  // le coup suivant ne tombait pas sur le validateur : il tombait sur `npm test` ou
+  // `npm start`, en une erreur Sass (`@use 'styles/coloration-syntaxique-generee'`)
+  // qui ne nommait pas la cause. Ce n'est pas un cas rare — c'est l'état NORMAL
+  // pendant la rédaction d'un module, où `lecon.md` est déposé avant son `quiz.json`.
+  // Le validateur ne lisant QUE `content/`, rien ne l'obligeait à passer après la purge.
+  //
+  // ⚠️ LE TÉMOIN EST UN FICHIER SENTINELLE, PAS LE JOURNAL. Un test qui se
+  // contenterait de lire « 1/5 validation » avant « 2/5 purge » mesurerait un
+  // ÉTIQUETAGE, pas un effacement : renuméroter les étapes le laisserait vert sur un
+  // pipeline qui détruit toujours. On mesure donc ce qui reste sur le disque.
+  describe('sur un contenu REFUSÉ par le validateur', () => {
+    const { sortie, css } = bac('contenu-refuse');
+    const SENTINELLE = join(sortie, 'lecons', 'generation-precedente.json');
+    let execution: Execution;
+
+    beforeAll(() => {
+      // Une sortie déjà présente, comme après une construction réussie.
+      mkdirSync(join(sortie, 'lecons'), { recursive: true });
+      writeFileSync(SENTINELLE, '{"slug":"generation-precedente"}', 'utf8');
+      execution = lancer([
+        '--racine',
+        'tools/content-pipeline/__fixtures__/invalides/quiz-explication-absente',
+        '--sortie',
+        sortie,
+        '--css',
+        css,
+      ]);
+    }, DELAI);
+
+    it('refuse le contenu en code 1 (contrôle positif : la fixture est bien invalide)', () => {
+      expect(execution.code).toBe(1);
+    });
+
+    it('LA RÉGRESSION : la sortie de la génération précédente est INTACTE', () => {
+      expect(existsSync(SENTINELLE)).toBe(true);
+      expect(readFileSync(SENTINELLE, 'utf8')).toContain('generation-precedente');
+    });
+
+    it('n’atteint JAMAIS la purge — aucune étape de purge au journal', () => {
+      // ⚠️ Ce test a d’abord été écrit « le journal contient 1/5 validation », et il était
+      // ROUGE sur un produit SAIN (L-035) : cette étiquette ne s’imprime qu’au SUCCÈS de
+      // l’étape, or ici la validation échoue. Ce qu’un refus prouve est plus fort que
+      // l’ordre des étiquettes — la purge n’est pas seulement après, elle n’a pas lieu.
+      expect(execution.journal).not.toContain('purge —');
+      expect(execution.journal).toContain('contenu refusé par le validateur');
     });
   });
 });
