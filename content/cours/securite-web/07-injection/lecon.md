@@ -578,7 +578,7 @@ attendait une simple chaîne. C'est possible dès que le corps JSON de la requê
 
 :::: comparaison
 ::: vulnerable
-```typescript
+```javascript
 const compte = await db.collection('users').findOne({
   username: req.body.username,
   password: req.body.password,
@@ -590,7 +590,7 @@ mot de passe. L'authentification est contournée sans qu'un seul caractère de s
 injecté.
 :::
 ::: corrige
-```typescript
+```javascript
 if (typeof req.body.username !== 'string' || typeof req.body.password !== 'string') {
   return res.status(400).send('Requete invalide');
 }

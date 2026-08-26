@@ -246,7 +246,7 @@ formulaire de changement de mot de passe accepte ses paramètres en `GET`.
 Le corps de la charge tient en une ligne. L'attaquant l'enveloppe dans une balise `<script>`
 qu'il fait afficher par le point d'injection XSS de DVWA :
 
-```typescript
+```javascript
 fetch("http://localhost/dvwa-master/vulnerabilities/csrf/?password_new=asdf&password_conf=asdf&Change=Change#");
 ```
 
@@ -357,7 +357,7 @@ protection CSRF.
 Dans la version vulnérable, l'attaquant crée une liste dont le nom contient une balise de script.
 Le corps de ce script tient en quatre lignes :
 
-```typescript
+```javascript
 const jeton = document.getElementsByName("_token")[0].value;
 fetch("/admin/", {
   method: "POST",
@@ -606,9 +606,7 @@ attribut posé sur le cookie, par lequel le site demande au **navigateur** de ne
 requêtes déclenchées par un autre site. Autrement dit, on ne corrige plus le réflexe après coup :
 on le désactive.
 
-```bash
-Set-Cookie: session=8f2c...; Path=/; Secure; HttpOnly; SameSite=Lax
-```
+`Set-Cookie: session=8f2c...; Path=/; Secure; HttpOnly; SameSite=Lax`
 
 Trois valeurs, et une seule mérite d'être sue par cœur :
 
@@ -883,7 +881,7 @@ réponse trouvée en ligne le recommande encore, l'information est périmée. Le
 maintenus sont `csrf-sync` (jeton lié à la session) et `csrf-csrf` (double-submit).
 :::
 
-```typescript
+```javascript
 // Jeton lie a la session — csrf-sync, avec express-session
 import { csrfSync } from 'csrf-sync';
 
@@ -909,7 +907,7 @@ protection globalement plutôt que route par route.
 
 Pour une API sans session côté serveur, la variante double-submit :
 
-```typescript
+```javascript
 // Double-submit — csrf-csrf, API sans etat
 import { doubleCsrf } from 'csrf-csrf';
 
@@ -957,7 +955,7 @@ Deux issues légitimes, dont la première est celle que décrit l'OWASP :
    **en mémoire** — pas dans `localStorage`, qui reste lisible par tout script injecté — et le
    rejoue en en-tête à chaque requête d'état.
 
-```typescript
+```javascript
 // Le jeton obtenu est garde en memoire, puis rejoue en en-tete
 const { csrfToken } = await (await fetch('/csrf-token')).json();
 

