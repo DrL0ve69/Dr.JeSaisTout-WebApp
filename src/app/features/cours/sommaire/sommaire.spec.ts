@@ -17,6 +17,10 @@
 //     un slug ABSENT du manifeste ne doit rien ajouter : c'est le défaut exact
 //     qui a fait retirer `nombreMaitrisees` du service au lot A1 (« 12/13 »
 //     devenu « 14/13 »).
+//  6. LES JALONS D'ÉVALUATION intercalés au sommaire (`ancrage-au-cours.md`
+//     §5(c)) : leur position, leurs libellés, leur invariance à l'hydratation, et
+//     le CONTRÔLE POSITIF du fail-closed — un jalon qui tomberait à l'intérieur
+//     d'une section fait LEVER, il ne se repousse pas à la frontière.
 //
 // L-012 appliqué : aucune valeur attendue n'est importée du composant. Le
 // manifeste est écrit ICI, et les seuls textes comparés à un littéral sont ceux
@@ -36,7 +40,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
 import { ProgressionService } from '../../../core/progression/progression';
-import { MANIFESTE_LECONS } from '../contenu-compile';
+import { HORAIRES_DES_COURS, MANIFESTE_LECONS } from '../contenu-compile';
 import { Sommaire } from './sommaire';
 
 // -----------------------------------------------------------------------------
@@ -129,9 +133,27 @@ const MANIFESTE: readonly EntreeManifesteRoutes[] = [
 /** U+00A0, en séquence d'échappement : une littérale est refusée par ESLint. */
 const NBSP = '\u00A0';
 
-function configurer(manifeste: readonly EntreeManifesteRoutes[] = MANIFESTE): void {
+/**
+ * L'horaire par défaut des tests : AUCUN.
+ *
+ * Le jeton `HORAIRES_DES_COURS` a une vraie valeur par défaut — les horaires
+ * COMPILÉS du dépôt, `securite-web` compris. Sans ce provider, chaque test de
+ * `securite-web` rendrait donc les trois jalons de l'horaire réel de l'enseignant,
+ * et la suite épinglerait un inventaire ÉDITORIAL qu'aucun lot ne contrôle (L-065).
+ * Les tests de jalons fournissent leur propre horaire, écrit ici (L-012).
+ */
+const SANS_HORAIRE: ReadonlyMap<string, HoraireCompile> = new Map();
+
+function configurer(
+  manifeste: readonly EntreeManifesteRoutes[] = MANIFESTE,
+  horaires: ReadonlyMap<string, HoraireCompile> = SANS_HORAIRE,
+): void {
   TestBed.configureTestingModule({
-    providers: [provideRouter([]), { provide: MANIFESTE_LECONS, useValue: manifeste }],
+    providers: [
+      provideRouter([]),
+      { provide: MANIFESTE_LECONS, useValue: manifeste },
+      { provide: HORAIRES_DES_COURS, useValue: horaires },
+    ],
   });
 }
 
@@ -517,6 +539,7 @@ describe('Sommaire', () => {
         providers: [
           provideRouter([]),
           { provide: MANIFESTE_LECONS, useValue: MANIFESTE },
+          { provide: HORAIRES_DES_COURS, useValue: SANS_HORAIRE },
           { provide: PLATFORM_ID, useValue: 'server' },
           { provide: ProgressionService, useValue: toutMaitrise },
         ],
@@ -623,6 +646,304 @@ describe('Sommaire', () => {
       for (const element of focalisables) {
         expect(element.tagName).toBe('A');
       }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Les jalons d'évaluation — `docs/contenu/ancrage-au-cours.md` §5(c)
+  // ---------------------------------------------------------------------------
+  // L'horaire est FABRIQUÉ ici, jamais lu dans `content/` : un test calibré sur
+  // l'horaire réel de l'enseignant épinglerait un inventaire éditorial, et
+  // rougirait le jour où le cégep déplace un examen (L-065). Les trois évaluations
+  // reproduisent seulement les FORMES que le contrat autorise — portée contiguë,
+  // portée trouée, portée absente.
+  describe('jalons d’évaluation (contrat §5(c))', () => {
+    /** Trois groupes : séance 1, séance 7, puis un complément SANS séance. */
+    const MANIFESTE_ANCRE: readonly EntreeManifesteRoutes[] = [
+      {
+        sujet: 'securite-web',
+        slug: 'fondamentaux',
+        section: 'Fondements',
+        ordre: 1,
+        titre: 'Les fondamentaux',
+        dureeEstimee: 20,
+        niveau: 'cegep',
+        statut: 'publiee',
+        seance: 1,
+      },
+      {
+        sujet: 'securite-web',
+        slug: 'injection',
+        section: 'Sécurité du code',
+        ordre: 2,
+        titre: 'L’injection',
+        dureeEstimee: 20,
+        niveau: 'cegep',
+        statut: 'publiee',
+        seance: 7,
+      },
+      {
+        sujet: 'securite-web',
+        slug: 'evaluation-cvss',
+        section: 'Compléments',
+        ordre: 3,
+        titre: 'Le CVSS',
+        dureeEstimee: 20,
+        niveau: 'cegep',
+        statut: 'publiee',
+      },
+    ];
+
+    function horaireDe(seances: HoraireCompile['seances']): ReadonlyMap<string, HoraireCompile> {
+      return new Map([
+        [
+          'securite-web',
+          {
+            sujet: 'securite-web',
+            cours: {
+              code: '420-B10-HU',
+              titre: 'Cours de test',
+              enseignant: 'Une enseignante',
+              etablissement: 'Un cégep',
+              session: 'Automne 2026',
+            },
+            seances,
+          },
+        ],
+      ]);
+    }
+
+    /** Les trois formes d'évaluation du contrat, sur un calendrier complet. */
+    const SEANCES: HoraireCompile['seances'] = [
+      { numero: 1, date: '2026-08-07', titre: 'Introduction' },
+      {
+        numero: 6,
+        date: '2026-09-11',
+        titre: 'Examen 1',
+        evaluation: { libelle: 'Examen 1', ponderation: 20, portee: [1, 2, 3, 4] },
+      },
+      { numero: 7, date: '2026-09-18', titre: 'Sécurité du code' },
+      {
+        numero: 11,
+        date: '2026-10-16',
+        titre: 'Projet de session',
+        evaluation: { libelle: 'Projet de session', ponderation: 20 },
+      },
+      {
+        numero: 13,
+        date: '2026-10-30',
+        titre: 'Examen final',
+        evaluation: {
+          libelle: 'Examen final',
+          ponderation: 60,
+          portee: [1, 2, 3, 4, 5, 7, 8, 9, 10],
+        },
+      },
+    ];
+
+    const EXAMEN_1 = `Examen 1${NBSP}· 11${NBSP}septembre${NBSP}· séances${NBSP}1${NBSP}à${NBSP}4`;
+    const PROJET = `Projet de session${NBSP}· 16${NBSP}octobre`;
+    const EXAMEN_FINAL =
+      `Examen final${NBSP}· 30${NBSP}octobre${NBSP}· ` +
+      `séances${NBSP}1${NBSP}à${NBSP}5, 7${NBSP}à${NBSP}10`;
+
+    function preparer(
+      seances: HoraireCompile['seances'] = SEANCES,
+      manifeste: readonly EntreeManifesteRoutes[] = MANIFESTE_ANCRE,
+    ): void {
+      TestBed.resetTestingModule();
+      configurer(manifeste, horaireDe(seances));
+    }
+
+    /** La suite RENDUE des groupes et des jalons, dans l'ordre du document. */
+    function sequence(fixture: ComponentFixture<Sommaire>): string[] {
+      return [...hote(fixture).querySelectorAll('.groupe, .jalon')].map((noeud) =>
+        noeud.classList.contains('jalon')
+          ? `jalon: ${noeud.textContent?.trim() ?? ''}`
+          : `groupe: ${noeud.querySelector('.titre-section')?.textContent?.trim() ?? ''}`,
+      );
+    }
+
+    it('rend les TROIS évaluations de l’horaire, le projet de session compris', async () => {
+      preparer();
+
+      const fixture = await rendre('securite-web');
+
+      // Le projet compte : c'est une évaluation à 20 %, pas une séance ordinaire.
+      expect(textes(fixture, '.jalon')).toEqual([EXAMEN_1, PROJET, EXAMEN_FINAL]);
+    });
+
+    it('🔴 intercale chaque jalon APRÈS le groupe qu’il évalue, dans l’ordre des séances', async () => {
+      // « Fondements » s'arrête à la séance 1, « Sécurité du code » à la 7 : l'examen 1
+      // (séance 6) tombe entre les deux, le projet (11) et l'examen final (13) suivent
+      // tous deux le second groupe — par séance CROISSANTE. Les « Compléments », sans
+      // séance, ne comptent dans aucun maximum et se rangent après tous les jalons.
+      preparer();
+
+      const fixture = await rendre('securite-web');
+
+      expect(sequence(fixture)).toEqual([
+        'groupe: Fondements',
+        `jalon: ${EXAMEN_1}`,
+        'groupe: Sécurité du code',
+        `jalon: ${PROJET}`,
+        `jalon: ${EXAMEN_FINAL}`,
+        'groupe: Compléments',
+      ]);
+    });
+
+    it('écrit la portée en PLAGE quand elle est contiguë, en énumération sinon', async () => {
+      preparer();
+
+      const fixture = await rendre('securite-web');
+      const libelles = textes(fixture, '.jalon');
+
+      expect(libelles[0]).toContain(`séances${NBSP}1${NBSP}à${NBSP}4`);
+      // La séance 6 est l'examen 1 : elle n'est la matière de personne, d'où le trou.
+      // « 1, 2, 3, 4, 5, 7, 8, 9, 10 » serait exact et illisible.
+      expect(libelles[2]).toContain(`séances${NBSP}1${NBSP}à${NBSP}5, 7${NBSP}à${NBSP}10`);
+      expect(libelles[2]).not.toContain('6');
+    });
+
+    it('met le SINGULIER à une seule séance de portée', async () => {
+      preparer([
+        { numero: 1, date: '2026-08-07', titre: 'Introduction' },
+        {
+          numero: 6,
+          date: '2026-09-11',
+          titre: 'Test',
+          evaluation: { libelle: 'Test de lecture', ponderation: 5, portee: [3] },
+        },
+      ]);
+
+      const fixture = await rendre('securite-web');
+
+      expect(textes(fixture, '.jalon')).toEqual([
+        `Test de lecture${NBSP}· 11${NBSP}septembre${NBSP}· séance${NBSP}3`,
+      ]);
+    });
+
+    it('🔴 n’annonce AUCUNE séance quand l’enseignant n’a publié aucune portée', async () => {
+      // Inventer une portée annoncerait une matière d'examen qui n'a jamais été
+      // annoncée — l'un des deux échecs symétriques de `contenu-pedagogique.md` §6.
+      preparer();
+
+      const fixture = await rendre('securite-web');
+      const projet = textes(fixture, '.jalon')[1] ?? '';
+
+      expect(projet).toBe(PROJET);
+      expect(projet).not.toContain('séance');
+    });
+
+    it('🔴 formate la date SANS décalage de fuseau — le 7 août reste le 7', async () => {
+      // `new Date('2026-08-07')` est lu en UTC : à l'ouest de Greenwich il rend le
+      // 6 août. Le contrat impose donc un découpage de chaîne, et ce test est le seul
+      // endroit du dépôt qui le prouve. Le `07` du contrat ne doit pas non plus
+      // ressortir tel quel (« 07 août »).
+      preparer([
+        {
+          numero: 1,
+          date: '2026-08-07',
+          titre: 'Test',
+          evaluation: { libelle: 'Test éclair', ponderation: 5 },
+        },
+      ]);
+
+      const fixture = await rendre('securite-web');
+
+      expect(textes(fixture, '.jalon')).toEqual([`Test éclair${NBSP}· 7${NBSP}août`]);
+    });
+
+    it('ne rend AUCUN jalon quand le sujet n’a pas d’horaire', async () => {
+      // Le cas du cours PHP : des modules PUBLIÉS, pas encore de calendrier compilé.
+      // Le manifeste général est repris exprès — il porte deux leçons PHP, sans quoi
+      // ce test serait vert par absence de modules et ne prouverait rien (L-005).
+      TestBed.resetTestingModule();
+      configurer(MANIFESTE, horaireDe(SEANCES));
+
+      const fixture = await rendre('php');
+
+      expect(hote(fixture).querySelectorAll('.module').length).toBe(2);
+      expect(hote(fixture).querySelectorAll('.jalon').length).toBe(0);
+    });
+
+    it('🔴 LÈVE en nommant la section quand un jalon tomberait DANS un groupe', async () => {
+      // Contrôle positif du fail-closed. Le groupe « Mêlée » couvre les séances 5 ET
+      // 7 : l'examen de la séance 6 n'a aucune frontière où se poser. Repousser le
+      // jalon rendrait une page plausible et FAUSSE sur ce que l'examen couvre.
+      //
+      // L'assertion porte sur le `computed` plutôt que sur `rendre()` : une erreur
+      // levée pendant la détection de changements part au `ErrorHandler` d'Angular,
+      // qui la journalise sans rejeter la promesse — le test serait vert.
+      TestBed.resetTestingModule();
+      configurer(
+        [
+          {
+            sujet: 'securite-web',
+            slug: 'avant',
+            section: 'Mêlée',
+            ordre: 1,
+            titre: 'Avant l’examen',
+            dureeEstimee: 10,
+            niveau: 'cegep',
+            statut: 'publiee',
+            seance: 5,
+          },
+          {
+            sujet: 'securite-web',
+            slug: 'apres',
+            section: 'Mêlée',
+            ordre: 2,
+            titre: 'Après l’examen',
+            dureeEstimee: 10,
+            niveau: 'cegep',
+            statut: 'publiee',
+            seance: 7,
+          },
+        ],
+        horaireDe(SEANCES),
+      );
+
+      const composant = TestBed.createComponent(Sommaire);
+      composant.componentRef.setInput('sujet', 'securite-web');
+
+      expect(() => composant.componentInstance.elements()).toThrowError(/Mêlée/);
+      expect(() => composant.componentInstance.elements()).toThrowError(/Examen 1/);
+    });
+
+    it('🔴 garde le MÊME nombre de jalons, aux mêmes places, quelle que soit la progression', async () => {
+      // Moitié « jalons » du gate d'hydratation (L-033) : ils viennent du manifeste et
+      // de l'horaire, donc le fichier prerendu et le premier rendu client les portent
+      // à l'identique. Un `@if` qui lirait la progression casserait ce test.
+      preparer();
+      const vide = await rendre('securite-web');
+      const sequenceVide = sequence(vide);
+
+      preparer();
+      const progression = TestBed.inject(ProgressionService);
+      progression.enregistrerQuiz('securite-web', 'fondamentaux', 5, 5);
+      const peuple = await rendre('securite-web');
+
+      expect(sequence(peuple)).toEqual(sequenceVide);
+      // Anti-vacuité (L-005) : la progression a bien été lue par ailleurs.
+      expect(hote(peuple).querySelectorAll('.etat-maitrise').length).toBe(1);
+    });
+
+    it('n’entre dans AUCUNE liste de modules, et n’ajoute rien aux compteurs', async () => {
+      // Un jalon dans l'`<ol>` serait annoncé « élément N sur M » — une leçon de plus.
+      preparer();
+
+      const fixture = await rendre('securite-web');
+
+      expect(hote(fixture).querySelectorAll('ol .jalon').length).toBe(0);
+      for (const liste of hote(fixture).querySelectorAll('ol')) {
+        for (const enfant of liste.children) {
+          expect(enfant.tagName).toBe('LI');
+        }
+      }
+      expect(hote(fixture).querySelector('.resume')?.textContent).toContain('3 modules');
+      // Aucun focalisable ajouté : un jalon n'est ni un lien ni un bouton.
+      expect(hote(fixture).querySelectorAll('.jalon a, .jalon button').length).toBe(0);
     });
   });
 

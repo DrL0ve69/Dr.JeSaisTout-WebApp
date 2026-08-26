@@ -65,7 +65,14 @@ import {
 import { RouterLink } from '@angular/router';
 
 import { ProgressionService } from '../../../core/progression/progression';
-import { MANIFESTE_LECONS, leconsPubliees, niveauLisible } from '../contenu-compile';
+import {
+  EvaluationDuCours,
+  HORAIRES_DES_COURS,
+  MANIFESTE_LECONS,
+  SeanceDuCours,
+  leconsPubliees,
+  niveauLisible,
+} from '../contenu-compile';
 
 /**
  * Les trois états d'un module, et il n'y en a pas de quatrième.
@@ -106,7 +113,56 @@ export interface GroupeSommaire {
   /** `null` ⇒ liste plate : aucun titre de section n'est rendu. */
   readonly section: string | null;
   readonly modules: readonly ModuleSommaire[];
+  /**
+   * Les numéros de séance des modules du groupe, dans l'ordre de lecture — jamais
+   * rendus, ils servent UNIQUEMENT à placer les jalons d'évaluation.
+   *
+   * Un module sans `seance` (complément hors cours) n'y figure pas : il ne compte
+   * dans aucun maximum, et un groupe qui n'en contient que de tels modules ne peut
+   * donc recevoir aucun jalon avant lui. C'est ce que dit
+   * `docs/contenu/ancrage-au-cours.md` §5(c), et c'est aussi la seule lecture
+   * honnête : un complément n'a pas de place dans le calendrier du cours.
+   */
+  readonly seances: readonly number[];
 }
+
+/**
+ * UN JALON D'ÉVALUATION — « Examen 1 · 11 septembre · séances 1 à 4 ».
+ *
+ * Ce n'est PAS un module : il n'a ni lien, ni état, ni progression. Il vient de
+ * l'HORAIRE (`horaire.json`), donc du contenu compilé, donc il est rigoureusement
+ * identique au prerender et après hydratation (L-033).
+ */
+export interface JalonSommaire {
+  readonly cle: string;
+  /** Le numéro de la séance d'évaluation — sa position dans le calendrier. */
+  readonly seance: number;
+  /** Le TEXTE, entier. WCAG 1.4.1 : l'information ne passe ni par la couleur ni par un trait. */
+  readonly libelle: string;
+}
+
+/** Un groupe de modules, à sa place dans la suite rendue. */
+export interface ElementGroupe {
+  readonly type: 'groupe';
+  readonly cle: string;
+  readonly groupe: GroupeSommaire;
+}
+
+/** Un jalon d'évaluation, intercalé ENTRE deux groupes — jamais dans une liste de modules. */
+export interface ElementJalon {
+  readonly type: 'jalon';
+  readonly cle: string;
+  readonly jalon: JalonSommaire;
+}
+
+/**
+ * Ce que le gabarit itère : groupes et jalons dans l'ordre de lecture.
+ *
+ * Une union DISCRIMINÉE plutôt que deux champs optionnels : « un groupe et un
+ * jalon à la fois » et « ni l'un ni l'autre » sont des états qui n'existent pas,
+ * et un type qui les autorise finit par les produire.
+ */
+export type ElementSommaire = ElementGroupe | ElementJalon;
 
 /**
  * Clef interne de l'unique groupe d'une liste plate.
@@ -163,6 +219,182 @@ function formaterDuree(minutes: number): string {
   return `${heures}${ESPACE_INSECABLE}h${ESPACE_INSECABLE}${String(reste).padStart(2, '0')}`;
 }
 
+// -----------------------------------------------------------------------------
+// Les jalons d'évaluation — `docs/contenu/ancrage-au-cours.md` §5(c)
+// -----------------------------------------------------------------------------
+
+/**
+ * Les douze mois, indexés par `rang - 1` du champ `MM` du contrat.
+ *
+ * 🔴 AUCUN `Date`, ET CE N'EST PAS UNE PRÉFÉRENCE DE STYLE. `new Date('2026-09-11')`
+ * est interprété en UTC par la spécification : à l'ouest de Greenwich — donc sur tout
+ * le Québec — la date locale qui en sort est le 10 septembre. Le site annoncerait
+ * l'examen la veille, et un site PRERENDU fige cette erreur dans le fichier servi.
+ * La date du contrat est une CHAÎNE `AAAA-MM-JJ` : on la découpe, on l'indexe.
+ */
+const MOIS_EN_FRANCAIS = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+] as const;
+
+/**
+ * Le séparateur du libellé d'un jalon.
+ *
+ * Insécable AVANT le point médian, ordinaire APRÈS : la puce ne peut jamais se
+ * retrouver seule en début de ligne, et le libellé garde le droit de se replier sur
+ * un écran étroit. U+00A0 en séquence d'échappement — voir l'en-tête du fichier.
+ */
+const SEPARATEUR_JALON = `${ESPACE_INSECABLE}· `;
+
+/**
+ * `AAAA-MM-JJ` → « 11 septembre ». Sans année : le jalon vit dans le calendrier
+ * d'UNE session, que l'en-tête du cours nomme déjà.
+ *
+ * Le quantième passe par `Number` pour que le `07` du contrat ne se rende pas
+ * « 07 août ». Une date hors table retombe sur la chaîne BRUTE plutôt que sur un
+ * mois inventé : `lireHoraires` la refuse déjà au chargement, et si elle passait
+ * quand même, l'ISO est au moins vrai.
+ */
+function formaterDateCourte(iso: string): string {
+  const [, mois, jour] = iso.split('-');
+  const nomDuMois = MOIS_EN_FRANCAIS[Number(mois) - 1];
+  const quantieme = Number(jour);
+  if (nomDuMois === undefined || !Number.isInteger(quantieme) || quantieme < 1) {
+    return iso;
+  }
+  return `${quantieme}${ESPACE_INSECABLE}${nomDuMois}`;
+}
+
+/** Une plage de séances, ou une séance seule quand les deux bornes coïncident. */
+function ecrirePlage(debut: number, fin: number): string {
+  return debut === fin
+    ? `${debut}`
+    : `${debut}${ESPACE_INSECABLE}à${ESPACE_INSECABLE}${fin}`;
+}
+
+/**
+ * La portée d'une évaluation — « séances 1 à 4 », « séances 1 à 5, 7 à 10 »,
+ * « séance 3 ».
+ *
+ * Les numéros CONTIGUS se replient en plage ; un trou (la séance 6 est l'examen 1,
+ * elle n'est la matière de personne) ouvre une nouvelle plage. Énumérer « 1, 2, 3,
+ * 4, 5, 7, 8, 9, 10 » serait exact et illisible.
+ *
+ * Une portée VIDE rend la chaîne vide, et l'appelant n'annonce alors aucune séance —
+ * même règle qu'une portée absente : on n'invente pas de matière d'examen.
+ */
+function formaterPortee(portee: readonly number[]): string {
+  const numeros = [...new Set(portee)].sort((a, b) => a - b);
+  const plages: string[] = [];
+  let debut: number | undefined;
+  let fin: number | undefined;
+
+  for (const numero of numeros) {
+    if (debut === undefined || fin === undefined) {
+      debut = numero;
+      fin = numero;
+    } else if (numero === fin + 1) {
+      fin = numero;
+    } else {
+      plages.push(ecrirePlage(debut, fin));
+      debut = numero;
+      fin = numero;
+    }
+  }
+  if (debut !== undefined && fin !== undefined) {
+    plages.push(ecrirePlage(debut, fin));
+  }
+
+  if (plages.length === 0) {
+    return '';
+  }
+  // Le français met le singulier à 1 : « séance 3 », jamais « séances 3 ».
+  const nom = numeros.length >= 2 ? 'séances' : 'séance';
+  return `${nom}${ESPACE_INSECABLE}${plages.join(', ')}`;
+}
+
+/**
+ * Le libellé complet d'un jalon.
+ *
+ * Le `libelle` de l'évaluation se rend TEL QUEL, comme la pastille de la page de
+ * leçon : fabriquer « à l'examen 1 » depuis la donnée donne « à l'Projet de session »
+ * au premier libellé qui ne commence pas par une voyelle.
+ *
+ * SANS `portee`, AUCUNE séance n'est annoncée (cas du projet de session) :
+ * l'enseignant n'en a publié aucune, et en inventer une annoncerait une matière
+ * d'examen qui n'a jamais été annoncée (`ancrage-au-cours.md` §5).
+ */
+function decrireJalon(seance: SeanceDuCours, evaluation: EvaluationDuCours): JalonSommaire {
+  const parties = [evaluation.libelle, formaterDateCourte(seance.date)];
+  const portee = evaluation.portee === undefined ? '' : formaterPortee(evaluation.portee);
+  if (portee !== '') {
+    parties.push(portee);
+  }
+  return {
+    cle: `jalon:${seance.numero}`,
+    seance: seance.numero,
+    libelle: parties.join(SEPARATEUR_JALON),
+  };
+}
+
+/**
+ * Le rang du groupe APRÈS lequel un jalon s'intercale — `-1` ⇒ avant tous.
+ *
+ * La règle, telle que le contrat la tranche : le groupe retenu est celui dont la plus
+ * grande séance est la plus grande encore STRICTEMENT INFÉRIEURE à la séance du jalon.
+ * À maximum égal, le dernier groupe l'emporte — un jalon se pose après TOUT ce qu'il
+ * évalue, pas au milieu.
+ *
+ * 🔴 FAIL-CLOSED. Si un jalon devait tomber À L'INTÉRIEUR d'un groupe — le groupe
+ * contient à la fois une séance antérieure et une séance postérieure à l'évaluation —
+ * on LÈVE en nommant la section et l'évaluation. Repousser le jalon à la frontière la
+ * plus proche rendrait une page plausible et FAUSSE : elle annoncerait que l'examen
+ * couvre (ou ne couvre pas) des modules dont la place dans le calendrier dit le
+ * contraire. Le cas n'existe pas aujourd'hui dans `securite-web` ; le jour où il
+ * apparaît, c'est une décision de découpe éditoriale, et elle doit se voir. Même
+ * régime que `ancrerAuCours`, qui lève plutôt que de retomber sur « hors cours ».
+ */
+function positionDuJalon(groupes: readonly GroupeSommaire[], jalon: JalonSommaire): number {
+  let position = -1;
+  let plusGrandMaximum = Number.NEGATIVE_INFINITY;
+
+  for (const [rang, groupe] of groupes.entries()) {
+    if (groupe.seances.length === 0) {
+      continue;
+    }
+    const minimum = Math.min(...groupe.seances);
+    const maximum = Math.max(...groupe.seances);
+
+    if (minimum < jalon.seance && maximum > jalon.seance) {
+      const ou = groupe.section ?? 'la liste plate (aucune section)';
+      throw new Error(
+        `Sommaire — « ${jalon.libelle} » (séance ${jalon.seance}) tomberait À L'INTÉRIEUR de ` +
+          `« ${ou} », qui couvre les séances ${minimum} à ${maximum}. Un jalon d'évaluation ne ` +
+          "se rend qu'ENTRE deux groupes : trancher la découpe des sections " +
+          '(`docs/contenu/ancrage-au-cours.md` §5) plutôt que de repousser le jalon à une ' +
+          "frontière, ce qui mentirait sur la position de l'évaluation dans le calendrier.",
+      );
+    }
+
+    if (maximum < jalon.seance && maximum >= plusGrandMaximum) {
+      plusGrandMaximum = maximum;
+      position = rang;
+    }
+  }
+
+  return position;
+}
+
 @Component({
   selector: 'app-sommaire',
   imports: [RouterLink],
@@ -175,6 +407,7 @@ export class Sommaire {
   readonly sujet = input.required<string>();
 
   private readonly manifeste = inject(MANIFESTE_LECONS);
+  private readonly horaires = inject(HORAIRES_DES_COURS);
   private readonly progression = inject(ProgressionService);
 
   /**
@@ -220,18 +453,98 @@ export class Sommaire {
     // liste déjà triée par `ordre`. Les sections se rangent donc d'elles-mêmes,
     // sans exiger qu'elles soient contiguës dans le manifeste.
     const parGroupe = new Map<string, ModuleSommaire[]>();
+    const seancesParGroupe = new Map<string, number[]>();
     for (const entree of lecons) {
       const cle = sectionne ? (entree.section ?? '').trim() : CLE_LISTE_PLATE;
       const modules = parGroupe.get(cle) ?? [];
       modules.push(this.decrire(entree, lisible));
       parGroupe.set(cle, modules);
+
+      // `seance` est OPTIONNEL, et son absence a un sens (« complément hors cours ») :
+      // le module existe, il ne prend simplement aucune place au calendrier.
+      if (entree.seance !== undefined) {
+        const seances = seancesParGroupe.get(cle) ?? [];
+        seances.push(entree.seance);
+        seancesParGroupe.set(cle, seances);
+      }
     }
 
     return [...parGroupe].map(([cle, modules]) => ({
       cle,
       section: sectionne ? cle : null,
       modules,
+      seances: seancesParGroupe.get(cle) ?? [],
     }));
+  });
+
+  /**
+   * Les jalons du cours — TOUTES les séances de l'horaire qui portent une évaluation.
+   *
+   * Le projet de session en fait partie : c'est une évaluation à 20 %, et l'absence
+   * de `portee` ne la rend pas moins datée ni moins due.
+   *
+   * L'ORDRE N'EST PAS REFAIT ICI. `lireHoraires` VÉRIFIE que les séances sont
+   * strictement croissantes (et refuse l'artéfact sinon) : re-trier masquerait une
+   * régression du pipeline, exactement comme pour le manifeste.
+   *
+   * Ne dépend QUE des horaires et du sujet — donc invariant à l'hydratation.
+   */
+  private readonly jalons = computed<readonly JalonSommaire[]>(() => {
+    const horaire = this.horaires.get(this.sujet());
+    if (horaire === undefined) {
+      return [];
+    }
+
+    const jalons: JalonSommaire[] = [];
+    for (const seance of horaire.seances) {
+      const evaluation = seance.evaluation;
+      if (evaluation !== undefined) {
+        jalons.push(decrireJalon(seance, evaluation));
+      }
+    }
+    return jalons;
+  });
+
+  /**
+   * CE QUE LE GABARIT ITÈRE : les groupes de modules, et les jalons d'évaluation
+   * intercalés à leur position d'horaire (`ancrage-au-cours.md` §5(c)).
+   *
+   * 🔴 INVARIANT À L'HYDRATATION (L-033). Les deux entrées de ce calcul — le
+   * manifeste et l'horaire — sont du contenu COMPILÉ : le nombre de jalons et leur
+   * position sont identiques dans le fichier prerendu et après hydratation. La
+   * progression ne touche que le TEXTE des badges, jamais cette suite.
+   *
+   * `groupes()` reste la source de `modules()`, donc des compteurs : intercaler des
+   * jalons ici n'en ajoute aucun au dénominateur — un jalon n'est pas un module.
+   */
+  readonly elements = computed<readonly ElementSommaire[]>(() => {
+    const groupes = this.groupes();
+
+    // Les jalons sont rangés par position ; l'itération suivant l'ordre de l'horaire,
+    // plusieurs jalons partageant une position sortent par séance CROISSANTE.
+    const parPosition = new Map<number, JalonSommaire[]>();
+    for (const jalon of this.jalons()) {
+      const position = positionDuJalon(groupes, jalon);
+      const liste = parPosition.get(position) ?? [];
+      liste.push(jalon);
+      parPosition.set(position, liste);
+    }
+
+    const elements: ElementSommaire[] = [];
+    const poserLesJalons = (position: number): void => {
+      for (const jalon of parPosition.get(position) ?? []) {
+        elements.push({ type: 'jalon', cle: jalon.cle, jalon });
+      }
+    };
+
+    // `-1` : aucun groupe ne précède ce jalon — il ouvre la page. C'est le cas d'un
+    // cours dont les premiers modules ne sont pas encore publiés.
+    poserLesJalons(-1);
+    for (const [rang, groupe] of groupes.entries()) {
+      elements.push({ type: 'groupe', cle: `groupe:${groupe.cle}`, groupe });
+      poserLesJalons(rang);
+    }
+    return elements;
   });
 
   /** Tous les modules rendus, à plat — la SEULE source des compteurs ci-dessous. */

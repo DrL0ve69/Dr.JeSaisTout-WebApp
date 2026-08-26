@@ -3270,14 +3270,20 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 > Motif : la carte de parcours d'E2-ST6 doit refléter le cours, et un module obèse est le contraire
 > d'un jalon.
 >
-> **Ce bloc ne prend pas le chemin critique de mi-septembre** — il se livre après le bloc C.
+> 🔴 **CETTE LIGNE A ÉTÉ RENVERSÉE LE 2026-08-25 — ne pas s'y fier telle qu'elle était écrite.**
+> Elle disait « ce bloc ne prend pas le chemin critique de mi-septembre ». C'était vrai le
+> 2026-08-19, quand l'ordre de lecture suivait le Top 10 de l'OWASP. La renumérotation sur
+> l'horaire réel (commit `a73072d`) a fait des **séances 2, 3 et 4 la matière de l'examen 1 du
+> 11 septembre** : ce bloc EST désormais le chemin critique, et il passe **avant** le reste du
+> bloc C. L'ordre qui fait foi est celui du Bloc 0 : séances 2, 3, 4 → réalignement de la
+> séance 1 → séance 5.
 
 | ID | Module (`NN-slug`) | Séance du cours | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|---|
-| E3-ST14 | `14-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ⬜ |
-| E3-ST15 | `15-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
-| E3-ST16 | `16-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
-| E3-ST17 | `17-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
+| E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ⬜ |
+| E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
+| E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
+| E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
 
