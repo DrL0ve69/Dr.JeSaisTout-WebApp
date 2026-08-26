@@ -60,6 +60,60 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
+> ## ⏭️ REPRISE — état au 2026-08-26 (fin de journée)
+
+> ✅ **E3-ST14 `02-environnement-linux` (séance 2) EST PUBLIÉE — sept leçons en ligne.** La décision
+> du propriétaire « les deux, côte à côte » est appliquée : méthode du cours (PuTTY, WinSCP, `vi`) en
+> chemin principal ET référence évaluable, équivalent moderne (OpenSSH, `scp`/`rsync`, VS Code
+> Remote-SSH) en `::: complement`. Détail, erreurs attrapées et **nœud laissé au propriétaire** :
+> backlog, bloc « ✅ CLÔTURE — E3-ST14 ». Gates : G-test **949/43**, G-axe **10 pages / 860
+> vérifications / 0 violation**, G-build **10 routes · 14 hachages de style / 0 de script**, G-e2e
+> **50 passés / 1 sauté**, `npm audit --omit=dev` **0**.
+>
+> **Le geste suivant : E3-ST15 `03-communication-serveur` (séance 3)** — SSH, authentification par
+> clés, durcissement de l’accès distant. Fiche KB `web/securite/securisation-acces-distant-ssh.md`,
+> **avec simulation** (session par mot de passe vs par clé). La décision « les deux, côte à côte »
+> vaut aussi pour les séances 3 à 5 ; le matériel de modernisation vit dans `README.txt` (Cours 3 :
+> l. 160-246 · Cours 4 : l. 247-289 · Cours 5 : l. 290-334). ⚠️ **Il n’est PAS sourcé** — c’est une
+> conversation avec un assistant IA. Il entre comme **piste**, sous marqueur `à-vérifier:`, et la
+> leçon déjà contre-vérifiée l’emporte en cas de contradiction.
+>
+> 🔴 **CE QUE CE LOT A APPRIS, ET QUI VAUT POUR LES TROIS SÉANCES SUIVANTES.** Adjoindre un
+> « équivalent moderne » n’est pas un travail d’AJOUT : c’est une **interversion**, et une
+> interversion falsifie de la prose **à distance**. Mesuré : « il te demande alors de confirmer par
+> `yes` » était exacte tant que `ssh` était le chemin principal, et est devenue fausse vingt lignes
+> plus bas dès que PuTTY l’est devenu — PuTTY ouvre une boîte *Security Alert*, pas une invite texte.
+> Personne n’avait touché à cette phrase ; **aucun diff ne la signalait**. Donc : après une
+> interversion, relire la **section entière** jusqu’à son prochain titre, et donner au vérificateur
+> une plage qui **couvre la section**, jamais les seules lignes neuves.
+> ⚠️ **Effet de projecteur, à connaître :** la piste non sourcée a bien produit trois erreurs
+> bloquantes (« OpenSSH installé par défaut sous Windows » — c’est une *fonctionnalité facultative* ;
+> « Git Bash fournit `rsync` » — non ; la barre oblique finale de `rsync`), mais **le défaut le plus
+> grave du lot n’était aucune des trois**. Une source douteuse attire toute l’attention sur
+> elle-même, et la détourne de ce que son intégration a déplacé.
+>
+> ✅ **LA DETTE `content:build` EST PAYÉE — la validation précède désormais la purge.** Un contenu
+> refusé laisse `src/content-generated/` **intact** au lieu de le vider et de faire tomber `npm test`
+> sur une erreur Sass qui ne nomme pas la cause. Tenu par deux tests dans
+> `src/pipeline-contenu-orchestration.spec.ts` : un **fichier sentinelle sur le disque** — et non
+> l’ordre des étiquettes au journal, qu’une renumérotation laisserait vert — plus un contrôle positif
+> de l’ordre nominal. ⚠️ Reste vraie, la leçon de coordination : deux agents sur des **fichiers**
+> disjoints ne sont pas isolés s’ils partagent un **artéfact** ou un **gate**.
+>
+> ✅ **LA DETTE D’ÉTIQUETAGE DES BLOCS DE CODE EST PAYÉE.** 12 blocs `typescript` → `javascript` dans
+> les leçons 07, 08 et 09 — aucun ne portait la moindre syntaxe TypeScript ; les `bash` de 07 et 10 et
+> les `typescript` de 10 sont, eux, exacts.
+> ⚠️ **RÉSIDU NOMMÉ, tranché par le fil principal :** les deux blocs d’**en-tête HTTP** (la CSP dans
+> 08-xss, le `Set-Cookie` dans 09-csrf) n’avaient **aucune étiquette juste** — la liste des langues est
+> fermée à huit et `http` n’en fait pas partie. Ils sont sortis du bloc clôturé et rendus en code **en
+> ligne**, sans `<figcaption>` ni `aria-label` annonçant une langue. L’autre voie — ajouter `http`
+> comme neuvième grammaire — est un **lot à part** : une grammaire neuve fait apparaître des encres
+> neuves à mesurer contre `--couleur-code-surface`.
+>
+> ⚠️ **U+26A0 (`⚠`) EST UN MARQUEUR RÉSERVÉ**, au même titre que 📘 et 🧩 : `valider.mjs` §8 l’interdit
+> en prose, hors bloc de code. L’employer comme simple signe d’attention dans une leçon fait rougir
+> G-content — piège payé aujourd’hui, dans un correctif du fil principal.
+
 > ## ⏭️ REPRISE — état au 2026-08-24
 >
 > **✅ CINQ LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss`, `03-injection`,

@@ -143,9 +143,19 @@ lignes**. ~3 900 tokens au lieu de 51 600.
       corpus en entier est désormais un défaut de méthode, pas une prudence.
 - [ ] **Sans plage de lignes, un index ne sert à rien** : l'agent n'a pas d'autre choix que
       d'ouvrir le fichier. C'est ce qui rendait inopérant l'index déjà imprimé par le hook.
-- [ ] 🔴 **Les deux `mentor` régénèrent l'index en dernier geste.** Ajouter, fusionner ou élaguer
-      une entrée décale toutes les plages suivantes : sans régénération, l'index envoie chaque agent
-      lire le **mauvais passage, en silence**. Un index qui ment coûte plus cher que pas d'index.
+- [ ] 🔴 **L'index se régénère après TOUTE édition du corpus** (`npm run lecons:index`). Ajouter,
+      fusionner ou élaguer une entrée décale toutes les plages suivantes : sans régénération,
+      l'index envoie chaque agent lire le **mauvais passage, en silence**. Un index qui ment coûte
+      plus cher que pas d’index.
+      ⚠️ **Ce n'est PAS le `mentor` qui le lance — cette ligne l'a affirmé jusqu'au 2026-08-26, et
+      c'était faux.** Les deux `mentor` n'ont **aucun outil d'exécution**
+      (`Read`/`Grep`/`Glob`/`Edit`/`Write`), délibérément : leur définition leur impose de terminer
+      leur rapport par une **demande explicite** de régénération, et c'est **l'appelant** qui
+      exécute. La garantie ne vit donc ni dans l'outillage du mentor ni dans la mémoire de son
+      coordinateur, mais dans un **test** — `src/index-lecons.spec.ts` confronte chaque plage
+      déclarée au corpus, et **G-test rougit** tant que l'index n'a pas été régénéré. Un brief qui
+      ordonne au mentor de lancer la commande lui demande l'impossible : constaté le 2026-08-26, le
+      mentor a répondu qu'il n'avait pas l'outil, ce qui était **exact**.
 - [ ] **Un fichier injecté partout est un budget partagé.** Le bloc de reprise de `CLAUDE.md` est
       payé par chaque agent de chaque session ; l'historique détaillé d'un epic clos appartient au
       backlog. L'élaguer à chaque clôture d'epic est du travail rentable.

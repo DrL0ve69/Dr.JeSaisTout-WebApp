@@ -1,0 +1,188 @@
+{
+  "lecon": "environnement-linux",
+  "titre": "Quiz — Gestion d'environnement infonuagique",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Une équipe déploie son application sur une plateforme où elle pousse simplement son code : elle n'ouvre jamais de session sur un système d'exploitation, et n'a aucune machine virtuelle à administrer. Une faille est annoncée dans le runtime installé sur cette plateforme. Qui doit appliquer le correctif ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Le fournisseur : la plateforme décrite est un PaaS, et en PaaS le runtime, le middleware et le système d'exploitation sont de son côté de la ligne. L'équipe garde son application, ses données, ses comptes et ses accès."
+        },
+        {
+          "id": "b",
+          "texte": "L'équipe cliente : quel que soit le modèle infonuagique, les correctifs du logiciel de base sont toujours au client, c'est la définition même de la responsabilité partagée."
+        },
+        {
+          "id": "c",
+          "texte": "L'équipe cliente, parce que la ligne de partage passe toujours au-dessus du système d'exploitation : c'est vrai en IaaS comme en PaaS."
+        },
+        {
+          "id": "d",
+          "texte": "Personne : une plateforme de ce type n'expose aucun runtime, le code s'exécute directement sur l'hyperviseur du fournisseur."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "L'indice de l'énoncé est décisif : « pousser du code sans jamais ouvrir de session sur un système d'exploitation » est la définition du PaaS. Sur la grille des neuf couches, il ne reste alors au client que les deux couches du haut, Applications et Data ; Runtime, Middleware, O/S, Virtualization, Servers, Storage et Networking sont au fournisseur. La réponse c est le piège central de la grille, et il faut savoir exactement où la ligne coupe : en IaaS la frontière passe au-dessus de la Virtualization, donc le système d'exploitation, ses correctifs, son pare-feu et son runtime sont à VOUS — c'est là que commence le travail de cette leçon. En PaaS, la ligne remonte au-dessus du Runtime. Retiens les deux repères qui évitent d'apprendre la grille par cœur : la frontière ne descend jamais d'un modèle à l'autre (chaque modèle t'enlève des couches, aucun ne t'en rend), et elle coupe toujours à un endroit qui porte un nom. La réponse b confond « partagée » et « au client » : le mot partagée dit précisément qu'une part est au fournisseur. La réponse d est fausse sur le mécanisme : le runtime existe bel et bien, il est simplement fourni et entretenu par la plateforme. Deux corollaires à ne pas perdre. D'abord, l'étage du haut ne disparaît jamais : même en SaaS, tes données, tes comptes et tes droits restent à toi — un dossier partagé « à toute personne disposant du lien » fuite exactement comme un serveur mal configuré, et aucune case de la grille du cours ne le dit. Ensuite, un classement à connaître parce que le cours le range mal : Heroku est un PaaS, pas un IaaS. À l'examen, reproduis la liste du cours ; si l'on te demande de placer Heroku dans la grille, la bonne case est PaaS.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "Passer tous les fichiers de la racine web en 644, donc sans bit d'exécution, empêche un fichier .php déposé par un attaquant d'y être exécuté.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le contresens le plus dangereux du sujet, parce qu'il donne un sentiment de sécurité parfaitement injustifié. Le bit d'exécution gouverne une seule chose : la capacité du noyau à lancer un fichier COMME UN PROGRAMME, c'est-à-dire à en faire un processus à lui seul. Ce n'est pas du tout ce qui se passe avec un script PHP. Là, le processus qui tourne est le serveur web et son interpréteur ; c'est lui qui OUVRE le fichier, en LIT le contenu et l'exécute. Or lire un fichier ne demande que le bit r. Un fichier en 644 déposé dans la racine web est donc parfaitement lisible par le serveur, donc parfaitement interprétable : le webshell fonctionne, bit d'exécution ou non. Un webshell est justement cela — un script déposé par un attaquant, qui exécute ensuite ses commandes sur la machine. Ce qui l'arrête vraiment est ailleurs, et tient en deux gestes : interdire l'écriture dans la racine web, et ne jamais faire interpréter un répertoire de téléversement. C'est aussi pourquoi un chmod -R 777 sur la racine web ne crée pas seulement un problème de confidentialité : en ouvrant l'écriture à « les autres », donc à tout processus de la machine, il transforme une faille d'écriture en exécution de code à distance. Ce que 644 apporte reste utile et vaut d'être su : il empêche que n'importe qui modifie tes fichiers, et il évite qu'un fichier soit lancé directement comme un binaire. Il ne dit simplement rien de ce qu'un interpréteur fait du contenu qu'il a le droit de lire. La bonne question n'est jamais « quel bit retirer ? » mais « QUI a le droit d'écrire ici ? » — et la réponse est presque toujours un chown, pas un chmod.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "Première connexion à un serveur neuf. Ton client affiche une empreinte du genre SHA256: suivie d'une quarantaine de caractères et attend que tu tapes yes. Que prouve exactement la comparaison de cette empreinte avec celle qu'affiche la console du fournisseur, et que risques-tu à accepter sans comparer ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Elle prouve que la clé d'hôte présentée est bien celle de TA machine, et non celle d'un intercepteur qui répondrait à sa place. Accepter sans comparer enregistre dans known_hosts l'empreinte de qui t'a répondu, quel qu'il soit — ton client la considérera ensuite comme légitime."
+        },
+        {
+          "id": "b",
+          "texte": "Elle prouve que la session sera chiffrée : sans cette confirmation, SSH ouvrirait la connexion en clair et ton mot de passe circulerait lisible sur le réseau."
+        },
+        {
+          "id": "c",
+          "texte": "Elle prouve que le serveur est à jour de ses correctifs : l'empreinte est recalculée à chaque mise à jour du système, et une empreinte périmée signale une machine non corrigée."
+        },
+        {
+          "id": "d",
+          "texte": "Elle ne sert qu'aux connexions suivantes : la toute première est de toute façon chiffrée de bout en bout, donc un intercepteur ne peut rien y lire."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Il faut séparer deux garanties que l'on confond sans arrêt : CHIFFRER une conversation et savoir AVEC QUI on la tient. SSH chiffre dès la première connexion — c'est ce qui rend les réponses b et d séduisantes — mais un chiffrement parfait avec la mauvaise personne ne protège de rien. C'est exactement le pouvoir d'un intercepteur (attaque de l'intercepteur, ou man-in-the-middle) : placé entre ton poste et le serveur, il répond à sa place, présente SA clé d'hôte, établit avec toi une session chiffrée impeccable, et lit tout ce que tu tapes — mot de passe compris — avant de le relayer au vrai serveur. Ce qu'il ne peut PAS faire, c'est présenter une clé dont l'empreinte égale celle que la console du fournisseur affiche pour ton droplet : il ne détient pas la clé privée de ta machine. D'où la parade, qui ne coûte que quelques secondes : lire l'empreinte dans la console web du droplet — les lignes SSH HOST KEY FINGERPRINTS imprimées au démarrage, ou la commande ssh-keygen -lf sur la clé publique d'hôte — et la comparer avant de répondre yes. La réponse c inverse le mécanisme : l'empreinte est celle de la paire de clés d'hôte du serveur, elle ne bouge pas quand on applique des correctifs. Deux points à retenir pour la suite. D'abord, c'est le SEUL instant où la vérification est possible : après ton yes, l'empreinte est rangée dans le fichier known_hosts et ton client fait confiance à ce que tu as accepté. Ensuite, le jour où l'empreinte change, ton client refuse bruyamment de continuer. Ce message n'est pas un bogue à contourner : ou bien la machine a légitimement changé — droplet détruit puis recréé, système réinstallé — ou bien quelqu'un répond à sa place. Dans les deux cas on cherche la cause avant de supprimer la ligne fautive de known_hosts.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q4",
+      "type": "trouver-la-faille",
+      "consigne": "Ce petit script de mise en ligne doit remplacer un lien symbolique nommé courant, qui pointe aujourd'hui vers le répertoire de la version précédente, par un lien vers la nouvelle version. Il s'exécute sans erreur — et détruit pourtant des données. Quelle ligne ?",
+      "langage": "bash",
+      "code": "cd /var/www\nls -l courant\nrm -r courant/\nln -s releases/v3 courant",
+      "ligneFautive": 3,
+      "faille": "La barre oblique finale force le suivi du lien symbolique : rm -r courant/ supprime le CONTENU du répertoire cible, pas le lien",
+      "explication": "La ligne 3 ne fait pas ce qu'elle a l'air de faire. Derrière un lien symbolique, la barre oblique finale n'est pas décorative : elle dit « traite cette destination comme un répertoire », donc elle fait SUIVRE le lien. Combinée à -r, la commande descend dans le répertoire cible — la version précédente, encore en production — et en supprime le contenu. Le lien courant, lui, survit ; il pointe désormais vers un répertoire vidé. Le geste correct est rm courant, sans barre oblique finale et sans -r : un lien symbolique n'est pas un répertoire, il n'y a rien à parcourir récursivement, on supprime simplement l'entrée qui pointe. La ligne 2 n'est PAS fautive, c'est même le bon réflexe et il faut le garder : un ls -l avant tout rm coûte trois secondes, et le tout premier caractère de la ligne tranche — l pour un lien symbolique, d pour un répertoire, - pour un fichier ordinaire. La ligne 4 n'est pas fautive non plus : recréer le lien vers la nouvelle version est l'objectif du script, elle ne fait que s'exécuter après le dégât. Le point général derrière ce cas particulier : rm n'a pas de corbeille. Il n'existe aucun « annuler », aucun dossier d'où récupérer ce qui vient d'être effacé — la sauvegarde est le seul recours, et elle se prépare avant. Deux réflexes en découlent : lancer un ls sur le motif avant de le passer à rm, et ne jamais combiner -r et -f par habitude. Le cas d'école est une variable vide dans un script, rm -rf $DOSSIER/* où $DOSSIER ne vaut rien : la commande détruit le système en une fois, sans rien demander.",
+      "correction": "cd /var/www\nls -l courant          # verifier le TYPE : « l » = lien symbolique, « d » = repertoire\nrm courant             # sans barre oblique finale et sans « -r » : on supprime le LIEN\nln -s releases/v3 courant",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q5",
+      "type": "associer",
+      "consigne": "Trois classes d'accès — propriétaire, groupe, autres — et trois droits, dont la valeur s'additionne : r vaut 4, w vaut 2, x vaut 1. Associe chaque situation à ce qui lui correspond exactement.",
+      "paires": [
+        {
+          "gauche": "Une page web : le propriétaire la modifie, tout le monde la lit, personne d'autre ne la touche (rw- r-- r--)",
+          "droite": "chmod 644"
+        },
+        {
+          "gauche": "Un répertoire qui doit rester traversable et listable par tous, modifiable par son seul propriétaire (rwx r-x r-x)",
+          "droite": "chmod 755"
+        },
+        {
+          "gauche": "Une clé privée SSH, qui ne doit être lisible que de son propriétaire (rw- --- ---)",
+          "droite": "chmod 600"
+        },
+        {
+          "gauche": "Ce que donne le bit x sur un RÉPERTOIRE",
+          "droite": "Le droit de traverser le répertoire, donc d'atteindre ce qui se trouve dedans"
+        },
+        {
+          "gauche": "Ce que donne le bit x sur un FICHIER",
+          "droite": "Le droit de lancer ce fichier comme un programme"
+        },
+        {
+          "gauche": "Ce que donne le bit w sur un RÉPERTOIRE",
+          "droite": "Le droit d'y créer et d'y supprimer des entrées"
+        },
+        {
+          "gauche": "Le vrai correctif quand le serveur web n'arrive pas à écrire dans sa propre racine web",
+          "droite": "chown -R www-data:www-data sur la racine web"
+        }
+      ],
+      "explication": "La conversion se fait toujours dans le même sens : un groupe de trois lettres devient un chiffre par simple addition — rwx vaut 4+2+1 = 7, rw- vaut 4+2 = 6, r-x vaut 4+1 = 5, r-- vaut 4 — puis on écrit les trois chiffres dans l'ordre propriétaire, groupe, autres. 644 se relit donc rw- r-- r--, et 600 se relit rw- --- ---, ce qui est exactement ce qu'exige une clé privée : le jour où « les autres » peuvent la lire, elle n'est plus privée. Le piège qui coûte le plus de points est ailleurs, dans les trois lignes du milieu : le bit x ne veut pas dire la même chose selon ce qu'il décore. Sur un fichier, il autorise à le lancer comme un programme. Sur un répertoire, il n'exécute rien du tout — il autorise à TRAVERSER, c'est-à-dire à entrer dans le répertoire pour atteindre ce qui est derrière. C'est pourquoi un répertoire en 755 est indispensable au bon fonctionnement d'un site : sans le x, le serveur web ne peut même pas entrer dans le dossier, quels que soient les droits des fichiers qui s'y trouvent. Une image aide, à condition d'en connaître la limite : un fichier est un local, le propriétaire a sa clé, le groupe une clé de service, et « les autres » c'est la rue. L'image casse précisément sur les répertoires — un répertoire sans x est un couloir muré, même si tu as la clé de toutes les pièces qui sont derrière. Retiens enfin le geste de la dernière ligne, parce qu'il est le plus utile en pratique : quand une application n'arrive pas à écrire, le réflexe chmod 777 répond à la question « comment faire taire l'erreur ? », alors que la vraie question est « QUI doit avoir le droit d'écrire ici ? ». La réponse est presque toujours un chown vers www-data, le compte sous lequel tourne le serveur web sur Ubuntu, jamais un chmod plus large.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q6",
+      "type": "vrai-faux",
+      "affirmation": "Après avoir installé le serveur web, la commande sudo systemctl enable apache2 suffit à le mettre en service : le site répond dès qu'elle rend la main.",
+      "bonneReponse": false,
+      "justification": "Faux, et le piège est qu'aucune erreur ne s'affiche : la commande réussit, elle ne fait simplement pas ce qu'on croyait. enable et start répondent à deux questions différentes. enable programme le démarrage AUTOMATIQUE du service, c'est-à-dire son comportement au prochain amorçage de la machine ; il ne démarre rien maintenant. start démarre le service MAINTENANT, et ne programme rien pour la suite — après un redémarrage, le service resterait éteint. On veut presque toujours les deux, et c'est systemctl status qui tranche : il dit si le service est actif, depuis quand, et affiche les dernières lignes de son journal. Deux autres commandes de la même famille méritent d'être distinguées, parce que la confusion coûte une interruption de service : restart arrête puis redémarre, ce qui coupe les connexions en cours, alors que reload recharge la configuration SANS couper le service — c'est celle qu'on emploie après avoir modifié un fichier dans /etc. Ce malentendu a un jumeau exact, à connaître ensemble : apt update rafraîchit le CATALOGUE des paquets disponibles et n'installe rien du tout ; c'est apt upgrade qui applique réellement les mises à jour. Là encore la commande se termine sans erreur, d'où l'illusion d'un serveur à jour alors qu'aucun correctif n'a été posé. La famille de fautes est la même : une commande qui réussit sans produire l'effet attendu est plus dangereuse qu'une commande qui échoue, parce qu'elle ne laisse aucune trace de son inaction. Dernier point, qui n'est pas une nuance de vocabulaire : chaque service actif est une porte qui écoute. Réduire le nombre de services démarrés — donc ne pas activer par réflexe ce dont on n'a pas besoin — est une mesure de sécurité à part entière.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Tu travailles en root et pwd répond /root. Tu tapes cd var/log, et le shell répond que le répertoire n'existe pas — alors que tu vois parfaitement /var/log sur la machine. Que s'est-il passé ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "var/log ne commence pas par une barre oblique : c'est un chemin relatif, le shell a donc cherché /root/var/log, qui n'existe pas. Le chemin absolu s'écrit cd /var/log."
+        },
+        {
+          "id": "b",
+          "texte": "pwd répond /root, qui est la racine du système : depuis la racine, il faut remonter d'un cran, et la commande correcte est cd ../var/log."
+        },
+        {
+          "id": "c",
+          "texte": "cd n'accepte qu'un seul segment de chemin à la fois : il faut enchaîner cd var puis cd log."
+        },
+        {
+          "id": "d",
+          "texte": "root n'a pas le droit de traverser /var tant qu'on ne lui a pas donné le bit x : il faut d'abord un chmod 755 /var."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Toute la question tient à la première barre oblique. Un chemin qui COMMENCE par / part de la racine de l'arbre et désigne le même endroit d'où qu'on l'écrive : /var/log est /var/log, que tu sois dans /root, dans /tmp ou ailleurs. Un chemin qui ne commence pas par / part de LÀ OÙ TU ES : écrit depuis /root, var/log signifie /root/var/log. Le shell n'a rien deviné de travers, il a fait exactement ce qu'on lui demandait. C'est la première cause de « la commande ne trouve pas mon fichier », et le réflexe qui l'évite tient en trois lettres : pwd avant toute commande, et une barre oblique initiale dès qu'on vise un endroit fixe. La réponse b est le contresens à corriger en priorité, parce qu'il est répandu et que le cours l'expose sans le commenter : /root n'est PAS la racine. C'est le répertoire personnel du superutilisateur, un répertoire comme un autre, situé DANS l'arbre — la racine, elle, s'écrit / toute seule. L'invite abrège le répertoire personnel en ~, si bien que cd / et cd ~ ne mènent pas au même endroit quand tu es root. La réponse c est fausse : cd accepte parfaitement un chemin de plusieurs segments, absolu comme relatif, et .. y désigne le répertoire parent — ../log/syslog est un chemin relatif valide. La réponse d se trompe de mécanisme deux fois : root est le superutilisateur, il a tous les droits sans exception, et /var est de toute façon traversable par tous sur un système sain. Si le chemin absolu échouait lui aussi, la deuxième explication à envisager ne serait pas les permissions mais la CASSE : Linux distingue Var de var, exactement comme il distingue Exercice3 de exercice3, et ces deux-là peuvent coexister dans le même dossier sans que rien ne te prévienne.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "L'application n'arrive pas à écrire son fichier de cache dans la racine web. Ce correctif, trouvé en premier résultat de recherche, fait effectivement disparaître le message d'erreur. Quelle ligne transforme un problème d'écriture en exécution de code à distance ?",
+      "langage": "bash",
+      "code": "cd /var/www/html\nsudo chmod -R 777 .\nsudo systemctl reload apache2\nls -l",
+      "ligneFautive": 2,
+      "faille": "Permissions beaucoup trop larges : 777 accorde l'écriture à « les autres », donc à tout processus de la machine — la racine web devient un endroit où déposer un webshell",
+      "explication": "La ligne 2 accorde 7 aux trois classes, et 7 vaut 4+2+1 : lecture, écriture ET exécution pour le propriétaire, pour le groupe, et pour « les autres » — c'est-à-dire n'importe quel compte et n'importe quel processus présent sur la machine. Le -R propage la règle à tous les fichiers et sous-répertoires. La conséquence n'est pas théorique : un seul processus compromis sur ce serveur peut désormais REMPLACER ton code par un webshell, un script déposé par l'attaquant qui exécutera ensuite ses commandes. Une faille d'écriture vient de devenir une exécution de code à distance. Et attention au faux réconfort : retirer le bit x aux fichiers ne referme rien du tout. Un .php déposé dans la racine web est lu et interprété par le serveur web, bit d'exécution ou non. Ce qui arrête un webshell, c'est d'interdire l'écriture dans la racine web et de ne jamais faire interpréter un répertoire de téléversement. La ligne 3 n'est pas fautive : reload recharge la configuration sans couper le service, c'est la bonne commande après avoir touché à /etc — elle est simplement sans effet sur le problème posé, qui est un problème de droits sur des fichiers, pas de configuration. La ligne 4 n'est pas fautive non plus, c'est le bon réflexe : vérifier avec ls -l ce qu'on vient de faire, et lire la sortie dans l'ordre — type, permissions, propriétaire, groupe, taille, date. Le correctif renverse la question. 777 répond à « comment faire taire l'erreur ? » ; la vraie question est « QUI doit avoir le droit d'écrire ici ? ». La réponse est presque toujours un chown : le service n'était pas propriétaire de ses propres fichiers. On rend donc la racine web à www-data, on remet les répertoires en 755 pour qu'ils restent traversables, et les fichiers en 644. Cela réduit le rayon d'action sans le fermer entièrement — le serveur web reste propriétaire, donc capable de réécrire ses fichiers ; un durcissement complet donnerait la propriété à un compte de déploiement et ne laisserait à www-data que la lecture, l'écriture n'étant ouverte qu'aux seuls répertoires qui en ont réellement besoin.",
+      "correction": "sudo chown -R www-data:www-data /var/www/html\nsudo find /var/www/html -type d -exec chmod 755 {} +\nsudo find /var/www/html -type f -exec chmod 644 {} +",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q9",
+      "type": "choix-multiple",
+      "question": "Tu crois avoir créé le répertoire exercice3, puis tu tapes mv exercice4.txt exercice3, sans barre oblique finale. La commande réussit et n'affiche rien. Mais ls ne montre plus exercice4.txt nulle part, et aucun répertoire exercice3 n'apparaît. Que s'est-il passé ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Le répertoire n'existait pas — tu l'avais probablement créé sous le nom Exercice3 — alors mv a pris la destination pour un NOM de fichier : exercice4.txt a simplement été renommé en exercice3. Écrire exercice3/ aurait fait échouer la commande au lieu de la réussir en silence."
+        },
+        {
+          "id": "b",
+          "texte": "mv supprime la source quand la destination n'existe pas : c'est le comportement documenté, et il faut mv -r pour viser un répertoire."
+        },
+        {
+          "id": "c",
+          "texte": "Le fichier est dans la corbeille du système : mv y dépose ce qu'il ne sait pas placer, il suffit de l'en ressortir."
+        },
+        {
+          "id": "d",
+          "texte": "Linux ignore la casse : exercice3 et Exercice3 désignent le même répertoire, le déplacement a donc bien eu lieu et le fichier est à chercher dans Exercice3."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Sous Linux, renommer un fichier et le déplacer sont la MÊME opération : mv écrit le fichier à un nouveau chemin, et ce chemin se termine par un nom. Si le dernier segment désigne un répertoire qui existe, le fichier entre dedans en gardant son nom. S'il ne désigne rien, mv le prend pour le nouveau nom du fichier — et il a raison de le faire, puisque c'est ainsi qu'on renomme. Ton fichier n'a donc pas disparu : il est là, sous le nom exercice3, ce qu'un ls -l montre immédiatement (première colonne à -, pas à d). On le récupère par mv exercice3 exercice4.txt. La barre oblique finale est précisément la parade, et c'est pour cela que le cours insiste dessus : exercice3/ déclare « la destination est un répertoire ». Si le répertoire n'existe pas, mv refuse au lieu de renommer silencieusement, et l'erreur te dit tout de suite ce qui cloche. Une commande qui échoue franchement vaut mieux qu'une commande qui réussit en faisant autre chose. La réponse d est le contresens à corriger, et il est fréquent quand on arrive de Windows : Linux est SENSIBLE à la casse, partout — noms de fichiers, de répertoires et de commandes. Exercice3 et exercice3 sont deux répertoires distincts qui peuvent coexister dans le même dossier, et c'est l'explication numéro un des exercices qui échouent sans dire pourquoi. La réponse b invente un comportement : mv ne supprime rien, et -r est une option de rm ou de cp, jamais de mv — mv déplace un répertoire entier sans avoir besoin d'être récursif. La réponse c invente un mécanisme qui n'existe pas : il n'y a aucune corbeille en ligne de commande, ce qui est aussi la raison pour laquelle rm est définitif.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    }
+  ]
+}

@@ -3280,17 +3280,69 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 
 | ID | Module (`NN-slug`) | Séance du cours | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|---|
-| E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ⬜ |
+| E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ✅ |
 | E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
 | E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
 
+### ✅ CLÔTURE — E3-ST14 `02-environnement-linux` (2026-08-26)
+
+**Livré.** `lecon.md` (947 l.), `quiz.json` (9 questions), pas de simulation. Les 13 exercices de la
+séance 2 sont placés un par un au fil du texte. Statut `publiee`.
+
+**La décision du propriétaire du 2026-08-26 — « les deux, côte à côte » — est appliquée.** La méthode
+du cours (PuTTY, WinSCP, `vi`) est le chemin principal et la référence évaluable ; l’équivalent
+moderne vit dans quatre encadrés `::: complement` : OpenSSH natif Windows, `ls -la` / `Ctrl+L`,
+VS Code + « Remote - SSH », et le transfert de fichiers (`scp`, `rsync`).
+
+> 🔴 **LE TRAVAIL ÉTAIT DOUBLE, ET LA PREMIÈRE MOITIÉ FAILLIT ÊTRE OUBLIÉE.** La leçon avait déjà
+> **dérivé vers le moderne** : son corps principal présentait PuTTY comme un héritage et donnait
+> `ssh root@<IP>` comme LE geste. Il a donc fallu **intervertir** avant d’ajouter. ⚠️ Et cette
+> interversion a **créé** un défaut à distance : vingt lignes plus bas, « il te demande alors de
+> confirmer par `yes` » — exacte tant que `ssh` était le chemin principal — est devenue fausse sous
+> PuTTY, qui ouvre une boîte *Security Alert* (*Accept* / *Connect Once*). Personne n’avait touché à
+> cette phrase ; c’est son **contexte** qui a changé sous elle, et aucun diff ne la signalait.
+
+> 🔴 **LA PISTE NON SOURCÉE A COÛTÉ TROIS ERREURS BLOQUANTES**, toutes attrapées par
+> `verificateur-theorie` : « le client OpenSSH est **installé par défaut** sous Windows » (c’est une
+> *fonctionnalité facultative* — doc Microsoft, « Not installed, install and enable using optional
+> features ») · « il faut passer par WSL ou **Git Bash** » pour `rsync` (Git for Windows ne le fournit
+> pas) · la **barre oblique finale** de `rsync` passée sous silence, qui faisait écrire `rsync -av
+> ./monprojet/ …` et `scp -r ./monprojet …` à **deux endroits différents**. ⚠️ Le matériel source
+> était une conversation avec un assistant IA collée dans `README.txt`.
+
+> ⚠️ **LE MARQUEUR RESTANT A ÉTÉ LEVÉ EN RETIRANT L’AFFIRMATION, PAS EN LA PUBLIANT.** Le doute
+> portait sur « le cours enseigne WinSCP à la séance 2 » ; le plan de cours publié ne nomme aucun
+> outil, et le vérificateur n’a pas pu trancher. Le texte dit désormais que WinSCP est l’outil
+> graphique classique sous Windows, **sans attribuer** quoi que ce soit au cours. **Nœud laissé au
+> propriétaire :** si le transfert de fichiers est bien matière de la séance 2, une phrase restaure
+> le cadrage « méthode du cours ».
+
+> 🔴 **TROISIÈME OCCURRENCE SUR TROIS : la bascule `verifiee` → `publiee` a encore révélé un défaut.**
+> `empty-table-header` sur le coin supérieur gauche du tableau comparatif on-premise / infonuagique —
+> même famille que les leçons 04 et 05. Une leçon en `verifiee` n’étant pas prerendue, **G-axe, G-e2e
+> et le compte de hachages CSP ne mesurent RIEN** sur elle. Corrigé en **nommant** la colonne
+> (« Critère »), jamais en masquant l’en-tête.
+
+**Gates à la clôture (2026-08-26)** : G-test **949 passés / 43 fichiers / 0 échec** · G-lint vert ·
+G-content 7 leçons valides · G-build **10 routes prerendues, 14 hachages de style / 0 de script**
+(inchangé — une leçon sans simulation n’ajoute aucun hachage) · G-axe **10 fichiers, 860
+vérifications, 0 violation** · G-e2e **50 passés / 1 sauté / 0 échec** · `npm audit --omit=dev` **0** ·
+G-glyphes vert.
+
+**Découpe et coût.** `professeur-web` **110 780** tokens / 18 appels ; `verificateur-theorie`
+**97 602** / 12 appels — les deux **sous la cible de 120k**. Ce qui l’a permis : le brief portait des
+**plages de lignes exactes** et un périmètre de vérification borné à quatre plages, le reste de la
+leçon ayant déjà subi sa passe adversariale. Les correctifs (7 édits, texte de remplacement fourni
+par le vérificateur) ont été appliqués par le **fil principal**, pas par un agent : une liste
+`fichier:ligne` + correctif prêt à coller ne mérite pas un cache froid.
+
 > ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
 > **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un
 > titre, aucune image, et deux marqueurs `(TODO)` laissés par l'enseignant. Son plan annoncé
-> (diapositive 6) fait foi comme matière d'examen ; tout le reste de `17-utilisateurs-permissions`
+> (diapositive 6) fait foi comme matière d'examen ; tout le reste de `05-utilisateurs-permissions`
 > est du **complément**, et doit se signaler comme tel.
 > **(2) 🔴 La séance 8 n'a AUCUNE source publiée — mesuré le 2026-08-19, pas supposé.** Ni
 > diaporama (cellule « Non disponible »), **ni énoncé d'exercice** : la page existe mais son contenu

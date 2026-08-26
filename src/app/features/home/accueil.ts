@@ -68,18 +68,20 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
 /**
  * Modules du cours réellement publiés. Confronté au manifeste par le spec.
  *
- * 📈 5 → 6 le 2026-08-25 (E3-ST6) : `06-controle-acces` rejoint les cinq
+ * 📈 6 → 7 le 2026-08-26 (E3-ST14) : `02-environnement-linux`, la séance 2 du
+ * cours, rejoint les six premiers. Étape précédente : 5 → 6 le 2026-08-25
+ * (E3-ST6, `06-controle-acces`), qui rejoignait les cinq
  * premiers. Étapes précédentes : 4 → 5 le 2026-08-21 (E3-ST5, `05-csrf`),
  * 3 → 4 le 2026-08-21 (E3-ST4, `04-xss`), puis 1 → 3 le 2026-08-21
  * (E3-ST2 et E3-ST3), `02-evaluation-cvss` et `03-injection` rejoignant
  * `01-fondamentaux`. Le littéral est délibéré — c'est lui qui force la revue
  * humaine d'une page d'accueil dont le texte, lui, n'est dérivé de rien (voir la
  * `description` de la carte, corrigée à E3-ST4 : elle annonçait « le premier
- * module est en ligne »). ⚠️ La `description` ci-dessous reste exacte à six
+ * module est en ligne »). ⚠️ La `description` ci-dessous reste exacte à sept
  * modules — « les premiers modules sont en ligne » — donc elle n'est pas touchée ;
  * elle le redeviendra fausse quand la majorité des treize sera publiée.
  */
-const MODULES_PUBLIES = 6;
+const MODULES_PUBLIES = 7;
 
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;
