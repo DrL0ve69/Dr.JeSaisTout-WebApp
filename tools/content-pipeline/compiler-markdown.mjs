@@ -1661,7 +1661,7 @@ function resoudreExerciceDuCours(attributs, ctx) {
   // U+00A0 et RIEN D'AUTRE : U+202F (fine insécable) est ABSENTE de Fraunces comme d'Inter, et
   // U+2009 n'est portée que par Inter — contrainte matérielle d'E1-ST1-B, pas un goût typographique
   // (`.claude/rules/contenu-pedagogique.md` §3, `docs/design/polices.md`).
-  const libelle = REFERENCE_NUMERIQUE.test(reference) ? `n° ${reference}` : entree.titre;
+  const libelle = REFERENCE_NUMERIQUE.test(reference) ? `n°\u00A0${reference}` : entree.titre;
   return { seance, reference, libelle, titre: entree.titre, enonce: entree.enonce };
 }
 

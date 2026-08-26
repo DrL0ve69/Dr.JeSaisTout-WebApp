@@ -2,12 +2,14 @@
 // LA FRONTIÈRE DE TYPAGE entre le contenu compilé et l'application (E2-ST2, lot B)
 // -----------------------------------------------------------------------------
 // CE QUE FAIT CE FICHIER, ET POURQUOI IL EXISTE ICI PLUTÔT QU'AILLEURS.
-// `src/content-generated/` est écrit par `npm run content:build`. Deux de ses trois
+// `src/content-generated/` est écrit par `npm run content:build`. Trois de ses cinq
 // sorties entrent dans l'application par ce fichier, et par lui seul :
 //   · `manifeste-routes.json` — les métadonnées de toutes les leçons, triées par
 //     `ordre` ; lues par `getPrerenderParams()` et par la navigation prev/next ;
 //   · `lecons/<slug>.json` — le corps d'UNE leçon, chargé paresseusement par
-//     `carte-lecons.ts` (voir `resoudre-lecon.ts`).
+//     `carte-lecons.ts` (voir `resoudre-lecon.ts`) ;
+//   · `horaires.json` — l'horaire réel du cours, un par sujet (E3-ST20) : c'est lui
+//     qui donne son titre à une séance et qui dit quelles évaluations la couvrent.
 //
 // LES DEUX ARRIVENT EN `unknown`, ET C'EST VOULU — pas une négligence du
 // générateur. La note de fin de `tools/content-pipeline/types.d.ts` l'écrit : un
@@ -50,6 +52,7 @@
 
 import { InjectionToken } from '@angular/core';
 
+import horairesBrut from '../../../content-generated/horaires.json';
 import manifesteBrut from '../../../content-generated/manifeste-routes.json';
 
 /** Les trois statuts du contrat — liste NOMINATIVE, jamais un `string` accepté tel quel. */
@@ -271,6 +274,17 @@ function estTableauDeChaines(valeur: unknown): boolean {
 }
 
 /**
+ * Un ENTIER ≥ 1 — la forme des numéros de séance et de leur portée d'évaluation.
+ *
+ * `Number.isInteger` écarte `2.5` ET `NaN` ET `Infinity` ; le `> 0` écarte `0` et
+ * les négatifs. Aucun de ces cas n'est théorique : ils sont ce qu'un JSON malformé
+ * produit, et la clef de jointure qui en sortirait ne trouverait aucune séance.
+ */
+function estEntierPositif(valeur: unknown): boolean {
+  return typeof valeur === 'number' && Number.isInteger(valeur) && valeur > 0;
+}
+
+/**
  * Le chemin de lecture PROPRE à `section` — le seul champ OPTIONNEL du frontmatter
  * (E2-ST6, décision D-2).
  *
@@ -296,6 +310,37 @@ function verifierSectionOptionnelle(porteur: Objet, ou: string, manques: string[
   if (section === undefined) return;
   if (!estChaineNonVide(section)) {
     manques.push(`« ${ou} » : chaîne non vide attendue quand le champ est présent`);
+  }
+}
+
+/**
+ * Le chemin de lecture PROPRE à `seance` — le second champ OPTIONNEL du contrat
+ * (E3-ST20, `docs/contenu/ancrage-au-cours.md` §2). Même structure en deux moitiés
+ * que `verifierSectionOptionnelle`, et pour la même raison :
+ *   · ABSENT est légal, et il SIGNIFIE quelque chose — « module complémentaire,
+ *     hors cours ». Ce n'est pas une donnée manquante, c'est une donnée ;
+ *   · PRÉSENT oblige à un ENTIER ≥ 1. `0`, `-1`, `2.5` et `'2'` sont REFUSÉS, pas
+ *     ramenés silencieusement : un numéro de séance sert de CLEF de jointure dans
+ *     `horaire.json`, et une clef d'un autre type n'y trouve rien — la page
+ *     afficherait « hors cours » sur un module qui a bel et bien une séance, ce qui
+ *     est un mensonge sur le statut à l'examen, pas un défaut d'affichage.
+ *
+ * Ce qui n'est PAS vérifié ici, et pourquoi : que le numéro EXISTE à l'horaire et
+ * que sa séance ne porte pas d'`evaluation`. Ces deux règles portent sur la
+ * COLLECTION (le couple leçon ↔ horaire) et appartiennent à `valider.mjs`, au build,
+ * là où l'auteur voit encore ses fichiers — exactement le partage déjà écrit pour le
+ * tout-ou-rien de `section`. La jointure, elle, échoue bruyamment à la lecture :
+ * voir `ancrerAuCours` plus bas.
+ *
+ * @param porteur l'objet à lire (une entrée de manifeste, ou un `frontmatter`)
+ * @param ou le préfixe du message d'échec, déjà écrit par l'appelant
+ * @param manques collecteur, muté sur place
+ */
+function verifierSeanceOptionnelle(porteur: Objet, ou: string, manques: string[]): void {
+  const seance = porteur['seance'];
+  if (seance === undefined) return;
+  if (!estEntierPositif(seance)) {
+    manques.push(`« ${ou} » : entier ≥ 1 attendu quand le champ est présent`);
   }
 }
 
@@ -357,6 +402,7 @@ export function lireManifeste(
       manques.push(`« niveau » : attendu ${NIVEAUX.join(' | ')}`);
     }
     verifierSectionOptionnelle(brut, 'section', manques);
+    verifierSeanceOptionnelle(brut, 'seance', manques);
     if (manques.length > 0) refuser(`${provenance} (entrée n°${rang + 1})`, manques);
 
     entrees.push(brut as unknown as EntreeManifesteRoutes);
@@ -436,6 +482,261 @@ export function leconsPubliees(
 }
 
 // -----------------------------------------------------------------------------
+// Les horaires de cours — l'ancrage à la séance (E3-ST20)
+// -----------------------------------------------------------------------------
+
+/** Une séance de l'horaire, telle que le contrat la décrit — jamais recopiée (L-016). */
+export type SeanceDuCours = HoraireCompile['seances'][number];
+
+/** L'évaluation d'une séance, sans son `undefined` — même dérivation, même raison. */
+export type EvaluationDuCours = NonNullable<SeanceDuCours['evaluation']>;
+
+/** `AAAA-MM-JJ`, la seule forme de date du contrat. Une CHAÎNE, jamais un `Date`. */
+const DATE_ISO_COURTE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Les cinq champs de `cours` — NOMINATIFS, comme `STATUTS` et `NIVEAUX`. */
+const CHAMPS_DU_COURS = [
+  'code',
+  'titre',
+  'enseignant',
+  'etablissement',
+  'session',
+] as const satisfies readonly (keyof HoraireCompile['cours'])[];
+
+/**
+ * Rétrécit `horaires.json` en `Map<sujet, HoraireCompile>` — la TROISIÈME entrée de
+ * contenu compilé dans l'application, après le manifeste et les leçons.
+ *
+ * 🔴 POURQUOI CE CONTRÔLE EST AUSSI NOMINATIF QUE `STATUTS` ET `NIVEAUX`. Cet
+ * artéfact est la source UNIQUE des numéros de séance, de leurs titres et de la
+ * portée des évaluations (`docs/contenu/ancrage-au-cours.md` §1). Ce qu'il porte
+ * n'est pas décoratif : c'est ce qui dit à un étudiant si le module qu'il lit est
+ * MATIÈRE D'EXAMEN. Un horaire à demi lisible rendu « au mieux » afficherait donc
+ * une page plausible et fausse — le mode d'échec exact que cette frontière existe
+ * pour interdire. Un champ hors contrat LÈVE en se nommant, et sur une route
+ * prerendue cela fait échouer `npm run build`.
+ *
+ * CE QU'IL VÉRIFIE : la charpente (présence, type, forme de chaque champ), plus les
+ * numéros de séance STRICTEMENT CROISSANTS — constatés, jamais re-triés, exactement
+ * comme `lireManifeste` : re-trier ici masquerait une régression de
+ * `generer-manifeste.mjs`.
+ * CE QU'IL LAISSE À `valider.mjs` : que la `portee` d'une évaluation ne cite que des
+ * séances EXISTANTES et NON ÉVALUÉES. C'est une règle sur la collection, tenue au
+ * build là où l'auteur voit ses fichiers ; la redire ici serait le second exemplaire
+ * qui diverge au premier assouplissement (L-016).
+ *
+ * @param valeur le contenu de `horaires.json`, tel quel
+ * @param provenance nom du fichier, pour le message d'erreur
+ */
+export function lireHoraires(
+  valeur: unknown,
+  provenance = 'src/content-generated/horaires.json',
+): ReadonlyMap<string, HoraireCompile> {
+  if (!estObjet(valeur)) {
+    refuser(provenance, ['la racine devrait être un objet indexé par sujet']);
+  }
+
+  const horaires = new Map<string, HoraireCompile>();
+  for (const [clef, brut] of Object.entries(valeur)) {
+    const ou = `${provenance} (sujet « ${clef} »)`;
+    if (!estObjet(brut)) refuser(ou, ["ce n'est pas un objet"]);
+
+    const manques: string[] = [];
+
+    // La clef ET le champ disent le sujet. Les laisser diverger, c'est laisser un
+    // module chercher son horaire sous un nom que l'horaire ne se donne pas.
+    if (brut['sujet'] !== clef) {
+      manques.push(`« sujet » : attendu « ${clef} », la clef qui indexe cet horaire`);
+    }
+
+    const cours = brut['cours'];
+    if (!estObjet(cours)) {
+      manques.push('« cours » : objet attendu');
+    } else {
+      for (const champ of CHAMPS_DU_COURS) {
+        if (!estChaineNonVide(cours[champ])) {
+          manques.push(`« cours.${champ} » : chaîne non vide attendue`);
+        }
+      }
+    }
+
+    const seances = brut['seances'];
+    if (!Array.isArray(seances)) {
+      manques.push('« seances » : tableau attendu');
+    } else if (seances.length === 0) {
+      manques.push('« seances » : au moins une séance attendue');
+    } else {
+      let precedent = 0;
+      for (const [rang, seance] of seances.entries()) {
+        const ouSeance = `« seances[${rang}] »`;
+        if (!estObjet(seance)) {
+          manques.push(`${ouSeance} : objet attendu`);
+          continue;
+        }
+        const numero = seance['numero'];
+        if (!estEntierPositif(numero)) {
+          manques.push(`${ouSeance}.numero : entier ≥ 1 attendu`);
+        } else if (typeof numero === 'number' && numero <= precedent) {
+          manques.push(
+            `${ouSeance}.numero : ${numero} ne suit pas ${precedent} — ` +
+              'les séances sont strictement croissantes, et le tri appartient au pipeline',
+          );
+          precedent = numero;
+        } else if (typeof numero === 'number') {
+          precedent = numero;
+        }
+        if (typeof seance['date'] !== 'string' || !DATE_ISO_COURTE.test(seance['date'])) {
+          manques.push(`${ouSeance}.date : « AAAA-MM-JJ » attendu`);
+        }
+        if (!estChaineNonVide(seance['titre'])) {
+          manques.push(`${ouSeance}.titre : chaîne non vide attendue`);
+        }
+        verifierEvaluationOptionnelle(seance, ouSeance, manques);
+      }
+    }
+
+    if (manques.length > 0) refuser(ou, manques);
+    horaires.set(clef, brut as unknown as HoraireCompile);
+  }
+
+  return horaires;
+}
+
+/**
+ * `evaluation` — OPTIONNELLE, et son absence SIGNIFIE « cette séance n'est pas une
+ * évaluation ». Présente, elle oblige à un libellé non vide et à une pondération
+ * finie : c'est ce libellé, tel quel, que la page de leçon écrit dans sa pastille.
+ *
+ * `portee` est optionnelle DANS l'optionnelle : absente, l'enseignant n'a pas publié
+ * la portée (cas du projet de session), et le site n'en invente aucune plutôt que
+ * d'annoncer une matière d'examen qui n'a jamais été annoncée.
+ */
+function verifierEvaluationOptionnelle(seance: Objet, ou: string, manques: string[]): void {
+  const evaluation = seance['evaluation'];
+  if (evaluation === undefined) return;
+  if (!estObjet(evaluation)) {
+    manques.push(`${ou}.evaluation : objet attendu quand le champ est présent`);
+    return;
+  }
+  if (!estChaineNonVide(evaluation['libelle'])) {
+    manques.push(`${ou}.evaluation.libelle : chaîne non vide attendue`);
+  }
+  if (!estNombreFini(evaluation['ponderation'])) {
+    manques.push(`${ou}.evaluation.ponderation : nombre attendu`);
+  }
+  const portee = evaluation['portee'];
+  if (portee === undefined) return;
+  if (!Array.isArray(portee) || !portee.every(estEntierPositif)) {
+    manques.push(`${ou}.evaluation.portee : tableau d'entiers ≥ 1 attendu`);
+  }
+}
+
+/**
+ * Les horaires du dépôt, validés une fois au chargement du module. `Map` vide tant
+ * qu'aucun sujet n'a d'`horaire.json` — un résultat, pas une panne.
+ */
+export const horairesDesCours: ReadonlyMap<string, HoraireCompile> = lireHoraires(horairesBrut);
+
+/**
+ * Les horaires, injectables. Comme `MANIFESTE_LECONS`, ce jeton n'existe PAS pour
+ * permettre plusieurs jeux d'horaires : il n'y en a qu'un. Il existe parce que
+ * l'ancrage d'une page ne se teste pas sur un horaire vide, et que
+ * `horairesDesCours` l'est sur un dépôt sans contenu (L-005). Le défaut est la vraie
+ * valeur : rien à câbler dans `app.config.ts`.
+ */
+export const HORAIRES_DES_COURS = new InjectionToken<ReadonlyMap<string, HoraireCompile>>(
+  'horaires compilés des cours, indexés par sujet',
+  { providedIn: 'root', factory: () => horairesDesCours },
+);
+
+/**
+ * CE QU'UN MODULE DIT DE SA PLACE DANS LE COURS — le résultat de la jointure
+ * `frontmatter.seance` × `horaire.json`.
+ *
+ * `seance` ABSENTE veut dire « module complémentaire, hors cours », et c'est une
+ * INFORMATION, pas un trou : le lecteur a le droit de savoir qu'un module ne sera
+ * pas évalué (`docs/contenu/ancrage-au-cours.md` §2).
+ */
+export interface AncrageAuCours {
+  /** La séance du cours, telle que l'HORAIRE la décrit — jamais le frontmatter (§1). */
+  readonly seance?: SeanceDuCours;
+  /**
+   * Les évaluations dont la `portee` cite cette séance, DANS L'ORDRE DE L'HORAIRE.
+   *
+   * 🔴 C'EST UNE LISTE, ET ELLE COMPTE PLUS D'UN ÉLÉMENT EN PRATIQUE (décision D-2 du
+   * lot) : les séances 1 à 4 sont dans la portée de l'examen 1 ET de l'examen final.
+   * Une formulation fusionnée (« aux examens 1 et final ») se périmerait au premier
+   * cours dont la structure d'évaluation diffère — on rend une pastille par
+   * évaluation, et le libellé vient de l'horaire.
+   *
+   * ⚠️ AUCUNE COMPARAISON À LA DATE DU JOUR (décision D-1). Le site est PRERENDU :
+   * une page figée au moment du build annoncerait « à venir » un examen passé, et un
+   * calcul côté client donnerait un écart d'hydratation. Surtout, « la séance 2 est
+   * dans la portée de l'examen 1 » est un fait STABLE du cours, pas un fait sur
+   * aujourd'hui.
+   */
+  readonly evaluations: readonly EvaluationDuCours[];
+}
+
+/** Un module sans `seance` — la valeur partagée, pour ne pas en allouer une par appel. */
+const HORS_COURS: AncrageAuCours = { evaluations: [] };
+
+/**
+ * Joint un module à sa séance. FAIL-CLOSED : un `seance` qui ne trouve rien à
+ * l'horaire LÈVE en se nommant.
+ *
+ * POURQUOI LEVER PLUTÔT QUE RETOMBER SUR « HORS COURS ». Les deux états ont un sens
+ * OPPOSÉ pour un étudiant — « pas exigible à l'examen » contre « matière d'examen ».
+ * Traiter une jointure ratée comme une absence afficherait donc, sans un mot, le
+ * contraire de la vérité sur un module qui a bel et bien une séance. `valider.mjs`
+ * garantit déjà la jointure au build ; si elle casse quand même, c'est que
+ * l'artéfact et le validateur ne parlent plus de la même chose, et cela doit se voir.
+ *
+ * @param horaires les horaires compilés, indexés par sujet
+ * @param sujet le sujet DU FRONTMATTER — jamais un segment d'URL
+ * @param seance le `seance` du frontmatter, éventuellement absent
+ */
+export function ancrerAuCours(
+  horaires: ReadonlyMap<string, HoraireCompile>,
+  sujet: string,
+  seance: number | undefined,
+): AncrageAuCours {
+  if (seance === undefined) return HORS_COURS;
+
+  const horaire = horaires.get(sujet);
+  if (horaire === undefined) {
+    refuser(`l'ancrage au cours du sujet « ${sujet} »`, [
+      `le module annonce « seance: ${seance} » mais ce sujet n'a aucun horaire compilé`,
+      "ajouter `content/cours/<sujet>/horaire.json`, ou retirer `seance` du frontmatter",
+    ]);
+  }
+
+  const trouvee = horaire.seances.find((candidate) => candidate.numero === seance);
+  if (trouvee === undefined) {
+    refuser(`l'ancrage au cours du sujet « ${sujet} »`, [
+      `« seance: ${seance} » ne figure pas à l'horaire`,
+      `séances connues : ${horaire.seances.map((s) => s.numero).join(', ')}`,
+    ]);
+  }
+  if (trouvee.evaluation !== undefined) {
+    refuser(`l'ancrage au cours du sujet « ${sujet} »`, [
+      `« seance: ${seance} » désigne une évaluation (« ${trouvee.evaluation.libelle} »)`,
+      "il n'y a pas de module « Examen » — voir `ancrage-au-cours.md` §2",
+    ]);
+  }
+
+  return {
+    seance: trouvee,
+    // L'ORDRE DE L'HORAIRE, par construction : on parcourt `seances` dans son ordre.
+    evaluations: horaire.seances.flatMap((candidate) =>
+      candidate.evaluation !== undefined && (candidate.evaluation.portee ?? []).includes(seance)
+        ? [candidate.evaluation]
+        : [],
+    ),
+  };
+}
+
+// -----------------------------------------------------------------------------
 // Une leçon compilée
 // -----------------------------------------------------------------------------
 
@@ -490,6 +791,7 @@ export function lireLeconCompilee(valeur: unknown, provenance: string): LeconCom
       manques.push(`« frontmatter.niveau » : attendu ${NIVEAUX.join(' | ')}`);
     }
     verifierSectionOptionnelle(frontmatter, 'frontmatter.section', manques);
+    verifierSeanceOptionnelle(frontmatter, 'frontmatter.seance', manques);
   }
 
   // Hissé hors du bloc : l'espace de noms des `id` du document se compose ICI, et le quiz

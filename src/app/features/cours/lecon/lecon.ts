@@ -65,9 +65,12 @@ import { ProgressionService } from '../../../core/progression/progression';
 // Alias : le composant expose déjà un signal `niveauLisible` au gabarit — deux
 // noms identiques dans la même portée se liraient mal, sans être ambigus.
 import {
+  HORAIRES_DES_COURS,
   MANIFESTE_LECONS,
+  ancrerAuCours,
   lireLeconCompilee,
   niveauLisible as libelleDuNiveau,
+  type AncrageAuCours,
 } from '../contenu-compile';
 import {
   construireSommaire,
@@ -132,7 +135,55 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             <dt>Niveau</dt>
             <dd>{{ niveauLisible() }}</dd>
           </div>
+          <!--
+            La séance du cours réel (E3-ST20). Le TITRE vient de l'horaire, jamais du
+            frontmatter : c'est toute la raison d'être de « horaire.json » — la même
+            séance donne jusqu'à cinq modules, et un titre recopié cinq fois diverge
+            sans que rien ne le signale.
+
+            L'absence de « seance » n'est pas un trou à masquer : elle DIT que le module
+            est un complément hors cours, donc non exigible à l'examen. Le repère est
+            donc toujours rendu (« ancrage-au-cours.md » §2).
+
+            Les blanches sont des « &nbsp; » EXPLICITES : « preserveWhitespaces: false »
+            retire le nœud blanc entre deux interpolations, et le nom accessible se
+            calculerait en un seul mot (L-024).
+          -->
+          <div class="repere">
+            <dt>Séance</dt>
+            <dd>
+              @if (ancrage().seance; as seance) {
+                {{ seance.numero }}&nbsp;— {{ seance.titre }}
+              } @else {
+                Complément&nbsp;— hors cours
+              }
+            </dd>
+          </div>
         </dl>
+
+        <!--
+          Le statut à l'examen — une pastille PAR ÉVALUATION qui couvre la séance
+          (décision D-2 : les séances 1 à 4 sont dans l'examen 1 ET dans l'examen
+          final). Aucune formulation fusionnée : elle se périmerait au premier cours
+          dont la structure d'évaluation diffère.
+
+          🔴 DU TEXTE, JAMAIS UNE COULEUR SEULE (WCAG 1.4.1) ni un pictogramme seul :
+          « Au programme : Examen 1 ». Le libellé vient de l'horaire et se rend TEL
+          QUEL — écrire « à l'examen 1 » demanderait de fabriquer l'élision depuis la
+          donnée, et « À l'Projet de session » est ce qu'on obtient au premier libellé
+          qui ne commence pas par une voyelle.
+
+          « role="list" » explicite : Safari/VoiceOver retire la sémantique de liste
+          d'un « <ul> » dont le « list-style » est « none » — même parade que les quatre
+          listes de « simulation.ts ».
+        -->
+        @if (ancrage().evaluations.length > 0) {
+          <ul class="statut-examen" role="list">
+            @for (evaluation of ancrage().evaluations; track $index) {
+              <li>Au programme&nbsp;: {{ evaluation.libelle }}</li>
+            }
+          </ul>
+        }
 
         @if (frontmatter().objectifs.length > 0) {
           <section class="encart" aria-labelledby="titre-objectifs">
@@ -320,6 +371,7 @@ export class Lecon {
   private readonly route = inject(ActivatedRoute);
   private readonly metadonnees = inject(Meta);
   private readonly manifeste = inject(MANIFESTE_LECONS);
+  private readonly horaires = inject(HORAIRES_DES_COURS);
   private readonly progression = inject(ProgressionService);
 
   /**
@@ -406,6 +458,23 @@ export class Lecon {
   );
 
   readonly niveauLisible = computed(() => libelleDuNiveau(this.frontmatter().niveau));
+
+  /**
+   * La place du module dans le cours réel : sa séance (titre compris) et les
+   * évaluations qui la couvrent (E3-ST20).
+   *
+   * Le sujet vient du FRONTMATTER, jamais de l'URL — même règle que `voisines` et
+   * que la clef de progression : un segment d'URL est une entrée non fiable, et
+   * s'en servir ici ferait chercher l'horaire d'un cours qu'un tiers a nommé.
+   *
+   * La jointure elle-même vit dans `contenu-compile.ts`, à la frontière de confiance
+   * qui a déjà validé l'horaire — et elle est FAIL-CLOSED : un `seance` introuvable
+   * lève, plutôt que de retomber sur « hors cours », qui dirait à l'étudiant
+   * l'exact contraire de la vérité sur son statut à l'examen.
+   */
+  readonly ancrage = computed<AncrageAuCours>(() =>
+    ancrerAuCours(this.horaires, this.frontmatter().sujet, this.frontmatter().seance),
+  );
 
   /**
    * La description partagée par la balise `description` et par OpenGraph. Elle est

@@ -159,6 +159,37 @@ $largeur-rail: 18rem;
   }
 }
 
+// Le statut à l'examen (E3-ST20) — une pastille par évaluation qui couvre la séance.
+//
+// 🔴 AUCUNE PAIRE DE COULEUR NEUVE, ET C'EST DÉLIBÉRÉ. L'encre est
+// `--couleur-accent` sur `--couleur-surface-creuse` (le fond de la page de garde) :
+// la paire « Lien dans un encart » de `tools/design/verifier-contrastes.mjs`, déjà
+// mesurée. Le filet reprend `currentcolor`, donc la MÊME paire — un contour à 4,5:1
+// dépasse largement le 3:1 exigé d'un élément non textuel, et rien n'est à déclarer.
+// Ni ambre plein ni vert : l'ambre plein est déjà pris par la pastille de module
+// juste au-dessus, et le vert veut dire « corrigé ».
+//
+// L'information est portée par le TEXTE (« Au programme : Examen 1 »), jamais par la
+// teinte ni par un pictogramme — WCAG 1.4.1.
+.statut-examen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espace-2);
+
+  // La liste perd ses puces et sa marge d'agent utilisateur ; le gabarit lui rend sa
+  // sémantique par un `role="list"` explicite (Safari/VoiceOver).
+  margin-block: 0 var(--espace-4);
+  padding-inline-start: 0;
+  list-style: none;
+
+  > li {
+    padding: var(--espace-1) var(--espace-2);
+    border: var(--filet-fin) solid currentcolor;
+    color: var(--couleur-accent);
+    font-size: var(--taille-s);
+  }
+}
+
 .encart {
   margin-block-start: var(--espace-3);
 
