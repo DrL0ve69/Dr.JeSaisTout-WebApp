@@ -1,0 +1,149 @@
+{
+  "sujet": "securite-web",
+  "avertissement": "Énoncés REFORMULÉS à partir des feuilles d'exercices d'Alexandre Mageau-Pétrin (420-B10-HU, automne 2026). L'intention, l'ordre et la numérotation sont conservés ; le texte est réécrit — ce dépôt est public et ne rediffuse pas le matériel de l'enseignant.",
+  "seances": [
+    {
+      "numero": 2,
+      "feuille": "Exercices du cours 2 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Déployer un serveur Ubuntu et s'y connecter",
+          "enonce": "Déploie un serveur Ubuntu chez un hébergeur infonuagique (DigitalOcean dans le cours), puis connecte-toi à distance avec un client SSH (PuTTY dans le cours)."
+        },
+        {
+          "reference": "2",
+          "titre": "Afficher le répertoire courant",
+          "enonce": "Affiche le chemin du répertoire dans lequel tu te trouves."
+        },
+        {
+          "reference": "3",
+          "titre": "Créer un répertoire",
+          "enonce": "Crée un répertoire nommé « exercice3 »."
+        },
+        {
+          "reference": "4",
+          "titre": "Créer un fichier avec vi",
+          "enonce": "Avec l'éditeur vi, crée un fichier « exercice4.txt » contenant deux lignes : « Démonstration de l'utilisation de VI » puis « Voici une seconde ligne ». Enregistre et quitte l'éditeur."
+        },
+        {
+          "reference": "5",
+          "titre": "Afficher le contenu d'un fichier",
+          "enonce": "Depuis la ligne de commande, affiche le contenu de « exercice4.txt »."
+        },
+        {
+          "reference": "6",
+          "titre": "Créer un second fichier — volontairement mal nommé",
+          "enonce": "Avec vi, crée un fichier « exercice5.txt » contenant deux lignes : « Voici le texte de l'exercice 6 » puis « Ce dernier contient également une seconde ligne ». Le nom est volontairement erroné : tu le corrigeras à l'exercice suivant."
+        },
+        {
+          "reference": "7",
+          "titre": "Renommer un fichier",
+          "enonce": "Le fichier de l'exercice 6 aurait dû s'appeler « exercice6.txt ». Renomme-le."
+        },
+        {
+          "reference": "8",
+          "titre": "Déplacer un fichier dans un répertoire",
+          "enonce": "Déplace « exercice4.txt » dans le répertoire « exercice3 » créé à l'exercice 3."
+        },
+        {
+          "reference": "9",
+          "titre": "Changer de répertoire",
+          "enonce": "Place-toi dans le répertoire « exercice3 »."
+        },
+        {
+          "reference": "10",
+          "titre": "Modifier un fichier existant avec vi",
+          "enonce": "Avec vi, ajoute au fichier « exercice4.txt » une troisième ligne contenant « Voici une troisième ligne ». Enregistre et quitte."
+        },
+        {
+          "reference": "11",
+          "titre": "Remonter au répertoire parent",
+          "enonce": "Reviens au répertoire parent de « exercice3 »."
+        },
+        {
+          "reference": "12",
+          "titre": "Supprimer un répertoire",
+          "enonce": "Supprime le répertoire « exercice3 » — il n'est pas vide, et c'est justement le point de l'exercice."
+        },
+        {
+          "reference": "13",
+          "titre": "Supprimer un fichier",
+          "enonce": "Supprime le fichier « exercice6.txt »."
+        }
+      ]
+    },
+    {
+      "numero": 3,
+      "feuille": "Exercices du cours 3 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Créer une paire de clés SSH et un serveur qui l'exige",
+          "enonce": "Génère une nouvelle paire de clés SSH avec ssh-keygen, puis crée un serveur Ubuntu configuré pour n'accepter que l'authentification par clé — le mot de passe ne doit plus suffire pour ouvrir une session à distance."
+        },
+        {
+          "reference": "2",
+          "titre": "Installer Apache et vérifier qu'il répond",
+          "enonce": "Installe Apache sur ton serveur avec le gestionnaire de paquets, puis saisis l'adresse IP publique du serveur dans ton navigateur pour vérifier que la page d'accueil par défaut d'Apache s'affiche."
+        },
+        {
+          "reference": "3",
+          "titre": "Activer UFW en gardant HTTP et SSH ouverts",
+          "enonce": "Active le pare-feu UFW et autorise les ports 80 et 22 (ou, au choix, les services HTTP et SSH nommés). Vérifie que la page Apache reste accessible — et que ta session SSH ne se referme pas sur toi."
+        },
+        {
+          "reference": "4",
+          "titre": "Retirer la règle du port 80 et constater l'effet",
+          "enonce": "Supprime la règle qui autorise le port 80, puis vérifie qu'Apache n'est plus joignable depuis ton navigateur."
+        },
+        {
+          "reference": "projet-de-session",
+          "titre": "Projet de session — remue-méninges",
+          "enonce": "Emploie le reste de la séance à définir ton projet de session, et valide tes idées avec ton enseignant : le rôle de l'application et ses utilisateurs fictifs, les fonctionnalités qu'elle doit offrir, l'inventaire des données et une première conception des tables, puis les maquettes des interfaces."
+        }
+      ]
+    },
+    {
+      "numero": 4,
+      "feuille": "Exercices du cours 4 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Écrire sept expressions crontab",
+          "enonce": "À l'aide d'un éditeur crontab en ligne, écris l'expression correspondant à chacun de ces énoncés : (a) à chaque minute ; (b) toutes les 15 minutes ; (c) à 0 h 30 du lundi au vendredi ; (d) toutes les heures le lundi, le jeudi et le dimanche ; (e) le 1er février à 21 h ; (f) le 15 du mois à minuit, un mois sur deux ; (g) toutes les 15 minutes, mais sans l'occurrence à 45 minutes — seules les minutes 0, 15 et 30."
+        },
+        {
+          "reference": "2",
+          "titre": "Un script PHP qui affiche l'heure du serveur",
+          "enonce": "Crée un serveur Ubuntu, installe PHP, puis écris un script « heureActuelle.php » qui affiche la date et l'heure complètes du moment où il s'exécute. Lance-le depuis le terminal ; si l'heure est fausse, corrige le fuseau horaire du serveur."
+        },
+        {
+          "reference": "3",
+          "titre": "Planifier le script et surveiller son journal en direct",
+          "enonce": "Écris l'expression crontab qui exécute le script de l'exercice 2 une fois par minute, en ajoutant sa sortie au fichier « exercice3.log ». Surveille ce fichier en temps réel pour vérifier que la date et l'heure y sont bien journalisées chaque minute."
+        },
+        {
+          "reference": "4",
+          "titre": "Redémarrer Apache automatiquement s'il tombe",
+          "enonce": "Installe Apache et vérifie que la page par défaut s'affiche. Écris un script « exercice4.php » qui, chaque minute, vérifie qu'Apache tourne et le redémarre sinon, en journalisant un message dans « exercice4.log » quand un redémarrage a eu lieu. Arrête Apache, confirme dans ton navigateur qu'il ne répond plus, puis vérifie après une minute qu'il est reparti et que le message a bien été écrit."
+        },
+        {
+          "reference": "5",
+          "titre": "Purger automatiquement des données de plus de six mois",
+          "enonce": "Installe MariaDB et crée une base « cours4 » avec une table « donnees » : id_donnees (entier, clé primaire auto-incrémentée), texte (varchar 100), date_creation (datetime). Insère des enregistrements dont les dates de création s'étalent sur les derniers mois, puis exporte la table. Crée une tâche planifiée qui s'exécute toutes les 5 minutes et supprime les données de plus de six mois, et vérifie qu'elles ont bien disparu. En cas de problème, supprime la table et réimporte ton export plutôt que de ressaisir des données."
+        },
+        {
+          "reference": "6",
+          "titre": "Épargner les données marquées « à conserver »",
+          "enonce": "Reprends l'exercice 5. Ajoute à la table un champ « conserver » (varchar 10) valant « true » ou « false », et modifie le script de purge pour qu'il épargne les lignes marquées « true ». Crée de nouvelles données de plus de six mois en répartissant les deux valeurs au hasard, puis vérifie qu'après le passage du script les lignes « true » sont toujours là. Astuce : une expression crontab se désactive temporairement en la commentant avec « # »."
+        },
+        {
+          "reference": "7",
+          "titre": "Deux cadences selon la parité de l'heure",
+          "enonce": "Copie « heureActuelle.php » sous le nom « heureActuelleExercice7.php » et ajoute « (Exercice 7) » après l'affichage de la date et de l'heure. Planifie-le pour qu'il s'exécute toutes les 5 minutes aux heures impaires (1, 3, 5…) et toutes les 3 minutes aux heures paires (0, 2, 4…), en dirigeant sa sortie vers « exercice7.log »."
+        }
+      ]
+    }
+  ]
+}

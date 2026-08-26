@@ -74,7 +74,10 @@ type VarianteEncadre =
   | 'a-retenir'
   | 'cours'
   | 'complement'
-  | 'correction-du-cours';
+  | 'correction-du-cours'
+  // Le SEPTIÈME (E3-ST21) : l'exercice du cours, posé au fil du texte juste après la notion qu'il
+  // exerce. Il ne porte pas son énoncé — il le RÉFÉRENCE dans `exercices.json`.
+  | 'exercice-du-cours';
 
 /**
  * UNE remarque de l'auteur, et la PORTÉE sur laquelle elle s'applique.
@@ -243,7 +246,13 @@ type BlocContenu =
     }
   | {
       type: 'encadre';
-      variante: VarianteEncadre;
+      /**
+       * ⚠️ `exercice-du-cours` EST EXCLU DE CETTE BRANCHE, et l'exclusion est ce qui donne son sens
+       * à la branche suivante : sans elle, les deux membres de l'union seraient tous deux
+       * assignables à un encadré d'exercice, et le rendu pourrait en construire un SANS son
+       * `exerciceDuCours` — c'est-à-dire un exercice sans énoncé, que rien en aval ne verrait.
+       */
+      variante: Exclude<VarianteEncadre, 'exercice-du-cours'>;
       /**
        * Référence de la correction — RENSEIGNÉE UNIQUEMENT sur `correction-du-cours`, où elle est
        * OBLIGATOIRE et non vide (`{source="OWASP Top 10 2021 — A02"}`). Le compilateur refuse
@@ -269,6 +278,44 @@ type BlocContenu =
        * sans séance dérivable fait ÉCHOUER la compilation : il ne désignerait rien.
        */
       renvoiCours?: { seance: number; diapos: number[] };
+      blocs: BlocContenu[];
+    }
+  | {
+      /**
+       * L'EXERCICE DU COURS (E3-ST21, `docs/contenu/ancrage-au-cours.md` §6.3).
+       *
+       * Posé au fil du texte, juste après la notion qu'il exerce (décision X-2 du propriétaire),
+       * et jamais en annexe de fin de leçon : on apprend, puis on pratique, tout de suite.
+       */
+      type: 'encadre';
+      variante: 'exercice-du-cours';
+      /**
+       * RÉSOLU DEPUIS `exercices.json` PAR LE COMPILATEUR — l'auteur ne l'écrit jamais. Le module
+       * n'écrit qu'un `{ref="8"}` ; l'énoncé vient du registre du sujet, source UNIQUE. Recopié
+       * dans chaque module, il divergerait sans que rien ne le signale — c'est le mode d'échec que
+       * `horaire.json` existe déjà pour fermer sur les séances.
+       */
+      exerciceDuCours: {
+        seance: number;
+        /** Telle qu'elle est écrite au registre : `"8"` ou `"projet-de-session"`. */
+        reference: string;
+        /**
+         * Le libellé RENDU, calculé au build et nulle part ailleurs : « n° 8 » quand la référence
+         * est numérique, le `titre` de l'entrée quand elle est nommée (§6.1). Une seconde
+         * implémentation de cette règle finirait par en dire autre chose — même raison que le
+         * dépliage des plages de `diapos`.
+         */
+        libelle: string;
+        titre: string;
+        /** L'énoncé REFORMULÉ et attribué (décision X-1), jamais recopié du matériel enseignant. */
+        enonce: string;
+      };
+      /** Même contrat que ci-dessus : `diapos` est autorisé sur un exercice, `source` non. */
+      renvoiCours?: { seance: number; diapos: number[] };
+      /**
+       * LA PISTE DE RÉSOLUTION écrite par le module — jamais l'énoncé, qui vient du registre.
+       * ÉVENTUELLEMENT VIDE : certains exercices se passent d'indice (§6.2).
+       */
       blocs: BlocContenu[];
     }
   | { type: 'ancre-quiz' }
@@ -621,6 +668,44 @@ interface HoraireCompile {
        */
       portee?: number[];
     };
+  }[];
+}
+
+/**
+ * LE REGISTRE D'EXERCICES COMPILÉ D'UN SUJET — la forme de `content/cours/<sujet>/exercices.json`,
+ * transportée TELLE QUELLE jusqu'à `src/content-generated/`
+ * (`docs/contenu/ancrage-au-cours.md` §6.1 et §6.3).
+ *
+ * C'est la source UNIQUE des énoncés : aucun module ne les recopie, il les référence. Le sommaire
+ * le lit pour annoncer « séance 2 · 13 exercices » sans relire `content/` au runtime.
+ *
+ * ⚠️ SON SCHÉMA VIT DANS `tools/content-pipeline/schemas/exercices.schema.json`, et ses quatre
+ * règles hors schéma (séances uniques, présentes à l'horaire et non évaluées ; `reference` unique
+ * par séance ; références numériques strictement croissantes) dans `valider.mjs`. Le compilateur
+ * ne le revalide pas : il tourne après.
+ */
+interface ExercicesCompiles {
+  sujet: string;
+  /**
+   * L'attribution des énoncés reformulés (décision X-1). Ce n'est pas décoratif : ce dépôt est
+   * public et ne rediffuse pas le matériel de l'enseignant — ce champ est ce qui rend la
+   * reformulation lisible par un visiteur.
+   */
+  avertissement: string;
+  seances: {
+    numero: number;
+    /** Le nom de la feuille d'exercices de l'enseignant, affiché tel quel. */
+    feuille: string;
+    exercices: {
+      /**
+       * `"8"` (numérique) ou `"projet-de-session"` (nommée). Une CHAÎNE, jamais un entier : la
+       * feuille de la séance 3 porte quatre exercices numérotés PLUS un bloc sans numéro, et le
+       * forcer à `5` mentirait sur le document de l'enseignant.
+       */
+      reference: string;
+      titre: string;
+      enonce: string;
+    }[];
   }[];
 }
 

@@ -2482,6 +2482,155 @@ simulation) et l'avertissement de tripwire de fixture à retirer dans le même c
 > par paires → réalignement de la séance 1 → séance 5 après l'examen → puis le bloc « sécurité du
 > code » (séance 7), qui est l'actuel bloc A déjà publié.
 
+### Bloc 0 — Outillage d'ancrage au cours *(2026-08-25 · préalable aux modules d'examen)*
+
+> **Pourquoi il précède tout.** Les modules des séances 2, 3 et 4 sont sur le chemin critique de
+> l'examen 1 (11 septembre). Les écrire **avant** que le pipeline sache porter la séance, le renvoi
+> de diapositives et les exercices du cours obligerait à les rouvrir tous les trois pour y greffer
+> ce qui manque — et à repasser trois fois le `verificateur-theorie`. Contrat complet :
+> [`docs/contenu/ancrage-au-cours.md`](../contenu/ancrage-au-cours.md).
+
+| ID | Livrable | Statut |
+|---|---|---|
+| E3-ST20-A | **Pipeline d'ancrage** — `horaire.json` (schéma + 2 règles hors schéma), champ `seance` du frontmatter (règle 3bis), attributs `diapos`/`seance` sur les encadrés `cours` et `correction-du-cours` (matrice à six lignes), `horaires.json` en quatrième sortie du manifeste, renumérotation des six modules publiés sur l'horaire réel | ✅ |
+| E3-ST20-B | **Rendu Angular de l'ancrage** — étiquette d'encadré « 📘 COURS · Séance 2 · diapos 13, 17 » · en-tête de page « Séance 2 · <titre> » + pastille **« À l'examen 1 »** · sommaire avec les **jalons d'évaluation intercalés**. C'est le §5 du contrat, écrit et **non implémenté** : rien de `src/app/` ne lit encore `seance`, `renvoiCours` ni `horaires.json` | ⬜ |
+| E3-ST21-A | **Pipeline des exercices du cours** — `exercices.json` (schéma + règles hors schéma), encadré `::: exercice-du-cours {seance ref diapos}` (7ᵉ variante), résolution de l'énoncé depuis le registre, **gate de complétude/unicité/existence** par séance sur les modules publiés, registre compilé en sortie. Contrat : §6 | ✅ |
+| E3-ST21-B | **Rendu Angular de l'exercice** — étiquette « 🧪 EXERCICE DU COURS · Séance 2 · n° 8 », titre, énoncé, puis la piste du module. Paire de contraste mesurée par `design:contrastes:check`, texte explicite (WCAG 1.4.1) | ⬜ |
+| E3-ST22 | **Réalignement de `01-fondamentaux` sur la séance 1** — la leçon développe CVE/CWE, la kill chain et les types de tests, **absents de la séance** ; elle ne dit presque rien du **montage de l'environnement de travail** (XAMPP/WAMP, éditeur, PuTTY, WinSCP, DigitalOcean, achat d'un nom de domaine), qui est ce que la séance 1 enseigne **et** ce que ses trois exercices demandent. Livre aussi l'entrée `"numero": 1` du registre (texte prêt, voir le tripwire ci-dessus) — les deux dans le **même** lot, sinon `content:build` rougit. Séance 1 est **dans la portée de l'examen 1** | ⬜ |
+
+> **Décisions du propriétaire du 2026-08-25 sur les exercices, à ne pas rouvrir** (détail : §6 du
+> contrat) : **X-1** les énoncés sont **reformulés et attribués**, jamais recopiés — le dépôt est
+> public et `securite-app-web-2026/` est gitignoré pour ne pas rediffuser le matériel de
+> l'enseignant ; **X-2** l'exercice se pose **au fil du texte**, juste après la notion qu'il exerce,
+> pas en annexe de fin de leçon.
+>
+> **L'exigence, telle qu'elle a été posée** : *« quand le module est lié à un cours qui contient des
+> exercices (presque tous), tu dois les ajouter (tous) au contenu et les identifier clairement comme
+> étant les exercices du cours »*. Elle vaut pour **tout sujet** — sécurité aujourd'hui, PHP ensuite.
+> Le mot qui coûte est **« tous »** : c'est le gate de complétude (§6.4) qui le rend mesurable,
+> plutôt qu'une intention écrite dans un document que personne ne relit.
+>
+> 📦 **Registre de production déjà écrit à la main** (2026-08-25) :
+> `content/cours/securite-web/exercices.json` — séance 2 : **13** exercices · séance 3 : **4** +
+> le bloc « Projet de session » (référence **nommée**, pas numérotée : la feuille de l'enseignant ne
+> lui donne pas de numéro, et lui en inventer un mentirait sur son document) · séance 4 : **7**.
+> 🔴 **CORRIGÉ LE 2026-08-25, APRÈS SIGNALEMENT DU PROPRIÉTAIRE — la séance 1 PORTE des exercices.**
+> Ce bloc a d'abord annoncé « les séances 1 et 5 n'ont aucun exercice publié ». C'était **faux pour
+> la séance 1**, et la faute de méthode mérite d'être nommée : la conclusion venait de l'**absence
+> d'un fichier local** (`securite-app-web-2026/exercices-cours-01.txt` n'existe pas), transformée en
+> affirmation sur ce que l'enseignant publie. Une mesure d'**état local** ne dit rien du **monde**
+> (famille **L-074**). Les cinq pages ont depuis été ouvertes **à la source** :
+>
+> | Séance | Exercices | Vérifié le | Note |
+> |---|---|---|---|
+> | 1 | **3**, numérotés **1, 2 et 4** | 2026-08-25, sur le site | ⏰ **pas encore au registre** — voir le tripwire ci-dessous |
+> | 2 | 13 | 2026-08-25, site + copie locale **identiques** | au registre |
+> | 3 | 4 + « Projet de session » (non numéroté) | 2026-08-25, site + copie locale **identiques** | au registre |
+> | 4 | 7 | 2026-08-25, site + copie locale **identiques** | au registre |
+> | 5 | **0** | 2026-08-25, **sur le site** | page publiée, **aucun énoncé** — cohérent avec le squelette de 23 diapositives du bloc D |
+>
+> **Règle qui en sort, et qui vaut pour les prochains cours** : la source d'autorité est le **site**
+> de l'enseignant (`.../exercice-securisation-app-web-cours-<n>-2026/`), pas le dossier local, qui
+> n'en est qu'une copie et peut être incomplète. Avant de déclarer une séance sans exercice, **ouvrir
+> sa page**, et dater la vérification — l'enseignant publie en cours de session.
+>
+> ⚠️ **Les numéros SAUTENT** : la feuille du cours 1 va 1, 2, **4**. Le registre les respecte tels
+> quels — d'où des références numériques *strictement croissantes* et non *contiguës* (§6.1 du
+> contrat). Exiger la contiguïté forcerait à inventer un exercice 3.
+>
+> ### ⏰ TRIPWIRE — les 3 exercices de la séance 1 sont RÉDIGÉS mais VOLONTAIREMENT hors registre
+>
+> **Pourquoi ils n'y sont pas encore.** `01-fondamentaux` est `seance: 1` **et** `statut: publiee`.
+> Les inscrire au registre aujourd'hui ferait **échouer `content:build` immédiatement** — le gate de
+> complétude (§6.4) exige que tout exercice d'une séance qui porte un module publié soit placé, et
+> `01-fondamentaux` n'en place aucun. Ce n'est pas un défaut du gate : c'est le gate qui fonctionne.
+>
+> **Ils entrent au registre dans le MÊME lot que le réalignement de `01-fondamentaux`**, et pas
+> avant. Ce réalignement était déjà dû (voir l'encadré de replanification : la leçon développe
+> CVE/CWE, la kill chain et les types de tests, absents de la séance, et ne dit presque rien du
+> **montage de l'environnement de travail** que la séance enseigne). **Les trois exercices sont
+> exactement cette matière manquante** — les placer, c'est faire le réalignement.
+>
+> Texte reformulé, prêt à coller dans `content/cours/securite-web/exercices.json` en tête du tableau
+> `seances` :
+>
+> ```json
+> {
+>   "numero": 1,
+>   "feuille": "Exercices du cours 1 (2026)",
+>   "exercices": [
+>     { "reference": "1",
+>       "titre": "Installer la trousse de travail sur son poste",
+>       "enonce": "Installe sur ton ordinateur tous les outils employés dans le cours : une pile web locale (WAMP ou XAMPP), un éditeur de texte ou un IDE (Notepad++, VS Code, PhpStorm…), puis PuTTY et WinSCP." },
+>     { "reference": "2",
+>       "titre": "Ouvrir un compte d'hébergement infonuagique",
+>       "enonce": "Assure-toi d'avoir un compte DigitalOcean fonctionnel — c'est lui qui portera les serveurs des séances suivantes." },
+>     { "reference": "4",
+>       "titre": "Acheter un nom de domaine",
+>       "enonce": "Achète un nom de domaine chez GoDaddy. Un autre registraire est permis, mais ton enseignant ne garantit pas de pouvoir t'aider en cas de problème avec celui-là." }
+>   ]
+> },
+> ```
+>
+> ⚠️ **La feuille ne porte pas d'exercice 3** — le saut de 2 à 4 est celui de l'enseignant, pas une
+> omission de transcription. Ne pas le « corriger ».
+
+
+
+#### ✅ CLÔTURE — E3-ST21-A, le pipeline des exercices du cours (2026-08-25)
+
+**Gates, revérifiés par le fil principal et non repris du rapport de l'agent** : `content:build`
+**vert** — `4/5 exercices — 1 registre(s) de sujet : securite-web (25 exercice(s) sur 3 séance(s))` ·
+`npm test` **913 passés / 43 fichiers / 0 échec** (base 902) · `npm run lint` *All files pass
+linting* · `npm run typecheck:tools` 0 erreur · contrôle positif du validateur **44/44 cas refusés
+avec une cause nommée** (34 avant le lot).
+
+**Ce que le lot a livré** : `schemas/exercices.schema.json` · règles **0bis** (registre : schéma,
+séances uniques/présentes/non évaluées, `reference` unique par séance, numériques strictement
+croissantes, **registre refusé → `null`, jamais d'index partiel**), **9** étendue (`ref`
+obligatoire, `source` refusé, existence nominative), **15** (`sujet`), **16** (unicité + complétude
+inter-leçons, sur les modules `publiee` seulement) · 7ᵉ variante d'encadré · 5ᵉ sortie
+`src/content-generated/exercices.json` · 10 fixtures invalides + 1 valide.
+
+**🔴 DEUX RÈGLES AJOUTÉES PAR L'IMPLÉMENTATION, confirmées après coup et écrites au contrat.**
+**(a) `numero` de séance unique dans le registre.** L'index est une `Map` : deux entrées de même
+numéro s'écrasaient **en silence**, et le gate de complétude cessait alors de mesurer la feuille
+perdue. Famille **S-010** — la *population* change sous l'instrument, aucun test ne s'éteint.
+**(b) `avertissement` obligatoire au schéma**, pour rendre la décision X-1 visible dans le fichier.
+⚠️ C'est une **attestation d'auteur, pas une preuve** : aucun gate ne peut comparer un énoncé
+reformulé à un original absent du dépôt. La revue humaine reste seule juge.
+
+**🔴 LE FAIT D'ORDONNANCEMENT À NE PAS DÉCOUVRIR EN COURS DE RÉDACTION.** Élargir `VarianteEncadre`
+casse **à la compilation** les deux `Record<VarianteEncadre, …>` exhaustifs de
+`rendu-blocs.ts` — donc `npm test`. Le lot a dû y toucher malgré un brief qui l'interdisait, et il a
+eu raison : correctif **fail-closed**, `exercice-du-cours` exclu nommément de
+`VarianteEncadreRendue`, absent de `VARIANTES_ENCADRE_RENDUES`, et `exigerVarianteRendue` **lève**.
+**Conséquence : aucune leçon ne peut poser cet encadré avant le lot de rendu (E3-ST21-B)** — elle
+ferait échouer le prerender. Le rendu **précède** donc l'écriture des modules des séances 2, 3 et 4 ;
+ce n'est pas une finition qu'on repousse après le contenu.
+
+> ✅ **L'EXCLUSION EST LEVÉE DEPUIS LE 2026-08-25 (clôture d'E3-ST21-B, plus bas).** Ce paragraphe
+> décrit l'**état transitoire entre les deux lots**, et il est conservé pour la raison qu'il donne,
+> pas pour l'état qu'il décrit. `VARIANTE_NON_RENDUE`, `VarianteEncadreRendue` et
+> `exigerVarianteRendue` **n'existent plus** ; les deux `Record` sont redevenus exhaustifs sur
+> `VarianteEncadre`, donc une **8ᵉ** variante casserait encore la compilation ici — ce qui reste la
+> raison d'être du type. Les leçons des séances 2, 3 et 4 peuvent être écrites.
+
+**🎓 Pour la prochaine passe `mentor` — deux entrées méritées, à ne pas perdre :**
+1. **« Une variante ajoutée au contrat de contenu casse la compilation du rendu. »** Un lot pipeline
+   ne peut pas être totalement disjoint d'un lot rendu : l'union de types les relie. La parade est
+   l'**exclusion nommée et fail-closed**, jamais l'élargissement silencieux du `Record` — et le
+   garde-fou se **retire** dans le lot qui le franchit (famille **L-070** : un commentaire qui
+   promet « pas encore » ment dès que le travail est fait).
+2. **« Les fixtures sont un deuxième livrable. »** Coût du lot : **303 202 tokens / 153 appels**,
+   le double du maximum. Cause mesurée : dix dossiers de fixture ≈ **1 600 lignes à RÉDIGER**, un
+   travail qui ne partage rien avec la lecture du validateur. Le volume de **sortie** se mesure
+   avant d'écrire le brief, au même titre que le volume de source (L-047). Détail et découpe juste :
+   `.claude/rules/agent-context-budget.md` §9.
+   ⚠️ **Ce qui n'était PAS la cause** : les plages de lignes injectées ont tenu — aucun des deux
+   fichiers de 2 400 lignes n'a été ouvert en entier. Ne pas en conclure qu'elles sont inutiles.
+
+
 **Processus commun à chaque sous-tâche** : skill **`/lecon`** (`professeur-web` rédige →
 `verificateur-theorie` contrôle) à partir de la fiche KB source (lecture seule sur
 `C:\Users\phili\ProjetsPortfolio\KnowledgeBase\web\securite\`). Livrable : `content/cours/securite-web/NN-slug/`

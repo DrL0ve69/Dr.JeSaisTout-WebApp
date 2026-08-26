@@ -150,12 +150,13 @@ const LANGAGES = ['php', 'csharp', 'typescript', 'javascript', 'html', 'sql', 'b
 const NOMS_LANGAGES = new Set(LANGAGES);
 
 /**
- * Les SIX encadrés, et la variante qu'ils portent au contrat (`type VarianteEncadre`).
+ * Les SEPT encadrés, et la variante qu'ils portent au contrat (`type VarianteEncadre`).
  *
- * Trois encadrés de TON (E2-ST1) puis trois encadrés de PROVENANCE (E3-ST1) — voir la note de
- * `types.d.ts`. L'ORDRE est celui du contrat, et il est comparé au littéral écrit en dur dans
- * `src/pipeline-contenu-validation.spec.ts` : ce n'est pas un détail de style, c'est ce qui fait
- * de la liste dupliquée de `valider.mjs` une redondance VÉRIFIÉE plutôt qu'un commentaire (L-008).
+ * Trois encadrés de TON (E2-ST1), trois encadrés de PROVENANCE (E3-ST1), puis l'EXERCICE DU COURS
+ * (E3-ST21) — voir la note de `types.d.ts`. L'ORDRE est celui du contrat, et il est comparé au
+ * littéral écrit en dur dans `src/pipeline-contenu-validation.spec.ts` : ce n'est pas un détail de
+ * style, c'est ce qui fait de la liste dupliquée de `valider.mjs` une redondance VÉRIFIÉE plutôt
+ * qu'un commentaire (L-008).
  */
 /** @type {readonly VarianteEncadre[]} */
 const VARIANTES_ENCADRE = [
@@ -165,6 +166,7 @@ const VARIANTES_ENCADRE = [
   'cours',
   'complement',
   'correction-du-cours',
+  'exercice-du-cours',
 ];
 /** @type {ReadonlySet<string>} */
 const ENCADRES = new Set(VARIANTES_ENCADRE);
@@ -183,8 +185,24 @@ const ATTRIBUT_SOURCE = 'source';
 const ATTRIBUT_DIAPOS = 'diapos';
 const ATTRIBUT_SEANCE = 'seance';
 
+/** La variante qui EXIGE un `ref`, et le nom de cet attribut (E3-ST21, §6.2). */
+const VARIANTE_EXERCICE = 'exercice-du-cours';
+const ATTRIBUT_REF = 'ref';
+
+/** Les deux fichiers de SUJET, à la racine, à côté des dossiers de modules. */
+const FICHIER_HORAIRE = 'horaire.json';
+const FICHIER_EXERCICES = 'exercices.json';
+
 /**
- * LA MATRICE D'ATTRIBUTS DES SIX ENCADRÉS — la MÊME que celle de `valider.mjs`, et la duplication
+ * La forme NUMÉRIQUE d'une `reference` d'exercice — la seule chose dont le LIBELLÉ dépend (§6.1) :
+ * « n° 8 » pour une référence numérique, le `titre` de l'entrée pour une référence nommée.
+ * Dupliquée depuis `schemas/exercices.schema.json`, comme dans `valider.mjs` et pour la même
+ * raison : ce n'est pas une revalidation du registre, c'est une question que le schéma ne pose pas.
+ */
+const REFERENCE_NUMERIQUE = /^[1-9]\d*$/;
+
+/**
+ * LA MATRICE D'ATTRIBUTS DES SEPT ENCADRÉS — la MÊME que celle de `valider.mjs`, et la duplication
  * reste assumée pour la raison déjà écrite en tête de `CONTENEURS_AUTORISES` : le compilateur ne
  * suppose pas que le validateur a tourné. Le lien entre les deux copies n'est PAS un commentaire
  * (L-008) : `src/pipeline-contenu-validation.spec.ts` les apparie, et le mode `--fixtures` du
@@ -199,6 +217,9 @@ const ATTRIBUTS_ADMIS_PAR_VARIANTE = new Map([
   ['cours', [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
   ['complement', []],
   [VARIANTE_SOURCEE, [ATTRIBUT_SOURCE, ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
+  // `source` est REFUSÉ ici, et c'est le contrat (§6.2) : la source d'un exercice du cours, c'est
+  // le cours. `lireAttributs` le refuse NOMMÉMENT, comme tout attribut hors matrice.
+  [VARIANTE_EXERCICE, [ATTRIBUT_REF, ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
 ]);
 
 /** Bornes de la grammaire de `diapos` — voir `valider.mjs`, même valeurs, même justification. */
@@ -1006,6 +1027,17 @@ function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
  *   valeur par DÉFAUT du `seance` d'un encadré (`docs/contenu/ancrage-au-cours.md` §3) : à `null`,
  *   un encadré qui porte un renvoi doit déclarer sa séance lui-même, sans quoi le renvoi ne
  *   désigne rien et la compilation échoue.
+ * @property {RegistreIndexe | null} exercices le registre du SUJET, indexé pour la résolution des
+ *   `ref` (E3-ST21). `null` quand la racine n'en porte pas : un `::: exercice-du-cours` fait alors
+ *   ÉCHOUER la compilation en le disant, jamais rendre un encadré sans énoncé.
+ */
+
+/**
+ * L'index de résolution du registre — la forme de travail, pas celle du contrat.
+ *
+ * @typedef {{
+ *   parSeance: ReadonlyMap<number, ReadonlyMap<string, { titre: string, enonce: string }>>,
+ * }} RegistreIndexe
  */
 
 /**
@@ -1519,6 +1551,20 @@ function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
   );
   const renvoiCours = lireRenvoiAuCours(variante, attributs, ctx);
 
+  if (variante === VARIANTE_EXERCICE) {
+    /** @type {Extract<BlocContenu, { variante: 'exercice-du-cours' }>} */
+    const exercice = {
+      type: 'encadre',
+      variante,
+      exerciceDuCours: resoudreExerciceDuCours(attributs, ctx),
+      // LE CORPS EST LA PISTE DE RÉSOLUTION, JAMAIS L'ÉNONCÉ (§6.2). Un corps VIDE est admis —
+      // certains exercices se passent d'indice — et il sort alors en tableau vide, pas en absence.
+      blocs: construireBlocs(enfants, ctx),
+    };
+    if (renvoiCours !== null) exercice.renvoiCours = renvoiCours;
+    return exercice;
+  }
+
   if (variante !== VARIANTE_SOURCEE) {
     /** @type {Extract<BlocContenu, { type: 'encadre' }>} */
     const encadre = { type: 'encadre', variante, blocs: construireBlocs(enfants, ctx) };
@@ -1545,6 +1591,78 @@ function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
   const correction = { type: 'encadre', variante, source, blocs: construireBlocs(enfants, ctx) };
   if (renvoiCours !== null) correction.renvoiCours = renvoiCours;
   return correction;
+}
+
+/**
+ * RÉSOUT l'exercice cité par un `::: exercice-du-cours {ref="…"}` depuis le registre du sujet.
+ *
+ * 🔴 L'ÉNONCÉ N'EST JAMAIS ÉCRIT PAR LE MODULE — il est LU dans `exercices.json` (§6.1). C'est ce
+ * qui empêche deux modules de raconter deux versions du même exercice, et c'est pourquoi la
+ * résolution vit ici : l'auteur n'écrit qu'une référence, le compilateur pose le reste.
+ *
+ * 🔴 TOUTE RÉFÉRENCE ABSENTE DU REGISTRE FAIT ÉCHOUER LA CONSTRUCTION EN SE NOMMANT, et le message
+ * énumère ce que la séance déclare vraiment — liste blanche NOMINATIVE, `.claude/rules/security.md`
+ * §4 (familles S-003/S-009/S-014). Un encadré retiré en silence serait un exercice du cours que
+ * l'étudiant ne verrait jamais, sur une page qui a l'air complète. Le validateur porte la même
+ * règle en amont ; ce filet-ci ne suppose pas qu'il a tourné.
+ *
+ * @param {Readonly<Record<string, string>>} attributs déjà restreints aux clefs admises
+ * @param {Contexte} ctx
+ * @returns {{ seance: number, reference: string, libelle: string, titre: string, enonce: string }}
+ */
+function resoudreExerciceDuCours(attributs, ctx) {
+  const reference = (attributs[ATTRIBUT_REF] ?? '').trim();
+  if (reference === '') {
+    echec(`${ctx.nomFichier} : « ::: ${VARIANTE_EXERCICE} » sans attribut « ${ATTRIBUT_REF} » non vide`, [
+      `forme attendue : ::: ${VARIANTE_EXERCICE} {${ATTRIBUT_SEANCE}="2" ${ATTRIBUT_REF}="8"}`,
+      'un exercice se cite par sa référence au registre — son énoncé ne se recopie jamais dans un module',
+    ]);
+  }
+
+  const seanceBrute = attributs[ATTRIBUT_SEANCE];
+  // La grammaire de `seance` est déjà jugée par `lireRenvoiAuCours`, qui s'exécute AVANT et
+  // échoue sur une valeur mal écrite : ce qui reste ici est « déclarée » ou « héritée ».
+  const seance = seanceBrute === undefined ? ctx.seanceDuModule : Number(seanceBrute);
+  if (seance === null || !Number.isInteger(seance)) {
+    echec(
+      `${ctx.nomFichier} : « ::: ${VARIANTE_EXERCICE} » ne se rattache à aucune séance`,
+      [
+        `le frontmatter de ce module n'a pas de « ${ATTRIBUT_SEANCE} » — l'attribut « ${ATTRIBUT_SEANCE} » devient obligatoire sur cet encadré`,
+      ],
+    );
+  }
+
+  if (ctx.exercices === null) {
+    echec(
+      `${ctx.nomFichier} : « ::: ${VARIANTE_EXERCICE} {${ATTRIBUT_REF}="${reference}"} » sans registre`,
+      [`la racine de ce module ne porte aucun « ${FICHIER_EXERCICES} » — l'énoncé ne se résout contre rien`],
+    );
+  }
+  const feuille = ctx.exercices.parSeance.get(seance);
+  if (feuille === undefined) {
+    echec(
+      `${ctx.nomFichier} : « ::: ${VARIANTE_EXERCICE} » cite la séance ${seance}, absente de « ${FICHIER_EXERCICES} »`,
+      [`séances au registre : ${[...ctx.exercices.parSeance.keys()].join(', ') || '(aucune)'}`],
+    );
+  }
+  const entree = feuille.get(reference);
+  if (entree === undefined) {
+    echec(
+      `${ctx.nomFichier} : « ${ATTRIBUT_REF}="${reference}" » inconnue de la séance ${seance} de « ${FICHIER_EXERCICES} »`,
+      [`références déclarées : ${[...feuille.keys()].join(', ')}`],
+    );
+  }
+
+  // LE LIBELLÉ EST CALCULÉ ICI, ET NULLE PART AILLEURS (§6.1). Le rendu reçoit une chaîne prête —
+  // une seconde implémentation de « que veut dire une référence nommée » finirait par en dire
+  // autre chose, exactement comme pour le dépliage des plages de `diapos`.
+  // ⚠️ L'ESPACE DE « n° 8 » EST UNE U+00A0 INSÉCABLE, PAS UNE ESPACE ORDINAIRE. Sans elle, une fin
+  // de ligne peut couper entre « n° » et son chiffre, et l'abréviation seule ne désigne plus rien.
+  // U+00A0 et RIEN D'AUTRE : U+202F (fine insécable) est ABSENTE de Fraunces comme d'Inter, et
+  // U+2009 n'est portée que par Inter — contrainte matérielle d'E1-ST1-B, pas un goût typographique
+  // (`.claude/rules/contenu-pedagogique.md` §3, `docs/design/polices.md`).
+  const libelle = REFERENCE_NUMERIQUE.test(reference) ? `n° ${reference}` : entree.titre;
+  return { seance, reference, libelle, titre: entree.titre, enonce: entree.enonce };
 }
 
 /**
@@ -2130,7 +2248,10 @@ function compilerSimulation(dossier, slug) {
  * Compile UNE leçon.
  *
  * @param {string} dossier chemin absolu du dossier contenant `lecon.md`
- * @param {{ md: InstanceType<typeof MarkdownIt>, colorateur: Colorateur, rendreMermaid?: Contexte['rendreMermaid'] }} outils
+ * @param {{ md: InstanceType<typeof MarkdownIt>, colorateur: Colorateur, rendreMermaid?: Contexte['rendreMermaid'], exercices?: RegistreIndexe | null }} outils
+ *   `exercices` est OPTIONNEL : absent, tout `::: exercice-du-cours` fait échouer la compilation en
+ *   nommant le registre manquant. C'est fail-closed, pas un défaut — une leçon compilée SANS son
+ *   registre rendrait un encadré d'exercice sans énoncé, ce que rien en aval ne verrait.
  * @returns {LeconCompilee}
  */
 export function compilerLecon(dossier, outils) {
@@ -2157,6 +2278,7 @@ export function compilerLecon(dossier, outils) {
     nomFichier,
     rendreMermaid: outils.rendreMermaid ?? null,
     seanceDuModule: typeof donnees['seance'] === 'number' ? donnees['seance'] : null,
+    exercices: outils.exercices ?? null,
   };
   const sections = construireSections(outils.md.parse(nettoye.corps, {}), ctx);
 
@@ -2339,9 +2461,14 @@ function recenserLecons(racine) {
  * et ses deux règles hors schéma. Absent, il vaut `null` — une racine sans ancrage au cours reste
  * compilable, comme elle l'était avant ce lot.
  *
+ * ⚠️ LE REGISTRE D'EXERCICES SORT AVEC EUX (E3-ST21), pour les mêmes raisons, mot pour mot : il
+ * est la donnée du SUJET, il doit voyager jusqu'au manifeste, et il est rendu TEL QUEL, non
+ * validé — `valider.mjs` porte `schemas/exercices.schema.json` et ses quatre règles hors schéma,
+ * et `build.mjs` le fait tourner avant. Absent, il vaut `null`.
+ *
  * @param {string} racine chemin absolu
  * @param {{ rendreMermaid?: Contexte['rendreMermaid'] }} [options]
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null }>}
+ * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null }>}
  */
 export async function compilerRacine(racine, options = {}) {
   // `content/cours/securite-web/` n'existe pas encore (E3 l'ouvrira). Sans ce garde-fou, l'appel
@@ -2351,13 +2478,75 @@ export async function compilerRacine(racine, options = {}) {
   const colorateur = await creerColorateur();
   if (!existsSync(racine)) {
     console.error(`compiler-markdown : aucune racine « ${afficher(racine)} » — 0 leçon`);
-    return { lecons: [], feuille: assemblerFeuille(colorateur.feuille()), horaire: null };
+    return {
+      lecons: [],
+      feuille: assemblerFeuille(colorateur.feuille()),
+      horaire: null,
+      exercices: null,
+    };
   }
   const md = creerMarkdownIt();
+  const exercices = lireExercices(racine);
   const lecons = recenserLecons(racine).map((dossier) =>
-    compilerLecon(dossier, { md, colorateur, rendreMermaid: options.rendreMermaid }),
+    compilerLecon(dossier, {
+      md,
+      colorateur,
+      rendreMermaid: options.rendreMermaid,
+      exercices: indexerExercices(exercices),
+    }),
   );
-  return { lecons, feuille: assemblerFeuille(colorateur.feuille()), horaire: lireHoraire(racine) };
+  return {
+    lecons,
+    feuille: assemblerFeuille(colorateur.feuille()),
+    horaire: lireHoraire(racine),
+    exercices,
+  };
+}
+
+/**
+ * Lit le `exercices.json` d'une racine, s'il y en a un.
+ *
+ * ⚠️ AUCUNE VALIDATION ICI, ET C'EST DÉLIBÉRÉ — même stratification, même raison que `lireHoraire`
+ * juste en dessous. Ce qui est refusé, en revanche, c'est un JSON illisible : un fichier tronqué ne
+ * devient pas un registre vide en silence, ce qui ferait échouer chaque `ref` sur la mauvaise cause.
+ *
+ * @param {string} racine chemin absolu
+ * @returns {ExercicesCompiles | null}
+ */
+function lireExercices(racine) {
+  const chemin = join(racine, FICHIER_EXERCICES);
+  if (!existsSync(chemin)) return null;
+  try {
+    return /** @type {ExercicesCompiles} */ (JSON.parse(readFileSync(chemin, 'utf8')));
+  } catch (e) {
+    return echec(`${afficher(chemin)} : JSON illisible`, [
+      e instanceof Error ? e.message : String(e),
+    ]);
+  }
+}
+
+/**
+ * Indexe le registre pour la résolution des `ref` — séance, puis référence.
+ *
+ * L'index est construit UNE FOIS par racine et partagé par toutes ses leçons : reconstruire une
+ * `Map` par module ferait, sur treize modules, treize fois le même travail sur la même donnée.
+ *
+ * @param {ExercicesCompiles | null} registre
+ * @returns {RegistreIndexe | null}
+ */
+function indexerExercices(registre) {
+  if (registre === null) return null;
+  /** @type {Map<number, Map<string, { titre: string, enonce: string }>>} */
+  const parSeance = new Map();
+  for (const seance of registre.seances) {
+    /** @type {Map<string, { titre: string, enonce: string }>} */
+    const feuille = new Map();
+    for (const exercice of seance.exercices) {
+      feuille.set(exercice.reference, { titre: exercice.titre, enonce: exercice.enonce });
+    }
+    parSeance.set(seance.numero, feuille);
+  }
+  return { parSeance };
 }
 
 /**
@@ -2374,7 +2563,7 @@ export async function compilerRacine(racine, options = {}) {
  * @returns {HoraireCompile | null}
  */
 function lireHoraire(racine) {
-  const chemin = join(racine, 'horaire.json');
+  const chemin = join(racine, FICHIER_HORAIRE);
   if (!existsSync(chemin)) return null;
   try {
     return /** @type {HoraireCompile} */ (JSON.parse(readFileSync(chemin, 'utf8')));

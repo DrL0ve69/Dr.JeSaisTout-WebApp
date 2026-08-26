@@ -1,0 +1,28 @@
+{
+  "sujet": "securite-web",
+  "avertissement": "Énoncés REFORMULÉS à partir des feuilles d’exercices de l’enseignant — fixture de test, aucun matériel de cours n’est reproduit ici.",
+  "seances": [
+    {
+      "numero": 2,
+      "feuille": "Exercices du cours 2 (fixture)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Exercice témoin",
+          "enonce": "Énoncé témoin, reformulé, assez long pour satisfaire la longueur minimale du schéma."
+        }
+      ]
+    },
+    {
+      "numero": 2,
+      "feuille": "Exercices du cours 2, deuxième feuille",
+      "exercices": [
+        {
+          "reference": "2",
+          "titre": "Autre exercice",
+          "enonce": "Énoncé témoin, reformulé, assez long pour satisfaire la longueur minimale du schéma."
+        }
+      ]
+    }
+  ]
+}

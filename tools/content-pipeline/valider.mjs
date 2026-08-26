@@ -15,6 +15,10 @@
  *   0. `horaire.json` du sujet      — OPTIONNEL ; schéma + « numero » strictement croissants +
  *                                     `portee` qui ne cite que des séances existantes et non
  *                                     évaluées. Examiné EN PREMIER : les leçons s'y confrontent
+ *  0bis. `exercices.json` du sujet  — OPTIONNEL ; schéma + séances uniques, présentes à l'horaire
+ *                                     et non évaluées + `reference` unique par séance et formes
+ *                                     numériques strictement croissantes. Examiné juste APRÈS
+ *                                     l'horaire, dont il dépend, et AVANT les leçons qui le citent
  *   1. frontmatter lisible          — sous-ensemble YAML strict, voir `analyserFrontmatter`
  *   2. frontmatter conforme         — `schemas/lecon.frontmatter.schema.json` (Ajv)
  *   3. cohérence dossier ↔ leçon    — `<nn>-<slug>` = `slug` + `ordre`, slugs uniques
@@ -24,13 +28,17 @@
  *   6. marqueurs `à-vérifier:`      — interdits dès `statut: publiee`
  *   7. conteneurs `:::`             — liste FERMÉE
  *   8. marqueurs 📘/🧩 littéraux    — interdits hors bloc de code (G1)
- *   9. attributs des encadrés       — matrice `source`/`diapos`/`seance` par variante (G3
- *                                     comprise), grammaire de `diapos`, séance dérivable
+ *   9. attributs des encadrés       — matrice `source`/`diapos`/`seance`/`ref` par variante (G3
+ *                                     comprise), grammaire de `diapos`, séance dérivable, et
+ *                                     EXISTENCE du `ref` d'un `exercice-du-cours` au registre
  *  10. provenance vs statut         — ≥ 1 encadré `cours`/`complement` dès `statut: publiee` (G2)
  *  11. `quiz.json`                  — obligatoire ; schéma + cohérences inter-champs
  *  12. `simulation.json`            — optionnel ; schéma + cohérences inter-champs
  *  13. `section` tout-ou-rien       — à l'échelle du SUJET, après le passage de toutes les leçons
  *  14. `sujet` de l'horaire         — concorde avec celui déclaré par les leçons de la racine
+ *  15. `sujet` du registre          — même contrôle, même raison, sur `exercices.json`
+ *  16. exercices UNIQUES et TOUS    — à l'échelle du SUJET : un exercice n'est cité qu'une fois, et
+ *                                     toute séance qui porte un module PUBLIÉ les place tous (§6.4)
  *
  * POURQUOI DES RÈGLES « HORS SCHÉMA ».
  * JSON Schema décrit la forme d'UN document ; il ne sait pas comparer deux branches du même
@@ -130,10 +138,14 @@ const CONTENEURS_AUTORISES = new Set([
   // 📘 le cours, 🧩 le complément KB, ⚠️ la correction sourcée. La duplication avec
   // `compiler-markdown.mjs` reste ASSUMÉE (le validateur ne dépend pas du compilateur) — ce qui
   // n'est pas acceptable, c'est qu'un commentaire en soit le seul lien (L-008) : les deux listes
-  // sont appariées par `src/pipeline-contenu-validation.spec.ts`, contre six noms écrits en dur.
+  // sont appariées par `src/pipeline-contenu-validation.spec.ts`, contre SEPT noms écrits en dur.
   'cours',
   'complement',
   'correction-du-cours',
+  // Le SEPTIÈME encadré (E3-ST21) : l'exercice du cours, posé AU FIL DU TEXTE juste après la
+  // notion qu'il exerce (décision X-2 du propriétaire). Son énoncé ne s'écrit jamais ici — il est
+  // RÉSOLU depuis `exercices.json` par le compilateur, et cet encadré ne porte que la piste.
+  'exercice-du-cours',
 ]);
 
 /**
@@ -154,7 +166,16 @@ const ATTRIBUT_DIAPOS = 'diapos';
 const ATTRIBUT_SEANCE = 'seance';
 
 /**
- * LA MATRICE D'ATTRIBUTS DES SIX ENCADRÉS — liste blanche NOMINATIVE, une entrée par variante.
+ * La variante qui EXIGE un `ref`, et le nom de cet attribut (E3-ST21, §6.2).
+ *
+ * `ref` est à `exercice-du-cours` ce que `source` est à `correction-du-cours` : sans lui, l'encadré
+ * ne désigne aucun énoncé et n'affiche qu'une piste de résolution sans problème à résoudre.
+ */
+const VARIANTE_EXERCICE = 'exercice-du-cours';
+const ATTRIBUT_REF = 'ref';
+
+/**
+ * LA MATRICE D'ATTRIBUTS DES SEPT ENCADRÉS — liste blanche NOMINATIVE, une entrée par variante.
  *
  * C'est la table du §3 d'`ancrage-au-cours.md`, et elle GÉNÉRALISE le refus qui n'existait que
  * pour `source` : jusqu'à E3-ST20, `source` était admis sur `correction-du-cours` et refusé
@@ -180,6 +201,10 @@ const ATTRIBUTS_ADMIS_PAR_VARIANTE = new Map([
   ['cours', [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
   ['complement', []],
   [VARIANTE_SOURCEE, [ATTRIBUT_SOURCE, ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
+  // ⚠️ `source` EST REFUSÉ SUR L'EXERCICE, et c'est écrit au contrat (§6.2) : la source d'un
+  // exercice du cours, c'est le cours. L'admettre laisserait un module attribuer un énoncé de
+  // l'enseignant à un tiers.
+  [VARIANTE_EXERCICE, [ATTRIBUT_REF, ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE]],
 ]);
 
 /**
@@ -196,6 +221,35 @@ const AMPLITUDE_MAX_PLAGE = 100;
 
 /** Nom du fichier d'horaire, à la racine d'un sujet. Voir `docs/contenu/ancrage-au-cours.md` §1. */
 const FICHIER_HORAIRE = 'horaire.json';
+
+/**
+ * Nom du registre d'exercices, à la racine d'un sujet (`docs/contenu/ancrage-au-cours.md` §6.1).
+ * Il est à l'exercice ce que `horaire.json` est à la séance : la SEULE source de l'énoncé.
+ */
+const FICHIER_EXERCICES = 'exercices.json';
+
+/**
+ * Le statut d'une leçon dont l'examen s'est arrêté AVANT d'avoir pu lire son frontmatter.
+ *
+ * Volontairement une valeur qu'aucun schéma n'admet. Les règles inter-leçons (16) ne doivent pas
+ * compter un module illisible parmi les modules PUBLIÉS : elles le tiendraient pour un module qui
+ * ne cite aucun exercice, et empileraient une accusation de complétude par-dessus la vraie faute.
+ */
+const STATUT_INDETERMINE = 'indetermine';
+
+/**
+ * La grammaire TOTALE d'une `reference` d'exercice, DUPLIQUÉE depuis `exercices.schema.json`.
+ *
+ * ⚠️ ELLE NE SERT PAS À REVALIDER LE REGISTRE — Ajv l'a déjà fait, et deux autorités sur la même
+ * forme finiraient par diverger. Elle sert à répondre à UNE question que le schéma ne pose pas :
+ * « cette référence est-elle de forme NUMÉRIQUE ? », dont dépend la règle de croissance stricte
+ * (§6.1) et, côté compilateur, le libellé rendu (« n° 8 » contre le titre de l'entrée).
+ *
+ * ⚠️ Le motif s'écrit ici avec la classe concise qu'exige `sonarjs/concise-regex` : `[1-9]\d*` et
+ * le `[1-9][0-9]*` du schéma décrivent EXACTEMENT le même langage — ne pas lire cette différence
+ * d'écriture comme une divergence de contrat.
+ */
+const REFERENCE_NUMERIQUE = /^[1-9]\d*$/;
 
 /**
  * Les marqueurs de provenance LITTÉRAUX, interdits dans le corps d'une leçon (règle G1).
@@ -537,6 +591,7 @@ const validerFrontmatter = ajv.compile(lireSchema('lecon.frontmatter.schema.json
 const validerQuiz = ajv.compile(lireSchema('quiz.schema.json'));
 const validerSimulation = ajv.compile(lireSchema('simulation.schema.json'));
 const validerHoraire = ajv.compile(lireSchema('horaire.schema.json'));
+const validerExercices = ajv.compile(lireSchema('exercices.schema.json'));
 
 /**
  * Rend une erreur Ajv EN FRANÇAIS.
@@ -895,6 +950,9 @@ function verifierMarqueursDeProvenanceLitteraux(lignes, signaler) {
  */
 const FORME_ATTENDUE_CORRECTION = `forme attendue : ::: ${VARIANTE_SOURCEE} {${ATTRIBUT_SOURCE}="OWASP Top 10 2021 — A02"}`;
 
+/** Sa jumelle pour l'exercice du cours (E3-ST21, §6.2). */
+const FORME_ATTENDUE_EXERCICE = `forme attendue : ::: ${VARIANTE_EXERCICE} {${ATTRIBUT_SEANCE}="2" ${ATTRIBUT_REF}="8"}, la « ${ATTRIBUT_SEANCE} » pouvant être héritée du frontmatter`;
+
 /**
  * Motif de paire `clef="valeur"`, IDENTIQUE à celui de `lireAttributs` (`\b` de tête compris,
  * S8786). Ce qui est lu ici doit être exactement ce que le compilateur lira, sans quoi les deux
@@ -915,6 +973,7 @@ const MOTIF_PAIRE_ATTRIBUT = /\b([a-z-]+)="([^"]*)"/g;
  */
 function formeAttendue(variante) {
   if (variante === VARIANTE_SOURCEE) return FORME_ATTENDUE_CORRECTION;
+  if (variante === VARIANTE_EXERCICE) return FORME_ATTENDUE_EXERCICE;
   if (variante === 'cours') {
     return `forme attendue : ::: cours {${ATTRIBUT_DIAPOS}="13, 17"}, ou ::: cours {${ATTRIBUT_SEANCE}="5" ${ATTRIBUT_DIAPOS}="45-50"} pour citer une AUTRE séance`;
   }
@@ -1021,6 +1080,38 @@ function analyserDiapos(valeur) {
 }
 
 /**
+ * CE QU'UNE LEÇON PEUT CONFRONTER AUX AUTRES FICHIERS DE SA RACINE.
+ *
+ * Les trois champs sont `null`-ables, et chaque `null` a le même sens : « la racine ne porte pas
+ * cette source ». Un renvoi qui ne se vérifie contre rien est refusé EN LE DISANT, plutôt que
+ * validé par défaut — c'est la même règle fail-closed que partout ailleurs dans ce fichier.
+ *
+ * @typedef {object} Ancrage
+ * @property {number | null} seanceFrontmatter séance du module, ou `null` s'il n'en déclare pas
+ *   (module complémentaire, hors cours). C'est la valeur PAR DÉFAUT du `seance` d'un encadré.
+ * @property {ReadonlySet<number> | null} seancesConnues les numéros de `horaire.json`
+ * @property {ReadonlyMap<number, ReadonlySet<string>> | null} exercicesConnus les `reference` du
+ *   registre `exercices.json`, indexées par numéro de séance
+ */
+
+/**
+ * La cause d'un encadré écrit SANS accolade d'attributs — pour les deux variantes qui en exigent
+ * un. Les cinq autres n'ont rien à dire ici : un encadré nu est leur forme normale.
+ *
+ * @param {string} variante
+ * @returns {string | null}
+ */
+function causeDAttributObligatoireAbsent(variante) {
+  if (variante === VARIANTE_SOURCEE) {
+    return `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ${FORME_ATTENDUE_CORRECTION}`;
+  }
+  if (variante === VARIANTE_EXERCICE) {
+    return `« ::: ${VARIANTE_EXERCICE} » sans attribut « ${ATTRIBUT_REF} » — ${FORME_ATTENDUE_EXERCICE}`;
+  }
+  return null;
+}
+
+/**
  * Lit la partie attributs d'une ouverture d'encadré et rend la CAUSE du refus.
  *
  * Fonction séparée de la boucle qui l'appelle pour une raison qui n'est pas cosmétique : chacune
@@ -1030,19 +1121,14 @@ function analyserDiapos(valeur) {
  *
  * @param {string} variante nom de l'encadré, déjà connu de `ATTRIBUTS_ADMIS_PAR_VARIANTE`
  * @param {string} reste ce qui suit le nom du conteneur, déjà rogné
- * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
- *   `seanceFrontmatter` : la séance du module, ou `null` s'il n'en déclare pas.
- *   `seancesConnues` : les numéros de `horaire.json`, ou `null` si la racine n'en porte pas.
+ * @param {Ancrage} ancrage
  * @returns {string | null} la cause du refus, sans le préfixe « corps ligne N : » ; `null` si conforme
  */
 function causeDAttributsDEncadre(variante, reste, ancrage) {
   const admis = ATTRIBUTS_ADMIS_PAR_VARIANTE.get(variante) ?? [];
   const exigeSource = variante === VARIANTE_SOURCEE;
-  if (reste === '') {
-    return exigeSource
-      ? `« ::: ${VARIANTE_SOURCEE} » sans attribut « ${ATTRIBUT_SOURCE} » — ${FORME_ATTENDUE_CORRECTION}`
-      : null;
-  }
+  const exigeRef = variante === VARIANTE_EXERCICE;
+  if (reste === '') return causeDAttributObligatoireAbsent(variante);
   const accolade = /^\{(.*)\}$/.exec(reste);
   if (accolade === null) {
     return (
@@ -1084,7 +1170,72 @@ function causeDAttributsDEncadre(variante, reste, ancrage) {
       );
     }
   }
-  return causeDuRenvoiAuCours(variante, attributs, ancrage);
+  const causeDuRenvoi = causeDuRenvoiAuCours(variante, attributs, ancrage);
+  if (causeDuRenvoi !== null || !exigeRef) return causeDuRenvoi;
+  return causeDuRenvoiALExercice(attributs, ancrage);
+}
+
+/**
+ * La séance à laquelle un encadré se rattache : celle qu'il DÉCLARE, sinon celle du module.
+ *
+ * ⚠️ REND `null` AUSSI POUR UNE SÉANCE MAL ÉCRITE, et ce n'est pas une confusion de deux états :
+ * `causeDuRenvoiAuCours` a déjà refusé `{seance="abc"}` en nommant sa vraie faute, et les appelants
+ * de cette fonction-ci ne s'exécutent qu'après ce refus. Ce qui reste ici est donc « aucune séance
+ * dérivable », un seul état.
+ *
+ * @param {Readonly<Record<string, string>>} attributs
+ * @param {Ancrage} ancrage
+ * @returns {number | null}
+ */
+function seanceDeLEncadre(attributs, ancrage) {
+  const brute = attributs[ATTRIBUT_SEANCE];
+  if (brute === undefined) return ancrage.seanceFrontmatter;
+  return /^[1-9]\d?$/.test(brute) ? Number(brute) : null;
+}
+
+/**
+ * --- Existence du `ref` d'un `exercice-du-cours` au registre (E3-ST21, §6.4 règle 3) ---
+ *
+ * 🔴 LISTE BLANCHE NOMINATIVE : tout `ref` absent du registre SE NOMME EN ÉCHOUANT, et le message
+ * énumère ce que la séance déclare vraiment. Jamais de retrait silencieux de l'encadré —
+ * `.claude/rules/security.md` §4, famille S-003/S-009/S-014 : ce qui n'est pas compris est refusé,
+ * jamais ignoré. Un encadré escamoté serait un exercice du cours que l'étudiant ne verrait pas,
+ * sur une page qui a l'air complète.
+ *
+ * @param {Readonly<Record<string, string>>} attributs clefs déjà restreintes à la matrice
+ * @param {Ancrage} ancrage
+ * @returns {string | null}
+ */
+function causeDuRenvoiALExercice(attributs, ancrage) {
+  const ref = attributs[ATTRIBUT_REF];
+  if (ref === undefined) {
+    return `« ::: ${VARIANTE_EXERCICE} » sans attribut « ${ATTRIBUT_REF} » — ${FORME_ATTENDUE_EXERCICE}`;
+  }
+  if (ref.trim() === '') {
+    return (
+      `« ::: ${VARIANTE_EXERCICE} » porte un attribut « ${ATTRIBUT_REF} » vide — ` +
+      'un exercice se cite par sa référence au registre, jamais par son énoncé recopié'
+    );
+  }
+  const seance = seanceDeLEncadre(attributs, ancrage);
+  if (seance === null) {
+    return (
+      `« ::: ${VARIANTE_EXERCICE} » ne se rattache à aucune séance — le frontmatter de ce module ` +
+      `n'a pas de « ${ATTRIBUT_SEANCE} », l'attribut « ${ATTRIBUT_SEANCE} » devient donc obligatoire ` +
+      'sur cet encadré'
+    );
+  }
+  if (ancrage.exercicesConnus === null) {
+    return `« ::: ${VARIANTE_EXERCICE} » cite « ${ATTRIBUT_REF}="${ref}" », mais la racine ne porte pas de « ${FICHIER_EXERCICES} » valide — l'énoncé ne se résout contre rien`;
+  }
+  const references = ancrage.exercicesConnus.get(seance);
+  if (references === undefined) {
+    return `« ::: ${VARIANTE_EXERCICE} » cite la séance ${seance}, absente de « ${FICHIER_EXERCICES} » (séances au registre : ${[...ancrage.exercicesConnus.keys()].join(', ')})`;
+  }
+  if (!references.has(ref)) {
+    return `« ::: ${VARIANTE_EXERCICE} » cite « ${ATTRIBUT_REF}="${ref}" », inconnue de la séance ${seance} de « ${FICHIER_EXERCICES} » (références déclarées : ${[...references].join(', ')})`;
+  }
+  return null;
 }
 
 /**
@@ -1092,7 +1243,7 @@ function causeDAttributsDEncadre(variante, reste, ancrage) {
  *
  * @param {string} variante
  * @param {Readonly<Record<string, string>>} attributs
- * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
+ * @param {Ancrage} ancrage
  * @returns {string | null}
  */
 function causeDuRenvoiAuCours(variante, attributs, ancrage) {
@@ -1138,7 +1289,7 @@ function causeDuRenvoiAuCours(variante, attributs, ancrage) {
  * Applique la matrice d'attributs (G3 comprise) à toutes les lignes du corps.
  *
  * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
- * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
+ * @param {Ancrage} ancrage
  * @param {(cause: string) => void} signaler
  */
 function verifierAttributsDesEncadres(lignes, ancrage, signaler) {
@@ -1193,6 +1344,49 @@ function compterEncadresDeProvenance(lignes) {
 }
 
 /**
+ * --- Support des règles 16 : RECENSE les exercices cités par le corps ---
+ *
+ * ⚠️ CETTE FONCTION NE JUGE RIEN, ET C'EST LE POINT. Elle est appelée APRÈS
+ * `verifierAttributsDesEncadres`, qui a déjà nommé toute faute de forme ; elle ne retient donc que
+ * les citations RÉSOLUES — attribut `ref` non vide, séance dérivable. Un encadré fautif est ignoré
+ * ici parce qu'il est déjà refusé ailleurs : le recenser produirait une SECONDE cause pour une
+ * seule faute, ce que le mode `--fixtures` interdit par contrat.
+ *
+ * ⚠️ L'EXISTENCE AU REGISTRE N'EST PAS REVÉRIFIÉE ICI. Un `ref` inconnu est déjà refusé par
+ * `causeDuRenvoiALExercice` ; le laisser entrer dans le recensement ne peut qu'ajouter une entrée
+ * qu'aucune règle inter-leçons ne réclame, sur une racine dont le build échoue de toute façon.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {Ancrage} ancrage
+ * @returns {{ ligne: number, seance: number, reference: string }[]}
+ */
+function recenserExercicesCites(lignes, ancrage) {
+  /** @type {{ ligne: number, seance: number, reference: string }[]} */
+  const cites = [];
+  for (const l of lignes) {
+    if (l.code) continue;
+    const marqueur = marqueurDeConteneur(l.texte);
+    if (marqueur === null || marqueur.suite === '') continue;
+    const nom = nomDeConteneur(marqueur.suite);
+    if (nom !== VARIANTE_EXERCICE) continue;
+    const reste = marqueur.suite.slice(nom.length).trim();
+    const accolade = /^\{(.*)\}$/.exec(reste);
+    if (accolade === null) continue;
+    /** @type {Record<string, string>} */
+    const attributs = {};
+    MOTIF_PAIRE_ATTRIBUT.lastIndex = 0;
+    for (const paire of (accolade[1] ?? '').matchAll(MOTIF_PAIRE_ATTRIBUT)) {
+      attributs[paire[1] ?? ''] = paire[2] ?? '';
+    }
+    const reference = (attributs[ATTRIBUT_REF] ?? '').trim();
+    const seance = seanceDeLEncadre(attributs, ancrage);
+    if (reference === '' || seance === null) continue;
+    cites.push({ ligne: l.numero, seance, reference });
+  }
+  return cites;
+}
+
+/**
  * --- 10. Provenance tracée vs statut (règle G2) ---
  *
  * ⚠️ LE SEUIL EST « ≥ 1 », ET IL N'Y A PAS DE COMPTE DÉCLARÉ AU FRONTMATTER. Un champ que l'auteur
@@ -1225,8 +1419,10 @@ function verifierProvenanceVsStatut(lignes, statut, signaler) {
  *
  * @param {string} corps
  * @param {string} statut
- * @param {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} ancrage
+ * @param {Ancrage} ancrage
  * @param {(cause: string) => void} signaler
+ * @returns {{ exercicesCites: { ligne: number, seance: number, reference: string }[] }} ce que le
+ *   corps a CITÉ et que seule la racine entière peut juger (unicité et complétude, règles 16)
  */
 function verifierCorps(corps, statut, ancrage, signaler) {
   const lignes = lignesDuCorps(corps);
@@ -1266,6 +1462,10 @@ function verifierCorps(corps, statut, ancrage, signaler) {
 
   // --- 10. Provenance tracée vs statut (G2) --------------------------------
   verifierProvenanceVsStatut(lignes, statut, signaler);
+
+  // Le RECENSEMENT vient en dernier, et il ne signale rien : ce qu'il rend est jugé par
+  // `validerRacine`, seule à voir toutes les leçons du sujet.
+  return { exercicesCites: recenserExercicesCites(lignes, ancrage) };
 }
 
 /**
@@ -1752,9 +1952,10 @@ function verifierSeanceContreHoraire(frontmatter, horaire, signaler) {
  *
  * @param {string} dossier chemin absolu du dossier de la leçon
  * @param {HoraireIndexe | null} horaire horaire du sujet, ou `null` s'il est absent ou refusé
- * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown }}
+ * @param {ExercicesIndexe | null} exercices registre du sujet, ou `null` s'il est absent ou refusé
+ * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown, statut: string, seance: number | null, exercicesCites: { seance: number, reference: string }[] }}
  */
-function validerLecon(dossier, horaire) {
+function validerLecon(dossier, horaire, exercices) {
   /** @type {Anomalie[]} */
   const anomalies = [];
   const cheminLecon = join(dossier, 'lecon.md');
@@ -1775,7 +1976,7 @@ function validerLecon(dossier, horaire) {
   const separation = MOTIF_FRONTMATTER.exec(texte);
   if (!separation) {
     signalerLecon('frontmatter absent ou non fermé — le fichier doit ouvrir par une ligne « --- »');
-    return { anomalies, slug: null, ordre: null, sujet: null, section: null };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [] };
   }
 
   /** @type {Record<string, unknown>} */
@@ -1784,13 +1985,13 @@ function validerLecon(dossier, horaire) {
     frontmatter = analyserFrontmatter(separation[1] ?? '');
   } catch (e) {
     signalerLecon(e instanceof ErreurContenu ? e.message : String(e));
-    return { anomalies, slug: null, ordre: null, sujet: null, section: null };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [] };
   }
 
   // --- 2. Schéma du frontmatter -------------------------------------------
   if (!validerFrontmatter(frontmatter)) {
     signalerLecon(`frontmatter : ${premiereErreurAjv(validerFrontmatter.errors)}`);
-    return { anomalies, slug: null, ordre: null, sujet: null, section: null };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [] };
   }
 
   const slug = String(frontmatter['slug']);
@@ -1809,13 +2010,17 @@ function validerLecon(dossier, horaire) {
 
   // --- 4 à 10. Corps -------------------------------------------------------
   const seanceDuFrontmatter = frontmatter['seance'];
-  /** @type {{ seanceFrontmatter: number | null, seancesConnues: ReadonlySet<number> | null }} */
+  /** @type {Ancrage} */
   const ancrage = {
     seanceFrontmatter: typeof seanceDuFrontmatter === 'number' ? seanceDuFrontmatter : null,
     seancesConnues: horaire === null ? null : horaire.numeros,
+    exercicesConnus:
+      exercices === null
+        ? null
+        : new Map([...exercices.parSeance].map(([n, refs]) => [n, new Set(refs.keys())])),
   };
   const corps = texte.slice(separation[0].length);
-  verifierCorps(corps, statut, ancrage, signalerLecon);
+  const { exercicesCites } = verifierCorps(corps, statut, ancrage, signalerLecon);
   verifierTitreContreFrontmatter(corps, frontmatter, signalerLecon);
 
   // --- 8. quiz.json (obligatoire) -----------------------------------------
@@ -1830,6 +2035,9 @@ function validerLecon(dossier, horaire) {
     ordre: frontmatter['ordre'],
     sujet: frontmatter['sujet'],
     section: frontmatter['section'],
+    statut,
+    seance: ancrage.seanceFrontmatter,
+    exercicesCites,
   };
 }
 
@@ -2084,6 +2292,247 @@ function validerHoraireDeLaRacine(racine, anomalies) {
 }
 
 /**
+ * --- 0bis. `exercices.json` — le registre des exercices du sujet (E3-ST21) ---
+ *
+ * @typedef {{
+ *   sujet: string,
+ *   parSeance: ReadonlyMap<number, ReadonlyMap<string, string>>,
+ * }} ExercicesIndexe
+ *
+ * `parSeance` associe un numéro de séance à ses `reference` DANS L'ORDRE DU REGISTRE, chacune
+ * pointant sur le `titre` de l'entrée — le titre sert aux messages de complétude, qui doivent
+ * nommer l'exercice manquant et pas seulement son numéro.
+ */
+
+/**
+ * Les QUATRE règles HORS SCHÉMA du registre (`docs/contenu/ancrage-au-cours.md` §6.1).
+ *
+ * ⚠️ POURQUOI L'UNICITÉ DES SÉANCES EST UNE RÈGLE À PART ENTIÈRE, et non un détail. L'index rendu
+ * est une `Map` indexée par `numero` : deux entrées de même numéro y écraseraient la première EN
+ * SILENCE, et la moitié des exercices d'une séance disparaîtrait du gate de complétude — c'est-à-dire
+ * que le garde-fou censé rendre « ajoute-les tous » mesurable cesserait de mesurer, sans rien dire.
+ *
+ * ⚠️ LA CROISSANCE STRICTE NE PORTE QUE SUR LES FORMES NUMÉRIQUES, et c'est le contrat : la feuille
+ * de la séance 3 finit par « Projet de session », qui n'a pas de numéro. Une référence NOMMÉE ne
+ * participe donc pas à l'ordre — elle est seulement soumise à l'unicité.
+ *
+ * @param {{ seances: readonly { numero: number, feuille: string, exercices: readonly { reference: string, titre: string }[] }[] }} registre
+ * @param {HoraireIndexe | null} horaire
+ * @param {(cause: string) => void} signaler
+ * @returns {boolean} `true` si aucune anomalie — seul cas où le registre sert de référence
+ */
+function verifierExercicesHorsSchema(registre, horaire, signaler) {
+  let intact = true;
+  /** @type {Set<number>} */
+  const numerosVus = new Set();
+  for (const seance of registre.seances) {
+    if (numerosVus.has(seance.numero)) {
+      signaler(
+        `« seances » : la séance ${seance.numero} est déclarée DEUX FOIS — un registre ne porte ` +
+          "qu'une feuille d'exercices par séance, et la seconde effacerait la première en silence",
+      );
+      intact = false;
+    }
+    numerosVus.add(seance.numero);
+    if (!verifierUneSeanceDuRegistre(seance.numero, horaire, signaler)) intact = false;
+    if (!verifierLesReferencesDUneSeance(seance, signaler)) intact = false;
+  }
+  return intact;
+}
+
+/**
+ * Confronte UNE séance du registre à l'horaire : elle existe, et elle n'est pas une évaluation.
+ * Séparée de la boucle qui l'appelle pour la même raison que `causeDAttributsDEncadre` : la boucle
+ * parcourt, cette fonction juge.
+ *
+ * @param {number} numero
+ * @param {HoraireIndexe | null} horaire
+ * @param {(cause: string) => void} signaler
+ * @returns {boolean}
+ */
+function verifierUneSeanceDuRegistre(numero, horaire, signaler) {
+  if (horaire === null) {
+    signaler(
+      `« seances » : la séance ${numero} ne se vérifie contre rien — la racine ne porte ` +
+        `aucun « ${FICHIER_HORAIRE} » valide, alors qu'un registre d'exercices cite ses séances`,
+    );
+    return false;
+  }
+  const decrite = horaire.parNumero.get(numero);
+  if (decrite === undefined) {
+    signaler(
+      `« seances » : la séance ${numero} ne figure pas dans « ${FICHIER_HORAIRE} » ` +
+        `(séances déclarées : ${[...horaire.parNumero.keys()].join(', ')})`,
+    );
+    return false;
+  }
+  if (decrite.evaluation !== undefined) {
+    signaler(
+      `« seances » : la séance ${numero} désigne « ${decrite.titre} », une séance ` +
+        `d'ÉVALUATION (${decrite.evaluation.libelle}) — un examen ne donne pas d'exercices`,
+    );
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Les deux règles qui portent sur les RÉFÉRENCES d'une feuille : unicité, puis croissance stricte
+ * des seules formes numériques.
+ *
+ * @param {{ numero: number, exercices: readonly { reference: string }[] }} seance
+ * @param {(cause: string) => void} signaler
+ * @returns {boolean}
+ */
+function verifierLesReferencesDUneSeance(seance, signaler) {
+  let intact = true;
+  /** @type {Set<string>} */
+  const referencesVues = new Set();
+  let precedent = 0;
+  for (const exercice of seance.exercices) {
+    if (referencesVues.has(exercice.reference)) {
+      signaler(
+        `séance ${seance.numero} : la référence « ${exercice.reference} » est déclarée DEUX ` +
+          'FOIS — un module qui la cite ne saurait pas lequel des deux énoncés il pose',
+      );
+      intact = false;
+    }
+    referencesVues.add(exercice.reference);
+    // Une référence NOMMÉE ne participe pas à l'ordre : la feuille de la séance 3 finit par un
+    // « Projet de session » sans numéro, et lui inventer un rang mentirait sur le document.
+    if (!REFERENCE_NUMERIQUE.test(exercice.reference)) continue;
+    const numero = Number(exercice.reference);
+    if (numero <= precedent) {
+      signaler(
+        `séance ${seance.numero} : la référence « ${exercice.reference} » suit « ${precedent} » — ` +
+          "les références NUMÉRIQUES suivent l'ordre de la feuille de l'enseignant, strictement croissant",
+      );
+      intact = false;
+    }
+    precedent = numero;
+  }
+  return intact;
+}
+
+/**
+ * Lit et valide le `exercices.json` d'une racine, s'il y en a un.
+ *
+ * 🔴 OPTIONNEL, même choix et même raison que `horaire.json` : le rendre obligatoire ferait rougir
+ * toutes les racines de fixture sur une cause qui n'est pas celle qu'elles exercent. Ce qui est
+ * réellement dangereux n'est pas son absence, c'est un `ref` qui ne se résout contre rien — et
+ * `causeDuRenvoiALExercice` le dit.
+ *
+ * ⚠️ UN REGISTRE REFUSÉ REND `null`, JAMAIS UN INDEX PARTIEL — même raison qu'à
+ * `validerHoraireDeLaRacine` : servir de référence à partir d'un fichier dont on vient de dire
+ * qu'il est faux ferait dépendre les causes des leçons d'une donnée non fiable, et le build échoue
+ * de toute façon puisque l'anomalie du registre est déjà là.
+ *
+ * @param {string} racine chemin absolu
+ * @param {HoraireIndexe | null} horaire
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ * @returns {ExercicesIndexe | null}
+ */
+function validerExercicesDeLaRacine(racine, horaire, anomalies) {
+  const chemin = join(racine, FICHIER_EXERCICES);
+  if (!existsSync(chemin)) return null;
+  const rel = relative(RACINE_DEPOT, chemin).replaceAll('\\', '/');
+  /** @param {string} cause */
+  const signaler = (cause) => anomalies.push({ fichier: rel, cause });
+  /** @type {ExercicesIndexe | null} */
+  let indexe = null;
+  avecJson(
+    chemin,
+    (donnees) => {
+      if (!validerExercices(donnees)) {
+        signaler(premiereErreurAjv(validerExercices.errors));
+        return;
+      }
+      const registre = /** @type {{ sujet: string, seances: { numero: number, feuille: string, exercices: { reference: string, titre: string }[] }[] }} */ (
+        donnees
+      );
+      if (!verifierExercicesHorsSchema(registre, horaire, signaler)) return;
+      /** @type {Map<number, Map<string, string>>} */
+      const parSeance = new Map();
+      for (const seance of registre.seances) {
+        /** @type {Map<string, string>} */
+        const references = new Map();
+        for (const exercice of seance.exercices) references.set(exercice.reference, exercice.titre);
+        parSeance.set(seance.numero, references);
+      }
+      indexe = { sujet: registre.sujet, parSeance };
+    },
+    signaler,
+  );
+  return indexe;
+}
+
+/**
+ * --- 16. Les exercices du cours sont TOUS placés, et chacun UNE SEULE FOIS (§6.4) ---
+ *
+ * 🔴 C'EST CE GATE QUI REND « AJOUTE-LES TOUS » MESURABLE. Sans lui, l'exigence du propriétaire
+ * reste une intention — le mode d'échec connu du dépôt (famille L-007 : « un gate livré n'est pas
+ * un gate câblé »).
+ *
+ * ⚠️ IL NE PORTE QUE SUR LES MODULES `statut: publiee`, et c'est ce qui permet de livrer un module
+ * à la fois : tant que la séance 4 n'a aucun module publié, ses sept exercices ne bloquent rien.
+ * Le jour où l'un d'eux passe `publiee`, les sept doivent être placés.
+ *
+ * ⚠️ LA COMPLÉTUDE ET L'UNICITÉ NE SE DÉCLENCHENT PAS SUR LE MÊME CRITÈRE, délibérément.
+ * L'unicité porte sur ce qui est CITÉ (deux modules ne se disputent jamais un exercice, même si
+ * aucun module de la séance visée n'est publié — un encadré peut citer une autre séance que la
+ * sienne). La complétude, elle, ne se réclame que d'une séance qui porte au moins un module
+ * PUBLIÉ, sans quoi publier le premier module d'une séance exigerait d'en écrire tous les
+ * exercices d'un coup.
+ *
+ * @param {string} racine chemin absolu — sert à nommer le registre dans l'anomalie de complétude
+ * @param {ExercicesIndexe | null} exercices
+ * @param {readonly { rel: string, statut: string, seance: number | null, cites: readonly { seance: number, reference: string }[] }[]} modules
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ */
+function exigerLesExercicesDuCours(racine, exercices, modules, anomalies) {
+  if (exercices === null) return;
+  const publies = modules.filter((m) => m.statut === 'publiee');
+
+  // --- Unicité : une référence citée deux fois, dans toute la séance -------
+  /** @type {Map<string, string>} */
+  const citee = new Map();
+  for (const module of publies) {
+    for (const { seance, reference } of module.cites) {
+      const clef = `${seance}#${reference}`;
+      const dejaVu = citee.get(clef);
+      if (dejaVu !== undefined) {
+        anomalies.push({
+          fichier: module.rel,
+          cause:
+            `séance ${seance} : l'exercice « ${reference} » est déjà cité par « ${dejaVu} » — ` +
+            "un exercice du cours se pose UNE fois, dans le module qui exerce sa notion",
+        });
+        continue;
+      }
+      citee.set(clef, module.rel);
+    }
+  }
+
+  // --- Complétude : toute séance qui porte un module publié les place tous --
+  for (const [seance, references] of exercices.parSeance) {
+    const modulesDeLaSeance = publies.filter((m) => m.seance === seance);
+    if (modulesDeLaSeance.length === 0) continue;
+    const manquantes = [...references].filter(([reference]) => !citee.has(`${seance}#${reference}`));
+    if (manquantes.length === 0) continue;
+    const listeDesManquantes = manquantes
+      .map(([reference, titre]) => `« ${reference} » (${titre})`)
+      .join(', ');
+    anomalies.push({
+      fichier: relative(RACINE_DEPOT, join(racine, FICHIER_EXERCICES)).replaceAll('\\', '/'),
+      cause:
+        `séance ${seance} : ${manquantes.length} exercice(s) du cours ne sont placés par aucun ` +
+        `encadré « ::: ${VARIANTE_EXERCICE} » — ${listeDesManquantes} ; ` +
+        `module(s) publié(s) examiné(s) : ${modulesDeLaSeance.map((m) => m.rel).join(', ')}`,
+    });
+  }
+}
+
+/**
  * Valide toutes les leçons d'une racine.
  *
  * @param {string} racine chemin absolu
@@ -2095,6 +2544,10 @@ function validerRacine(racine) {
   // L'HORAIRE D'ABORD : les leçons s'y confrontent, et son anomalie propre doit sortir AVANT les
   // leurs — sans quoi un horaire faux se lirait comme une faute des modules qui le citent.
   const horaire = validerHoraireDeLaRacine(racine, anomalies);
+  // LE REGISTRE ENSUITE, ET DANS CET ORDRE : il confronte ses séances à l'horaire, et sa propre
+  // anomalie doit sortir avant celles des modules qui citent ses exercices — sans quoi un registre
+  // faux se lirait comme une faute des leçons qui le référencent.
+  const exercices = validerExercicesDeLaRacine(racine, horaire, anomalies);
   const dossiers = recenserLecons(racine);
 
   /** @type {Map<string, string>} */
@@ -2111,11 +2564,25 @@ function validerRacine(racine) {
    * @type {Map<string, { avec: { rel: string, slug: string }[], sans: { rel: string, slug: string }[] }>}
    */
   const sectionsParSujet = new Map();
+  /**
+   * Ce que chaque module apporte aux règles 16, dans l'ORDRE DE PARCOURS des dossiers — lequel est
+   * trié par `recenserLecons` (S-010 : un compte épinglé sur une cible découverte doit être
+   * invariant, ou la découverte totalement ordonnée). Sans cet ordre, « déjà cité par X » nommerait
+   * un module différent selon la plateforme.
+   * @type {{ rel: string, statut: string, seance: number | null, cites: { seance: number, reference: string }[] }[]}
+   */
+  const modules = [];
 
   for (const dossier of dossiers) {
     const rel = relative(RACINE_DEPOT, dossier).replaceAll('\\', '/');
-    const resultat = validerLecon(dossier, horaire);
+    const resultat = validerLecon(dossier, horaire, exercices);
     anomalies.push(...resultat.anomalies);
+    modules.push({
+      rel,
+      statut: resultat.statut,
+      seance: resultat.seance,
+      cites: resultat.exercicesCites,
+    });
     if (resultat.slug !== null) {
       const slug = resultat.slug;
       exigerUniciteDansLaRacine(
@@ -2163,6 +2630,17 @@ function validerRacine(racine) {
       cause: `« sujet: ${horaire.sujet} » alors que les leçons de cette racine déclarent « ${[...sujets][0]} »`,
     });
   }
+
+  // --- 15. Le `sujet` du registre — même contrôle, même raison que l'horaire ----
+  if (exercices !== null && sujets.size === 1 && !sujets.has(exercices.sujet)) {
+    anomalies.push({
+      fichier: relative(RACINE_DEPOT, join(racine, FICHIER_EXERCICES)).replaceAll('\\', '/'),
+      cause: `« sujet: ${exercices.sujet} » alors que les leçons de cette racine déclarent « ${[...sujets][0]} »`,
+    });
+  }
+
+  // --- 16. Exercices UNIQUES et TOUS placés (§6.4) -----------------------------
+  exigerLesExercicesDuCours(racine, exercices, modules, anomalies);
 
   return { lecons: dossiers.length, anomalies };
 }

@@ -93,6 +93,17 @@ const FICHIER_CARTE = 'carte-lecons.ts';
 const FICHIER_HORAIRES = 'horaires.json';
 
 /**
+ * Nom du registre d'exercices — la CINQUIÈME sortie, née à E3-ST21.
+ *
+ * Il suit EXACTEMENT le chemin de `horaires.json`, et pour les mêmes raisons, mot pour mot : un
+ * fichier à côté du manifeste plutôt qu'un champ dedans (`manifeste-routes.json` est un TABLEAU
+ * qu'une dizaine de consommateurs lisent comme tel), et un objet INDEXÉ PAR SUJET plutôt qu'un
+ * document à plat (`ecrireContenuGenere` peut recevoir plusieurs racines compilées, et un fichier
+ * à plat en écraserait un).
+ */
+const FICHIER_EXERCICES = 'exercices.json';
+
+/**
  * @param {string} message
  * @param {readonly string[]} [details]
  * @returns {never}
@@ -251,7 +262,37 @@ export function separerPubliees(lecons) {
 }
 
 /**
- * Écrit les trois sorties dans `dossierSortie`. Le dossier est supposé DÉJÀ PURGÉ par
+ * Indexe PAR SUJET les données de sujet d'une ou plusieurs racines compilées — l'horaire, le
+ * registre d'exercices, et tout ce qui suivra le même chemin.
+ *
+ * 🔴 UNE COLLISION DE SUJET FAIT ÉCHOUER, elle n'écrase pas. Deux racines qui déclareraient le
+ * même sujet écriraient deux fois la même clef, et la seconde effacerait la première EN SILENCE —
+ * exactement le mode d'échec que ce pipeline refuse partout ailleurs. Un `null` (racine sans cette
+ * donnée) est simplement ignoré : c'est une absence légitime, pas une collision.
+ *
+ * @template {{ sujet: string }} T
+ * @param {readonly (T | null)[]} donnees
+ * @param {string} quoi le nom au pluriel, pour le message d'échec
+ * @param {string} consequence ce que l'écrasement coûterait, en une phrase
+ * @returns {Record<string, T>}
+ */
+function indexerParSujet(donnees, quoi, consequence) {
+  /** @type {Record<string, T>} */
+  const parSujet = {};
+  for (const donnee of donnees) {
+    if (donnee === null) continue;
+    if (parSujet[donnee.sujet] !== undefined) {
+      echec(`deux ${quoi} compilés portent le sujet « ${donnee.sujet} »`, [consequence]);
+    }
+    parSujet[donnee.sujet] = donnee;
+  }
+  return parSujet;
+}
+
+/**
+ * Écrit les CINQ sorties dans `dossierSortie` — les trois filtrées par publication (corps de
+ * leçons, manifeste, carte d'imports) plus les deux données de SUJET (horaires, registre
+ * d'exercices), qui ne le sont pas et n'ont rien à l'être. Le dossier est supposé DÉJÀ PURGÉ par
  * l'orchestrateur : ce module ajoute, il n'efface pas.
  *
  * ⚠️ LE FILTRE DE PUBLICATION S'APPLIQUE ICI, EN TÊTE, ET UNE SEULE FOIS — voir l'en-tête du
@@ -260,11 +301,12 @@ export function separerPubliees(lecons) {
  *
  * @param {string} dossierSortie chemin absolu
  * @param {readonly LeconCompilee[]} lecons
- * @param {{ inclureBrouillons?: boolean, horaires?: readonly (HoraireCompile | null)[] }} [options]
+ * @param {{ inclureBrouillons?: boolean, horaires?: readonly (HoraireCompile | null)[], exercices?: readonly (ExercicesCompiles | null)[] }} [options]
  *   `inclureBrouillons` rétablit l'écriture des leçons non publiées. DÉFAUT FERMÉ : sans ce
  *   drapeau, elles ne sont pas écrites du tout. `horaires` porte l'horaire de chaque racine
- *   compilée — les `null` (racine sans ancrage au cours) sont simplement ignorés.
- * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[], horaires: Record<string, HoraireCompile> }}
+ *   compilée — les `null` (racine sans ancrage au cours) sont simplement ignorés. `exercices` porte
+ *   le registre de chaque racine, même règle.
+ * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[], horaires: Record<string, HoraireCompile>, exercices: Record<string, ExercicesCompiles> }}
  */
 export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   const inclureBrouillons = options.inclureBrouillons === true;
@@ -310,21 +352,29 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   // L'HORAIRE N'EST PAS FILTRÉ PAR `statut`, et il n'y a rien à filtrer : c'est le calendrier du
   // COURS, pas un contenu de module. Un horaire écrit alors qu'aucune leçon n'est publiée décrit un
   // cours dont le site n'affiche encore rien — ce qui est exact, et ne divulgue aucun brouillon.
-  /** @type {Record<string, HoraireCompile>} */
-  const horaires = {};
-  for (const horaire of options.horaires ?? []) {
-    if (horaire === null) continue;
-    const dejaVu = horaires[horaire.sujet];
-    if (dejaVu !== undefined) {
-      echec(`deux horaires compilés portent le sujet « ${horaire.sujet} »`, [
-        'le second écraserait le premier en silence, et le sommaire daterait les séances du mauvais',
-      ]);
-    }
-    horaires[horaire.sujet] = horaire;
-  }
+  const horaires = /** @type {Record<string, HoraireCompile>} */ (
+    indexerParSujet(
+      options.horaires ?? [],
+      'horaires',
+      'le second écraserait le premier en silence, et le sommaire daterait les séances du mauvais',
+    )
+  );
   // Indenté, comme le manifeste et pour la même raison : c'est un artéfact court qu'un humain ouvre
   // pour comprendre ce que le build a vu.
   ecrireAtomique(join(dossierSortie, FICHIER_HORAIRES), `${JSON.stringify(horaires, null, 2)}\n`);
+
+  // LE REGISTRE D'EXERCICES N'EST PAS FILTRÉ PAR `statut` NON PLUS, et pour la même raison : ce
+  // sont les exercices du COURS, pas un contenu de module. Un registre écrit alors qu'aucune leçon
+  // n'est publiée décrit une feuille d'exercices que le site n'a pas encore commentée — ce qui est
+  // exact, et ne divulgue aucun brouillon.
+  const exercices = /** @type {Record<string, ExercicesCompiles>} */ (
+    indexerParSujet(
+      options.exercices ?? [],
+      "registres d'exercices",
+      'le second écraserait le premier en silence, et le gate de complétude mesurerait le mauvais',
+    )
+  );
+  ecrireAtomique(join(dossierSortie, FICHIER_EXERCICES), `${JSON.stringify(exercices, null, 2)}\n`);
 
   return {
     entrees,
@@ -332,6 +382,7 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
     manifeste,
     carte,
     horaires,
+    exercices,
     // Les slugs réellement ÉCARTÉS (vide quand le drapeau est levé) et ceux réellement INCLUS
     // alors qu'ils ne sont pas publiés. Les deux servent au journal de `build.mjs` : un filtre
     // qui n'annonce pas ce qu'il a retiré — ni ce qu'il a laissé passer sur demande — est un

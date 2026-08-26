@@ -156,3 +156,203 @@ séances 1 à 4 ── ».
 ⚠️ **WCAG 2.2 AA — la pastille ne peut pas être qu'une couleur** (1.4.1, l'information ne doit pas
 passer par la seule couleur). Elle porte un **texte explicite**, et son contraste se mesure comme
 toute paire du design system. Même exigence pour la séance : c'est un mot, pas une teinte.
+
+---
+
+## 6 · Les exercices du cours — `exercices.json` et l'encadré `exercice-du-cours`
+
+> **Exigence du propriétaire, posée le 2026-08-25.** *« Quand le module est lié à un cours qui
+> contient des exercices (presque tous), tu dois les ajouter (tous) au contenu et les identifier
+> clairement comme étant les exercices du cours. »* Elle vaut pour **tout sujet** — sécurité des
+> applications web aujourd'hui, PHP et les suivants ensuite.
+>
+> Deux décisions du propriétaire, prises le même jour, à ne pas rouvrir :
+> **X-1 · Les énoncés sont REFORMULÉS, jamais recopiés.** Intention, ordre et numérotation
+> conservés ; le texte est réécrit et **attribué**. Motif : ce dépôt est public, et
+> `securite-app-web-2026/` est gitignoré pour ne pas rediffuser le matériel de l'enseignant. C'est
+> exactement ce que les leçons font déjà des diapositives — on cite, on ne reproduit pas.
+> **X-2 · L'exercice se pose AU FIL DU TEXTE**, en encadré, juste après la notion qu'il exerce —
+> pas en annexe de fin de leçon. On apprend, puis on pratique, tout de suite.
+
+### 6.1 · `content/cours/<sujet>/exercices.json` — le registre
+
+Un fichier par sujet, à côté de `horaire.json`, et **la seule** source des énoncés. Un module ne
+recopie jamais un énoncé : il le **référence**.
+
+```jsonc
+{
+  "sujet": "securite-web",
+  "avertissement": "Énoncés REFORMULÉS à partir des feuilles de …",
+  "seances": [
+    {
+      "numero": 2,                              // DOIT exister dans horaire.json
+      "feuille": "Exercices du cours 2 (2026)",
+      "exercices": [
+        { "reference": "8",
+          "titre": "Déplacer un fichier dans un répertoire",
+          "enonce": "Déplace « exercice4.txt » dans le répertoire « exercice3 » …" }
+      ]
+    }
+  ]
+}
+```
+
+**`reference`** est une **chaîne**, pas un entier, et c'est délibéré : la feuille de la séance 3
+porte quatre exercices numérotés **plus** un bloc « Projet de session » qui n'a pas de numéro. Le
+forcer à `5` mentirait sur le document de l'enseignant. Deux formes admises, et une seule règle de
+libellé :
+
+| Forme de `reference` | Exemple | Libellé rendu |
+|---|---|---|
+| **Numérique** (`^[1-9][0-9]*$`) | `"8"` | « n° 8 » |
+| **Nommée** (slug `^[a-z][a-z0-9-]*$`) | `"projet-de-session"` | le `titre` de l'entrée |
+
+Contraintes de validation (`valider.mjs`, échec du build en nommant le jeton fautif) : `sujet` égal
+au dossier · `numero` de séance présent dans `horaire.json` et **sans `evaluation`** · **`numero` de
+séance unique dans le registre** · `reference` **unique dans sa séance** · les références numériques
+**strictement croissantes** — et non **contiguës** — dans l'ordre du tableau · `titre` et `enonce`
+non vides · `avertissement` **obligatoire et non vide**.
+
+> **Deux de ces contraintes ont été ajoutées à l'implémentation (2026-08-25) ; elles sont
+> confirmées, et voici pourquoi.**
+>
+> **`numero` de séance unique.** Le registre est indexé par séance dans une `Map` : deux entrées
+> portant le même numéro se seraient **écrasées en silence**, et le gate de complétude (§6.4) aurait
+> alors cessé de mesurer la feuille perdue — un garde-fou qui se débranche sans rien dire est pire
+> que pas de garde-fou. C'est la même famille que **S-010** : la *population* change sous
+> l'instrument, et aucun test ne s'éteint.
+>
+> **`avertissement` obligatoire.** Il rend la décision **X-1** (« énoncés reformulés, jamais
+> recopiés ») visible dans le fichier plutôt que seulement dans ce document. ⚠️ Sois honnête sur ce
+> qu'il vaut : c'est une **attestation d'auteur**, pas une preuve — aucun gate ne peut comparer un
+> énoncé reformulé à un original qui n'est pas dans le dépôt. Il oblige à *déclarer* la politique de
+> provenance ; c'est la revue humaine qui la vérifie.
+
+### 6.2 · L'encadré, côté auteur
+
+```markdown
+::: exercice-du-cours {seance="2" ref="8"}
+`mv` prend la source puis la destination. Si la destination est un répertoire existant,
+le fichier y entre en gardant son nom.
+:::
+```
+
+- **`ref`** est obligatoire ; **`seance`** est optionnel et vaut par défaut le `seance` du
+  frontmatter (mêmes règles que `::: cours`, §3) — obligatoire si le frontmatter n'en porte pas.
+- **`diapos`** est autorisé, comme sur `::: cours`.
+- **`source` est refusé** : la source d'un exercice du cours, c'est le cours.
+- **Le corps de l'encadré est la PISTE de résolution écrite par le module** — jamais l'énoncé,
+  qui vient du registre. Un corps vide est admis (certains exercices se passent d'indice).
+
+### 6.3 · Ce que le compilateur produit
+
+```ts
+| {
+    type: 'encadre';
+    variante: 'exercice-du-cours';
+    /** Résolu depuis exercices.json — l'auteur ne l'écrit jamais. */
+    exerciceDuCours: {
+      seance: number;
+      reference: string;
+      libelle: string;   // « n° 8 » ou le titre, selon la forme de `reference`
+      titre: string;
+      enonce: string;
+    };
+    renvoiCours?: { seance: number; diapos: number[] };
+    blocs: BlocContenu[];   // la piste, éventuellement vide
+  }
+```
+
+Le manifeste de routes gagne, **une fois par sujet** et à côté de l'horaire compilé, le registre
+d'exercices — le sommaire doit pouvoir annoncer « séance 2 · 13 exercices » sans relire `content/`.
+
+### 6.4 · 🔴 Le gate de complétude — c'est lui qui rend « tous » mesurable
+
+> Sans lui, « ajoute-les tous » est une intention, pas un livrable. Le mode d'échec connu du dépôt
+> est précisément la promesse sans garde-fou exécutable (famille **L-007** : « un gate livré n'est
+> pas un gate câblé »).
+
+Au build, pour **chaque séance qui porte au moins un module publié** :
+
+1. **Complétude** — chaque `reference` du registre est citée par **au moins un** encadré
+   `exercice-du-cours` parmi les modules de cette séance. Une manquante fait **échouer** le build
+   en la nommant, avec le `titre` de l'exercice et la liste des modules examinés.
+2. **Unicité** — une même `reference` n'est citée qu'**une fois** dans toute la séance. Deux
+   modules qui se disputent l'exercice 8 est une erreur d'auteur, pas un doublon bénin.
+3. **Existence** — un `ref` qui ne correspond à aucune entrée du registre fait échouer le build.
+   Ne jamais retirer l'encadré en silence : c'est le patron de liste blanche nominative de
+   `.claude/rules/security.md` §4 (tout élément absent de la liste **se nomme** en échouant).
+
+⚠️ **Le contrôle porte sur les modules PUBLIÉS.** Tant que la séance 4 n'a pas de module `publiee`,
+ses sept exercices ne bloquent rien — c'est ce qui permet de livrer un module à la fois. Le jour où
+un module de la séance 4 passe `publiee`, les sept doivent être placés.
+
+⚠️ **Une séance absente du registre n'est pas une erreur** : la séance 5 n'a aucun exercice publié —
+sa page existe sur le site de l'enseignant mais **ne porte aucun énoncé**, vérifié le 2026-08-25 à
+la source, pas seulement sur la copie locale.
+
+🔴 **ET C'EST LÀ QU'ON S'EST TROMPÉ UNE FOIS — la faute vaut d'être écrite.** Ce paragraphe affirmait
+aussi « et la séance 1 non plus ». **Faux** : la séance 1 porte **trois** exercices (installation de
+WAMP/XAMPP, éditeur, PuTTY et WinSCP · compte DigitalOcean · achat d'un nom de domaine). La
+conclusion venait d'un **fichier local absent**, transformé en affirmation sur ce que l'enseignant
+publie. Une mesure d'**état local** ne dit jamais rien du **monde** — même famille que **L-074**
+(« un commentaire qui affirme une cause doit l'avoir mesurée »). La règle qui en sort :
+
+> **La source d'autorité des exercices est le SITE de l'enseignant**
+> (`https://www.alexandrepetrin.ca/exercice-securisation-app-web-cours-<n>-2026/`), pas le dossier
+> local `securite-app-web-2026/`, qui n'en est qu'une copie et peut être incomplète. Avant de
+> déclarer une séance sans exercice, **ouvrir sa page** — et écrire la date de la vérification.
+> L'enseignant publie en cours de session : une séance vide aujourd'hui ne l'est pas pour toujours.
+
+⚠️ **Les numéros peuvent SAUTER, et le registre les respecte.** La feuille du cours 1 numérote ses
+exercices **1, 2 et 4** — il n'y a pas d'exercice 3. C'est pourquoi §6.1 exige des références
+numériques **strictement croissantes** et non **contiguës** : exiger la contiguïté forcerait à
+inventer un exercice 3 qui n'existe pas, ou à renuméroter ceux de l'enseignant — deux façons de
+mentir sur son document.
+
+### 6.5 · Ce que le lecteur voit
+
+Étiquette : « 🧪 **Exercice du cours** · Séance 2 · n° 8 », puis le **titre**, puis l'**énoncé**,
+puis la piste si le module en donne une. ⚠️ Même exigence WCAG qu'au §5 : l'étiquette est du
+**texte**, le pictogramme ne porte jamais l'information seul, et la paire de contraste de la
+variante se mesure comme toutes les autres (`design:contrastes:check`).
+
+⚠️ **LES CAPITALES DE CE DOCUMENT SONT UN RACCOURCI D'ÉCRITURE, PAS LA CHAÎNE RENDUE** — corrigé le
+2026-08-25, parce qu'un lecteur pressé y voyait une spécification. `ETIQUETTES_ENCADRE` est la seule
+source du mot, et ses valeurs sont des **phrases** : `cours` rend « Au programme du cours — matière
+d'examen », `complement` rend « Complément — hors du cours, pas exigible à l'examen ». Le commentaire
+de ce `Record` explique aussi pourquoi `exercice-du-cours` est **court** là où les trois autres sont
+longues : le statut à l'examen n'a pas à y être écrit, la suite de l'étiquette le dit mieux en
+nommant la séance et le numéro que porte la feuille de l'enseignant. **Pour changer un libellé, on
+change cette valeur — jamais une règle CSS, jamais ce document seul.**
+
+⚠️ **L'espace de « n° 8 » est une U+00A0 insécable**, posée au build (`compiler-markdown.mjs`, calcul
+de `libelle`) : sans elle une fin de ligne coupe entre « n° » et son chiffre, et l'abréviation seule
+ne désigne plus rien. U+00A0 **et rien d'autre** — U+202F est absente de Fraunces comme d'Inter
+(contrainte matérielle d'E1-ST1-B, `.claude/rules/contenu-pedagogique.md` §3).
+
+✅ **L'ENCADRÉ EST RENDU DEPUIS LE 2026-08-25 (lot E3-ST21-B) — l'exclusion est levée.** Les leçons
+des séances 2, 3 et 4 peuvent donc être écrites : c'était le **préalable** que ce lot devait payer,
+jamais une finition cosmétique qu'on aurait repoussée après le contenu.
+
+Ce qui existait avant, et **pourquoi il ne reste rien** : `rendu-blocs.ts` excluait la variante
+nommément (`VARIANTE_NON_RENDUE`, `VarianteEncadreRendue`, `exigerVarianteRendue`), pour ne pas
+peindre un exercice du cours **sans son énoncé** — un choix *fail-closed*, une construction cassée
+se voyant là où une page mutilée ne se voit pas. Le garde-fou ayant été **franchi**, il a été
+**supprimé** avec son message : un refus qu'on laisse en place après l'avoir levé devient un
+mensonge sur ce que le composant refuse (famille **L-070**).
+
+🔴 **CE QUI LE REMPLACE, ET QUI TIENT LE MÊME RISQUE.** `verifierVariante` refuse désormais, à
+l'exécution et **en se nommant**, un encadré `exercice-du-cours` arrivé **sans son `exerciceDuCours`
+résolu** (`seance`, `libelle`, `titre`, `enonce`). C'est le seul cas réaliste qui restait — un
+`lecons/<slug>.json` compilé par une **autre version du pipeline**, où le type ment par
+construction. Le rendu affiche le **titre** puis l'**énoncé** en nœuds texte, jamais en attribut ni
+en `[innerHTML]`, et un spec « à deux mains » (S-011) le mesure sur une charge hostile.
+
+⚠️ **Le renvoi de diapositives est du TEXTE, dans son propre `<span class="renvoi">`** — « · Séance 2
+· diapos 13, 17 », « · Séance 2 · n° 8 » —, jamais concaténé au mot de l'étiquette : le libellé de
+`.mot` est épinglé variante par variante. La séance n'est écrite **qu'une fois** quand l'exercice et
+le renvoi citent la même ; « diapo » passe au singulier à un seul numéro.
+
+⚠️ **Une HUITIÈME variante casserait encore la compilation ici**, et c'est la raison d'être du type.
+L'exclusion est nominative et unique ; elle ne se généralise pas en « les variantes non rendues ».

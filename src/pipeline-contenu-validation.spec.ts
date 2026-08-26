@@ -59,6 +59,20 @@ const FIXTURE_SECTIONS_PARTOUT = 'tools/content-pipeline/__fixtures__/temoin/cou
  */
 const FIXTURE_ANCRAGE = 'tools/content-pipeline/__fixtures__/ancrage-au-cours';
 
+/**
+ * La racine des EXERCICES DU COURS (E3-ST21) : un `exercices.json` valide, un module `publiee`
+ * rattaché à la séance 2, et les trois formes d'encadré qui comptent — référence NUMÉRIQUE avec
+ * séance héritée, référence numérique avec séance et `diapos` déclarés, référence NOMMÉE à corps
+ * VIDE (la piste est facultative, §6.2).
+ *
+ * ⚠️ C'EST AUSSI LE CONTRÔLE POSITIF DU GATE DE COMPLÉTUDE, et c'est ce qui la rend indispensable :
+ * son module est `publiee` et place les TROIS exercices de la feuille, donc elle sort en code 0 —
+ * là où un gate qui refuserait toute racine portant un registre la ferait rougir. Sans elle, les
+ * dix cas fautifs ci-dessus resteraient tous verts sur un contrat qu'on aurait cassé au lieu de
+ * l'ouvrir.
+ */
+const FIXTURE_EXERCICES = 'tools/content-pipeline/__fixtures__/exercices-du-cours';
+
 /** Ajv compile ses schémas et une racine par cas : lent une fois, pas une fois par cas. */
 const DELAI = 60_000;
 
@@ -297,22 +311,79 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     dossier: 'horaire-portee-vers-une-evaluation',
     cause: /cite la séance 3, qui est elle-même une ÉVALUATION/,
   },
+  // ── E3-ST21 — LES EXERCICES DU COURS (`docs/contenu/ancrage-au-cours.md` §6) ────────────────
+  // Cinq cas qui ne portent AUCUNE leçon : la faute est dans le registre lui-même.
+  // ⚠️ La référence répétée est NOMMÉE (« projet-de-session »), et ce n'est pas un hasard : une
+  // référence numérique répétée violerait DEUX règles à la fois (unicité ET croissance stricte),
+  // donc produirait deux causes pour une seule faute — ce que le mode `--fixtures` interdit.
+  {
+    dossier: 'exercices-reference-repetee',
+    cause: /la référence « projet-de-session » est déclarée DEUX FOIS/,
+  },
+  {
+    dossier: 'exercices-numeros-non-croissants',
+    cause: /la référence « 2 » suit « 3 » — les références NUMÉRIQUES suivent l'ordre/,
+  },
+  {
+    dossier: 'exercices-seance-est-une-evaluation',
+    cause: /la séance 3 désigne « Examen 1 », une séance d'ÉVALUATION/,
+  },
+  {
+    dossier: 'exercices-seance-absente-de-l-horaire',
+    cause: /la séance 9 ne figure pas dans « horaire\.json »/,
+  },
+  // Sans cette règle, l'index `Map` du registre écraserait la première feuille par la seconde EN
+  // SILENCE : la moitié des exercices d'une séance disparaîtrait du gate de complétude, c'est-à-dire
+  // que le garde-fou censé rendre « ajoute-les tous » mesurable cesserait de mesurer.
+  {
+    dossier: 'exercices-seance-repetee',
+    cause: /la séance 2 est déclarée DEUX FOIS — un registre ne porte qu'une feuille/,
+  },
+  // Trois cas dont la faute est dans l'ENCADRÉ. Leçons en `brouillon` à dessein : les règles
+  // inter-leçons ne comptent que les modules PUBLIÉS, ces cas restent donc à une seule cause.
+  {
+    dossier: 'encadre-exercice-ref-inconnue',
+    cause: /« ref="99" », inconnue de la séance 2 de « exercices\.json » \(références déclarées : 1\)/,
+  },
+  {
+    dossier: 'encadre-exercice-avec-source',
+    cause: /attribut « source » inconnu ; attributs admis sur « ::: exercice-du-cours »/,
+  },
+  {
+    dossier: 'encadre-exercice-sans-ref',
+    cause: /« ::: exercice-du-cours » sans attribut « ref »/,
+  },
+  // Les DEUX cas INTER-LEÇONS (§6.4). Ils ne peuvent naître que dans `validerRacine`, seule à voir
+  // toutes les leçons d'un sujet — ni le schéma ni `validerLecon` ne peuvent les exprimer.
+  {
+    dossier: 'exercices-non-tous-places',
+    cause: /séance 2 : 1 exercice\(s\) du cours ne sont placés par aucun encadré .* « 2 » \(Exercice oublié\)/,
+  },
+  {
+    dossier: 'encadre-exercice-ref-en-double',
+    cause: /l'exercice « 1 » est déjà cité par « .*01-premier » — un exercice du cours se pose UNE fois/,
+  },
 ];
 
 /**
- * Les SIX variantes d'encadré du contrat, ÉCRITES EN DUR et dans l'ordre du contrat.
+ * Les SEPT variantes d'encadré du contrat, ÉCRITES EN DUR et dans l'ordre du contrat.
  *
  * L-012 : ce littéral n'est dérivé d'aucune des deux listes qu'il vérifie. Un test qui lirait la
  * constante dont il contrôle la valeur ne vérifierait que `x === x` — et les deux copies pourraient
  * dériver ENSEMBLE, ce qui est précisément le mode d'échec qu'on ferme ici.
+ *
+ * ⚠️ ELLES ÉTAIENT SIX JUSQU'À E3-ST21 : le septième nom se recopie À LA MAIN ici, dans
+ * `VARIANTES_ENCADRE` (compilateur) et dans `CONTENEURS_AUTORISES` (validateur). Ce n'est pas une
+ * corvée oubliée, c'est le geste qui oblige un humain à constater qu'une variante est apparue.
  */
-const SIX_VARIANTES_ENCADRE = [
+const SEPT_VARIANTES_ENCADRE = [
   'attention',
   'note',
   'a-retenir',
   'cours',
   'complement',
   'correction-du-cours',
+  'exercice-du-cours',
 ] as const;
 
 /** Les trois conteneurs de comparaison, qui ne sont PAS des encadrés (ils n'ont pas de variante). */
@@ -376,13 +447,13 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les TRENTE-QUATRE cas, et aucun ne manque à l’appel',
+    'traite les QUARANTE-QUATRE cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('34 cas attendus INVALIDES');
-      expect(sortie).toContain('34/34 cas refusés avec une cause nommée');
+      expect(sortie).toContain('44 cas attendus INVALIDES');
+      expect(sortie).toContain('44/44 cas refusés avec une cause nommée');
     },
     DELAI,
   );
@@ -455,16 +526,16 @@ describe('le contrôle positif du validateur de contenu', () => {
 // l'auteur reçoit un refus pour un conteneur que le rendu aurait su afficher.
 // =============================================================================
 describe('les deux copies de la liste fermée de conteneurs', () => {
-  it('le compilateur déclare EXACTEMENT les six variantes d’encadré du contrat', () => {
+  it('le compilateur déclare EXACTEMENT les sept variantes d’encadré du contrat', () => {
     expect(listeDeclaree(COMPILATEUR, /const VARIANTES_ENCADRE = \[([\s\S]*?)\];/)).toEqual([
-      ...SIX_VARIANTES_ENCADRE,
+      ...SEPT_VARIANTES_ENCADRE,
     ]);
   });
 
-  it('le validateur déclare les trois conteneurs de comparaison PUIS les six mêmes variantes', () => {
+  it('le validateur déclare les trois conteneurs de comparaison PUIS les sept mêmes variantes', () => {
     expect(
       listeDeclaree(VALIDATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/),
-    ).toEqual([...TROIS_CONTENEURS_DE_COMPARAISON, ...SIX_VARIANTES_ENCADRE]);
+    ).toEqual([...TROIS_CONTENEURS_DE_COMPARAISON, ...SEPT_VARIANTES_ENCADRE]);
   });
 
   // Le troisième constat, celui qu'aucun des deux ci-dessus ne fait seul : les listes se
@@ -507,6 +578,16 @@ describe('l’autre moitié de la pince — le validateur ne refuse pas TOUT', (
     'accepte une racine ANCRÉE AU COURS — horaire, « seance » et renvois de diapositives',
     () => {
       const { sortie, code } = lancer(['--racine', FIXTURE_ANCRAGE]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/1 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+
+  it(
+    'accepte une racine dont un module PUBLIÉ place TOUS les exercices de sa séance',
+    () => {
+      const { sortie, code } = lancer(['--racine', FIXTURE_EXERCICES]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/1 leçon\(s\) valides/);
     },

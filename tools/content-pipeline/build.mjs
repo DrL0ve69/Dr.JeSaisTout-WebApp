@@ -193,7 +193,7 @@ function etapeValider(racineAbsolue) {
  *
  * @param {string} racineAbsolue
  * @param {string | undefined} cacheDiagrammes dossier de cache des SVG, ou `undefined` pour le défaut
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null }>}
+ * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null }>}
  */
 async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
   /** @type {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | undefined} */
@@ -328,26 +328,46 @@ async function principal() {
     );
   }
 
-  const { lecons, feuille, horaire } = await etapeCompiler(racineAbsolue, cacheDiagrammes);
+  const { lecons, feuille, horaire, exercices } = await etapeCompiler(
+    racineAbsolue,
+    cacheDiagrammes,
+  );
 
   // ÉCRITURE INCONDITIONNELLE — c'est le cœur du lot. Voir l'en-tête : zéro leçon écrit quand même
   // la feuille, le manifeste et la carte, sinon `src/styles.scss` perd sa cible sur un clone frais.
   ecrireAtomique(cssAbsolu, feuille);
-  const { entrees, ecartees, incluses, horaires } = ecrireContenuGenere(sortieAbsolue, lecons, {
-    inclureBrouillons,
-    // UNE racine par exécution, donc au plus un horaire — mais l'écrivain en prend une LISTE :
-    // c'est lui qui refuse deux horaires d'un même sujet, et ce contrôle ne vaut que s'il peut
-    // en recevoir plusieurs.
-    horaires: [horaire],
-  });
+  const { entrees, ecartees, incluses, horaires, exercices: registres } = ecrireContenuGenere(
+    sortieAbsolue,
+    lecons,
+    {
+      inclureBrouillons,
+      // UNE racine par exécution, donc au plus un horaire — mais l'écrivain en prend une LISTE :
+      // c'est lui qui refuse deux horaires d'un même sujet, et ce contrôle ne vaut que s'il peut
+      // en recevoir plusieurs. Même geste, même raison, pour le registre d'exercices.
+      horaires: [horaire],
+      exercices: [exercices],
+    },
+  );
   // L'HORAIRE S'ANNONCE MÊME À ZÉRO (L-005) : sans cette ligne, « aucun horaire dans la racine »
   // et « lecture de l'horaire débranchée » s'écriraient exactement pareil dans le journal.
   const sujetsAvecHoraire = Object.keys(horaires);
+  // LE REGISTRE D'EXERCICES S'ANNONCE MÊME À ZÉRO, POUR LA MÊME RAISON (L-005) — et il annonce le
+  // COMPTE d'exercices, pas seulement le nombre de sujets : c'est ce compte que le gate de
+  // complétude oppose aux encadrés posés, et le lire au journal est ce qui distingue « le registre
+  // est vide » de « la lecture du registre est débranchée ».
+  const sujetsAvecExercices = Object.entries(registres).map(
+    ([sujet, registre]) =>
+      `${sujet} (${registre.seances.reduce((total, s) => total + s.exercices.length, 0)} exercice(s) sur ${registre.seances.length} séance(s))`,
+  );
   etape(
     `4/5 sorties — ${afficher(cssAbsolu)} · ${entrees.length} entrée(s) de manifeste · ` +
       `carte de ${entrees.length} import(s) paresseux · ` +
       `${sujetsAvecHoraire.length} horaire(s) de sujet` +
       (sujetsAvecHoraire.length > 0 ? ` : ${sujetsAvecHoraire.join(', ')}` : ''),
+  );
+  etape(
+    `4/5 exercices — ${sujetsAvecExercices.length} registre(s) de sujet` +
+      (sujetsAvecExercices.length > 0 ? ` : ${sujetsAvecExercices.join(', ')}` : ''),
   );
   // LE FILTRE S'ANNONCE TOUJOURS, MÊME À ZÉRO (L-005) : un gate qui n'a rien retiré doit se voir
   // dans le journal, sinon « aucun brouillon » et « filtre débranché » s'écrivent pareil.
