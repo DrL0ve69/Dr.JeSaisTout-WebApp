@@ -1,0 +1,225 @@
+{
+  "lecon": "communication-serveur",
+  "titre": "Ouvrir une session SSH — le mot de passe qui traverse le réseau contre la signature qui ne révèle rien",
+  "acteurs": [
+    { "id": "poste", "libelle": "Poste de l'administratrice (client SSH)", "type": "personne" },
+    { "id": "reseau", "libelle": "Réseau public — botnet et attaquant à l'écoute", "type": "attaquant" },
+    { "id": "serveur", "libelle": "Serveur SSH (Ubuntu, adresse IP publique)", "type": "serveur" },
+    { "id": "fichiers", "libelle": "Fichiers d'authentification", "type": "stockage" }
+  ],
+  "etapes": [
+    {
+      "numero": 1,
+      "titre": "Le serveur vient d'exister, et il est déjà frappé",
+      "narration": "Un serveur qui possède une adresse IP publique reçoit, dans l'heure qui suit sa création, des tentatives de connexion SSH automatisées. Ce ne sont pas des attaques ciblées : ce sont des botnets, des réseaux de machines compromises, qui balaient des plages d'adresses entières et essaient root:123456, root:admin, ubuntu:ubuntu, l'un après l'autre. Le coût pour l'attaquant est nul, et il lui suffit d'une réussite sur des millions d'essais. Retiens bien le point de départ de cette simulation : la question n'est jamais de savoir si quelqu'un essaiera, mais ce qu'il obtiendra le jour où un essai tombe juste.",
+      "etatVisuel": {
+        "acteurActif": "reseau",
+        "surbrillance": ["serveur"],
+        "fleche": {
+          "de": "reseau",
+          "vers": "serveur",
+          "libelle": "Tentatives automatisées, l'une après l'autre"
+        },
+        "panneaux": {
+          "serveur": {
+            "texte": "Journal d'authentification : échec pour root depuis une adresse, échec pour root depuis une autre, échec pour ubuntu depuis une troisième. Personne n'a rien fait pour attirer ces machines : elles balaient des plages d'adresses entières."
+          }
+        }
+      }
+    },
+    {
+      "numero": 2,
+      "titre": "La connexion légitime commence par chiffrer le canal",
+      "narration": "L'administratrice se connecte. Avant toute question d'identité, client et serveur mènent un échange de clé initial qui rend le canal chiffré. Ce point vaut pour les DEUX scénarios de cette simulation, celui du mot de passe comme celui de la paire de clés : le chiffrement du canal n'est pas la méthode d'authentification, c'est le tuyau dans lequel elle va se dérouler. Confondre les deux est l'erreur la plus fréquente sur ce sujet, et elle mène tout droit à croire qu'un mot de passe est protégé parce que la connexion est chiffrée.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "fleche": {
+          "de": "poste",
+          "vers": "serveur",
+          "libelle": "Échange de clé initial — le canal devient chiffré"
+        },
+        "panneaux": {
+          "poste": {
+            "texte": "Canal chiffré établi. Aucune identité n'a encore été prouvée : le serveur ne sait pas qui frappe, il sait seulement que ce qui suivra sera illisible pour un tiers sur le fil."
+          }
+        }
+      }
+    },
+    {
+      "numero": 3,
+      "titre": "Le mot de passe lui-même part vers le serveur",
+      "narration": "Première méthode : le mot de passe. Il est saisi sur le poste, puis transmis au serveur — à chaque connexion, sans exception. Chiffré dans le tunnel, certes. Sois précis sur ce que cela protège et sur ce que cela ne protège pas : un attaquant en écoute passive sur le réseau ne récolte ici que du chiffré, illisible, et le tunnel fait donc exactement son travail. Le défaut du mot de passe n'est pas sur le fil. Il est au bout du fil, et dans le nombre d'essais que rien ne limite.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "surbrillance": ["serveur"],
+        "fleche": {
+          "de": "poste",
+          "vers": "serveur",
+          "libelle": "Le secret lui-même traverse le tunnel"
+        },
+        "panneaux": {
+          "reseau": {
+            "texte": "Ce que l'écoute passive obtient à cette étape : des octets chiffrés, sans valeur. Ce n'est pas de ce côté-là que le mot de passe cède."
+          }
+        }
+      }
+    },
+    {
+      "numero": 4,
+      "titre": "Au bout du tunnel, le secret est en clair",
+      "narration": "Le serveur déchiffre ce qu'il reçoit, compare, et ouvre le shell. C'est ici que se joue le vrai problème : un serveur compromis, ou un serveur usurpé auquel tu te connecterais par erreur, lit ce mot de passe en clair à l'arrivée. Rien dans le protocole ne l'en empêche, puisque la méthode consiste précisément à lui remettre le secret. Et ce secret est réutilisable : le même ouvrira la session demain, et il ouvrira aussi tout autre service où la même personne l'a réemployé.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "surbrillance": ["serveur"],
+        "fleche": {
+          "de": "serveur",
+          "vers": "poste",
+          "libelle": "Accès accordé, shell ouvert"
+        },
+        "panneaux": {
+          "serveur": {
+            "texte": "Le mot de passe est ici, en clair, le temps de la vérification. Qui contrôle cette machine voit ce que l'administratrice a tapé — et peut le rejouer autant de fois qu'il le veut."
+          }
+        }
+      }
+    },
+    {
+      "numero": 5,
+      "titre": "Trois défauts que la longueur ne corrige pas",
+      "narration": "Résumons ce que la première moitié de la simulation a montré, parce que ces trois défauts sont structurels : aucune longueur de mot de passe ne les corrige. D'abord, c'est un secret réutilisable et devinable, dont l'entropie — la quantité d'imprévisible qu'il contient — est bornée par ce qu'un humain accepte de retenir. Ensuite, il est transmis au serveur à chaque connexion. Enfin, rien ne limite naturellement le nombre d'essais : sans outil ajouté, un robot peut frapper indéfiniment. Pendant que l'administratrice travaille, le botnet de l'étape 1 n'a pas cessé.",
+      "etatVisuel": {
+        "acteurActif": "reseau",
+        "surbrillance": ["reseau", "serveur"],
+        "fleche": {
+          "de": "reseau",
+          "vers": "serveur",
+          "libelle": "Essai suivant, puis le suivant, sans limite naturelle"
+        },
+        "panneaux": {
+          "reseau": {
+            "texte": "Un secret devinable, remis au serveur à chaque connexion, et un nombre d'essais que rien ne borne. C'est cette combinaison-là que la paire de clés va démonter, pas la longueur du mot de passe."
+          }
+        }
+      }
+    },
+    {
+      "numero": 6,
+      "titre": "La même connexion, autrement : deux fichiers, un seul secret",
+      "narration": "On rejoue la connexion, avec la seconde méthode. Une paire de clés SSH, ce sont deux fichiers mathématiquement liés, produits ensemble et inséparables. La clé publique n'est pas un secret : elle peut être publiée sans aucun risque. La clé privée, elle, vit uniquement sur le poste, idéalement chiffrée par une passphrase, et c'est la seule chose au monde qui authentifie sa propriétaire. Deux fichiers, donc, mais un seul secret — et il ne bougera pas de la machine.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "panneaux": {
+          "fichiers": {
+            "texte": "Sur le poste : la clé privée, chiffrée par une passphrase, à ne jamais copier ailleurs. Sur le poste également : la clé publique, destinée à être distribuée. Sur le serveur : rien pour l'instant."
+          },
+          "poste": {
+            "texte": "Les deux fichiers viennent d'être produits ensemble. Ils sont liés mathématiquement : une signature faite avec le premier se vérifie avec le second, et seulement avec lui."
+          }
+        }
+      }
+    },
+    {
+      "numero": 7,
+      "titre": "La clé publique part sur le serveur, et aucun secret ne voyage",
+      "narration": "Pour entrer sur un serveur, on y dépose sa clé publique, dans le fichier des clés autorisées du compte visé. Ce dépôt se répète sur chaque serveur où l'on veut entrer. Ce qui traverse ici n'est pas un secret : cette clé peut être rendue publique sans conséquence. Et c'est déjà une différence de nature avec le scénario précédent — si ce fichier fuit, l'attaquant obtient de quoi VÉRIFIER une signature, jamais de quoi en produire une.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "fleche": {
+          "de": "poste",
+          "vers": "serveur",
+          "libelle": "Dépôt de la clé PUBLIQUE dans le fichier des clés autorisées"
+        },
+        "panneaux": {
+          "fichiers": {
+            "texte": "Sur le serveur, désormais : la clé publique, inscrite dans le fichier des clés autorisées du compte. Sur le poste, toujours : la clé privée. Aucun secret n'a changé de machine."
+          }
+        }
+      }
+    },
+    {
+      "numero": 8,
+      "titre": "Le client annonce l'empreinte de sa clé publique",
+      "narration": "L'authentification commence, dans le canal déjà chiffré de l'étape 2. Le client ne présente aucun secret : il annonce le nom du compte visé et l'empreinte de la clé publique qu'il compte utiliser. C'est une question, pas une preuve — l'équivalent de demander « est-ce que tu me connais sous ce nom-là ? » avant de prouver quoi que ce soit.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "fleche": {
+          "de": "poste",
+          "vers": "serveur",
+          "libelle": "Compte visé et empreinte de la clé publique"
+        },
+        "panneaux": {
+          "reseau": {
+            "texte": "Ce que l'écoute obtiendrait ici, à supposer qu'elle voie à travers le tunnel : une empreinte de clé publique, c'est-à-dire une donnée publique. Rien d'exploitable."
+          }
+        }
+      }
+    },
+    {
+      "numero": 9,
+      "titre": "Le serveur cherche cette clé, puis pose une question",
+      "narration": "Le serveur cherche l'empreinte annoncée dans le fichier des clés autorisées du compte. Deux issues. Si la clé est absente, il refuse cette méthode et passe à la suivante — l'échange s'arrête là. Si elle est présente, il ne laisse pas entrer pour autant : il envoie un défi, c'est-à-dire un nonce, un nombre aléatoire à usage unique lié à cette session-là. Le serveur ne demande donc pas « donne-moi ton secret », il demande « prouve que tu détiens la clé privée correspondante ».",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "fleche": {
+          "de": "serveur",
+          "vers": "poste",
+          "libelle": "Voici un défi : un nonce aléatoire lié à cette session"
+        },
+        "panneaux": {
+          "fichiers": {
+            "texte": "Fichier des clés autorisées, côté serveur : la clé annoncée s'y trouve. Si elle avait été absente, le serveur aurait refusé cette méthode et serait passé à la suivante, sans rien révéler de plus."
+          }
+        }
+      }
+    },
+    {
+      "numero": 10,
+      "titre": "Le poste déverrouille sa clé privée et signe le défi",
+      "narration": "Tout ce qui suit se passe sur le poste, et nulle part ailleurs. La passphrase déverrouille la clé privée localement — elle protège le FICHIER, elle n'est jamais envoyée au serveur. La clé privée ainsi ouverte sert à signer le défi reçu. Voici le point qui surprend presque tout le monde à la première lecture : la clé privée ne quitte jamais ta machine et n'est jamais envoyée au serveur. Ce qui va partir n'est pas la clé, c'est une signature, c'est-à-dire une réponse calculée pour ce défi précis.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "panneaux": {
+          "poste": {
+            "texte": "Deux gestes strictement locaux : déverrouiller la clé privée avec la passphrase, puis signer le défi avec cette clé privée. Ni la passphrase ni la clé privée ne sortent d'ici."
+          }
+        }
+      }
+    },
+    {
+      "numero": 11,
+      "titre": "Seule la signature traverse le réseau",
+      "narration": "La signature part vers le serveur, et c'est la seule chose qui part. Demande-toi maintenant ce que gagne un attaquant qui l'intercepte : rien de réutilisable. Une signature capturée n'est pas rejouable, parce que le nonce est lié à cette session-là — la signature d'hier ne répond pas au défi d'aujourd'hui. Demande-toi ensuite ce que gagne un attaquant qui contrôle le serveur : rien non plus. Un serveur compromis ne peut pas voler ton identité, puisqu'il ne détient que ta clé publique, et que la clé publique ne signe rien.",
+      "etatVisuel": {
+        "acteurActif": "poste",
+        "fleche": {
+          "de": "poste",
+          "vers": "serveur",
+          "libelle": "Signature du défi — la clé privée, elle, est restée sur le poste"
+        },
+        "panneaux": {
+          "reseau": {
+            "texte": "Butin de l'interception : une signature qui ne répond qu'à ce défi-là. Rejouée demain, elle ne correspondra pas au nouveau nonce. Butin d'un serveur compromis : une clé publique, qui ne sait rien signer."
+          }
+        }
+      }
+    },
+    {
+      "numero": 12,
+      "titre": "Le serveur vérifie avec la clé publique, et le brute force devient sans objet",
+      "narration": "Le serveur vérifie la signature avec la clé publique qu'il détient, la vérification réussit, le shell s'ouvre. Compare maintenant les deux moitiés de la simulation. Le mot de passe échouait sur trois points : devinable, remis au serveur, essayable sans limite. La paire de clés supprime les trois d'un coup, et il faut être exact sur le verbe — elle ne rend pas le brute force plus difficile, elle le rend sans objet : c'est un changement de catégorie, pas un changement de degré. Une contrepartie, pour finir, et elle est réelle : perdre la clé privée, c'est perdre le serveur. Il n'y a pas de « mot de passe oublié » ; il n'y a qu'une clé de secours déposée d'avance, ou la console web du fournisseur.",
+      "etatVisuel": {
+        "acteurActif": "serveur",
+        "fleche": {
+          "de": "serveur",
+          "vers": "poste",
+          "libelle": "Signature vérifiée avec la clé PUBLIQUE, accès accordé"
+        },
+        "panneaux": {
+          "reseau": {
+            "texte": "Le botnet de l'étape 1 frappe toujours. Tant que le serveur accepte encore le mot de passe, cette porte reste ouverte à côté de l'autre : la refermer se fait dans la configuration du service SSH, ce que la suite de la leçon détaille."
+          }
+        }
+      }
+    }
+  ]
+}

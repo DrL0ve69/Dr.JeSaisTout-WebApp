@@ -62,57 +62,79 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ## ⏭️ REPRISE — état au 2026-08-26 (fin de journée)
 
-> ✅ **E3-ST14 `02-environnement-linux` (séance 2) EST PUBLIÉE — sept leçons en ligne.** La décision
-> du propriétaire « les deux, côte à côte » est appliquée : méthode du cours (PuTTY, WinSCP, `vi`) en
-> chemin principal ET référence évaluable, équivalent moderne (OpenSSH, `scp`/`rsync`, VS Code
-> Remote-SSH) en `::: complement`. Détail, erreurs attrapées et **nœud laissé au propriétaire** :
-> backlog, bloc « ✅ CLÔTURE — E3-ST14 ». Gates : G-test **949/43**, G-axe **10 pages / 860
-> vérifications / 0 violation**, G-build **10 routes · 14 hachages de style / 0 de script**, G-e2e
-> **50 passés / 1 sauté**, `npm audit --omit=dev` **0**.
+> ✅ **HUIT LEÇONS SONT EN LIGNE. E3-ST15 `03-communication-serveur` (séance 3) EST PUBLIÉE** —
+> `lecon.md` 973 l., `quiz.json` 9 questions, `simulation.json` 4 acteurs / 12 étapes. La séance 2
+> (E3-ST14) l'a précédée le même jour. La décision « les deux, côte à côte » vaut jusqu'à la séance 5 :
+> méthode du cours en chemin principal ET référence évaluable, équivalent moderne en `::: complement`.
+> Détail, constats et **nœuds laissés au propriétaire** : backlog, blocs « ✅ CLÔTURE — E3-ST14 » et
+> « ✅ CLÔTURE — E3-ST15 ». Gates : G-test **949/43**, G-axe **11 pages / 946 vérifications / 0
+> violation**, G-build **11 routes · 14 hachages de style / 0 de script**, G-e2e **50 passés / 1
+> sauté**, `npm audit --omit=dev` **0**.
 >
-> **Le geste suivant : E3-ST15 `03-communication-serveur` (séance 3)** — SSH, authentification par
-> clés, durcissement de l’accès distant. Fiche KB `web/securite/securisation-acces-distant-ssh.md`,
-> **avec simulation** (session par mot de passe vs par clé). La décision « les deux, côte à côte »
-> vaut aussi pour les séances 3 à 5 ; le matériel de modernisation vit dans `README.txt` (Cours 3 :
-> l. 160-246 · Cours 4 : l. 247-289 · Cours 5 : l. 290-334). ⚠️ **Il n’est PAS sourcé** — c’est une
-> conversation avec un assistant IA. Il entre comme **piste**, sous marqueur `à-vérifier:`, et la
-> leçon déjà contre-vérifiée l’emporte en cas de contradiction.
+> **Le geste suivant : E3-ST16 `04-automatisation-surveillance` (séance 4)** — cron, journaux,
+> surveillance, nettoyage. Fiche KB `web/securite/automatisation-surveillance-cron.md`, **sans
+> simulation** (lecture guidée de journaux). Les **7 exercices** de la séance 4 sont déjà au registre
+> `content/cours/securite-web/exercices.json` et devront tous être placés — `valider.mjs` règle 16
+> refuse la publication s'il en manque un. Matériel de modernisation dans `README.txt` (Cours 4 :
+> l. 247-289 · Cours 5 : l. 290-334). ⚠️ **Il n'est PAS sourcé** — conversation avec un assistant IA.
+> Il entre comme **piste**, sous marqueur `à-vérifier:`.
 >
-> 🔴 **CE QUE CE LOT A APPRIS, ET QUI VAUT POUR LES TROIS SÉANCES SUIVANTES.** Adjoindre un
-> « équivalent moderne » n’est pas un travail d’AJOUT : c’est une **interversion**, et une
-> interversion falsifie de la prose **à distance**. Mesuré : « il te demande alors de confirmer par
-> `yes` » était exacte tant que `ssh` était le chemin principal, et est devenue fausse vingt lignes
-> plus bas dès que PuTTY l’est devenu — PuTTY ouvre une boîte *Security Alert*, pas une invite texte.
-> Personne n’avait touché à cette phrase ; **aucun diff ne la signalait**. Donc : après une
-> interversion, relire la **section entière** jusqu’à son prochain titre, et donner au vérificateur
-> une plage qui **couvre la section**, jamais les seules lignes neuves.
-> ⚠️ **Effet de projecteur, à connaître :** la piste non sourcée a bien produit trois erreurs
-> bloquantes (« OpenSSH installé par défaut sous Windows » — c’est une *fonctionnalité facultative* ;
-> « Git Bash fournit `rsync` » — non ; la barre oblique finale de `rsync`), mais **le défaut le plus
-> grave du lot n’était aucune des trois**. Une source douteuse attire toute l’attention sur
-> elle-même, et la détourne de ce que son intégration a déplacé.
+> 🔴 **DIMENSIONNER LE RÉDACTEUR AU VOLUME ÉCRIT, PAS À LA FICHE SOURCE.** Mesuré deux fois : le
+> rédacteur de la séance 2 a fini à **110k** pour 947 lignes, celui de la séance 3 à **170 185** pour
+> 973 lignes depuis une fiche de 763 — au-dessus du maximum. Les plages de lignes injectées tiennent
+> la moitié *lecture* ; c'est la moitié **écriture** que personne n'estime. **Au-delà d'environ 700
+> lignes de fiche source, scinder la leçon en deux moitiés thématiques** (ce qui avait donné 113k et
+> 147k à E3-ST5). ⚠️ Le **vérificateur** se dimensionne pareil : **164k** pour relire 959 lignes, quel
+> que soit le nombre de marqueurs à lever.
+>
+> 🔴 **CE QUE LA SÉANCE 3 A APPRIS, ET QUI VAUT POUR LES SÉANCES 4 ET 5.**
+> **(a) Le mode d'échec d'une leçon d'admin système est le danger SURÉVALUÉ, pas l'omission.** Deux
+> des cinq constats bloquants étaient des menaces exagérées : « `restart` coupe ta session de secours »
+> (faux — `KillMode=process` épargne les enfants) et « `ufw enable` coupe ta propre connexion » (faux
+> le plus souvent — `before.rules` accepte `RELATED,ESTABLISHED`, et `ufw(8)` ne promet qu'un
+> « **may** drop »). ⚠️ **Une menace exagérée s'auto-détruit** : l'étudiant essaie, rien ne casse, et
+> il classe le danger comme imaginaire — alors que le danger réel est intact.
+> **(b) Relire une leçon CONTRE son propre principe.** Le bloc « changer le port SSH » ouvrait le
+> pare-feu **après** le `reload`, en contradiction directe avec la règle que la même leçon pose 340
+> lignes plus bas. Aucun diff ne montre ça, et la fiche KB portait déjà la contradiction.
+> **(c) Le taux d'erreur de `README.txt` ne se devine pas** : 3 fautes sur 3 à la séance 2, 1 sur 4 à
+> la séance 3. C'est la vérification qui l'établit, à chaque lot — jamais l'expérience du lot d'avant.
+>
+> ⚠️ **PUBLIER DÉPLACE LA CIBLE DES SPECS E2E, EN SILENCE.** `communication-serveur` prend la tête de
+> l'ordre alphabétique et devient la cible **des deux** découvertes, `ROUTE_LECON_QUIZ` **et**
+> `ROUTE_LECON_SIMULATION` — elles visaient `csrf`. Les comptes épinglés ont tenu par identité de
+> structure. Quand un littéral épinglé rougira après une publication, la première question est
+> « quelle page mesure-t-il maintenant ? », jamais « quel chiffre y mettre ? ».
+>
+> ✅ **LE TRIPWIRE DE L'ACCUEIL MORD À CHAQUE PUBLICATION, ET C'EST VOULU.** `MODULES_PUBLIES` dans
+> `src/app/features/home/accueil.ts` est confronté par `accueil.spec.ts` au manifeste réellement
+> compilé : **le porter au nouveau compte fait partie du lot de toute leçon publiée** (7 → 8 ici), avec
+> le commentaire voisin qui écrit le chiffre en toutes lettres.
+>
+> ✅ **La bascule `verifiee` → `publiee` n'a révélé AUCUN défaut cette fois** — première sur quatre. Ce
+> qui a changé : la consigne de **nommer le coin supérieur gauche de tout tableau comparatif** est
+> passée dans le **brief du rédacteur**, après trois `empty-table-header` d'affilée. Une consigne dans
+> le brief coûte une ligne ; le même défaut trouvé à la bascule coûte un cycle de correctif.
+>
+> ⚠️ **U+26A0 (`⚠`) EST UN MARQUEUR RÉSERVÉ**, au même titre que 📘 et 🧩 : `valider.mjs` §8 l'interdit
+> en prose, hors bloc de code. L'employer comme simple signe d'attention fait rougir G-content.
 >
 > ✅ **LA DETTE `content:build` EST PAYÉE — la validation précède désormais la purge.** Un contenu
 > refusé laisse `src/content-generated/` **intact** au lieu de le vider et de faire tomber `npm test`
 > sur une erreur Sass qui ne nomme pas la cause. Tenu par deux tests dans
 > `src/pipeline-contenu-orchestration.spec.ts` : un **fichier sentinelle sur le disque** — et non
-> l’ordre des étiquettes au journal, qu’une renumérotation laisserait vert — plus un contrôle positif
-> de l’ordre nominal. ⚠️ Reste vraie, la leçon de coordination : deux agents sur des **fichiers**
-> disjoints ne sont pas isolés s’ils partagent un **artéfact** ou un **gate**.
+> l'ordre des étiquettes au journal, qu'une renumérotation laisserait vert — plus un contrôle positif
+> de l'ordre nominal. ⚠️ Reste vraie, la leçon de coordination : deux agents sur des **fichiers**
+> disjoints ne sont pas isolés s'ils partagent un **artéfact** ou un **gate**.
 >
-> ✅ **LA DETTE D’ÉTIQUETAGE DES BLOCS DE CODE EST PAYÉE.** 12 blocs `typescript` → `javascript` dans
-> les leçons 07, 08 et 09 — aucun ne portait la moindre syntaxe TypeScript ; les `bash` de 07 et 10 et
-> les `typescript` de 10 sont, eux, exacts.
-> ⚠️ **RÉSIDU NOMMÉ, tranché par le fil principal :** les deux blocs d’**en-tête HTTP** (la CSP dans
-> 08-xss, le `Set-Cookie` dans 09-csrf) n’avaient **aucune étiquette juste** — la liste des langues est
-> fermée à huit et `http` n’en fait pas partie. Ils sont sortis du bloc clôturé et rendus en code **en
-> ligne**, sans `<figcaption>` ni `aria-label` annonçant une langue. L’autre voie — ajouter `http`
-> comme neuvième grammaire — est un **lot à part** : une grammaire neuve fait apparaître des encres
-> neuves à mesurer contre `--couleur-code-surface`.
->
-> ⚠️ **U+26A0 (`⚠`) EST UN MARQUEUR RÉSERVÉ**, au même titre que 📘 et 🧩 : `valider.mjs` §8 l’interdit
-> en prose, hors bloc de code. L’employer comme simple signe d’attention dans une leçon fait rougir
-> G-content — piège payé aujourd’hui, dans un correctif du fil principal.
+> ✅ **LA DETTE D'ÉTIQUETAGE DES BLOCS DE CODE EST PAYÉE.** 12 blocs `typescript` → `javascript` dans
+> les leçons 07, 08 et 09.
+> ⚠️ **RÉSIDU NOMMÉ :** les deux blocs d'**en-tête HTTP** (la CSP dans 08-xss, le `Set-Cookie` dans
+> 09-csrf) n'avaient **aucune étiquette juste** — la liste des langues est fermée à huit et `http` n'en
+> fait pas partie. Ils sont rendus en code **en ligne**, sans `<figcaption>` ni `aria-label` annonçant
+> une langue. Ajouter `http` comme neuvième grammaire est un **lot à part** : une grammaire neuve fait
+> apparaître des encres neuves à mesurer contre `--couleur-code-surface`.
+
 
 > ## ⏭️ REPRISE — état au 2026-08-24
 >

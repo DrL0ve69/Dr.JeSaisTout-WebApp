@@ -3281,7 +3281,7 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 | ID | Module (`NN-slug`) | Séance du cours | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|---|
 | E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ✅ |
-| E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
+| E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ✅ |
 | E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
@@ -3338,6 +3338,102 @@ G-glyphes vert.
 leçon ayant déjà subi sa passe adversariale. Les correctifs (7 édits, texte de remplacement fourni
 par le vérificateur) ont été appliqués par le **fil principal**, pas par un agent : une liste
 `fichier:ligne` + correctif prêt à coller ne mérite pas un cache froid.
+
+### ✅ CLÔTURE — E3-ST15 `03-communication-serveur` (2026-08-26)
+
+**Livré.** `lecon.md` (973 l.), `quiz.json` (9 questions), `simulation.json` (4 acteurs, 12 étapes —
+session par mot de passe contre session par clé). Les 5 exercices de la séance 3 sont placés un par
+un au fil du texte. Statut `publiee`. La décision « les deux, côte à côte » est appliquée comme à la
+séance 2 : PuTTYgen/PuTTY et le dépôt manuel de la clé dans DigitalOcean en chemin principal et
+référence évaluable ; OpenSSH natif, `ssh-copy-id`, `~/.ssh/config` et la restriction UFW par IP
+source en encadrés `::: complement`.
+
+> 🔴 **LA PASSE ADVERSARIALE A RENDU CINQ CONSTATS BLOQUANTS, ET DEUX D'ENTRE EUX ÉTAIENT DES DANGERS
+> SURÉVALUÉS — pas des omissions.** C'est l'inverse du mode d'échec attendu. La leçon affirmait que
+> `systemctl restart ssh` « coupe tout, y compris ta session de secours » (faux : l'unité
+> Debian/Ubuntu porte `KillMode=process`, qui épargne les enfants portant les sessions) et
+> qu'`ufw enable` sans règle SSH « coupe ta propre connexion » (faux le plus souvent :
+> `/etc/ufw/before.rules` accepte `RELATED,ESTABLISHED`, et `ufw(8)` ne promet qu'un « **may** drop
+> existing connections »). ⚠️ **Une menace exagérée s'auto-détruit** : l'étudiant essaie, voit que
+> rien ne casse, et conclut que le danger est imaginaire — alors que le danger réel (plus aucune
+> **nouvelle** session ne passe, et la prochaine coupure de Wi-Fi ferme la porte) est intact. Les deux
+> formulations disent désormais « te laisse dehors **dès la connexion suivante** ».
+
+> 🔴 **UN CONSTAT PORTAIT SUR UNE CONTRADICTION INTERNE QU'AUCUN DIFF NE POUVAIT MONTRER.** Le bloc
+> « changer le port SSH » ouvrait le port au pare-feu **après** le `reload` — en contradiction directe
+> avec la règle que la même leçon pose 340 lignes plus bas (« quand on ferme une porte à distance, on
+> vérifie d'abord qu'une autre est ouverte »). La fiche KB portait déjà la contradiction : sa section
+> « changer le port » contredit sa propre procédure complète. **Une leçon qui énonce un principe doit
+> être relue CONTRE son propre principe**, section par section — un contrôle que ni le rédacteur ni un
+> diff ne font. Le bloc corrigé ouvre le port d'abord, et donne enfin le remède au piège
+> `ssh.socket` que la leçon nommait sans le résoudre.
+
+> ⚠️ **LA PISTE NON SOURCÉE A ÉTÉ TROIS FOIS SUR QUATRE EXACTE, CETTE FOIS — et la vérifier restait le
+> bon geste.** Sur les quatre affirmations tirées de `README.txt` : le Cloud Firewall de DigitalOcean
+> est bien **sans frais supplémentaires** (documentation officielle — la règle « zéro dépense » est
+> respectée), la syntaxe de `~/.ssh/config` est conforme à `ssh_config(5)` (il manquait le
+> `chmod 600`), et le pare-feu cloud est un ajout légitime. **Une seule était fausse** : `ssh-copy-id`
+> n'est pas livré avec le client OpenSSH de Windows. La leçon avait suivi la KB contre `README.txt`,
+> et la KB avait raison. **Ce qu'il faut en retenir n'est pas « la piste est fiable » mais « son taux
+> d'erreur ne se devine pas »** : c'est la vérification qui l'établit, à chaque lot. À la séance 2 la
+> même source donnait trois erreurs sur trois.
+
+> ⚠️ **PUBLIER A DÉPLACÉ LA CIBLE DE PLUSIEURS SPECS E2E — sans qu'aucun rougisse.**
+> `communication-serveur` prend la tête de l'ordre alphabétique des pages prerendues et devient donc
+> la cible **des deux** découvertes, `ROUTE_LECON_QUIZ` **et** `ROUTE_LECON_SIMULATION` — elles
+> visaient `csrf` jusqu'ici. Les comptes épinglés `BLOCS_STYLE_PAGE_QUIZ` = 6 et
+> `BLOCS_STYLE_PAGE_SIMULATION` = 7 ont tenu **par identité de structure**, les deux pages portant les
+> mêmes composants. Le piège nommé au `CLAUDE.md` reste donc entier : le jour où un littéral épinglé
+> rougira après une publication, la première question est « quelle page mesure-t-il maintenant ? ».
+
+> ✅ **LE TRIPWIRE DE L'ACCUEIL A MORDU, COMME IL EST ÉCRIT POUR LE FAIRE.** `MODULES_PUBLIES` était à
+> 7 dans `src/app/features/home/accueil.ts` ; G-test a rougi sur deux assertions d'`accueil.spec.ts`
+> qui confrontent ce littéral au manifeste **réellement compilé**. Porté à 8, avec le commentaire
+> voisin (« reste exacte à sept modules » → « à huit »). Le patron « une dette datée se pose avec son
+> réveille-matin » tient toujours.
+
+> ⚠️ **PREMIÈRE PUBLICATION SUR QUATRE OÙ LA BASCULE `verifiee` → `publiee` NE RÉVÈLE AUCUN DÉFAUT.**
+> G-axe est vert du premier coup sur la page neuve. La consigne de **nommer le coin supérieur gauche
+> de tout tableau comparatif**, écrite dans le brief du rédacteur après les échecs des leçons 04, 05
+> et 02, a tenu. Une consigne portée dans le brief coûte une ligne ; le même défaut découvert à la
+> bascule coûte un cycle de correctif complet.
+
+**Gates à la clôture (2026-08-26)** : G-test **949 passés / 43 fichiers / 0 échec** · G-lint vert ·
+G-content **8 leçons valides**, 29 SVG contrôlés, 788/788 identifiants uniques · G-build **11 routes
+prerendues, 14 hachages de style / 0 de script** (inchangé — la simulation d'une page de plus produit
+le même hachage) · G-axe **11 fichiers, 946 vérifications, 0 violation** · G-e2e **50 passés / 1 sauté
+/ 0 échec** · `npm audit --omit=dev` **0** · G-typage-outils vert · G-glyphes vert. Poids servi de
+`communication-serveur` : **50,1 Ko**, loin du seuil.
+
+**Découpe et coût — LA LEÇON DE BRIEF DE CE LOT.** `professeur-web` (leçon) **170 185** tokens / 33
+appels — **au-dessus du maximum de 150k**, et c'est un défaut de brief. Les plages de lignes injectées
+ont tenu la moitié *lecture* ; c'est la moitié **écriture** qui n'avait été estimée par personne :
+973 lignes produites depuis une fiche de 763. 🔴 **La découpe juste était de scinder la leçon en deux
+moitiés** — théorie des clés d'un côté, `sshd_config` + UFW de l'autre — exactement ce qui avait donné
+113k et 147k à E3-ST5. Les autres agents : `simulation.json` **96 616** / 8 appels et `quiz.json`
+**125 166** / 12 appels, **tous deux sous la cible** ; `verificateur-theorie` **163 996** / 23 appels
+— au-dessus, sur 959 lignes à relire intégralement plus une dizaine de vérifications en ligne. Le
+périmètre était juste, le volume ne l'était pas : **un vérificateur se dimensionne au volume de la
+leçon, pas au nombre de marqueurs à lever.**
+
+⚠️ **ÉCRIRE QUIZ ET SIMULATION EN PARALLÈLE DE LA VÉRIFICATION A FONCTIONNÉ, MAIS A COÛTÉ DEUX
+CORRECTIFS.** Les questions 4 et 5 du quiz reposaient précisément sur les deux dangers surévalués et
+ont dû être réécrites après le verdict. La simulation, elle, n'a rien coûté : son brief l'avait bornée
+à une plage de 79 lignes sans marqueur. **Le parallélisme est gagnant tant que les deux agents ne
+partagent pas un fait susceptible de bouger** — et l'ordre sûr des opérations était le plus susceptible
+de tous, puisque c'est là que le vérificateur avait ordre de creuser.
+
+**Correction de KnowledgeBase**, poussée (`64823f8`) : `web/securite/securisation-acces-distant-ssh.md`,
+longueurs base64 du tableau des algorithmes, arrondies vers le haut — RSA 4096 **800 → 716**, RSA 2048
+**400 → 372**, ECDSA **« 100-140 » → 140 (nistp256) / 184 (nistp384)**. Dérivées du format du blob de
+clé publique (RFC 4253 §6.6, base64 = 4 × ⌈n/3⌉) ; la valeur 68 d'Ed25519 était exacte et valide la
+méthode.
+
+**Nœud laissé au propriétaire.** La leçon attribue des numéros de diapositive à une **édition de 85
+diapositives retirée du site du cours** depuis son ingestion du 2026-08-07. Le vérificateur juge
+l'attribution **tenable** (la fiche KB la trace explicitement, captures lues une à une) et n'a rien
+fait retirer, mais elle n'est **plus vérifiable depuis aucune source publiée**. Si l'enseignant
+republie un paquet pour la séance 3, les numéros des séances 3 à 5 sont à reconfronter en bloc.
 
 > ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
 > **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un

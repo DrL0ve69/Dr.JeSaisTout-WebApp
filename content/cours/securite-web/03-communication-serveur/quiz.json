@@ -1,0 +1,184 @@
+{
+  "lecon": "communication-serveur",
+  "titre": "Quiz — Sécurité de la communication serveur",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Tu te connectes à ton droplet par clé SSH. Un observateur capture l'intégralité des paquets échangés pendant la poignée de main, et il parvient même à déchiffrer le tunnel. Que possède-t-il, à la fin, qui lui permettrait de se connecter demain à ta place ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Rien d'exploitable : il a vu ta clé publique et une signature calculée sur un défi tiré au hasard pour cette session-là. La signature d'aujourd'hui ne répond pas au défi de demain, et la clé publique ne signe rien."
+        },
+        {
+          "id": "b",
+          "texte": "Ta clé privée : elle est bien envoyée au serveur, simplement chiffrée par le tunnel — c'est d'ailleurs pour cela qu'on protège la connexion."
+        },
+        {
+          "id": "c",
+          "texte": "Ta passphrase : le client la transmet au serveur pour qu'il déverrouille la clé enregistrée dans authorized_keys."
+        },
+        {
+          "id": "d",
+          "texte": "Un condensé de ta clé privée, que le serveur compare à celui qu'il garde en base — le même mécanisme qu'un mot de passe haché."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "La question ne porte pas sur le chiffrement mais sur ce qui CIRCULE. Le diagramme de séquence de la leçon le montre étape par étape : le client annonce l'empreinte de sa clé publique, le serveur la cherche dans authorized_keys, et s'il la trouve il renvoie un défi — un nonce, c'est-à-dire un nombre aléatoire à usage unique, lié à cette session. Le client signe ce défi avec la clé privée et n'envoie que la SIGNATURE. Deux conséquences en découlent, toutes deux nommées juste sous le diagramme. D'abord, la clé privée ne quitte jamais ton poste, donc un observateur ne peut pas la capturer sur le réseau — ce qui condamne la réponse b, qui décrit le mécanisme du mot de passe, pas celui de la clé. Ensuite, la signature est calculée sur un défi neuf : la rejouer demain ne répond à rien, puisque le serveur aura tiré un autre nonce. La réponse c confond deux secrets que la leçon sépare explicitement : la passphrase déverrouille la clé privée SUR TON POSTE, elle n'est jamais transmise. La réponse d invente un mécanisme de mot de passe haché : le serveur ne détient aucun condensé de ta clé privée, il détient ta clé publique en clair, et il s'en sert pour VÉRIFIER une signature — jamais pour la produire. C'est exactement pourquoi la leçon dit qu'un serveur compromis ne peut pas voler ton identité : il n'a que de quoi vérifier.",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "Publier le contenu de maCle.pub dans un dépôt GitHub public affaiblit la sécurité du serveur où cette clé est déposée.",
+      "bonneReponse": false,
+      "justification": "Faux, et ce n'est pas une tolérance : c'est la propriété qui fait tout l'intérêt du système. Le tableau des deux fichiers de la leçon répond directement à la question « est-il secret ? » — Non pour la clé publique, avec la mention explicite qu'on peut la publier sur GitHub. La raison tient au rôle asymétrique des deux fichiers : la clé publique sert uniquement à VÉRIFIER une signature, jamais à en produire une, et la clé privée ne se déduit pas de la clé publique. L'analogie du sceau, en ouverture de la leçon, dit exactement cela : le modèle de sceau conservé en fiche par le portier pourrait être affiché sur la porte sans que personne puisse sceller à ta place. Et la leçon prend soin de dire où l'image casse — un vrai sceau de cire, lui, se recopie à partir d'une belle empreinte ; c'est justement ce que la clé publique SSH ne permet pas. Attention toutefois à ne pas retenir la mauvaise moitié. Ce qui ne se publie nulle part, c'est l'autre fichier — celui qui n'a pas d'extension .pub, celui qu'on colle « sur aucun site », comme le rappelle l'encadré de l'exercice 1. Et si publier ta clé publique est sans danger, l'INVERSE mérite attention côté serveur : quiconque peut ÉCRIRE dans ton fichier authorized_keys peut y ajouter sa propre clé publique et devenir toi. C'est la raison des permissions 700 et 600 de la section « Les permissions, non négociables », et la raison pour laquelle OpenSSH refuse une clé quand ces permissions sont trop larges. Retiens la distinction en une phrase : la clé publique peut être LUE par le monde entier, elle ne doit être ÉCRITE que par toi.",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "L'énoncé de l'exercice promet qu'« il ne sera plus nécessaire d'utiliser un mot de passe », et pourtant la connexion te demande de saisir quelque chose : « Passphrase for key ». Que viens-tu de taper, et où ce secret a-t-il été vérifié ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "La passphrase qui déchiffre ta clé privée : elle est vérifiée sur TON poste, par ton client SSH, et n'est jamais envoyée au serveur. La promesse de l'énoncé tient donc toujours — aucun mot de passe de compte n'a circulé."
+        },
+        {
+          "id": "b",
+          "texte": "Le mot de passe du compte root du droplet, que le serveur redemande une dernière fois pour confirmer le dépôt de la clé."
+        },
+        {
+          "id": "c",
+          "texte": "La passphrase, envoyée au serveur qui s'en sert pour déverrouiller la clé publique enregistrée dans authorized_keys."
+        },
+        {
+          "id": "d",
+          "texte": "Le mot de passe de la session Windows, que PuTTY réutilise pour accéder au fichier .ppk protégé."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "La leçon annonce cette question comme « l'erreur d'examen la plus probable de cette séance », dans l'encadré de l'exercice 1 et de nouveau dans le « À retenir ». Il y a deux secrets dans cette séance, et ils ne vivent pas au même endroit. Le MOT DE PASSE DE COMPTE est un secret que le serveur connaît : tu le lui envoies, il le vérifie, et c'est précisément ce que les robots essaient un million de fois par jour. La PASSPHRASE est un secret local : elle chiffre le fichier de clé privée sur ton disque. Sans elle, quelqu'un qui vole ton portable a ta clé ; avec elle, il a un fichier illisible. Ton client la vérifie localement, en déchiffrant la clé, puis s'en sert pour signer le défi — et rien de tout cela ne traverse le réseau. La réponse c est le distracteur à comprendre en entier, parce qu'il inverse le mécanisme deux fois : la passphrase ne quitte pas ton poste, et une clé PUBLIQUE n'est pas chiffrée, il n'y a rien à y déverrouiller. Les réponses b et d s'appuient sur une confusion de contexte plutôt que sur un mécanisme : le serveur ne demande rien à ce moment-là, et PuTTY ne réutilise aucun mot de passe Windows. Un test pratique tranche définitivement, et la leçon le donne dans le même encadré : « ssh -o PubkeyAuthentication=no root@… » doit être REFUSÉ, et « sudo sshd -T | grep -i passwordauth » doit répondre « no ». Si la connexion normale passe alors que ces deux vérifications échouent au mot de passe, c'est bien que ce que tu tapes n'est pas un mot de passe de compte.",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q4",
+      "type": "trouver-la-faille",
+      "consigne": "Ces trois commandes sont tapées depuis une session SSH sur un droplet neuf. Chacune est correcte prise isolément, aucune n'affiche d'erreur — et pourtant l'administrateur ne pourra plus jamais se connecter par le réseau. Quelle ligne le condamne ?",
+      "langage": "bash",
+      "code": "sudo ufw default deny incoming\nsudo ufw enable\nsudo ufw allow OpenSSH",
+      "ligneFautive": 2,
+      "faille": "Activation du pare-feu AVANT l'ouverture de SSH : la politique par défaut s'applique immédiatement, et plus aucune nouvelle session ne sera acceptée",
+      "explication": "La ligne 2 applique une politique qui était déjà écrite mais qui dormait. « default deny incoming » ne bloque rien tant qu'UFW est inactif ; « enable » le réveille, et le filtre entre en vigueur à la microseconde suivante — y compris pour le port 22, sur lequel repose la connexion par laquelle ces commandes viennent d'être tapées. Le piège est qu'il ne se passe rien de visible : les paquets d'une connexion déjà établie restent acceptés par /etc/ufw/before.rules, donc la session en cours survit le plus souvent — ufw(8) prévient seulement que l'activation « may drop existing connections (eg ssh) ». Mais plus aucune NOUVELLE session n'est acceptée, et la première coupure de réseau, de Wi-Fi ou de veille ferme la porte pour de bon. La ligne 3 est parfaitement correcte : c'est justement le drame. Il se peut qu'on ait encore la main pour la taper, mais on ne le sait qu'après coup — parier son seul accès sur la survie d'une session TCP n'est pas une procédure. Le serveur n'est plus joignable que par la console web du fournisseur — le clavier virtuel du tableau de bord, qui ne passe pas par le réseau — et là où cette console n'existe pas, le serveur est perdu. La ligne 1 n'est pas fautive et il ne faut surtout pas la retirer : la politique « tout ce qui entre est bloqué sauf autorisation explicite » est le moindre privilège réseau, c'est-à-dire la base d'une configuration saine. Le correctif ne change aucune commande : il change leur ORDRE, et ajoute deux gestes. Ouvrir SSH pendant que le pare-feu dort encore, de sorte que la règle soit en vigueur à l'instant du réveil. Autoriser explicitement le trafic sortant, sans quoi le serveur ne pourrait plus joindre les dépôts apt ni résoudre un nom de domaine. Relire avec « ufw status » avant d'activer — trois secondes contre un serveur perdu. Et garder le filet que la leçon répète à chaque section : une seconde session SSH ouverte pendant qu'une troisième, toute neuve, teste la nouvelle configuration. La règle générale, écrite juste sous cet exemple, dépasse le cas d'UFW : quand on ferme une porte à distance, on vérifie d'abord qu'une autre est ouverte.",
+      "correction": "sudo ufw default deny incoming\nsudo ufw default allow outgoing   # sinon plus d'apt ni de DNS\nsudo ufw allow OpenSSH            # l'ouverture PRECEDE l'activation\nsudo ufw status                   # relire ce qu'on s'apprete a appliquer\nsudo ufw enable                   # « Command may disrupt existing ssh connections. Proceed? » -> y",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q5",
+      "type": "trouver-la-faille",
+      "consigne": "Sur un droplet dont la clé publique n'a été déposée que dans le compte root par le fournisseur, un étudiant crée son utilisateur de travail puis durcit le service SSH. Les quatre commandes réussissent, sshd -t ne signale rien, et le serveur devient inaccessible au prochain essai. Quelle ligne est fautive ?",
+      "langage": "bash",
+      "code": "adduser deploy\nusermod -aG sudo deploy\nsudo vi /etc/ssh/sshd_config     # y ecrire : PermitRootLogin no\nsudo sshd -t && sudo systemctl reload ssh",
+      "ligneFautive": 3,
+      "faille": "On ferme l'accès root alors que le nouvel utilisateur n'a aucune clé : plus aucun compte ne peut s'authentifier",
+      "explication": "La ligne 3 ferme la SEULE porte qui fonctionnait. Le fournisseur n'a déposé la clé publique que dans /root/.ssh/authorized_keys ; le compte deploy vient d'être créé et son propre fichier authorized_keys est vide. Interdire la session root ne laisse alors aucun compte capable de s'authentifier : root est refusé par configuration, deploy est refusé faute de clé. La leçon nomme ce scénario mot pour mot dans « L'ordre des opérations, ou comment ne pas s'enfermer dehors » : c'est l'erreur classique, et elle coûte un serveur. Ce qui manque n'est pas une correction de la ligne 3 mais une ÉTAPE, la deuxième de l'ordre sûr — recopier la clé publique dans le authorized_keys de deploy, avec les bons propriétaires — puis une VÉRIFICATION : tester la connexion par clé dans une NOUVELLE fenêtre, sans fermer la première, et ne toucher à sshd_config qu'une fois ce test réussi. La ligne 4 n'est pas fautive, et c'est même le bon réflexe deux fois. « sshd -t » valide la syntaxe avant de recharger, et son silence signifie que tout va bien — mais il ne valide qu'une SYNTAXE : une configuration parfaitement écrite peut parfaitement t'enfermer dehors, et c'est exactement ce qui se produit ici. « reload » relit la configuration sans jamais lâcher le port, contrairement à « restart », qui laisse pourtant vivre les sessions déjà ouvertes mais cesse d'écouter le temps du redémarrage — et si la configuration était invalide, le service ne remonte pas du tout. Les lignes 1 et 2 ne sont pas fautives non plus ; note au passage que le -a de usermod est vital, puisque -G seul REMPLACE la liste des groupes au lieu d'y ajouter. Un dernier piège propre à Ubuntu, signalé en complément : la configuration réellement appliquée peut venir d'un fichier inclus depuis /etc/ssh/sshd_config.d/, et la première valeur lue gagne. La seule lecture qui fasse foi est la configuration résolue, que donne « sudo sshd -T ».",
+      "correction": "adduser deploy && usermod -aG sudo deploy\nrsync --archive --chown=deploy:deploy ~/.ssh /home/deploy/   # etape 2 : la cle publique chez deploy\n# TESTER « ssh deploy@203.0.113.10 » dans une SECONDE fenetre, sans fermer celle-ci\nsudo vi /etc/ssh/sshd_config     # PermitRootLogin no, puis PasswordAuthentication no\nsudo sshd -t && sudo systemctl reload ssh\n# VERIFIER dans une TROISIEME fenetre avant de tout fermer",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q6",
+      "type": "associer",
+      "consigne": "Associe chaque commande UFW à ce qu'elle produit réellement sur le serveur — pas à ce que son nom laisse croire.",
+      "paires": [
+        {
+          "gauche": "sudo ufw default deny incoming",
+          "droite": "Pose le filet : tout paquet entrant qu'aucune règle n'autorise est jeté. Ne bloque rien tant que le pare-feu n'est pas activé."
+        },
+        {
+          "gauche": "sudo ufw allow ssh",
+          "droite": "Ouvre le port 22 en TCP seulement : le nom de service est résolu en couple port et protocole via /etc/services."
+        },
+        {
+          "gauche": "sudo ufw allow 80",
+          "droite": "Ouvre le port 80 en TCP ET en UDP : la forme numérique nue ne précise aucun protocole."
+        },
+        {
+          "gauche": "sudo ufw status numbered",
+          "droite": "N'écrit rien : affiche les règles préfixées de leur numéro, ce qu'il faut relever avant toute suppression par numéro."
+        },
+        {
+          "gauche": "sudo ufw delete 4, où le numéro 4 désigne la règle IPv6 du port 80",
+          "droite": "Retire une seule des deux règles jumelles : le port 80 reste ouvert en IPv4."
+        },
+        {
+          "gauche": "sudo ufw reset",
+          "droite": "Efface les règles ET désactive le pare-feu : il faut ensuite réautoriser SSH, puis seulement réactiver."
+        }
+      ],
+      "explication": "Trois idées suffisent à retrouver toutes ces lignes sans les apprendre par cœur. PREMIÈRE IDÉE : une règle n'est pas un filtre. « default deny incoming » et « allow ssh » ne font qu'écrire dans une table ; c'est « enable » qui applique. D'où l'ordre sûr, sans exception : politiques par défaut, puis l'ouverture de SSH, puis « status » pour relire, puis « enable ». D'où aussi le danger de « reset », qui efface les règles et désactive le pare-feu du même geste — l'ordre de reconstruction est donc autoriser SSH d'abord, activer ensuite. DEUXIÈME IDÉE : la forme d'écriture change ce qui est ouvert. La démonstration du cours en fournit la preuve visuelle, puisque les deux formes cohabitent dans la même sortie — « allow ssh » produit une ligne 22/tcp, tandis que « allow 80 » produit une ligne 80 tout court, c'est-à-dire les deux protocoles. Rien n'écoutant en UDP sur 80, la conséquence est faible, mais c'est une surface ouverte que personne n'a décidé d'ouvrir : en production, écris toujours « ufw allow 80/tcp ». TROISIÈME IDÉE : chaque ouverture crée DEUX règles, l'IPv4 et son jumeau IPv6 — c'est ce qu'annonce le « Rules updated (v6) » et ce qui explique quatre lignes pour deux ouvertures. Supprimer la règle IPv6 du port 80 ne referme donc rien en IPv4, et c'est le constat que le cours tire lui-même. Deux corollaires à ne pas perdre : les numéros SE DÉCALENT après chaque suppression, il faut relister entre deux — d'où la préférence, en script, pour la forme sans ambiguïté « ufw delete allow 80/tcp », à passer une fois par famille d'adresses si IPv6 est actif. Enfin, souviens-toi qu'UFW n'est qu'une façade en ligne de commande sur le moteur de filtrage du noyau : il ne connaît ni HTTP ni aucun protocole applicatif, il ne connaît que des ports et des protocoles de transport.",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "La page Apache de ton droplet s'affichait correctement. Tu retires la règle qui ouvrait le port 80, puis tu recharges l'onglet du navigateur. Que va-t-il se passer, et pourquoi ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "L'onglet reste bloqué sur un délai d'attente, jusqu'à un ERR_CONNECTION_TIMED_OUT : UFW JETTE le paquet sans renvoyer la moindre réponse, et le client attend faute de savoir que la porte est fermée."
+        },
+        {
+          "id": "b",
+          "texte": "Le navigateur affiche immédiatement « connexion refusée » : le pare-feu renvoie un message ICMP port unreachable, ce qui coupe court à l'attente."
+        },
+        {
+          "id": "c",
+          "texte": "Apache renvoie une erreur 403 Forbidden, puisque c'est lui qui applique la règle de pare-feu sur ses propres ports."
+        },
+        {
+          "id": "d",
+          "texte": "Rien ne change tant qu'on n'a pas redémarré Apache : une règle UFW ne prend effet qu'au prochain démarrage du service qu'elle concerne."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est le constat que la leçon qualifie de plus instructif de la séance, dans l'encadré de l'exercice 4. Il repose sur une distinction que tout administrateur doit savoir dans les deux sens : JETER un paquet, c'est un DROP — aucune réponse n'est émise, l'expéditeur n'apprend rien, il attend jusqu'à l'expiration de son délai ; REFUSER un paquet, c'est un REJECT — un message ICMP « port unreachable » revient, l'échec est instantané. UFW jette par défaut, d'où le délai d'attente. La réponse b décrit donc exactement l'autre comportement, et son raisonnement est utile à retenir en négatif : le refus est plus confortable pour l'utilisateur légitime, mais il CONFIRME à un attaquant que la machine existe. Le silence, lui, la fait paraître absente. La réponse c se trompe de couche, et c'est l'erreur conceptuelle centrale de la séance : le pare-feu et le serveur web sont deux couches indépendantes. Apache n'a rien à voir avec le filtrage, il n'apprend même pas que des paquets ont été jetés avant de l'atteindre. La leçon fournit la preuve à faire soi-même : pendant que le navigateur expire, « systemctl is-active apache2 » répond toujours « active », et « curl http://127.0.0.1 » lancé DEPUIS le serveur fonctionne parfaitement, puisque le filtre porte sur l'interface externe. La réponse d invente une temporisation qui n'existe pas : une règle UFW s'applique au paquet suivant, sans redémarrer quoi que ce soit. Et pour compléter la même image : un pare-feu de couche réseau ne sait rien de HTTP ; l'outil qui inspecte réellement le contenu des requêtes web s'appelle un WAF, un pare-feu applicatif, et c'est un tout autre produit.",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q8",
+      "type": "choix-multiple",
+      "question": "Un administrateur déplace SSH du port 22 vers le port 2222 et annonce que son serveur est « maintenant protégé contre le brute force ». Quelle appréciation est exacte ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Le gain est opérationnel, pas défensif : les balayages opportunistes qui ne visent que le port 22 cessent, donc le journal redevient lisible. Mais un balayage complet retrouve le service en quelques secondes, et si le mot de passe reste accepté, le brute force se déplace simplement sur le nouveau port."
+        },
+        {
+          "id": "b",
+          "texte": "L'appréciation est juste : un port supérieur à 1024 n'est pas atteignable depuis Internet sans configuration supplémentaire, ce qui rend le service invisible."
+        },
+        {
+          "id": "c",
+          "texte": "L'appréciation est juste : le numéro de port fait partie du secret de connexion, au même titre que la clé, et il n'existe aucun moyen de le découvrir depuis l'extérieur."
+        },
+        {
+          "id": "d",
+          "texte": "L'appréciation est fausse et la mesure est nuisible : changer le port n'apporte strictement rien et dégrade le chiffrement de la session."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "La leçon classe cette mesure sans ambiguïté : c'est de la sécurité par l'obscurité, pas de la sécurité — à ranger avec la rotation des journaux, pas avec le chiffrement. Mais elle prend soin de ne pas la déclarer nulle, et c'est ce que la réponse d rate. Ce qu'elle apporte réellement : les robots opportunistes ne frappent que le port 22, les tentatives quotidiennes tombent de plusieurs milliers à presque rien, et /var/log/auth.log redevient lisible — les échecs qui subsistent deviennent des signaux au lieu d'un bruit de fond. Ce n'est pas rien pour qui doit surveiller un serveur. Ce qu'elle n'apporte pas : aucune protection contre quelqu'un qui te vise nommément. Un balayage de tous les ports énumère la machine en quelques secondes, et une interrogation de version lit « OpenSSH » dans la bannière du service. Le port n'est pas un secret, c'est un détail découvrable — ce qui condamne la réponse c. La réponse b invente une règle qui n'existe pas : les ports au-dessus de 1024 sont joignables comme les autres, la seule particularité des ports bas étant qu'il faut des privilèges pour s'y attacher. Deux points à emporter. À L'EXAMEN, donne la réponse du cours : changer le port SSH réduit les attaques par force brute des scripts automatisés qui ciblent le port 22 — c'est vrai au sens des scans opportunistes. EN PRODUCTION, ce qui protège vraiment est la désactivation du mot de passe, complétée par un outil de bannissement automatique ou une restriction par adresse source. Et si tu changes tout de même le port, la leçon impose l'ordre habituel avant de fermer la session en cours : ouvrir le nouveau port dans le pare-feu, puis tester la connexion sur ce port depuis une SECONDE fenêtre.",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    },
+    {
+      "id": "q9",
+      "type": "vrai-faux",
+      "affirmation": "Pour que le droplet accepte ta clé, il faut coller dans le champ « SSH Key » de DigitalOcean le contenu du fichier maCle, celui qui n'a pas d'extension.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est la faute la plus grave qu'on puisse commettre dans cette séance, parce qu'elle est irréversible : le fichier sans extension est la clé PRIVÉE. Ce qui se colle dans l'interface du fournisseur est toute la ligne de maCle.pub, la clé PUBLIQUE, que la plateforme écrira elle-même dans authorized_keys à la première initialisation de la machine. L'encadré de l'exercice 1 le dit en une phrase : colle la ligne de maCle.pub, jamais le contenu de maCle — la clé privée ne se colle nulle part, sur aucun site. Une clé privée exposée doit être considérée comme perdue : on en génère une nouvelle et on retire l'ancienne de tous les authorized_keys où elle figure, car rien ne permet de savoir qui en a pris copie entre-temps. Deux repères pour ne jamais se tromper de fichier. Le premier est l'extension : .pub veut dire public, et c'est le SEUL des deux fichiers qui voyage. Le second est le premier réflexe d'ouverture : si le contenu commence par un en-tête annonçant une clé privée, referme et ne copie rien. Profite de la question pour retenir la qualité de cette voie, que la leçon souligne et que le cours ne commente pas : déposer la clé AVANT la création du droplet supprime complètement la fenêtre de temps pendant laquelle la machine accepterait encore un mot de passe. Elle naît en mode « clé seulement ». C'est la meilleure raison de préférer cette voie, et elle n'a rien à voir avec la commodité. Note enfin un piège voisin, dans la conversion pour PuTTY : renommer maCle en maCle.ppk ne convertit rien du tout, cela ne change que l'étiquette affichée par l'Explorateur. Seul PuTTYgen convertit réellement, au moment du « Save private key ».",
+      "ficheSource": "web/securite/securisation-acces-distant-ssh.md"
+    }
+  ]
+}
