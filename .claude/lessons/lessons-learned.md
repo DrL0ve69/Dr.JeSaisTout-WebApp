@@ -430,6 +430,21 @@ l'éditeur), pas à committer tel quel en espérant que la revue filtre le bruit
 
 **Réfs addendum 4.** branche `feat/e3-st2-st3-lecons` ; `src/workflows-github.spec.ts`.
 
+**Addendum (E3-ST16, 2026-08-27) — cinquième variante : un même fichier peut être MIXTE, pas
+seulement « CRLF » ou « LF ».** `docs/agile/backlog-phase-1.md` porte des lignes CRLF **et** des
+lignes LF **à l'intérieur du même fichier** — probablement l'effet cumulé d'éditions successives par
+des outils différents. Un script qui détecte « le fichier est en CRLF » (sur un échantillon ou la
+majorité) puis convertit son motif en conséquence ne mord alors **que sur la portion qui correspond
+à sa détection** : le premier remplacement a réussi, le second a rapporté « 0 occurrence », sans
+lever d'erreur. **Règle** : sur un fichier long et souvent édité à la main
+(`docs/agile/backlog-phase-1.md` en tête), ne jamais détecter « la » fin de ligne du fichier avant
+d'éditer — insérer par **position de ligne** après un `split('\n')` (qui absorbe le `\r` résiduel
+dans chaque élément sans qu'on ait besoin de le trancher), plutôt que par substitution de motif
+supposant une fin de ligne uniforme.
+
+**Réfs addendum 5.** `docs/agile/backlog-phase-1.md` ; leçon `04-automatisation-surveillance`,
+commit `acc54f9` (2026-08-27).
+
 ---
 
 ## L-016 · Un commentaire qui cite un fichier, une section ou une checklist doit pointer vers du réel — sinon c'est [[L-008]] avec une signature en plus
@@ -2209,6 +2224,86 @@ Douter d'une piste neuve ne dispense pas de relire ce que son intégration a **d
 
 **Réfs.** `content/cours/securite-web/02-environnement-linux/lecon.md`, passe
 `verificateur-theorie` (2026-08-26) ; [[S-010]].
+
+---
+
+## L-078 · La partie « CONTRAT » d'un livrable découpé entre plusieurs agents n'appartient à aucune moitié — elle disparaît si personne ne la recopie
+
+**Symptôme.** La leçon `04-automatisation-surveillance` a été rédigée en deux moitiés par deux
+agents, chacun recevant son propre plan de sections. **Aucun des deux plans ne portait les trois
+sections que `valider.mjs` exige de toute leçon** (« Exemple simple », « Exemple complet », « À toi
+de jouer ») — chaque rédacteur a fidèlement couvert le plan qu'on lui avait donné. Le gate les a
+réclamées après coup, et il a fallu un **troisième agent (113k tokens)** pour les insérer. Même lot,
+même faute sur un axe voisin : le frontmatter admet **au plus 5 objectifs**, le brief en demandait
+« 5 à 6 » — G-content a rougi au premier essai.
+
+**Règle.** Quand un livrable contractuel (une leçon, un DTO, un fichier de config) est découpé entre
+plusieurs agents, les **contraintes du contrat** — sections obligatoires du gabarit, bornes de
+cardinalité, champs requis — n'appartiennent à aucune des moitiés découpées : elles doivent être
+**recopiées explicitement** dans chaque brief, ou au minimum dans le brief de l'agent qui **ferme**
+le livrable (celui qui passe la dernière vérification avant le gate). Un brief qui se contente de
+pointer un plan de sections sans y adjoindre le contrat exact du validateur laisse chaque rédacteur
+fidèle à un plan **incomplet par construction**.
+
+**Réfs.** `content/cours/securite-web/04-automatisation-surveillance/lecon.md`,
+`tools/content-pipeline/valider.mjs` (sections obligatoires, borne des objectifs), commit `acc54f9`
+(2026-08-27).
+
+---
+
+## L-079 · Une vérification en ligne qui CONFIRME l'hypothèse de départ doit être relancée verbatim avant d'être crue
+
+**Symptôme.** Le `verificateur-theorie` devait recouper quatre accusations portées contre un support
+de cours au format `.pptx` — format qu'**aucun outil d'agent ne lit**. Un premier appel `WebFetch`
+a produit une lecture **entièrement hallucinée**, citant des numéros de diapositive précis, qui
+« confirmait » l'une des quatre accusations. Relancé avec une consigne explicite de **verbatim**
+(citer le texte exact ou dire l'absence), le même outil a répondu « ABSENT » sur les quatre points.
+
+**Règle.** Une hallucination qui **confirme** l'hypothèse qu'on cherchait à vérifier est le pire mode
+d'échec d'une vérification : elle ne se signale par aucun symptôme (pas d'erreur, pas de refus) et
+elle **clôt l'enquête** au lieu de la nourrir. Devant tout outil susceptible d'halluciner sur un
+format qu'il ne peut pas réellement lire (`.pptx`, `.docx`, image sans OCR fiable), exiger une
+réponse **verbatim** (citation exacte ou « absent ») plutôt qu'un résumé ou une confirmation — et
+si l'outil ne peut produire de verbatim sur un format binaire, conclure « non recoupable », jamais
+« confirmé ». Corollaire éditorial déjà systématique sur ce dépôt (trois séances de suite) : retirer
+l'attribution et garder le fait plutôt que de citer une source non vérifiable (`correction-du-cours`
+→ `note`/`attention`, `cours` → `complement`).
+
+**Réfs.** passe `verificateur-theorie`, leçon `04-automatisation-surveillance`, source
+`Cours04-…pptx` du site de l'enseignant (2026-08-27) ; [[L-046]] (un contrôle d'exhaustivité ne vaut
+que pour le corpus qu'on lui a donné).
+
+---
+
+## L-080 · Une liste blanche fermée sur le CORPUS a une date de péremption ; fermée sur le CONTRAT de l'outil, elle n'en a pas
+
+**Symptôme.** G-contraste (`tools/design/verifier-contrastes.mjs`) a fait rougir la CI **à la
+publication d'une leçon de contenu**, sur une PR qui ne touchait aucune ligne de code de design. La
+leçon contenait un `preg_match` PHP dont l'expression régulière portait un `\S` ; github-dark peint
+cette portée en gras, et Shiki a émis pour la première fois `--shiki-{light,dark}-font-weight`. La
+liste blanche nominative du gate ne contenait que les quatre noms présents dans
+`_coloration-syntaxique-generee.scss` **le jour où la liste avait été écrite** — le CORPUS observé
+à ce moment, pas le CONTRAT de l'outil qui produit ce fichier. Le contraste, lui, n'était jamais en
+cause (5,65:1 minimum) : le gate a rougi sur une propriété absente de sa liste, pas sur une mesure
+insuffisante.
+
+**Règle.** Quand une liste blanche nominative porte sur la sortie d'un outil tiers dont on a le
+code sous `node_modules`, la lire dans **sa source** et recopier l'ensemble CLOS qu'elle peut
+produire (ici : `getTokenStyleObject` de Shiki n'émet que cinq propriétés, préfixées par variante de
+thème — dix noms au total), pas l'ensemble observé sur le corpus du jour. Ce n'est pas un
+assouplissement : la liste reste nominative et fait toujours échouer en se nommant, elle est
+seulement complète au lieu d'être un instantané. Corollaire de repérage : un gate qui lit un fichier
+**généré par le contenu** (ici la feuille de coloration syntaxique, produite par `content:build`
+selon ce que les auteurs écrivent) est un gate de contenu déguisé en gate de design — toute leçon
+employant une construction syntaxique inédite peut le faire rougir, sur une PR où personne ne le
+soupçonne. Un banc posé pour anticiper ce risque (`src/coloration-encres-contraste.spec.ts` mesurait
+déjà « ce que le contrat autorise » pour les **encres**) doit couvrir **toutes** les sorties du
+générateur, pas seulement celles qu'on a pensé à mesurer en premier.
+
+**Réfs.** `tools/design/verifier-contrastes.mjs` (`PROPRIETES_COLORATION`), publication des séances
+3 et 4 (2026-08-27), `node_modules/@shikijs/core/dist/index.mjs` (`getTokenStyleObject`, `varKey`) ;
+même faute de forme que [[S-010]] (« une promesse au singulier a une date de péremption implicite »)
+et famille « liste blanche nominative » [[S-020]].
 
 ---
 

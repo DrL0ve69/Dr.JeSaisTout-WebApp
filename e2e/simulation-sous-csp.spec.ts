@@ -157,13 +157,23 @@ import { ROUTE_LECON_SIMULATION, attendreCourante, idEtape, lireEtat } from './a
 // PAS « viser une page par nom » (0 hachage gagné) : c'est « énumérer les blocs de l'accueil,
 // du sommaire et de la 404 ». Consigné au backlog, pas corrigé ici — c'est un lot à soi.
 //
-// Les deux constantes restent SÉPARÉES bien qu'égales aujourd'hui : elles décrivent deux rôles
-// qui se sépareront de nouveau dès qu'une leçon sans simulation reprendra la tête de l'ordre
-// alphabétique. Les fusionner ferait perdre la distinction au moment précis où elle revient.
+// Les deux constantes restent SÉPARÉES : elles décrivent deux rôles, et le commentaire
+// ci-dessus annonçait qu'elles se sépareraient « dès qu'une leçon sans simulation reprendra la
+// tête de l'ordre alphabétique ». C'EST ARRIVÉ LE 2026-08-27, à la publication d'E3-ST16
+// `04-automatisation-surveillance` : elles ne sont plus égales. Ne pas les fusionner.
 
 // La page du QUIZ : `ROUTE_LECON_QUIZ`, première page prerendue portant `<app-quiz` —
-// aujourd'hui `csrf`, qui porte AUSSI une simulation. D'où 7 et non plus 6.
-const BLOCS_STYLE_PAGE_QUIZ = 7;
+// aujourd'hui `automatisation-surveillance` (était `csrf`, puis `communication-serveur`), une
+// leçon SANS simulation. D'où 6, et non plus 7.
+//
+// 🔴 CE CHIFFRE A BAISSÉ SANS QU'AUCUNE PERMISSION NE CHANGE, et c'est la seule lecture juste :
+// la directive servie compte toujours 14 hachages, le générateur en attend toujours 14, et
+// l'assertion « 0 orphelin » ci-dessous passe sur les 6 blocs. Ce qui a changé n'est pas la
+// page — c'est LAQUELLE des pages la découverte alphabétique désigne. Une page sans simulation
+// ne porte pas le bloc `<style>` du composant `app-simulation` : 7 − 1 = 6. Reporter ce compte
+// ici sans reposer la question « quelle page mesure-t-il maintenant ? » serait exactement le
+// geste que le message d'échec interdit.
+const BLOCS_STYLE_PAGE_QUIZ = 6;
 
 // La page de la SIMULATION : `ROUTE_LECON_SIMULATION`, aujourd'hui `csrf` (était `injection`).
 // Elle porte le 14ᵉ hachage de l'artéfact — donc c'est la seule page dont la mesure

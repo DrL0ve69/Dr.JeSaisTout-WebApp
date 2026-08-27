@@ -3281,8 +3281,8 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 | ID | Module (`NN-slug`) | Séance du cours | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|---|
 | E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ✅ |
-| E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
-| E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
+| E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ✅ |
+| E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ✅ |
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
@@ -3339,6 +3339,194 @@ leçon ayant déjà subi sa passe adversariale. Les correctifs (7 édits, texte 
 par le vérificateur) ont été appliqués par le **fil principal**, pas par un agent : une liste
 `fichier:ligne` + correctif prêt à coller ne mérite pas un cache froid.
 
+### ✅ CLÔTURE — E3-ST15 `03-communication-serveur` (2026-08-26)
+
+**Livré.** `lecon.md` (973 l.), `quiz.json` (9 questions), `simulation.json` (4 acteurs, 12 étapes —
+session par mot de passe contre session par clé). Les 5 exercices de la séance 3 sont placés un par
+un au fil du texte. Statut `publiee`. La décision « les deux, côte à côte » est appliquée comme à la
+séance 2 : PuTTYgen/PuTTY et le dépôt manuel de la clé dans DigitalOcean en chemin principal et
+référence évaluable ; OpenSSH natif, `ssh-copy-id`, `~/.ssh/config` et la restriction UFW par IP
+source en encadrés `::: complement`.
+
+> 🔴 **LA PASSE ADVERSARIALE A RENDU CINQ CONSTATS BLOQUANTS, ET DEUX D'ENTRE EUX ÉTAIENT DES DANGERS
+> SURÉVALUÉS — pas des omissions.** C'est l'inverse du mode d'échec attendu. La leçon affirmait que
+> `systemctl restart ssh` « coupe tout, y compris ta session de secours » (faux : l'unité
+> Debian/Ubuntu porte `KillMode=process`, qui épargne les enfants portant les sessions) et
+> qu'`ufw enable` sans règle SSH « coupe ta propre connexion » (faux le plus souvent :
+> `/etc/ufw/before.rules` accepte `RELATED,ESTABLISHED`, et `ufw(8)` ne promet qu'un « **may** drop
+> existing connections »). ⚠️ **Une menace exagérée s'auto-détruit** : l'étudiant essaie, voit que
+> rien ne casse, et conclut que le danger est imaginaire — alors que le danger réel (plus aucune
+> **nouvelle** session ne passe, et la prochaine coupure de Wi-Fi ferme la porte) est intact. Les deux
+> formulations disent désormais « te laisse dehors **dès la connexion suivante** ».
+
+> 🔴 **UN CONSTAT PORTAIT SUR UNE CONTRADICTION INTERNE QU'AUCUN DIFF NE POUVAIT MONTRER.** Le bloc
+> « changer le port SSH » ouvrait le port au pare-feu **après** le `reload` — en contradiction directe
+> avec la règle que la même leçon pose 340 lignes plus bas (« quand on ferme une porte à distance, on
+> vérifie d'abord qu'une autre est ouverte »). La fiche KB portait déjà la contradiction : sa section
+> « changer le port » contredit sa propre procédure complète. **Une leçon qui énonce un principe doit
+> être relue CONTRE son propre principe**, section par section — un contrôle que ni le rédacteur ni un
+> diff ne font. Le bloc corrigé ouvre le port d'abord, et donne enfin le remède au piège
+> `ssh.socket` que la leçon nommait sans le résoudre.
+
+> ⚠️ **LA PISTE NON SOURCÉE A ÉTÉ TROIS FOIS SUR QUATRE EXACTE, CETTE FOIS — et la vérifier restait le
+> bon geste.** Sur les quatre affirmations tirées de `README.txt` : le Cloud Firewall de DigitalOcean
+> est bien **sans frais supplémentaires** (documentation officielle — la règle « zéro dépense » est
+> respectée), la syntaxe de `~/.ssh/config` est conforme à `ssh_config(5)` (il manquait le
+> `chmod 600`), et le pare-feu cloud est un ajout légitime. **Une seule était fausse** : `ssh-copy-id`
+> n'est pas livré avec le client OpenSSH de Windows. La leçon avait suivi la KB contre `README.txt`,
+> et la KB avait raison. **Ce qu'il faut en retenir n'est pas « la piste est fiable » mais « son taux
+> d'erreur ne se devine pas »** : c'est la vérification qui l'établit, à chaque lot. À la séance 2 la
+> même source donnait trois erreurs sur trois.
+
+> ⚠️ **PUBLIER A DÉPLACÉ LA CIBLE DE PLUSIEURS SPECS E2E — sans qu'aucun rougisse.**
+> `communication-serveur` prend la tête de l'ordre alphabétique des pages prerendues et devient donc
+> la cible **des deux** découvertes, `ROUTE_LECON_QUIZ` **et** `ROUTE_LECON_SIMULATION` — elles
+> visaient `csrf` jusqu'ici. Les comptes épinglés `BLOCS_STYLE_PAGE_QUIZ` = 6 et
+> `BLOCS_STYLE_PAGE_SIMULATION` = 7 ont tenu **par identité de structure**, les deux pages portant les
+> mêmes composants. Le piège nommé au `CLAUDE.md` reste donc entier : le jour où un littéral épinglé
+> rougira après une publication, la première question est « quelle page mesure-t-il maintenant ? ».
+
+> ✅ **LE TRIPWIRE DE L'ACCUEIL A MORDU, COMME IL EST ÉCRIT POUR LE FAIRE.** `MODULES_PUBLIES` était à
+> 7 dans `src/app/features/home/accueil.ts` ; G-test a rougi sur deux assertions d'`accueil.spec.ts`
+> qui confrontent ce littéral au manifeste **réellement compilé**. Porté à 8, avec le commentaire
+> voisin (« reste exacte à sept modules » → « à huit »). Le patron « une dette datée se pose avec son
+> réveille-matin » tient toujours.
+
+> ⚠️ **PREMIÈRE PUBLICATION SUR QUATRE OÙ LA BASCULE `verifiee` → `publiee` NE RÉVÈLE AUCUN DÉFAUT.**
+> G-axe est vert du premier coup sur la page neuve. La consigne de **nommer le coin supérieur gauche
+> de tout tableau comparatif**, écrite dans le brief du rédacteur après les échecs des leçons 04, 05
+> et 02, a tenu. Une consigne portée dans le brief coûte une ligne ; le même défaut découvert à la
+> bascule coûte un cycle de correctif complet.
+
+**Gates à la clôture (2026-08-26)** : G-test **949 passés / 43 fichiers / 0 échec** · G-lint vert ·
+G-content **8 leçons valides**, 29 SVG contrôlés, 788/788 identifiants uniques · G-build **11 routes
+prerendues, 14 hachages de style / 0 de script** (inchangé — la simulation d'une page de plus produit
+le même hachage) · G-axe **11 fichiers, 946 vérifications, 0 violation** · G-e2e **50 passés / 1 sauté
+/ 0 échec** · `npm audit --omit=dev` **0** · G-typage-outils vert · G-glyphes vert. Poids servi de
+`communication-serveur` : **50,1 Ko**, loin du seuil.
+
+**Découpe et coût — LA LEÇON DE BRIEF DE CE LOT.** `professeur-web` (leçon) **170 185** tokens / 33
+appels — **au-dessus du maximum de 150k**, et c'est un défaut de brief. Les plages de lignes injectées
+ont tenu la moitié *lecture* ; c'est la moitié **écriture** qui n'avait été estimée par personne :
+973 lignes produites depuis une fiche de 763. 🔴 **La découpe juste était de scinder la leçon en deux
+moitiés** — théorie des clés d'un côté, `sshd_config` + UFW de l'autre — exactement ce qui avait donné
+113k et 147k à E3-ST5. Les autres agents : `simulation.json` **96 616** / 8 appels et `quiz.json`
+**125 166** / 12 appels, **tous deux sous la cible** ; `verificateur-theorie` **163 996** / 23 appels
+— au-dessus, sur 959 lignes à relire intégralement plus une dizaine de vérifications en ligne. Le
+périmètre était juste, le volume ne l'était pas : **un vérificateur se dimensionne au volume de la
+leçon, pas au nombre de marqueurs à lever.**
+
+⚠️ **ÉCRIRE QUIZ ET SIMULATION EN PARALLÈLE DE LA VÉRIFICATION A FONCTIONNÉ, MAIS A COÛTÉ DEUX
+CORRECTIFS.** Les questions 4 et 5 du quiz reposaient précisément sur les deux dangers surévalués et
+ont dû être réécrites après le verdict. La simulation, elle, n'a rien coûté : son brief l'avait bornée
+à une plage de 79 lignes sans marqueur. **Le parallélisme est gagnant tant que les deux agents ne
+partagent pas un fait susceptible de bouger** — et l'ordre sûr des opérations était le plus susceptible
+de tous, puisque c'est là que le vérificateur avait ordre de creuser.
+
+**Correction de KnowledgeBase**, poussée (`64823f8`) : `web/securite/securisation-acces-distant-ssh.md`,
+longueurs base64 du tableau des algorithmes, arrondies vers le haut — RSA 4096 **800 → 716**, RSA 2048
+**400 → 372**, ECDSA **« 100-140 » → 140 (nistp256) / 184 (nistp384)**. Dérivées du format du blob de
+clé publique (RFC 4253 §6.6, base64 = 4 × ⌈n/3⌉) ; la valeur 68 d'Ed25519 était exacte et valide la
+méthode.
+
+**Nœud laissé au propriétaire.** La leçon attribue des numéros de diapositive à une **édition de 85
+diapositives retirée du site du cours** depuis son ingestion du 2026-08-07. Le vérificateur juge
+l'attribution **tenable** (la fiche KB la trace explicitement, captures lues une à une) et n'a rien
+fait retirer, mais elle n'est **plus vérifiable depuis aucune source publiée**. Si l'enseignant
+republie un paquet pour la séance 3, les numéros des séances 3 à 5 sont à reconfronter en bloc.
+### ✅ CLÔTURE — E3-ST16 `04-automatisation-surveillance` (2026-08-27)
+
+**Livré.** `lecon.md` (**1400 lignes**), `quiz.json` (9 questions), pas de simulation — la séance se
+prête à la lecture guidée de journaux, pas à une mise en scène. Les **7 exercices** de la séance 4
+sont placés un par un au fil du texte (1 et 7 dans la partie `crontab`, 2 et 3 à la redirection, 4 à
+la surveillance d'Apache, 5 et 6 à la purge). Statut `publiee`.
+
+**La décision « les deux, côte à côte » est appliquée**, comme aux séances 2 et 3 : `crontab` + PHP CLI
+restent le chemin principal et la référence évaluable ; les timers systemd, `journald`, `crontab.guru`
+et le `disable_functions` de PHP vivent en encadrés `::: complement`.
+
+> 🔴 **LE MODE D'ÉCHEC DE LA SÉANCE 3 S'EST REPRODUIT À L'IDENTIQUE : DEUX DANGERS SURÉVALUÉS, PLUS
+> UNE CONTRADICTION INTERNE.** (a) « Au passage à l'heure avancée, les tâches entre 2 h et 3 h sautent
+> au printemps et s'exécutent deux fois à l'automne » — faux : `cron(8)` **rattrape** de lui-même pour
+> tout décalage de moins de trois heures, et seules les tâches de granularité inférieure à l'heure
+> (`*/15`) restent exposées. (b) « Sous `cron`, `stdout` et `stderr` ne vont nulle part par défaut » —
+> faux, et **contredit par la leçon elle-même** 55 lignes plus bas (« toute sortie d'une tâche `cron`
+> est envoyée par courriel ») et par sa propre clôture. Les deux canaux sont captés et postés ; ils ne
+> sont perdus que faute de MTA. ⚠️ Aucun diff ne montre une contradiction interne : c'est **la relecture
+> d'une leçon contre ses propres principes** qui les trouve, et c'est la deuxième fois sur deux qu'elle
+> paie sur une leçon d'administration système.
+
+> 🔴 **QUATRE ACCUSATIONS CONTRE LE SUPPORT DE L'ENSEIGNANT, RETIRÉES FAUTE DE POUVOIR LES RECOUPER.**
+> La leçon reprochait au cours d'annoncer « 0-6 » pour le jour de semaine, d'écrire une expression à
+> six champs `0 3 * * * 6`, de promettre une section « traitement des fichiers » non livrée, et
+> attribuait une méthode de vérification à des diapositives précises. Le paquet 2026 est **en ligne**
+> (`Cours04-Taches_cedulees_et_scriptage.pptx`) mais **aucun outil d'agent ne lit un `.pptx`** :
+> `WebFetch` a d'abord rendu une lecture **hallucinée** qui « confirmait » l'une des accusations, puis
+> « ABSENT » sur les quatre en relance verbatim. ⚠️ **Une hallucination qui confirme ce qu'on cherche
+> est le pire mode d'échec possible d'une vérification** — c'est la relance verbatim qui l'a démasquée.
+> Parade appliquée, la même qu'à la séance 2 : **retirer l'attribution, garder le fait**. Les deux
+> encadrés `correction-du-cours` sont devenus `note` et `attention` (le fait technique reste enseigné,
+> sans accuser personne), l'encadré `cours` sur la méthode de vérification est devenu `complement`.
+> Seul le compte de **70 diapositives** est corroboré, et il reste.
+> **Nœud laissé au propriétaire :** ouvrir les diapositives 19, 31, 6/11 et 38-42 prend deux minutes
+> et permettrait de restaurer les trois attributions retirées.
+
+> ⚠️ **LE VÉRIFICATEUR A DONNÉ RAISON À LA FICHE KB SUR LE SEUL POINT OÙ ELLE ÉTAIT SOUPÇONNÉE.** Le
+> rédacteur avait **retiré du texte** l'affirmation « un fichier de `/etc/cron.d` ne doit pas être
+> exécutable », ne l'ayant pas retrouvée dans `crontab(5)`. Elle y est : « crontab files […] **must not
+> be executable** ». Réintégrée. Aucune correction de KnowledgeBase n'a été nécessaire à ce lot.
+
+> 🔴 **PUBLIER A DÉPLACÉ LA CIBLE D'UN SPEC CSP, ET LE COMMENTAIRE DU SPEC L'AVAIT ANNONCÉ AU MOT PRÈS.**
+> `automatisation-surveillance` prend la tête de l'ordre alphabétique et devient la cible de
+> `ROUTE_LECON_QUIZ` — mais **pas** de `ROUTE_LECON_SIMULATION`, puisqu'elle n'a pas de simulation. Les
+> deux constantes de `e2e/simulation-sous-csp.spec.ts`, égales à 7 depuis E3-ST5, **se séparent de
+> nouveau** : `BLOCS_STYLE_PAGE_QUIZ` revient à **6**, `BLOCS_STYLE_PAGE_SIMULATION` reste à 7. Le
+> commentaire du fichier disait : « elles se sépareront de nouveau dès qu'une leçon sans simulation
+> reprendra la tête de l'ordre alphabétique. Les fusionner ferait perdre la distinction au moment
+> précis où elle revient. » ✅ **Ne pas les avoir fusionnées a rendu le rouge lisible.**
+> ⚠️ **Un compte de blocs `<style>` qui BAISSE n'est pas plus anodin qu'un compte qui monte** : la
+> question reste « quelle page mesure-t-il maintenant ? ». Ici la directive servie compte toujours
+> **14 hachages**, le générateur en attend toujours 14, et l'assertion « 0 orphelin » passe sur les 6
+> blocs — donc aucune permission n'a bougé ; c'est la page désignée qui a changé, et 7 − 1 = 6 est le
+> bloc du composant `app-simulation`, absent de cette leçon.
+
+✅ **DEUXIÈME PUBLICATION DE SUITE SANS DÉFAUT À LA BASCULE `verifiee` → `publiee`.** G-axe est vert du
+premier coup sur la page neuve (12 fichiers, 1032 vérifications). La consigne de **nommer le coin
+supérieur gauche de tout tableau comparatif**, portée dans les briefs depuis les leçons 04, 05 et 02,
+tient — et cette leçon-ci porte quatre tableaux comparatifs.
+
+⚠️ **UN DÉFAUT DE BRIEF A COÛTÉ UN AGENT ENTIER : les trois sections obligatoires du gabarit
+(« Exemple simple », « Exemple complet », « À toi de jouer ») n'étaient nommées dans aucun des deux
+briefs de rédaction.** Ni le rédacteur A ni le rédacteur B ne les a écrites — chacun couvrait son
+plan, et le plan ne les portait pas. C'est `valider.mjs` qui les a réclamées, après coup, et il a
+fallu un troisième agent (113k) pour les insérer. **Le gabarit de `pipeline-contenu.md` doit être
+recopié dans le brief de la moitié qui ferme la leçon**, jamais supposé connu. Même famille : le
+frontmatter admet **au plus 5 objectifs** et le brief en demandait « 5 à 6 » — G-content a rougi
+au premier essai.
+
+**Gates à la clôture (2026-08-27)** : G-test **949 passés / 43 fichiers / 0 échec** · G-lint vert ·
+G-content **9 leçons compilées**, 31 SVG contrôlés, 861/861 identifiants uniques · G-build **12 routes
+prerendues, 14 hachages de style / 0 de script** (inchangé — une leçon sans simulation n'ajoute aucun
+hachage) · G-axe **12 fichiers, 1032 vérifications, 0 violation** · G-e2e **50 passés / 1 sauté / 0
+échec** · `npm audit --omit=dev` **0** · typecheck e2e et outils **0**. Poids servi de
+`automatisation-surveillance` : **55,6 Ko** ; total des 9 leçons **425,7 Ko servis**, 1 avertissement
+(`controle-acces`, 312,3 Ko bruts) et **0 dépassement**.
+
+**Découpe et coût — la découpe en deux moitiés a de nouveau tenu, à un cheveu près.** `professeur-web`
+moitié A **153 178** tokens / 35 appels (600 lignes écrites, 3k au-dessus du maximum) ; moitié B
+interrompue par une limite de session **après avoir écrit ses 645 lignes**, reprise inutile ; agent des
+trois sections manquantes **113 288** / 24 appels ; `quiz.json` **124 881** / 13 appels ;
+`verificateur-theorie` **146 442** / 22 appels sur 1342 lignes à relire — sous le maximum, contre
+164k à la séance 3, la différence étant un périmètre de vérification énuméré marqueur par marqueur.
+Les **22 correctifs** (13 bloquants, 9 améliorations) ont été appliqués par le **fil principal** :
+une liste `fichier:ligne` + texte de remplacement prêt à coller ne mérite pas un cache froid.
+
+⚠️ **DEUX AGENTS SUR TROIS N'ONT PAS PU LANCER LEUR PROPRE GATE** — `professeur-web` n'a pas l'outil
+`Bash`, par définition d'agent. Un brief qui leur ordonne « rends `npm run content:build` vert » leur
+demande l'impossible, et les deux l'ont signalé au lieu de mentir. **C'est à l'appelant de lancer le
+gate**, comme pour `npm run lecons:index` avec les `mentor`.
+
+
 > ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
 > **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un
 > titre, aucune image, et deux marqueurs `(TODO)` laissés par l'enseignant. Son plan annoncé
@@ -3352,6 +3540,88 @@ par le vérificateur) ont été appliqués par le **fil principal**, pas par un 
 > **(2 bis) Aucun corrigé n'est publié pour AUCUNE des 13 séances** du cours de sécurité (la colonne
 > « Corrigé » est un texte sans lien partout). Contrairement au cours de PHP, dont les corrigés sont
 > de vrais fichiers `.zip` — ne pas transposer l'hypothèse d'un cours à l'autre.
+
+---
+
+### ✅ CLÔTURE — Mise en ligne réelle des séances 3 et 4, et le défaut de G-contraste (2026-08-27)
+
+> **Signalé par le propriétaire** : « je ne vois pas les modules 1 à 4 sur le site déployé, je vois
+> seulement les 2 premières ». Le constat était exact, et sa cause n'était ni le contenu ni le build.
+
+🔴 **UNE PR FUSIONNÉE NE PROUVE PAS QUE LA BRANCHE EST VIDE — défaut neuf, et il est silencieux.**
+La PR #40 a été fusionnée le 2026-08-27 à 00 h 36, portant la branche `feat/realignement-cours-2026`
+jusqu'au commit de la **séance 2** (`37941b9`). Les **trois commits suivants** — séance 3
+(`0d6f8dc`), séance 4 (`acc54f9`), capitalisation des leçons (`129cb72`) — ont été poussés **sur la
+même branche après la fusion**, et y sont restés. Rien ne rougissait : les deux leçons portaient
+`statut: publiee`, tous les gates locaux étaient verts, la CI de la branche était verte, et le nom
+de la branche figurait dans la liste des PR **fusionnées**. Mesuré en ligne, pas déduit :
+`/cours/securite-web/communication-serveur/` et `/cours/securite-web/automatisation-surveillance/`
+répondaient **404** pendant que `fondamentaux` et `environnement-linux` répondaient 200.
+⚠️ **Le geste, désormais obligatoire à la clôture de tout lot :**
+`git log --oneline origin/main..<branche>` — un journal **vide** est la seule preuve qu'un lot est
+livré. « La PR est fusionnée » n'en est pas une : elle ne dit rien de ce qui a été poussé APRÈS.
+Corollaire : quand un lot suivant continue sur la **même branche** qu'un lot déjà fusionné, ouvrir la
+PR suivante **avant** d'écrire le premier commit, pour que la branche ne reste jamais dans l'état
+« fusionnée ET en avance ».
+
+🔴 **G-CONTRASTE EST UN GATE DE CONTENU DÉGUISÉ EN GATE DE DESIGN — leçon L-080.** La CI de la PR #41
+a rougi sur `G-contraste`, sur une PR qui ne touchait pourtant aucune ligne de code de design. Cause :
+`src/styles/_coloration-syntaxique-generee.scss` est **généré par `content:build`** et n'émet que les
+classes que le contenu publié fait réellement naître. Le `\S` d'une expression régulière PHP de la
+leçon de la séance 4 a fait naître une portée que github-dark peint en **vert gras** : Shiki a émis
+pour la première fois `--shiki-{light,dark}-font-weight: bold`, deux propriétés absentes de la liste
+blanche nominative du gate. **Le contraste n'était jamais en cause** — l'encre grasse `#85E89D` sort
+à 5,65:1, très au-dessus du seuil.
+
+**Le correctif ferme la liste sur le CONTRAT de l'outil, plus sur le corpus.** La source de Shiki a
+été lue (`node_modules/@shikijs/core/dist/index.mjs`) : `getTokenStyleObject` n'émet que cinq
+propriétés — `color`, `background-color`, `font-style`, `font-weight`, `text-decoration` — et
+`varKey` les préfixe par variante de thème. L'ensemble est **clos à dix noms**, et c'est cette
+clôture-là qui est désormais recopiée : la prochaine grammaire ne coûtera rien. Les six propriétés de
+**style** sont admises et délibérément non mesurées (aucune n'abaisse le seuil exigé : le « grand
+texte » de WCAG 2.2 commence à 18 pt, ou 14 pt en gras, bien au-delà d'un bloc de code), mais leur
+**valeur** est contrainte — famille **S-020**, une liste blanche qui ne contraint que le NOM laisse
+libre toute valeur. `inherit` y est admise : c'est ce que Shiki écrit pour la variante de thème qui
+ne porte pas le style. **Deux contrôles positifs exécutés** : propriété inconnue → rouge en se
+nommant ; valeur inattendue → rouge en se nommant.
+
+✅ **NETTOYAGE DES BRANCHES.** 16 branches distantes et 25 branches locales supprimées, toutes
+**prouvées fusionnées** dans `origin/main` (`git branch --merged`) — dont trois `worktree-agent-…`
+laissées par d'anciennes exécutions en isolation. Il ne reste que `main` et la branche active.
+
+---
+
+### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — à trancher à la prochaine séance (2026-08-27)
+
+**N-1 · La séance 5 n'est PAS dans la portée de l'Examen 1, et ça change l'urgence.** Mesuré dans
+`content/cours/securite-web/horaire.json` : l'Examen 1 est à la **séance 6, le 2026-09-11**, et sa
+`portee` est **[1, 2, 3, 4]**. Les quatre leçons évaluées sont donc **toutes en ligne**. La séance 5
+(`05-utilisateurs-permissions`, enseignée le 2026-09-04) est bien antérieure à l'examen mais n'y est
+**pas évaluée** — elle n'apparaît qu'à la portée de l'**Examen final** (séance 13). E3-ST17 reste le
+geste suivant du plan, mais il n'est plus sur le chemin critique de l'examen : **le propriétaire peut
+choisir** de le garder, ou d'insérer d'abord un lot de dette (voir N-3).
+
+**N-2 · La séance 1 ne porte AUCUN exercice au registre.** `content/cours/securite-web/exercices.json`
+ne décrit que les séances **2 (13 exercices), 3 (5) et 4 (7)** — 25 au total. Est-ce fidèle au cours
+(une séance d'introduction sans exercice) ou un trou de la passe de collecte ? À vérifier sur le site
+de l'enseignant, qui fait foi. Tant que ce n'est pas tranché, le registre affirme par son silence
+quelque chose que personne n'a mesuré.
+
+**N-3 · Le banc du contrat n'exerce aucune propriété de STYLE.**
+`src/coloration-encres-contraste.spec.ts` et son banc `tools/content-pipeline/__fixtures__/langages-web/`
+existent précisément pour mesurer « ce que le contrat autorise » plutôt que « ce que le corpus
+contient » — mais ils ne couvrent que les **encres**. Aucun jeton **gras** ni **italique** n'y naît,
+donc le contrôle de valeur neuf des six propriétés de style **n'est exercé par aucun test versionné** :
+il n'a été prouvé que par deux contrôles positifs manuels, le 2026-08-27. Refermer ce trou est un
+petit lot (ajouter au banc une construction qui produit du gras — une expression régulière suffit), et
+il se justifie exactement par l'argument que l'en-tête de ce spec écrit déjà pour les encres.
+
+**N-4 · `10-controle-acces` franchit le seuil d'avertissement de poids.** 312,3 Ko de JSON brut pour
+**73,0 Ko servis**, contre un avertissement à 300 Ko et un échec à 450 Ko. Le seuil porte sur le brut
+— or la décision du 2026-08-24 a établi que le brut **surestime le transfert d'un facteur ~4**, et le
+propriétaire avait alors tranché « densité légitime, on ne scinde aucun module ». La question à
+trancher n'est donc pas « faut-il scinder » mais **« le seuil doit-il porter sur le servi plutôt que
+sur le brut »** — la colonne existe déjà dans le journal.
 
 ---
 

@@ -419,6 +419,25 @@ qui diffère entre poste de revue et runner CI.
 **Réfs additionnelles.** `e2e/aides/artefact-mesure.ts`, branche `feat/e3-st5-lecon-csrf`
 (2026-08-21).
 
+**Septième occurrence, E3-ST16 (2026-08-27) — la variante DESCENDANTE : un compte épinglé qui
+BAISSE porte la même information qu'un compte qui monte.** Publier `automatisation-surveillance`
+(sans simulation) l'a fait prendre la tête de l'ordre alphabétique devant `csrf` : la page
+découverte par `ROUTE_LECON_QUIZ` change, son bloc `.simulation` disparaît, et
+`BLOCS_STYLE_PAGE_QUIZ` tombe de 7 à 6 — spec rouge, **alors qu'aucune permission CSP n'avait
+bougé** (14 hachages servis, 14 attendus, « 0 orphelin » toujours vrai sur les 6 blocs restants).
+**Règle renforcée.** Une baisse d'un compte épinglé après publication appelle **exactement** la
+même première question qu'une hausse — « quelle page mesure-t-il maintenant ? », jamais « quel
+chiffre y mettre ? » — jamais le réflexe inverse (« ça baisse, donc c'est un relâchement anodin,
+je recopie »). Le geste qui distingue le cas sain (cible changée) du cas grave (permission
+élargie) est de vérifier que **le compte global de la directive** et **l'assertion « 0
+orphelin »** sont inchangés ; c'est ce couple, jamais le littéral par page seul, qui tranche.
+**Point positif à retenir** : le commentaire du spec avait explicitement daté sa propre
+péremption (« se sépareront de nouveau dès qu'une leçon sans simulation reprendra la tête de
+l'ordre alphabétique »), et les deux constantes égales mais non fusionnées ont rendu le rouge
+lisible en une lecture — un commentaire qui date sa péremption vaut un test.
+**Réfs additionnelles.** `e2e/simulation-sous-csp.spec.ts` (`BLOCS_STYLE_PAGE_QUIZ`), commit
+`acc54f9`, publication d'E3-ST16 `04-automatisation-surveillance` (2026-08-27).
+
 ## S-025 · Un instrument d'énumération LIVE d'une directive DÉRIVÉE ne couvre que les formes de page déjà visitées par un test — jamais toutes les formes qui contribuent à la directive (A05 · trou de couverture non signalé, croisement [[S-010]]/[[S-016]])
 
 **Symptôme.** `e2e/simulation-sous-csp.spec.ts` est le seul énumérateur live de blocs `<style>` du
