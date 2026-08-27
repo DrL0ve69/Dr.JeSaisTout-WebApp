@@ -1,0 +1,184 @@
+{
+  "lecon": "automatisation-surveillance",
+  "titre": "Quiz — Automatisation et surveillance",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Tu dois planifier une tâche qui s'exécute tous les jours à 0 h 30. Quelle ligne de crontab utilisateur est correcte ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "30 0 * * *  /usr/bin/php /opt/scripts/menage.php"
+        },
+        {
+          "id": "b",
+          "texte": "0 30 * * *  /usr/bin/php /opt/scripts/menage.php"
+        },
+        {
+          "id": "c",
+          "texte": "0 0 30 * *  /usr/bin/php /opt/scripts/menage.php"
+        },
+        {
+          "id": "d",
+          "texte": "* 0 30 * *  /usr/bin/php /opt/scripts/menage.php"
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Les cinq champs sont toujours dans le même ordre : minute, heure, jour du mois, mois, jour de la semaine. « 0 h 30 » se lit donc à l'envers de la façon dont on le prononce : la minute 30 vient EN PREMIER, l'heure 0 ensuite. La réponse b est le piège exact de l'exercice 1 de la séance, et il vaut la peine de comprendre pourquoi elle n'échoue pas de façon visible : elle demande la minute 0 de la trente-et-unième heure. Comme le champ heure ne va que de 0 à 23, cette ligne ne se déclenchera jamais — et rien ne te préviendra, puisqu'une tâche qui ne part pas ne produit aucune erreur. La réponse c place le 30 en troisième position, c'est-à-dire dans le jour du mois : elle veut dire « à minuit, le 30 de chaque mois », ce qui est une planification parfaitement valide mais mensuelle, et qui saute février. La réponse d aggrave la précédente avec une étoile en première position : chaque minute de l'heure 0, le 30 du mois, soit soixante exécutions au lieu d'une. Le réflexe à installer est double : compter les champs de gauche à droite avant de valider, et vérifier l'expression sur un éditeur crontab en ligne — c'est la liste des PROCHAINES DATES d'exécution qui tranche, pas la traduction en français, car une expression peut se traduire correctement et ne pas se déclencher quand tu le crois.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Un collègue veut que sa tâche parte trois fois par heure, aux minutes 0, 15 et 30 — et pas à la minute 45, parce que la sauvegarde tourne à ce moment-là. Il écrit « */15 * * * * ». Que va-t-il obtenir ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Quatre exécutions par heure, aux minutes 0, 15, 30 ET 45 : l'opérateur */n couvre tout le champ. Pour exclure la minute 45, il faut énumérer les minutes voulues avec « 0,15,30 * * * * »."
+        },
+        {
+          "id": "b",
+          "texte": "Trois exécutions par heure, exactement comme il le souhaite : */15 s'arrête après trois répétitions et reprend à l'heure suivante."
+        },
+        {
+          "id": "c",
+          "texte": "Une exécution toutes les 15 minutes à partir de l'instant où la ligne est enregistrée : si l'enregistrement a lieu à la minute 7, les exécutions tomberont aux minutes 7, 22, 37 et 52."
+        },
+        {
+          "id": "d",
+          "texte": "Rien du tout : l'opérateur */n ne s'emploie que dans le champ des heures, un champ de minutes n'accepte que des valeurs énumérées."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "L'opérateur */n signifie « une valeur sur n dans tout le champ », et il PART TOUJOURS DU MINIMUM DU CHAMP — pas de l'instant présent. Dans un champ de minutes dont le minimum est 0, */15 donne donc 0, 15, 30 et 45, et il n'existe aucune façon d'écrire une division qui s'arrêterait à 30 : la minute 45 est incluse par construction. C'est précisément le troisième piège de l'exercice 1 de la séance, et la leçon en tire une règle générale : quand les valeurs voulues ne sont pas régulièrement espacées sur tout le champ, on les énumère avec la virgule au lieu de diviser. La réponse c décrit une intuition très répandue, celle d'un minuteur relatif qui démarrerait au moment de l'enregistrement : cron ne fonctionne pas ainsi. Le démon évalue les lignes une fois par minute et compare l'horloge aux champs ; l'heure à laquelle tu as tapé « crontab -e » n'entre nulle part dans le calcul. La réponse b invente un compteur de répétitions qui n'existe pas. La réponse d se trompe sur la portée de l'opérateur : tous les champs acceptent les mêmes opérateurs — l'étoile, la virgule, le tiret, la division, et la combinaison a-b/n. Un dernier repère utile pour ne pas se tromper de minimum : */2 dans le champ des MOIS, dont le minimum est 1, donne janvier, mars, mai… et non février, avril, juin.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q3",
+      "type": "associer",
+      "consigne": "Associe chaque expression crontab au moment où elle déclenche réellement la tâche.",
+      "paires": [
+        {
+          "gauche": "0 3 * * *",
+          "droite": "Tous les jours à 3 h du matin : minute 0, heure 3, aucune restriction de date."
+        },
+        {
+          "gauche": "*/15 * * * *",
+          "droite": "Quatre fois par heure, aux minutes 0, 15, 30 et 45."
+        },
+        {
+          "gauche": "0 15 * * 1-5",
+          "droite": "À 15 h, du lundi au vendredi seulement."
+        },
+        {
+          "gauche": "0 0 * * 1,3,5",
+          "droite": "À minuit, les lundis, mercredis et vendredis."
+        },
+        {
+          "gauche": "*/5 1-23/2 * * *",
+          "droite": "Toutes les 5 minutes, mais uniquement pendant les heures impaires."
+        },
+        {
+          "gauche": "0 0 13 * 5",
+          "droite": "Le 13 de chaque mois OU tous les vendredis : les deux champs de jour s'additionnent au lieu de se croiser."
+        }
+      ],
+      "explication": "Trois idées suffisent à relire n'importe quelle expression sans l'apprendre par cœur. PREMIÈRE IDÉE : on lit les champs de gauche à droite, du plus fin au plus grossier — minute, heure, jour du mois, mois, jour de la semaine — et une étoile veut dire « aucune restriction sur ce champ ». « 0 3 * * * » se lit donc « la minute 0 de l'heure 3, tous les jours ». DEUXIÈME IDÉE : le tiret désigne une plage continue, la virgule une énumération, la division une cadence, et les trois se combinent — « 1-23/2 » veut dire « une heure sur deux dans la plage 1 à 23 », c'est-à-dire les heures impaires ; « 0-22/2 » donnerait les heures paires. Attention à ne pas confondre les cadences quand deux champs en portent chacune une : dans « */5 1-23/2 * * * », la division des minutes et celle des heures ne parlent pas du même axe. TROISIÈME IDÉE, et c'est le seul endroit de la syntaxe où l'intuition trompe systématiquement : dès que le jour du mois ET le jour de la semaine valent autre chose qu'une étoile, cron fait l'UNION des deux, pas l'intersection. « 0 0 13 * 5 » n'est donc pas « le vendredi 13 » — c'est « tous les 13 du mois, plus tous les vendredis », soit une soixantaine d'exécutions par an au lieu d'une ou deux. Pour obtenir un vrai vendredi 13, on planifie tous les 13 du mois et on teste le jour de la semaine DANS le script, ce qui est exactement la méthode enseignée pour toute règle qu'un seul champ ne sait pas exprimer : déclencher plus souvent que nécessaire, et sortir tôt du programme quand la condition n'est pas remplie.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q4",
+      "type": "vrai-faux",
+      "affirmation": "Une tâche planifiée dont le journal n'a affiché aucune erreur depuis trois semaines s'est donc exécutée correctement chaque nuit.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le raisonnement le plus dangereux de la séance, parce qu'il est rassurant. Une absence d'erreur n'est pas une preuve de succès : c'est une absence d'information. Trois scénarios donnent exactement le même journal silencieux. Le premier : la tâche ne s'exécute plus du tout — crontab écrasée par un « crontab -r » malheureux, disque plein, interpréteur PHP déplacé par une mise à jour. Une exécution qui n'a pas lieu ne produit aucune ligne, donc rien à voir. Le deuxième : elle s'exécute et échoue, mais la ligne de crontab ne redirige pas la sortie d'erreur — sans « 2>&1 », un message d'erreur PHP part sur un canal qui ne va nulle part et n'atteint jamais ton fichier. Le troisième : la sortie est bien produite et cron l'envoie par courriel au propriétaire de la crontab, mais aucun serveur de messagerie n'est installé sur la machine ; le courriel est fabriqué puis jeté sans que rien ne le signale. Retiens la formulation de la leçon : aucune ligne dans ton journal ne veut dire « la tâche va bien », elle veut dire « je ne sais pas ». La parade porte un nom, le signal de vie — heartbeat, ou dead man's switch : le script prévient un service externe qu'il a RÉUSSI, et c'est ce service qui alerte quand le signal cesse d'arriver. On inverse ainsi la charge de la preuve, au lieu d'attendre une mauvaise nouvelle on surveille l'absence d'une bonne. En crontab, cela s'écrit avec « && », qui n'exécute la seconde commande que si la première s'est terminée avec le code de retour 0 — la convention Unix pour « succès ». Un script qui prend soin de sortir avec exit(1) en cas d'erreur transforme donc tout échec en absence de signal, donc en alerte. Et le même raisonnement vaut pour le canal d'alerte lui-même : un MAILTO qu'on n'a jamais testé en se provoquant volontairement une erreur est une croyance, pas une alerte.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Cette ligne tourne depuis un an, toutes les nuits : « 0 2 * * *  /usr/bin/php /opt/app/purge.php > /var/log/app/purge.log ». Un incident survient et tu ouvres le fichier pour comprendre. Que vas-tu y trouver ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "La sortie normale de la dernière exécution seulement, et aucun message d'erreur — même si le script échoue toutes les nuits depuis six mois."
+        },
+        {
+          "id": "b",
+          "texte": "Un an d'historique complet, sortie normale et erreurs mêlées : cron ajoute toujours à la fin d'un fichier de journal."
+        },
+        {
+          "id": "c",
+          "texte": "Un an d'historique de la sortie normale, mais aucune erreur : le simple chevron conserve l'historique, il ne capture simplement pas le canal d'erreur."
+        },
+        {
+          "id": "d",
+          "texte": "Rien : une redirection vers un fichier de /var/log exige des droits root, donc l'écriture échoue silencieusement à chaque exécution."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Deux défauts se cumulent dans cette ligne, et il faut savoir les nommer séparément. PREMIER DÉFAUT, le chevron simple : « > » ÉCRASE le fichier de destination à chaque exécution. Au bout d'un an, le fichier ne contient donc que la dernière nuit — tout l'historique est perdu, et avec lui toute possibilité de constater une tendance ou de dater le début d'un incident. C'est « >> » qu'il faut écrire : le double chevron AJOUTE à la fin, sans toucher à ce qui existait déjà. SECOND DÉFAUT, l'absence de « 2>&1 » : un programme écrit sur deux canaux distincts, la sortie standard qui porte le résultat normal, et la sortie d'erreur qui porte les messages d'erreur. Une redirection simple ne dirige que le premier. Les messages d'erreur PHP partent donc ailleurs — sous cron, nulle part — et la panne reste invisible. C'est ce cumul qui condamne les réponses b et c : b invente un comportement d'ajout que cron n'a pas, le comportement vient du shell et du chevron que TU écris ; c corrige la moitié erreur mais garde l'illusion que « > » conserve l'historique. La réponse d se trompe de couche : l'écriture réussit si le compte qui exécute la tâche a le droit d'écrire dans le dossier, ce qui est le cas courant pour un journal applicatif, et l'échec ne serait de toute façon pas silencieux — il produirait un message sur le canal d'erreur, celui-là même que la ligne ne capture pas. La forme correcte réunit les deux corrections : « >> /var/log/app/purge.log 2>&1 », et l'ORDRE compte — « 2>&1 » signifie « envoie le canal 2 là où va déjà le canal 1 », donc écrit AVANT la redirection il enverrait les erreurs là où la sortie standard allait auparavant, c'est-à-dire nulle part.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q6",
+      "type": "choix-multiple",
+      "question": "Tu déposes le fichier /etc/cron.d/purge-imports en y recopiant, telle quelle, la ligne qui fonctionnait dans ta crontab personnelle : « 15 3 * * *  /usr/bin/php /opt/app/purge.php >> /var/log/app/purge.log 2>&1 ». La tâche ne s'exécute jamais. Pourquoi ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il manque le champ utilisateur, en sixième position : cron lit « /usr/bin/php » comme un nom de compte, ne le trouve pas, et abandonne en ne le signalant que dans journalctl -u cron."
+        },
+        {
+          "id": "b",
+          "texte": "Les fichiers de /etc/cron.d n'acceptent que les raccourcis nommés du type @daily ; une expression à champs y est ignorée."
+        },
+        {
+          "id": "c",
+          "texte": "Un fichier de /etc/cron.d n'est relu qu'au redémarrage complet de la machine : la tâche partira au prochain démarrage."
+        },
+        {
+          "id": "d",
+          "texte": "La redirection en double chevron est interdite dans les fichiers système ; il faut y employer MAILTO et laisser cron envoyer la sortie."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est la différence d'UN CHAMP entre les trois emplacements de tâches, et c'est l'erreur numéro 1 de cette famille. Ta crontab personnelle, celle qu'ouvre « crontab -e », appartient à une seule personne : cron sait déjà sous quelle identité exécuter la commande, il n'a pas besoin qu'on le lui dise, donc cinq champs de date suffisent. Les fichiers système — /etc/crontab et /etc/cron.d/<nom> — sont partagés : il faut y préciser, en SIXIÈME position, sous quel compte la commande s'exécute. La ligne juste est donc « 15 3 * * *  www-data  /usr/bin/php /opt/app/purge.php >> /var/log/app/purge.log 2>&1 ». Ce qui rend l'oubli redoutable, c'est son mode d'échec : cron ne refuse pas le fichier et n'écrit rien dans TON journal, il prend simplement le premier mot de ta commande pour un nom d'utilisateur, ne le trouve pas dans le système, et renonce. Le diagnostic n'existe que dans le journal du service, « journalctl -u cron », que personne ne consulte tant qu'on cherche l'erreur dans le fichier de log applicatif — lequel restera vide, ce qui ramène à la leçon du silence. La réponse b invente une restriction de syntaxe qui n'existe pas : c'est la même grammaire de champs partout. La réponse c invente un délai de prise en compte : cron relit ses tables et n'attend aucun redémarrage. La réponse d confond deux mécanismes indépendants : la redirection est un travail du shell, elle est aussi valide dans un fichier système qu'ailleurs, et MAILTO ne la remplace pas. Retiens aussi POURQUOI on préfère /etc/cron.d pour une application déployée, et la raison n'est pas technique mais organisationnelle : le fichier se livre avec l'application, il se relit dans une revue de code, et il disparaît à la désinstallation — là où une ligne cachée dans la crontab personnelle d'un employé s'évapore le jour où l'on supprime son compte, sans que personne sache ce qu'elle faisait.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q7",
+      "type": "trouver-la-faille",
+      "consigne": "Ces deux tâches sont enregistrées dans la crontab de l'utilisateur deploy. Les deux scripts fonctionnent parfaitement quand on les lance à la main depuis une session SSH. Pourtant, une seule des deux s'exécute réellement sous cron, et son journal reste désespérément vide. Quelle ligne est fautive ?",
+      "langage": "bash",
+      "code": "# crontab de l'utilisateur deploy (crontab -e)\n0 2 * * *  php /opt/app/purge.php >> /var/log/app/purge.log 2>&1\n0 3 * * *  /usr/bin/php /opt/app/rapport.php >> /var/log/app/rapport.log 2>&1",
+      "ligneFautive": 2,
+      "faille": "Interpréteur invoqué en chemin relatif : le PATH minimal de cron ne contient pas forcément le dossier où vit php, et la commande échoue avant même de lire le script",
+      "explication": "La ligne 2 appelle « php » tout court. Dans ta session SSH, cela fonctionne parce que ton shell de connexion a lu /etc/profile puis ton .bashrc, et que ces fichiers ont enrichi le PATH — la liste des répertoires où le système cherche un programme dont on ne donne que le nom. Cron n'exécute NI .bashrc NI .profile : son environnement est minimal, le PATH s'y réduit typiquement à /usr/bin:/bin, la variable HOME n'est pas celle de ta session, et aucune variable d'environnement de ton application n'est chargée. Si l'interpréteur vit ailleurs — par exemple sous /usr/local/bin après une installation manuelle, ou dans un dossier de version — la commande échoue avec un « command not found » qui part sur la sortie d'erreur. Ici la redirection « 2>&1 » est pourtant bien présente : pourquoi le journal reste-t-il vide ? Parce que l'échec se produit dans le shell qui tente de résoudre la commande, avant que quoi que ce soit n'écrive dans le fichier applicatif ; ce qui apparaît, c'est le fichier créé et vide, ce qui ressemble à s'y méprendre à une tâche qui n'aurait rien eu à dire. C'est la cause numéro 1 du fameux « ça marche dans mon terminal, mais pas dans cron ». La ligne 3 est le modèle à copier : chemin absolu vers l'interpréteur, chemin absolu vers le script, journal en double chevron, canal d'erreur capturé. La ligne 1 n'est qu'un commentaire et ne pose aucun problème. La parade est mécanique, et elle ne demande aucun jugement : CHEMINS ABSOLUS PARTOUT, pour l'interpréteur comme pour chaque fichier touché. « which php » te donne le chemin exact à recopier. Et le même piège a un cousin à l'intérieur du script, qu'il faut corriger en même temps : le répertoire courant n'est pas garanti sous cron, donc on n'écrit jamais require 'config.php' dans un script planifié, mais require __DIR__ . '/config.php', qui se résout par rapport à l'emplacement du fichier et non par rapport au dossier d'où le programme a été lancé.",
+      "correction": "# crontab de l'utilisateur deploy (crontab -e)\nPATH=/usr/local/bin:/usr/bin:/bin\n0 2 * * *  /usr/bin/php /opt/app/purge.php >> /var/log/app/purge.log 2>&1   # chemin absolu, donne par « which php »\n0 3 * * *  /usr/bin/php /opt/app/rapport.php >> /var/log/app/rapport.log 2>&1",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "Ce script d'entretien est lancé chaque nuit par cron, sous root. Le nom du client à archiver est déposé dans un fichier d'attente par l'application web, que n'importe quel visiteur authentifié peut alimenter. Quelle ligne ouvre la brèche ?",
+      "langage": "php",
+      "code": "<?php\n// /opt/scripts/archiver.php — tache planifiee, exemple VULNERABLE\n$nom = trim(file_get_contents('/var/spool/app/prochain-client.txt'));\n$archive = \"/sauvegardes/$nom.tgz\";\nshell_exec(\"tar -czf $archive /var/www/clients/$nom\");\necho \"Archive creee : $archive\\n\";",
+      "ligneFautive": 5,
+      "faille": "Injection de commande OS : une donnée d'origine externe est concaténée dans une chaîne que le shell interprète, avec les droits de root",
+      "explication": "La ligne 5 construit une CHAÎNE DE TEXTE et la confie à un shell. C'est là tout le mécanisme : le shell ne voit pas « une commande avec des arguments », il voit une ligne qu'il découpe lui-même, et certains caractères y ont un pouvoir de commande — le point-virgule, le double esperluette, la barre verticale, l'accent grave, la forme $( ) et le simple saut de ligne terminent la commande en cours et en ouvrent une nouvelle. Il suffit donc que le fichier d'attente contienne « acme;id » pour que deux commandes s'exécutent au lieu d'une, et tout ce qui suit tourne avec les droits du processus PHP. Le contexte aggrave le cas d'un cran, pour une raison qui n'a rien de technique : une page web tourne en www-data, une tâche planifiée tourne souvent en root. La même faille vaut donc bien plus cher ici que dans un formulaire. Les lignes 3 et 4 méritent une remarque, car on est tenté de les accuser : elles manipulent bien la donnée non fiable, mais aucune des deux ne l'EXÉCUTE — la lecture d'un fichier et la construction d'un nom de chemin ne déclenchent rien. C'est le point de sortie vers le shell qui fait la vulnérabilité, et c'est là qu'on la corrige. Quant à la parade, la hiérarchie de la leçon se lit du plus sûr au moins sûr. D'abord, ne pas exécuter de commande du tout quand PHP sait déjà faire le travail. Ensuite, appeler le binaire SANS shell — proc_open avec un TABLEAU d'arguments : aucun métacaractère n'a alors le moindre sens, puisqu'il n'y a plus personne pour les interpréter. Ensuite, la liste blanche, quand le choix est fini : la donnée reçue sert d'INDEX dans une table de valeurs autorisées, jamais de valeur. Et seulement en dernier recours l'échappement par argument avec escapeshellarg. Deux fausses parades à écarter au passage : escapeshellcmd, qui échappe la commande entière, laisse passer les arguments et casse les guillemets appariés ; et le remplacement de shell_exec par exec ne supprime AUCUN shell — exec, system et shell_exec passent tous par un shell, la différence est qu'exec te rend le code de retour, ce qui reste une bonne raison de le préférer pour savoir si la commande a réussi.",
+      "correction": "$nom = trim(file_get_contents('/var/spool/app/prochain-client.txt'));\nif (!preg_match('/^[a-z0-9-]{1,32}$/', $nom)) { fwrite(STDERR, \"Nom de client refuse\\n\"); exit(1); }\n$archive = \"/sauvegardes/$nom.tgz\";\n// proc_open avec un TABLEAU : aucun shell n'est ouvert, donc aucun metacaractere n'a de sens.\n// Le \"--\" termine la liste des options : un nom commencant par - reste un operande.\n$proc = proc_open(['/bin/tar', '-czf', $archive, '--', \"/var/www/clients/$nom\"], [2 => ['pipe', 'w']], $pipes);\nfclose($pipes[2]);\nif (proc_close($proc) !== 0) { exit(1); }   // le code de retour declenche l'alerte",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    },
+    {
+      "id": "q9",
+      "type": "vrai-faux",
+      "affirmation": "Passer chaque variable dans escapeshellarg() avant de l'insérer dans la chaîne suffit à rendre sûre une commande construite par concaténation.",
+      "bonneReponse": false,
+      "justification": "Faux, et la nuance est celle qui sépare une parade solide d'un cache-misère. escapeshellarg() n'est pas inutile — il met l'argument entre apostrophes et échappe ce qu'il contient, ce qui neutralise réellement les métacaractères du shell — mais il ne protège que ce qu'il enveloppe, et sa promesse s'effondre sur deux détails. PREMIER TROU, l'injection d'OPTION : un argument correctement échappé qui commence par un tiret reste un argument commençant par un tiret. Le programme appelé le lira comme une OPTION, pas comme une donnée — et selon le binaire, une option peut écrire un fichier, changer de dossier de travail ou exécuter autre chose. La parade tient en deux caractères : le « -- » qui termine la liste des options, après quoi tout ce qui suit est traité comme un opérande. SECOND TROU, le CONTEXTE : si la variable est déjà entre guillemets dans la chaîne que tu bâtis, les apostrophes ajoutées par la fonction se retrouvent à l'intérieur d'une citation, et l'échappement ne fait plus rien du tout. Un échappement correct appliqué au mauvais endroit ne protège rien ; c'est la même famille d'erreur que celle qui rend inefficace un encodage HTML posé dans le mauvais contexte. Ce qui rend la question intéressante, c'est qu'aucun de ces deux trous ne se voit à la lecture du code : il A l'air protégé. D'où la règle de la leçon, qui ne repose pas sur la vigilance du relecteur : on ne se demande pas comment échapper correctement, on SUPPRIME le shell. proc_open avec un tableau d'arguments passe la liste directement au binaire, sans qu'aucun interpréteur ne relise la ligne — il n'y a alors plus rien à échapper, donc plus rien à oublier d'échapper. Et quand le choix possible est fini — un service à redémarrer, un client parmi ceux de la base — la liste blanche est encore meilleure : la donnée reçue sert d'INDEX dans une table de valeurs écrites par toi, si bien qu'aucun octet venu de l'extérieur n'atteint jamais la commande. Le meilleur cas reste celui où l'on n'exécute aucune commande : disk_free_space('/') remplace un appel à df, gethostbyaddr() remplace un appel à host, et une fonction native ne s'injecte pas.",
+      "ficheSource": "web/securite/automatisation-surveillance-cron.md"
+    }
+  ]
+}

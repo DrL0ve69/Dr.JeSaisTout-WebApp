@@ -3282,7 +3282,7 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 |---|---|---|---|---|---|
 | E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ✅ |
 | E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ✅ |
-| E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
+| E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ✅ |
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
@@ -3434,6 +3434,98 @@ diapositives retirée du site du cours** depuis son ingestion du 2026-08-07. Le 
 l'attribution **tenable** (la fiche KB la trace explicitement, captures lues une à une) et n'a rien
 fait retirer, mais elle n'est **plus vérifiable depuis aucune source publiée**. Si l'enseignant
 republie un paquet pour la séance 3, les numéros des séances 3 à 5 sont à reconfronter en bloc.
+### ✅ CLÔTURE — E3-ST16 `04-automatisation-surveillance` (2026-08-27)
+
+**Livré.** `lecon.md` (**1400 lignes**), `quiz.json` (9 questions), pas de simulation — la séance se
+prête à la lecture guidée de journaux, pas à une mise en scène. Les **7 exercices** de la séance 4
+sont placés un par un au fil du texte (1 et 7 dans la partie `crontab`, 2 et 3 à la redirection, 4 à
+la surveillance d'Apache, 5 et 6 à la purge). Statut `publiee`.
+
+**La décision « les deux, côte à côte » est appliquée**, comme aux séances 2 et 3 : `crontab` + PHP CLI
+restent le chemin principal et la référence évaluable ; les timers systemd, `journald`, `crontab.guru`
+et le `disable_functions` de PHP vivent en encadrés `::: complement`.
+
+> 🔴 **LE MODE D'ÉCHEC DE LA SÉANCE 3 S'EST REPRODUIT À L'IDENTIQUE : DEUX DANGERS SURÉVALUÉS, PLUS
+> UNE CONTRADICTION INTERNE.** (a) « Au passage à l'heure avancée, les tâches entre 2 h et 3 h sautent
+> au printemps et s'exécutent deux fois à l'automne » — faux : `cron(8)` **rattrape** de lui-même pour
+> tout décalage de moins de trois heures, et seules les tâches de granularité inférieure à l'heure
+> (`*/15`) restent exposées. (b) « Sous `cron`, `stdout` et `stderr` ne vont nulle part par défaut » —
+> faux, et **contredit par la leçon elle-même** 55 lignes plus bas (« toute sortie d'une tâche `cron`
+> est envoyée par courriel ») et par sa propre clôture. Les deux canaux sont captés et postés ; ils ne
+> sont perdus que faute de MTA. ⚠️ Aucun diff ne montre une contradiction interne : c'est **la relecture
+> d'une leçon contre ses propres principes** qui les trouve, et c'est la deuxième fois sur deux qu'elle
+> paie sur une leçon d'administration système.
+
+> 🔴 **QUATRE ACCUSATIONS CONTRE LE SUPPORT DE L'ENSEIGNANT, RETIRÉES FAUTE DE POUVOIR LES RECOUPER.**
+> La leçon reprochait au cours d'annoncer « 0-6 » pour le jour de semaine, d'écrire une expression à
+> six champs `0 3 * * * 6`, de promettre une section « traitement des fichiers » non livrée, et
+> attribuait une méthode de vérification à des diapositives précises. Le paquet 2026 est **en ligne**
+> (`Cours04-Taches_cedulees_et_scriptage.pptx`) mais **aucun outil d'agent ne lit un `.pptx`** :
+> `WebFetch` a d'abord rendu une lecture **hallucinée** qui « confirmait » l'une des accusations, puis
+> « ABSENT » sur les quatre en relance verbatim. ⚠️ **Une hallucination qui confirme ce qu'on cherche
+> est le pire mode d'échec possible d'une vérification** — c'est la relance verbatim qui l'a démasquée.
+> Parade appliquée, la même qu'à la séance 2 : **retirer l'attribution, garder le fait**. Les deux
+> encadrés `correction-du-cours` sont devenus `note` et `attention` (le fait technique reste enseigné,
+> sans accuser personne), l'encadré `cours` sur la méthode de vérification est devenu `complement`.
+> Seul le compte de **70 diapositives** est corroboré, et il reste.
+> **Nœud laissé au propriétaire :** ouvrir les diapositives 19, 31, 6/11 et 38-42 prend deux minutes
+> et permettrait de restaurer les trois attributions retirées.
+
+> ⚠️ **LE VÉRIFICATEUR A DONNÉ RAISON À LA FICHE KB SUR LE SEUL POINT OÙ ELLE ÉTAIT SOUPÇONNÉE.** Le
+> rédacteur avait **retiré du texte** l'affirmation « un fichier de `/etc/cron.d` ne doit pas être
+> exécutable », ne l'ayant pas retrouvée dans `crontab(5)`. Elle y est : « crontab files […] **must not
+> be executable** ». Réintégrée. Aucune correction de KnowledgeBase n'a été nécessaire à ce lot.
+
+> 🔴 **PUBLIER A DÉPLACÉ LA CIBLE D'UN SPEC CSP, ET LE COMMENTAIRE DU SPEC L'AVAIT ANNONCÉ AU MOT PRÈS.**
+> `automatisation-surveillance` prend la tête de l'ordre alphabétique et devient la cible de
+> `ROUTE_LECON_QUIZ` — mais **pas** de `ROUTE_LECON_SIMULATION`, puisqu'elle n'a pas de simulation. Les
+> deux constantes de `e2e/simulation-sous-csp.spec.ts`, égales à 7 depuis E3-ST5, **se séparent de
+> nouveau** : `BLOCS_STYLE_PAGE_QUIZ` revient à **6**, `BLOCS_STYLE_PAGE_SIMULATION` reste à 7. Le
+> commentaire du fichier disait : « elles se sépareront de nouveau dès qu'une leçon sans simulation
+> reprendra la tête de l'ordre alphabétique. Les fusionner ferait perdre la distinction au moment
+> précis où elle revient. » ✅ **Ne pas les avoir fusionnées a rendu le rouge lisible.**
+> ⚠️ **Un compte de blocs `<style>` qui BAISSE n'est pas plus anodin qu'un compte qui monte** : la
+> question reste « quelle page mesure-t-il maintenant ? ». Ici la directive servie compte toujours
+> **14 hachages**, le générateur en attend toujours 14, et l'assertion « 0 orphelin » passe sur les 6
+> blocs — donc aucune permission n'a bougé ; c'est la page désignée qui a changé, et 7 − 1 = 6 est le
+> bloc du composant `app-simulation`, absent de cette leçon.
+
+✅ **DEUXIÈME PUBLICATION DE SUITE SANS DÉFAUT À LA BASCULE `verifiee` → `publiee`.** G-axe est vert du
+premier coup sur la page neuve (12 fichiers, 1032 vérifications). La consigne de **nommer le coin
+supérieur gauche de tout tableau comparatif**, portée dans les briefs depuis les leçons 04, 05 et 02,
+tient — et cette leçon-ci porte quatre tableaux comparatifs.
+
+⚠️ **UN DÉFAUT DE BRIEF A COÛTÉ UN AGENT ENTIER : les trois sections obligatoires du gabarit
+(« Exemple simple », « Exemple complet », « À toi de jouer ») n'étaient nommées dans aucun des deux
+briefs de rédaction.** Ni le rédacteur A ni le rédacteur B ne les a écrites — chacun couvrait son
+plan, et le plan ne les portait pas. C'est `valider.mjs` qui les a réclamées, après coup, et il a
+fallu un troisième agent (113k) pour les insérer. **Le gabarit de `pipeline-contenu.md` doit être
+recopié dans le brief de la moitié qui ferme la leçon**, jamais supposé connu. Même famille : le
+frontmatter admet **au plus 5 objectifs** et le brief en demandait « 5 à 6 » — G-content a rougi
+au premier essai.
+
+**Gates à la clôture (2026-08-27)** : G-test **949 passés / 43 fichiers / 0 échec** · G-lint vert ·
+G-content **9 leçons compilées**, 31 SVG contrôlés, 861/861 identifiants uniques · G-build **12 routes
+prerendues, 14 hachages de style / 0 de script** (inchangé — une leçon sans simulation n'ajoute aucun
+hachage) · G-axe **12 fichiers, 1032 vérifications, 0 violation** · G-e2e **50 passés / 1 sauté / 0
+échec** · `npm audit --omit=dev` **0** · typecheck e2e et outils **0**. Poids servi de
+`automatisation-surveillance` : **55,6 Ko** ; total des 9 leçons **425,7 Ko servis**, 1 avertissement
+(`controle-acces`, 312,3 Ko bruts) et **0 dépassement**.
+
+**Découpe et coût — la découpe en deux moitiés a de nouveau tenu, à un cheveu près.** `professeur-web`
+moitié A **153 178** tokens / 35 appels (600 lignes écrites, 3k au-dessus du maximum) ; moitié B
+interrompue par une limite de session **après avoir écrit ses 645 lignes**, reprise inutile ; agent des
+trois sections manquantes **113 288** / 24 appels ; `quiz.json` **124 881** / 13 appels ;
+`verificateur-theorie` **146 442** / 22 appels sur 1342 lignes à relire — sous le maximum, contre
+164k à la séance 3, la différence étant un périmètre de vérification énuméré marqueur par marqueur.
+Les **22 correctifs** (13 bloquants, 9 améliorations) ont été appliqués par le **fil principal** :
+une liste `fichier:ligne` + texte de remplacement prêt à coller ne mérite pas un cache froid.
+
+⚠️ **DEUX AGENTS SUR TROIS N'ONT PAS PU LANCER LEUR PROPRE GATE** — `professeur-web` n'a pas l'outil
+`Bash`, par définition d'agent. Un brief qui leur ordonne « rends `npm run content:build` vert » leur
+demande l'impossible, et les deux l'ont signalé au lieu de mentir. **C'est à l'appelant de lancer le
+gate**, comme pour `npm run lecons:index` avec les `mentor`.
+
 
 > ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
 > **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un

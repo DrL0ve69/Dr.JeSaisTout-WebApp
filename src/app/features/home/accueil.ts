@@ -77,11 +77,11 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
  * `01-fondamentaux`. Le littéral est délibéré — c'est lui qui force la revue
  * humaine d'une page d'accueil dont le texte, lui, n'est dérivé de rien (voir la
  * `description` de la carte, corrigée à E3-ST4 : elle annonçait « le premier
- * module est en ligne »). ⚠️ La `description` ci-dessous reste exacte à huit
+ * module est en ligne »). ⚠️ La `description` ci-dessous reste exacte à neuf
  * modules — « les premiers modules sont en ligne » — donc elle n'est pas touchée ;
  * elle le redeviendra fausse quand la majorité des treize sera publiée.
  */
-const MODULES_PUBLIES = 8;
+const MODULES_PUBLIES = 9;
 
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;
