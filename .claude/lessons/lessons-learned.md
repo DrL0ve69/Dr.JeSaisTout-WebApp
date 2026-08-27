@@ -2153,4 +2153,63 @@ constat nommé par `code-reviewer` ; [[L-008]].
 
 ---
 
+## L-076 · Un coin de tableau comparatif laissé vide est le défaut que la bascule `verifiee` → `publiee` révèle, TROIS FOIS SUR TROIS
+
+**Symptôme.** Une leçon en `statut: verifiee` n'est pas prerendue : G-axe, G-e2e et le compte de
+hachages CSP ne mesurent alors **rien** sur elle. À la bascule vers `publiee`, trois leçons de
+suite ont révélé une violation `empty-table-header` — toujours au **même endroit structurel** : le
+coin supérieur gauche d'un tableau comparatif à deux colonnes (`| | On-premise | Infonuagique
+(IaaS) |`), là où l'auteur laisse la cellule d'angle vide plutôt que d'y mettre un en-tête
+d'échelle. Leçon `04-xss` : une violation. Leçon `05-csrf` : deux, plus un débordement horizontal
+ayant peint un anneau de focus hors écran. Leçon `02-environnement-linux` (2026-08-26) : une de
+plus, même motif.
+
+**Règle.** Publier, **puis** relancer G-axe, G-e2e et le build dans cet ordre, et s'attendre à ce
+qu'ils rougissent avant de croire la leçon finie — la bascule n'est pas une formalité. Sur tout
+tableau comparatif à deux axes rédigé en Markdown, la cellule d'angle vide se corrige **par
+convention d'auteur** (un texte d'échelle, ou un attribut `scope`/`abbr` posé au rendu) avant même
+d'attendre le gate : la régularité est maintenant assez forte pour l'anticiper plutôt que
+l'attendre. Un correctif ponctuel par leçon n'a rien enseigné à la leçon suivante ; la troisième
+occurrence signale qu'un gabarit ou une règle de rendu des tableaux comparatifs (`::: comparaison`
+ou équivalent) devrait porter la correction une fois pour toutes plutôt que trois fois séparément —
+signalé pour `.claude/rules/contenu-pedagogique.md`.
+
+**Réfs.** leçons `04-xss`, `05-csrf`, `02-environnement-linux` ; bloc de reprise `CLAUDE.md`
+(2026-08-21, 2026-08-26).
+
+---
+
+## L-077 · Intervertir « chemin principal » et « variante » dans un document laisse la PROSE EN AVAL décrire l'ancien chemin, sans qu'aucun diff ne la signale
+
+**Symptôme.** Décision du propriétaire (2026-08-26) : les leçons des séances 2-4 gardent la
+**méthode du cours** (PuTTY, WinSCP, `vi`) comme chemin principal évaluable, et reléguer
+l'équivalent moderne (OpenSSH, `scp`, VS Code Remote-SSH) en encadré `::: complement`. La leçon
+`02-environnement-linux` avait dérivé dans l'autre sens ; on a interverti les deux passages. Vingt
+lignes plus bas, une phrase intacte — jamais touchée par l'interversion — disait : « le serveur
+présente sa clé d'hôte […] il te demande alors de confirmer par `yes` ». Exacte tant que le chemin
+principal était `ssh` en CLI, elle est devenue **fausse** dès que PuTTY (boîte de dialogue *PuTTY
+Security Alert*, boutons *Accept*/*Connect Once*, aucune invite texte) est redevenu le chemin
+principal. Ce n'est pas la phrase qui a changé, c'est son **contexte** — et elle est passée de
+justesse en vérification parce que la plage de lignes donnée au vérificateur débordait à peine sur
+le texte environnant, sans couvrir la section entière.
+
+**Règle.** Une interversion de chemin principal/variante ne se limite jamais aux deux passages
+échangés : toute prose en **aval** qui décrivait implicitement l'ancien chemin — invites, libellés
+d'interface, gestes, captures — devient suspecte sans qu'aucun diff ne la désigne. Après une
+interversion, relire la **section entière jusqu'à son prochain titre**, pas seulement les
+paragraphes édités ; et donner au vérificateur une plage qui couvre la section entière, pas les
+seules lignes neuves. C'est un cousin direct de [[S-010]] : l'« instrument » est ici le brief de
+vérification, la « population » est ce que le texte décrit, et elle a changé sous lui sans qu'aucun
+garde-fou ne s'éteigne pour le signaler.
+⚠️ **Corollaire observé au même lot** : une piste non sourcée intégrée dans le même geste (trois
+erreurs bloquantes trouvées sur une modernisation tirée d'une conversation IA collée dans
+`README.txt`) attire toute l'attention du vérificateur **sur elle-même** — le défaut le plus grave
+du lot n'était aucune de ces trois erreurs, mais la phrase ancienne devenue fausse par ricochet.
+Douter d'une piste neuve ne dispense pas de relire ce que son intégration a **déplacé** ailleurs.
+
+**Réfs.** `content/cours/securite-web/02-environnement-linux/lecon.md`, passe
+`verificateur-theorie` (2026-08-26) ; [[S-010]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

@@ -27,7 +27,7 @@ rapportes uniquement** ; tu n'édites jamais.
    > propre pendant qu'un import au sommet casse le SSR, qu'un service injecte ce qu'il ne devrait
    > pas, ou qu'un `[innerHTML]` vit hors du hunk. Les frontières et l'injection ne sont **pas**
    > vérifiables depuis un diff seul.
-2. Charge la barre : `CLAUDE.md` (conventions) et `.claude/lessons/INDEX.md` (~3 900 tokens, plages de lignes incluses) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : `lessons-learned.md` fait 33 600 tokens et `security-lessons.md` 18 000, pour deux entrées utiles en pratique (mesuré le 2026-08-20 — voir `.claude/rules/agent-context-budget.md` §7).
+2. Charge la barre : `CLAUDE.md` (conventions) et `.claude/lessons/INDEX.md` (généré, plages de lignes incluses — c’est ce qui permet de LIRE une entrée sans ouvrir son corpus) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : les deux corpus pèsent ~40 000 et ~22 000 tokens (mesuré le 2026-08-25 ; ils GROSSISSENT à chaque cycle, ne te fie pas à ces chiffres, fie-toi à la règle) pour deux entrées utiles en pratique — voir `.claude/rules/agent-context-budget.md` §7.
    Confronte le diff aux entrées que tu as ouvertes. Pour un changement de schéma de contenu, ajoute
    `docs/contenu/pipeline-contenu.md`.
 3. Frontend → confirme contre `.claude/rules/angular-best-practices.md` (cache local) ; n'appelle le

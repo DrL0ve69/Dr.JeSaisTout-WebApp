@@ -35,7 +35,7 @@ réelles du dépôt :
 - `.claude/rules/budget-free-tier.md` (zéro dépense, gratuit **et** sans clé),
   `.claude/rules/security.md`, `.claude/rules/agent-context-budget.md`,
   `.claude/rules/contenu-pedagogique.md` quand la décision touche le format du contenu.
-- `.claude/lessons/INDEX.md` (~3 900 tokens, plages de lignes incluses) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : `lessons-learned.md` fait 33 600 tokens et `security-lessons.md` 18 000, pour deux entrées utiles en pratique (mesuré le 2026-08-20 — voir `.claude/rules/agent-context-budget.md` §7).
+- `.claude/lessons/INDEX.md` (généré, plages de lignes incluses — c’est ce qui permet de LIRE une entrée sans ouvrir son corpus) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : les deux corpus pèsent ~40 000 et ~22 000 tokens (mesuré le 2026-08-25 ; ils GROSSISSENT à chaque cycle, ne te fie pas à ces chiffres, fie-toi à la règle) pour deux entrées utiles en pratique — voir `.claude/rules/agent-context-budget.md` §7.
 
 Une objection qui ignore ces contraintes — budget zéro frais, **FR seulement**, Angular 21
 signaux/`OnPush`, SSR + prerender, contenu-as-code dans `content/`, backend .NET en **squelette**

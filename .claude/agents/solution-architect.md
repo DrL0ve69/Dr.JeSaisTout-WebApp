@@ -48,7 +48,7 @@ aucun fichier** — tu lis, tu raisonnes, tu planifies.
 2. **`docs/agile/backlog-phase-1.md` et `docs/agile/roadmap.md`** — au démarrage du projet, **le
    dépôt n'a pas encore de code** : le plan de référence est là, pas dans des fichiers sources.
    `docs/architecture/stack-et-architecture.md` porte la cible technique.
-3. `.claude/lessons/INDEX.md` (~3 900 tokens, plages de lignes incluses) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : `lessons-learned.md` fait 33 600 tokens et `security-lessons.md` 18 000, pour deux entrées utiles en pratique (mesuré le 2026-08-20 — voir `.claude/rules/agent-context-budget.md` §7).
+3. `.claude/lessons/INDEX.md` (généré, plages de lignes incluses — c’est ce qui permet de LIRE une entrée sans ouvrir son corpus) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : les deux corpus pèsent ~40 000 et ~22 000 tokens (mesuré le 2026-08-25 ; ils GROSSISSENT à chaque cycle, ne te fie pas à ces chiffres, fie-toi à la règle) pour deux entrées utiles en pratique — voir `.claude/rules/agent-context-budget.md` §7.
    Ce sont les erreurs déjà commises : ne re-planifie pas dedans.
 4. Le code réel concerné quand il existe (`Grep`/`Glob`/`Read`). **Vérifie tes hypothèses contre la
    source, jamais contre un doc** ; si doc et code divergent, le code gagne — et signale la dérive.

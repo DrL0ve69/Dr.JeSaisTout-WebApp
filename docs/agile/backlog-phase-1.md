@@ -2434,6 +2434,203 @@ simulation) et l'avertissement de tripwire de fixture à retirer dans le même c
 
 ## E3 · Production du cours sécurité web (13 modules)
 
+> ### 🔴 REPLANIFICATION DU 2026-08-25 — l'ordre des modules ne suivait pas l'horaire du cours
+>
+> **Le constat.** Le propriétaire a déposé `securite-app-web-2026/` : les diaporamas des séances 1
+> à 5 du millésime 2026, les exercices des séances 2 à 4, et l'**horaire officiel**. Mesuré contre
+> ce corpus, le cours **420-B10-HU** est un cours **serveur et système** avant d'être un cours
+> OWASP — ses séances 2 à 5 traitent Linux, SSH/UFW, `cron` et les comptes utilisateurs. Les six
+> modules publiés suivent l'ordre OWASP d'une **édition antérieure** (été 2025), abandonnée.
+>
+> **La portée de l'examen 1 est écrite par le cours lui-même**, et elle n'est pas celle que la KB
+> supposait : `Cours05_Securite_utilisateurs.pptx`, **diapositive 21** — « *Au prochain cours, ce
+> sera l'examen 1. Celui-ci couvrira la matière des cours 1 à 4.* » La séance 5 en est **exclue**.
+> Ce paquet de la séance 5 est d'ailleurs un **squelette de 23 diapositives** (« En résumé (TODO) »,
+> « Références (TODO) ») et son fichier d'exercices est vide : c'est le cours qui manque.
+>
+> **Ce que ça change, et c'est la chose la plus urgente du dépôt.** Les trois modules de l'examen 1
+> — séances 2, 3 et 4 — étaient planifiés **en dernier** (E3-ST14, ST15, ST16, bloc C). Ils passent
+> **en tête**, échéance **11 septembre 2026**. Leurs fiches KB existent déjà et sont riches :
+> `administration-serveur-linux.md` (1096 l.), `securisation-acces-distant-ssh.md` (763 l.),
+> `automatisation-surveillance-cron.md` (792 l.), toutes trois portant **des numéros de
+> diapositives** exploitables.
+>
+> ⚠️ **`01-fondamentaux` est mal aligné sur sa propre séance.** Il a été écrit depuis
+> `fondamentaux-securite-web.md`, mesurée à **6 📘 / 32 🧩**. Le Cours 1 réel (83 diapositives)
+> enseigne le panorama d'attaques (DDoS, injection SQL, XSS, MITM, force brute, librairies tierces,
+> hameçonnage, rançongiciel) et le **montage de l'environnement de travail** (XAMPP, Putty, WinSCP,
+> DigitalOcean, achat d'un nom de domaine) — dont la leçon publiée ne dit presque rien, tandis
+> qu'elle développe CVE/CWE, la kill chain et les types de tests, absents de la séance. Une passe de
+> réalignement est due **avant l'examen 1**.
+>
+> **Décisions du propriétaire, prises le 2026-08-25 — ne pas les rouvrir.**
+> **R-1 · `seance` est un champ de frontmatter, pas le numéro de dossier.** `ordre` reste la
+> position de lecture et le préfixe `nn` du dossier ; une séance peut porter plusieurs modules (la
+> 7 en porte cinq). Contrat complet : [`docs/contenu/ancrage-au-cours.md`](../contenu/ancrage-au-cours.md).
+> **R-2 · L'horaire réel est publié dans l'app**, jalons d'évaluation compris, et **chaque module
+> porte sa portée d'examen** en pastille explicite.
+> **R-3 · Les renvois de diapositives se posent sur l'encadré** (`::: cours {diapos="13, 17"}`),
+> pas en pastille au fil du texte ni en table de fin — une seule place où la provenance se décide.
+> **R-4 · Toute référence à l'édition antérieure disparaît** des leçons et de la KB : elle fait
+> réviser une matière que l'enseignant n'évalue pas.
+>
+> ⚠️ **Contradiction non tranchée, à confirmer auprès de l'enseignant** : l'horaire annonce
+> **20 / 20 / 60 %** pour examen 1 / projet / examen final, la diapositive 6 du Cours 1 annonce
+> **25 / 15 / 60 %**. `horaire.json` retient l'horaire, document contractuel.
+>
+> **Ordre d'exécution retenu** : outillage d'ancrage (E3-ST20) → renumérotation → séances 2, 3, 4
+> par paires → réalignement de la séance 1 → séance 5 après l'examen → puis le bloc « sécurité du
+> code » (séance 7), qui est l'actuel bloc A déjà publié.
+
+### Bloc 0 — Outillage d'ancrage au cours *(2026-08-25 · préalable aux modules d'examen)*
+
+> **Pourquoi il précède tout.** Les modules des séances 2, 3 et 4 sont sur le chemin critique de
+> l'examen 1 (11 septembre). Les écrire **avant** que le pipeline sache porter la séance, le renvoi
+> de diapositives et les exercices du cours obligerait à les rouvrir tous les trois pour y greffer
+> ce qui manque — et à repasser trois fois le `verificateur-theorie`. Contrat complet :
+> [`docs/contenu/ancrage-au-cours.md`](../contenu/ancrage-au-cours.md).
+
+| ID | Livrable | Statut |
+|---|---|---|
+| E3-ST20-A | **Pipeline d'ancrage** — `horaire.json` (schéma + 2 règles hors schéma), champ `seance` du frontmatter (règle 3bis), attributs `diapos`/`seance` sur les encadrés `cours` et `correction-du-cours` (matrice à six lignes), `horaires.json` en quatrième sortie du manifeste, renumérotation des six modules publiés sur l'horaire réel | ✅ |
+| E3-ST20-B | **Rendu Angular de l'ancrage** — étiquette d'encadré « 📘 COURS · Séance 2 · diapos 13, 17 » · en-tête de page « Séance 2 · <titre> » + pastille **« À l'examen 1 »** · sommaire avec les **jalons d'évaluation intercalés**. C'est le §5 du contrat, écrit et **non implémenté** : rien de `src/app/` ne lit encore `seance`, `renvoiCours` ni `horaires.json` | ⬜ |
+| E3-ST21-A | **Pipeline des exercices du cours** — `exercices.json` (schéma + règles hors schéma), encadré `::: exercice-du-cours {seance ref diapos}` (7ᵉ variante), résolution de l'énoncé depuis le registre, **gate de complétude/unicité/existence** par séance sur les modules publiés, registre compilé en sortie. Contrat : §6 | ✅ |
+| E3-ST21-B | **Rendu Angular de l'exercice** — étiquette « 🧪 EXERCICE DU COURS · Séance 2 · n° 8 », titre, énoncé, puis la piste du module. Paire de contraste mesurée par `design:contrastes:check`, texte explicite (WCAG 1.4.1) | ⬜ |
+| E3-ST22 | **Réalignement de `01-fondamentaux` sur la séance 1** — la leçon développe CVE/CWE, la kill chain et les types de tests, **absents de la séance** ; elle ne dit presque rien du **montage de l'environnement de travail** (XAMPP/WAMP, éditeur, PuTTY, WinSCP, DigitalOcean, achat d'un nom de domaine), qui est ce que la séance 1 enseigne **et** ce que ses trois exercices demandent. Livre aussi l'entrée `"numero": 1` du registre (texte prêt, voir le tripwire ci-dessus) — les deux dans le **même** lot, sinon `content:build` rougit. Séance 1 est **dans la portée de l'examen 1** | ⬜ |
+
+> **Décisions du propriétaire du 2026-08-25 sur les exercices, à ne pas rouvrir** (détail : §6 du
+> contrat) : **X-1** les énoncés sont **reformulés et attribués**, jamais recopiés — le dépôt est
+> public et `securite-app-web-2026/` est gitignoré pour ne pas rediffuser le matériel de
+> l'enseignant ; **X-2** l'exercice se pose **au fil du texte**, juste après la notion qu'il exerce,
+> pas en annexe de fin de leçon.
+>
+> **L'exigence, telle qu'elle a été posée** : *« quand le module est lié à un cours qui contient des
+> exercices (presque tous), tu dois les ajouter (tous) au contenu et les identifier clairement comme
+> étant les exercices du cours »*. Elle vaut pour **tout sujet** — sécurité aujourd'hui, PHP ensuite.
+> Le mot qui coûte est **« tous »** : c'est le gate de complétude (§6.4) qui le rend mesurable,
+> plutôt qu'une intention écrite dans un document que personne ne relit.
+>
+> 📦 **Registre de production déjà écrit à la main** (2026-08-25) :
+> `content/cours/securite-web/exercices.json` — séance 2 : **13** exercices · séance 3 : **4** +
+> le bloc « Projet de session » (référence **nommée**, pas numérotée : la feuille de l'enseignant ne
+> lui donne pas de numéro, et lui en inventer un mentirait sur son document) · séance 4 : **7**.
+> 🔴 **CORRIGÉ LE 2026-08-25, APRÈS SIGNALEMENT DU PROPRIÉTAIRE — la séance 1 PORTE des exercices.**
+> Ce bloc a d'abord annoncé « les séances 1 et 5 n'ont aucun exercice publié ». C'était **faux pour
+> la séance 1**, et la faute de méthode mérite d'être nommée : la conclusion venait de l'**absence
+> d'un fichier local** (`securite-app-web-2026/exercices-cours-01.txt` n'existe pas), transformée en
+> affirmation sur ce que l'enseignant publie. Une mesure d'**état local** ne dit rien du **monde**
+> (famille **L-074**). Les cinq pages ont depuis été ouvertes **à la source** :
+>
+> | Séance | Exercices | Vérifié le | Note |
+> |---|---|---|---|
+> | 1 | **3**, numérotés **1, 2 et 4** | 2026-08-25, sur le site | ⏰ **pas encore au registre** — voir le tripwire ci-dessous |
+> | 2 | 13 | 2026-08-25, site + copie locale **identiques** | au registre |
+> | 3 | 4 + « Projet de session » (non numéroté) | 2026-08-25, site + copie locale **identiques** | au registre |
+> | 4 | 7 | 2026-08-25, site + copie locale **identiques** | au registre |
+> | 5 | **0** | 2026-08-25, **sur le site** | page publiée, **aucun énoncé** — cohérent avec le squelette de 23 diapositives du bloc D |
+>
+> **Règle qui en sort, et qui vaut pour les prochains cours** : la source d'autorité est le **site**
+> de l'enseignant (`.../exercice-securisation-app-web-cours-<n>-2026/`), pas le dossier local, qui
+> n'en est qu'une copie et peut être incomplète. Avant de déclarer une séance sans exercice, **ouvrir
+> sa page**, et dater la vérification — l'enseignant publie en cours de session.
+>
+> ⚠️ **Les numéros SAUTENT** : la feuille du cours 1 va 1, 2, **4**. Le registre les respecte tels
+> quels — d'où des références numériques *strictement croissantes* et non *contiguës* (§6.1 du
+> contrat). Exiger la contiguïté forcerait à inventer un exercice 3.
+>
+> ### ⏰ TRIPWIRE — les 3 exercices de la séance 1 sont RÉDIGÉS mais VOLONTAIREMENT hors registre
+>
+> **Pourquoi ils n'y sont pas encore.** `01-fondamentaux` est `seance: 1` **et** `statut: publiee`.
+> Les inscrire au registre aujourd'hui ferait **échouer `content:build` immédiatement** — le gate de
+> complétude (§6.4) exige que tout exercice d'une séance qui porte un module publié soit placé, et
+> `01-fondamentaux` n'en place aucun. Ce n'est pas un défaut du gate : c'est le gate qui fonctionne.
+>
+> **Ils entrent au registre dans le MÊME lot que le réalignement de `01-fondamentaux`**, et pas
+> avant. Ce réalignement était déjà dû (voir l'encadré de replanification : la leçon développe
+> CVE/CWE, la kill chain et les types de tests, absents de la séance, et ne dit presque rien du
+> **montage de l'environnement de travail** que la séance enseigne). **Les trois exercices sont
+> exactement cette matière manquante** — les placer, c'est faire le réalignement.
+>
+> Texte reformulé, prêt à coller dans `content/cours/securite-web/exercices.json` en tête du tableau
+> `seances` :
+>
+> ```json
+> {
+>   "numero": 1,
+>   "feuille": "Exercices du cours 1 (2026)",
+>   "exercices": [
+>     { "reference": "1",
+>       "titre": "Installer la trousse de travail sur son poste",
+>       "enonce": "Installe sur ton ordinateur tous les outils employés dans le cours : une pile web locale (WAMP ou XAMPP), un éditeur de texte ou un IDE (Notepad++, VS Code, PhpStorm…), puis PuTTY et WinSCP." },
+>     { "reference": "2",
+>       "titre": "Ouvrir un compte d'hébergement infonuagique",
+>       "enonce": "Assure-toi d'avoir un compte DigitalOcean fonctionnel — c'est lui qui portera les serveurs des séances suivantes." },
+>     { "reference": "4",
+>       "titre": "Acheter un nom de domaine",
+>       "enonce": "Achète un nom de domaine chez GoDaddy. Un autre registraire est permis, mais ton enseignant ne garantit pas de pouvoir t'aider en cas de problème avec celui-là." }
+>   ]
+> },
+> ```
+>
+> ⚠️ **La feuille ne porte pas d'exercice 3** — le saut de 2 à 4 est celui de l'enseignant, pas une
+> omission de transcription. Ne pas le « corriger ».
+
+
+
+#### ✅ CLÔTURE — E3-ST21-A, le pipeline des exercices du cours (2026-08-25)
+
+**Gates, revérifiés par le fil principal et non repris du rapport de l'agent** : `content:build`
+**vert** — `4/5 exercices — 1 registre(s) de sujet : securite-web (25 exercice(s) sur 3 séance(s))` ·
+`npm test` **913 passés / 43 fichiers / 0 échec** (base 902) · `npm run lint` *All files pass
+linting* · `npm run typecheck:tools` 0 erreur · contrôle positif du validateur **44/44 cas refusés
+avec une cause nommée** (34 avant le lot).
+
+**Ce que le lot a livré** : `schemas/exercices.schema.json` · règles **0bis** (registre : schéma,
+séances uniques/présentes/non évaluées, `reference` unique par séance, numériques strictement
+croissantes, **registre refusé → `null`, jamais d'index partiel**), **9** étendue (`ref`
+obligatoire, `source` refusé, existence nominative), **15** (`sujet`), **16** (unicité + complétude
+inter-leçons, sur les modules `publiee` seulement) · 7ᵉ variante d'encadré · 5ᵉ sortie
+`src/content-generated/exercices.json` · 10 fixtures invalides + 1 valide.
+
+**🔴 DEUX RÈGLES AJOUTÉES PAR L'IMPLÉMENTATION, confirmées après coup et écrites au contrat.**
+**(a) `numero` de séance unique dans le registre.** L'index est une `Map` : deux entrées de même
+numéro s'écrasaient **en silence**, et le gate de complétude cessait alors de mesurer la feuille
+perdue. Famille **S-010** — la *population* change sous l'instrument, aucun test ne s'éteint.
+**(b) `avertissement` obligatoire au schéma**, pour rendre la décision X-1 visible dans le fichier.
+⚠️ C'est une **attestation d'auteur, pas une preuve** : aucun gate ne peut comparer un énoncé
+reformulé à un original absent du dépôt. La revue humaine reste seule juge.
+
+**🔴 LE FAIT D'ORDONNANCEMENT À NE PAS DÉCOUVRIR EN COURS DE RÉDACTION.** Élargir `VarianteEncadre`
+casse **à la compilation** les deux `Record<VarianteEncadre, …>` exhaustifs de
+`rendu-blocs.ts` — donc `npm test`. Le lot a dû y toucher malgré un brief qui l'interdisait, et il a
+eu raison : correctif **fail-closed**, `exercice-du-cours` exclu nommément de
+`VarianteEncadreRendue`, absent de `VARIANTES_ENCADRE_RENDUES`, et `exigerVarianteRendue` **lève**.
+**Conséquence : aucune leçon ne peut poser cet encadré avant le lot de rendu (E3-ST21-B)** — elle
+ferait échouer le prerender. Le rendu **précède** donc l'écriture des modules des séances 2, 3 et 4 ;
+ce n'est pas une finition qu'on repousse après le contenu.
+
+> ✅ **L'EXCLUSION EST LEVÉE DEPUIS LE 2026-08-25 (clôture d'E3-ST21-B, plus bas).** Ce paragraphe
+> décrit l'**état transitoire entre les deux lots**, et il est conservé pour la raison qu'il donne,
+> pas pour l'état qu'il décrit. `VARIANTE_NON_RENDUE`, `VarianteEncadreRendue` et
+> `exigerVarianteRendue` **n'existent plus** ; les deux `Record` sont redevenus exhaustifs sur
+> `VarianteEncadre`, donc une **8ᵉ** variante casserait encore la compilation ici — ce qui reste la
+> raison d'être du type. Les leçons des séances 2, 3 et 4 peuvent être écrites.
+
+**🎓 Pour la prochaine passe `mentor` — deux entrées méritées, à ne pas perdre :**
+1. **« Une variante ajoutée au contrat de contenu casse la compilation du rendu. »** Un lot pipeline
+   ne peut pas être totalement disjoint d'un lot rendu : l'union de types les relie. La parade est
+   l'**exclusion nommée et fail-closed**, jamais l'élargissement silencieux du `Record` — et le
+   garde-fou se **retire** dans le lot qui le franchit (famille **L-070** : un commentaire qui
+   promet « pas encore » ment dès que le travail est fait).
+2. **« Les fixtures sont un deuxième livrable. »** Coût du lot : **303 202 tokens / 153 appels**,
+   le double du maximum. Cause mesurée : dix dossiers de fixture ≈ **1 600 lignes à RÉDIGER**, un
+   travail qui ne partage rien avec la lecture du validateur. Le volume de **sortie** se mesure
+   avant d'écrire le brief, au même titre que le volume de source (L-047). Détail et découpe juste :
+   `.claude/rules/agent-context-budget.md` §9.
+   ⚠️ **Ce qui n'était PAS la cause** : les plages de lignes injectées ont tenu — aucun des deux
+   fichiers de 2 400 lignes n'a été ouvert en entier. Ne pas en conclure qu'elles sont inutiles.
+
+
 **Processus commun à chaque sous-tâche** : skill **`/lecon`** (`professeur-web` rédige →
 `verificateur-theorie` contrôle) à partir de la fiche KB source (lecture seule sur
 `C:\Users\phili\ProjetsPortfolio\KnowledgeBase\web\securite\`). Livrable : `content/cours/securite-web/NN-slug/`
@@ -3073,21 +3270,79 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 > Motif : la carte de parcours d'E2-ST6 doit refléter le cours, et un module obèse est le contraire
 > d'un jalon.
 >
-> **Ce bloc ne prend pas le chemin critique de mi-septembre** — il se livre après le bloc C.
+> 🔴 **CETTE LIGNE A ÉTÉ RENVERSÉE LE 2026-08-25 — ne pas s'y fier telle qu'elle était écrite.**
+> Elle disait « ce bloc ne prend pas le chemin critique de mi-septembre ». C'était vrai le
+> 2026-08-19, quand l'ordre de lecture suivait le Top 10 de l'OWASP. La renumérotation sur
+> l'horaire réel (commit `a73072d`) a fait des **séances 2, 3 et 4 la matière de l'examen 1 du
+> 11 septembre** : ce bloc EST désormais le chemin critique, et il passe **avant** le reste du
+> bloc C. L'ordre qui fait foi est celui du Bloc 0 : séances 2, 3, 4 → réalignement de la
+> séance 1 → séance 5.
 
 | ID | Module (`NN-slug`) | Séance du cours | Fiche KB source | Simulation | Statut |
 |---|---|---|---|---|---|
-| E3-ST14 | `14-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ⬜ |
-| E3-ST15 | `15-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
-| E3-ST16 | `16-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
-| E3-ST17 | `17-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
+| E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ✅ |
+| E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ⬜ |
+| E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ⬜ |
+| E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
+
+### ✅ CLÔTURE — E3-ST14 `02-environnement-linux` (2026-08-26)
+
+**Livré.** `lecon.md` (947 l.), `quiz.json` (9 questions), pas de simulation. Les 13 exercices de la
+séance 2 sont placés un par un au fil du texte. Statut `publiee`.
+
+**La décision du propriétaire du 2026-08-26 — « les deux, côte à côte » — est appliquée.** La méthode
+du cours (PuTTY, WinSCP, `vi`) est le chemin principal et la référence évaluable ; l’équivalent
+moderne vit dans quatre encadrés `::: complement` : OpenSSH natif Windows, `ls -la` / `Ctrl+L`,
+VS Code + « Remote - SSH », et le transfert de fichiers (`scp`, `rsync`).
+
+> 🔴 **LE TRAVAIL ÉTAIT DOUBLE, ET LA PREMIÈRE MOITIÉ FAILLIT ÊTRE OUBLIÉE.** La leçon avait déjà
+> **dérivé vers le moderne** : son corps principal présentait PuTTY comme un héritage et donnait
+> `ssh root@<IP>` comme LE geste. Il a donc fallu **intervertir** avant d’ajouter. ⚠️ Et cette
+> interversion a **créé** un défaut à distance : vingt lignes plus bas, « il te demande alors de
+> confirmer par `yes` » — exacte tant que `ssh` était le chemin principal — est devenue fausse sous
+> PuTTY, qui ouvre une boîte *Security Alert* (*Accept* / *Connect Once*). Personne n’avait touché à
+> cette phrase ; c’est son **contexte** qui a changé sous elle, et aucun diff ne la signalait.
+
+> 🔴 **LA PISTE NON SOURCÉE A COÛTÉ TROIS ERREURS BLOQUANTES**, toutes attrapées par
+> `verificateur-theorie` : « le client OpenSSH est **installé par défaut** sous Windows » (c’est une
+> *fonctionnalité facultative* — doc Microsoft, « Not installed, install and enable using optional
+> features ») · « il faut passer par WSL ou **Git Bash** » pour `rsync` (Git for Windows ne le fournit
+> pas) · la **barre oblique finale** de `rsync` passée sous silence, qui faisait écrire `rsync -av
+> ./monprojet/ …` et `scp -r ./monprojet …` à **deux endroits différents**. ⚠️ Le matériel source
+> était une conversation avec un assistant IA collée dans `README.txt`.
+
+> ⚠️ **LE MARQUEUR RESTANT A ÉTÉ LEVÉ EN RETIRANT L’AFFIRMATION, PAS EN LA PUBLIANT.** Le doute
+> portait sur « le cours enseigne WinSCP à la séance 2 » ; le plan de cours publié ne nomme aucun
+> outil, et le vérificateur n’a pas pu trancher. Le texte dit désormais que WinSCP est l’outil
+> graphique classique sous Windows, **sans attribuer** quoi que ce soit au cours. **Nœud laissé au
+> propriétaire :** si le transfert de fichiers est bien matière de la séance 2, une phrase restaure
+> le cadrage « méthode du cours ».
+
+> 🔴 **TROISIÈME OCCURRENCE SUR TROIS : la bascule `verifiee` → `publiee` a encore révélé un défaut.**
+> `empty-table-header` sur le coin supérieur gauche du tableau comparatif on-premise / infonuagique —
+> même famille que les leçons 04 et 05. Une leçon en `verifiee` n’étant pas prerendue, **G-axe, G-e2e
+> et le compte de hachages CSP ne mesurent RIEN** sur elle. Corrigé en **nommant** la colonne
+> (« Critère »), jamais en masquant l’en-tête.
+
+**Gates à la clôture (2026-08-26)** : G-test **949 passés / 43 fichiers / 0 échec** · G-lint vert ·
+G-content 7 leçons valides · G-build **10 routes prerendues, 14 hachages de style / 0 de script**
+(inchangé — une leçon sans simulation n’ajoute aucun hachage) · G-axe **10 fichiers, 860
+vérifications, 0 violation** · G-e2e **50 passés / 1 sauté / 0 échec** · `npm audit --omit=dev` **0** ·
+G-glyphes vert.
+
+**Découpe et coût.** `professeur-web` **110 780** tokens / 18 appels ; `verificateur-theorie`
+**97 602** / 12 appels — les deux **sous la cible de 120k**. Ce qui l’a permis : le brief portait des
+**plages de lignes exactes** et un périmètre de vérification borné à quatre plages, le reste de la
+leçon ayant déjà subi sa passe adversariale. Les correctifs (7 édits, texte de remplacement fourni
+par le vérificateur) ont été appliqués par le **fil principal**, pas par un agent : une liste
+`fichier:ligne` + correctif prêt à coller ne mérite pas un cache froid.
 
 > ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
 > **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un
 > titre, aucune image, et deux marqueurs `(TODO)` laissés par l'enseignant. Son plan annoncé
-> (diapositive 6) fait foi comme matière d'examen ; tout le reste de `17-utilisateurs-permissions`
+> (diapositive 6) fait foi comme matière d'examen ; tout le reste de `05-utilisateurs-permissions`
 > est du **complément**, et doit se signaler comme tel.
 > **(2) 🔴 La séance 8 n'a AUCUNE source publiée — mesuré le 2026-08-19, pas supposé.** Ni
 > diaporama (cellule « Non disponible »), **ni énoncé d'exercice** : la page existe mais son contenu

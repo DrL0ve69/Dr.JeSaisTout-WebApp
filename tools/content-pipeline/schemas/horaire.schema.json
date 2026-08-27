@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dr-je-sais-tout.local/schemas/horaire.schema.json",
+  "title": "Horaire d'un sujet (content/cours/<sujet>/horaire.json)",
+  "description": "Contrat de l'horaire réel du cours enseigné, source UNIQUE des numéros de séance, de leurs dates, de leurs titres et de la portée des évaluations (docs/contenu/ancrage-au-cours.md §1). Un fichier par sujet, à côté des dossiers de modules ; aucun frontmatter ne recopie son contenu — recopiée, l'information divergerait sans que rien ne le signale. additionalProperties=false partout, comme les trois autres schémas : un champ mal orthographié doit faire ÉCHOUER le build, jamais se perdre en silence. DEUX contraintes ne sont PAS exprimables ici et vivent hors schéma, dans valider.mjs : (1) « numero » unique et liste STRICTEMENT CROISSANTE — JSON Schema sait exiger l'unicité d'éléments entiers, pas celle d'un champ d'objet, ni un ordre entre eux ; (2) chaque entier de « portee » désigne une séance existante qui ne porte pas elle-même une évaluation — une comparaison entre deux branches du même document, hors de portée d'un schéma.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sujet", "cours", "seances"],
+  "properties": {
+    "sujet": {
+      "$ref": "#/definitions/kebab",
+      "description": "Le sujet auquel cet horaire appartient — doit égaler le « sujet » déclaré par les leçons de la même racine."
+    },
+    "cours": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "titre", "enseignant", "etablissement", "session"],
+      "description": "L'identité du cours réel. Affichée par le sommaire ; jamais dérivée d'un nom de dossier.",
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[0-9A-Z]{3}-[0-9A-Z]{3}-[0-9A-Z]{2}$",
+          "description": "Code de cours du réseau collégial, ex. 420-B10-HU."
+        },
+        "titre": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "enseignant": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "etablissement": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "session": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 40,
+          "description": "Libellé de session, ex. « Automne 2026 ». Un LIBELLÉ rendu tel quel, pas un identifiant."
+        }
+      }
+    },
+    "seances": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 99,
+      "description": "Les séances de la session, dans l'ordre du calendrier. L'ordre strictement croissant des « numero » est vérifié hors schéma.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["numero", "date", "titre"],
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99,
+            "description": "Numéro de séance. C'est LUI que le frontmatter d'un module cite par son champ « seance », et lui que « portee » énumère. Unicité et croissance stricte : hors schéma."
+          },
+          "date": {
+            "$ref": "#/definitions/dateIso",
+            "description": "Date de la séance. Même définition que « cree »/« maj » du frontmatter : une CHAÎNE, jamais un type « date » — le pipeline ne convertit rien en objet Date."
+          },
+          "titre": { "type": "string", "minLength": 3, "maxLength": 120 },
+          "evaluation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["libelle", "ponderation"],
+            "description": "OPTIONNEL. Présent ⇔ la séance EST une évaluation (examen, projet). Une séance qui en porte une n'est le support d'aucun module : « seance » ne peut pas la citer (règle hors schéma) — il n'y a pas de module « Examen 1 ».",
+            "properties": {
+              "libelle": { "type": "string", "minLength": 3, "maxLength": 60 },
+              "ponderation": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "description": "Pourcentage de la note finale. Entier : les pondérations du plan de cours le sont."
+              },
+              "portee": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 99,
+                "items": { "type": "integer", "minimum": 1, "maximum": 99 },
+                "description": "OPTIONNEL — les numéros de séance couverts par l'évaluation. Absent = portée non publiée par l'enseignant (cas du projet de session), et le sommaire n'annonce alors aucune portée plutôt que d'en inventer une."
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "kebab": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "kebab-case strict : minuscules non accentuées, chiffres, tirets simples."
+    },
+    "dateIso": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Date ISO courte. Volontairement une CHAÎNE — même choix, même raison, que dans lecon.frontmatter.schema.json."
+    }
+  }
+}

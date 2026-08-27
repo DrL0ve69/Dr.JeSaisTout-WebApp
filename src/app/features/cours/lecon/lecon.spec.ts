@@ -51,6 +51,8 @@ import {
   PREFIXE_ID_ETAPE,
   PREFIXE_ID_QUESTION,
   TYPES_ACTEUR,
+  ancrerAuCours,
+  lireHoraires,
   lireLeconCompilee,
   lireManifeste,
 } from '../contenu-compile';
@@ -708,6 +710,178 @@ describe('lecture du manifeste', () => {
 
   it('REFUSE une racine qui n’est pas un tableau', () => {
     expect(() => lireManifeste({ lecons: [] }, 'négatif')).toThrow(/tableau/);
+  });
+
+  it('ACCEPTE une entrée SANS « seance », REFUSE une séance qui n’est pas un entier ≥ 1', () => {
+    // `seance` est le SECOND champ optionnel du manifeste (E3-ST20). Les deux moitiés
+    // comptent : absent est le cas d'un module complémentaire — le cas NORMAL de trois
+    // modules du cours —, et présent-mais-mal-typé est une clef de jointure qui ne
+    // trouvera aucune séance à l'horaire.
+    const premiere = manifesteReel[0];
+    if (premiere === undefined) throw new Error('manifeste vide');
+    expect(lireManifeste([{ ...premiere }], 'contrôle positif')[0]?.seance).toBeUndefined();
+
+    expect(lireManifeste([{ ...premiere, seance: 2 }], 'contrôle positif')[0]?.seance).toBe(2);
+
+    for (const refusee of [0, -1, 2.5, '2', null]) {
+      expect(() => lireManifeste([{ ...premiere, seance: refusee }], 'négatif')).toThrow(/seance/);
+    }
+  });
+});
+
+describe('lecture des horaires et ancrage au cours', () => {
+  /**
+   * UN horaire écrit à la main, et c'est assumé — contrairement à la leçon, dont la
+   * fixture est compilée pour de vrai. Deux raisons : la leçon-témoin ne porte AUCUN
+   * `horaire.json` (elle est l'exemple du module hors cours), et ce qui se mesure ici
+   * est précisément la LECTURE d'un artéfact, donc l'entrée doit pouvoir être mutée
+   * champ par champ. Sa forme, elle, est celle du contrat (`ancrage-au-cours.md` §1).
+   *
+   * 🔴 DEUX ÉVALUATIONS COUVRENT LA SÉANCE 2, ET C'EST TOUT L'ENJEU (décision D-2).
+   * Avec une seule, une implémentation qui rendrait « la première évaluation trouvée »
+   * serait verte en ne prouvant rien.
+   */
+  function horaireTemoin(): Record<string, unknown> {
+    return {
+      sujet: 'securite-web',
+      cours: {
+        code: '420-B10-HU',
+        titre: 'Sécurisation des applications web',
+        enseignant: 'Alexandre Mageau-Pétrin',
+        etablissement: 'Cégep de l’Outaouais',
+        session: 'Automne 2026',
+      },
+      seances: [
+        { numero: 1, date: '2026-08-07', titre: 'Introduction' },
+        { numero: 2, date: '2026-08-14', titre: 'Gestion d’environnement infonuagique' },
+        {
+          numero: 6,
+          date: '2026-09-11',
+          titre: 'Examen 1',
+          evaluation: { libelle: 'Examen 1', ponderation: 20, portee: [1, 2] },
+        },
+        { numero: 7, date: '2026-09-18', titre: 'Sécurité du code' },
+        {
+          numero: 13,
+          date: '2026-10-30',
+          titre: 'Examen final',
+          evaluation: { libelle: 'Examen final', ponderation: 60, portee: [1, 2, 7] },
+        },
+      ],
+    };
+  }
+
+  /** L'artéfact tel qu'il arrive : un objet INDEXÉ PAR SUJET, jamais un horaire à plat. */
+  function artefact(horaire: Record<string, unknown> = horaireTemoin()): Record<string, unknown> {
+    return { 'securite-web': horaire };
+  }
+
+  it('ACCEPTE l’artéfact et l’indexe par sujet', () => {
+    const horaires = lireHoraires(artefact(), 'contrôle positif');
+    expect([...horaires.keys()]).toEqual(['securite-web']);
+    expect(horaires.get('securite-web')?.seances.length).toBe(5);
+    // Le titre de la séance vient de l'horaire — c'est la seule source (§1).
+    expect(horaires.get('securite-web')?.seances[1]?.titre).toBe(
+      'Gestion d’environnement infonuagique',
+    );
+  });
+
+  it('ACCEPTE un artéfact VIDE — aucun sujet n’a d’horaire, ce n’est pas une panne', () => {
+    expect(lireHoraires({}, 'contrôle positif').size).toBe(0);
+  });
+
+  it('REFUSE une clef et un champ « sujet » qui divergent', () => {
+    // Un module cherche son horaire par le sujet de son frontmatter : si la clef et le
+    // champ ne disent pas la même chose, l'horaire est rangé sous un nom que personne
+    // ne demandera — une page « hors cours » sur un module qui a une séance.
+    expect(() => lireHoraires({ php: horaireTemoin() }, 'négatif')).toThrow(/sujet/);
+  });
+
+  it('REFUSE des numéros de séance non strictement croissants', () => {
+    const horaire = horaireTemoin();
+    const seances = horaire['seances'] as Record<string, unknown>[];
+    seances[1] = { ...seances[1], numero: 1 };
+    expect(() => lireHoraires(artefact(horaire), 'négatif')).toThrow(/croissantes/);
+  });
+
+  it('REFUSE une date hors « AAAA-MM-JJ », un titre vide et une racine non-objet', () => {
+    const dateFausse = horaireTemoin();
+    (dateFausse['seances'] as Record<string, unknown>[])[0] = {
+      numero: 1,
+      date: '7 août 2026',
+      titre: 'Introduction',
+    };
+    expect(() => lireHoraires(artefact(dateFausse), 'négatif')).toThrow(/AAAA-MM-JJ/);
+
+    const titreVide = horaireTemoin();
+    (titreVide['seances'] as Record<string, unknown>[])[0] = {
+      numero: 1,
+      date: '2026-08-07',
+      titre: '   ',
+    };
+    expect(() => lireHoraires(artefact(titreVide), 'négatif')).toThrow(/titre/);
+
+    expect(() => lireHoraires([], 'négatif')).toThrow(/objet/);
+  });
+
+  it('REFUSE une évaluation sans libellé et une portée qui n’est pas faite d’entiers', () => {
+    const horaire = horaireTemoin();
+    const seances = horaire['seances'] as Record<string, unknown>[];
+    seances[2] = { ...seances[2], evaluation: { ponderation: 20, portee: [1, 2] } };
+    expect(() => lireHoraires(artefact(horaire), 'négatif')).toThrow(/libelle/);
+
+    const portee = horaireTemoin();
+    const autres = portee['seances'] as Record<string, unknown>[];
+    autres[2] = { ...autres[2], evaluation: { libelle: 'Examen 1', ponderation: 20, portee: ['1'] } };
+    expect(() => lireHoraires(artefact(portee), 'négatif')).toThrow(/portee/);
+  });
+
+  it('ancre un module SANS « seance » hors du cours — et sans aucune évaluation', () => {
+    const horaires = lireHoraires(artefact(), 'contrôle positif');
+    const ancrage = ancrerAuCours(horaires, 'securite-web', undefined);
+    expect(ancrage.seance).toBeUndefined();
+    expect(ancrage.evaluations).toEqual([]);
+  });
+
+  it('🔴 rend TOUTES les évaluations qui couvrent la séance, DANS L’ORDRE DE L’HORAIRE', () => {
+    // Décision D-2. La séance 2 est dans la portée de l'examen 1 ET de l'examen final :
+    // une implémentation qui s'arrêterait à la première serait verte sur un site qui
+    // tait à l'étudiant la moitié de son statut à l'examen.
+    const horaires = lireHoraires(artefact(), 'contrôle positif');
+    const ancrage = ancrerAuCours(horaires, 'securite-web', 2);
+
+    expect(ancrage.seance?.titre).toBe('Gestion d’environnement infonuagique');
+    expect(ancrage.evaluations.map((evaluation) => evaluation.libelle)).toEqual([
+      'Examen 1',
+      'Examen final',
+    ]);
+
+    // L'autre moitié de la pince : la séance 7 n'est PAS dans l'examen 1. Sans elle,
+    // « rend toutes les évaluations » resterait vrai d'une implémentation qui les rend
+    // toutes, tout le temps.
+    expect(
+      ancrerAuCours(horaires, 'securite-web', 7).evaluations.map((e) => e.libelle),
+    ).toEqual(['Examen final']);
+
+    // Et une séance couverte par AUCUNE évaluation garde son titre sans pastille.
+    const horaireSansPortee = horaireTemoin();
+    const seances = horaireSansPortee['seances'] as Record<string, unknown>[];
+    seances[2] = { ...seances[2], evaluation: { libelle: 'Projet de session', ponderation: 20 } };
+    seances[4] = { ...seances[4], evaluation: { libelle: 'Examen final', ponderation: 60 } };
+    const sansPortee = lireHoraires(artefact(horaireSansPortee), 'contrôle positif');
+    expect(ancrerAuCours(sansPortee, 'securite-web', 2).evaluations).toEqual([]);
+    expect(ancrerAuCours(sansPortee, 'securite-web', 2).seance?.numero).toBe(2);
+  });
+
+  it('LÈVE quand la jointure échoue — jamais un repli silencieux sur « hors cours »', () => {
+    // Les deux états ont un sens OPPOSÉ pour un étudiant. Retomber sur « hors cours »
+    // afficherait « pas exigible à l'examen » sur un module qui l'est.
+    const horaires = lireHoraires(artefact(), 'contrôle positif');
+
+    expect(() => ancrerAuCours(horaires, 'securite-web', 4)).toThrow(/ne figure pas à l'horaire/);
+    expect(() => ancrerAuCours(horaires, 'php', 2)).toThrow(/aucun horaire compilé/);
+    // Une séance qui EST une évaluation ne peut pas être citée par un module (§2).
+    expect(() => ancrerAuCours(horaires, 'securite-web', 6)).toThrow(/désigne une évaluation/);
   });
 });
 

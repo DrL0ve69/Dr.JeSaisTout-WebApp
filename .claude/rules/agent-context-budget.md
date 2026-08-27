@@ -143,11 +143,121 @@ lignes**. ~3 900 tokens au lieu de 51 600.
       corpus en entier est désormais un défaut de méthode, pas une prudence.
 - [ ] **Sans plage de lignes, un index ne sert à rien** : l'agent n'a pas d'autre choix que
       d'ouvrir le fichier. C'est ce qui rendait inopérant l'index déjà imprimé par le hook.
-- [ ] 🔴 **Les deux `mentor` régénèrent l'index en dernier geste.** Ajouter, fusionner ou élaguer
-      une entrée décale toutes les plages suivantes : sans régénération, l'index envoie chaque agent
-      lire le **mauvais passage, en silence**. Un index qui ment coûte plus cher que pas d'index.
+- [ ] 🔴 **L'index se régénère après TOUTE édition du corpus** (`npm run lecons:index`). Ajouter,
+      fusionner ou élaguer une entrée décale toutes les plages suivantes : sans régénération,
+      l'index envoie chaque agent lire le **mauvais passage, en silence**. Un index qui ment coûte
+      plus cher que pas d’index.
+      ⚠️ **Ce n'est PAS le `mentor` qui le lance — cette ligne l'a affirmé jusqu'au 2026-08-26, et
+      c'était faux.** Les deux `mentor` n'ont **aucun outil d'exécution**
+      (`Read`/`Grep`/`Glob`/`Edit`/`Write`), délibérément : leur définition leur impose de terminer
+      leur rapport par une **demande explicite** de régénération, et c'est **l'appelant** qui
+      exécute. La garantie ne vit donc ni dans l'outillage du mentor ni dans la mémoire de son
+      coordinateur, mais dans un **test** — `src/index-lecons.spec.ts` confronte chaque plage
+      déclarée au corpus, et **G-test rougit** tant que l'index n'a pas été régénéré. Un brief qui
+      ordonne au mentor de lancer la commande lui demande l'impossible : constaté le 2026-08-26, le
+      mentor a répondu qu'il n'avait pas l'outil, ce qui était **exact**.
 - [ ] **Un fichier injecté partout est un budget partagé.** Le bloc de reprise de `CLAUDE.md` est
       payé par chaque agent de chaque session ; l'historique détaillé d'un epic clos appartient au
       backlog. L'élaguer à chaque clôture d'epic est du travail rentable.
 - [ ] **Mesurer avant de supposer** : `wc -c` sur tout ce qui est injecté, ÷ 4. Un plancher de 70k
       explique un démarrage à 100k sans qu'il faille inventer une fuite.
+
+---
+
+## 8 · Le plancher REMESURÉ le 2026-08-25 — et ce qu'il n'est pas
+
+> Le propriétaire a signalé des sous-agents démarrant « presque à 100k » là où ils démarraient
+> « à 60k au plus ». Soupçon nommé : la façon d'injecter le contexte aurait encore changé.
+> **Réfuté par la mesure, sur les deux axes.**
+
+**(a) Le mécanisme n'a pas bougé.** Les six définitions d'agents qui lisent les leçons pointent
+toujours `INDEX.md` et interdisent toujours d'ouvrir un corpus en entier — vérifié fichier par
+fichier. Rien n'a été modifié depuis le correctif du 2026-08-20.
+
+**(b) Ce qui a grossi, mesuré sur l'historique git** (`CLAUDE.md` dépouillé de ses commentaires de
+bloc, qui sont retirés avant injection) :
+
+| Fichier auto-injecté | 2026-08-20 | 2026-08-25 |
+|---|---|---|
+| `CLAUDE.md` (injecté) | 8 407 tok | 10 768 tok |
+| `.claude/lessons/INDEX.md` | 3 752 | 4 634 |
+| `docs/contenu/pipeline-contenu.md` (lu par `professeur-web`) | 7 281 | 7 657 |
+| `lessons-learned.md` (pointé, pas injecté) | 32 087 | 39 893 |
+| `security-lessons.md` (pointé, pas injecté) | 17 183 | 22 052 |
+
+Soit **+4 000 tokens** environ sur le plancher inconditionnel. **Pas 40 000.**
+
+**(c) 🔴 LE CHIFFRE QUI TRANCHE : un sous-agent qui ne fait RIEN coûte déjà ~61k.** Sonde du
+2026-08-25 — un agent `general-purpose`/haiku à qui l'on demande de décrire son propre préambule,
+sans lire un fichier, sans lancer une commande : **0 appel d'outil, 60 786 tokens rapportés**. Sa
+propre estimation du préambule *issu du dépôt* était ~19 500 tokens. **L'écart de ~41 000 est
+harnais-side** — prompt système de l'agent, schémas des ~50 outils différés, listing des skills,
+`memory/MEMORY.md`. Le dépôt n'en contrôle rien.
+
+**Ce qu'il faut en conclure, et c'est un changement de doctrine.** « 60k » n'est plus un démarrage
+observable : c'est à peu près le **coût du vide**. Comparer un agent d'aujourd'hui à un souvenir
+d'agent d'il y a deux semaines mesure surtout la croissance du harnais. **Le seul chiffre qui
+renseigne encore est le DELTA** — tokens rapportés moins ~61k — et c'est lui qu'il faut lire dans
+un rapport de clôture, pas le total brut.
+
+### Deux défauts que la mesure a rendus visibles, tous deux corrigés le 2026-08-25
+
+1. **Le hook `SessionStart` imprimait un SECOND index, sans plages de lignes** (~10 000 caractères,
+   ~2 500 tokens). Son propre commentaire justifiait la dépense en affirmant que les sous-agents
+   « ne reçoivent pas forcément la sortie de ce hook » — **la sonde l'a retrouvée dans son
+   préambule**. Le dépôt payait donc deux index par agent, et le moins cher des deux était le seul
+   à porter des plages. Un index sans plage n'est pas un demi-index : il ne laisse à l'agent aucun
+   geste sauf ouvrir le corpus entier (§7). Remplacé par un pointeur + le compte : **13 783 → 2 700
+   octets**, économisés à chaque session **et** à chaque sous-agent.
+2. **Le même hook annonçait le barème PÉRIMÉ** — « 150k targeted / 200k tolerated / 250k absolute
+   max » — en contradiction directe avec les plafonds resserrés le 2026-08-19 que ce fichier porte.
+   Un chiffre injecté d'office qui contredit la règle qu'il cite est **pire qu'un chiffre absent** :
+   c'est celui-là que l'agent lit en premier. Aligné sur 120/150/200.
+
+⚠️ **La leçon de méthode, plus générale que le cas.** Les deux défauts étaient des **chiffres écrits
+une fois et jamais remesurés** — dans un hook, dans six définitions d'agents (« INDEX ~3 900
+tokens », faux de 20 %). Un ordre de grandeur cité dans une consigne **se date ou se dérive** ;
+recopié nu, il devient un mensonge silencieux à la vitesse où le corpus grossit. Les six définitions
+disent désormais que les chiffres grossissent et qu'il faut se fier à la **règle**, pas au nombre.
+
+---
+
+## 9 · 🔴 LES FIXTURES SONT UN DEUXIÈME LIVRABLE — précédent mesuré le 2026-08-25
+
+**Le run.** Lot « pipeline des exercices du cours » (E3-ST21-A) : **303 202 tokens, 153 appels
+d'outils**. Le résultat était bon — quatre gates verts, 913 tests, dix cas de fixture chacun avec sa
+cause propre — mais le coût est le double du maximum admissible.
+
+**Le brief passait pourtant le test du « + ».** Il annonçait UN livrable vérifiable :
+« `content:build` valide, compile et garde les exercices ». Une seule phrase, une seule chose
+déclarable verte. C'est ce qui l'a fait paraître dimensionné.
+
+**Ce qui a été omis, et c'est la leçon.** Le brief demandait, en une ligne parmi d'autres, « au
+moins six fixtures invalides, plus deux inter-leçons, plus une valide ». Dans ce dépôt, **une
+fixture n'est pas un fichier** : c'est un dossier portant un `lecon.md` (~78 lignes de frontmatter
+et de sections de gabarit) **et** un `quiz.json` (~82 lignes, cinq questions minimum avec leurs
+explications), plus une `horaire.json`, plus l'assertion de cause propre dans le spec, plus le
+compte en dur à remettre à la main. **Dix cas = ~1 600 lignes à écrire**, chacune devant passer le
+validateur pour la bonne raison et échouer pour une seule autre.
+
+Écrire ce corpus est un travail de **rédaction**, pas de modification : il ne partage presque rien
+avec la lecture du validateur. C'est un second livrable, et il a doublé le lot.
+
+- [ ] 🔴 **Compter les fixtures comme un lot à part dès qu'il y en a plus de deux ou trois.** La
+      découpe juste était : **(A1)** schéma + validateur + compilateur + manifeste + types, avec
+      *deux* fixtures témoins pour prouver que les règles mordent ; **(A2)** le corpus de cas
+      invalides + les assertions + les comptes en dur. A2 n'a pas besoin du transcript de A1 : la
+      liste des règles suffit, et c'est déjà un brief autonome.
+- [ ] **Le signal à chercher dans son propre brief** : une phrase qui dit « avec ses tests » est
+      inoffensive ; une phrase qui dit « au moins N fixtures » est un **corpus**, et un corpus se
+      mesure (nombre de fichiers × lignes par fichier) avant d'écrire le brief — exactement le geste
+      de §2 (L-047), appliqué cette fois à ce que l'agent doit **écrire** et non à ce qu'il doit
+      **lire**. Le volume de SORTIE compte autant que le volume de SOURCE.
+- [ ] **Corollaire déjà connu, reconfirmé** : un plafond d'appels d'outils annoncé dans le brief
+      (« arrête-toi et rends un rapport d'étape à 50 appels ») est le seul frein qu'un agent puisse
+      actionner lui-même. Il ne remplace pas la découpe, il en limite le dégât quand elle a raté.
+
+⚠️ **Ce qui n'était PAS la cause, pour ne pas corriger la mauvaise chose.** Les plages de lignes
+injectées ont fonctionné : l'agent n'a ouvert en entier aucun des deux fichiers de 2 400 lignes.
+Sans elles le run aurait été pire. **Ne pas conclure « les pointeurs ne servent à rien »** — ils ont
+tenu la moitié *lecture* du budget ; c'est la moitié *écriture* qui n'avait été estimée par personne.

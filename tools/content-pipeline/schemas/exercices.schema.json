@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dr-je-sais-tout.local/schemas/exercices.schema.json",
+  "title": "Registre d'exercices d'un sujet (content/cours/<sujet>/exercices.json)",
+  "description": "Contrat du registre des exercices du cours enseigné — la source UNIQUE des énoncés (docs/contenu/ancrage-au-cours.md §6.1). Un fichier par sujet, à côté de « horaire.json » ; un module ne recopie JAMAIS un énoncé, il le référence par un encadré « ::: exercice-du-cours {ref=\"…\"} ». additionalProperties=false partout, comme les quatre autres schémas : un champ mal orthographié doit faire ÉCHOUER le build, jamais se perdre en silence. QUATRE contraintes ne sont PAS exprimables ici et vivent hors schéma, dans valider.mjs : (1) chaque « numero » de séance existe dans « horaire.json » et n'y porte PAS d'« evaluation » — une comparaison entre deux FICHIERS ; (2) « numero » unique dans le registre — JSON Schema sait exiger l'unicité d'éléments entiers, pas celle d'un champ d'objet ; (3) « reference » unique dans sa séance, même raison ; (4) les références NUMÉRIQUES strictement croissantes dans l'ordre du tableau — un ordre entre valeurs d'un champ, hors de portée d'un schéma.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sujet", "avertissement", "seances"],
+  "properties": {
+    "sujet": {
+      "$ref": "#/definitions/kebab",
+      "description": "Le sujet auquel ce registre appartient — doit égaler le « sujet » déclaré par les leçons de la même racine, et celui de « horaire.json »."
+    },
+    "avertissement": {
+      "type": "string",
+      "minLength": 40,
+      "maxLength": 600,
+      "description": "OBLIGATOIRE, et ce n'est pas décoratif : la décision X-1 du propriétaire (ancrage-au-cours.md §6) veut que les énoncés soient REFORMULÉS et ATTRIBUÉS, jamais recopiés — ce dépôt est public et ne rediffuse pas le matériel de l'enseignant. Ce champ est l'endroit où cette attribution est écrite une fois pour tout le registre ; l'omettre rendrait la reformulation invérifiable par un lecteur."
+    },
+    "seances": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 99,
+      "description": "Les séances qui portent des exercices publiés par l'enseignant. ⚠️ UNE SÉANCE ABSENTE N'EST PAS UNE ERREUR : les séances 1 et 5 du cours 420-B10-HU n'ont aucun exercice (mesuré le 2026-08-25). Unicité des « numero » : hors schéma.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["numero", "feuille", "exercices"],
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99,
+            "description": "Numéro de séance, tel que « horaire.json » le déclare. Existence et absence d'« evaluation » : hors schéma — il n'y a pas d'exercices pour un examen."
+          },
+          "feuille": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120,
+            "description": "Le nom de la feuille d'exercices de l'enseignant, ex. « Exercices du cours 2 (2026) ». Un LIBELLÉ affiché tel quel, jamais un identifiant."
+          },
+          "exercices": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 99,
+            "description": "Les exercices de la feuille, DANS L'ORDRE du document de l'enseignant. Une séance déclarée sans aucun exercice n'aurait rien à déclarer : elle s'omet.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["reference", "titre", "enonce"],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^([1-9][0-9]*|[a-z][a-z0-9-]*)$",
+                  "description": "🔴 UNE CHAÎNE, PAS UN ENTIER, ET C'EST DÉLIBÉRÉ (§6.1). La feuille de la séance 3 porte quatre exercices numérotés PLUS un bloc « Projet de session » qui n'a pas de numéro : le forcer à « 5 » mentirait sur le document de l'enseignant. Deux formes admises, réunies en UNE alternance ancrée plutôt qu'en « anyOf » — l'alternance rend un message d'erreur qui NOMME le motif attendu, là où « anyOf » ne dit à l'auteur que « aucune branche ne convient ». Forme NUMÉRIQUE ([1-9][0-9]*) : le libellé rendu est « n° 8 ». Forme NOMMÉE (slug [a-z][a-z0-9-]*) : le libellé rendu est le « titre » de l'entrée. Unicité dans la séance et croissance stricte des formes numériques : hors schéma."
+                },
+                "titre": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 120,
+                  "description": "Titre court de l'exercice, écrit par le module (l'enseignant n'en donne pas toujours). C'est LUI que le rendu affiche comme libellé quand la référence est nommée."
+                },
+                "enonce": {
+                  "type": "string",
+                  "minLength": 10,
+                  "maxLength": 2000,
+                  "description": "L'énoncé REFORMULÉ — intention, ordre et numérotation conservés, texte réécrit (décision X-1). Ce n'est JAMAIS la piste de résolution : celle-ci est le corps de l'encadré, écrit par le module qui cite l'exercice."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "kebab": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "description": "kebab-case strict : minuscules non accentuées, chiffres, tirets simples. Même définition, même raison que dans horaire.schema.json."
+    }
+  }
+}

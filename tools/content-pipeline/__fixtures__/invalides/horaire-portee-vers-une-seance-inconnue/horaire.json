@@ -1,0 +1,16 @@
+{
+  "sujet": "securite-web",
+  "cours": {
+    "code": "420-B10-HU",
+    "titre": "Sécurisation des applications web",
+    "enseignant": "Alexandre Mageau-Pétrin",
+    "etablissement": "Cégep de l'Outaouais",
+    "session": "Automne 2026"
+  },
+  "seances": [
+    { "numero": 1, "date": "2026-08-07", "titre": "Introduction à la sécurité des applications web" },
+    { "numero": 2, "date": "2026-08-14", "titre": "Gestion d'environnement infonuagique" },
+    { "numero": 3, "date": "2026-08-21", "titre": "Examen 1",
+      "evaluation": { "libelle": "Examen 1", "ponderation": 20, "portee": [1, 9] } }
+  ]
+}

@@ -103,6 +103,61 @@
   margin-block-start: var(--espace-6);
 }
 
+// --- Jalon d'évaluation -------------------------------------------------------
+// « ── Examen 1 · 11 septembre · séances 1 à 4 ── » (`ancrage-au-cours.md` §5(c)).
+//
+// LES TIRETS SONT DESSINÉS, PAS ÉCRITS. Le contrat les note en caractères de
+// boîte ; les mettre dans le document obligerait à les `aria-hidden` et à les
+// faire porter par une police qui ne les couvre peut-être pas. Deux
+// pseudo-éléments bordés font le même trait, et l'information reste entièrement
+// dans le texte (WCAG 1.4.1 — ni la couleur ni le trait ne portent quoi que ce
+// soit ici).
+//
+// ⚠️ LES FILETS SONT DES ITEMS DE FLEXBOX SANS CONTENU (L-025) : une largeur leur
+// est donnée par `flex-grow`, jamais laissée à la seule marge automatique de la
+// feuille de l'agent utilisateur — c'est le défaut qui avait fait tomber
+// `<hr>` à une largeur de ZÉRO tout en calculant un style parfaitement juste.
+.jalon {
+  display: flex;
+  gap: var(--espace-3);
+  align-items: center;
+  margin-block: var(--espace-6);
+
+  &::before,
+  &::after {
+    flex: 1 1 var(--espace-4);
+    // Une BORDURE, jamais un aplat de 1 px : un fond disparaît en contraste forcé,
+    // une bordure se rebranche sur `CanvasText` (même geste que `.segment`).
+    border-block-start: var(--filet-fin) solid var(--couleur-filet-fort);
+    content: '';
+  }
+
+  @include m.contraste-force {
+    &::before,
+    &::after {
+      border-color: CanvasText;
+    }
+  }
+}
+
+// L'encre est `--couleur-accent` sur `--couleur-surface` — le fond de page, hérité,
+// puisque le jalon ne pose AUCUN encart. C'est la paire « Lien dans le corps de
+// texte » de `tools/design/verifier-contrastes.mjs`, DÉJÀ MESURÉE : zéro paire
+// neuve dans ce lot. L'ambre est la marque ; le vert reste réservé à « corrigé ».
+//
+// ⚠️ PAS DE `micro-etiquette` ICI, alors que la forme s'y prêterait. Ce mixin
+// bascule sur `--police-micro` (Silkscreen), une police BITMAP réservée aux
+// étiquettes courtes — or ce libellé porte des accents, un point médian et
+// jusqu'à quarante-cinq caractères. Le corps de texte le rend sans risque de
+// glyphe manquant.
+.jalon-texte {
+  flex: 0 1 auto;
+  color: var(--couleur-accent);
+  font-size: var(--taille-s);
+  font-weight: var(--graisse-titre);
+  text-align: center;
+}
+
 .titre-section {
   margin-block-end: var(--espace-3);
 }

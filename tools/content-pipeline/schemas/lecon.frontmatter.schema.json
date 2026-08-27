@@ -47,6 +47,12 @@
       "maximum": 99,
       "description": "Position dans le cours ; doit valoir exactement le préfixe nn du dossier."
     },
+    "seance": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99,
+      "description": "OPTIONNEL — numéro de la séance du cours réel que ce module couvre (docs/contenu/ancrage-au-cours.md §2). ABSENT = module complémentaire, hors cours : il n'entre dans la portée d'aucun examen. PRÉSENT : le numéro doit exister dans content/cours/<sujet>/horaire.json ET cette séance ne doit pas porter d'« evaluation » — il n'y a pas de module « Examen 1 ». Ces deux règles portent sur DEUX fichiers et vivent donc hors schéma, dans valider.mjs. Le TITRE et la DATE de la séance ne sont PAS ici : ils se joignent depuis horaire.json, source unique — recopiés dans cinq frontmatters, ils divergeraient sans que rien ne le signale. « ordre » reste la position de LECTURE et n'est pas ce numéro : la séance 7 donne cinq modules, ce qui rendrait l'égalité insatisfiable."
+    },
     "niveau": {
       "type": "string",
       "enum": ["maternelle", "primaire", "secondaire", "cegep", "universite"]

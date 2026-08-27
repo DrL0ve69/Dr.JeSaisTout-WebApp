@@ -47,7 +47,13 @@ out.push(
     'free grant + SQL S0 (phase 2). See `.claude/rules/budget-free-tier.md`.',
 );
 out.push(
-  'CONTEXT BUDGET — HARD RULE: 150k targeted / 200k tolerated / 250k absolute max per subagent. One ' +
+  // ⚠️ CE BARÈME EST CELUI RESSERRÉ PAR LE PROPRIÉTAIRE LE 2026-08-19, et il a été mesuré PÉRIMÉ
+  // ici le 2026-08-25 : ce hook annonçait encore 150/200/250 à chaque session, en contradiction
+  // directe avec `.claude/rules/agent-context-budget.md`. Un chiffre injecté d'office qui contredit
+  // la règle qu'il cite est pire qu'un chiffre absent — c'est lui que l'agent lit en premier.
+  'CONTEXT BUDGET — HARD RULE: 120k targeted / 150k hard max / 200k exceptional and justified in the ' +
+    'closing report per subagent (250k is NOT an admissible value). An overrun is a BRIEFING defect, ' +
+    'never an agent defect: a subagent cannot compact itself. One ' +
     'agent = one verifiable deliverable; review fixes go to a FRESH agent, never a resumed saturated one; ' +
     'heavy gates (full e2e/build suites) go to a throwaway verification agent. See ' +
     '`.claude/rules/agent-context-budget.md`.',
@@ -74,29 +80,35 @@ try {
   // Index non régénéré — les agents retombent sur les corpus entiers, plus cher mais pas faux.
 }
 
+// 🔴 CE HOOK N'IMPRIME PLUS LES 75 TITRES — CORRIGÉ LE 2026-08-25, APRÈS MESURE.
+//
+// Il en imprimait un par ligne, ~10 000 caractères, en annonçant plus haut (l. 71-75) que les
+// sous-agents « ne reçoivent pas forcément la sortie de ce hook ». **C'est faux, et c'est mesuré** :
+// une sonde lancée en sous-agent le 2026-08-25 a rapporté cette sortie dans son propre préambule.
+// Le dépôt payait donc DEUX index à chaque agent — celui-ci, ~2 500 tokens, et `INDEX.md`, ~4 600 —
+// dont le moins cher était aussi le SEUL des deux à porter des plages de lignes.
+//
+// Or un index sans plage de lignes n'est pas un demi-index : il ne sert à RIEN
+// (`.claude/rules/agent-context-budget.md` §7). Un agent qui repère « L-041 me concerne » dans une
+// liste de titres nus n'a pas d'autre geste possible que d'ouvrir les 40 000 tokens du corpus —
+// exactement le gaspillage que l'index existait pour éviter. Le titre décide de la pertinence ;
+// seule la plage permet d'AGIR dessus.
+//
+// Ce qui reste ici est donc le pointeur et le COMPTE : le compte est ce qui fait remarquer qu'une
+// leçon est apparue, et il est lu au disque plutôt que recopié (il se périmerait au premier ajout).
 try {
   const lessons = readFileSync(join(projectDir, '.claude', 'lessons', 'lessons-learned.md'), 'utf8');
-  // Inject only an INDEX (one line per lesson: "L-0xx · title") + a pointer — NOT the full file.
-  // The title is enough signal to decide relevance; agents Read the full Symptom/Rule/Refs of a
-  // lesson on demand when its area is in scope.
-  const titles = lessons
-    .split('\n')
-    .filter((line) => /^##\s+L-\d/.test(line))
-    .map((line) => line.replace(/^##\s+/, '').trim());
+  const nombre = lessons.split('\n').filter((line) => /^##\s+L-\d/.test(line)).length;
   out.push(
-    '=== Lessons learned — INDEX (open `.claude/lessons/lessons-learned.md` and read the full ' +
-      'entry of any lesson whose area your task touches) ===',
+    '=== Lessons learned — POINTER ONLY (not injected in full, and no longer listed title by title) ===',
   );
-  if (titles.length > 0) {
-    out.push(...titles);
-    out.push('');
-    out.push(
-      `(${titles.length} lessons; titles only — the full Symptom/Rule/Refs live in the file. ` +
-        'Read the matching entry BEFORE work in its area.)',
-    );
-  } else {
-    out.push('(no lessons captured yet)');
-  }
+  out.push(
+    nombre > 0
+      ? `${nombre} lessons. Read \`.claude/lessons/INDEX.md\` FIRST — it is the routing table, and it ` +
+          'carries the LINE RANGE of every entry. Pick the 2-4 entries whose area your lot touches, then ' +
+          'open each with a bounded `Read(file, offset, limit)`. NEVER open a lessons corpus whole.'
+      : '(no lessons captured yet)',
+  );
 } catch {
   // First run, or the file was removed — not an error, just nothing to inject yet.
   out.push('(no .claude/lessons/lessons-learned.md yet)');

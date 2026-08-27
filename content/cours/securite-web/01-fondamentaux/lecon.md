@@ -2,8 +2,9 @@
 titre: Fondamentaux de la sécurité des applications web
 slug: fondamentaux
 sujet: securite-web
-section: Fondamentaux
+section: Fondements et exploitation du serveur
 ordre: 1
+seance: 1
 niveau: cegep
 duree-estimee: 55
 objectifs:
@@ -70,9 +71,8 @@ familles d'attaques courantes** et leur rattachement à la triade (diapositives 
 ::: complement
 Tout le reste de ce module — le vocabulaire (faille, exploit, intrusion, chapeaux), CVE et CWE,
 l'architecture client/serveur, l'OWASP Top 10, la kill chain, les types de tests, DVWA et Burp
-Suite — vient de la base de connaissances ou de l'édition antérieure du cours (été 2025). C'est
-de la matière juste et professionnellement utile, mais aucune question d'examen 2026 ne s'appuie
-dessus.
+Suite — vient de la base de connaissances. C'est de la matière juste et professionnellement
+utile, mais aucune question d'examen 2026 ne s'appuie dessus.
 :::
 
 **La règle d'arbitrage, valable pour toute la session :** *à l'examen, donne la réponse du
@@ -124,9 +124,9 @@ qui n'a aucun équivalent dans CIA.
 ::: complement
 Cette section entière est un ajout de la base de connaissances. La diapositive d'introduction
 du cours **liste** ces mots — chapeau blanc, chapeau noir, pirate, éthique, faille, intrusion —
-sans les définir ; l'édition antérieure définissait « faille » comme un trou de sécurité
-souvent accidentel et « intrusion » comme un trou de sécurité utilisé par un acteur
-malicieux, ce qui confond en réalité deux étapes distinctes.
+sans les définir. Une définition répandue oppose « faille », trou de sécurité souvent
+accidentel, à « intrusion », le même trou utilisé par un acteur malicieux — un raccourci qui
+confond en réalité deux étapes distinctes.
 :::
 
 Reprenons l'image du cambriolage, qui sépare les trois étapes sans effort :
@@ -311,8 +311,8 @@ imposé, et de les analyser en continu (`npm audit`, `composer audit`, Dependabo
 
 ::: complement
 Ni la kill chain ni MITRE ATT&CK n'apparaissent dans le millésime 2026 du cours — ni dans les
-diapositives, ni dans le plan de cours. Cette section vient de l'édition antérieure (été 2025)
-et de la base de connaissances. Elle vaut d'être lue pour une raison précise : elle dit **où**
+diapositives, ni dans le plan de cours. Cette section vient de la base de connaissances et des
+publications d'origine (Lockheed Martin, MITRE). Elle vaut d'être lue pour une raison précise : elle dit **où**
 un développeur peut encore agir.
 :::
 
@@ -333,7 +333,7 @@ flowchart LR
 ```
 
 Ce modèle **linéaire en sept phases** a été publié par Lockheed Martin en 2011, adapté de la
-doctrine militaire. L'édition antérieure du cours en présentait une version **condensée en cinq
+doctrine militaire. On en rencontre couramment une version **condensée en cinq
 phases** : reconnaissance, livraison, exploitation, post-exploitation, persistance. Elle n'est
 pas fausse — c'est une simplification qui fusionne la fabrication dans la livraison et regroupe
 les trois dernières étapes.
@@ -372,8 +372,8 @@ est trouvée** dans les applications testées, pondérée par l'exploitabilité 
 la gravité d'une instance isolée. Une catégorie peut être première sans que chacune de ses
 instances soit la plus grave.
 
-Deux millésimes coexistent aujourd'hui : **2021**, celui que reprennent la plupart des cours et
-l'édition antérieure de celui-ci, et **2025**, publié en version définitive et état de l'art
+Deux millésimes coexistent aujourd'hui : **2021**, celui que reprennent encore la plupart des
+cours et des référentiels, et **2025**, publié en version définitive et état de l'art
 au 2026-08.
 
 | # | OWASP Top 10:2021 | OWASP Top 10:2025 | Ce qui a bougé |
@@ -451,18 +451,18 @@ On n'y déploie donc **jamais** une application volontairement vulnérable, et o
 durcissement dès la première connexion — clé SSH plutôt que mot de passe, pare-feu.
 
 ::: complement
-L'édition antérieure du cours travaillait sur **DVWA** (*Damn Vulnerable Web Application*, une
-application PHP/MySQL délibérément trouée, à quatre niveaux de difficulté) inspectée avec
-**Burp Suite**, un **proxy d'interception** qui s'insère entre le navigateur et le serveur pour
-lire et modifier chaque requête. Trois outils y suffisent : *Proxy* met la requête en pause,
-*Repeater* la renvoie autant de fois qu'on veut, *Intruder* automatise l'envoi en substituant
-une position marquée par une liste de valeurs.
+Le laboratoire d'entraînement le plus répandu est **DVWA** (*Damn Vulnerable Web Application*,
+<https://github.com/digininja/DVWA>), une application PHP/MySQL délibérément trouée, à quatre
+niveaux de difficulté, qu'on inspecte avec **Burp Suite**, un **proxy d'interception** qui
+s'insère entre le navigateur et le serveur pour lire et modifier chaque requête. Trois outils y
+suffisent : *Proxy* met la requête en pause, *Repeater* la renvoie autant de fois qu'on veut,
+*Intruder* automatise l'envoi en substituant une position marquée par une liste de valeurs.
 **Règle absolue, tirée de la documentation officielle de DVWA :** ne jamais l'installer sur un
-serveur accessible depuis Internet — il serait compromis. Machine virtuelle en réseau NAT, ou
-conteneur jetable sur une machine non exposée. Et retiens le piège pédagogique de l'exercice :
-sur la page de force brute, le code HTTP est `200 OK` que le mot de passe soit bon ou mauvais ;
-c'est la **taille de la réponse** qui trahit le succès, technique d'énumération transposable à
-des cibles réelles.
+serveur accessible depuis Internet — il serait compromis. À n'installer qu'en **environnement
+isolé** : machine virtuelle en réseau NAT, ou conteneur jetable sur une machine non exposée.
+Et retiens le piège classique de sa page de force brute : le code HTTP est `200 OK` que le mot
+de passe soit bon ou mauvais ; c'est la **taille de la réponse** qui trahit le succès, technique
+d'énumération transposable à des cibles réelles.
 :::
 
 ::: correction-du-cours {source="Diapositive 75 du cours 01 (millésime 2026) ; enquête MegaLag, décembre 2024 ; In re PayPal Honey Browser Extension Litigation, N.D. Cal. — état vérifié le 2026-08-19"}
@@ -640,7 +640,7 @@ de confiance, et la distinction entre ce que le cours évalue et ce qui relève 
 
 - **Fiche source principale** — `web/securite/fondamentaux-securite-web.md` (KnowledgeBase) :
   vocabulaire complet, disclosure, STRIDE, processus d'évaluation de la sécurité, DVWA et Burp
-  Suite en détail, corrigés des exercices de l'édition antérieure.
+  Suite en détail.
 - **Panorama et chronologie** — `web/securite/panorama-menaces.md` : les huit familles traitées
   une par une (bien visé, contre-mesure, coût, limites), la typologie des attaquants, et la table
   de correspondance « menace constatée → fiche à lire ».

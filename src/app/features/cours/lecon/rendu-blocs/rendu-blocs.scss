@@ -244,35 +244,41 @@
 }
 
 // -----------------------------------------------------------------------------
-// Encadré — SIX variantes, distinguées par le MOT et par la FORME du trait
+// Encadré — SEPT variantes, distinguées par le MOT et par la FORME du trait
 // -----------------------------------------------------------------------------
 // WCAG 1.4.1 : la couleur seule ne porte jamais l'information. Chaque variante a
 // son étiquette écrite ET une signature de trait propre, que `forced-colors: active`
-// ne touche pas. Sans ce second canal, les six encadrés deviendraient rigoureusement
+// ne touche pas. Sans ce second canal, les sept encadrés deviendraient rigoureusement
 // identiques en contraste forcé, où tout se replie sur `CanvasText`.
 //
-// 🔴 LES TROIS STYLES DE TRAIT ÉTAIENT ÉPUISÉS — d'où un SECOND AXE (E3-ST1).
-// Les variantes de TON tiennent déjà `dotted` / `solid` / `double` sur la bordure de
-// GAUCHE. Recycler ces mêmes styles pour la provenance aurait rendu « Note » et « Au
-// programme du cours » indiscernables en contraste forcé. L'axe neuf est donc la
-// FORME du cadre, orthogonale au style :
+// 🔴 LES QUATRE STYLES DE TRAIT NE SUFFISENT PAS SEULS — d'où un SECOND AXE (E3-ST1),
+// la FORME du cadre, orthogonale au style. Recycler `solid` pour deux variantes
+// bornées pareil rendrait « Note » et « Au programme du cours » indiscernables en
+// contraste forcé. Le relevé ci-dessous est celui du CODE CI-DESSOUS, relu règle par
+// règle — pas une intention. Depuis la bascule E6, les six premières se bornent sur
+// leurs quatre côtés (`cartouche`, G7-a) et ce qui reste aux variantes de TON est
+// l'accent de leur MONTANT DE GAUCHE ; `attention` est la seule à n'avoir gardé qu'un
+// filet de gauche.
 //
-//                   bordure de gauche seule        bordure COMPLÈTE
-//   dotted          attention                      —
-//   solid           note                           cours          📘
-//   dashed          complement            🧩        —
-//   double          a-retenir                      correction-du-cours  ⚠️
+//   trait     cadre complet              montant de gauche accentué
+//   dotted    exercice-du-cours  🧪      attention (filet de gauche SEUL)
+//   solid     cours              📘      note (montant épaissi)
+//   dashed    complement         🧩      —
+//   double    correction-du-cours ⚠️     a-retenir (montant double)
 //
-// Six cases distinctes, aucune collision — vérifié case par case, pas supposé. Le
-// pictogramme (colonne de droite) est un TROISIÈME canal, textuel : il survit au
-// contraste forcé comme à une impression, mais il est `aria-hidden` et ne remplace
-// jamais le mot (cf. `PICTOGRAMMES_ENCADRE` dans `rendu-blocs.ts`).
+// Sept cases distinctes, aucune collision — le spec « distingue les sept variantes
+// SANS la couleur » l'exige sur la feuille RÉELLEMENT COMPILÉE, couleurs neutralisées,
+// plutôt que sur cette table. Le pictogramme est un TROISIÈME canal, textuel : il
+// survit au contraste forcé comme à une impression, mais il est `aria-hidden` et ne
+// remplace jamais le mot (cf. `PICTOGRAMMES_ENCADRE` dans `rendu-blocs.ts`).
 //
-// CONTRASTE. Les six teintes d'étiquette sont mesurées sur la surface de leur propre
+// CONTRASTE. Les teintes d'étiquette sont mesurées sur la surface de leur propre
 // encadré par `tools/design/verifier-contrastes.mjs`. Les DEUX teintes de provenance
 // posées en bordure y sont mesurées EN PLUS contre `--couleur-surface` (seuil
-// `non-texte`, 1.4.11) : une bordure est un objet graphique, et ces deux paires-là
-// n'existaient pas avant ce lot.
+// `non-texte`, 1.4.11) : une bordure est un objet graphique.
+// ⚠️ `exercice-du-cours` N'AJOUTE AUCUNE PAIRE, et c'est le fruit d'une décision, pas
+// d'un oubli : il réemploie la famille cyan de `cours`, dont les trois paires (encre
+// d'étiquette, corps, cadre sur la page) sont déjà à la table.
 .encadre {
   padding: var(--espace-3);
 }
@@ -340,8 +346,12 @@
 // D'EXAMEN » sur une ligne entière est plus lent à lire qu'en bas de casse, et
 // c'est justement l'information que l'apprenant cherche en premier. On lève donc
 // les deux propriétés de tampon ici, et nulle part ailleurs.
+// ⚠️ QUATRE DEPUIS E3-ST21 : `exercice-du-cours` rejoint la liste. Son mot est court, mais son
+// étiquette ne l'est pas — elle porte « · Séance 2 · n° 8 », et une capitale espacée en police
+// bitmap sur cette suite de chiffres serait pénible à lire là où elle sert le plus.
 .encadre[data-variante='cours'] > .etiquette,
 .encadre[data-variante='complement'] > .etiquette,
+.encadre[data-variante='exercice-du-cours'] > .etiquette,
 .encadre[data-variante='correction-du-cours'] > .etiquette {
   // 🔴 LA POLICE EST LEVÉE AVEC LE RESTE DEPUIS E6, ET C'EST LA MOITIÉ QUI COMPTE.
   // `micro-etiquette` pose `--police-micro` (Silkscreen), une police BITMAP faite
@@ -362,6 +372,49 @@
 
   > .etiquette {
     color: var(--couleur-provenance-cours);
+  }
+
+  @include m.contraste-force {
+    border-color: CanvasText;
+    background-color: Canvas;
+  }
+}
+
+// 🧪 « exercice du cours » (E3-ST21) — MÊME FAMILLE CYAN QUE `cours`, trait POINTILLÉ.
+//
+// 🔴 LA TEINTE EST RÉEMPLOYÉE DÉLIBÉRÉMENT, ET CE N'EST PAS UNE ÉCONOMIE. Un exercice du cours
+// EST de la matière du cours : lui ouvrir une teinte à lui dirait au lecteur qu'il vient
+// d'ailleurs, et volerait une case de plus à un vocabulaire chromatique qui doit garder le rouge
+// pour « vulnérable », le vert pour « corrigé » et l'ambre pour la marque. Aucun jeton neuf, donc
+// aucune paire de contraste neuve : les trois paires cyan (étiquette sur sa surface, corps sur sa
+// surface, cadre sur la page) sont déjà mesurées par `tools/design/verifier-contrastes.mjs`.
+//
+// ⚠️ MAIS LA FORME, ELLE, DOIT DIFFÉRER — sinon `cours` et `exercice-du-cours` deviennent
+// indiscernables en `forced-colors: active`, où toutes les teintes tombent sur `CanvasText` et où
+// il ne reste que le trait (WCAG 1.4.1). `dotted` est libre en cadre COMPLET : `solid` est pris
+// par `cours` et `note`, `dashed` par `complement`, `double` par `correction-du-cours` — et le
+// pointillé d'`attention` n'est qu'un montant de gauche, pas un cadre. Il dit d'ailleurs la bonne
+// chose : un cadre à remplir, pas un exposé clos.
+.encadre[data-variante='exercice-du-cours'] {
+  border: var(--filet-marge) dotted var(--couleur-provenance-cours);
+  background-color: var(--couleur-provenance-cours-surface);
+
+  > .etiquette {
+    color: var(--couleur-provenance-cours);
+  }
+
+  // L'ÉNONCÉ VIENT DU REGISTRE, LA PISTE VIENT DU MODULE. Le titre porte la graisse de titre pour
+  // que l'œil trouve la consigne sans la confondre avec l'indice qui la suit ; les deux restent en
+  // encre de corps, sur une paire déjà mesurée — la hiérarchie est de GRAISSE, pas de couleur.
+  > .exercice-titre {
+    margin-block: 0 var(--espace-2);
+    color: var(--couleur-encre);
+    font-weight: var(--graisse-titre);
+  }
+
+  > .exercice-enonce {
+    margin-block: 0;
+    color: var(--couleur-encre);
   }
 
   @include m.contraste-force {

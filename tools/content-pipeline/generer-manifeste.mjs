@@ -75,6 +75,35 @@ const FICHIER_MANIFESTE = 'manifeste-routes.json';
 const FICHIER_CARTE = 'carte-lecons.ts';
 
 /**
+ * Nom du fichier d'horaires — la QUATRIÈME sortie, née à E3-ST20.
+ *
+ * 🔴 POURQUOI UN FICHIER À CÔTÉ DU MANIFESTE, ET NON UN CHAMP DEDANS. `manifeste-routes.json` est
+ * un TABLEAU d'`EntreeManifesteRoutes`, et une dizaine de consommateurs le lisent comme tel —
+ * `app.routes.server.ts`, le sommaire, la navigation, la progression, plus leurs specs. L'envelopper
+ * dans un objet `{ lecons, horaires }` pour y loger l'horaire aurait fait de ce lot de PIPELINE un
+ * lot d'application, alors que le rendu appartient au lot B. La capacité demandée par le contrat
+ * (§4 d'`ancrage-au-cours.md`) est intacte : l'horaire est écrit UNE FOIS PAR SUJET dans
+ * `src/content-generated/`, le sommaire y accède sans relire `content/` au runtime — seul le
+ * fichier qui le porte diffère de la lettre du contrat.
+ *
+ * INDEXÉ PAR SUJET, et non écrit à plat : une racine ne porte qu'un sujet aujourd'hui (le
+ * validateur le vérifie), mais `ecrireContenuGenere` peut recevoir plusieurs racines compilées, et
+ * un fichier à plat en écraserait un.
+ */
+const FICHIER_HORAIRES = 'horaires.json';
+
+/**
+ * Nom du registre d'exercices — la CINQUIÈME sortie, née à E3-ST21.
+ *
+ * Il suit EXACTEMENT le chemin de `horaires.json`, et pour les mêmes raisons, mot pour mot : un
+ * fichier à côté du manifeste plutôt qu'un champ dedans (`manifeste-routes.json` est un TABLEAU
+ * qu'une dizaine de consommateurs lisent comme tel), et un objet INDEXÉ PAR SUJET plutôt qu'un
+ * document à plat (`ecrireContenuGenere` peut recevoir plusieurs racines compilées, et un fichier
+ * à plat en écraserait un).
+ */
+const FICHIER_EXERCICES = 'exercices.json';
+
+/**
  * @param {string} message
  * @param {readonly string[]} [details]
  * @returns {never}
@@ -141,6 +170,9 @@ export function construireManifeste(lecons) {
       // celui-ci ne charge pas les `lecons/<slug>.json`, dont c'est tout l'intérêt (un index
       // qui les lirait tous embarquerait le corps des 27 modules).
       if (lecon.frontmatter.section !== undefined) entree.section = lecon.frontmatter.section;
+      // `seance` — même geste, même raison (E3-ST20). Le sommaire annonce la séance de chaque
+      // module et intercale les jalons d'évaluation ; il lit ce manifeste, jamais les corps.
+      if (lecon.frontmatter.seance !== undefined) entree.seance = lecon.frontmatter.seance;
       return entree;
     })
     .sort((a, b) => a.ordre - b.ordre || a.slug.localeCompare(b.slug, 'fr'));
@@ -230,7 +262,37 @@ export function separerPubliees(lecons) {
 }
 
 /**
- * Écrit les trois sorties dans `dossierSortie`. Le dossier est supposé DÉJÀ PURGÉ par
+ * Indexe PAR SUJET les données de sujet d'une ou plusieurs racines compilées — l'horaire, le
+ * registre d'exercices, et tout ce qui suivra le même chemin.
+ *
+ * 🔴 UNE COLLISION DE SUJET FAIT ÉCHOUER, elle n'écrase pas. Deux racines qui déclareraient le
+ * même sujet écriraient deux fois la même clef, et la seconde effacerait la première EN SILENCE —
+ * exactement le mode d'échec que ce pipeline refuse partout ailleurs. Un `null` (racine sans cette
+ * donnée) est simplement ignoré : c'est une absence légitime, pas une collision.
+ *
+ * @template {{ sujet: string }} T
+ * @param {readonly (T | null)[]} donnees
+ * @param {string} quoi le nom au pluriel, pour le message d'échec
+ * @param {string} consequence ce que l'écrasement coûterait, en une phrase
+ * @returns {Record<string, T>}
+ */
+function indexerParSujet(donnees, quoi, consequence) {
+  /** @type {Record<string, T>} */
+  const parSujet = {};
+  for (const donnee of donnees) {
+    if (donnee === null) continue;
+    if (parSujet[donnee.sujet] !== undefined) {
+      echec(`deux ${quoi} compilés portent le sujet « ${donnee.sujet} »`, [consequence]);
+    }
+    parSujet[donnee.sujet] = donnee;
+  }
+  return parSujet;
+}
+
+/**
+ * Écrit les CINQ sorties dans `dossierSortie` — les trois filtrées par publication (corps de
+ * leçons, manifeste, carte d'imports) plus les deux données de SUJET (horaires, registre
+ * d'exercices), qui ne le sont pas et n'ont rien à l'être. Le dossier est supposé DÉJÀ PURGÉ par
  * l'orchestrateur : ce module ajoute, il n'efface pas.
  *
  * ⚠️ LE FILTRE DE PUBLICATION S'APPLIQUE ICI, EN TÊTE, ET UNE SEULE FOIS — voir l'en-tête du
@@ -239,9 +301,12 @@ export function separerPubliees(lecons) {
  *
  * @param {string} dossierSortie chemin absolu
  * @param {readonly LeconCompilee[]} lecons
- * @param {{ inclureBrouillons?: boolean }} [options] `inclureBrouillons` rétablit l'écriture des
- *   leçons non publiées. DÉFAUT FERMÉ : sans ce drapeau, elles ne sont pas écrites du tout.
- * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[] }}
+ * @param {{ inclureBrouillons?: boolean, horaires?: readonly (HoraireCompile | null)[], exercices?: readonly (ExercicesCompiles | null)[] }} [options]
+ *   `inclureBrouillons` rétablit l'écriture des leçons non publiées. DÉFAUT FERMÉ : sans ce
+ *   drapeau, elles ne sont pas écrites du tout. `horaires` porte l'horaire de chaque racine
+ *   compilée — les `null` (racine sans ancrage au cours) sont simplement ignorés. `exercices` porte
+ *   le registre de chaque racine, même règle.
+ * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[], horaires: Record<string, HoraireCompile>, exercices: Record<string, ExercicesCompiles> }}
  */
 export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   const inclureBrouillons = options.inclureBrouillons === true;
@@ -284,11 +349,40 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   const carte = rendreCarteLecons(entrees);
   ecrireAtomique(join(dossierSortie, FICHIER_CARTE), carte);
 
+  // L'HORAIRE N'EST PAS FILTRÉ PAR `statut`, et il n'y a rien à filtrer : c'est le calendrier du
+  // COURS, pas un contenu de module. Un horaire écrit alors qu'aucune leçon n'est publiée décrit un
+  // cours dont le site n'affiche encore rien — ce qui est exact, et ne divulgue aucun brouillon.
+  const horaires = /** @type {Record<string, HoraireCompile>} */ (
+    indexerParSujet(
+      options.horaires ?? [],
+      'horaires',
+      'le second écraserait le premier en silence, et le sommaire daterait les séances du mauvais',
+    )
+  );
+  // Indenté, comme le manifeste et pour la même raison : c'est un artéfact court qu'un humain ouvre
+  // pour comprendre ce que le build a vu.
+  ecrireAtomique(join(dossierSortie, FICHIER_HORAIRES), `${JSON.stringify(horaires, null, 2)}\n`);
+
+  // LE REGISTRE D'EXERCICES N'EST PAS FILTRÉ PAR `statut` NON PLUS, et pour la même raison : ce
+  // sont les exercices du COURS, pas un contenu de module. Un registre écrit alors qu'aucune leçon
+  // n'est publiée décrit une feuille d'exercices que le site n'a pas encore commentée — ce qui est
+  // exact, et ne divulgue aucun brouillon.
+  const exercices = /** @type {Record<string, ExercicesCompiles>} */ (
+    indexerParSujet(
+      options.exercices ?? [],
+      "registres d'exercices",
+      'le second écraserait le premier en silence, et le gate de complétude mesurerait le mauvais',
+    )
+  );
+  ecrireAtomique(join(dossierSortie, FICHIER_EXERCICES), `${JSON.stringify(exercices, null, 2)}\n`);
+
   return {
     entrees,
     fichiers,
     manifeste,
     carte,
+    horaires,
+    exercices,
     // Les slugs réellement ÉCARTÉS (vide quand le drapeau est levé) et ceux réellement INCLUS
     // alors qu'ils ne sont pas publiés. Les deux servent au journal de `build.mjs` : un filtre
     // qui n'annonce pas ce qu'il a retiré — ni ce qu'il a laissé passer sur demande — est un

@@ -46,6 +46,12 @@ const EXIGES = [
   ['»', '» — guillemet fermant français'],
   ['’', '’ — apostrophe typographique (U+2019)'],
   [String.fromCodePoint(0x00a0), 'espace insécable (U+00A0) — LA blanche insécable du site'],
+  // Le séparateur des jalons d'évaluation du sommaire et des étiquettes
+  // d'encadré : « Examen 1 · 11 septembre · séances 1 à 4 ». Le contrat
+  // d'ancrage l'IMPOSE (docs/contenu/ancrage-au-cours.md §5), et rien ne
+  // prouvait qu'une police du site le portait — ajouté le 2026-08-26, à
+  // l'ouverture du sommaire aux jalons.
+  ['·', '· — point médian (U+00B7), séparateur des jalons et des étiquettes'],
 
   // --- Accents et cédille, minuscules ---------------------------------------
   ['à', 'à'],

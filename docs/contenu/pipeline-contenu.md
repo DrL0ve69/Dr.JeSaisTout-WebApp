@@ -215,13 +215,13 @@ une note dont le `{lignes="…"}` n'est pas écrit **littéralement** en tête (
 **Marqueur de doute** (posé par le `professeur-web`, consommé par le `verificateur-theorie`,
 absent de toute leçon `statut: publiee`) : `<!-- à-vérifier: <affirmation> — <raison du doute> -->`.
 
-### Encadrés — les six variantes, dont trois de provenance (décision tranchée le 2026-08-20, voie b)
+### Encadrés — les sept variantes, dont trois de provenance (décision tranchée le 2026-08-20, voie b)
 
-Le compilateur reconnaît **six** variantes d'encadré (`VARIANTES_ENCADRE`,
+Le compilateur reconnaît **sept** variantes d'encadré (`VARIANTES_ENCADRE`,
 `tools/content-pipeline/compiler-markdown.mjs`) : `attention`, `note`, `a-retenir`, `cours`,
-`complement`, `correction-du-cours`. Les trois dernières portent la distinction 📘/🧩/⚠️ de
-`.claude/rules/contenu-pedagogique.md` §6 — voir ce document pour le **sens** des marqueurs, ici
-seulement leur **syntaxe**.
+`complement`, `correction-du-cours`, `exercice-du-cours`. Les trois du milieu portent la
+distinction 📘/🧩/⚠️ de `.claude/rules/contenu-pedagogique.md` §6 — voir ce document pour le
+**sens** des marqueurs, ici seulement leur **syntaxe**.
 
 ```markdown
 ::: cours
@@ -235,11 +235,22 @@ Ajout KB, hors du cours.
 ::: correction-du-cours {source="OWASP Top 10 2021 — A02"}
 Le cours dit X ; en production, faire Y.
 :::
+
+::: exercice-du-cours {seance="2" ref="8"}
+La PISTE de résolution, jamais l'énoncé — celui-ci vient de `exercices.json`.
+:::
 ```
 
-- **`source` est le seul attribut admis**, **obligatoire et non vide**, et **uniquement** sur
-  `correction-du-cours` — une correction qui n'accuse pas le cours sur une citation vérifiable est
-  un défaut grave (`.claude/rules/contenu-pedagogique.md` §6).
+- **`source` est obligatoire et non vide** sur `correction-du-cours`, et **refusé partout
+  ailleurs** — une correction qui n'accuse pas le cours sur une citation vérifiable est un défaut
+  grave (`.claude/rules/contenu-pedagogique.md` §6).
+- **`ref` est obligatoire** sur `exercice-du-cours`, et **refusé partout ailleurs**. Il désigne une
+  entrée de `content/cours/<sujet>/exercices.json`, **seule** source des énoncés : un `ref` inconnu
+  fait échouer le build en se nommant, et le corps de l'encadré est la **piste**, éventuellement
+  vide. Contrat complet — registre, gate de complétude, libellé rendu :
+  [`ancrage-au-cours.md`](ancrage-au-cours.md) §6.
+- **`diapos` et `seance`** sont admis sur `cours`, `correction-du-cours` et `exercice-du-cours`
+  seulement ([`ancrage-au-cours.md`](ancrage-au-cours.md) §3).
 - **Aucun pictogramme ne s'écrit en Markdown source.** Le 📘/🧩/⚠️ est posé par le **rendu**, jamais
   tapé par l'auteur — un pictogramme littéral dans le corps d'une leçon est refusé par **G1**
   (il reste légal à l'intérieur d'un bloc de code d'exemple : une leçon peut citer un extrait qui le

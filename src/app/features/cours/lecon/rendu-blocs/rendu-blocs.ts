@@ -207,6 +207,19 @@ function clefDeRang(rangBloc: number, rangExemple: number): string {
  * laisserait l'apprenant deviner si c'est exigible. La phrase le dit, et elle le dit au lecteur
  * d'écran comme à l'imprimante, parce qu'elle est du TEXTE.
  */
+/**
+ * ✅ L'EXCLUSION D'`exercice-du-cours` EST LEVÉE (E3-ST21, lot B — 2026-08-25).
+ * Elle a tenu tant que ce composant ne savait pas afficher un énoncé : lui donner une étiquette
+ * plus tôt aurait peint un exercice du cours SANS son énoncé, exactement le trou silencieux que
+ * ce `Record` existe pour fermer. Le lot de rendu affiche désormais le titre et l'énoncé résolus
+ * (`bloc.exerciceDuCours`), donc l'exclusion — et le `exigerVarianteRendue` qui la portait à
+ * l'exécution — ont disparu : un garde-fou franchi qu'on laisserait en place deviendrait un
+ * mensonge sur ce que le composant refuse.
+ * 🔴 CE QUI RESTE, ET QUI EST L'ESSENTIEL : le `Record<VarianteEncadre, …>` est de nouveau
+ * EXHAUSTIF. Une HUITIÈME variante ajoutée au contrat casse `ng build` ici, ce qui est la raison
+ * d'être de ce type ; et `verifierVariante` refuse toujours, à l'exécution, un exercice arrivé
+ * sans son `exerciceDuCours` — le cas de l'artéfact compilé par une autre version du pipeline.
+ */
 const ETIQUETTES_ENCADRE: Record<VarianteEncadre, string> = {
   attention: 'Attention',
   note: 'Note',
@@ -214,6 +227,11 @@ const ETIQUETTES_ENCADRE: Record<VarianteEncadre, string> = {
   cours: 'Au programme du cours — matière d’examen',
   complement: 'Complément — hors du cours, pas exigible à l’examen',
   'correction-du-cours': 'Correction — le cours est inexact sur ce point',
+  // ⚠️ COURT, LÀ OÙ LES TROIS AUTRES SONT DES PHRASES — et c'est la spécification qui le veut
+  // (`docs/contenu/ancrage-au-cours.md` §6.5 : « 🧪 EXERCICE DU COURS · Séance 2 · n° 8 »).
+  // Le statut à l'examen n'a pas à être écrit ici : la suite de l'étiquette le dit mieux qu'un
+  // adjectif, en nommant la séance et le numéro que porte la feuille de l'enseignant.
+  'exercice-du-cours': 'Exercice du cours',
 };
 
 /**
@@ -241,6 +259,12 @@ const PICTOGRAMMES_ENCADRE: Record<VarianteEncadre, string | null> = {
   cours: '📘',
   complement: '🧩',
   'correction-du-cours': '⚠️',
+  // 🧪 ET NON UN QUATRIÈME 📘. L'exercice EST de la matière de cours — c'est pourquoi il en
+  // reprend la teinte —, mais le lecteur qui balaie la page cherche « où est-ce que je pratique »,
+  // pas « où est-ce que je lis ». Réemployer 📘 rendrait les deux indiscernables au coup d'œil,
+  // le seul canal où un pictogramme sert à quelque chose. Comme les trois autres, il est
+  // `aria-hidden` : le sens est dans le mot.
+  'exercice-du-cours': '🧪',
 };
 
 /** Les variantes d'encadré admises au rendu — liste NOMINATIVE, dérivée des étiquettes. */
@@ -590,7 +614,24 @@ interface TableDesRangs {
                 <span class="pictogramme" aria-hidden="true">{{ pictogramme }}</span>
               }
               <span class="mot">{{ etiquetteEncadre(bloc.variante) }}</span>
+              <!-- LE RENVOI AU COURS — « · Séance 2 · diapos 13, 17 », « · Séance 2 · n° 8 ».
+                   DANS SON PROPRE <span>, et non concaténé au mot : les specs de provenance
+                   épinglent le libellé exact de .mot, et un renvoi collé dedans ferait dire à
+                   l'étiquette autre chose que ce que la table déclare. C'est du TEXTE, donc lu
+                   et imprimé — jamais une pastille de couleur (WCAG 1.4.1). -->
+              @if (renvoiEncadre(bloc); as renvoi) {
+                <span class="renvoi">{{ renvoi }}</span>
+              }
             </p>
+            <!-- L'ÉNONCÉ VIENT DU REGISTRE, PAS DU MODULE (exercices.json, §6.1/§6.3) : le
+                 compilateur l'a résolu, l'auteur ne l'écrit jamais. C'est ce bloc-ci qui a levé
+                 l'exclusion de la variante — sans lui, un exercice du cours aurait été peint sans
+                 sa consigne, une page mutilée que rien n'aurait signalée. Le corps de l'encadré,
+                 rendu par la récursion ci-dessous, est la PISTE du module — éventuellement vide. -->
+            @if (bloc.variante === 'exercice-du-cours') {
+              <p class="exercice-titre">{{ bloc.exerciceDuCours.titre }}</p>
+              <p class="exercice-enonce">{{ bloc.exerciceDuCours.enonce }}</p>
+            }
             <!-- RÉCURSION : un encadré porte lui-même des blocs. L'enfant refait
                  sa propre validation, donc un type inconnu imbriqué lève aussi.
                  Le quiz DESCEND avec la récursion : une ancre écrite dans un
@@ -753,6 +794,50 @@ export class RenduBlocs {
   /** Le pictogramme décoratif d'un encadré, ou `null` pour les trois variantes de ton. */
   pictogrammeEncadre(variante: VarianteEncadre): string | null {
     return PICTOGRAMMES_ENCADRE[variante];
+  }
+
+  /**
+   * LA SUITE DE L'ÉTIQUETTE — « Séance 2 · diapos 13, 17 », « Séance 2 · n° 8 » — ou `null`.
+   *
+   * 🔴 C'EST DU TEXTE, ET C'EST TOUT LE POINT (`docs/contenu/ancrage-au-cours.md` §5 et §6.5).
+   * Un renvoi au cours décide de ce qu'un étudiant va relire : le porter par une pastille de
+   * couleur ou par une icône le perdrait au lecteur d'écran, à l'impression et en police de
+   * repli. Il est donc interpolé dans un nœud texte, à côté du mot, dans la même `<p>`.
+   *
+   * ⚠️ UNE SEULE PLACE OÙ CETTE PHRASE SE COMPOSE, pour les DEUX sources qui l'alimentent —
+   * `renvoiCours` (déjà déplié par le compilateur) et `exerciceDuCours` (dont le `libelle` est
+   * déjà choisi au build, §6.1). On ne reparse aucune plage et on ne rejoue aucune règle de
+   * libellé ici : une seconde implémentation finirait par en dire autre chose.
+   *
+   * LA SÉANCE N'EST ÉCRITE QU'UNE FOIS. Un exercice peut renvoyer à une diapositive d'une AUTRE
+   * séance que la sienne (§3) ; quand les deux coïncident — le cas normal — répéter « Séance 2 »
+   * ferait lire deux fois la même information.
+   */
+  renvoiEncadre(bloc: Extract<BlocContenu, { type: 'encadre' }>): string | null {
+    const morceaux: string[] = [];
+    const exercice = bloc.variante === 'exercice-du-cours' ? bloc.exerciceDuCours : undefined;
+    const renvoi = bloc.renvoiCours;
+
+    if (exercice !== undefined) {
+      morceaux.push(`Séance${INSECABLE}${exercice.seance}`, exercice.libelle);
+    }
+    if (renvoi !== undefined) {
+      if (exercice === undefined || renvoi.seance !== exercice.seance) {
+        morceaux.push(`Séance${INSECABLE}${renvoi.seance}`);
+      }
+      // Le singulier n'est pas une coquetterie : « diapos 13 » ferait douter le lecteur qu'il
+      // manque un numéro. Les plages arrivent DÉPLIÉES, donc la longueur suffit à trancher.
+      if (renvoi.diapos.length === 1) {
+        morceaux.push(`diapo${INSECABLE}${renvoi.diapos[0]}`);
+      } else if (renvoi.diapos.length > 1) {
+        morceaux.push(`diapos${INSECABLE}${renvoi.diapos.join(', ')}`);
+      }
+    }
+
+    // L'espace INSÉCABLE d'ouverture n'est pas décorative. `preserveWhitespaces: false` retire le
+    // nœud blanc entre deux `<span>` (L-024) : sans elle, le nom calculé recollerait « …examen· »
+    // en un seul mot pour la synthèse vocale, alors que le `gap` du flex, lui, ne se lit pas.
+    return morceaux.length === 0 ? null : `${INSECABLE}· ${morceaux.join(' · ')}`;
   }
 
   /**
@@ -977,7 +1062,38 @@ export class RenduBlocs {
       );
     }
 
-    const source = bloc.source;
+    // Le rétrécissement passe par `variante`, et non par un accès direct : depuis E3-ST21, l'union
+    // des encadrés compte un membre (`exercice-du-cours`) qui ne porte PAS de `source` — le
+    // contrat le lui refuse. Comparer d'abord, lire ensuite, c'est ce que la sécurité de type
+    // demande, et c'est aussi ce que la règle dit en français : seule la correction a une source.
+    // 🔴 LE PENDANT À L'EXÉCUTION DE L'EXCLUSION LEVÉE PAR CE LOT (E3-ST21, lot B). Ce qui
+    // justifiait de refuser `exercice-du-cours` en bloc n'était pas la variante : c'était le
+    // risque de peindre un exercice SANS sa consigne. Le rendu affiche désormais le titre et
+    // l'énoncé — reste le seul cas où ils pourraient manquer, celui d'un `lecons/<slug>.json`
+    // compilé par une AUTRE version du pipeline, où le TYPE ment par construction (même raison
+    // que les `Array.isArray` de `verifierPortees`). On le refuse ici, en se nommant, plutôt que
+    // d'interpoler « undefined » sous une étiquette « Exercice du cours ».
+    if (bloc.variante === 'exercice-du-cours') {
+      const exercice: unknown = bloc.exerciceDuCours;
+      if (
+        typeof exercice !== 'object' ||
+        exercice === null ||
+        typeof (exercice as { titre?: unknown }).titre !== 'string' ||
+        typeof (exercice as { enonce?: unknown }).enonce !== 'string' ||
+        typeof (exercice as { libelle?: unknown }).libelle !== 'string' ||
+        typeof (exercice as { seance?: unknown }).seance !== 'number'
+      ) {
+        throw new Error(
+          `RenduBlocs : exercice du cours sans énoncé résolu (bloc n°${rang + 1}). ` +
+            '`exerciceDuCours` (`seance`, `libelle`, `titre`, `enonce`) est résolu au build ' +
+            'depuis `content/cours/<sujet>/exercices.json` — un encadré qui arrive sans lui vient ' +
+            "d'un artéfact compilé par une autre version du pipeline. Un exercice peint sans sa " +
+            'consigne serait une page mutilée : reconstruire `content:build`.',
+        );
+      }
+    }
+
+    const source = bloc.variante === VARIANTE_SOURCEE ? bloc.source : undefined;
     if (variante === VARIANTE_SOURCEE && (typeof source !== 'string' || source.trim() === '')) {
       throw new Error(
         `RenduBlocs : correction du cours sans source (bloc n°${rang + 1}). ` +

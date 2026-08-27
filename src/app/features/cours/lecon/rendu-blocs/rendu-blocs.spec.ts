@@ -179,6 +179,31 @@ const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
 };
 
 /**
+ * L'ENCADRÉ D'EXERCICE DU COURS (E3-ST21, lot B) — la 7ᵉ variante, restée non rendue jusqu'ici.
+ *
+ * ⚠️ IL N'EST PAS DANS `FIXTURES` À DESSEIN. `FIXTURES` est indexé par `type` et sert de table
+ * d'exhaustivité au `@switch` : y glisser un second `encadre` ferait de la clef une demi-vérité.
+ *
+ * `exerciceDuCours` est RÉSOLU AU BUILD depuis `content/cours/<sujet>/exercices.json` — le module
+ * n'écrit qu'un `{ref="8"}`. `libelle` (« n° 8 ») est calculé là-bas et NULLE PART AILLEURS :
+ * cette fixture le recopie tel que le compilateur l'émet
+ * (`compiler-markdown.mjs`, `` `n° ${reference}` ``), elle ne le rejoue pas.
+ * La PISTE est vide ici, ce qui est le cas légal du §6.2 : certains exercices se passent d'indice.
+ */
+const EXERCICE_DU_COURS: Extract<BlocContenu, { variante: 'exercice-du-cours' }> = {
+  type: 'encadre',
+  variante: 'exercice-du-cours',
+  exerciceDuCours: {
+    seance: 2,
+    reference: '8',
+    libelle: 'n° 8',
+    titre: 'Déplacer un fichier dans un répertoire',
+    enonce: 'Déplace « exercice4.txt » dans le répertoire « exercice3 ».',
+  },
+  blocs: [],
+};
+
+/**
  * 🔴 LE CAS QUE `FIXTURES.comparaison` NE COUVRE PAS : deux paires du MÊME langage.
  *
  * Le nom accessible d'un défileur était `Code`/`Exemple vulnérable`/`Correctif` suivi du seul
@@ -715,6 +740,7 @@ describe('RenduBlocs', () => {
           { type: 'encadre', variante: 'cours', blocs: [] },
           { type: 'encadre', variante: 'complement', blocs: [] },
           { type: 'encadre', variante: 'correction-du-cours', source: 'X', blocs: [] },
+          EXERCICE_DU_COURS,
           { type: 'encadre', variante: 'attention', blocs: [] },
           { type: 'encadre', variante: 'note', blocs: [] },
           { type: 'encadre', variante: 'a-retenir', blocs: [] },
@@ -740,6 +766,9 @@ describe('RenduBlocs', () => {
             { type: 'encadre', variante: 'correction-du-cours', source: 'X', blocs: [] },
             '⚠️',
           ],
+          // 🧪 ET NON UN QUATRIÈME 📘 : l'exercice partage la TEINTE de `cours` — c'est de la
+          // matière de cours —, donc le pictogramme est ce qui les sépare au coup d'œil.
+          [EXERCICE_DU_COURS, '🧪'],
           // ⚠️ RÉSERVÉ. `attention` prendrait naturellement ⚠️ — le lui donner
           // diluerait le seul marqueur qui dise « le cours se trompe ».
           [{ type: 'encadre', variante: 'attention', blocs: [] }, null],
@@ -799,7 +828,7 @@ describe('RenduBlocs', () => {
         await expect(rendre([sourceBlanche])).rejects.toThrowError(/sans source/);
       });
 
-      it('🔴 distingue les six variantes SANS la couleur — six signatures de trait', () => {
+      it('🔴 distingue les sept variantes SANS la couleur — sept signatures de trait', () => {
         // WCAG 1.4.1 en `forced-colors: active` : les couleurs se replient toutes sur
         // `CanvasText`, donc seuls la FORME du cadre et le STYLE du trait subsistent
         // côté CSS. Les trois styles de gauche étaient épuisés par les variantes de
@@ -823,6 +852,12 @@ describe('RenduBlocs', () => {
         // Cadre COMPLET pour les deux variantes « du cours » : `border:` sans suffixe.
         expect(signature('cours')).toMatch(/border:[^;]*solid/);
         expect(signature('correction-du-cours')).toMatch(/border:[^;]*double/);
+        // 🧪 E3-ST21. La variante réemploie la TEINTE de `cours` — donc le seul canal qui reste
+        // en `forced-colors: active` est le trait, et il doit être à elle : cadre COMPLET en
+        // POINTILLÉ, le dernier style libre en cadre fermé (`attention` ne l'a qu'en montant de
+        // gauche). Sans ce trait propre, un exercice et un exposé du cours seraient le même objet
+        // graphique pour qui lit en contraste forcé.
+        expect(signature('exercice-du-cours')).toMatch(/border:[^;]*dotted/);
         // 🔴 `complement` EST UN CADRE COMPLET EN TIRETS DEPUIS E6, plus un filet de
         // gauche : la bascule a déprécié `marge-carnet` au profit de `cartouche`, dont
         // la règle est qu'un bloc se borne sur ses QUATRE côtés (G7-a). Ce test épinglait
@@ -851,6 +886,7 @@ describe('RenduBlocs', () => {
         // reforce son trait elle-même.
         expect(signature('cours')).toContain('CanvasText');
         expect(signature('correction-du-cours')).toContain('CanvasText');
+        expect(signature('exercice-du-cours')).toContain('CanvasText');
 
         // 🔴 ET LES SIX DIFFÈRENT DEUX À DEUX, COULEUR RETIRÉE. Les six assertions
         // ci-dessus, prises isolément, resteraient TOUTES vertes si deux variantes
@@ -867,6 +903,7 @@ describe('RenduBlocs', () => {
           'cours',
           'complement',
           'correction-du-cours',
+          'exercice-du-cours',
           'attention',
           'note',
           'a-retenir',
@@ -890,6 +927,183 @@ describe('RenduBlocs', () => {
         // Elle est LUE, en entier — l'échappement ne doit rien tronquer.
         expect(rendu.querySelector('.source')?.textContent).toContain(charge);
         // Et elle n'est pas ANALYSÉE : zéro élément né de la charge utile.
+        expect(rendu.querySelectorAll('img, script').length).toBe(0);
+      });
+    });
+
+    // ─── RENVOI AU COURS (E3-ST21, lot B) ─────────────────────────────────────
+    // 🔴 CE QUE CETTE SECTION EXISTE POUR TENIR. Un renvoi de diapositives décide de ce qu'un
+    // étudiant va relire avant l'examen. S'il est faux, il l'envoie réviser la mauvaise page ;
+    // s'il n'est pas du TEXTE, il disparaît au lecteur d'écran et à l'impression. Les plages
+    // arrivent DÉPLIÉES du compilateur (`{diapos="45-50"}` → `[45, …, 50]`) : ces tests vérifient
+    // qu'on AFFICHE, et qu'on ne reparse rien.
+    describe('renvoi au cours — « · Séance 2 · diapos 13, 17 », en toutes lettres', () => {
+      it('écrit la séance et les diapositives à côté du mot, sans les coller à lui', async () => {
+        const rendu = await rendre([
+          { type: 'encadre', variante: 'cours', renvoiCours: { seance: 2, diapos: [13, 17] }, blocs: [] },
+        ]);
+        const etiquette = rendu.querySelector('.encadre > .etiquette');
+
+        // Le mot ne bouge pas : les specs de provenance ci-dessus l'épinglent, et un renvoi
+        // concaténé dedans ferait dire à l'étiquette autre chose que ce que la table déclare.
+        expect(etiquette?.querySelector('.mot')?.textContent?.trim()).toBe(
+          'Au programme du cours — matière d’examen',
+        );
+        expect(etiquette?.querySelector('.renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A02 · diapos\u00A013, 17',
+        );
+        // 🔴 L-024. `preserveWhitespaces: false` retire le nœud blanc entre deux `<span>` : sans
+        // une blanche DANS la valeur, le nom calculé recollerait « …examen· » en un seul mot pour
+        // la synthèse vocale, alors que le `gap` du flex, lui, ne se lit pas. Le `gap` CSS ne
+        // peut donc pas tenir cette assertion à sa place.
+        expect(etiquette?.textContent).toMatch(/examen\s·\sSéance/u);
+      });
+
+      it('dit « diapo » au singulier — « diapos 13 » ferait croire à un numéro perdu', async () => {
+        const rendu = await rendre([
+          { type: 'encadre', variante: 'cours', renvoiCours: { seance: 3, diapos: [13] }, blocs: [] },
+        ]);
+        expect(rendu.querySelector('.renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A03 · diapo\u00A013',
+        );
+      });
+
+      it('n’écrit QUE la séance quand l’encadré ne cite aucune diapositive', async () => {
+        // Cas légal du contrat : `diapos` peut être vide quand l'encadré ne déclare qu'une
+        // `seance`. Une étiquette qui finirait par « · diapos » sans numéro serait un renvoi mort.
+        const rendu = await rendre([
+          { type: 'encadre', variante: 'cours', renvoiCours: { seance: 4, diapos: [] }, blocs: [] },
+        ]);
+        expect(rendu.querySelector('.renvoi')?.textContent?.trim()).toBe('· Séance\u00A04');
+      });
+
+      it('ne pose AUCUN renvoi quand l’encadré n’en porte pas', async () => {
+        // Le contrat n'oblige personne à renseigner des diapositives (§5). Un `<span>` vide, ou
+        // un « · » orphelin, se lirait à la synthèse vocale sans rien dire.
+        const rendu = await rendre([{ type: 'encadre', variante: 'cours', blocs: [] }]);
+        expect(rendu.querySelector('.renvoi')).toBeNull();
+      });
+
+      it('le porte aussi sur « correction-du-cours » — la 2ᵉ variante qui l’admet', async () => {
+        const rendu = await rendre([
+          {
+            type: 'encadre',
+            variante: 'correction-du-cours',
+            source: 'NIST SP 800-63B rév. 4, §3.1.1',
+            renvoiCours: { seance: 5, diapos: [92] },
+            blocs: [],
+          },
+        ]);
+        expect(rendu.querySelector('.renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A05 · diapo\u00A092',
+        );
+      });
+    });
+
+    // ─── EXERCICE DU COURS (E3-ST21, lot B) ───────────────────────────────────
+    // 🔴 L'EXCLUSION QUE CE LOT A LEVÉE. Jusqu'ici `exercice-du-cours` n'avait ni étiquette ni
+    // pictogramme et `exigerVarianteRendue` LEVAIT : c'était un choix *fail-closed*, parce que
+    // l'alternative était de peindre un exercice SANS son énoncé dans une leçon publiée. Ce qui
+    // remplace le garde-fou n'est pas une promesse, ce sont ces tests — plus le refus, à
+    // l'exécution, d'un encadré arrivé sans son `exerciceDuCours` résolu.
+    describe('exercice du cours — l’énoncé vient du registre, la piste vient du module', () => {
+      it('étiquette, titre, énoncé — dans cet ordre, et tous en TEXTE', async () => {
+        const rendu = await rendre([EXERCICE_DU_COURS]);
+        const aside = rendu.querySelector('aside.encadre');
+
+        expect(aside?.getAttribute('data-variante')).toBe('exercice-du-cours');
+        expect(aside?.querySelector('.etiquette .mot')?.textContent?.trim()).toBe(
+          'Exercice du cours',
+        );
+        expect(aside?.querySelector('.etiquette .renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A02 · n° 8',
+        );
+        expect(aside?.querySelector('.exercice-titre')?.textContent?.trim()).toBe(
+          'Déplacer un fichier dans un répertoire',
+        );
+        expect(aside?.querySelector('.exercice-enonce')?.textContent?.trim()).toBe(
+          'Déplace « exercice4.txt » dans le répertoire « exercice3 ».',
+        );
+
+        // L'ORDRE EST L'INFORMATION (§6.5) : on lit la consigne, PUIS l'indice. Un énoncé posé
+        // après la piste ferait lire la réponse avant la question.
+        const ordre = [...(aside?.children ?? [])].map((noeud) => noeud.className || noeud.tagName);
+        expect(ordre.slice(0, 3)).toEqual(['etiquette', 'exercice-titre', 'exercice-enonce']);
+      });
+
+      it('rend une piste vide SANS rien casser — c’est le cas légal du §6.2', async () => {
+        // `blocs: []` : certains exercices se passent d'indice. L'encadré doit sortir complet,
+        // avec sa consigne, et sans nœud de piste orphelin.
+        const rendu = await rendre([EXERCICE_DU_COURS]);
+        expect(rendu.querySelector('.encadre .prose')).toBeNull();
+        expect(rendu.querySelector('.exercice-enonce')?.textContent).toContain('exercice4.txt');
+      });
+
+      it('rend la piste APRÈS l’énoncé quand le module en donne une', async () => {
+        const rendu = await rendre([
+          {
+            ...EXERCICE_DU_COURS,
+            blocs: [{ type: 'prose', html: '<p>`mv` prend la source puis la destination.</p>' }],
+          },
+        ]);
+        const aside = rendu.querySelector('aside.encadre');
+
+        expect(aside?.querySelector('.prose')?.textContent).toContain('prend la source');
+        // La piste est le DERNIER enfant : la récursion vient après la consigne du registre.
+        const classes = [...(aside?.children ?? [])].map((n) => n.className || n.tagName);
+        expect(classes.indexOf('exercice-enonce')).toBeLessThan(classes.length - 1);
+      });
+
+      it('n’écrit la séance QU’UNE FOIS quand le renvoi cite la sienne', async () => {
+        const rendu = await rendre([
+          { ...EXERCICE_DU_COURS, renvoiCours: { seance: 2, diapos: [13] } },
+        ]);
+        expect(rendu.querySelector('.renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A02 · n° 8 · diapo\u00A013',
+        );
+      });
+
+      it('écrit les DEUX séances quand le renvoi cite une AUTRE séance', async () => {
+        // Le contrat l'autorise (§3) : un module peut citer la diapositive d'une autre séance.
+        // Taire la seconde enverrait l'étudiant chercher la diapositive 45 dans la mauvaise
+        // présentation — un renvoi faux en silence, exactement ce que le §3 refuse.
+        const rendu = await rendre([
+          { ...EXERCICE_DU_COURS, renvoiCours: { seance: 5, diapos: [45, 46] } },
+        ]);
+        expect(rendu.querySelector('.renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A02 · n° 8 · Séance\u00A05 · diapos\u00A045, 46',
+        );
+      });
+
+      it('🔴 REFUSE un exercice sans énoncé résolu — jamais une consigne « undefined »', async () => {
+        // Le seul cas réaliste est un `lecons/<slug>.json` compilé par une AUTRE version du
+        // pipeline, où le TYPE ment par construction. C'est ce risque-là — et lui seul — qui
+        // justifiait l'exclusion levée par ce lot ; le retirer sans le remplacer aurait rendu
+        // possible ce que l'exclusion existait pour empêcher.
+        const ampute = {
+          type: 'encadre',
+          variante: 'exercice-du-cours',
+          blocs: [],
+        } as unknown as BlocContenu;
+        await expect(rendre([FIXTURES.prose, ampute])).rejects.toThrowError(/sans énoncé résolu/);
+        await expect(rendre([FIXTURES.prose, ampute])).rejects.toThrowError(/n°2/);
+      });
+
+      it('🔴 AFFICHE un titre et un énoncé hostiles sans en faire naître un seul nœud', async () => {
+        // S-011, patron « à deux mains », appliqué aux DEUX champs de texte libre que ce lot
+        // ajoute au DOM. Ce qui tient l'invariant est qu'ils sont INTERPOLÉS dans des nœuds
+        // texte, jamais posés en valeur d'attribut ni en `[innerHTML]`. Vérifier une seule des
+        // deux moitiés certifierait un assainissement dont l'autre moitié est un no-op.
+        const charge = '"><img src=x onerror=alert(1)><script>alert(1)</script>';
+        const rendu = await rendre([
+          {
+            ...EXERCICE_DU_COURS,
+            exerciceDuCours: { ...EXERCICE_DU_COURS.exerciceDuCours, titre: charge, enonce: charge },
+          },
+        ]);
+
+        expect(rendu.querySelector('.exercice-titre')?.textContent).toContain(charge);
+        expect(rendu.querySelector('.exercice-enonce')?.textContent).toContain(charge);
         expect(rendu.querySelectorAll('img, script').length).toBe(0);
       });
     });
