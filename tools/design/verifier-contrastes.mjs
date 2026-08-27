@@ -827,12 +827,62 @@ for (const theme of THEMES_ATTENDUS) {
 // pour une raison qui n'a rien à voir avec le design system. Le rapport dit où elles
 // vivent ; la console les affiche ; un échec sort en code 1 comme n'importe quelle paire.
 
-/** Liste blanche NOMINATIVE des propriétés qu'une classe `.clr-…` a le droit de porter. */
-const PROPRIETES_COLORATION = new Set([
+// LISTE BLANCHE NOMINATIVE des propriétés qu'une classe `.clr-…` a le droit de porter.
+//
+// ⚠ ELLE EST DÉRIVÉE DE LA SOURCE DE SHIKI, PAS DE CE QUE LA FEUILLE CONTIENT AUJOURD'HUI.
+// `getTokenStyleObject` (@shikijs/core) n'émet que cinq propriétés — `color`,
+// `background-color`, `font-style`, `font-weight`, `text-decoration` — et `varKey` les
+// préfixe par variante de thème : `--shiki-{light|dark}` pour la couleur, `…-bg` pour le
+// fond, `…-{propriété}` pour les trois autres. L'ensemble est donc CLOS À DIX NOMS, et
+// c'est cette clôture-là qui est recopiée ici.
+//
+// POURQUOI PAS SEULEMENT LES NOMS OBSERVÉS. Une liste bâtie sur la feuille du jour rougit
+// à chaque leçon qui fait naître une PORTÉE neuve — c'est arrivé le 2026-08-27 : un `S`
+// dans une expression régulière PHP de la séance 4 a fait apparaître
+// `--shiki-{light,dark}-font-weight: bold`, et la CI a rougi À LA PUBLICATION,
+// c'est-à-dire au pire moment. Fermer la liste sur le CONTRAT DE L'OUTIL, et non sur le
+// corpus, est le seul état où la prochaine grammaire ne coûte rien.
+//
+// ⚠ AUCUNE des trois propriétés de style n'abaisse le seuil de contraste exigé. Le
+// « grand texte » de WCAG 2.2 commence à 18 pt, ou 14 pt EN GRAS (≈ 24 px / 18,66 px) ;
+// un bloc de code est peint bien en deçà. `SEUIL_COLORATION` reste donc `texte-normal`
+// même pour une encre grasse — le choix conservateur, et le seul défendable ici.
+
+/** Les propriétés PORTEUSES DE COULEUR — les seules que ce gate résout et mesure. */
+const PROPRIETES_COULEUR_COLORATION = new Set([
   '--shiki-light',
   '--shiki-dark',
   '--shiki-light-bg',
   '--shiki-dark-bg',
+]);
+
+/**
+ * Les propriétés de STYLE — admises nominativement, et délibérément NON mesurées.
+ * Leur VALEUR est tout de même contrainte : une liste blanche qui ne contraint que le NOM
+ * laisse libre tout ce que la grammaire de la valeur admet (famille **S-020**). `inherit`
+ * est la valeur que Shiki écrit pour la variante de thème qui ne porte PAS le style
+ * (`cur[key] || 'inherit'`) : elle est normale, et non le signe d'un format changé.
+ * @type {Map<string, Set<string>>}
+ */
+const PROPRIETES_STYLE_COLORATION = new Map([
+  ['--shiki-light-font-style', new Set(['italic', 'inherit'])],
+  ['--shiki-dark-font-style', new Set(['italic', 'inherit'])],
+  ['--shiki-light-font-weight', new Set(['bold', 'inherit'])],
+  ['--shiki-dark-font-weight', new Set(['bold', 'inherit'])],
+  [
+    '--shiki-light-text-decoration',
+    new Set(['underline', 'line-through', 'underline line-through', 'inherit']),
+  ],
+  [
+    '--shiki-dark-text-decoration',
+    new Set(['underline', 'line-through', 'underline line-through', 'inherit']),
+  ],
+]);
+
+/** Tous les noms admis, toutes catégories confondues — sert au contrôle et au message. */
+const PROPRIETES_COLORATION = new Set([
+  ...PROPRIETES_COULEUR_COLORATION,
+  ...PROPRIETES_STYLE_COLORATION.keys(),
 ]);
 
 /** L'encre servie À L'ÉCRAN : la feuille générée l'applique sans condition depuis E6. */
@@ -973,6 +1023,20 @@ if (sourceColoration === null) {
               `liste blanche (${[...PROPRIETES_COLORATION].join(', ')}) — le format de la feuille ` +
               `générée a changé, et ce gate ne mesure donc plus ce qu'il croit mesurer.`,
           );
+          continue;
+        }
+        // Propriété de STYLE : admise, non mesurée — mais sa VALEUR est contrainte (S-020).
+        // Une valeur inattendue ici ne menace pas le contraste ; elle prouve que la feuille
+        // générée n'a plus la forme que ce gate suppose, et c'est CELA qu'il faut dire.
+        const valeursAdmises = PROPRIETES_STYLE_COLORATION.get(propriete);
+        if (valeursAdmises !== undefined) {
+          if (!valeursAdmises.has(valeur.trim())) {
+            erreur(
+              `coloration syntaxique [${bloc.selecteur}] : « ${propriete}: ${valeur} » — valeur ` +
+                `hors de la liste blanche (${[...valeursAdmises].join(', ')}). Shiki n'émet pas ` +
+                `cette valeur-là : le format de la feuille générée a changé.`,
+            );
+          }
           continue;
         }
         if (propriete !== ENCRE_COLORATION) continue;
