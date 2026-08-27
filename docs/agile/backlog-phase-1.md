@@ -3543,6 +3543,88 @@ gate**, comme pour `npm run lecons:index` avec les `mentor`.
 
 ---
 
+### ✅ CLÔTURE — Mise en ligne réelle des séances 3 et 4, et le défaut de G-contraste (2026-08-27)
+
+> **Signalé par le propriétaire** : « je ne vois pas les modules 1 à 4 sur le site déployé, je vois
+> seulement les 2 premières ». Le constat était exact, et sa cause n'était ni le contenu ni le build.
+
+🔴 **UNE PR FUSIONNÉE NE PROUVE PAS QUE LA BRANCHE EST VIDE — défaut neuf, et il est silencieux.**
+La PR #40 a été fusionnée le 2026-08-27 à 00 h 36, portant la branche `feat/realignement-cours-2026`
+jusqu'au commit de la **séance 2** (`37941b9`). Les **trois commits suivants** — séance 3
+(`0d6f8dc`), séance 4 (`acc54f9`), capitalisation des leçons (`129cb72`) — ont été poussés **sur la
+même branche après la fusion**, et y sont restés. Rien ne rougissait : les deux leçons portaient
+`statut: publiee`, tous les gates locaux étaient verts, la CI de la branche était verte, et le nom
+de la branche figurait dans la liste des PR **fusionnées**. Mesuré en ligne, pas déduit :
+`/cours/securite-web/communication-serveur/` et `/cours/securite-web/automatisation-surveillance/`
+répondaient **404** pendant que `fondamentaux` et `environnement-linux` répondaient 200.
+⚠️ **Le geste, désormais obligatoire à la clôture de tout lot :**
+`git log --oneline origin/main..<branche>` — un journal **vide** est la seule preuve qu'un lot est
+livré. « La PR est fusionnée » n'en est pas une : elle ne dit rien de ce qui a été poussé APRÈS.
+Corollaire : quand un lot suivant continue sur la **même branche** qu'un lot déjà fusionné, ouvrir la
+PR suivante **avant** d'écrire le premier commit, pour que la branche ne reste jamais dans l'état
+« fusionnée ET en avance ».
+
+🔴 **G-CONTRASTE EST UN GATE DE CONTENU DÉGUISÉ EN GATE DE DESIGN — leçon L-080.** La CI de la PR #41
+a rougi sur `G-contraste`, sur une PR qui ne touchait pourtant aucune ligne de code de design. Cause :
+`src/styles/_coloration-syntaxique-generee.scss` est **généré par `content:build`** et n'émet que les
+classes que le contenu publié fait réellement naître. Le `\S` d'une expression régulière PHP de la
+leçon de la séance 4 a fait naître une portée que github-dark peint en **vert gras** : Shiki a émis
+pour la première fois `--shiki-{light,dark}-font-weight: bold`, deux propriétés absentes de la liste
+blanche nominative du gate. **Le contraste n'était jamais en cause** — l'encre grasse `#85E89D` sort
+à 5,65:1, très au-dessus du seuil.
+
+**Le correctif ferme la liste sur le CONTRAT de l'outil, plus sur le corpus.** La source de Shiki a
+été lue (`node_modules/@shikijs/core/dist/index.mjs`) : `getTokenStyleObject` n'émet que cinq
+propriétés — `color`, `background-color`, `font-style`, `font-weight`, `text-decoration` — et
+`varKey` les préfixe par variante de thème. L'ensemble est **clos à dix noms**, et c'est cette
+clôture-là qui est désormais recopiée : la prochaine grammaire ne coûtera rien. Les six propriétés de
+**style** sont admises et délibérément non mesurées (aucune n'abaisse le seuil exigé : le « grand
+texte » de WCAG 2.2 commence à 18 pt, ou 14 pt en gras, bien au-delà d'un bloc de code), mais leur
+**valeur** est contrainte — famille **S-020**, une liste blanche qui ne contraint que le NOM laisse
+libre toute valeur. `inherit` y est admise : c'est ce que Shiki écrit pour la variante de thème qui
+ne porte pas le style. **Deux contrôles positifs exécutés** : propriété inconnue → rouge en se
+nommant ; valeur inattendue → rouge en se nommant.
+
+✅ **NETTOYAGE DES BRANCHES.** 16 branches distantes et 25 branches locales supprimées, toutes
+**prouvées fusionnées** dans `origin/main` (`git branch --merged`) — dont trois `worktree-agent-…`
+laissées par d'anciennes exécutions en isolation. Il ne reste que `main` et la branche active.
+
+---
+
+### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — à trancher à la prochaine séance (2026-08-27)
+
+**N-1 · La séance 5 n'est PAS dans la portée de l'Examen 1, et ça change l'urgence.** Mesuré dans
+`content/cours/securite-web/horaire.json` : l'Examen 1 est à la **séance 6, le 2026-09-11**, et sa
+`portee` est **[1, 2, 3, 4]**. Les quatre leçons évaluées sont donc **toutes en ligne**. La séance 5
+(`05-utilisateurs-permissions`, enseignée le 2026-09-04) est bien antérieure à l'examen mais n'y est
+**pas évaluée** — elle n'apparaît qu'à la portée de l'**Examen final** (séance 13). E3-ST17 reste le
+geste suivant du plan, mais il n'est plus sur le chemin critique de l'examen : **le propriétaire peut
+choisir** de le garder, ou d'insérer d'abord un lot de dette (voir N-3).
+
+**N-2 · La séance 1 ne porte AUCUN exercice au registre.** `content/cours/securite-web/exercices.json`
+ne décrit que les séances **2 (13 exercices), 3 (5) et 4 (7)** — 25 au total. Est-ce fidèle au cours
+(une séance d'introduction sans exercice) ou un trou de la passe de collecte ? À vérifier sur le site
+de l'enseignant, qui fait foi. Tant que ce n'est pas tranché, le registre affirme par son silence
+quelque chose que personne n'a mesuré.
+
+**N-3 · Le banc du contrat n'exerce aucune propriété de STYLE.**
+`src/coloration-encres-contraste.spec.ts` et son banc `tools/content-pipeline/__fixtures__/langages-web/`
+existent précisément pour mesurer « ce que le contrat autorise » plutôt que « ce que le corpus
+contient » — mais ils ne couvrent que les **encres**. Aucun jeton **gras** ni **italique** n'y naît,
+donc le contrôle de valeur neuf des six propriétés de style **n'est exercé par aucun test versionné** :
+il n'a été prouvé que par deux contrôles positifs manuels, le 2026-08-27. Refermer ce trou est un
+petit lot (ajouter au banc une construction qui produit du gras — une expression régulière suffit), et
+il se justifie exactement par l'argument que l'en-tête de ce spec écrit déjà pour les encres.
+
+**N-4 · `10-controle-acces` franchit le seuil d'avertissement de poids.** 312,3 Ko de JSON brut pour
+**73,0 Ko servis**, contre un avertissement à 300 Ko et un échec à 450 Ko. Le seuil porte sur le brut
+— or la décision du 2026-08-24 a établi que le brut **surestime le transfert d'un facteur ~4**, et le
+propriétaire avait alors tranché « densité légitime, on ne scinde aucun module ». La question à
+trancher n'est donc pas « faut-il scinder » mais **« le seuil doit-il porter sur le servi plutôt que
+sur le brut »** — la colonne existe déjà dans le journal.
+
+---
+
 ## E4 · Qualité & mise en ligne
 
 | ID | Objectif | Statut |

@@ -92,7 +92,8 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-076 | 2171–2196 | Un coin de tableau comparatif laissé vide est le défaut que la bascule `verifiee` → `publiee` révèle, TROIS FOIS SUR TROIS |
 | L-077 | 2197–2229 | Intervertir « chemin principal » et « variante » dans un document laisse la PROSE EN AVAL décrire l'ancien chemin, sans qu'aucun diff ne la signale |
 | L-078 | 2230–2253 | La partie « CONTRAT » d'un livrable découpé entre plusieurs agents n'appartient à aucune moitié — elle disparaît si personne ne la recopie |
-| L-079 | 2254–2279 | Une vérification en ligne qui CONFIRME l'hypothèse de départ doit être relancée verbatim avant d'être crue |
+| L-079 | 2254–2277 | Une vérification en ligne qui CONFIRME l'hypothèse de départ doit être relancée verbatim avant d'être crue |
+| L-080 | 2278–2311 | Une liste blanche fermée sur le CORPUS a une date de péremption ; fermée sur le CONTRAT de l'outil, elle n'en a pas |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -126,4 +127,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-023 | 961–1001 | Retirer une permission CSP nominative devenue sans besoin est un DURCISSEMENT — à condition que le garde-fou qui la comptait reste capable de rougir (A05 · patron réussi, à réemployer) |
 | S-024 | 1002–1035 | Fermer une leçon de sécurité exige de mesurer le RÉSIDU sur l'artéfact du lot, jamais de le raisonner de mémoire — le mécanisme et l'état du produit sont deux régimes de preuve distincts (A05 · discipline de clôture) |
 
-_104 entrées indexées._
+_105 entrées indexées._

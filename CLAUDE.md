@@ -71,6 +71,28 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > G-test **949/43**, G-axe **12 pages / 1032 vérifications / 0 violation**, G-build **12 routes · 14
 > hachages de style / 0 de script**, G-e2e **50 passés / 1 sauté**, `npm audit --omit=dev` **0**.
 >
+> 🔴 **UNE PR FUSIONNÉE NE PROUVE PAS QUE LA BRANCHE EST VIDE — payé en PRODUCTION le 2026-08-27.**
+> La PR #40 a emporté `feat/realignement-cours-2026` jusqu'à la **séance 2** ; les trois commits
+> suivants (séances 3 et 4) sont restés dessus. Le site a servi **404** sur deux leçons `publiee`
+> pendant que tous les gates étaient verts et que la branche figurait parmi les PR **fusionnées** :
+> rien ne pouvait rougir. ⚠️ **`git log --oneline origin/main..<branche>` fait foi à la clôture d'un
+> lot** — un journal **vide** est la seule preuve de livraison. Quand un lot continue sur une branche
+> déjà fusionnée, ouvrir la PR suivante **avant** le premier commit.
+>
+> 🔴 **G-CONTRASTE EST UN GATE DE CONTENU DÉGUISÉ EN GATE DE DESIGN — L-080.**
+> `src/styles/_coloration-syntaxique-generee.scss` est **généré par `content:build`** : une
+> construction syntaxique inédite dans une leçon y fait naître des classes, donc des propriétés,
+> neuves. Un `\S` de regex PHP (séance 4) a produit `--shiki-{light,dark}-font-weight: bold` et fait
+> rougir la CI **à la publication**, sur une PR sans une ligne de code de design. La liste blanche du
+> gate est désormais fermée sur le **contrat de Shiki** — dix noms lus dans sa source — et non sur le
+> corpus du jour ; les six propriétés de style sont admises, non mesurées, mais leur **valeur** est
+> contrainte (S-020). ⚠️ **Toute leçon peut faire rougir un gate que personne n'associe au contenu.**
+>
+> ✅ **LA PORTÉE DE L'EXAMEN 1 EST [1, 2, 3, 4]** — `content/cours/securite-web/horaire.json`, séance 6
+> le **2026-09-11**. Les quatre leçons évaluées sont **en ligne**. La séance 5 est enseignée le
+> 2026-09-04, donc **avant** l'examen, mais n'y est **pas évaluée** : elle n'apparaît qu'à la portée de
+> l'**Examen final**. E3-ST17 reste le geste suivant du plan, **sans être sur le chemin critique**.
+>
 > **Le geste suivant : E3-ST17 `05-utilisateurs-permissions` (séance 5)** — comptes, groupes, `sudo`,
 > politique de mots de passe, propriétaires et bits d'accès. Fiches KB `web/securite/administration-serveur-linux.md`
 > **+** `web/securite/stockage-mots-de-passe.md`, **sans simulation**. ⚠️ **La séance 5 est un
