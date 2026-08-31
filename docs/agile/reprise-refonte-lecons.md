@@ -243,7 +243,7 @@ prerendue, donc la mesure demande d'abord une fixture — c'est le **lot 4bis**,
 Ne pas rendre une déduction à la place d'une mesure (L-074).
 ⏳ **R-5** ne se mesure que **sur une branche du lot 2**, comme le dossier le dit lui-même.
 
-**4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** `0` (contrats, en y intégrant les trois trous de
+**4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → **`0bis`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → **`1a`** (`diapos` intra-sujet, chemin critique) → `2` → `3` → `4` → **`4bis`** (spike R-1,
 jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (résolution inter-cours) → `8`
@@ -251,6 +251,32 @@ jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (ré
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
 et son critère d'acceptation inclut un canal **non chromatique** pour `forced-colors: active` (R-8).
+
+✅ **LE LOT 0 EST LIVRÉ — commit `9daecdb`, 2026-08-31.** Les trois contrats sont écrits, **avant**
+toute ligne de code, et les trois trous de D.5 y sont fermés nommément :
+
+| Où | Ce qui y est désormais écrit |
+|---|---|
+| `docs/contenu/pipeline-contenu.md` | conteneur `marche-a-suivre` (D-A) · conteneur `methodes` (D-C) · gate du format actionnable (D-D) |
+| `docs/contenu/ancrage-au-cours.md` | **§3bis** l'attribut sur le titre (D-B) · §4 `SectionCompilee.renvoiCours` · §5 (d) et (e) ce que voit le lecteur |
+| `.claude/skills/lecon/SKILL.md` | les sections obligatoires **nommées en toutes lettres** dans le brief · l'entrée dans `MODULES_AU_FORMAT_ACTIONNABLE` en dernier geste de clôture |
+
+🔴 **UNE DÉCISION DE CONTRAT A ÉTÉ FORCÉE PAR D-D, et elle contredit la lettre de la recommandation
+de D-A.** D-A écrivait que `## En bref — la marche à suivre` « entre dans la liste des sections
+imposées ». Prise au pied de la lettre, cette phrase fait **rougir le build sur les dix leçons
+publiées** le jour même de sa livraison — exactement ce que D-D existe pour éviter. Le contrat écrit
+donc : la section est imposée aux **seuls modules de `MODULES_AU_FORMAT_ACTIONNABLE`** ; sa **place**
+(immédiatement après `## L'idée en une image`) est en revanche vérifiée pour tout le monde dès
+qu'elle est présente. C'est D-D qui gouverne, comme il le dit lui-même.
+
+**Trois refus silencieux fermés au passage**, tous nommés dans le contrat : un `{voir="…"}` **ambigu**
+(deux sections au même titre) est un refus qui nomme les deux, jamais « la première gagne » · un
+`{voir="module:<slug>"}` visant une cible non `publiee` est refusé (c'est l'incident de production du
+2026-08-27) · le cliquet de D-D exige `##` **et** `###`, refuse un module de la liste **sans**
+`seance`, et refuse un slug de la liste **sans leçon** (permission morte, S-005).
+
+Gate : `npm run content:build` **vert, 10 leçons, 5/5, 0 dépassement** — inchangé, le lot est
+documentaire.
 
 **5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
 assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.
