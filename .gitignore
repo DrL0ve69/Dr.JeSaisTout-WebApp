@@ -93,3 +93,10 @@ Thumbs.db
 # rédaction ; ce qui est publiable, ce sont les leçons réécrites de `content/` et les fiches
 # de la KnowledgeBase, qui citent les diapositives sans les reproduire.
 securite-app-web-2026/
+
+# Idem pour `php-2026/` (420-4P2-HU « Développement d'application en PHP »), ajouté le
+# 2026-08-31 : diaporamas, énoncé du projet de session et exercices du second cours. Ils rendent
+# MESURABLES les renvois `diapos` vers PHP — aucun outil d’agent ne lit un .pptx, et WebFetch a
+# déjà rendu une lecture INVENTÉE d’un support plutôt que d’échouer (CLAUDE.md, séance 4).
+# `tools/supports-cours/extraire-diapositives.mjs` en tire `extraits/`, une ligne par diapositive.
+php-2026/
