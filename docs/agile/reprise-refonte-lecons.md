@@ -223,24 +223,34 @@ formulaire** (il demande encore de choisir). ⚠️ Pour le corriger, republier 
 sans quoi on crée un second Artifact et le lien du propriétaire pointe sur la vieille version.
 
 **1. ✅ La cartographie des diapositives du module 11 existe** — `docs/contenu/renvois-diapos-module-11.md`,
-recoupée sur six citations (§3). **Ne pas la relancer.** Il reste à la **commiter** : elle n'est pas
-encore versionnée.
+recoupée sur six citations (§3). **Ne pas la relancer.** Commitée dans `8217c3f`.
 
-**2. Passer le plan au `devils-advocate`** — c'est le geste suivant réel. Début de chantier
-structurel : deux conteneurs neufs, une extension du contrat de compilation, un assouplissement du
-contrat d'ancrage (R-3) et un rendu interactif **sans JavaScript**. ⚠️ Son brief doit porter les sept
-verdicts : sinon il conteste des options déjà écartées, ce qui est du bruit payé plein tarif.
+**2. ✅ Le `devils-advocate` est passé, et le plan en sort AMÉLIORABLE.** Ses constats, plus les deux
+mesures faites dans la foulée, vivent en **section (D)** de `docs/design/refonte-lecons-actionnables.md`.
+🔴 **(D) fait foi contre (B)** : il est postérieur et mesuré. Trois de ses constats ont été
+**revérifiés à la ligne** par le fil principal avant d'être repris — `design:contrastes:check` absent
+de `npm run build` (`ci.yml:133` / `deploy.yml:407` seulement), le tripwire `PAIRES` qui refuse tout
+jeton couleur neuf, et `verifier-axe.mjs` qui désactive nommément `color-contrast` **et**
+`target-size`.
 
-**3. Les trois mesures, AVANT de coder ce qu'elles conditionnent** (détail en (C) du dossier) :
-**R-1** l'hydratation réécrit-elle le `checked` d'une radio statique — **toute l'option D-C retenue en
-dépend**, et c'est une déduction, pas une mesure · **R-2** un `content/cours/php/horaire.json` sans
-aucun module passe-t-il le pipeline · **R-5** le compte de 14 hachages de `style-src` bouge-t-il
-vraiment. Elles sont indépendantes du `devils-advocate` et peuvent courir en même temps.
+**3. Les mesures — deux faites, une impossible pour l'instant.**
+✅ **R-2 est levé, et il RÉFUTE la recommandation de D-B** : le pipeline est **mono-sujet par
+exécution**, un `content/cours/php/horaire.json` n'est pas accepté, il n'est **jamais lu** (D.1).
+✅ **R-3 est chiffré** : il exige un champ **requis** neuf au schéma, rien ne distingue aujourd'hui un
+examen écrit d'un projet (D.2).
+🔴 **R-1 n'est PAS mesurable en l'état** : il n'existe aucune radio **non liée** dans une page
+prerendue, donc la mesure demande d'abord une fixture — c'est le **lot 4bis**, pas une case à cocher.
+Ne pas rendre une déduction à la place d'une mesure (L-074).
+⏳ **R-5** ne se mesure que **sur une branche du lot 2**, comme le dossier le dit lui-même.
 
-**4. Puis l'implémentation, lot par lot** — lot 0 (contrats écrits) d'abord, module 11 au lot 8.
-⚠️ **R-3 arrive avec sa fixture invalide** : un module qui déclare une séance d'**examen écrit** doit
-continuer à être refusé. Et la distinction « évaluation pratique / examen écrit » doit exister dans
-`horaire.json` **avant** que le validateur puisse la lire — si elle n'y est pas, c'est un sous-lot.
+**4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** `0` (contrats, en y intégrant les trois trous de
+D.5) → **`0bis`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
+8**) → **`1a`** (`diapos` intra-sujet, chemin critique) → `2` → `3` → `4` → **`4bis`** (spike R-1,
+jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (résolution inter-cours) → `8`
+(**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
+⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
+ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
+et son critère d'acceptation inclut un canal **non chromatique** pour `forced-colors: active` (R-8).
 
 **5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
 assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.

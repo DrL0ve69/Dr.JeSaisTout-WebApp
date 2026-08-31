@@ -530,3 +530,97 @@ transcript du premier, seulement de ses quatre verdicts.
 son dossier dans son rapport final, que le fil principal a réécrit sur disque. Vérifier l'outillage
 disponible **avant** de confier un livrable-fichier à un agent, sinon le rapport porte le livrable
 entier et le budget explose une seconde fois.
+
+---
+
+# (D) PASSE ADVERSARIALE ET MESURES — 2026-08-31, après le verdict
+
+> Le plan (B) ci-dessus est **AMÉLIORABLE, pas bon en l'état**. Ce qui suit le corrige. En cas de
+> désaccord entre (B) et (D), **(D) fait foi** : il est postérieur, et mesuré plutôt que raisonné.
+
+## D.1 · R-2 est MESURÉ, et la recommandation de D-B est RÉFUTÉE
+
+D-B recommandait de « créer dès maintenant `content/cours/php/horaire.json` seul », en affirmant que
+« `cours="php"` se résout alors contre le même chemin de validation que tout le reste ». **Faux.**
+
+**Mesure du 2026-08-31.** Fichier déposé (2 séances, 0 leçon), `npm run content:build` lancé :
+**vert**, et le journal écrit `4/5 sorties — … 1 horaire(s) de sujet : securite-web`. Le fichier
+n'est pas *accepté*, il n'est **jamais lu**. Cause : le pipeline est **mono-sujet par exécution** —
+`RACINE_PAR_DEFAUT = 'content/cours/securite-web'` est en dur dans `build.mjs:80`,
+`compiler-markdown.mjs:116` et `valider.mjs:104`, et `validerLecon(dossier, horaire, exercices)`
+(`valider.mjs:1955`) ne reçoit **qu'un** horaire, au singulier.
+
+⚠️ **Le fichier a été RETIRÉ après la mesure, délibérément.** Le laisser sur disque aurait donné
+l'apparence d'un renvoi inter-cours résolu, alors qu'il n'aurait été validé contre rien — le trou de
+`valider.mjs:1252`, en pire, parce que cette fois un fichier visible aurait témoigné du contraire.
+
+✅ **La seconde moitié de R-2 passe** : une racine ciblée portant un horaire et **zéro leçon** valide
+proprement — `node tools/content-pipeline/valider.mjs --racine content/cours/php` →
+`0 leçon(s) valides … (racine vide — aucune leçon à valider)`, code **0**. E7 n'est pas menacé.
+**Reste non mesuré** : le comportement de `generer-manifeste.mjs` sur un sujet à zéro leçon.
+
+## D.2 · R-3 exige une modification de SCHÉMA — constaté deux fois, indépendamment
+
+`horaire.schema.json` pose `additionalProperties: false` sur `evaluation`, dont les seuls champs sont
+`libelle`, `ponderation` et `portee`. **Rien n'y distingue un examen écrit d'un projet.** Le seul
+discriminant apparent — `portee` absente — ne peut pas servir : le schéma dit lui-même qu'absente
+signifie « portée non publiée par l'enseignant », donc un fait de **publication**, pas de **nature**.
+Les trois évaluations de `content/cours/securite-web/horaire.json` (séances 6, 11, 13) sont
+aujourd'hui indiscernables.
+
+🔴 **Le champ neuf est REQUIS, jamais optionnel.** Optionnel à défaut permissif, il rouvrirait les
+séances 6 et 13 **en silence** ; requis, il fait rougir le build tant que les trois ne sont pas
+qualifiées à la main. Même arbitrage que partout ici : une omission doit se **nommer**.
+
+## D.3 · Les lots qui changent
+
+| Lot | Ce qui change, et pourquoi |
+|---|---|
+| **0bis** (NEUF, bloquant) | Schéma `evaluation.nature` **requis** + les 3 valeurs d'`horaire.json` + `verifierSeanceContreHoraire` (`valider.mjs:1912-1948`) + `ancrage-au-cours.md` §2 + **une fixture invalide** (un module déclarant une séance d'examen écrit, toujours refusé). **Le lot 8 ne peut pas commencer sans lui.** ⚠️ Traiter aussi ce que peint le sommaire quand une séance porte **à la fois** un module et un jalon d'évaluation — non traité par (B). |
+| **1a / 1b** (SCISSION) | **1a** = `diapos`/`seance` **intra-sujet** — 9 modules sur 10, chemin critique. **1b** = résolution **inter-cours** + `php/horaire.json` + la carte multi-sujets que D.1 rend obligatoire. 1b ne sert qu'au lot 8 : il sort du chemin critique du reste. |
+| **4bis** (NEUF, AVANT le lot 5) | **Spike R-1, jetable** : page prerendue de fixture portant des radios **statiques**, chunk paresseux retenu, coche posée avant hydratation → survit-elle ? Le lot 6 contenait la mesure dont il dépend (test du « + » : « le rendu **et** sa mesure » = deux lots). Si R-1 échoue, on aurait écrit les lots 5 et 6 pour rien. À mesurer dans le **même** spike : le `@for` de `rendu-blocs.ts` peut-il recréer les `<input>` lors d'une interaction voisine (quiz, simulation) et **réinitialiser l'onglet choisi** après hydratation ? |
+| **2, 4, 6** | `npm run design:contrastes:check` **entre dans la liste des gates des trois**. Il n'y était pas, et il n'est **pas** dans `npm run build` — seulement `ci.yml:133` et `deploy.yml:407`. Sa table `PAIRES` est écrite à la main et **refuse tout jeton `--couleur-…` neuf** non apparié ni exempté. Un implémenteur qui lance les gates listés passerait en local et rougirait en CI : **L-080, à l'identique**. Chaque lot déclare **quelles paires il ajoute** avant d'écrire une couleur. |
+| **6** | `a11y:axe` **ne prouve pas** ce que (B) lui fait dire. `verifier-axe.mjs` tourne en **jsdom sans charger aucune feuille de style**, et désactive nommément `color-contrast` **et** `target-size` (table `REGLES_DESACTIVEES`, imprimée à chaque exécution). Donc : les panneaux masqués sont **tous visibles** pour axe, la coche n'existe pas, et **WCAG 2.5.8 (cible ≥ 24 px)** n'est mesuré nulle part — alors que les libellés d'onglets sont la **première cible de pointage neuve** du site. La preuve se porte en **e2e** : taille de cible par `boundingBox()`, anneau de focus **peint** (L-025 : un `getComputedStyle` correct ne prouve pas un pixel). |
+| **8** (SCISSION) | `11-projet-de-session` fait **942 lignes** — au-dessus du seuil de 700 que (B) invoque lui-même et n'applique qu'à `04` et `10`. **Deux demi-lots thématiques**, comme eux. |
+
+## D.4 · R-8, risque NEUF que (C) ne portait pas
+
+**`forced-colors: active` n'est mesuré par AUCUN gate du dépôt.** Une radio masquée et un `<label>`
+stylé perdent, en contraste forcé Windows, **toute** indication d'onglet actif : le système réécrit
+fond et couleur. ⚠️ **Le dépôt a déjà payé ce mode d'échec exact** — le filet `.ligne-annotee` d'E2-ST4,
+invisible en `forced-colors: active` — et sa propre règle `marque-pedagogique` impose trois canaux
+dont un **mot écrit**. WCAG 1.4.1 et 1.4.11.
+**Critère d'acceptation écrit du lot 6** : canal **non chromatique** obligatoire (bordure inférieure
+épaisse avec `forced-color-adjust` maîtrisé, ou radio native laissée visible), plus une capture
+manuelle en HCM à la clôture.
+
+## D.5 · Trois trous de contrat à fermer au lot 0, tous silencieux
+
+1. **`{voir="Titre de section"}`** — (B) justifie la résolution par titre parce qu'`ancrer` suffixe en
+   cas de collision. Il ne dit donc **pas** ce qui arrive quand deux sections portent le même titre :
+   la résolution est ambiguë et doit **échouer en nommant les deux**, jamais prendre la première.
+2. **`{voir="module:<slug>"}`** — rien n'exige que la cible soit `statut: publiee`. Un renvoi vers un
+   module `verifiee` produit un **lien vers une 404 prerendue** : exactement l'incident du 2026-08-27.
+3. **Le cliquet de D-D fuit par deux endroits** — la règle ne parle que des `##`, or le relevé du §0
+   compte `##`/`###` ensemble (247 titres) ; et un module qui **perd** son `seance` perd l'exigence
+   **en silence**. Ajouter : un slug de `MODULES_AU_FORMAT_ACTIONNABLE` **sans leçon correspondante**
+   doit faire rougir — permission morte, famille S-005.
+
+## D.6 · Une piste à évaluer PENDANT le spike 4bis, pas à adopter d'office
+
+`hidden="until-found"` (Chromium, Firefox 139+) rend un panneau **trouvable au `Ctrl+F`** et le révèle
+sans une ligne de JavaScript — donc une part de R-4 récupérable **sans rouvrir D-C**. Deux réserves
+honnêtes : Safari ne l'implémente pas, et il faut arbitrer sa cohabitation avec `:checked ~ .panneau`
+(le navigateur retire l'attribut à la découverte, et le CSS recacherait le panneau).
+
+## D.7 · Ce que la passe a jugé BON, et qu'il ne faut pas défaire
+
+Le refus des ancres littérales au profit d'une résolution **par titre écrit**, justifié par la bonne
+raison (`ancrer` suffixe en cas de collision). La clause qui distingue `methodes` de ce qu'interdit
+ST4-1, posée **dans le verdict** et non dans un commentaire de code. Le lot 7 sorti à part. Et le
+réflexe S-010 — « quelle page mesure ce littéral maintenant ? » — écrit à chaque lot qui touche un
+compte épinglé.
+
+**Non vérifié, et nommé comme tel** : que le `@media print` de `rendu-blocs.scss` couvrira un
+conteneur qui n'existe pas encore · le comportement de `generer-manifeste.mjs` sur un sujet à zéro
+leçon · si `design-system.spec.ts` teste le bloc `@media print` par assertion ou par simple présence.
