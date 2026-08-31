@@ -121,6 +121,62 @@ renvoi faux envoie l'étudiant réviser la mauvaise diapositive, en silence.
 **`seance` sur l'encadré** : optionnel, vaut par défaut le `seance` du frontmatter. **Obligatoire**
 si le frontmatter n'en a pas — sans quoi le renvoi ne désigne rien.
 
+## 3bis · Le renvoi de diapositives sur les TITRES de section
+
+> **Décision D-B, tranchée par le propriétaire le 2026-08-31**
+> ([`../design/refonte-lecons-actionnables.md`](../design/refonte-lecons-actionnables.md), bloc
+> « VERDICT »). Motif : *« les diapositives concernées devraient être affichées dans les titres, les
+> sous-titres, les étapes, les commandes — et dans la barre latérale »*. Le §3 ci-dessus ne couvrait
+> que les **encadrés** ; la numérotation est conservée telle quelle pour ne casser aucun renvoi
+> existant vers §4, §5 et §6.
+
+L'attribut se pose sur le titre **lui-même**, en fin de ligne :
+
+```markdown
+## Les commandes, dans l'ordre {diapos="12-18"}
+### Vérifier le service {seance="4" diapos="45-50"}
+### Le VirtualHost {seance="8" cours="php" diapos="30-42"}
+```
+
+**Trois règles, et rien d'autre.**
+
+- **`diapos` seul** = les diapositives de la séance du module, celle du frontmatter. C'est le cas de
+  **9 modules sur 10**.
+- **`seance`** ne s'écrit que pour citer une **autre** séance du **même** cours. Comme sur un
+  encadré (§3), il est **obligatoire** quand le frontmatter n'a pas de `seance` — sans quoi le
+  renvoi ne désigne rien.
+- **`cours`** ne s'écrit que pour citer un **autre cours**. Aujourd'hui un seul module en a besoin :
+  `11-projet-de-session`, qui mêle 420-B10-HU et 420-4P2-HU. 🔴 **Le validateur le REFUSE quand il
+  est superflu** — c'est-à-dire égal au `sujet` du module. Un attribut qu'on peut écrire sans effet
+  est un attribut qu'on finira par écrire au hasard.
+
+**La grammaire de `diapos` est celle du §3**, sans exception : numéros et plages séparés par des
+virgules (`"13"`, `"13, 17"`, `"45-50"`, `"13, 17, 45-50"`), entiers ≥ 1, strictement croissants d'un
+jeton au suivant, bornes de plage croissantes. Toute autre forme fait **échouer le build** en nommant
+le jeton fautif. La matrice d'attributs est **fermée à trois clefs** — `diapos`, `seance`, `cours` —
+et une clef inconnue est un refus nommé, jamais une valeur ignorée en silence.
+
+🔴 **L'attribut est retiré du texte du titre AVANT toute autre chose.** Trois conséquences qui ne se
+devinent pas, et dont chacune casserait en silence si elle était ratée :
+
+1. **L'ancre** est fabriquée depuis le titre **dépouillé** — sans quoi elle vaudrait
+   `les-commandes-dans-lordre-diapos-12-18`, et tout `{voir="…"}` ou lien profond existant
+   pointerait à côté.
+2. **Le sommaire** afficherait sinon l'attribut brut, accolades comprises.
+3. **Les sections imposées du gabarit se reconnaissent sur le titre dépouillé** : `## Exemple simple
+   {diapos="30-34"}` **est** la section « Exemple simple ». La comparaison de `valider.mjs` est une
+   égalité de chaîne exacte — si elle voit l'attribut, la leçon est refusée pour « section absente »,
+   et le message n'aide personne.
+
+⚠️ **Le renvoi inter-cours (`cours="…"`) n'est pas résoluble en l'état, et c'est mesuré.** Le pipeline
+est **mono-sujet par exécution** — `RACINE_PAR_DEFAUT` est en dur dans `build.mjs`,
+`compiler-markdown.mjs` et `valider.mjs`, et `validerLecon(dossier, horaire, exercices)` ne reçoit
+**qu'un** horaire, au singulier. Un `content/cours/php/horaire.json` déposé aujourd'hui n'est pas
+*accepté* : il n'est **jamais lu** (mesure du 2026-08-31, `4/5 sorties — … 1 horaire(s) de sujet :
+securite-web`). La résolution inter-cours est donc un lot à part, qui doit **d'abord** rendre le
+validateur multi-sujets. Tant qu'il n'est pas livré, `cours="…"` est refusé — un renvoi validé contre
+rien serait pire que pas de renvoi du tout.
+
 ## 4 · Ce que le contrat compilé gagne
 
 ```ts
@@ -134,6 +190,25 @@ si le frontmatter n'en a pas — sans quoi le renvoi ne désigne rien.
     blocs: BlocContenu[];
   }
 ```
+
+Depuis §3bis, **une section** peut elle aussi porter un renvoi — le même objet, plus le cours quand
+il est cité :
+
+```ts
+// SectionCompilee
+{
+  titre: string;          // le titre DÉPOUILLÉ de son bloc d'attributs
+  ancre: string;          // fabriquée depuis le titre dépouillé, jamais depuis la ligne brute
+  niveau: 2 | 3;
+  /** Renseigné quand le titre porte `{diapos="…"}`. Plages déjà dépliées, comme sur un encadré. */
+  renvoiCours?: { seance: number; diapos: number[]; cours?: string };
+  blocs: BlocContenu[];
+}
+```
+
+⚠️ **`cours` n'est présent que lorsqu'il désigne un AUTRE cours que le sujet du module** — le
+validateur refuse la forme superflue (§3bis), si bien qu'un `cours` renseigné dans le contrat compilé
+est toujours une information, jamais une redite.
 
 `LeconCompilee['frontmatter']` gagne `seance?: number`.
 `EntreeManifesteRoutes` gagne `seance?: number`.
@@ -156,6 +231,27 @@ séances 1 à 4 ── ».
 ⚠️ **WCAG 2.2 AA — la pastille ne peut pas être qu'une couleur** (1.4.1, l'information ne doit pas
 passer par la seule couleur). Elle porte un **texte explicite**, et son contraste se mesure comme
 toute paire du design system. Même exigence pour la séance : c'est un mot, pas une teinte.
+
+**(d) Renvoi posé sur un titre de section (§3bis).** Le renvoi s'affiche **sous** le titre et **non
+dedans** : un `<p>` **frère** du `<h2>`/`<h3>`, lu immédiatement après lui en lecture linéaire —
+« Séance 2 · diapos 12 à 18 », ou « 420-4P2-HU · séance 8 · diapos 30 à 42 » quand le renvoi cite un
+autre cours.
+
+🔴 **Pourquoi sous le titre, et pas dedans — c'est la partie accessibilité, et elle est décidée.** Un
+lecteur d'écran offre une **liste des titres** pour naviguer dans la page. Y injecter « diapos 12 à
+18 » sur les 247 titres du corpus transforme cet outil de navigation en bouillie : le nom accessible
+du titre doit rester le titre.
+
+**(e) Sommaire de la barre latérale.** Là, à l'inverse, le renvoi entre bien **dans le texte du
+lien** : `Les commandes, dans l'ordre (diapos 12-18)`. C'est là que le lecteur le cherche, et un
+lien de sommaire n'a pas de mode « navigation rapide » à polluer.
+
+⚠️ **Le piège technique à ne pas rater, il a déjà été payé (L-024)** : `preserveWhitespaces: false`
+supprime le nœud blanc entre deux `<span>`, et le nom accessible se calcule alors **en un seul mot**
+— l'espace visible ne venant que du `gap` CSS, qu'aucune API d'accessibilité ne lit. Le renvoi se
+construit donc comme **une seule chaîne interpolée dans un seul `<span>`**, avec ses U+00A0 —
+exactement ce que fait déjà `renvoiEncadre()` dans `rendu-blocs.ts`. On **réutilise cette fonction**,
+on n'en écrit pas une deuxième : deux fabriques de libellé divergent, et rien ne le signale.
 
 ---
 

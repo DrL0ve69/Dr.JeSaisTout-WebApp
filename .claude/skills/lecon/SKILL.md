@@ -52,6 +52,35 @@ Lance l'agent `professeur-web` avec un brief qui tient en ~15 lignes et contient
   à `docs/contenu/pipeline-contenu.md` et `.claude/rules/contenu-pedagogique.md` (l'agent les
   lit lui-même).
 
+🔴 **ET LA LISTE DES SECTIONS OBLIGATOIRES, ÉCRITE EN TOUTES LETTRES DANS LE BRIEF — jamais supposée
+connue.** Défaut payé un agent entier au lot des séances 3-4 : ni le rédacteur de la moitié A ni
+celui de la moitié B n'avaient écrit « Exemple simple », « Exemple complet » et « À toi de jouer »,
+chacun couvrant le plan qu'on lui avait donné — et ce plan ne les portait pas. C'est `valider.mjs`
+qui les a réclamées **après coup**, et il a fallu un troisième agent pour les insérer. **La moitié
+qui FERME une leçon reçoit cette liste :**
+
+```
+## L'idée en une image      (première section, toujours)
+## En bref — la marche à suivre   (format actionnable seulement — voir ci-dessous)
+## <sections de théorie>    (libres, autant qu'il en faut)
+## Exemple simple
+## Exemple complet
+## À toi de jouer
+## À retenir
+## Aller plus loin          (dernière section, toujours)
+```
+
+- **Au plus 5 objectifs** au frontmatter — un brief qui en demande « 5 à 6 » fait rougir G-content au
+  premier essai.
+- **Format actionnable** (refonte du 2026-08-31) : si le module en fait partie, le brief **exige**
+  la section `## En bref — la marche à suivre` portant un conteneur `:::: marche-a-suivre`, et un
+  renvoi `{diapos="…"}` sur **chacun** de ses titres `##` et `###`. Le contrat complet — bornes du
+  conteneur, résolution de `{voir="…"}`, conteneur `methodes` à onglets, et la liste
+  `MODULES_AU_FORMAT_ACTIONNABLE` qui décide qui y est soumis — vit dans
+  `docs/contenu/pipeline-contenu.md` et `docs/contenu/ancrage-au-cours.md` §3bis. **Nomme ces deux
+  sections dans le brief** : un rédacteur qui ne sait pas que le module est au format actionnable
+  écrira à l'ancien format, et le build le refusera sans que personne n'ait le contrat sous les yeux.
+
 Si le professeur rapporte un dépassement de périmètre ou un brief incomplet, corrige le brief et
 relance un agent **frais** — ne négocie pas avec un agent déjà chargé.
 
@@ -88,12 +117,17 @@ Une fois le verdict PUBLIABLE :
    `à-vérifier:` que le vérificateur a levés — c'est ce geste, et lui seul, qui met la leçon en
    ligne. Une leçon laissée en `verifiee` n'est **pas** prerendue : elle serait « finie » sans être
    publiée, et rien ne le dirait.
-2. Mets à jour l'item de la leçon dans `docs/agile/backlog-phase-1.md` : statut (ex.
+2. **Si le lot est une reprise au format actionnable, ajoute le slug du module à
+   `MODULES_AU_FORMAT_ACTIONNABLE`** (`tools/content-pipeline/valider.mjs`) — c'est le **dernier**
+   geste du lot, après le verdict, et il vaut déclaration que le module est **entièrement** conforme.
+   La liste est nominative et écrite à la main, jamais dérivée du corpus (S-005) ; un spec imprime
+   combien de modules restent à reprendre, et ce compteur ne redescend jamais.
+3. Mets à jour l'item de la leçon dans `docs/agile/backlog-phase-1.md` : statut (ex.
    `à faire → rédigée-vérifiée`), date, chemin du livrable. Respecte le format existant du
    backlog — ne le restructure pas.
-3. Si le vérificateur a **corrigé la KnowledgeBase**, signale-le à l'utilisateur dans ton résumé
+4. Si le vérificateur a **corrigé la KnowledgeBase**, signale-le à l'utilisateur dans ton résumé
    (fichier + avant/après + source) — c'est une écriture hors du repo qui doit rester visible.
-4. Résumé final à l'utilisateur ≤ 10 lignes : fichiers produits, verdict, nombre de constats
+5. Résumé final à l'utilisateur ≤ 10 lignes : fichiers produits, verdict, nombre de constats
    corrigés, corrections KB éventuelles, statut backlog.
 
 ## Garde-fous
