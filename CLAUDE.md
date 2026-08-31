@@ -67,8 +67,14 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > renvois de diapositives jusque dans le sommaire, onglets pour comparer la méthode du cours et
 > l'équivalent moderne. Elle s'appliquera aux **dix** modules publiés, module 11 d'abord.
 > **Tout est dans [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) —
-> le lire AVANT de toucher au pipeline de contenu, au rendu d'une leçon ou à un `lecon.md`.** Ce
-> pointeur reste court exprès : un bloc de reprise est payé par chaque agent de chaque session.
+> le lire AVANT de toucher au pipeline de contenu, au rendu d'une leçon ou à un `lecon.md`, et
+> commencer par son §6.** Ce pointeur reste court exprès : un bloc de reprise est payé par chaque
+> agent de chaque session.
+> 🔴 **Les quatre décisions de la refonte NE SONT PAS TRANCHÉES.** Elles sont soumises au
+> propriétaire dans l'Artifact « Rendre les leçons actionnables »
+> (<https://claude.ai/code/artifact/4d7fbadc-2879-4263-b977-256a1bcb3b07>), qui lui rend un verdict à
+> coller. Tant qu'il n'a pas répondu, ce que le dossier appelle « recommandé » reste une
+> **recommandation** : n'écris aucun contrat dessus.
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de

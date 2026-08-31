@@ -206,18 +206,43 @@ diapos) et `Cours08` (103) côté 4P2, `Cours02_environnement_linux` (82) et
 
 ## 6 · Le geste suivant, dans l'ordre
 
-1. **Vérifier l'existence des deux fichiers du §3.** Absents → relancer les deux briefs ; présents →
-   les lire.
-2. **Soumettre les décisions au propriétaire dans un Artifact, pas en prose** — c'est sa préférence
-   explicite (mémoire `presenter-les-choix-visuels-en-artifact`) : les candidats de bloc « marche à
-   suivre », le conteneur à onglets et la forme du renvoi dans le titre et le sommaire se **montrent**
-   dans la peau « Moniteur ambre ».
-3. **Puis seulement** : `devils-advocate` sur le plan (c'est un début de chantier structurel, il le
-   mérite), puis l'implémentation lot par lot, module 11 d'abord.
-4. **Ne pas oublier la trace** : à la clôture, reporter le contrat retenu dans
-   `docs/contenu/pipeline-contenu.md` **et** `docs/contenu/ancrage-au-cours.md`, la barre de qualité
-   dans `.claude/rules/contenu-pedagogique.md`, et la consigne de rédaction dans le skill `/lecon` —
-   sinon le prochain rédacteur écrira à l'ancien format.
+> 🔴 **LA SESSION A ÉTÉ VIDÉE ICI, le 2026-08-31, APRÈS PUBLICATION DE L'ARTIFACT DE DÉCISION.**
+> Le propriétaire l'a demandé lui-même : « montre-moi les 4 décisions en artifact et mets le pointeur
+> à jour, je vais clear ensuite. » Ce §6 est donc **le point d'entrée exact** de la session suivante.
+
+**0. D'abord : est-ce que le propriétaire a collé son verdict ?**
+L'Artifact **<https://claude.ai/code/artifact/4d7fbadc-2879-4263-b977-256a1bcb3b07>** (« Rendre les
+leçons actionnables ») présente les quatre décisions et **fabrique un bloc de texte à copier-coller**
+portant ses quatre choix **plus** les trois arbitrages laissés en blanc. Il a été publié pour qu'il
+puisse le rapporter dans la session neuve.
+
+- **S'il colle son verdict** → il fait foi ; il remplace tout ce que le §3 appelle « recommandation ».
+- **S'il ne dit rien** → **ne pas présumer**. Les quatre recommandations de l'architecte ne sont **pas**
+  des décisions prises : lui redonner le lien de l'Artifact et attendre. Le lot 0 écrit des contrats
+  dans `pipeline-contenu.md`, et un contrat écrit sur une décision supposée coûte plus cher à défaire
+  qu'à demander. Pour mettre l'Artifact à jour, republier **avec son `url`** — sans quoi on crée un
+  second Artifact et son lien pointe sur la vieille version.
+
+**1. Relancer la cartographie des diapositives du module 11** (§3, second bloc) — **agent frais**, le
+brief y est reconstitué en entier. C'est la matière première du lot 8 et elle n'existe pas.
+
+**2. Passer le plan au `devils-advocate`.** C'est un début de chantier structurel : conteneurs neufs,
+extension d'un contrat de compilation, un choix de rendu sans JavaScript. Il le mérite — mais
+**après** les décisions du propriétaire, sinon il conteste des options déjà écartées.
+
+**3. Puis l'implémentation, lot par lot, dans l'ordre du plan** — lot 0 (contrats écrits) d'abord,
+module 11 au lot 8.
+
+**4. Les trois mesures à faire AVANT de coder ce qu'elles conditionnent** (elles sont détaillées en
+(C) du dossier) : **R-1** l'hydratation réécrit-elle le `checked` d'une radio statique — toute
+l'option D-C en dépend, et c'est une déduction, pas une mesure · **R-2** un
+`content/cours/php/horaire.json` sans aucun module passe-t-il le pipeline · **R-5** le compte de 14
+hachages de `style-src` bouge-t-il vraiment.
+
+**5. Ne pas oublier la trace.** À la clôture, reporter le contrat retenu dans
+`docs/contenu/pipeline-contenu.md` **et** `docs/contenu/ancrage-au-cours.md`, la barre de qualité
+dans `.claude/rules/contenu-pedagogique.md`, et la consigne de rédaction dans le skill `/lecon` —
+sinon le prochain rédacteur écrira à l'ancien format.
 
 ⚠️ **Rappel de dimensionnement, payé quatre fois sur ce dépôt** : un lot se dimensionne au **volume
 écrit**, pas au nombre de constats ni de livrables. Le dernier agent de correctifs du module 11 a
