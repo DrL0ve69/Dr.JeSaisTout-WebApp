@@ -5,13 +5,57 @@
 > qui l'ouvre, dans ses mots : *« la théorie étayée en détail, c'est bien, mais je m'y perds lorsque
 > je cherche des commandes ou des étapes par étapes »*.
 >
-> **Statut : PLAN, rien n'est implémenté.** Les contrats qu'il propose ne sont pas encore dans
-> `docs/contenu/pipeline-contenu.md` — c'est le lot 0 qui les y écrira, après arbitrage du
-> propriétaire sur les quatre décisions ci-dessous.
+> **Statut : LES SEPT ARBITRAGES SONT RENDUS (2026-08-31).** Le verdict du propriétaire est en
+> tête de ce fichier, juste dessous ; il fait foi et remplace toute « recommandation » du §(A).
+> Rien n'est encore implémenté : le lot 0 écrit les contrats retenus dans
+> `docs/contenu/pipeline-contenu.md` et `docs/contenu/ancrage-au-cours.md`.
 >
 > Cousins : [`../contenu/pipeline-contenu.md`](../contenu/pipeline-contenu.md),
 > [`../contenu/ancrage-au-cours.md`](../contenu/ancrage-au-cours.md),
 > [`direction-visuelle.md`](direction-visuelle.md).
+
+---
+
+# ⚖️ VERDICT DU PROPRIÉTAIRE — 2026-08-31
+
+Rendu dans la session qui a suivi le `/clear`, à partir de l'Artifact
+<https://claude.ai/code/artifact/4d7fbadc-2879-4263-b977-256a1bcb3b07>. **Sept arbitrages, tous
+tranchés.** Ce qui suit n'est plus discutable dans ce chantier ; ce qui n'y figure pas reste ouvert.
+
+| # | Décision | Verdict |
+|---|---|---|
+| **D-A** | La marche à suivre en tête de leçon | **Conteneur dédié `:::: marche-a-suivre`** (option 1) |
+| **D-B** | Les diapositives dans les titres et le sommaire | **L'attribut se pose sur le titre lui-même** (option 1) |
+| **D-C** | Les onglets « même tâche, deux méthodes » | **Onglets CSS purs (radios), zéro JavaScript** (option 1) |
+| **D-D** | La reprise des dix modules publiés | **Gate qui se durcit module par module, avec compteur** (option 3) |
+| **R-3** | La séance 11 ne peut pas être déclarée | **La règle s'assouplit** : une séance d'évaluation **pratique** peut porter un module ; une séance d'**examen écrit** reste interdite |
+| **R-7** | Reprise des 10 modules **contre** contenu neuf | **La reprise passe devant.** Le contenu neuf des séances restantes attend qu'elle soit finie |
+| **R-4** | Le `Ctrl+F` ne trouve pas un onglet masqué | **Coût accepté**, les onglets sont gardés — réserve nommée au contrat, et **R-1 se mesure d'abord** |
+
+**Ce que chaque verdict engage, en une ligne chacun.**
+
+- **D-A** — un conteneur neuf dans le compilateur et le validateur (lots 3 et 4), donc une forme
+  qu'un gate peut exiger. C'est ce qui rend D-D possible : on ne peut pas compter ce qu'on ne
+  nomme pas.
+- **D-B** — l'attribut entre dans le **nom accessible** du titre, donc dans la liste des titres d'un
+  lecteur d'écran et dans le sommaire. La contrainte L-024 (`preserveWhitespaces: false` supprime le
+  nœud blanc entre deux `<span>`) est à traiter **dans le lot 2**, pas après.
+- **D-C** — dépend entièrement de **R-1** : si l'hydratation réécrit le `checked` d'une radio
+  statique, le repli écrit est l'option 2. **Mesurer avant de coder le lot 6.**
+- **D-D** — le compteur est un littéral épinglé de plus. Il monte de 1 à chaque module repris, et
+  **il ne redescend jamais** : c'est le cliquet qui interdit la régression silencieuse.
+- **R-3** — modification de contrat dans `ancrage-au-cours.md` §2 **et** `valider.mjs:1942-1947`.
+  ⚠️ Elle arrive avec **sa fixture invalide** : un module qui déclare une séance d'**examen écrit**
+  doit continuer à être refusé, sans quoi l'assouplissement devient un trou. La distinction
+  « évaluation pratique / examen écrit » doit exister dans `horaire.json` **avant** d'être lisible
+  par le validateur — si elle n'y est pas, c'est un sous-lot à part.
+- **R-7** — la file de production est : module 11 (lot 8), puis les neuf autres (lots 11+), puis le
+  contenu neuf. ⚠️ **Conséquence à assumer, elle n'est pas neutre** : les séances enseignées d'ici la
+  fin de la reprise n'auront pas de leçon. Le propriétaire l'a tranché en connaissance de ce coût.
+- **R-4** — la réserve s'écrit **dans le contrat**, pas dans un commentaire de code : le contenu
+  masqué est toujours l'**équivalent** du contenu visible, jamais un exemple pédagogique unique.
+  C'est cette clause, et elle seule, qui distingue ce conteneur de ce qu'interdit ST4-1.
+
 
 ## 0 · Ce que la mesure dit du corpus existant
 

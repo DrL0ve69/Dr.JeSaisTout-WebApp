@@ -6,7 +6,8 @@
 > (`.claude/rules/agent-context-budget.md` §7). Le détail vit ici.
 >
 > **Branche : `feat/refonte-lecons-actionnables`**, partie de `main` à `05e3ff2`.
-> Un seul commit pour l'instant : `da1ef65` (l'extracteur de diapositives).
+> Commits : `da1ef65` (extracteur de diapositives), `6eeaf47` + `1b88dfd` (ce pointeur),
+> `696f135` (dossier de décision), puis le verdict du propriétaire.
 
 ---
 
@@ -96,19 +97,17 @@ citer quoi que ce soit.**
 ### ✅ L'architecte a rendu — `docs/design/refonte-lecons-actionnables.md`
 
 Le dossier de décision **et** le plan par lots sont sur disque. **C'est le document à lire avant
-toute chose** : quatre décisions à trancher par le propriétaire (D-A marche à suivre, D-B renvoi de
-diapos sur les titres et dans le sommaire, D-C conteneur à onglets, D-D stratégie de reprise), douze
-lots dimensionnés, et sept risques nommés dont trois demandent une **mesure** avant de coder.
+toute chose** : le **verdict du propriétaire** en tête (sept arbitrages, tous rendus le 2026-08-31),
+puis les quatre décisions avec leurs options écartées, douze lots dimensionnés, et sept risques nommés
+dont trois demandent une **mesure** avant de coder.
 
-🔴 **Trois choses de ce dossier qui appellent une décision du propriétaire, pas de l'exécutant :**
-
-- **R-3 — `11-projet-de-session` ne PEUT PAS déclarer `seance: 11`.** La séance 11 porte une
-  `evaluation`, et `ancrage-au-cours.md` §2 l'interdit alors. Le module de la séance 11 s'affiche
-  donc « Complément · hors cours ». Assouplir la règle ou l'assumer est un **choix de contrat**.
-- **R-7 — la reprise des dix modules pèse ~12 runs de rédaction**, à mettre en concurrence avec le
-  contenu neuf des séances restantes. **Lequel passe devant ?**
-- **R-4 — un onglet masqué échappe au `Ctrl+F`.** Coût réel, borné mais non levé ; c'est le seul
-  motif de ST4-1 qui se rejoue. Si le propriétaire le juge inacceptable, l'option de repli est écrite.
+✅ **LES SEPT ARBITRAGES SONT RENDUS — ils font foi, et ils ne se rouvrent pas.** D-A conteneur
+`:::: marche-a-suivre` · D-B l'attribut sur le **titre lui-même** · D-C onglets **CSS purs** (radios),
+zéro JavaScript · D-D gate qui **se durcit module par module**, avec compteur · **R-3** la règle
+s'assouplit (une séance d'évaluation **pratique** peut porter un module, l'**examen écrit** reste
+interdit) · **R-7** la **reprise des dix modules passe devant** le contenu neuf · **R-4** la perte du
+`Ctrl+F` dans un onglet masqué est **acceptée**, sous réserve écrite au contrat. Ce que chacun engage,
+et les trois conséquences qui coûtent : `docs/design/refonte-lecons-actionnables.md`, bloc « VERDICT ».
 
 ⚠️ **Deux défauts de brief à ne pas répéter, consignés en fin de ce dossier.** L'agent a fini à
 **163k** (au-dessus du maximum de 150k) pour **21 appels d'outils** : le débordement venait du volume
@@ -117,30 +116,37 @@ lots », en deux agents. Et **l'outil `Write` était désactivé pour les sous-a
 si bien que l'agent a dû rendre ses ~600 lignes dans son rapport final, que le fil principal a
 réécrites sur disque. **Vérifier l'outillage d'un agent avant de lui confier un livrable-fichier.**
 
-### 🔴 La cartographie des diapositives du module 11 est À RELANCER
+### ✅ La cartographie des diapositives du module 11 EXISTE — et elle est recoupée
 
-`docs/contenu/renvois-diapos-module-11.md` **n'existe pas** : l'agent a été tué par la limite de
-session au moment exact où il écrivait le tableau (« *I have all the material measured. Writing the
-correspondence table.* »). **Aucun résultat n'a survécu** — le travail est entièrement à refaire, et
-c'est un **agent frais**, jamais une reprise.
+🔴 **Ce pointeur a annoncé le contraire jusqu'au 2026-08-31, et c'était faux.** L'agent avait été tué
+par la limite de session **après** avoir écrit son fichier :
+`docs/contenu/renvois-diapos-module-11.md` est sur disque (**30 647 o**, horodaté 16:46, deux
+minutes après le commit du pointeur qui le déclarait perdu). ⚠️ **Un agent tué n'a pas forcément rien
+rendu — regarder le disque avant de relancer un lot.** Relancer aurait coûté un agent entier pour
+réécrire ce qui existait.
 
-Ce qu'il devait produire, pour reconstituer le brief : une table **par section de la leçon** (tous
-les `##` et `###`, dans l'ordre du fichier) —
-`section (ligne:titre) | cours (B10 / 4P2 / les deux / aucun) | séance | diapos | citation de preuve | confiance (certaine / partielle)`.
-Trois règles non négociables : **`aucun` est une réponse légitime et attendue** (ne jamais forcer un
-renvoi — un renvoi faux envoie l'étudiant réviser la mauvaise diapositive, en silence) ; la colonne
-« preuve » cite **des mots réellement présents** dans la ligne `[n]` de l'extrait, pour être
-vérifiable sans croire l'agent sur parole ; `diapos` suit la grammaire du dépôt (croissante, plages
-`45-50`). Puis trois sections courtes : les **conflits** entre les deux cours (XAMPP/`htdocs` du 4P2
-contre droplet/Linux de B10 — c'est le défaut qui a déjà fait réviser XAMPP à un étudiant de B10), ce
-que la leçon enseigne **hors** des deux cours, et ce que les cours portent et que la leçon **tait**.
+**Ce qu'il porte** : §0 les seize extraits lus et ce qu'ils valent · §1 la table section par section
+(`ligne:titre | cours | séance | diapos | citation de preuve | confiance`), une ligne par déck pour
+ne jamais mêler deux numérotations · §2 les recoupements et **conflits** entre les deux cours · §3 ce
+que la leçon enseigne hors des deux cours · §4 les neuf sujets que les cours portent et que la leçon
+**tait**.
 
-Sources à lui injecter : `php-2026/extraits/PROVENANCE.md` (à lire en premier), `Cours01` (111
-diapos) et `Cours08` (103) côté 4P2, `Cours02_environnement_linux` (82) et
-`Cours09-Securite_base_de_donnees` (58) côté B10, plus
-`content/cours/securite-web/11-projet-de-session/lecon.md` (942 l.).
+**Contrôle exécuté le 2026-08-31** (le fichier n'était pas commité, donc pas encore revu) : six
+citations tirées au hasard confrontées aux extraits — 4P2 Cours01 [25]/[45]/[107], B10 Cours01
+[6]/[13]/[63], B10 Cours02 [24]/[25], 4P2 Cours08 [37]/[38]. **Les six tombent au mot près.** Ce
+n'est pas une preuve d'exhaustivité, c'est une preuve de non-invention — la seule qui manquait, vu
+l'antécédent du `WebFetch` qui avait halluciné une lecture de `.pptx`.
 
----
+⚠️ **Ce que le contrôle NE dit pas** (R-6 du dossier de décision) : aucun gate ne peut vérifier qu'une
+diapositive **parle bien** du titre qui la cite. C'est du ressort du `verificateur-theorie`, au lot 8.
+
+🔴 **Trois trouvailles de cette table qui sont du CONTENU, pas de la cartographie**, et qui devront
+être tranchées en écrivant la leçon : la leçon annonce le projet à **20 %** quand la diapositive 6 du
+cours 1 de B10 écrit **15 %** · l'image du droplet diverge entre les deux cours (**LAMP on 18.04** en
+B10 s2 d24, **LAMP on 24.04** en 4P2 s8 d37) et le coût aussi (**5 $** contre **6 $**) · **XAMPP est
+exigé par les DEUX cours** (B10 s1 d63 le liste), ce qui contredit l'encadré de la leçon qui le
+présente comme étranger à B10.
+
 
 ## 4 · Les contraintes qu'un plan doit traiter, sous peine d'être à refaire
 
@@ -206,40 +212,40 @@ diapos) et `Cours08` (103) côté 4P2, `Cours02_environnement_linux` (82) et
 
 ## 6 · Le geste suivant, dans l'ordre
 
-> 🔴 **LA SESSION A ÉTÉ VIDÉE ICI, le 2026-08-31, APRÈS PUBLICATION DE L'ARTIFACT DE DÉCISION.**
-> Le propriétaire l'a demandé lui-même : « montre-moi les 4 décisions en artifact et mets le pointeur
-> à jour, je vais clear ensuite. » Ce §6 est donc **le point d'entrée exact** de la session suivante.
+> ✅ **MIS À JOUR LE 2026-08-31, APRÈS LE VERDICT.** Le `/clear` a eu lieu, le propriétaire a collé
+> ses sept arbitrages, et deux des gestes ci-dessous étaient déjà faits. Ce §6 reste **le point
+> d'entrée exact** de la session suivante.
 
-**0. D'abord : est-ce que le propriétaire a collé son verdict ?**
-L'Artifact **<https://claude.ai/code/artifact/4d7fbadc-2879-4263-b977-256a1bcb3b07>** (« Rendre les
-leçons actionnables ») présente les quatre décisions et **fabrique un bloc de texte à copier-coller**
-portant ses quatre choix **plus** les trois arbitrages laissés en blanc. Il a été publié pour qu'il
-puisse le rapporter dans la session neuve.
+**0. ✅ Le verdict est rendu et gravé** — §3 pour le résumé, le dossier de décision pour le détail,
+`CLAUDE.md` pour le pointeur. L'Artifact
+<https://claude.ai/code/artifact/4d7fbadc-2879-4263-b977-256a1bcb3b07> est **périmé sur son
+formulaire** (il demande encore de choisir). ⚠️ Pour le corriger, republier **avec son `url`** —
+sans quoi on crée un second Artifact et le lien du propriétaire pointe sur la vieille version.
 
-- **S'il colle son verdict** → il fait foi ; il remplace tout ce que le §3 appelle « recommandation ».
-- **S'il ne dit rien** → **ne pas présumer**. Les quatre recommandations de l'architecte ne sont **pas**
-  des décisions prises : lui redonner le lien de l'Artifact et attendre. Le lot 0 écrit des contrats
-  dans `pipeline-contenu.md`, et un contrat écrit sur une décision supposée coûte plus cher à défaire
-  qu'à demander. Pour mettre l'Artifact à jour, republier **avec son `url`** — sans quoi on crée un
-  second Artifact et son lien pointe sur la vieille version.
+**1. ✅ La cartographie des diapositives du module 11 existe** — `docs/contenu/renvois-diapos-module-11.md`,
+recoupée sur six citations (§3). **Ne pas la relancer.** Il reste à la **commiter** : elle n'est pas
+encore versionnée.
 
-**1. Relancer la cartographie des diapositives du module 11** (§3, second bloc) — **agent frais**, le
-brief y est reconstitué en entier. C'est la matière première du lot 8 et elle n'existe pas.
+**2. Passer le plan au `devils-advocate`** — c'est le geste suivant réel. Début de chantier
+structurel : deux conteneurs neufs, une extension du contrat de compilation, un assouplissement du
+contrat d'ancrage (R-3) et un rendu interactif **sans JavaScript**. ⚠️ Son brief doit porter les sept
+verdicts : sinon il conteste des options déjà écartées, ce qui est du bruit payé plein tarif.
 
-**2. Passer le plan au `devils-advocate`.** C'est un début de chantier structurel : conteneurs neufs,
-extension d'un contrat de compilation, un choix de rendu sans JavaScript. Il le mérite — mais
-**après** les décisions du propriétaire, sinon il conteste des options déjà écartées.
+**3. Les trois mesures, AVANT de coder ce qu'elles conditionnent** (détail en (C) du dossier) :
+**R-1** l'hydratation réécrit-elle le `checked` d'une radio statique — **toute l'option D-C retenue en
+dépend**, et c'est une déduction, pas une mesure · **R-2** un `content/cours/php/horaire.json` sans
+aucun module passe-t-il le pipeline · **R-5** le compte de 14 hachages de `style-src` bouge-t-il
+vraiment. Elles sont indépendantes du `devils-advocate` et peuvent courir en même temps.
 
-**3. Puis l'implémentation, lot par lot, dans l'ordre du plan** — lot 0 (contrats écrits) d'abord,
-module 11 au lot 8.
+**4. Puis l'implémentation, lot par lot** — lot 0 (contrats écrits) d'abord, module 11 au lot 8.
+⚠️ **R-3 arrive avec sa fixture invalide** : un module qui déclare une séance d'**examen écrit** doit
+continuer à être refusé. Et la distinction « évaluation pratique / examen écrit » doit exister dans
+`horaire.json` **avant** que le validateur puisse la lire — si elle n'y est pas, c'est un sous-lot.
 
-**4. Les trois mesures à faire AVANT de coder ce qu'elles conditionnent** (elles sont détaillées en
-(C) du dossier) : **R-1** l'hydratation réécrit-elle le `checked` d'une radio statique — toute
-l'option D-C en dépend, et c'est une déduction, pas une mesure · **R-2** un
-`content/cours/php/horaire.json` sans aucun module passe-t-il le pipeline · **R-5** le compte de 14
-hachages de `style-src` bouge-t-il vraiment.
+**5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
+assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.
 
-**5. Ne pas oublier la trace.** À la clôture, reporter le contrat retenu dans
+**6. Ne pas oublier la trace.** À la clôture, reporter le contrat retenu dans
 `docs/contenu/pipeline-contenu.md` **et** `docs/contenu/ancrage-au-cours.md`, la barre de qualité
 dans `.claude/rules/contenu-pedagogique.md`, et la consigne de rédaction dans le skill `/lecon` —
 sinon le prochain rédacteur écrira à l'ancien format.

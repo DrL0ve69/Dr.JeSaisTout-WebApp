@@ -70,11 +70,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > le lire AVANT de toucher au pipeline de contenu, au rendu d'une leçon ou à un `lecon.md`, et
 > commencer par son §6.** Ce pointeur reste court exprès : un bloc de reprise est payé par chaque
 > agent de chaque session.
-> 🔴 **Les quatre décisions de la refonte NE SONT PAS TRANCHÉES.** Elles sont soumises au
-> propriétaire dans l'Artifact « Rendre les leçons actionnables »
-> (<https://claude.ai/code/artifact/4d7fbadc-2879-4263-b977-256a1bcb3b07>), qui lui rend un verdict à
-> coller. Tant qu'il n'a pas répondu, ce que le dossier appelle « recommandé » reste une
-> **recommandation** : n'écris aucun contrat dessus.
+> 🔴 **LES SEPT ARBITRAGES DE LA REFONTE SONT RENDUS (2026-08-31), et ils font foi.** D-A conteneur
+> `:::: marche-a-suivre` · D-B l'attribut de diapos sur le **titre lui-même** · D-C onglets **CSS purs**
+> (radios), zéro JavaScript · D-D gate qui **se durcit module par module**, avec compteur · R-3 la règle
+> s'assouplit — une séance d'évaluation **pratique** peut porter un module, l'examen écrit reste interdit ·
+> R-7 **la reprise des dix modules passe DEVANT le contenu neuf** · R-4 la perte du `Ctrl+F` dans un
+> onglet masqué est **acceptée**, sous réserve écrite au contrat. Ce que chacun engage :
+> [`docs/design/refonte-lecons-actionnables.md`](docs/design/refonte-lecons-actionnables.md), bloc « VERDICT ».
+> ⚠️ **D-C repose sur une mesure NON FAITE (R-1)** : si l'hydratation réécrit le `checked` d'une radio
+> statique, le repli écrit est l'option 2. Mesurer **avant** de coder le lot 6.
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
