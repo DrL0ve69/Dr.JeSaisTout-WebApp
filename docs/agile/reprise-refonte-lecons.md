@@ -244,7 +244,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 ⏳ **R-5** ne se mesure que **sur une branche du lot 2**, comme le dossier le dit lui-même.
 
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
-D.5) → **`0bis`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
+D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → **`1a`** (`diapos` intra-sujet, chemin critique) → `2` → `3` → `4` → **`4bis`** (spike R-1,
 jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (résolution inter-cours) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
@@ -277,6 +277,47 @@ qu'elle est présente. C'est D-D qui gouverne, comme il le dit lui-même.
 
 Gate : `npm run content:build` **vert, 10 leçons, 5/5, 0 dépassement** — inchangé, le lot est
 documentaire.
+
+✅ **LES LOTS 0bis ET 0ter SONT LIVRÉS — commits `390a8f2` et `c34940c`, 2026-08-31.** `evaluation.nature`
+existe, elle est **requise**, son enum est fermé à `examen-ecrit` | `evaluation-pratique`, et la règle
+3bis porte désormais sur la **nature** au lieu de la **présence**. Les trois évaluations du cours sont
+qualifiées ; la séance 11 est déclarable. **Le lot 8 n'est plus bloqué de ce côté.**
+
+🔴 **LE LOT 0bis ÉTAIT INCOMPLET, ET C'EST LA LEÇON DU JOUR : LA RÈGLE EST APPLIQUÉE DEUX FOIS.**
+`valider.mjs:verifierSeanceContreHoraire` la porte **au build** ; `contenu-compile.ts:ancrerAuCours`
+(l. 721+) la porte **au rendu prerendu**, et son `refuser()` **lève**. La seconde n'était nommée ni
+dans le plan (B), ni dans la passe (D), ni dans mon brief : le lot 8 aurait donc vu `content:build`
+déclarer la leçon **valide**, puis `ng build` **échouer au prerendu**, sur un message parlant du
+mauvais contrat. ⚠️ **Famille S-010, à l'identique** — « le lot annonçait trois points de décision, il
+y en avait cinq ». **Avant de relâcher une règle de contenu, recenser TOUS les endroits qui
+l'appliquent** : le pipeline et l'app en portent chacun une copie, délibérément, et elles doivent dire
+la même chose.
+
+Le lot 0ter ferme aussi un trou que personne n'avait vu : **Ajv valide l'horaire au BUILD, pas
+l'artéfact au CHARGEMENT.** `verifierEvaluationOptionnelle` contraint maintenant la **valeur** de
+`nature` (liste blanche `NATURES_D_EVALUATION`), et pas seulement sa présence — sans quoi une nature
+inconnue serait lue comme « pas `evaluation-pratique` », donc comme un examen, et le build accuserait
+le **module** au lieu de l'horaire fautif.
+
+**Ce que le lot a mesuré sans corriger — le sommaire sous une séance à double emploi.** Avec
+`seance: 11`, `positionDuJalon` **ne lève pas** : le groupe « Projet de session » vaut exactement
+{11}, donc jamais `min < 11 && max > 11`. Le jalon « Projet de session · 16 octobre » reste juste
+avant sa propre section. Le seul mouvement est une **amélioration** — le jalon « Examen final »,
+rendu aujourd'hui *avant* la section Projet, passera *après*. Résidu cosmétique **déjà présent** :
+le libellé « Projet de session » s'affichera deux fois de suite (jalon, puis titre de section).
+Ce n'est pas un bloqueur du lot 8 ; c'est une retouche à décider en le rédigeant.
+
+**Gates à la clôture de 0ter** : `lint` **0** · `npm test` **952 / 43 fichiers / 0 échec** (949 avant
+le chantier) · `typecheck:tools` **0** · `content:build` **vert, 10 leçons, 5/5, 0 dépassement** ·
+`build` **13 routes prerendues, 14 hachages de style / 0 de script — inchangés** · validateur
+`--fixtures` **44/44**, compte en dur intact.
+
+⚠️ **DEUX DÉFAUTS DE BRIEF PAYÉS ICI, à ne pas répéter au lot 1a.** (1) Mon brief du 0bis annonçait
+UN livrable (« le schéma ») mais en portait **trois** : le schéma, une passe **mécanique sur 22
+fixtures**, et une **mesure d'observation** du sommaire. L'agent a fini à **218 670 tokens** pour 84
+appels — le test du « + » ne se lit pas seulement dans la phrase d'objectif, il se lit dans la
+**liste des gestes**. (2) Une passe mécanique sur N fichiers **est un lot**, exactement comme un
+corpus de fixtures (règle §9 du budget de contexte) : elle se compte avant d'écrire le brief.
 
 **5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
 assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.
