@@ -1436,6 +1436,19 @@ compte de livrables) à côté du « test du + » existant.
 **Réfs.** passe E3-ST0 (fusion des fiches KB du cours du cégep, lots à 4-6 fiches) ;
 `.claude/rules/agent-context-budget.md` §0, §2.
 
+**Addendum (2026-08-31) — la même faute sur un agent de CORRECTIFS, pas de création.** Un brief de
+7 bloquants + 10 nuances (E3-ST20 `11-projet-de-session`) ressemblait à un lot serré ; l'agent a
+fini à **178k**, au-dessus du maximum de 150k. La vraie variable n'était pas le compte de constats
+mais ce qu'ils faisaient **écrire** : la leçon est passée de 731 à 939 lignes (+28 %), avec des
+réécritures sur tout le fichier. En regard, le même lot mené sur un fichier disjoint
+(`quiz.json`, 3 constats) a fini à 100k. **Un correctif qui fait croître le fichier de plus
+d'environ 15 % n'est plus un correctif, c'est une réécriture partielle — il se dimensionne et se
+scinde comme telle**, sur le volume de SORTIE et non le compte de constats du brief. La découpe
+**par fichier disjoint**, elle, tient — y compris en parallèle.
+
+**Réfs.** `content/cours/securite-web/11-projet-de-session/`, lot de correctifs `professeur-web`
+(2026-08-31).
+
 **Addendum (2026-08-20) — la même faute HORS fusion KB, sur des lots de CODE : trois dépassements
 dans une seule session.** Trois sous-agents du lot d'intermittence pré-E3-ST1 ont fini à **179k,
 195k et 186k** tokens, au-delà du maximum de 150k, sur des lots qui *paraissaient* bornés. Cause
@@ -2304,6 +2317,81 @@ générateur, pas seulement celles qu'on a pensé à mesurer en premier.
 3 et 4 (2026-08-27), `node_modules/@shikijs/core/dist/index.mjs` (`getTokenStyleObject`, `varKey`) ;
 même faute de forme que [[S-010]] (« une promesse au singulier a une date de péremption implicite »)
 et famille « liste blanche nominative » [[S-020]].
+
+---
+
+## L-081 · Une leçon peut être fausse sans qu'aucune de ses phrases le soit — la faute se répartit, elle ne se localise pas
+
+**Symptôme.** La leçon « Amorcer un projet LAMP » (E3-ST20) classait `config/` en « configuration
+non secrète · versionné oui » dans son tableau d'arborescence ; ses deux exemples y logeaient
+pourtant les identifiants de la base (`config/bd.ini`) ; la prose disait ailleurs « ne jamais
+versionner ce fichier » ; et le `.gitignore` proposé n'excluait ni `config/bd.ini` ni `*.ini`.
+**Chacune des quatre affirmations est défendable isolément** — c'est leur mise ensemble qui faisait
+committer le mot de passe, exactement la faute que la leçon qualifie ailleurs d'irréversible. Aucun
+diff, aucun validateur de schéma, aucun gate ne peut voir ça : chaque ligne, prise seule, est
+syntaxiquement correcte et même souvent vraie dans son contexte immédiat.
+
+**Règle.** Une leçon procédurale peut être **globalement fausse** sans qu'aucune phrase ne le soit
+**localement** — la contradiction vit dans la combinaison de plusieurs endroits distants (un
+tableau, deux exemples, une parade, un fichier de config générés à des moments différents de la
+rédaction). Le seul geste qui l'attrape est de **relire la leçon contre son propre principe le plus
+fort qu'elle énonce** (ici : « ne jamais committer un secret ») en suivant ce principe à travers
+*tous* les artefacts qu'elle produit, pas seulement le paragraphe qui l'énonce. Cousin de [[L-077]]
+(la prose en aval d'une interversion) mais plus large : L-077 est une contradiction à deux endroits
+proches après une édition datée ; celle-ci est une contradiction à quatre endroits, jamais édités
+ensemble, dont aucun n'est individuellement faux. Troisième occurrence de la famille « relire une
+leçon contre elle-même » (séances 3, 4, 11).
+
+**Réfs.** `content/cours/securite-web/11-projet-de-session/lecon.md` (tableau d'arborescence,
+`config/bd.ini`, `.gitignore` proposé), passe `verificateur-theorie` (2026-08-31) ; [[L-077]].
+
+---
+
+## L-082 · Une commande présentée comme une PREUVE doit être confrontée à « que mesure-t-elle exactement ? » — sinon elle enseigne un instrument faux
+
+**Symptôme.** La leçon « Amorcer un projet LAMP » faisait de `php -v` la preuve que la version PHP
+du poste de l'étudiant correspond à celle qu'Apache exécute côté serveur. C'est faux : `php -v`
+interroge la SAPI **CLI**, avec son propre `php.ini` (souvent des extensions différentes de celles
+chargées par le module Apache/FPM). L'étudiant qui suit la leçon croit avoir vérifié la parité
+poste/serveur ; il n'a mesuré qu'un binaire voisin.
+
+**Règle.** Dans une leçon procédurale (ou tout code qui affirme prouver un invariant), toute
+commande présentée comme une **preuve** — pas une simple illustration — se confronte à « que
+mesure-t-elle EXACTEMENT, et est-ce la chose dont on parle ? » avant publication. Un instrument qui
+mesure la mauvaise population est pire qu'un fait faux dans le texte : l'étudiant (ou le test)
+l'exécutera en croyant avoir vérifié quelque chose qu'il n'a pas vérifié, et le faux sentiment de
+preuve est plus difficile à détecter qu'une affirmation nue. Cousin direct de [[L-064]] (un gate qui
+remplace un littéral par une mesure doit mesurer le même prédicat que le garde qu'il protège) —
+appliqué ici au contenu pédagogique plutôt qu'au code : la bonne commande pour prouver la parité
+attendue de l'exercice est `php -v` exécuté **via le module que le serveur charge** (ou
+`phpinfo()`/`apache2ctl -M`), pas la CLI.
+
+**Réfs.** `content/cours/securite-web/11-projet-de-session/lecon.md` (section vérification de la
+version PHP), passe `verificateur-theorie` (2026-08-31) ; [[L-064]].
+
+---
+
+## L-083 · Un garde-fou de contenu qui sort dès qu'AUCUN attribut n'est fourni transforme une obligation en option — c'est le cas par défaut qui passe
+
+**Symptôme.** `tools/content-pipeline/valider.mjs:1252` sort immédiatement quand un encadré
+`::: cours` ne déclare **ni** `diapos` **ni** `seance` — l'obligation de rattacher un renvoi à une
+séance précise ne s'applique donc qu'à partir du moment où l'auteur a déjà renseigné l'un des deux
+attributs. Conséquence mesurée : deux encadrés de la leçon 11 annonçaient « matière d'examen » en
+mêlant, sans le dire, la matière de deux cours **différents** (sécurité et PHP) — un étudiant du
+cours de sécurité se serait mis à réviser XAMPP, propre au cours de PHP. Le fichier compilait vert,
+`content:build` inclus.
+
+**Règle.** Une condition de sortie anticipée fondée sur « aucun des attributs concernés n'est
+fourni » n'est **pas** un cas limite négligeable : c'est le cas **par défaut**, donc le plus
+fréquent statistiquement, celui qui passe silencieusement à travers toute règle censée s'y
+appliquer. Avant d'écrire un garde-fou sur un champ optionnel, vérifier explicitement que son
+absence complète est traitée comme un manquement (échec nommé), pas comme un « rien à valider ici ».
+Cousin de [[L-073]] (un compte dérivé d'un champ optionnel hérite de son optionalité) transposé du
+comptage au contrôle : ici c'est la présence de l'attribut, pas sa valeur, qui désarme la règle.
+
+**Réfs.** `tools/content-pipeline/valider.mjs:1252`,
+`content/cours/securite-web/11-projet-de-session/lecon.md` (deux encadrés `::: cours` sans
+`diapos`/`seance`), passe `verificateur-theorie` (2026-08-31) ; [[L-073]].
 
 ---
 
