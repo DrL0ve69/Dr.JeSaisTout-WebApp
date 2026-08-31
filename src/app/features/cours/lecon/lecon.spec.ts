@@ -758,14 +758,24 @@ describe('lecture des horaires et ancrage au cours', () => {
           numero: 6,
           date: '2026-09-11',
           titre: 'Examen 1',
-          evaluation: { libelle: 'Examen 1', ponderation: 20, portee: [1, 2] },
+          evaluation: {
+            libelle: 'Examen 1',
+            nature: 'examen-ecrit',
+            ponderation: 20,
+            portee: [1, 2],
+          },
         },
         { numero: 7, date: '2026-09-18', titre: 'Sécurité du code' },
         {
           numero: 13,
           date: '2026-10-30',
           titre: 'Examen final',
-          evaluation: { libelle: 'Examen final', ponderation: 60, portee: [1, 2, 7] },
+          evaluation: {
+            libelle: 'Examen final',
+            nature: 'examen-ecrit',
+            ponderation: 60,
+            portee: [1, 2, 7],
+          },
         },
       ],
     };
@@ -866,8 +876,14 @@ describe('lecture des horaires et ancrage au cours', () => {
     // Et une séance couverte par AUCUNE évaluation garde son titre sans pastille.
     const horaireSansPortee = horaireTemoin();
     const seances = horaireSansPortee['seances'] as Record<string, unknown>[];
-    seances[2] = { ...seances[2], evaluation: { libelle: 'Projet de session', ponderation: 20 } };
-    seances[4] = { ...seances[4], evaluation: { libelle: 'Examen final', ponderation: 60 } };
+    seances[2] = {
+      ...seances[2],
+      evaluation: { libelle: 'Projet de session', nature: 'evaluation-pratique', ponderation: 20 },
+    };
+    seances[4] = {
+      ...seances[4],
+      evaluation: { libelle: 'Examen final', nature: 'examen-ecrit', ponderation: 60 },
+    };
     const sansPortee = lireHoraires(artefact(horaireSansPortee), 'contrôle positif');
     expect(ancrerAuCours(sansPortee, 'securite-web', 2).evaluations).toEqual([]);
     expect(ancrerAuCours(sansPortee, 'securite-web', 2).seance?.numero).toBe(2);

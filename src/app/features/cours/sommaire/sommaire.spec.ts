@@ -720,14 +720,23 @@ describe('Sommaire', () => {
         numero: 6,
         date: '2026-09-11',
         titre: 'Examen 1',
-        evaluation: { libelle: 'Examen 1', ponderation: 20, portee: [1, 2, 3, 4] },
+        evaluation: {
+          libelle: 'Examen 1',
+          nature: 'examen-ecrit',
+          ponderation: 20,
+          portee: [1, 2, 3, 4],
+        },
       },
       { numero: 7, date: '2026-09-18', titre: 'Sécurité du code' },
       {
         numero: 11,
         date: '2026-10-16',
         titre: 'Projet de session',
-        evaluation: { libelle: 'Projet de session', ponderation: 20 },
+        evaluation: {
+          libelle: 'Projet de session',
+          nature: 'evaluation-pratique',
+          ponderation: 20,
+        },
       },
       {
         numero: 13,
@@ -735,6 +744,7 @@ describe('Sommaire', () => {
         titre: 'Examen final',
         evaluation: {
           libelle: 'Examen final',
+          nature: 'examen-ecrit',
           ponderation: 60,
           portee: [1, 2, 3, 4, 5, 7, 8, 9, 10],
         },
@@ -812,7 +822,12 @@ describe('Sommaire', () => {
           numero: 6,
           date: '2026-09-11',
           titre: 'Test',
-          evaluation: { libelle: 'Test de lecture', ponderation: 5, portee: [3] },
+          evaluation: {
+            libelle: 'Test de lecture',
+            nature: 'examen-ecrit',
+            ponderation: 5,
+            portee: [3],
+          },
         },
       ]);
 
@@ -845,7 +860,7 @@ describe('Sommaire', () => {
           numero: 1,
           date: '2026-08-07',
           titre: 'Test',
-          evaluation: { libelle: 'Test éclair', ponderation: 5 },
+          evaluation: { libelle: 'Test éclair', nature: 'examen-ecrit', ponderation: 5 },
         },
       ]);
 

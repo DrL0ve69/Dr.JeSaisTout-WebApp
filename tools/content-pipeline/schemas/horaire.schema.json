@@ -57,10 +57,15 @@
           "evaluation": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["libelle", "ponderation"],
-            "description": "OPTIONNEL. Présent ⇔ la séance EST une évaluation (examen, projet). Une séance qui en porte une n'est le support d'aucun module : « seance » ne peut pas la citer (règle hors schéma) — il n'y a pas de module « Examen 1 ».",
+            "required": ["libelle", "nature", "ponderation"],
+            "description": "OPTIONNEL. Présent ⇔ la séance EST une évaluation. Ce que la séance interdit alors dépend de sa « nature », REQUISE : un « examen-ecrit » n'est le support d'aucun module (« seance » ne peut pas le citer — il n'y a pas de module « Examen 1 »), tandis qu'une « evaluation-pratique » PEUT en porter un. Cette dernière règle est hors schéma : elle compare deux fichiers.",
             "properties": {
               "libelle": { "type": "string", "minLength": 3, "maxLength": 60 },
+              "nature": {
+                "type": "string",
+                "enum": ["examen-ecrit", "evaluation-pratique"],
+                "description": "REQUIS, et surtout PAS optionnel — c'est l'arbitrage R-3 du 2026-08-31. « examen-ecrit » : la séance n'est le support d'aucun module, aucun « seance » de frontmatter ne peut la citer (il n'y a pas de module « Examen 1 »). « evaluation-pratique » : la séance PEUT porter un module — le projet de session s'enseigne (consignes, barème, démarche), et son module est ce qui l'enseigne. POURQUOI REQUIS : optionnel avec un défaut permissif, ce champ rouvrirait les séances d'examen en SILENCE ; requis, il fait échouer le build tant que chaque évaluation n'a pas été qualifiée à la main, et une omission se NOMME."
+              },
               "ponderation": {
                 "type": "integer",
                 "minimum": 1,

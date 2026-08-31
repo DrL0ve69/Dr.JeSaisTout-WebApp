@@ -654,11 +654,19 @@ interface HoraireCompile {
     date: string;
     titre: string;
     /**
-     * OPTIONNEL. Présent ⇔ la séance EST une évaluation. Une séance qui en porte une n'est le
-     * support d'aucun module : `seance` ne peut pas la citer.
+     * OPTIONNEL. Présent ⇔ la séance EST une évaluation. Ce qu'elle interdit alors dépend de sa
+     * `nature` : un `examen-ecrit` n'est le support d'aucun module (`seance` ne peut pas le citer),
+     * une `evaluation-pratique` peut en porter un.
      */
     evaluation?: {
       libelle: string;
+      /**
+       * REQUISE, jamais optionnelle (arbitrage R-3, 2026-08-31). `examen-ecrit` : aucun module ne
+       * peut citer cette séance. `evaluation-pratique` : le projet de session, qui s'enseigne, et
+       * qu'un module PEUT donc couvrir. Optionnelle avec un défaut permissif, elle rouvrirait les
+       * séances d'examen en silence ; requise, une omission fait échouer le build en se nommant.
+       */
+      nature: 'examen-ecrit' | 'evaluation-pratique';
       /** Pourcentage de la note finale, entier. */
       ponderation: number;
       /**

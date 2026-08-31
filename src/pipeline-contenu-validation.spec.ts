@@ -73,6 +73,19 @@ const FIXTURE_ANCRAGE = 'tools/content-pipeline/__fixtures__/ancrage-au-cours';
  */
 const FIXTURE_EXERCICES = 'tools/content-pipeline/__fixtures__/exercices-du-cours';
 
+/**
+ * La racine du MODULE RATTACHÉ À UNE ÉVALUATION PRATIQUE (arbitrage R-3, 2026-08-31) : un
+ * `horaire.json` dont la séance 3 est un « examen-ecrit » et la séance 4 une
+ * « evaluation-pratique » (le projet de session), et un module qui déclare `seance: 4`.
+ *
+ * ⚠️ C'EST LA MOITIÉ POSITIVE DE R-3, et sans elle le lot ne prouverait que ce qu'il REFUSE.
+ * Le cas `invalides/seance-du-module-est-une-evaluation` reste vert sur un validateur qui
+ * refuserait TOUTE évaluation — soit exactement le contrat qui existait AVANT R-3. Seule cette
+ * racine-ci, qui doit sortir en code 0, rend ce contournement impossible.
+ */
+const FIXTURE_EVALUATION_PRATIQUE =
+  'tools/content-pipeline/__fixtures__/module-sur-evaluation-pratique';
+
 /** Ajv compile ses schémas et une racine par cas : lent une fois, pas une fois par cas. */
 const DELAI = 60_000;
 
@@ -250,7 +263,7 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
   },
   {
     dossier: 'seance-du-module-est-une-evaluation',
-    cause: /« seance: 3 » désigne « Examen 1 », une séance d'ÉVALUATION/,
+    cause: /« seance: 3 » désigne « Examen 1 », une séance d'ÉVALUATION de nature « examen-ecrit »/,
   },
   // 23-24. LA MATRICE D'ATTRIBUTS, prise par ses DEUX diagonales. `source` est admis sur
   // `correction-du-cours` et refusé sur `cours` ; `diapos` est admis sur `cours` et refusé sur
@@ -578,6 +591,16 @@ describe('l’autre moitié de la pince — le validateur ne refuse pas TOUT', (
     'accepte une racine ANCRÉE AU COURS — horaire, « seance » et renvois de diapositives',
     () => {
       const { sortie, code } = lancer(['--racine', FIXTURE_ANCRAGE]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/1 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+
+  it(
+    'accepte un module rattaché à une évaluation PRATIQUE — R-3 ouvre le projet de session',
+    () => {
+      const { sortie, code } = lancer(['--racine', FIXTURE_EVALUATION_PRATIQUE]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/1 leçon\(s\) valides/);
     },

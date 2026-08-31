@@ -24,6 +24,7 @@
       "titre": "Examen 1",
       "evaluation": {
         "libelle": "Examen 1",
+        "nature": "examen-ecrit",
         "ponderation": 20,
         "portee": [
           1,

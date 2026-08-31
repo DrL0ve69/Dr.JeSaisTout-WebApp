@@ -1910,9 +1910,20 @@ function validerSimulationDeLecon(dossier, slug, anomalies) {
  *
  * `seance` est OPTIONNEL : son absence dit « module complémentaire, hors cours », et c'est un état
  * légitime — trois modules du sujet le sont (`docs/contenu/ancrage-au-cours.md` §2). Ce qui est
- * refusé, c'est un numéro qui ne désigne rien, ou qui désigne une séance d'ÉVALUATION : il n'y a
+ * refusé, c'est un numéro qui ne désigne rien, ou qui désigne une séance d'EXAMEN ÉCRIT : il n'y a
  * pas de module « Examen 1 », et un module rattaché à la séance 6 s'afficherait sous un jalon
  * d'examen dans le sommaire.
+ *
+ * 🔴 TOUTE ÉVALUATION N'EST PAS UN EXAMEN — arbitrage R-3 du propriétaire, 2026-08-31. Le
+ * « Projet de session » (séance 11) est une évaluation PRATIQUE : il s'enseigne — consignes,
+ * barème, démarche — et il a donc un module. La règle ne porte donc plus sur la PRÉSENCE d'une
+ * `evaluation`, mais sur sa `nature`, champ REQUIS du schéma : `examen-ecrit` interdit,
+ * `evaluation-pratique` autorise. ⚠️ Le test ci-dessous nomme la nature AUTORISÉE, jamais
+ * l'interdite : une troisième valeur d'énumération ajoutée un jour serait refusée par défaut
+ * plutôt qu'admise en silence (`.claude/rules/security.md` §4 — liste blanche, pas liste noire).
+ *
+ * ⚠️ LA RÈGLE DES EXERCICES, ELLE, NE BOUGE PAS : un exercice ne cite AUCUNE séance d'évaluation,
+ * quelle que soit sa nature — une feuille d'exercices ne se remet pas un jour d'évaluation.
  *
  * POURQUOI CETTE RÈGLE NE PEUT PAS VIVRE DANS LE SCHÉMA. Elle compare DEUX fichiers — le
  * frontmatter d'un module et l'horaire de son sujet. JSON Schema ne voit qu'un document.
@@ -1939,12 +1950,15 @@ function verifierSeanceContreHoraire(frontmatter, horaire, signaler) {
     );
     return;
   }
-  if (decrite.evaluation !== undefined) {
-    signaler(
-      `« seance: ${seance} » désigne « ${decrite.titre} », une séance d'ÉVALUATION ` +
-        `(${decrite.evaluation.libelle}) — il n'y a pas de module de cours pour un examen`,
-    );
-  }
+  const evaluation = decrite.evaluation;
+  if (evaluation === undefined) return;
+  if (evaluation.nature === 'evaluation-pratique') return;
+  signaler(
+    `« seance: ${seance} » désigne « ${decrite.titre} », une séance d'ÉVALUATION de nature ` +
+      `« ${evaluation.nature} » (${evaluation.libelle}) — un module ne se rattache qu'à une séance ` +
+      "ordinaire ou à une évaluation « evaluation-pratique » (le projet de session, qui s'enseigne) ; " +
+      "il n'y a pas de module de cours pour un examen écrit",
+  );
 }
 
 /**
@@ -2176,10 +2190,16 @@ function releverSection(parSujet, resultat, rel) {
 /**
  * --- 0. `horaire.json` — l'horaire du sujet (E3-ST20) ---
  *
+ * ⚠️ LA `nature` VOYAGE AVEC LE LIBELLÉ jusque dans l'index, et ce n'est pas décoratif : c'est
+ * elle, et non la simple présence d'une `evaluation`, qui décide si un module peut citer la
+ * séance (règle 3bis, arbitrage R-3 du 2026-08-31).
+ *
+ * @typedef {{ libelle: string, nature: 'examen-ecrit' | 'evaluation-pratique' }} NatureEtLibelle
+ *
  * @typedef {{
  *   sujet: string,
  *   numeros: ReadonlySet<number>,
- *   parNumero: ReadonlyMap<number, { titre: string, evaluation?: { libelle: string } }>,
+ *   parNumero: ReadonlyMap<number, { titre: string, evaluation?: NatureEtLibelle }>,
  * }} HoraireIndexe
  */
 
@@ -2270,18 +2290,26 @@ function validerHoraireDeLaRacine(racine, anomalies) {
         signaler(premiereErreurAjv(validerHoraire.errors));
         return;
       }
-      const horaire = /** @type {{ sujet: string, seances: { numero: number, titre: string, evaluation?: { libelle: string, portee?: number[] } }[] }} */ (
+      const horaire = /** @type {{ sujet: string, seances: { numero: number, titre: string, evaluation?: NatureEtLibelle & { portee?: number[] } }[] }} */ (
         donnees
       );
       if (!verifierHoraireHorsSchema(horaire, signaler)) return;
-      /** @type {Map<number, { titre: string, evaluation?: { libelle: string } }>} */
+      /** @type {Map<number, { titre: string, evaluation?: NatureEtLibelle }>} */
       const parNumero = new Map();
       for (const seance of horaire.seances) {
         parNumero.set(
           seance.numero,
           seance.evaluation === undefined
             ? { titre: seance.titre }
-            : { titre: seance.titre, evaluation: { libelle: seance.evaluation.libelle } },
+            : {
+                titre: seance.titre,
+                // La `nature` est recopiée AVEC le libellé : sans elle, la règle 3bis ne saurait
+                // pas distinguer un examen écrit d'un projet de session, et refuserait les deux.
+                evaluation: {
+                  libelle: seance.evaluation.libelle,
+                  nature: seance.evaluation.nature,
+                },
+              },
         );
       }
       indexe = { sujet: horaire.sujet, numeros: new Set(parNumero.keys()), parNumero };

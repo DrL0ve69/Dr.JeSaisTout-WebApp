@@ -50,16 +50,18 @@ d'autre** ; aucun module ne recopie son contenu.
     { "numero": 4, "date": "2026-08-28", "titre": "Automatisation des tâches de surveillance et nettoyage" },
     { "numero": 5, "date": "2026-09-04", "titre": "Sécurité des utilisateurs" },
     { "numero": 6, "date": "2026-09-11", "titre": "Examen 1",
-      "evaluation": { "libelle": "Examen 1", "ponderation": 20, "portee": [1, 2, 3, 4] } },
+      "evaluation": { "libelle": "Examen 1", "nature": "examen-ecrit", "ponderation": 20,
+                      "portee": [1, 2, 3, 4] } },
     { "numero": 7, "date": "2026-09-18", "titre": "Sécurité du code" },
     { "numero": 8, "date": "2026-09-25", "titre": "Sécurité des services web et certificat HTTPS" },
     { "numero": 9, "date": "2026-10-02", "titre": "Sécurité des bases de données" },
     { "numero": 10, "date": "2026-10-09", "titre": "Sécurité des mécanismes d'authentification et autorisation" },
     { "numero": 11, "date": "2026-10-16", "titre": "Projet de session",
-      "evaluation": { "libelle": "Projet de session", "ponderation": 20 } },
+      "evaluation": { "libelle": "Projet de session", "nature": "evaluation-pratique",
+                      "ponderation": 20 } },
     { "numero": 12, "date": "2026-10-23", "titre": "Révision" },
     { "numero": 13, "date": "2026-10-30", "titre": "Examen final",
-      "evaluation": { "libelle": "Examen final", "ponderation": 60,
+      "evaluation": { "libelle": "Examen final", "nature": "examen-ecrit", "ponderation": 60,
                       "portee": [1, 2, 3, 4, 5, 7, 8, 9, 10] } }
   ]
 }
@@ -79,12 +81,37 @@ seance: 2      # entier 1-13, OPTIONNEL
 - **Absent** = module **complémentaire, hors cours**. Il s'affiche « Complément · hors cours » et
   n'apparaît dans la portée d'aucun examen. C'est le cas de `evaluation-cvss`, `jwt` et
   `en-tetes-securite-http`, mesurés à **0 📘** au recensement de provenance du 2026-08-19.
-- **Présent** : le numéro DOIT exister dans `horaire.json`, et cette séance **ne doit pas porter
-  d'`evaluation`** — il n'y a pas de module « Examen 1 ».
+- **Présent** : le numéro DOIT exister dans `horaire.json`, et cette séance ne doit pas être un
+  **examen écrit** — il n'y a pas de module « Examen 1 ». Une séance d'**évaluation pratique**,
+  elle, **peut** porter un module : voir la règle sous cette liste.
 - **Plusieurs modules peuvent partager une même séance.** La séance 7 « Sécurité du code » en donne
   cinq. Le rang dans la séance (« 1/5 ») est **dérivé** par le compilateur depuis `ordre`, jamais
   écrit à la main.
 
+🔴 **Toute évaluation n'est pas un examen — arbitrage R-3 du propriétaire, 2026-08-31.**
+Trois séances du cours portent une `evaluation` (6, 11, 13) et le schéma ne savait pas les
+distinguer : le validateur les refusait toutes les trois comme support de module. Or le
+**Projet de session** (séance 11) **s'enseigne** — consignes, barème, démarche, critères de
+remise — et c'est exactement ce qu'un module doit couvrir ; l'**Examen 1** et l'**Examen final**,
+eux, ne sont que des séances de passation, et un module rattaché à la séance 6 s'afficherait
+sous un jalon d'examen dans le sommaire. D'où le champ **`nature`** de l'`evaluation` :
+
+| `nature` | Un module peut-il citer cette séance ? | Exemple |
+|---|---|---|
+| `examen-ecrit` | **Non** — refusé par `valider.mjs` §3bis, en nommant la nature lue | séances 6 et 13 |
+| `evaluation-pratique` | **Oui** | séance 11, « Projet de session » |
+
+⚠️ **`nature` est REQUISE, jamais optionnelle, et c'est le cœur de la règle.** Optionnelle avec
+un défaut permissif, elle rouvrirait les séances 6 et 13 **en silence** le jour où quelqu'un
+l'omettrait. Requise, elle fait **échouer le build** tant que chaque évaluation n'a pas été
+qualifiée **à la main** : une omission se **nomme**, elle ne se devine pas. Le test de
+`valider.mjs` porte du reste sur la nature **autorisée**, jamais sur la nature interdite — une
+troisième valeur d'énumération ajoutée un jour serait refusée par défaut plutôt qu'admise sans
+que personne l'ait vue (`.claude/rules/security.md` §4 : liste blanche, pas liste noire).
+
+⚠️ **La règle des EXERCICES ne bouge pas** (§6) : un exercice ne peut citer **aucune** séance
+d'évaluation, quelle que soit sa nature — une feuille d'exercices ne se remet pas un jour
+d'évaluation, projet compris.
 🔴 **`ordre` ne devient PAS le numéro de séance.** `ordre` reste la position de lecture, unique, et
 égale au préfixe `nn` du dossier — c'est déjà le contrat de `valider.mjs` §3, et une séance à cinq
 modules le rendrait insatisfiable. L'alignement 01→05 = séances 1→5 est un **heureux hasard**
