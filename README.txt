@@ -19,6 +19,41 @@ Projet: "C:\Users\phili\ProjetsPortfolio\2026\Dr.JeSaisTout-WebApp"
 
 ***
 
+AI Overview        To start a web development project on Windows using LAMP (Linux, Apache, MariaDB, PHP) via WSL (Windows Subsystem for Linux), develop it in VS Code, and deploy it directly to DigitalOcean without Docker, follow this step-by-step guide.Step 1: Set Up Your Linux Environment on Windows (WSL)Instead of using a traditional Windows WAMP installer, using WSL gives you a native Linux environment on Windows that mirrors your production DigitalOcean server perfectly.Open PowerShell as Administrator and run:powershellwsl --install
+Use code with caution.Restart your computer if prompted. It will install Ubuntu by default.Open the Ubuntu app, then create your Linux username and password.Step 2: Install Apache, MariaDB, and PHP (LAMP) in WSLInside your Ubuntu terminal, run the following commands to install your development stack:Update your package list:bashsudo apt update && sudo apt upgrade -y
+Use code with caution.Install Apache2:bashsudo apt install apache2 -y
+Use code with caution.Install MariaDB (MySQL alternative):bashsudo apt install mariadb-server -y
+Use code with caution.Install PHP and common extensions:bashsudo apt install php libapache2-mod-php php-mysql php-xml php-mbstring -y
+Use code with caution.Start the services:bashsudo service apache2 start
+sudo service mariadb start
+Use code with caution.Step 3: Connect VS Code to WSLDownload and install VS Code on Windows.Install the official WSL extension from the VS Code Marketplace.In your Ubuntu terminal, navigate to Apache's web directory and create a project folder:bashcd /var/www/html
+sudo mkdir my-project
+sudo chown -R $USER:$USER my-project
+cd my-project
+Use code with caution.Open the project in VS Code by typing:bashcode .
+Use code with caution.VS Code will open a new window securely connected to your Linux environment. Create an index.php file to test:php<?php
+echo "Hello from LAMP inside WSL!";
+?>
+Use code with caution.Open your Windows web browser and go to http://localhost/my-project/ to see your live site.Step 4: Initialize Git Version ControlBefore deploying, you need to track your code changes.Inside your VS Code terminal (which is connected to WSL), initialize Git:bashgit init
+git add .
+git commit -m "Initial commit"
+Use code with caution.Create a repository on GitHub (or GitLab).Link your local project to GitHub and push your code:bashgit remote add origin <your-github-repo-url>
+git branch -M main
+git push -u origin main
+Use code with caution.Step 5: Provision a DigitalOcean DropletLog in to DigitalOcean.Click Create > Droplets.Choose Ubuntu (matching your WSL version) as the OS.Select the Basic plan (Shared CPU) and choose your preferred size (the $4 or $6/month plan is fine for starting out).Choose SSH Keys for authentication (highly recommended over passwords). Follow DigitalOcean's prompts to add your Windows/WSL SSH public key.Click Create Droplet. Copy your Droplet's IP address once it goes live.Step 6: Configure the DigitalOcean ServerOpen a terminal (WSL or Git Bash) on your computer and connect to your server:SSH into your server:bashssh root@your_droplet_ip
+Use code with caution.Install the LAMP stack on the server (exact same commands as Step 2):bashsudo apt update
+sudo apt install apache2 mariadb-server php libapache2-mod-php php-mysql php-xml php-mbstring -y
+Use code with caution.Configure MariaDB secure installation:bashsudo mysql_secure_installation
+Use code with caution.Follow the prompts to set a database root password and secure the system.Step 7: Deploy Your Code to DigitalOceanSince you aren't using Docker, the cleanest way to deploy and update your app is via Git.Navigate to the server's web directory:bashcd /var/www/html
+Use code with caution.Remove the default Apache index file:bashsudo rm index.html
+Use code with caution.Clone your GitHub repository directly into the folder:bashsudo git clone <your-github-repo-url> .
+Use code with caution.Fix permissions so Apache can read your files:bashsudo chown -R www-data:www-data /var/www/html
+Use code with caution.Type your Droplet's IP address into your web browser. Your PHP application is now live on the internet!To help tailor the next steps, tell me:Do you need assistance setting up a domain name and SSL (HTTPS) certificate?Does your project require a specific PHP framework (like Laravel or WordPress), or is it custom PHP?Would you like to know how to create your database and import tables onto the production server?
+
+***
+
+***
+
 Conversation avec Gemini
 Dans mon cours de sécurité des applications web on utilise digital ocean pour déployé notre app LAMP(avec wamp). Je crois que les notions sont un peu en retard dû au fait que nous utilisons putty à la place du powershell (avec wsl pour linux je crois). Peux tu me donner un équivalent des commandes (comparaison, je veux les deux) pour que je puisses prendre les commandes du cours et les plus utiles et les transferer aux pratiques modernes. Tu peux rechercher toi même la théorie via le site du cours ( il s'agit de théorie en powerpoint, tu ne peux peut-être pas les consulté si c'est le cas fit toi au exercice pour en déduire le contenu) : https://www.alexandrepetrin.ca/securisation-des-applications-web/ et disons exercices cours 1 : https://www.alexandrepetrin.ca/exercice-securisation-app-web-cours-1-2026/ . Fait cela pour les cours 1 à 5 (matière à l'examen 1). Tu peux consulter le web pour t'aider à compléter la réponse surtout si tu n'as pas accès au powerpoint! Je t'en laisse tout de même quelque unes jointes
 

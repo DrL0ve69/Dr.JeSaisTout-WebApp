@@ -77,11 +77,11 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
  * `01-fondamentaux`. Le littéral est délibéré — c'est lui qui force la revue
  * humaine d'une page d'accueil dont le texte, lui, n'est dérivé de rien (voir la
  * `description` de la carte, corrigée à E3-ST4 : elle annonçait « le premier
- * module est en ligne »). ⚠️ La `description` ci-dessous reste exacte à neuf
- * modules — « les premiers modules sont en ligne » — donc elle n'est pas touchée ;
- * elle le redeviendra fausse quand la majorité des treize sera publiée.
+ * module est en ligne »). ⚠️ La `description` ci-dessous passe à « la plupart
+ * des modules » à dix modules sur treize : « les premiers » sous-disait un compte
+ * que la carte affiche juste à côté. Elle redeviendra fausse aux treize.
  */
-const MODULES_PUBLIES = 9;
+const MODULES_PUBLIES = 10;
 
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;
@@ -141,7 +141,7 @@ const MODULES_TOTAL = 13;
 
       <app-carte-cours
         titre="Sécurité des applications web"
-        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. Les premiers modules sont en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
+        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. La plupart des modules sont en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
         lien="/cours/securite-web"
         [modulesPublies]="modulesPublies"
         [modulesTotal]="modulesTotal"

@@ -1,0 +1,184 @@
+{
+  "lecon": "projet-de-session",
+  "titre": "Quiz — Amorcer un projet LAMP",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Ton site fonctionne parfaitement depuis trois semaines sur ta machine Windows. Tu transfères exactement les mêmes fichiers sur le serveur Ubuntu du projet et la moitié des pages deviennent blanches, avec une erreur fatale sur un require. Quelle explication est la bonne, et que fais-tu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Les noms de fichiers ne sont pas écrits avec la même casse partout : Windows considère Modele/Client.php et modele/client.php comme le même chemin, Linux non. On corrige les noms et les require pour qu'ils coïncident exactement, caractère par caractère."
+        },
+        {
+          "id": "b",
+          "texte": "Le transfert a corrompu les fichiers : il faut recommencer le téléversement en mode binaire, la casse des noms n'a aucune influence sur la résolution d'un chemin."
+        },
+        {
+          "id": "c",
+          "texte": "Le serveur manque de permissions de lecture sur les fichiers : un chmod 777 récursif sur le dossier du projet réglera la question."
+        },
+        {
+          "id": "d",
+          "texte": "Les séparateurs de chemin sont en jeu : Linux refuse la barre oblique / dans un require et attend la barre inverse \\ comme Windows."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est l'écart de parité le plus coûteux du lot, et le seul qui n'apparaisse dans aucune commande de version. Sous Windows, le système de fichiers est insensible à la casse : require \"Modele/Client.php\" trouve le fichier même s'il s'appelle réellement modele/client.php. Sous Linux, ce sont deux chemins différents, et le second n'existe pas — erreur fatale, page blanche. Ce qui rend le piège parfait, c'est qu'il est silencieux du BON côté : ta machine ne te signale jamais l'incohérence, elle te la cache, et tu la découvres après le transfert. La réponse b est la fausse piste rassurante — on accuse l'outil de transfert alors que le code est arrivé intact ; rien dans un téléversement ne modifie la casse d'un nom. La réponse c est une aggravation déguisée en correctif : elle ne règle rien, puisque le fichier cherché n'existe pas sous ce nom-là, et elle rend au passage tout le projet inscriptible par n'importe quel compte de la machine — exactement la faute que la leçon dénonce sur le journal. La réponse d inverse le fait : c'est Windows qui accepte les deux séparateurs, et PHP normalise la barre oblique sur toutes les plateformes. La vraie parade n'est pas curative mais préventive : développer sur la même famille de système que le serveur, ce qui fait apparaître l'erreur le premier jour au lieu de la veille de la remise.",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    },
+    {
+      "id": "q2",
+      "type": "associer",
+      "consigne": "Pour chaque fichier ou dossier du projet, choisis le traitement correct : est-il servi par HTTP, et entre-t-il dans le dépôt git ?",
+      "paires": [
+        {
+          "gauche": "public/index.php",
+          "droite": "Servi par HTTP, parce que c'est le seul fichier de la liste placé sous le DocumentRoot — et versionné, parce que c'est du code écrit à la main."
+        },
+        {
+          "gauche": "src/Modele/Client.php",
+          "droite": "Jamais servi, parce qu'Apache ne voit rien au-dessus du DocumentRoot — et versionné, parce que c'est le cœur du projet."
+        },
+        {
+          "gauche": "config/bd.ini (hôte, utilisateur, mot de passe de la base)",
+          "droite": "Jamais servi, et jamais versionné : il porte un mot de passe, et l'historique d'un dépôt garde ce qu'on y a poussé même après suppression."
+        },
+        {
+          "gauche": "config/bd.ini.exemple (les mêmes clés, sans les valeurs)",
+          "droite": "Jamais servi, mais versionné : il ne contient que les NOMS des clés attendues, et c'est lui qui dit à ton coéquipier quoi remplir."
+        },
+        {
+          "gauche": "var/log/app.log",
+          "droite": "Jamais servi, et jamais versionné : la machine le réécrit à chaque requête, il grossit sans fin et il recueille par mégarde des données personnelles."
+        },
+        {
+          "gauche": "vendor/ (dépendances installées)",
+          "droite": "Jamais servi, et jamais versionné : ce sont des milliers de fichiers qui n'appartiennent pas à ton projet et que Composer reconstruit à l'identique."
+        }
+      ],
+      "explication": "Deux questions indépendantes se posent sur chaque fichier, et les confondre est l'erreur classique. PREMIÈRE QUESTION, servi ou non : elle se règle uniquement par la POSITION du fichier vis-à-vis du DocumentRoot. Une seule ligne du tableau de la leçon répond oui, celle de public/. Tout le reste est hors de portée par construction — Apache ne sait littéralement pas que ces fichiers existent, il n'y a donc aucune règle à écrire et, surtout, aucune règle à oublier d'écrire. DEUXIÈME QUESTION, versionné ou non : elle se règle par l'origine du contenu. On versionne ce qu'un humain écrit et qui définit le projet — le code, les vues, la configuration non secrète, les tests. On ne versionne pas ce qu'une machine produit (var/, les journaux, le cache) ni ce qu'un outil peut reconstruire (vendor/). Et on ne versionne JAMAIS un secret : un mot de passe poussé sur un dépôt public y reste même après suppression, parce que l'historique le garde. Le couple config/bd.ini et config/bd.ini.exemple est le cas qui prouve que les deux questions sont bien indépendantes : les deux fichiers sont dans le MÊME dossier, donc tous deux hors d'atteinte du web, et pourtant l'un reste sur ta machine tandis que l'autre entre au dépôt. Ce qui les sépare n'est pas leur position mais leur contenu — l'un porte les valeurs, l'autre seulement les noms des clés attendues, c'est-à-dire le mode d'emploi que ton coéquipier remplira avec SES propres identifiants. Deux lignes se ressemblent aussi beaucoup sans être versionnées pour la même raison : var/log/app.log est exclu parce qu'une machine le produit, vendor/ parce qu'un outil le reconstruit — le premier serait faux dans le dépôt, le second seulement inutile et encombrant.",
+      "ficheSource": "web/php/php-organisation-projet.md"
+    },
+    {
+      "id": "q3",
+      "type": "trouver-la-faille",
+      "consigne": "Ce point d'entrée a l'air correct : les trois options du cookie de session y sont bien présentes, et une relecture rapide rassure. Pourtant le cookie envoyé au navigateur ne porte aucune des trois. Quelle ligne, par sa POSITION, rend ces options inertes ?",
+      "langage": "php",
+      "code": "<?php\n// public/index.php — extrait, exemple VULNERABLE\nsession_start();\nsession_set_cookie_params([\n    'httponly' => true,\n    'samesite' => 'Lax',\n    'secure'   => true,\n]);\n$config = parse_ini_file(dirname(__DIR__) . '/config/bd.ini');",
+      "ligneFautive": 3,
+      "faille": "session_start() est appelé AVANT le réglage des paramètres du cookie : l'en-tête Set-Cookie est déjà parti, les trois options ne s'appliquent à rien",
+      "explication": "Aucune des lignes de ce code n'est fausse prise isolément : c'est leur ORDRE qui l'est, et c'est ce qui rend le défaut si difficile à voir en revue. session_start() fait deux choses d'un coup — il ouvre la session ET il émet immédiatement l'en-tête Set-Cookie avec les paramètres en vigueur à cet instant. Les régler après, c'est peindre une porte déjà livrée : le navigateur a reçu un cookie sans httponly, sans samesite et sans secure, et il le renverra tel quel à chaque requête. Le résultat est le pire des deux mondes, parce que la relecture RASSURE : le code a l'air sécurisé et le cookie ne l'est pas. PHP n'est pourtant pas muet, et le détail vaut mieux que la version simplifiée qu'on lit souvent : depuis PHP 7.2, session_set_cookie_params() appelé alors que la session est déjà active émet un avertissement (E_WARNING, « Cannot change session cookie parameters when session is active ») et retourne false. Seulement un avertissement n'arrête rien — la page s'affiche normalement — et un serveur correctement configuré pour la production met display_errors à 0, comme le prescrit php.ini-production : le message part donc dans un journal d'erreurs que personne ne lit, alors que le cookie sans protection, lui, est DÉJÀ chez le visiteur. C'est plus inquiétant qu'un silence, pas moins : le signal existe, il est parfaitement explicite, et la chaîne d'outils fait tout pour qu'il n'atteigne jamais la personne qui aurait pu corriger. On est tenté d'accuser la ligne 4, celle qui appelle session_set_cookie_params — mais cette ligne est parfaitement correcte, elle est simplement arrivée trop tard ; la déplacer ne servirait à rien si session_start restait au-dessus. La ligne 9 n'a rien à voir : elle lit la configuration un cran au-dessus du DocumentRoot, ce qui est exactement le geste attendu. La correction consiste donc à RÉGLER d'abord, DÉMARRER ensuite. Une remarque de parité au passage sur l'option secure : elle impose au navigateur de ne renvoyer le cookie qu'en HTTPS, ce qui est indispensable en ligne mais empêche la session de fonctionner sur un poste local en HTTP clair — raison de plus pour que sa valeur vienne du fichier de configuration plutôt que d'être écrite en dur, comme l'affichage des erreurs.",
+      "correction": "<?php\n// public/index.php — on REGLE le cookie, puis on DEMARRE la session\nsession_set_cookie_params([\n    'httponly' => true,\n    'samesite' => 'Lax',\n    'secure'   => true,   // valeur idealement lue dans la configuration : 1 en ligne, 0 en local sur HTTP\n]);\nsession_start();\n$config = parse_ini_file(dirname(__DIR__) . '/config/bd.ini');",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    },
+    {
+      "id": "q4",
+      "type": "trouver-la-faille",
+      "consigne": "Voici le compte SQL de l'application boutique, créé tel que la méthode de mise en ligne enseignée le prescrit. Deux de ces lignes portent une faute de sécurité. Laquelle transforme une simple injection SQL dans une page de recherche en compromission de TOUT le serveur de bases de données ?",
+      "langage": "sql",
+      "code": "-- Compte SQL de l'application, exemple VULNERABLE\nCREATE USER 'appuser'@'%' IDENTIFIED BY 'motdepasse';\nGRANT ALL PRIVILEGES ON *.* TO 'appuser'@'%' WITH GRANT OPTION;\nFLUSH PRIVILEGES;",
+      "ligneFautive": 3,
+      "faille": "Privilège maximal accordé sur toutes les bases : ALL PRIVILEGES ON *.* avec en prime le droit de redistribuer ces privilèges",
+      "explication": "Il faut lire cette ligne en trois morceaux. ON *.* signifie « toutes les bases, toutes les tables » : le compte de la boutique peut donc lire et détruire les données de toutes les autres applications hébergées sur le même serveur. ALL PRIVILEGES inclut DROP, CREATE USER et, selon la configuration, la lecture de fichiers de la machine. WITH GRANT OPTION ajoute le droit de DONNER ces privilèges à d'autres comptes, ce qui rend la compromission durable même après changement du mot de passe. La conséquence est celle qui compte pour un cours de sécurité : la gravité d'une injection SQL n'est plus décidée par la qualité de ton code, mais par ce que tu as accordé à ce compte. La ligne 2 est la seconde faute, et il ne faut surtout pas l'oublier : le '%' autorise la connexion depuis N'IMPORTE QUELLE adresse au lieu de la machine elle-même. Si le port de MySQL est joignable, le compte devient attaquable par force brute depuis Internet, avec par-dessus le marché un mot de passe court. Elle n'est pourtant pas la réponse attendue ici : elle élargit la SURFACE d'attaque, alors que la ligne 3 décide du DOMMAGE une fois qu'un attaquant est entré, quelle que soit la porte qu'il a empruntée. Les lignes 1 et 4 sont inoffensives, mais pas pour la même raison : la première est un commentaire, tandis que la quatrième mérite qu'on nomme le mythe qui l'accompagne. FLUSH PRIVILEGES n'est PAS nécessaire après CREATE USER ou GRANT : la documentation de MySQL le dit noir sur blanc, les instructions de gestion de comptes prennent effet immédiatement. La ligne est un réflexe hérité d'une époque où l'on modifiait les tables de privilèges à la main, ce qui obligeait alors à demander au serveur de les relire. Inoffensive, donc, mais inutile — et c'est pourquoi elle ne figure pas dans le corrigé ci-dessous : un corrigé n'enseigne pas un geste rituel. La parade porte un nom, le moindre privilège : un compte par application, restreint à SA base et aux seuls verbes dont elle a besoin. Le compte ne peut alors ni supprimer une table, ni en créer, ni lire une autre base, ni créer un compte — le dommage maximal devient borné par la configuration au lieu de dépendre du code.",
+      "correction": "-- Un compte par application, un hote, et le strict necessaire\n-- (pas de FLUSH PRIVILEGES : CREATE USER et GRANT prennent effet immediatement)\nCREATE USER 'boutique_app'@'localhost' IDENTIFIED BY 'UnMotDePasseLongEtTireAuHasard';\nGRANT SELECT, INSERT, UPDATE, DELETE ON boutique.* TO 'boutique_app'@'localhost';",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    },
+    {
+      "id": "q5",
+      "type": "vrai-faux",
+      "affirmation": "Puisque le serveur intégré de PHP exécute exactement le même code que le serveur cible, il constitue un environnement de développement principal acceptable pour le projet de session.",
+      "bonneReponse": false,
+      "justification": "Faux, et la raison n'est pas que PHP s'y comporterait différemment — c'est bien le même interpréteur. Ce qui manque, c'est tout ce qui, sur le serveur, N'EST PAS PHP. Le serveur intégré ne lit aucun fichier .htaccess : les règles de réécriture qui envoient toutes les requêtes vers ton point d'entrée unique, et les protections que tu y aurais posées, sont donc simplement ignorées. Il ne charge aucun module Apache : ni rewrite, ni headers, donc aucun des en-têtes de sécurité que ton VirtualHost pose en production. Et il ne traite qu'une requête à la fois, ce qui masque toute une famille de comportements liés à la concurrence. Le piège est le même que celui de la casse des noms de fichiers : l'environnement est plus PERMISSIF que la cible, donc il ne rougit jamais — ce qui marche chez lui ne prouve rien sur ce qui marchera en ligne, alors qu'un environnement fidèle t'aurait fait découvrir l'écart le premier jour. Cela ne le rend pas inutile pour autant : il démarre instantanément et il est parfait pour un essai de dix minutes ou une page de démonstration jetable. Le critère de choix d'un environnement local n'est donc pas « est-ce que mon code tourne », mais « est-ce que ce qui échouera sur le serveur échoue déjà ici ». Pour ce cours en particulier, une raison de plus fait pencher la balance vers un LAMP installé dans une distribution Linux : le cours porte sur l'administration d'un serveur — utilisateurs, permissions, tâches planifiées, journaux — et un environnement qui masque cette administration retire de la pratique exactement ce qui est évalué.",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    },
+    {
+      "id": "q6",
+      "type": "choix-multiple",
+      "question": "Tu montes un VirtualHost local et tu dois choisir le nom d'hôte que tu ajouteras au fichier hosts. Entre monsite.test, monsite.dev et monsite.local, lequel choisir et pourquoi ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "monsite.test : le domaine de premier niveau .test est réservé par la RFC 6761 pour cet usage, il ne sera donc jamais vendu et ton nom local n'entrera jamais en collision avec un vrai site."
+        },
+        {
+          "id": "b",
+          "texte": "monsite.dev : c'est la convention de l'industrie pour un environnement de développement, et les navigateurs traitent ce suffixe de façon spéciale en autorisant le HTTP clair."
+        },
+        {
+          "id": "c",
+          "texte": "monsite.local : le suffixe .local est justement prévu pour les machines d'un réseau local et évite tout conflit."
+        },
+        {
+          "id": "d",
+          "texte": "Les trois se valent : un nom d'hôte déclaré dans le fichier hosts court-circuite toute résolution externe, le suffixe choisi n'a donc aucune importance."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Le choix n'est pas cosmétique, et chacun des trois mauvais choix échoue pour une raison différente. La réponse b inverse exactement le comportement réel : .dev est un VRAI domaine de premier niveau, vendu comme les autres, et il est préchargé en HSTS dans les navigateurs — autrement dit le navigateur exige le HTTPS avant même d'émettre une requête, et refusera catégoriquement d'ouvrir monsite.dev en HTTP clair. Ton site local ne s'affichera pas, et le message d'erreur ne parlera pas de ton VirtualHost, ce qui rend le diagnostic pénible. La réponse c tombe sur un autre mécanisme : .local est employé par la découverte de services mDNS, si bien que la résolution du nom peut partir sur le réseau au lieu de lire ton fichier hosts, avec des résultats qui varient d'une machine à l'autre. La réponse d est le raisonnement séduisant qu'il faut savoir réfuter : le fichier hosts décide bien de la résolution du NOM, mais il ne décide de rien d'autre — ni de la politique HSTS du navigateur, ni du chemin de résolution mDNS du système, qui interviennent tous les deux ailleurs. C'est pourquoi .test est le bon choix : réservé par la RFC 6761 pour les usages locaux et de test, il ne sera jamais attribué, aucun navigateur ne lui applique de politique particulière, et le nom que tu écris aujourd'hui restera valable indéfiniment.",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    },
+    {
+      "id": "q7",
+      "type": "choix-multiple",
+      "question": "Un camarade développe dans C:\\xampp\\htdocs\\monSite et charge ses styles avec l'adresse absolue /css/style.css. Rien ne s'affiche. Il s'apprête à écrire ../css/style.css dans chaque page. Que se passe-t-il, et quel geste est le bon ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Une adresse absolue part de la racine web, donc de htdocs/ et non du projet : elle ne trouve rien. Les chemins relatifs marcheront en local mais casseront le jour où le site sera déployé à la racine du domaine ; le bon geste est un VirtualHost dont le DocumentRoot est le dossier public/ du projet."
+        },
+        {
+          "id": "b",
+          "texte": "Le fichier de style est simplement absent : une adresse absolue est toujours résolue à partir du dossier du projet, quel que soit l'endroit où celui-ci est installé."
+        },
+        {
+          "id": "c",
+          "texte": "Apache refuse de servir les fichiers .css tant que le module headers n'est pas activé ; les chemins n'ont rien à voir avec le problème."
+        },
+        {
+          "id": "d",
+          "texte": "Les chemins relatifs sont la solution recommandée en toutes circonstances : ils fonctionnent partout, quelle que soit la profondeur de la page qui les écrit."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Une adresse qui commence par une barre oblique est résolue à partir de la RACINE WEB, pas du dossier du projet. Quand le projet vit dans un sous-dossier de htdocs, ces deux notions ne coïncident pas : /css/style.css désigne htdocs/css/style.css, qui n'existe pas. La réponse b énonce précisément l'intuition fausse qui produit le bogue. La réponse c change de couche : le module headers pose des en-têtes de réponse, il n'a aucun rôle dans la résolution d'un chemin, et une feuille de style est servie sans lui. La réponse d est la plus intéressante, parce que c'est le geste que le camarade s'apprête à faire et qu'il va effectivement voir fonctionner : un chemin relatif dépend de la PROFONDEUR de la page qui l'écrit, donc il faut le réécrire différemment dans chaque page, et il casse en bloc le jour où le site est déployé à la racine du domaine, c'est-à-dire au moment le plus coûteux. Réparer symptôme par symptôme un problème dont on n'a pas traité la cause est exactement ce que la leçon appelle un défaut silencieux. Le VirtualHost supprime la classe entière de problèmes plutôt qu'une de ses occurrences : en faisant du dossier public/ du projet la racine de l'URL, il rend la structure des adresses IDENTIQUE en local et en production, si bien qu'un chemin absolu écrit une fois reste juste des deux côtés. C'est de la parité appliquée aux URL, au même titre que la distribution ou les versions.",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    },
+    {
+      "id": "q8",
+      "type": "vrai-faux",
+      "affirmation": "Comme composer.json déclare déjà les dépendances du projet, on peut ajouter composer.lock au .gitignore pour éviter d'encombrer le dépôt.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est l'erreur la plus fréquente sur ce fichier : elle annule tout l'intérêt du gestionnaire de dépendances. Les deux fichiers ne disent pas la même chose. composer.json déclare une INTENTION, formulée en plages de versions — « une version 3 quelconque de cette bibliothèque ». composer.lock fige la RÉALITÉ — « exactement la version 3.7.0, dont voici l'empreinte ». Sans le fichier verrouillé dans le dépôt, chaque installation résout les plages à l'instant où elle tourne : ta machine a pris la 3.7.0 la semaine dernière, le serveur prendra la 3.9.2 aujourd'hui, et « ça marche chez moi » revient par la porte que tu croyais avoir fermée. C'est le même problème de parité que les versions de PHP ou de la base de données, transposé aux bibliothèques — avec une conséquence de sécurité en prime : sans verrou, tu ne peux pas dire quelle version d'une dépendance tourne réellement en ligne, donc tu ne peux pas répondre à la question « suis-je exposé à cette faille annoncée hier ». Il faut distinguer soigneusement composer.lock, qui se versionne, de vendor/, qui ne se versionne pas : le second contient des milliers de fichiers qui n'appartiennent pas à ton projet et que le gestionnaire reconstruit à l'identique — justement PARCE QUE le verrou, lui, est au dépôt. Les autres lignes du .gitignore de départ suivent chacune une raison propre : .env parce que c'est un secret et que l'historique d'un dépôt garde tout, même après suppression ; les journaux pour le bruit, le volume et les données personnelles écrites par mégarde ; var/ parce qu'il est produit par la machine ; les dossiers de réglages d'éditeur parce qu'ils décrivent TON poste et non le projet.",
+      "ficheSource": "web/php/php-organisation-projet.md"
+    },
+    {
+      "id": "q9",
+      "type": "choix-multiple",
+      "question": "Ton application n'arrive pas à écrire dans son fichier de journal. Un tutoriel conseille un chmod 777 sur le fichier, et cela règle effectivement le problème. Pourquoi ce geste est-il refusé dans un projet de session, et qu'est-ce qui le remplace ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Parce que tout compte de la machine, y compris celui d'un service compromis, peut alors réécrire et effacer le journal : les traces d'une intrusion deviennent modifiables par l'intrus. Le droit d'écriture se donne au propriétaire et au groupe qui en ont besoin, et le journal vit hors de la racine web."
+        },
+        {
+          "id": "b",
+          "texte": "Parce que 777 rend le fichier exécutable, ce qui permettrait à un visiteur de le lancer comme un programme depuis son navigateur ; 666 donne les mêmes droits d'écriture sans ce danger et règle donc entièrement la question."
+        },
+        {
+          "id": "c",
+          "texte": "Parce que le chmod n'est pas conservé lors d'un transfert par SSH : le geste est simplement inefficace et devra être répété après chaque mise en ligne."
+        },
+        {
+          "id": "d",
+          "texte": "Le geste est acceptable sur un journal, qui ne contient aucune donnée sensible ; on réserve les permissions strictes aux fichiers de configuration."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Un journal n'a pas de valeur pour ce qu'il contient, il en a pour ce qu'il PROUVE : c'est la trace de ce qui s'est passé. Le rendre inscriptible par tout le monde donne donc à un attaquant qui a pris le contrôle de n'importe quel compte de la machine — pas forcément le tien — le pouvoir d'effacer la preuve de son passage. La réponse d se trompe sur ce point exact en raisonnant sur la confidentialité seule : la valeur d'un journal est son INTÉGRITÉ, et il contient d'ailleurs souvent, par mégarde, des données personnelles. La réponse b commet deux erreurs qu'il vaut la peine de séparer : le bit d'exécution ne permet pas de lancer un fichier depuis un navigateur — c'est le serveur web et le moteur associé à l'extension qui décident de ce qui est exécuté, pas les bits de permission — et surtout, 666 laisse intact le vrai problème, l'écriture ouverte à tous. La réponse c déplace le sujet vers un détail d'outillage sans traiter le danger. La bonne réponse suit le fil conducteur des cinq parades de la leçon : on ne cherche pas à en faire plus, on remplace un défaut silencieux par une impossibilité structurelle. Ici, deux gestes se combinent, et le second est le plus fort : d'abord restreindre l'écriture au compte et au groupe qui en ont réellement besoin plutôt qu'à « tout le monde » ; ensuite sortir le journal de la racine web, dans var/log/ — car un journal placé sous le DocumentRoot est publié à une adresse, quelles que soient ses permissions. Le premier geste limite qui peut l'altérer, le second supprime la possibilité même de le lire depuis Internet.",
+      "ficheSource": "web/php/php-environnement-developpement-moderne.md"
+    }
+  ]
+}
