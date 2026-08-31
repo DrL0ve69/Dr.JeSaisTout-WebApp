@@ -603,6 +603,14 @@ export function lireHoraires(
 }
 
 /**
+ * Les natures d'évaluation, en LISTE BLANCHE NOMINATIVE — la même que l'`enum` de
+ * `horaire.schema.json` et que le type de `types.d.ts`. Trois écritures, un seul contrat : c'est
+ * la duplication assumée d'un contrat partagé entre le build (Ajv) et l'app (rétrécissement
+ * d'artéfact), et elle est appariée par les tests des deux côtés.
+ */
+const NATURES_D_EVALUATION: readonly string[] = ['examen-ecrit', 'evaluation-pratique'];
+
+/**
  * `evaluation` — OPTIONNELLE, et son absence SIGNIFIE « cette séance n'est pas une
  * évaluation ». Présente, elle oblige à un libellé non vide et à une pondération
  * finie : c'est ce libellé, tel quel, que la page de leçon écrit dans sa pastille.
@@ -620,6 +628,14 @@ function verifierEvaluationOptionnelle(seance: Objet, ou: string, manques: strin
   }
   if (!estChaineNonVide(evaluation['libelle'])) {
     manques.push(`${ou}.evaluation.libelle : chaîne non vide attendue`);
+  }
+  // 🔴 `nature` EST REQUISE, ET SA VALEUR EST CONTRAINTE — pas seulement son type. Un artéfact
+  // qui la porterait absente, vide ou inconnue traverserait sinon ce rétrécissement en silence,
+  // et `ancrerAuCours` la lirait comme « pas `evaluation-pratique` », donc comme un examen : le
+  // symptôme serait un build qui échoue en accusant le module, jamais l'horaire fautif.
+  if (!NATURES_D_EVALUATION.includes(evaluation['nature'] as string)) {
+    const natures = NATURES_D_EVALUATION.map((n) => `« ${n} »`).join(', ');
+    manques.push(`${ou}.evaluation.nature : une de ${natures} attendue`);
   }
   if (!estNombreFini(evaluation['ponderation'])) {
     manques.push(`${ou}.evaluation.ponderation : nombre attendu`);
@@ -718,10 +734,20 @@ export function ancrerAuCours(
       `séances connues : ${horaire.seances.map((s) => s.numero).join(', ')}`,
     ]);
   }
-  if (trouvee.evaluation !== undefined) {
+  // 🔴 SECONDE APPLICATION DE LA RÈGLE 3bis, et la première l'a précédée de quatre mois :
+  // `valider.mjs` la porte aussi, au build. Les deux DOIVENT dire la même chose — un module
+  // accepté par le validateur et refusé ici ferait échouer `ng build` sur une leçon que
+  // `content:build` vient de déclarer valide, et le message parlerait du mauvais contrat.
+  //
+  // ⚠️ ON NOMME LA NATURE AUTORISÉE, JAMAIS L'INTERDITE (`.claude/rules/security.md` §4) : une
+  // troisième valeur d'énumération ajoutée un jour serait REFUSÉE par défaut, jamais admise en
+  // silence. Même sens de lecture que `valider.mjs:verifierSeanceContreHoraire`.
+  if (trouvee.evaluation !== undefined && trouvee.evaluation.nature !== 'evaluation-pratique') {
     refuser(`l'ancrage au cours du sujet « ${sujet} »`, [
-      `« seance: ${seance} » désigne une évaluation (« ${trouvee.evaluation.libelle} »)`,
-      "il n'y a pas de module « Examen » — voir `ancrage-au-cours.md` §2",
+      `« seance: ${seance} » désigne une évaluation de nature « ${trouvee.evaluation.nature} »` +
+        ` (« ${trouvee.evaluation.libelle} »)`,
+      "un module ne se rattache qu'à une séance ordinaire ou à une " +
+        "« evaluation-pratique » — voir `ancrage-au-cours.md` §2",
     ]);
   }
 

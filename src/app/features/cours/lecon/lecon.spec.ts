@@ -896,8 +896,57 @@ describe('lecture des horaires et ancrage au cours', () => {
 
     expect(() => ancrerAuCours(horaires, 'securite-web', 4)).toThrow(/ne figure pas à l'horaire/);
     expect(() => ancrerAuCours(horaires, 'php', 2)).toThrow(/aucun horaire compilé/);
-    // Une séance qui EST une évaluation ne peut pas être citée par un module (§2).
-    expect(() => ancrerAuCours(horaires, 'securite-web', 6)).toThrow(/désigne une évaluation/);
+    // Une séance d’EXAMEN ÉCRIT ne peut pas être citée par un module (§2). ⚠️ L’attendu nomme la
+    // NATURE : sans elle, ce test resterait vert sur le contrat d’AVANT R-3, qui refusait toute
+    // évaluation — il ne prouverait donc rien de l’assouplissement livré au lot 0bis.
+    expect(() => ancrerAuCours(horaires, 'securite-web', 6)).toThrow(
+      /désigne une évaluation de nature « examen-ecrit »/,
+    );
+  });
+
+  it('🔴 ACCEPTE un module rattaché à une évaluation PRATIQUE — la moitié positive de R-3', () => {
+    // LA RÈGLE 3bis EST APPLIQUÉE DEUX FOIS : `valider.mjs` au build, `ancrerAuCours` au rendu.
+    // Le lot 0bis n’avait ouvert que la première ; la seconde LEVAIT encore, donc `ng build`
+    // aurait échoué sur une leçon que `content:build` venait de déclarer valide. Ce test est ce
+    // qui interdit aux deux moitiés de diverger à nouveau.
+    const horaire = horaireTemoin();
+    const seances = horaire['seances'] as Record<string, unknown>[];
+    // INSÉRÉE À SA PLACE, jamais poussée en fin : les séances sont strictement croissantes et le
+    // rétrécissement de l’artéfact le vérifie — la 11 vient AVANT la 13.
+    seances.splice(4, 0, {
+      numero: 11,
+      date: '2026-10-16',
+      titre: 'Projet de session',
+      evaluation: { libelle: 'Projet de session', nature: 'evaluation-pratique', ponderation: 20 },
+    });
+    const horaires = lireHoraires(artefact(horaire), 'contrôle positif');
+
+    const ancrage = ancrerAuCours(horaires, 'securite-web', 11);
+    expect(ancrage.seance?.numero).toBe(11);
+    expect(ancrage.seance?.titre).toBe('Projet de session');
+    // Sa propre évaluation n’a pas de `portee`, donc aucune pastille : un projet ne s’annonce pas
+    // « à l’examen ». C’est le comportement déjà tenu plus haut, ici sur une séance qui EST une
+    // évaluation — le cas que rien ne couvrait avant R-3.
+    expect(ancrage.evaluations).toEqual([]);
+  });
+
+  it('REFUSE une « nature » absente ou inconnue — liste blanche, jamais un défaut', () => {
+    // ⚠️ CE RÉTRÉCISSEMENT EST LE SEUL GARDE-FOU CÔTÉ APP : Ajv valide l’horaire au BUILD, pas
+    // l’artéfact au chargement. Une `nature` inconnue traversée en silence serait lue par
+    // `ancrerAuCours` comme « pas evaluation-pratique », donc comme un examen : le build
+    // échouerait en accusant le MODULE, jamais l’horaire fautif.
+    const sansNature = horaireTemoin();
+    const seances = sansNature['seances'] as Record<string, unknown>[];
+    seances[2] = { ...seances[2], evaluation: { libelle: 'Examen 1', ponderation: 20 } };
+    expect(() => lireHoraires(artefact(sansNature), 'négatif')).toThrow(/nature/);
+
+    const natureInconnue = horaireTemoin();
+    const autres = natureInconnue['seances'] as Record<string, unknown>[];
+    autres[2] = {
+      ...autres[2],
+      evaluation: { libelle: 'Examen 1', nature: 'oral', ponderation: 20 },
+    };
+    expect(() => lireHoraires(artefact(natureInconnue), 'négatif')).toThrow(/nature/);
   });
 });
 
