@@ -91,19 +91,54 @@ citer quoi que ce soit.**
 
 ---
 
-## 3 · Ce qui était EN COURS quand la session s'est arrêtée
+## 3 · L'état des deux sous-agents lancés en parallèle
 
-Deux sous-agents tournaient **en parallèle** (le propriétaire en autorise 2). **Leurs verdicts n'ont
-pas été rendus** : la session s'est arrêtée avant. Chacun devait écrire un fichier — **la première
-chose à faire en reprenant est de regarder si ces deux fichiers existent** :
+### ✅ L'architecte a rendu — `docs/design/refonte-lecons-actionnables.md`
 
-| Fichier attendu | Agent | Ce qu'il devait contenir |
-|---|---|---|
-| `docs/design/refonte-lecons-actionnables.md` | `solution-architect` | **(A)** dossier de décision en français simple, 4 décisions max — le bloc de marche à suivre, le renvoi de diapos sur les titres et dans le sommaire, le conteneur à onglets, la stratégie de reprise des 10 modules · **(B)** plan au niveau fichier, lot par lot, chaque lot tenant sous 120k · **(C)** risques non levés |
-| `docs/contenu/renvois-diapos-module-11.md` | agent de cartographie | Une table `section → cours (B10 / 4P2 / les deux / **aucun**) → diapos → citation de preuve → confiance`, plus les **conflits** entre les deux cours, ce que la leçon enseigne **hors** des deux cours, et ce que les cours portent et que la leçon **tait** |
+Le dossier de décision **et** le plan par lots sont sur disque. **C'est le document à lire avant
+toute chose** : quatre décisions à trancher par le propriétaire (D-A marche à suivre, D-B renvoi de
+diapos sur les titres et dans le sommaire, D-C conteneur à onglets, D-D stratégie de reprise), douze
+lots dimensionnés, et sept risques nommés dont trois demandent une **mesure** avant de coder.
 
-**S'ils sont absents, relancer les deux briefs** — ils sont reconstructibles depuis les §1 et §4 de
-ce fichier. **S'ils sont présents, les lire avant tout** : ils sont la matière de la suite.
+🔴 **Trois choses de ce dossier qui appellent une décision du propriétaire, pas de l'exécutant :**
+
+- **R-3 — `11-projet-de-session` ne PEUT PAS déclarer `seance: 11`.** La séance 11 porte une
+  `evaluation`, et `ancrage-au-cours.md` §2 l'interdit alors. Le module de la séance 11 s'affiche
+  donc « Complément · hors cours ». Assouplir la règle ou l'assumer est un **choix de contrat**.
+- **R-7 — la reprise des dix modules pèse ~12 runs de rédaction**, à mettre en concurrence avec le
+  contenu neuf des séances restantes. **Lequel passe devant ?**
+- **R-4 — un onglet masqué échappe au `Ctrl+F`.** Coût réel, borné mais non levé ; c'est le seul
+  motif de ST4-1 qui se rejoue. Si le propriétaire le juge inacceptable, l'option de repli est écrite.
+
+⚠️ **Deux défauts de brief à ne pas répéter, consignés en fin de ce dossier.** L'agent a fini à
+**163k** (au-dessus du maximum de 150k) pour **21 appels d'outils** : le débordement venait du volume
+**écrit**, pas de l'exploration — la découpe juste était « dossier de décision » puis « plan par
+lots », en deux agents. Et **l'outil `Write` était désactivé pour les sous-agents de cette session**,
+si bien que l'agent a dû rendre ses ~600 lignes dans son rapport final, que le fil principal a
+réécrites sur disque. **Vérifier l'outillage d'un agent avant de lui confier un livrable-fichier.**
+
+### 🔴 La cartographie des diapositives du module 11 est À RELANCER
+
+`docs/contenu/renvois-diapos-module-11.md` **n'existe pas** : l'agent a été tué par la limite de
+session au moment exact où il écrivait le tableau (« *I have all the material measured. Writing the
+correspondence table.* »). **Aucun résultat n'a survécu** — le travail est entièrement à refaire, et
+c'est un **agent frais**, jamais une reprise.
+
+Ce qu'il devait produire, pour reconstituer le brief : une table **par section de la leçon** (tous
+les `##` et `###`, dans l'ordre du fichier) —
+`section (ligne:titre) | cours (B10 / 4P2 / les deux / aucun) | séance | diapos | citation de preuve | confiance (certaine / partielle)`.
+Trois règles non négociables : **`aucun` est une réponse légitime et attendue** (ne jamais forcer un
+renvoi — un renvoi faux envoie l'étudiant réviser la mauvaise diapositive, en silence) ; la colonne
+« preuve » cite **des mots réellement présents** dans la ligne `[n]` de l'extrait, pour être
+vérifiable sans croire l'agent sur parole ; `diapos` suit la grammaire du dépôt (croissante, plages
+`45-50`). Puis trois sections courtes : les **conflits** entre les deux cours (XAMPP/`htdocs` du 4P2
+contre droplet/Linux de B10 — c'est le défaut qui a déjà fait réviser XAMPP à un étudiant de B10), ce
+que la leçon enseigne **hors** des deux cours, et ce que les cours portent et que la leçon **tait**.
+
+Sources à lui injecter : `php-2026/extraits/PROVENANCE.md` (à lire en premier), `Cours01` (111
+diapos) et `Cours08` (103) côté 4P2, `Cours02_environnement_linux` (82) et
+`Cours09-Securite_base_de_donnees` (58) côté B10, plus
+`content/cours/securite-web/11-projet-de-session/lecon.md` (942 l.).
 
 ---
 
