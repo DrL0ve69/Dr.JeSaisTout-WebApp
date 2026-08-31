@@ -112,6 +112,7 @@ que personne l'ait vue (`.claude/rules/security.md` §4 : liste blanche, pas lis
 ⚠️ **La règle des EXERCICES ne bouge pas** (§6) : un exercice ne peut citer **aucune** séance
 d'évaluation, quelle que soit sa nature — une feuille d'exercices ne se remet pas un jour
 d'évaluation, projet compris.
+
 🔴 **`ordre` ne devient PAS le numéro de séance.** `ordre` reste la position de lecture, unique, et
 égale au préfixe `nn` du dossier — c'est déjà le contrat de `valider.mjs` §3, et une séance à cinq
 modules le rendrait insatisfiable. L'alignement 01→05 = séances 1→5 est un **heureux hasard**
@@ -258,6 +259,13 @@ séances 1 à 4 ── ».
 ⚠️ **WCAG 2.2 AA — la pastille ne peut pas être qu'une couleur** (1.4.1, l'information ne doit pas
 passer par la seule couleur). Elle porte un **texte explicite**, et son contraste se mesure comme
 toute paire du design system. Même exigence pour la séance : c'est un mot, pas une teinte.
+
+⚠️ **UNE ÉVALUATION NE COUVRE AUCUNE SÉANCE D’ÉVALUATION — quelle que soit sa NATURE.** La
+`portee` d’un examen cite des séances **enseignées** ; elle ne peut citer ni un autre examen, ni le
+projet de session, et `valider.mjs` le refuse sur la **présence** d’une `evaluation`, pas sur sa
+nature. R-3 n’y a rien changé, **délibérément** : le projet s’enseigne — il a donc un module — mais
+il n’est pas de la *matière* qu’un examen interroge. Même raison que pour les exercices (§6), et
+c’est le seul endroit où « évaluation pratique » reste traitée comme n’importe quelle évaluation.
 
 **(d) Renvoi posé sur un titre de section (§3bis).** Le renvoi s'affiche **sous** le titre et **non
 dedans** : un `<p>` **frère** du `<h2>`/`<h3>`, lu immédiatement après lui en lecture linéaire —

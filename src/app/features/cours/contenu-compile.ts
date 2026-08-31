@@ -491,6 +491,12 @@ export type SeanceDuCours = HoraireCompile['seances'][number];
 /** L'évaluation d'une séance, sans son `undefined` — même dérivation, même raison. */
 export type EvaluationDuCours = NonNullable<SeanceDuCours['evaluation']>;
 
+/**
+ * La `nature` d’une évaluation, telle que `types.d.ts` la déclare — l’UNE des trois écritures
+ * du contrat, et celle contre laquelle les deux autres s’apparient.
+ */
+export type NatureDEvaluation = EvaluationDuCours['nature'];
+
 /** `AAAA-MM-JJ`, la seule forme de date du contrat. Une CHAÎNE, jamais un `Date`. */
 const DATE_ISO_COURTE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -603,12 +609,27 @@ export function lireHoraires(
 }
 
 /**
- * Les natures d'évaluation, en LISTE BLANCHE NOMINATIVE — la même que l'`enum` de
- * `horaire.schema.json` et que le type de `types.d.ts`. Trois écritures, un seul contrat : c'est
- * la duplication assumée d'un contrat partagé entre le build (Ajv) et l'app (rétrécissement
- * d'artéfact), et elle est appariée par les tests des deux côtés.
+ * LES NATURES D'ÉVALUATION — et l'appariement des TROIS écritures du même contrat.
+ *
+ * Le contrat s'écrit trois fois : l'`enum` de `horaire.schema.json` (ce qu'Ajv accepte au
+ * BUILD), l’union de `types.d.ts` (ce que TypeScript connaît), et cette liste-ci (ce que le
+ * rétrécissement d'artéfact accepte au CHARGEMENT). Trois écritures divergent au premier ajout
+ * si rien ne les apparie (L-016).
+ *
+ * 🔴 CE QUE CE CODE GARANTIT LUI-MÊME : l'enregistrement ci-dessous est TOTAL sur l’union de
+ * `types.d.ts` — ajouter une nature au contrat sans l’ajouter ici NE COMPILE PAS, et en écrire
+ * une qui n’est pas au contrat non plus. La liste d’exécution en est DÉRIVÉE, elle n’est donc
+ * pas une quatrième écriture.
+ * 🔴 CE QU’UN TEST GARANTIT, ET PAS CE FICHIER : l’accord avec l’`enum` du schéma JSON, qu’aucun
+ * type ne peut voir — `src/contrat-nature-evaluation.spec.ts`.
  */
-const NATURES_D_EVALUATION: readonly string[] = ['examen-ecrit', 'evaluation-pratique'];
+const NATURES_PAR_VALEUR: Record<NatureDEvaluation, true> = {
+  'examen-ecrit': true,
+  'evaluation-pratique': true,
+};
+
+/** La liste blanche d’exécution, DÉRIVÉE de l’enregistrement total ci-dessus. */
+export const NATURES_D_EVALUATION: readonly string[] = Object.keys(NATURES_PAR_VALEUR);
 
 /**
  * `evaluation` — OPTIONNELLE, et son absence SIGNIFIE « cette séance n'est pas une
