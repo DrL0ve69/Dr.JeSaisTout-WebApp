@@ -70,13 +70,14 @@ route six fiches jusque-là **orphelines** vers les six séances du cours qui n'
 
 ### 1.2 · Cours « Développement d'application en PHP » — 420-4P2-HU (E7) 🆕
 
-🆕 **Second cours publié**, décidé le 2026-08-19 (backlog §E7, 8 modules) : les **12 fiches de
+🆕 **Second cours publié**, décidé le 2026-08-19 (backlog §E7, 8 modules) : les **13 fiches de
 `web/php/`** deviennent des sources de rédaction de premier plan. E3-ST0 les a fusionnées avec le
 matériel réel (diapositives, captures de code, **corrigés officiels `.zip`**, plan de cours, projet).
 
 | Besoin | Fiches |
 |---|---|
 | **E7-ST1** — syntaxe, types, structures de contrôle, inclusion (séance 1) | `web/php/php-fondamentaux.md` |
+| **Environnement de développement** (séances 1 et 8) — XAMPP/`htdocs` du cours ↔ WSL2+LAMP, Composer, PHPStan, PHPUnit, Xdebug ; ⚠️ le droplet livre **MySQL 8.0, pas MariaDB** | `web/php/php-environnement-developpement-moderne.md` |
 | **E7-ST2** — superglobales, tableaux, formulaires (séance 2) | `web/php/php-formulaires-superglobales.md` |
 | **E7-ST3** — librairie standard, fichiers, journalisation (séance 3) | `web/php/php-librairie-standard.md` + `web/php/php-fichiers-journalisation.md` |
 | **E7-ST4** — POO, organisation d'un projet (séance 4) | `web/php/php-poo.md` + `web/php/php-organisation-projet.md` |

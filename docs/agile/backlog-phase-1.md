@@ -3286,6 +3286,7 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
 | E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
+| E3-ST20 | `11-projet-de-session` — Amorcer un projet LAMP : environnement local à parité de production, arborescence qui ne sert pas ses secrets, outillage et contrôle de version | séance 11 | `php-environnement-developpement-moderne.md` + `php-organisation-projet.md` | non — le sujet est procédural | ✅ |
 
 ### ✅ CLÔTURE — E3-ST14 `02-environnement-linux` (2026-08-26)
 
@@ -3590,6 +3591,125 @@ nommant ; valeur inattendue → rouge en se nommant.
 laissées par d'anciennes exécutions en isolation. Il ne reste que `main` et la branche active.
 
 ---
+
+### ✅ CLÔTURE — E3-ST20 `11-projet-de-session` (2026-08-31)
+
+**Livré.** `lecon.md` (**939 lignes**, 731 avant correctifs), `quiz.json` (9 questions), pas de
+simulation — le sujet est procédural, il s'enseigne par la marche à suivre et non par une mise en
+scène. Statut `publiee`. Sources : `web/php/php-environnement-developpement-moderne.md` +
+`web/php/php-organisation-projet.md`, complétées en cours de vérification par
+`web/securite/administration-serveur-linux.md` et `web/securite/securite-base-de-donnees.md`.
+
+**Gates** : G-content 10 leçons · G-lint vert · G-test **949 / 43 fichiers / 0 échec** · G-build
+**13 routes prerendues** (12 avant), **14 hachages de style / 0 de script — inchangés** · G-axe
+**13 pages / 1118 vérifications / 0 violation** · G-e2e **50 passés / 1 sauté / 0 échec** ·
+`npm audit --omit=dev` **0** · typecheck outils **0**.
+
+> 🔴 **LA LEÇON FAISAIT COMMITTER LE MOT DE PASSE DE LA BASE — et aucun gate ne pouvait le voir.**
+> Le tableau d'arborescence classait `config/` en « configuration non secrète · versionné oui », les
+> deux exemples corrigés y logeaient les identifiants (`config/bd.ini`), la parade du corps disait
+> « ne jamais la versionner », et le `.gitignore` proposé n'excluait ni `config/bd.ini` ni `*.ini`.
+> Suivie à la lettre, la leçon produisait exactement la faute qu'elle qualifie d'irréversible.
+> ⚠️ **Aucune des quatre affirmations n'est fausse isolément : c'est leur mise ensemble qui l'est.**
+> Un diff ne montre jamais ça, un validateur non plus. Seule la relecture d'une leçon **contre son
+> propre principe** l'attrape — troisième fois de suite que ce geste paie (séances 3, 4, puis 11).
+> Correctif : `config/bd.ini` jamais versionné / `config/bd.ini.exemple` versionné, `/config/*.ini`
+> plus `!/config/*.ini.exemple` au `.gitignore`, couple nommé et expliqué sous le tableau.
+
+> 🔴 **UNE VÉRIFICATION QUE LA LEÇON ENSEIGNAIT NE MESURAIT PAS CE QU'ELLE PROMETTAIT.** La leçon
+> faisait de `php -v` la preuve de la parité — or `php -v` mesure la SAPI **CLI**, avec son propre
+> `php.ini`, pas le module qu'Apache exécute. Le défaut devient certain après le correctif suivant,
+> qui fait cohabiter deux versions sur la machine. `apache2ctl -M | grep php` est ajouté, et les deux
+> SAPI sont désormais enseignées comme un fait de fond. ⚠️ La parade évidente — déposer un
+> `phpinfo()` dans la racine web — a été **écartée nommément dans la leçon** : c'est précisément le
+> geste qu'elle dénonce trois sections plus haut.
+
+> 🔴 **`apt install php` SUR UBUNTU 24.04 DONNE 8.3, ET LA LEÇON EXIGEAIT 8.4 : LA VÉRIFICATION
+> QU'ELLE PRESCRIVAIT ÉTAIT GARANTIE D'ÉCHOUER.** Noble livre PHP 8.3.6 ; le droplet DigitalOcean
+> livre 8.4.11 — ce qui **prouve** que l'image emploie un dépôt tiers. Le dépôt `ondrej/php` n'est
+> donc pas un recours conditionnel mais **obligatoire pour atteindre la parité**, et il entre dans le
+> bloc de commandes principal. Relevé le 2026-08-31 : Apache **2.4.58**, MySQL **8.0.43**, PHP
+> **8.4.11**. La crainte d'un MySQL 8.4 était **infondée** — 8.4 LTS n'est pas dans les dépôts
+> d'Ubuntu 24.04, il exige le dépôt Oracle.
+
+> ⚠️ **UN `::: cours` SANS AUCUN ATTRIBUT PASSE LE VALIDATEUR EN SILENCE — trou nommé.**
+> `tools/content-pipeline/valider.mjs:1252` sort immédiatement quand l'encadré ne déclare ni
+> `diapos` ni `seance` : l'obligation de rattacher un renvoi à une séance ne s'arme **qu'à partir du
+> moment où l'auteur a commencé à en renseigner un**. Deux encadrés annonçaient donc « matière
+> d'examen » en agrégeant, sans le dire, la matière de **deux cours différents** — WinSCP/PuTTY
+> (B10 séance 2) et phpMyAdmin/`GRANT ALL` (B10 séance 9) mêlés à XAMPP/`htdocs`/`.inc`/`chmod 777`,
+> qui viennent du **420-4P2-HU**. Un étudiant de B10 révisait XAMPP. Corrigé par scission en
+> `::: cours {seance="2"}`, `::: cours {seance="9"}` et `::: complement` nommant le 4P2.
+
+> ⚠️ **`{lignes="0"}` DÉSIGNE LE BLOC ENTIER ET DOIT VENIR EN TÊTE.** Le compilateur exige des
+> portées **croissantes** dans un volet et **ne trie pas** — il refuse plutôt que de réordonner, au
+> motif explicite que réordonner publierait un texte que l'auteur n'a pas écrit dans cet ordre. Une
+> annotation de bloc entier ajoutée en dernier fait donc rougir G-content. Seul échec de la passe.
+
+> 🔴 **DIMENSIONNER UN AGENT DE CORRECTIFS AU NOMBRE DE CONSTATS EST FAUX — mesuré ici.** Le brief
+> portait 7 bloquants + 10 nuances, ce qui ressemblait à un lot serré ; l'agent a fini à **178k**,
+> au-dessus du maximum. La variable n'était pas le nombre de constats mais ce qu'ils faisaient
+> **écrire** : la leçon passe de 731 à **939 lignes**, soit ~200 lignes neuves plus des réécritures
+> réparties sur tout le fichier. Même famille que §9 de `agent-context-budget.md` (« le volume de
+> SORTIE compte autant que le volume de SOURCE »), appliquée cette fois à un lot de **correction** et
+> non de création. ⚠️ Repère à retenir : **un correctif qui fait croître la leçon de plus de ~15 %
+> n'est plus un correctif, c'est une réécriture partielle — et se scinde.** Le lot `quiz.json`, mené
+> en parallèle sur un fichier disjoint, a fini à **100k** pour 3 constats : la découpe par fichier a
+> fonctionné, c'est la moitié `lecon.md` qui n'avait été estimée par personne. Le vérificateur, lui,
+> a fini à **162k** pour 731 lignes de leçon + 184 de quiz + recoupements KB.
+
+> ✅ **CE QUI N'A PAS MORDU, ET POURQUOI C'EST UNE INFORMATION.** (a) **G-axe vert du premier coup**,
+> troisième bascule de suite : la consigne de nommer le coin supérieur gauche de tout tableau
+> comparatif est portée dans le brief du rédacteur depuis trois `empty-table-header` d'affilée, et
+> elle tient. (b) **Aucun littéral e2e épinglé n'a bougé** : `projet-de-session` s'insère
+> alphabétiquement entre `injection` et `xss`, donc `ROUTE_LECON_QUIZ` reste sur
+> `automatisation-surveillance` et `ROUTE_LECON_SIMULATION` sur `communication-serveur`. Prédit avant
+> la mesure, confirmé par elle. (c) **La CSP n'a pas bougé** — 14 hachages de style, 0 de script :
+> une leçon sans simulation sur une page qui porte déjà un quiz n'ouvre aucune permission neuve.
+
+**Le tripwire de l'accueil a mordu, comme prévu.** `MODULES_PUBLIES` porté de **9 à 10**
+(`src/app/features/home/accueil.ts`). ⚠️ **Et son commentaire avait prévu le second geste** : il
+annonçait que la `description` de la carte deviendrait fausse « quand la majorité des treize sera
+publiée ». À 10 sur 13, « les premiers modules sont en ligne » sous-disait un compte que la carte
+affiche juste à côté — la prose passe à « la plupart des modules ». Un commentaire qui date sa
+propre péremption est ce qui a rendu ce geste évident.
+
+### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — E3-ST20 (2026-08-31)
+
+**N-5 · Ce module n'entre dans la portée d'AUCUN examen, et c'est structurel.** Son frontmatter n'a
+volontairement pas de champ `seance` : `horaire.json` déclare la séance 11 comme une **évaluation**
+(« Projet de session », 20 %), et `valider.mjs:1942-1947` refuse nominativement qu'un module cite une
+séance d'évaluation — « il n'y a pas de module de cours pour un examen ». L'absence de `seance` est
+donc la **seule forme valide** ; c'est le brief de rédaction qui était fautif en demandant
+`seance: 11`. Conséquence : le module est traité comme complémentaire et n'apparaîtra dans la portée
+d'aucun examen. **C'est exact pour un projet, mais c'est une décision produit, pas un défaut** — à
+confirmer, ou à traiter en donnant à `horaire.json` la notion d'une séance qui est à la fois une
+évaluation et une séance enseignée.
+
+**N-6 · La provenance du projet de session de B10 est établie, mais pas son énoncé.** Le cadrage
+tient : `web/securite/securisation-acces-distant-ssh.md:703-710` décrit bien l'« amorce du projet de
+session » à 20 %, et dit que la création du serveur verrouillé est « directement réutilisable comme
+socle d'infrastructure de ce projet ». La pondération est confirmée par `horaire.json`. **Ce qui
+manque est l'énoncé officiel du projet de 420-B10-HU** — les deux fiches sources décrivent le projet
+du cours de PHP (420-4P2-HU). Si les deux énoncés diffèrent, c'est la section « Ce que le cours
+enseigne » qui change de portée, pas la théorie.
+
+**N-7 · Le coût réel est à la charge de l'étudiant, et la leçon le dit maintenant.**
+`web/securite/administration-serveur-linux.md:922-947` : **5 $ de serveur + 15 $ de nom de domaine**,
+droplet à ~6 $/mois facturé à l'heure. Le fait ajouté est celui qui coûte de l'argent pour de vrai :
+**éteindre un droplet ne cesse pas de le facturer, seule sa destruction le fait**, snapshots compris.
+⚠️ Ça reste hors de la règle « zéro dépense » du dépôt, qui porte sur l'outillage du site — mais
+c'est une dépense que le cours impose à ses étudiants, et elle méritait d'être nommée.
+
+**N-8 · Dette d'étiquetage, résidu neuf.** La leçon emploie des blocs `ini` et `apache` — deux
+grammaires **hors de la liste fermée à huit** (`php, csharp, typescript, sql, bash, json, html,
+javascript`). Elles sont rendues sous une étiquette d'emprunt, comme les en-têtes HTTP de 08-xss et
+09-csrf. Ouvrir la liste est un **lot à part** : une grammaire neuve fait naître des encres neuves à
+mesurer contre `--couleur-code-surface`, et `_coloration-syntaxique-generee.scss` est régénérée par
+`content:build` (L-080 — un gate de contenu déguisé en gate de design).
+
+---
+
 
 ### ❓ NŒUDS LAISSÉS AU PROPRIÉTAIRE — à trancher à la prochaine séance (2026-08-27)
 
