@@ -319,6 +319,40 @@ appels — le test du « + » ne se lit pas seulement dans la phrase d'objectif,
 **liste des gestes**. (2) Une passe mécanique sur N fichiers **est un lot**, exactement comme un
 corpus de fixtures (règle §9 du budget de contexte) : elle se compte avant d'écrire le brief.
 
+✅ **LA REVUE À REGARD NEUF EST PASSÉE — verdict APPROUVÉ, réserves levées, commit `06e77f7`.**
+Rien de Critique ni de Majeur sur `395a58d..c34940c`. Ce qu'elle a **mesuré plutôt que lu** : les deux
+applications de la règle testent bien la nature **autorisée** dans le même sens ; la pince du pipeline
+est **sensible** (fixture `seance: 4` → code 0, la même mutée en `seance: 3` → code 1 en nommant la
+nature) ; `nature` est requise **de bout en bout**, sans chemin où une valeur absente ou inconnue
+passerait ; et les 22 fixtures qualifiées le sont **justement**, aucune faute propre masquée.
+
+**Trois réserves traitées dans `06e77f7`.** (1) Le commentaire de `NATURES_D_EVALUATION` promettait un
+appariement des trois écritures qu'**aucun gate ne tenait** — on a rendu la promesse **vraie** plutôt
+que de l'affaiblir : l'union de `types.d.ts` et la liste de l'app sont désormais appariées **par le
+typage** (`Record<NatureDEvaluation, true>`, total et fermé, dont la liste d'exécution est dérivée),
+et l'accord avec l'`enum` du schéma JSON — qu'aucun type ne peut voir — est tenu par
+`src/contrat-nature-evaluation.spec.ts`, **égalité dans les deux sens**. 🔴 **Contrôle positif
+exécuté** : « oral » ajouté au seul `enum` du schéma → **1 test rouge, exactement le neuf** ; schéma
+remis et vérifié sur disque. (2) Une ligne vide manquante faisait **fusionner** deux alinéas d'§2 au
+rendu. (3) §5 dit maintenant pourquoi la `portee` d'une évaluation ne cite **aucune** séance
+d'évaluation, nature pratique comprise — le seul endroit où R-3 n'a **rien** changé, délibérément.
+
+🔴 **LA QUATRIÈME RÉSERVE PART AVEC LE LOT 8, ET ELLE EST NOMMÉE ICI POUR NE PAS SE PERDRE.**
+`sommaire.ts:positionDuJalon` est un **troisième** intervenant : il n'**applique** pas la règle, il en
+**dépend** — il lève si un jalon tombe *à l'intérieur* d'un groupe. Vérifié : avec les sections
+actuelles le module 11 sera **seul** dans son groupe (`min = max = 11`), donc pas de levée. Mais
+**aucun spec ne couvre la combinaison « groupe portant la séance d'un jalon »**, et une section future
+qui enjamberait la séance 11 ferait lever le rendu. **À ajouter au lot 8** : un cas de
+`sommaire.spec.ts` où un module sur une séance `evaluation-pratique` rend **et** le jalon **et** le
+module, dans cet ordre. C'est le filet de régression du lot.
+
+⚠️ **L'ANGLE NEUF DE S-010, à retenir avant tout assouplissement de contrat** : quand on relâche une
+règle, on cherche spontanément les endroits qui l'**appliquent** — il en manquait un (`ancrerAuCours`,
+trouvé au lot 0ter). Mais il faut aussi chercher les **consommateurs de l'invariant** : du code qui ne
+teste rien et présuppose seulement que l'invariant tient. `positionDuJalon` ne lit aucune nature ; il
+suppose qu'un jalon ne partage jamais sa séance avec un module. Un tel consommateur ne rougit dans
+aucun grep de la règle.
+
 **5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
 assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.
 
