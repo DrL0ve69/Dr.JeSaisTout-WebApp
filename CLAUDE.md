@@ -60,6 +60,22 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
+> ## ⏭️ REPRISE — chantier OUVERT au 2026-08-31 : « leçons actionnables »
+>
+> 🔴 **UNE REFONTE DU FORMAT DES LEÇONS EST EN COURS, branche `feat/refonte-lecons-actionnables`.**
+> Le propriétaire ne peut pas se servir d'une leçon pour **agir** : marche à suivre concise en tête,
+> renvois de diapositives jusque dans le sommaire, onglets pour comparer la méthode du cours et
+> l'équivalent moderne. Elle s'appliquera aux **dix** modules publiés, module 11 d'abord.
+> **Tout est dans [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) —
+> le lire AVANT de toucher au pipeline de contenu, au rendu d'une leçon ou à un `lecon.md`.** Ce
+> pointeur reste court exprès : un bloc de reprise est payé par chaque agent de chaque session.
+> ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
+> numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
+> `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
+> mémoire, et n'envoie pas `WebFetch` le lire : il invente plutôt que d'échouer.
+>
+> ---
+>
 > ## ⏭️ REPRISE — état au 2026-08-27
 
 > ✅ **NEUF LEÇONS SONT EN LIGNE. E3-ST16 `04-automatisation-surveillance` (séance 4) EST PUBLIÉE** —
