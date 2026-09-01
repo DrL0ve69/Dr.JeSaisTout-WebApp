@@ -1,0 +1,165 @@
+// =============================================================================
+// LES CHEMINS QU'UN .pptx DICTE SONT-ILS BORNÉS AU DOSSIER D'EXTRACTION ?
+// -----------------------------------------------------------------------------
+// POURQUOI CE SPEC EXISTE.
+// `tools/supports-cours/extraire-diapositives.mjs` déballe un .pptx dans un dossier
+// temporaire, puis relit chaque diapositive à l'adresse que l'archive lui indique :
+// `ppt/_rels/presentation.xml.rels` associe chaque `rId` à une `Target`. Cette
+// `Target` est une ENTRÉE — le .pptx est téléchargé depuis le site de l'enseignant,
+// son XML est écrit par un tiers, pas par le dépôt.
+//
+// CE QUE LA VERSION PRÉCÉDENTE EN FAISAIT — mesuré, pas supposé.
+// Elle écrivait `join(dossier, 'ppt', cible.replace(/^\.\.\//, ''))`. Un motif ne
+// retire QU'UN segment. Rejouées contre cette version, sur ce poste :
+//   ../../../../etc/passwd      → C:\Users\phili\AppData\Local\etc\passwd  (HORS dossier)
+//   slides/../presentation.xml  → …\ppt\presentation.xml   (pas une diapositive)
+//   C:/Windows/win.ini          → …\ppt\C:\Windows\win.ini (recollé sous ppt/)
+// Le contenu du fichier lu était ensuite imprimé dans l'extrait. Aucune erreur, aucun
+// message : trois lectures arbitraires en silence. Sans cette mesure préalable, les
+// `it` ci-dessous seraient verts sans rien prouver — c'est la faute S-003 du dépôt,
+// « un contrôle positif qu'aucun runner n'exécute est une intention, pas un gate ».
+//
+// CE QUE LE CORRECTIF SÉPARE, ET QUI EST LE VRAI SUJET.
+// La normalisation (retirer les `..` de TÊTE, pour les producteurs qui écrivent
+// `../slides/slideN.xml`) ne décide plus rien : elle est suivie de trois gardes —
+// refus des cibles absolues, confinement STRUCTUREL sous le dossier temporaire, et
+// liste blanche NOMINATIVE sur le nom de fichier (`slideN.xml`). Famille S-021(c) de
+// `.claude/rules/security.md` : apparier un motif sur un chemin SÉRIALISÉ n'est pas
+// analyser une structure de chemin.
+//
+// POURQUOI UN PROCESSUS FILS plutôt qu'un `await import()` : le module est un outil
+// en ligne de commande. Le charger dans le processus de test l'exposerait aux
+// `process.argv` de Vitest ; le fils prouve en plus que le bloc CLI est bien gardé,
+// puisque l'import seul ne doit produire ni usage ni `process.exit`.
+// =============================================================================
+
+import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
+
+const CHEMIN_OUTIL = join(process.cwd(), 'tools', 'supports-cours', 'extraire-diapositives.mjs');
+const MODULE = pathToFileURL(CHEMIN_OUTIL).href;
+
+/** Un dossier d'extraction plausible ET INEXISTANT : rien n'est lu, seul le chemin compte. */
+const DOSSIER = join(process.cwd(), 'node_modules', '.cache', 'pptx-temoin-inexistant');
+
+interface Verdict {
+  admis: boolean;
+  /** Le chemin rendu si admis, le message de refus sinon. */
+  detail: string;
+  /** La sortie standard du fils : elle doit rester vide de tout usage CLI. */
+  bruit: string;
+}
+
+/** Passe une `Target` de relation à `cheminDeDiapositive`, dans un vrai processus Node. */
+function resoudre(cible: string): Verdict {
+  const script =
+    `const m = await import(${JSON.stringify(MODULE)});` +
+    `try { console.log('ADMIS' + '\\u0000' + m.cheminDeDiapositive(${JSON.stringify(DOSSIER)}, ${JSON.stringify(cible)})); }` +
+    `catch (e) { console.log('REFUS' + '\\u0000' + e.message); }`;
+  const fils = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    encoding: 'utf8',
+    cwd: process.cwd(),
+  });
+  const lignes = (fils.stdout ?? '').split('\n').filter((l) => l.includes('\u0000'));
+  const derniere = lignes.at(-1) ?? '';
+  const [verdict, detail] = derniere.split('\u0000');
+  return {
+    admis: verdict === 'ADMIS',
+    detail: detail ?? `${fils.stderr ?? ''}`,
+    bruit: (fils.stdout ?? '').split('\n').filter((l) => !l.includes('\u0000')).join('\n').trim(),
+  };
+}
+
+describe('`extraire-diapositives.mjs` — les chemins dictés par le .pptx', () => {
+  // ---------------------------------------------------------------------------
+  // LE TÉMOIN — sans lui, une fonction qui refuse TOUT serait verte de bout en bout
+  // ---------------------------------------------------------------------------
+  describe('sur les cibles LÉGITIMES', () => {
+    it('admet `slides/slideN.xml`, et ne se laisse pas piéger par slide10 vs slide2', () => {
+      for (const cible of ['slides/slide1.xml', 'slides/slide2.xml', 'slides/slide10.xml']) {
+        const verdict = resoudre(cible);
+        expect(verdict.admis, `${cible} → ${verdict.detail}`).toBe(true);
+        expect(verdict.detail).toContain(join('ppt', 'slides'));
+      }
+    });
+
+    it('ramène `../slides/slideN.xml` sous `ppt/`, comme le faisait l’ancien `replace`', () => {
+      // Compatibilité explicite : certains producteurs écrivent la cible avec un `../`.
+      // Ce n'est PAS une garde — c'est la normalisation que les gardes suivent.
+      const verdict = resoudre('../slides/slide2.xml');
+      expect(verdict.admis, verdict.detail).toBe(true);
+      expect(verdict.detail).toContain(join('ppt', 'slides', 'slide2.xml'));
+    });
+
+    it('n’imprime AUCUN usage CLI : le bloc en ligne de commande est bien gardé', () => {
+      // Sans le garde `import.meta.url === pathToFileURL(process.argv[1]).href`, le seul
+      // import déclencherait l'usage puis `process.exit(1)` — le module serait intestable,
+      // donc non gardé, et ce fichier entier ne mesurerait rien.
+      expect(resoudre('slides/slide1.xml').bruit).toBe('');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LES CHARGES — chacune traversait la version précédente, en silence
+  // ---------------------------------------------------------------------------
+  describe('sur les cibles HOSTILES', () => {
+    it('refuse une remontée qui sort du dossier d’extraction', () => {
+      for (const cible of ['../../../../etc/passwd', 'slides/../../../etc/passwd']) {
+        const verdict = resoudre(cible);
+        expect(verdict.admis, `${cible} a été ADMIS → ${verdict.detail}`).toBe(false);
+        expect(verdict.detail).toContain('refusée');
+      }
+    });
+
+    it('refuse une cible absolue, POSIX comme Windows', () => {
+      for (const cible of ['/etc/passwd', 'C:/Windows/win.ini', 'C:\\Windows\\win.ini']) {
+        const verdict = resoudre(cible);
+        expect(verdict.admis, `${cible} a été ADMIS → ${verdict.detail}`).toBe(false);
+        expect(verdict.detail).toContain('absolue');
+      }
+    });
+
+    it('refuse une partie du .pptx qui n’est PAS une diapositive', () => {
+      // Reste sous le dossier — le confinement seul ne suffit donc pas : c'est la liste
+      // blanche nominative `slideN.xml` qui mord ici.
+      for (const cible of ['slides/../presentation.xml', 'slides/notes.xml', 'slides/slide.xml']) {
+        const verdict = resoudre(cible);
+        expect(verdict.admis, `${cible} a été ADMIS → ${verdict.detail}`).toBe(false);
+        expect(verdict.detail).toContain('nominative');
+      }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LE TRIPWIRE — le binaire ne doit jamais redevenir une recherche par PATH
+  // ---------------------------------------------------------------------------
+  describe('le binaire `unzip`', () => {
+    const source = readFileSync(CHEMIN_OUTIL, 'utf8');
+    // 🔴 LE TRIPWIRE PORTE SUR LE CODE, JAMAIS SUR LES COMMENTAIRES — payé ici même.
+    // Écrit d'abord contre la source entière, il rougissait sur le commentaire de
+    // l'outil qui EXPLIQUE pourquoi la forme fautive est interdite : le garde-fou se
+    // trouvait lui-même, et l'unique façon de le verdir aurait été d'effacer
+    // l'explication. Un contrôle qui punit sa propre documentation apprend à ne plus
+    // documenter.
+    const codeSeul = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+    it('n’est JAMAIS invoqué par son nom nu', () => {
+      // `execFileSync` sur un nom nu laisse le système choisir le programme : un dossier
+      // inscriptible placé avant /usr/bin dans le PATH suffit à faire exécuter un faux
+      // binaire avec les droits du développeur.
+      expect(codeSeul).not.toMatch(/execFileSync\(\s*['"`]unzip/);
+      expect(codeSeul).toContain('execFileSync(resoudreUnzip()');
+    });
+
+    it('se choisit dans une liste de chemins ABSOLUS, écrite à la main', () => {
+      const liste = /const CANDIDATS_UNZIP = \[([\s\S]*?)\];/.exec(codeSeul)?.[1] ?? '';
+      const candidats = [...liste.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+      expect(candidats.length).toBeGreaterThan(0);
+      for (const candidat of candidats) {
+        expect(candidat, `${candidat} n'est pas absolu`).toMatch(/^(\/|[a-zA-Z]:\/)/);
+      }
+    });
+  });
+});
