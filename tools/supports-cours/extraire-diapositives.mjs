@@ -25,9 +25,28 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
-import { basename, isAbsolute, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+/** La racine du dépôt, dérivée de l'emplacement de ce fichier (`tools/supports-cours/`). */
+const RACINE_DEPOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/**
+ * 🔴 LES DEUX CHEMINS DE LA LIGNE DE COMMANDE SONT AUSSI DES ENTRÉES.
+ * Le support à lire et le fichier à écrire arrivent par `process.argv` : rien ne
+ * garantit qu'ils désignent un support de cours. Cet outil n'a qu'un seul terrain
+ * légitime — les supports versionnés du dépôt et les extraits qu'il en tire — donc
+ * on le dit, et on refuse tout le reste. Même patron que `cheminDeDiapositive` :
+ * on RÉSOUT, puis on vérifie STRUCTURELLEMENT où l'on a abouti.
+ */
+export function cheminSousLeDepot(valeur, role) {
+  const chemin = resolve(process.cwd(), valeur);
+  if (chemin !== RACINE_DEPOT && !chemin.startsWith(RACINE_DEPOT + sep)) {
+    throw new Error(`${role} hors du dépôt, refusé : ${valeur}`);
+  }
+  return chemin;
+}
 
 // -----------------------------------------------------------------------------
 // LE BINAIRE SE RÉSOUT EN ABSOLU — jamais par le PATH.
@@ -59,12 +78,12 @@ function texteDeDiapositive(xml) {
   const morceaux = [...xml.matchAll(/<a:t>([\s\S]*?)<\/a:t>/g)].map((m) => m[1]);
   return morceaux
     .join(' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ')
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&amp;', '&')
+    .replaceAll(/\s+/g, ' ')
     .trim();
 }
 
@@ -151,10 +170,14 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
     console.error('Usage : node extraire-diapositives.mjs <fichier.pptx> [sortie.txt]');
     process.exit(1);
   }
-  const lignes = extraire(entree);
+  const support = cheminSousLeDepot(entree, 'Support');
+  if (!/\.pptx$/i.test(support)) {
+    throw new Error(`Le support doit être un fichier .pptx : ${entree}`);
+  }
+  const lignes = extraire(support);
   const texte = lignes.join('\n') + '\n';
   if (sortie) {
-    writeFileSync(sortie, texte, 'utf8');
+    writeFileSync(cheminSousLeDepot(sortie, 'Fichier de sortie'), texte, 'utf8');
     console.log(`${sortie} — ${lignes.length} diapositives`);
   } else {
     process.stdout.write(texte);

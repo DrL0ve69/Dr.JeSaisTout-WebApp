@@ -52,11 +52,15 @@ interface Verdict {
   bruit: string;
 }
 
-/** Passe une `Target` de relation à `cheminDeDiapositive`, dans un vrai processus Node. */
-function resoudre(cible: string): Verdict {
+/**
+ * Exécute un `try { … }` contre le module importé dans un vrai processus Node, et rend
+ * son verdict. Le fils prouve au passage que le bloc CLI est gardé : le seul import ne
+ * doit produire ni usage ni `process.exit`.
+ */
+function executer(corpsTry: string): Verdict {
   const script =
     `const m = await import(${JSON.stringify(MODULE)});` +
-    `try { console.log('ADMIS' + '\\u0000' + m.cheminDeDiapositive(${JSON.stringify(DOSSIER)}, ${JSON.stringify(cible)})); }` +
+    corpsTry +
     `catch (e) { console.log('REFUS' + '\\u0000' + e.message); }`;
   const fils = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     encoding: 'utf8',
@@ -70,6 +74,13 @@ function resoudre(cible: string): Verdict {
     detail: detail ?? `${fils.stderr ?? ''}`,
     bruit: (fils.stdout ?? '').split('\n').filter((l) => !l.includes('\u0000')).join('\n').trim(),
   };
+}
+
+/** Passe une `Target` de relation à `cheminDeDiapositive`, dans un vrai processus Node. */
+function resoudre(cible: string): Verdict {
+  return executer(
+    `try { console.log('ADMIS' + '\\u0000' + m.cheminDeDiapositive(${JSON.stringify(DOSSIER)}, ${JSON.stringify(cible)})); }`,
+  );
 }
 
 describe('`extraire-diapositives.mjs` — les chemins dictés par le .pptx', () => {
@@ -105,29 +116,56 @@ describe('`extraire-diapositives.mjs` — les chemins dictés par le .pptx', () 
   // LES CHARGES — chacune traversait la version précédente, en silence
   // ---------------------------------------------------------------------------
   describe('sur les cibles HOSTILES', () => {
-    it('refuse une remontée qui sort du dossier d’extraction', () => {
-      for (const cible of ['../../../../etc/passwd', 'slides/../../../etc/passwd']) {
+    /** Chaque charge doit être refusée, et le refus doit NOMMER la garde qui a mordu. */
+    function exigerRefus(cibles: readonly string[], motif: string): void {
+      for (const cible of cibles) {
         const verdict = resoudre(cible);
         expect(verdict.admis, `${cible} a été ADMIS → ${verdict.detail}`).toBe(false);
-        expect(verdict.detail).toContain('refusée');
+        expect(verdict.detail, `${cible} refusé, mais pas pour « ${motif} »`).toContain(motif);
       }
+    }
+
+    it('refuse une remontée qui sort du dossier d’extraction', () => {
+      exigerRefus(['../../../../etc/passwd', 'slides/../../../etc/passwd'], 'refusée');
     });
 
     it('refuse une cible absolue, POSIX comme Windows', () => {
-      for (const cible of ['/etc/passwd', 'C:/Windows/win.ini', 'C:\\Windows\\win.ini']) {
-        const verdict = resoudre(cible);
-        expect(verdict.admis, `${cible} a été ADMIS → ${verdict.detail}`).toBe(false);
-        expect(verdict.detail).toContain('absolue');
-      }
+      exigerRefus(['/etc/passwd', 'C:/Windows/win.ini', 'C:\\Windows\\win.ini'], 'absolue');
     });
 
     it('refuse une partie du .pptx qui n’est PAS une diapositive', () => {
-      // Reste sous le dossier — le confinement seul ne suffit donc pas : c'est la liste
-      // blanche nominative `slideN.xml` qui mord ici.
-      for (const cible of ['slides/../presentation.xml', 'slides/notes.xml', 'slides/slide.xml']) {
-        const verdict = resoudre(cible);
-        expect(verdict.admis, `${cible} a été ADMIS → ${verdict.detail}`).toBe(false);
-        expect(verdict.detail).toContain('nominative');
+      // Ces trois-là restent SOUS le dossier : le confinement seul ne suffit donc pas,
+      // c'est la liste blanche nominative `slideN.xml` qui mord ici.
+      exigerRefus(
+        ['slides/../presentation.xml', 'slides/notes.xml', 'slides/slide.xml'],
+        'nominative',
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LA LIGNE DE COMMANDE — `process.argv` est une entrée comme une autre
+  // ---------------------------------------------------------------------------
+  describe('les chemins reçus en ligne de commande', () => {
+    /** Passe une valeur à `cheminSousLeDepot`, dans un vrai processus Node. */
+    function contenir(valeur: string): Verdict {
+      return executer(
+        `try { console.log('ADMIS' + '\\u0000' + m.cheminSousLeDepot(${JSON.stringify(valeur)}, 'Support')); }`,
+      );
+    }
+
+    it('admet un support versionné du dépôt', () => {
+      const verdict = contenir('securite-app-web-2026/Cours01.pptx');
+      expect(verdict.admis, verdict.detail).toBe(true);
+    });
+
+    it('refuse tout chemin hors du dépôt', () => {
+      // L'outil n'a qu'un terrain légitime : les supports versionnés et leurs extraits.
+      // Sans cette garde, un argument mal formé fait lire — ou ÉCRASER — n'importe où.
+      for (const valeur of ['../../secrets.txt', '/etc/passwd', 'C:/Windows/win.ini']) {
+        const verdict = contenir(valeur);
+        expect(verdict.admis, `${valeur} a été ADMIS → ${verdict.detail}`).toBe(false);
+        expect(verdict.detail).toContain('hors du dépôt');
       }
     });
   });
