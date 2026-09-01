@@ -1345,8 +1345,22 @@ déjà la règle) plutôt que découvrir le rougissement après coup. Cousine de
 son intention, c'est son **support** (texte brut plutôt qu'AST) qui ne sait pas lire l'intention d'un
 commentaire.
 
+**2ᵉ occurrence — 2026-09-01, et elle inverse la charge : le garde-fou s'est trouvé LUI-MÊME.**
+`src/extraction-diapositives-chemins.spec.ts` pose un tripwire interdisant `execFileSync('unzip', …)`
+dans `tools/supports-cours/extraire-diapositives.mjs`. Il a rougi au premier essai — sur le
+**commentaire de l'outil qui EXPLIQUE pourquoi cette forme est interdite**. Le rougissement était
+donc déclenché par la documentation du garde-fou, et l'unique façon mécanique de le verdir aurait
+été d'**effacer l'explication**. ⚠️ **Un contrôle qui punit sa propre documentation apprend à ne plus
+documenter** — c'est le mode d'échec à nommer, plus grave que le faux positif lui-même, parce qu'il
+pousse à retirer précisément le texte qui empêche la régression de revenir. La parade n'est pas de
+paraphraser (§ ci-dessus) quand le motif est le sujet même du commentaire : on **dépouille la source
+de ses commentaires** avant d'apparier — une passe `replace(/\/\*[\s\S]*?\*\//g, '')` puis
+`replace(/^\s*\/\/.*$/gm, '')` suffit, et elle se justifie sur place. Jumelle de [[L-071]], dont la
+seconde moitié dit la même chose sur un compteur.
+
 **Réfs.** garde-fou de portée du sanitizer (grep `bypassSecurityTrust*` sur `src/**`) ;
-`src/app/features/cours/quiz/quiz.ts` (le patron qui évite déjà de nommer) ; branche E2-ST5 lots a/b1.
+`src/app/features/cours/quiz/quiz.ts` (le patron qui évite déjà de nommer) ; branche E2-ST5 lots a/b1 ;
+`src/extraction-diapositives-chemins.spec.ts` (§ « le binaire `unzip` », la constante `codeSeul`).
 
 ---
 
@@ -2426,6 +2440,41 @@ qu'aucune section future n'enjambe la séance 11).
 `src/app/features/cours/contenu-compile.ts:745` (`ancrerAuCours`, `refuser()`),
 `src/app/features/cours/sommaire/sommaire.ts` (`positionDuJalon`), arbitrage R-3, chantier
 « leçons actionnables » (2026-08-31) ; [[S-010]].
+
+---
+
+## L-085 · Une garde de CHEMIN dont le verdict dépend de l'OS est DEUX gardes — `path` change de sémantique sous elle, et le vert local ne prouve alors rien
+
+**Symptôme.** `cheminSousLeDepot()` (`tools/supports-cours/extraire-diapositives.mjs`) borne les
+chemins reçus en ligne de commande : elle `resolve()` la valeur, puis vérifie **structurellement**
+qu'on aboutit sous la racine du dépôt. Le spec passait **10/10 sur ce poste** ; G-test a rougi
+**sur le runner** (CI 33527351852), sur une seule assertion : `C:/Windows/win.ini` **ADMIS**, résolu
+en `/home/runner/work/Dr.JeSaisTout-WebApp/Dr.JeSaisTout-WebApp/C:/Windows/win.ini`.
+
+**Cause, mesurée.** `isAbsolute` et `resolve` sont **dépendants de la plateforme**. Sous Linux,
+`C:/Windows/win.ini` n'est pas un chemin absolu : c'est un chemin **relatif** vers un dossier nommé
+`C:`. Il aboutit donc bel et bien sous le dépôt, et le confinement — parfaitement correct — l'admet.
+La même valeur était refusée sous Windows. Le produit rendait **deux verdicts différents selon
+l'hôte**, et le test ne pouvait le voir qu'en s'exécutant sur l'autre.
+
+**Règle.** Une garde de chemin est bâtie sur une bibliothèque dont la sémantique **change sous elle** :
+`isAbsolute`, `resolve`, `sep`, `join` ne veulent pas dire la même chose sur les deux plateformes du
+projet (poste Windows, runner Linux). Donc : **ce qui doit être refusé partout se refuse par un
+contrôle indépendant de la plateforme, AVANT toute résolution.** Ici, la forme `X:` est rejetée par
+un `/^[a-zA-Z]:/` explicite — pas laissée à `isAbsolute`. Et le corollaire de méthode, qui vaut
+au-delà de ce cas : **un vert local ne prouve rien d'une garde de chemin**, au même titre qu'il ne
+prouve rien sur les fins de ligne ([[L-015]]) ni sur l'ordre d'un `readdirSync` ([[L-078]]) — trois
+fois la même famille, « vrai par accident sur le NTFS/Windows de ce poste ». Devant une garde de
+chemin, la question est : *quelle valeur cette fonction juge-t-elle différemment sur l'autre OS ?*
+
+⚠️ **Ne pas corriger le TEST.** Le réflexe était de retirer `C:/…` du jeu de charges puisqu'il
+« n'a pas de sens sous Linux ». C'était l'inverse : le test disait vrai, c'est la garde qui était
+incomplète. Un argument mal formé pouvait faire **écrire** l'extrait dans un dossier `C:` fabriqué à
+la racine du dépôt.
+
+**Réfs.** `tools/supports-cours/extraire-diapositives.mjs` (`cheminSousLeDepot`,
+`cheminDeDiapositive`) ; `src/extraction-diapositives-chemins.spec.ts` (« refuse un préfixe de
+lecteur SUR TOUTE PLATEFORME ») ; CI 33527351852 ; PR #43 ; [[L-015]], [[L-078]], [[S-021]].
 
 ---
 
