@@ -39,8 +39,18 @@ const RACINE_DEPOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'
  * légitime — les supports versionnés du dépôt et les extraits qu'il en tire — donc
  * on le dit, et on refuse tout le reste. Même patron que `cheminDeDiapositive` :
  * on RÉSOUT, puis on vérifie STRUCTURELLEMENT où l'on a abouti.
+ *
+ * 🔴 LE PRÉFIXE DE LECTEUR SE REFUSE SUR TOUTE PLATEFORME, ET C'EST LE PIÈGE PAYÉ ICI.
+ * `isAbsolute` dépend de l'OS : sous Linux, `C:/Windows/win.ini` n'est PAS absolu, c'est
+ * un chemin relatif vers un dossier nommé `C:`. Le confinement l'admettait donc — il
+ * aboutit bien sous le dépôt — là où Windows le refusait. Une garde dont le verdict
+ * change avec l'hôte est DEUX gardes : verte sur ce poste, rouge sur le runner (mesuré,
+ * CI 33527351852). On refuse donc la forme `X:` partout, quel que soit le séparateur.
  */
 export function cheminSousLeDepot(valeur, role) {
+  if (/^[a-zA-Z]:/.test(valeur)) {
+    throw new Error(`${role} hors du dépôt, refusé (chemin de lecteur) : ${valeur}`);
+  }
   const chemin = resolve(process.cwd(), valeur);
   if (chemin !== RACINE_DEPOT && !chemin.startsWith(RACINE_DEPOT + sep)) {
     throw new Error(`${role} hors du dépôt, refusé : ${valeur}`);

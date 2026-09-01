@@ -162,10 +162,24 @@ describe('`extraire-diapositives.mjs` — les chemins dictés par le .pptx', () 
     it('refuse tout chemin hors du dépôt', () => {
       // L'outil n'a qu'un terrain légitime : les supports versionnés et leurs extraits.
       // Sans cette garde, un argument mal formé fait lire — ou ÉCRASER — n'importe où.
-      for (const valeur of ['../../secrets.txt', '/etc/passwd', 'C:/Windows/win.ini']) {
+      for (const valeur of ['../../secrets.txt', '/etc/passwd']) {
         const verdict = contenir(valeur);
         expect(verdict.admis, `${valeur} a été ADMIS → ${verdict.detail}`).toBe(false);
         expect(verdict.detail).toContain('hors du dépôt');
+      }
+    });
+
+    it('refuse un préfixe de lecteur SUR TOUTE PLATEFORME, pas seulement sous Windows', () => {
+      // 🔴 CE `it` EST NÉ D'UN ÉCHEC DE RUNNER, PAS D'UNE PRÉCAUTION (CI 33527351852).
+      // `isAbsolute` dépend de l'OS : sous Linux, `C:/Windows/win.ini` est un chemin
+      // RELATIF vers un dossier nommé `C:`, donc il aboutit sous le dépôt et le
+      // confinement l'admettait. La garde rendait deux verdicts selon l'hôte — verte
+      // ici, rouge sur le runner. Un test vert sur un seul OS ne prouve rien d'une
+      // garde de chemin ; celui-ci fixe le verdict des deux côtés.
+      for (const valeur of ['C:/Windows/win.ini', 'C:\\Windows\\win.ini', 'd:/x/y.pptx']) {
+        const verdict = contenir(valeur);
+        expect(verdict.admis, `${valeur} a été ADMIS → ${verdict.detail}`).toBe(false);
+        expect(verdict.detail).toContain('chemin de lecteur');
       }
     });
   });
