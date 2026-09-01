@@ -96,7 +96,8 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-080 | 2291–2322 | Une liste blanche fermée sur le CORPUS a une date de péremption ; fermée sur le CONTRAT de l'outil, elle n'en a pas |
 | L-081 | 2323–2349 | Une leçon peut être fausse sans qu'aucune de ses phrases le soit — la faute se répartit, elle ne se localise pas |
 | L-082 | 2350–2373 | Une commande présentée comme une PREUVE doit être confrontée à « que mesure-t-elle exactement ? » — sinon elle enseigne un instrument faux |
-| L-083 | 2374–2399 | Un garde-fou de contenu qui sort dès qu'AUCUN attribut n'est fourni transforme une obligation en option — c'est le cas par défaut qui passe |
+| L-083 | 2374–2397 | Un garde-fou de contenu qui sort dès qu'AUCUN attribut n'est fourni transforme une obligation en option — c'est le cas par défaut qui passe |
+| L-084 | 2398–2433 | Assouplir une règle exige de recenser aussi ce qui en DÉPEND sans la tester — pas seulement ce qui l'applique |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -130,4 +131,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-023 | 961–1001 | Retirer une permission CSP nominative devenue sans besoin est un DURCISSEMENT — à condition que le garde-fou qui la comptait reste capable de rougir (A05 · patron réussi, à réemployer) |
 | S-024 | 1002–1035 | Fermer une leçon de sécurité exige de mesurer le RÉSIDU sur l'artéfact du lot, jamais de le raisonner de mémoire — le mécanisme et l'état du produit sont deux régimes de preuve distincts (A05 · discipline de clôture) |
 
-_108 entrées indexées._
+_109 entrées indexées._

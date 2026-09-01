@@ -2395,4 +2395,38 @@ comptage au contrôle : ici c'est la présence de l'attribut, pas sa valeur, qui
 
 ---
 
+## L-084 · Assouplir une règle exige de recenser aussi ce qui en DÉPEND sans la tester — pas seulement ce qui l'applique
+
+**Symptôme.** L'arbitrage R-3 (2026-08-31) assouplissait « aucune séance d'évaluation ne peut
+partager un module » en « … sauf une évaluation **pratique** ». La règle était **appliquée** à
+deux endroits distincts — `tools/content-pipeline/valider.mjs:verifierSeanceContreHoraire` (au
+build) et `src/app/features/cours/contenu-compile.ts:ancrerAuCours` (~l. 745, au prerendu,
+`refuser()` qui **lève**) — et seul le second avait été omis du plan, de la passe adversariale et
+du brief : un scénario l'aurait rendu **vert au contenu, rouge au prerendu**, sur un message
+nommant le mauvais contrat. C'est une occurrence de plus de [[S-010]] (« un garde-fou doit couvrir
+exactement le périmètre que sa promesse énonce ») — mais la revue à regard neuf a trouvé un
+**troisième** intervenant, d'une espèce différente : `src/app/features/cours/sommaire/sommaire.ts:positionDuJalon`,
+qui **n'applique** la règle nulle part — il ne teste aucune nature d'évaluation — mais **suppose**
+qu'un jalon d'évaluation n'est jamais dans le même groupe qu'un module, et lève sinon.
+L'assouplissement rend cette combinaison atteignable ; aucun spec ne la couvre, et aucun `grep` sur
+le message ou le nom de la règle ne l'aurait fait apparaître, puisqu'il ne la mentionne pas.
+
+**Règle.** Avant d'assouplir un contrat, recenser deux populations distinctes, pas une seule :
+**(a)** ce qui **applique** la règle (trouvable par le message d'erreur, le nom de fonction, un
+`grep`) et **(b)** ce qui **dépend** de l'invariant qu'elle garantissait sans jamais la nommer ni
+la tester — un consommateur qui présuppose silencieusement « ce cas n'arrive jamais ». (b) se
+cherche en se demandant « qui a le droit de SUPPOSER que c'était vrai ? », pas « qui le
+VÉRIFIE ? » — et se trouve en général en descendant en aval du premier garde-fou trouvé (ici : du
+validateur de contenu vers le rendu, puis vers le composant qui lit le résultat du rendu). Écrire
+ensuite un test pour la combinaison **neuve** que l'assouplissement rend atteignable, même si rien
+ne rougit aujourd'hui (ici : module seul dans son groupe, `min = max = 11`, donc silencieux tant
+qu'aucune section future n'enjambe la séance 11).
+
+**Réfs.** `tools/content-pipeline/valider.mjs` (`verifierSeanceContreHoraire`),
+`src/app/features/cours/contenu-compile.ts:745` (`ancrerAuCours`, `refuser()`),
+`src/app/features/cours/sommaire/sommaire.ts` (`positionDuJalon`), arbitrage R-3, chantier
+« leçons actionnables » (2026-08-31) ; [[S-010]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
