@@ -36,7 +36,7 @@
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 
 const CHEMIN_OUTIL = join(process.cwd(), 'tools', 'supports-cours', 'extraire-diapositives.mjs');
 const MODULE = pathToFileURL(CHEMIN_OUTIL).href;
@@ -205,13 +205,138 @@ describe('`extraire-diapositives.mjs` — les chemins dictés par le .pptx', () 
       expect(codeSeul).toContain('execFileSync(resoudreUnzip()');
     });
 
-    it('se choisit dans une liste de chemins ABSOLUS, écrite à la main', () => {
-      const liste = /const CANDIDATS_UNZIP = \[([\s\S]*?)\];/.exec(codeSeul)?.[1] ?? '';
-      const candidats = [...liste.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-      expect(candidats.length).toBeGreaterThan(0);
-      for (const candidat of candidats) {
-        expect(candidat, `${candidat} n'est pas absolu`).toMatch(/^(\/|[a-zA-Z]:\/)/);
+    it('ancre CHAQUE liste sur la règle de SA plateforme', () => {
+      // 🔴 MESURÉ, ET C'EST TOUT LE POINT : `resolve('/usr/bin/unzip')` rend
+      // `C:\usr\bin\unzip` sous Windows — donc `existsSync` interroge la racine du
+      // lecteur courant, que les « Utilisateurs authentifiés » peuvent peupler. Un
+      // chemin POSIX n'est ancré que sous POSIX. Le tripwire précédent appariait
+      // `^(\/|[a-zA-Z]:\/)` sur la liste UNIQUE et certifiait donc « absolu » un chemin
+      // qui ne l'était pas sur la plateforme où il allait servir : il donnait
+      // l'assurance qu'il ne mesurait pas.
+      //
+      // Les deux listes sont jugées ICI, quelle que soit la plateforme du runner :
+      // la CI (Linux) est ainsi le seul endroit qui vérifie l'ancrage de la liste
+      // Windows, et ce poste-ci le seul à vérifier l'autre.
+      const liste = (nom: string): string[] =>
+        JSON.parse(
+          executer(`try { console.log('ADMIS' + '\\u0000' + JSON.stringify(m.${nom})); }`).detail,
+        ) as string[];
+
+      const posix = liste('CANDIDATS_UNZIP_POSIX');
+      const win32 = liste('CANDIDATS_UNZIP_WIN32');
+      expect(posix.length).toBeGreaterThan(0);
+      expect(win32.length).toBeGreaterThan(0);
+      for (const c of posix) expect(c, `${c} n’est pas ancré à la racine POSIX`).toMatch(/^\//);
+      for (const c of win32) {
+        expect(c, `${c} n’est pas ancré sur une lettre de lecteur`).toMatch(/^[a-zA-Z]:\//);
       }
+    });
+
+    it('choisit la liste PAR LA PLATEFORME, sans jamais concaténer les deux', () => {
+      // Concaténer rouvrirait la faille en entier : les chemins POSIX redeviendraient
+      // des cibles sous `C:\` et reprendraient la tête du `find`.
+      expect(codeSeul).toMatch(
+        /process\.platform === 'win32'\s*\?\s*CANDIDATS_UNZIP_WIN32\s*:\s*CANDIDATS_UNZIP_POSIX/,
+      );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LE TYPE DE L'ENTRÉE — un chemin admis ne dit rien de ce qu'il DÉSIGNE
+  // ---------------------------------------------------------------------------
+  describe('le type du membre relu', () => {
+    const BAC = join(process.cwd(), 'node_modules', '.cache', 'pptx-membres-temoin');
+    const REGULIER = join(BAC, 'slide1.xml');
+    const DOSSIER_PIEGE = join(BAC, 'slide2.xml');
+    const LIEN = join(BAC, 'slide3.xml');
+    const SECRET = join(BAC, 'secret.txt');
+    /** Windows refuse `symlink` sans privilège ni mode développeur : on le constate. */
+    let lienCree = false;
+
+    beforeAll(() => {
+      rmSync(BAC, { recursive: true, force: true });
+      mkdirSync(BAC, { recursive: true });
+      writeFileSync(REGULIER, '<a:t>Bonjour</a:t>', 'utf8');
+      writeFileSync(SECRET, 'CLEF-PRIVEE-TEMOIN', 'utf8');
+      mkdirSync(DOSSIER_PIEGE);
+      try {
+        symlinkSync(SECRET, LIEN);
+        lienCree = true;
+      } catch {
+        lienCree = false;
+      }
+    });
+
+    afterAll(() => rmSync(BAC, { recursive: true, force: true }));
+
+    const lire = (chemin: string): Verdict =>
+      executer(
+        `try { console.log('ADMIS' + '\\u0000' + m.lireMembreRegulier(${JSON.stringify(chemin)})); }`,
+      );
+
+    // LE TÉMOIN — sans lui, une fonction qui refuse TOUT serait verte partout ailleurs.
+    it('admet un fichier régulier, et rend son contenu', () => {
+      const v = lire(REGULIER);
+      expect(v.admis).toBe(true);
+      expect(v.detail).toBe('<a:t>Bonjour</a:t>');
+    });
+
+    it('refuse un DOSSIER portant un nom de diapositive admis', () => {
+      const v = lire(DOSSIER_PIEGE);
+      expect(v.admis).toBe(false);
+      expect(v.detail).toContain('non régulier');
+    });
+
+    // 🔴 LE CŒUR DU CONSTAT. `slide3.xml` passe les TROIS gardes de chemin — il est
+    // relatif, il résout sous le dossier d'extraction, son basename est nominatif — et
+    // pointe pourtant hors de l'archive. Sans contrôle de type, `readFileSync` suit le
+    // lien et le secret part dans l'extrait que l'opérateur lit et recopie.
+    it.skipIf(!lienCree)('refuse un LIEN symbolique portant un nom admis', () => {
+      const v = lire(LIEN);
+      expect(v.admis).toBe(false);
+      expect(v.detail).toContain('non régulier');
+      expect(v.detail).not.toContain('CLEF-PRIVEE-TEMOIN');
+    });
+
+    it('constate si la plateforme a permis de poser le lien', () => {
+      // ⚠️ Ce test ne juge RIEN — il IMPRIME. Sans lui, un `skipIf` silencieux laisserait
+      // croire que le cas hostile a été mesuré alors qu'il a été sauté, et le vert
+      // vaudrait pour la plateforme au lieu de valoir pour la garde. C'est le contraire
+      // de la garde elle-même, qui, elle, ne dépend d'aucun OS.
+      console.log(
+        lienCree
+          ? '[type de membre] lien symbolique posé : le cas hostile est MESURÉ'
+          : '[type de membre] lien symbolique impossible ici (privilège Windows) : cas SAUTÉ',
+      );
+      expect(typeof lienCree).toBe('boolean');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // LE CHEMIN RÉELLEMENT EXÉCUTÉ — S-003 : un garde débranché reste vert
+  // ---------------------------------------------------------------------------
+  describe('les deux gardes sont sur le chemin d’exécution', () => {
+    // ⚠️ POURQUOI CES DEUX-LÀ SONT DES TRIPWIRES DE SOURCE, ET NON DES APPELS.
+    // `extraire()` et `ordreDesDiapositives()` exigent un vrai .pptx ; aucun n'est
+    // versionné (ils sont téléchargés et gitignorés), et en fabriquer un au test
+    // demanderait un écrivain ZIP que le dépôt n'a pas. Sans ces deux contrôles, un
+    // retour à `join(dossier, 'ppt', cible.replace(/^\.\.\//, ''))` laisserait TOUS les
+    // autres tests verts : les gardes existeraient, débranchées. C'est exactement la
+    // faute S-003 — « un garde-fou doit vivre sur le chemin réellement exécuté ».
+    const codeSeul = readFileSync(CHEMIN_OUTIL, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+
+    it('ne relit AUCUN membre par un `readFileSync` nu', () => {
+      const horsGarde = codeSeul.replace(/export function lireMembreRegulier[\s\S]*?\n}/, '');
+      expect(horsGarde).not.toMatch(/readFileSync\(/);
+    });
+
+    it('dérive CHAQUE chemin de diapositive par `cheminDeDiapositive`', () => {
+      const corps = /function ordreDesDiapositives\([\s\S]*?\n}/.exec(codeSeul)?.[0] ?? '';
+      expect(corps).not.toBe('');
+      expect(corps).toContain('cheminDeDiapositive(');
+      expect(corps).not.toMatch(/\.replace\(/);
     });
   });
 });

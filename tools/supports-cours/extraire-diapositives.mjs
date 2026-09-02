@@ -24,7 +24,7 @@
 // =============================================================================
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync, lstatSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -66,11 +66,26 @@ export function cheminSousLeDepot(valeur, role) {
 // liste est donc NOMINATIVE et absolue ; si aucun candidat n'existe, on échoue en le
 // disant, plutôt que de retomber en silence sur une recherche implicite.
 // -----------------------------------------------------------------------------
-const CANDIDATS_UNZIP = [
-  '/usr/bin/unzip',
-  '/bin/unzip',
+// 🔴 UN CHEMIN POSIX ÉCRIT EN DUR EST UNE GARDE DÉPENDANTE DE L'OS — donc DEUX gardes,
+// exactement comme l'`isAbsolute` corrigé plus haut. MESURÉ sur ce poste :
+// `resolve('/usr/bin/unzip')` rend `C:\usr\bin\unzip`, et c'est CETTE cible que
+// `existsSync` interroge — pas `/usr/bin`, qui n'existe pas sous Windows. Or la racine
+// `C:\` accorde par défaut le droit de créer un dossier aux « Utilisateurs authentifiés » :
+// un processus local non privilégié plante `C:\usr\bin\unzip`, le `find` le prend EN
+// PREMIER — il précédait le chemin Git dans la liste — et il s'exécute avec les droits de
+// l'opérateur. La liste était donc absolue sous POSIX et RELATIVE AU LECTEUR COURANT sous
+// Windows, c'est-à-dire le défaut même que `resoudreUnzip` existe pour fermer.
+//
+// Les deux listes sont exportées pour que le spec juge CHACUNE contre la règle de SA
+// plateforme, où qu'il tourne : la CI (Linux) vérifie ainsi l'ancrage de la liste Windows,
+// que ce poste-ci serait seul à exercer.
+export const CANDIDATS_UNZIP_POSIX = ['/usr/bin/unzip', '/bin/unzip', '/usr/local/bin/unzip'];
+export const CANDIDATS_UNZIP_WIN32 = [
   'C:/Program Files/Git/usr/bin/unzip.exe',
+  'C:/Program Files (x86)/Git/usr/bin/unzip.exe',
 ];
+const CANDIDATS_UNZIP =
+  process.platform === 'win32' ? CANDIDATS_UNZIP_WIN32 : CANDIDATS_UNZIP_POSIX;
 
 function resoudreUnzip() {
   const trouve = CANDIDATS_UNZIP.find((candidat) => existsSync(candidat));
@@ -137,13 +152,43 @@ export function cheminDeDiapositive(dossier, cible) {
 }
 
 /**
+ * 🔴 LE TYPE D'UNE ENTRÉE SE CONTRÔLE — un chemin admis ne dit RIEN de ce qu'il désigne.
+ * C'est la moitié que les trois gardes de `cheminDeDiapositive` ne couvrent pas, et elle
+ * est nommée telle quelle dans `.claude/rules/security.md` §4 (b) : « un lien symbolique
+ * portant un nom admis passe un contrôle de chemin seul ». Le scénario est complet et
+ * n'exige aucune complicité de l'opérateur : un .pptx hostile stocke `ppt/slides/slide1.xml`
+ * comme LIEN vers `~/.ssh/id_rsa` ou `.git/config`, `unzip` restaure le lien, les trois
+ * gardes passent — le chemin résolu reste sous le dossier temporaire, le basename est bien
+ * `slide1.xml` — et la lecture SUIT le lien. Le secret part dans l'extrait, que l'opérateur
+ * lit et recopie.
+ *
+ * ⚠️ CE QUI NE VAUT PAS PROTECTION : l'`unzip.exe` de Git for Windows ne matérialise pas
+ * les liens, là où Info-ZIP sous POSIX le fait par défaut. Se reposer là-dessus serait
+ * une garde dont le verdict dépend de l'hôte — le défaut même corrigé plus haut, deux fois.
+ * On contrôle donc le type, sur toute plateforme, et le refus se NOMME.
+ *
+ * `lstatSync` et non `statSync` : `stat` suit le lien et rapporterait « fichier régulier »
+ * pour sa cible, ce qui verdirait exactement l'attaque qu'on refuse.
+ *
+ * @param {string} chemin chemin déjà borné par `cheminDeDiapositive` ou construit ici
+ * @returns {string} le contenu, en UTF-8
+ */
+export function lireMembreRegulier(chemin) {
+  const etat = lstatSync(chemin);
+  if (!etat.isFile()) {
+    throw new Error(`Membre d'archive non régulier (lien ou dossier), refusé : ${chemin}`);
+  }
+  return readFileSync(chemin, 'utf8');
+}
+
+/**
  * L'ORDRE DE PRÉSENTATION, dérivé des relations — jamais du nom de fichier.
  * `presentation.xml` liste les `<p:sldId r:id="rIdN">` dans l'ordre où l'auteur a
  * posé ses diapositives ; `presentation.xml.rels` associe chaque rId à sa cible.
  */
 function ordreDesDiapositives(dossier) {
-  const presentation = readFileSync(join(dossier, 'ppt/presentation.xml'), 'utf8');
-  const relations = readFileSync(join(dossier, 'ppt/_rels/presentation.xml.rels'), 'utf8');
+  const presentation = lireMembreRegulier(join(dossier, 'ppt/presentation.xml'));
+  const relations = lireMembreRegulier(join(dossier, 'ppt/_rels/presentation.xml.rels'));
 
   const cibleParId = new Map(
     [...relations.matchAll(/Id="([^"]+)"[^>]*Target="([^"]+)"/g)].map((m) => [m[1], m[2]]),
@@ -159,11 +204,13 @@ function ordreDesDiapositives(dossier) {
 export function extraire(cheminPptx) {
   const dossier = mkdtempSync(join(tmpdir(), 'pptx-'));
   try {
-    // `unzip` refuse de lui-même les chemins absolus et les `../` des membres d'archive ;
-    // la garde qui compte ici reste `cheminDeDiapositive`, qui borne ce qu'on RELIT.
+    // `unzip` refuse de lui-même les chemins absolus et les `../` des membres d'archive —
+    // vrai, et HORS SUJET : il ne dit rien des LIENS, qu'Info-ZIP restaure par défaut. Les
+    // deux gardes qui comptent sont donc `cheminDeDiapositive` (où l'on va) et
+    // `lireMembreRegulier` (ce qu'on trouve en arrivant). Aucune des deux ne délègue à unzip.
     execFileSync(resoudreUnzip(), ['-o', '-q', cheminPptx, '-d', dossier]);
     return ordreDesDiapositives(dossier).map(
-      (fichier, index) => `[${index + 1}] ${texteDeDiapositive(readFileSync(fichier, 'utf8'))}`,
+      (fichier, index) => `[${index + 1}] ${texteDeDiapositive(lireMembreRegulier(fichier))}`,
     );
   } finally {
     rmSync(dossier, { recursive: true, force: true });
