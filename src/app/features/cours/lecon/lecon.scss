@@ -21,7 +21,10 @@
 //   · `--couleur-accent` et `--couleur-encre-tertiaire` sur `--couleur-surface-creuse` ;
 //   · `--couleur-sur-accent` sur `--couleur-accent` — la pastille du cartouche, en
 //     aplat ambre plein ; c'est la paire du bouton plein du quiz ;
-//   · `--couleur-encre` sur `--couleur-surface` (la surface de page par défaut).
+//   · `--couleur-encre` sur `--couleur-surface` (la surface de page par défaut) ;
+//   · `--couleur-encre-tertiaire` sur `--couleur-surface` — le renvoi au cours posé sous
+//     un titre de section ; c'est la paire « Légende, méta, note de bas de page » déjà
+//     mesurée par `verifier-contrastes.mjs`, aucune neuve (lot 2 de la refonte).
 //
 // ⚠️ `--couleur-danger-vuln` A QUITTÉ CETTE FEUILLE avec la bascule E6 : le tampon
 // de module est devenu une micro-étiquette d'interface, et le rouge est la seule
@@ -287,6 +290,12 @@ $largeur-rail: 18rem;
     font-size: var(--taille-xs);
   }
 
+  // ⚠️ CE `display: flex` EST LA RAISON D'ÊTRE DU `<span class="texte-lien">` DU
+  // GABARIT. Titre et renvoi posés en enfants DIRECTS du lien deviendraient deux items
+  // de flex côte à côte : un titre long se replierait dans le sien pendant que le
+  // renvoi resterait collé au bord, centré sur trois lignes. Enveloppés, ils forment un
+  // item unique où le texte reprend son flux en ligne — et le `align-items: center`
+  // continue de centrer la cible de 44 px sur les entrées d'une seule ligne.
   a {
     display: flex;
     align-items: center;
@@ -294,6 +303,13 @@ $largeur-rail: 18rem;
     color: var(--couleur-accent);
 
     @include m.focus-visible;
+  }
+
+  // Le renvoi est une MÉTA-INFORMATION dans le texte du lien : encre tertiaire, mais
+  // toujours soulignée avec lui — c'est une seule cible, pas deux (WCAG 1.4.1 : rien
+  // ici ne passe par la seule couleur, le renvoi reste du texte lisible).
+  .renvoi {
+    color: var(--couleur-encre-tertiaire);
   }
 }
 
@@ -311,6 +327,16 @@ $largeur-rail: 18rem;
 // `prefers-reduced-motion` (aucune animation n'est déclarée ici).
 .titre-section {
   scroll-margin-block-start: var(--espace-4);
+}
+
+// LE RENVOI AU COURS D'UN TITRE — « (diapos 12 à 18) », posé SOUS le titre et non
+// dedans (`docs/contenu/ancrage-au-cours.md` §5 (d)). C'est du texte, jamais une
+// pastille de couleur : il se lit à l'oreille, s'imprime, et survit à une police de
+// repli. L'encre tertiaire le met en retrait sans le rendre décoratif.
+.renvoi-titre {
+  margin-block-start: var(--espace-1);
+  color: var(--couleur-encre-tertiaire);
+  font-size: var(--taille-xs);
 }
 
 // -----------------------------------------------------------------------------

@@ -64,6 +64,7 @@ import {
   titreDeDocument,
   voisinesDe,
 } from './navigation-lecon';
+import { libelleDiapositives, renvoiDeTitre } from './renvoi-au-cours';
 
 const ORCHESTRATEUR = 'tools/content-pipeline/build.mjs';
 const RACINE_TEMOIN = 'tools/content-pipeline/__fixtures__/temoin/cours/securite-web';
@@ -1022,7 +1023,7 @@ describe('getPrerenderParams — les slugs à prerendre', () => {
 describe('sommaire ancré', () => {
   it('reflète les ancres et les niveaux RÉELS de la leçon-témoin', () => {
     const sections = lecon().sections;
-    const sommaire = construireSommaire(sections);
+    const sommaire = construireSommaire(sections, lecon().frontmatter.seance);
 
     // Un titre de premier niveau par section de niveau 2 — ni plus, ni moins.
     const ancresDeNiveau2 = sections.filter((s) => s.niveau === 2).map((s) => s.ancre);
@@ -1046,8 +1047,118 @@ describe('sommaire ancré', () => {
     const orpheline = copie(lecon()).sections.filter((section) => section.niveau === 3)[0];
     if (orpheline === undefined) throw new Error('la fixture n’a aucune section de niveau 3');
 
-    const sommaire = construireSommaire([orpheline]);
+    const sommaire = construireSommaire([orpheline], undefined);
     expect(sommaire.map((entree) => entree.ancre)).toEqual([orpheline.ancre]);
+  });
+
+  it('colle le renvoi au cours DANS le texte du lien, séparé par une insécable', () => {
+    // §5 (e) : au sommaire, le renvoi entre bien dans le texte du lien — c'est là que le
+    // lecteur le cherche avant de choisir où aller. L'insécable d'ouverture vient de la
+    // CHAÎNE et non du gabarit (L-024) : sans elle, le nom accessible se recollerait.
+    const sections = copie(lecon()).sections;
+    const premiere = sections[0];
+    const sousTitre = sections.find((section) => section.niveau === 3);
+    if (premiere === undefined || sousTitre === undefined) {
+      throw new Error('la fixture n’a pas la forme attendue');
+    }
+    premiere.renvoiCours = { seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] };
+    sousTitre.renvoiCours = { seance: 4, diapos: [45, 46, 47, 48, 49, 50] };
+
+    const sommaire = construireSommaire(sections, 2);
+    const sous = sommaire.flatMap((entree) => entree.sousEntrees);
+
+    expect(sommaire[0]?.renvoiCours).toBe(
+      `${INSECABLE}(diapos${INSECABLE}12${INSECABLE}à${INSECABLE}18)`,
+    );
+    // La séance du sous-titre DIFFÈRE de celle du module : elle s'écrit.
+    expect(sous.find((entree) => entree.ancre === sousTitre.ancre)?.renvoiCours).toBe(
+      `${INSECABLE}(séance${INSECABLE}4 · diapos${INSECABLE}45${INSECABLE}à${INSECABLE}50)`,
+    );
+    // ANTI-VACUITÉ : les sections que la fixture ne marque pas n'inventent aucun renvoi.
+    expect(sommaire.filter((entree) => entree.renvoiCours !== undefined).length).toBe(1);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// La fabrique de libellé — UNE seule, partagée par les trois surfaces (§5)
+// -----------------------------------------------------------------------------
+describe('renvoi au cours — le libellé des diapositives', () => {
+  /** Rend les insécables visibles à la lecture d'un échec ; l'exactitude est prouvée à part. */
+  const lisible = (valeur: string | null): string | null =>
+    valeur === null ? null : valeur.replaceAll(INSECABLE, ' ');
+
+  it('replie une suite de TROIS numéros ou plus, jamais une de deux', () => {
+    // Les quatre formes décidées par le propriétaire le 2026-09-01.
+    expect(lisible(libelleDiapositives([12, 13, 14, 15, 16, 17, 18]))).toBe('diapos 12 à 18');
+    expect(lisible(libelleDiapositives([56, 57, 64, 65, 66, 69, 70, 71]))).toBe(
+      'diapos 56, 57, 64 à 66, 69 à 71',
+    );
+    expect(lisible(libelleDiapositives([45, 46]))).toBe('diapos 45, 46');
+    expect(lisible(libelleDiapositives([13]))).toBe('diapo 13');
+  });
+
+  it('tient sur une suite à TROUS MULTIPLES, replis et isolés mêlés', () => {
+    expect(lisible(libelleDiapositives([3, 4, 5, 9, 20, 21, 22, 23, 40]))).toBe(
+      'diapos 3 à 5, 9, 20 à 23, 40',
+    );
+  });
+
+  it('rend nul sur une liste vide — un « · diapos » sans numéro serait un renvoi mort', () => {
+    // Cas légal côté ENCADRÉ (§5), impossible sur un titre depuis le lot 1a.
+    expect(libelleDiapositives([])).toBeNull();
+  });
+
+  it('sépare la plage par des INSÉCABLES — « 12 à 18 » se tient d’un bloc', () => {
+    // L-066 : une comparaison normalisée ne prouverait rien de l'insécable. Celle-ci, si.
+    expect(libelleDiapositives([12, 13, 14])).toBe(
+      `diapos${INSECABLE}12${INSECABLE}à${INSECABLE}14`,
+    );
+  });
+});
+
+describe('renvoi au cours — le renvoi d’un TITRE de section', () => {
+  const lisible = (valeur: string | null): string | null =>
+    valeur === null ? null : valeur.replaceAll(INSECABLE, ' ');
+
+  it('TAIT la séance quand elle est celle du module', () => {
+    expect(lisible(renvoiDeTitre({ seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] }, 2))).toBe(
+      '(diapos 12 à 18)',
+    );
+  });
+
+  it('ÉCRIT la séance quand elle diffère de celle du module', () => {
+    // Le contraire du test ci-dessus, sur la même entrée : c'est la séance du MODULE qui
+    // change, pas le renvoi. Sans ce couple, une implémentation qui n'écrirait jamais la
+    // séance — ou qui l'écrirait toujours — passerait l'un des deux.
+    expect(lisible(renvoiDeTitre({ seance: 4, diapos: [45, 46, 47, 48, 49, 50] }, 2))).toBe(
+      '(séance 4 · diapos 45 à 50)',
+    );
+  });
+
+  it('ÉCRIT la séance quand le module n’en déclare AUCUNE', () => {
+    // Le champ `seance` est optionnel au frontmatter : la taire laisserait le lecteur sans
+    // point d'entrée dans le support du cours.
+    expect(
+      lisible(renvoiDeTitre({ seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] }, undefined)),
+    ).toBe('(séance 2 · diapos 12 à 18)');
+  });
+
+  it('nomme le COURS en tête et FORCE la séance avec lui', () => {
+    // ⚠️ AUCUN CONTENU NE PRODUIT DE COURS AUJOURD'HUI — le lot 1a le refuse à l'usage, sa
+    // résolution est le lot 1b. Un objet construit à la main est le SEUL moyen d'exercer
+    // cette branche ; sans ce test, elle serait livrée non mesurée.
+    // La séance vaut ici celle du module : elle s'écrit quand même, parce que « séance 2 »
+    // d'un AUTRE cours ne se déduit plus de rien.
+    const renvoi = {
+      cours: '420-4P2-HU',
+      seance: 2,
+      diapos: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42],
+    };
+    expect(lisible(renvoiDeTitre(renvoi, 2))).toBe('(420-4P2-HU · séance 2 · diapos 30 à 42)');
+  });
+
+  it('rend nul quand la section ne porte aucun renvoi', () => {
+    expect(renvoiDeTitre(undefined, 2)).toBeNull();
   });
 });
 
@@ -1354,6 +1465,170 @@ describe('rendu de la page', () => {
 
     // L'imbrication est rendue, pas seulement calculée.
     expect(sommaire?.querySelectorAll('ol ol').length).toBeGreaterThan(0);
+  });
+
+  it('pose le renvoi au cours SOUS le titre — jamais dans son nom accessible', async () => {
+    // 🔴 LE COUPLE QUE CE TEST TIENT (`docs/contenu/ancrage-au-cours.md` §5 (d) et (e)) : le
+    // même renvoi se rend DEUX fois, et il ne se place pas au même endroit. Sous le titre,
+    // il est un FRÈRE — un lecteur d'écran offre une « liste des titres » pour naviguer, et
+    // « diapos 45 à 50 » injecté dans 247 titres la rendrait inutilisable. Au sommaire, il
+    // entre DANS le texte du lien, parce que c'est là que le lecteur le cherche.
+    const leconMarquee = copie(lecon());
+    const premiere = leconMarquee.sections[0];
+    if (premiere === undefined) throw new Error('la fixture n’a aucune section');
+    premiere.renvoiCours = { seance: 4, diapos: [45, 46, 47, 48, 49, 50] };
+
+    const rendu = await monter(manifesteReel, `/cours/securite-web/${slugTemoin}`, leconMarquee);
+
+    const titre = rendu.querySelector(`[id="${premiere.ancre}"]`);
+    expect(titre?.tagName).toMatch(/^H[23]$/);
+    expect(titre?.textContent).toBe(premiere.titre);
+
+    const renvoi = titre?.nextElementSibling;
+    expect(renvoi?.tagName).toBe('P');
+    expect(renvoi?.classList.contains('renvoi-titre')).toBe(true);
+    // La leçon-témoin ne déclare AUCUNE séance au frontmatter : la séance du renvoi
+    // s'écrit donc toujours, faute de quoi le lecteur n'aurait aucun point d'entrée.
+    expect(renvoi?.textContent).toBe(
+      `(séance${INSECABLE}4 · diapos${INSECABLE}45${INSECABLE}à${INSECABLE}50)`,
+    );
+
+    // ANTI-VACUITÉ : les sections sans renvoi ne rendent pas un `<p>` vide, qu'un lecteur
+    // d'écran annoncerait comme un blanc.
+    expect(rendu.querySelectorAll('p.renvoi-titre').length).toBe(1);
+
+    // ⚠️ L'INSÉCABLE D'OUVERTURE EST MESURÉE ICI, PAS NORMALISÉE (L-066/L-024) : sans elle,
+    // le nom accessible du lien vaudrait « …titre(séance 4… » en un seul mot, l'espace
+    // visible ne venant que du CSS.
+    const lien = rendu.querySelector(`nav.sommaire a[href$="#${premiere.ancre}"]`);
+    expect(lien?.textContent).toBe(
+      `${premiere.titre}${INSECABLE}(séance${INSECABLE}4 · diapos${INSECABLE}45${INSECABLE}à${INSECABLE}50)`,
+    );
+
+    // 🔴 LE `<span class="texte-lien">` EST UNE STRUCTURE, PAS UNE DÉCORATION — et jusqu'ici
+    // il n'était tenu que par un COMMENTAIRE du gabarit. L'égalité ci-dessus tient la moitié
+    // « ne pas aérer » (une espace de plus la ferait rougir) ; elle ne voit RIEN du retrait
+    // de l'enveloppe, puisque `textContent` aplatit les éléments. Or le lien est en
+    // `display:flex` (`lecon.scss`) : sans ce span unique, le titre et le renvoi deviennent
+    // deux items de flex — un titre long se replie pendant que le renvoi reste collé au
+    // bord. Un garde-fou en commentaire n'est pas un garde-fou.
+    expect(lien?.children.length).toBe(1);
+    expect((lien?.firstElementChild as HTMLElement | null)?.className).toBe('texte-lien');
+  });
+
+  /**
+   * LA LEÇON-TÉMOIN, MARQUÉE D'UNE SÉANCE DE MODULE ET DE DEUX RENVOIS QUI S'OPPOSENT.
+   *
+   * 🔴 POURQUOI CETTE FIXTURE-CI EXISTE, ET CE QU'ELLE FERME. Le test voisin monte une leçon
+   * dont le frontmatter NE PORTE PAS de `seance` — or c'est exactement le cas où « la séance
+   * est câblée » et « la séance n'est jamais passée » rendent la MÊME chaîne : `renvoiDeTitre`
+   * écrit « séance N » dans les deux hypothèses. Remplacer `this.frontmatter().seance` par
+   * `undefined` aux deux points d'appel de `lecon.ts` survivait donc à toute la suite. Ici, la
+   * séance du module vaut 4 : la première section, qui pointe la MÊME séance, doit la TAIRE ;
+   * la seconde, qui pointe ailleurs, doit l'écrire. C'est le cas NORMAL en production — huit
+   * des dix leçons en ligne déclarent `seance:`.
+   *
+   * ⚠️ On mute un objet POST-COMPILATION : ni `valider.mjs` ni `ancrerAuCours` ne sont dans la
+   * boucle, donc poser une séance au frontmatter ne fait rien lever et la fixture sur disque
+   * n'a pas à bouger.
+   */
+  function leconDeSeance4(): {
+    leconMarquee: LeconCompilee;
+    memeSeance: SectionCompilee;
+    autreSeance: SectionCompilee;
+  } {
+    const leconMarquee = copie(lecon());
+    leconMarquee.frontmatter.seance = 4;
+    const [memeSeance, autreSeance] = leconMarquee.sections;
+    if (memeSeance === undefined || autreSeance === undefined) {
+      throw new Error('la fixture n’a pas deux sections');
+    }
+    memeSeance.renvoiCours = { seance: 4, diapos: [45, 46, 47, 48, 49, 50] };
+    autreSeance.renvoiCours = { seance: 1, diapos: [12] };
+    return { leconMarquee, memeSeance, autreSeance };
+  }
+
+  /** Ce que les deux tests ci-dessous attendent, à la lettre — insécables comprises. */
+  const RENVOI_TU = `(diapos${INSECABLE}45${INSECABLE}à${INSECABLE}50)`;
+  const RENVOI_ECRIT = `(séance${INSECABLE}1 · diapo${INSECABLE}12)`;
+
+  it('🔴 SOUS LE TITRE : la séance se TAIT quand c’est celle du module, s’écrit sinon', async () => {
+    const { leconMarquee, memeSeance, autreSeance } = leconDeSeance4();
+    const rendu = await monter(manifesteReel, `/cours/securite-web/${slugTemoin}`, leconMarquee);
+
+    const renvoiSous = (ancre: string): string | null =>
+      rendu.querySelector(`[id="${ancre}"]`)?.nextElementSibling?.textContent ?? null;
+
+    // Le câblage de `renvoiDeSection` (`lecon.ts`) : sans la séance du frontmatter, cette
+    // première assertion lirait « (séance 4 · diapos 45 à 50) » — vingt fois la même
+    // information sur une page, qui noierait le seul renvoi pointant ailleurs.
+    expect(renvoiSous(memeSeance.ancre)).toBe(RENVOI_TU);
+    // CONTRÔLE POSITIF (L-019) : la séance n'est pas tue PARTOUT — sans quoi tout ce qui
+    // précède serait vrai d'un rendu qui aurait perdu le mot « séance ».
+    expect(renvoiSous(autreSeance.ancre)).toBe(RENVOI_ECRIT);
+  });
+
+  it('🔴 AU SOMMAIRE : le même couple, par l’AUTRE point d’appel de la séance', async () => {
+    // Ce test est SÉPARÉ du précédent, et ce n'est pas du confort de lecture : `lecon.ts`
+    // passe la séance du frontmatter à DEUX fabriques distinctes (`renvoiDeSection` et
+    // `construireSommaire`). Réunis dans un seul test, une mutation de l'un des deux
+    // appels rougirait au même endroit que l'autre, et ne dirait pas lequel a lâché.
+    const { leconMarquee, memeSeance, autreSeance } = leconDeSeance4();
+    const rendu = await monter(manifesteReel, `/cours/securite-web/${slugTemoin}`, leconMarquee);
+
+    const texteDuLien = (ancre: string): string | null =>
+      rendu.querySelector(`nav.sommaire a[href$="#${ancre}"]`)?.textContent ?? null;
+
+    expect(texteDuLien(memeSeance.ancre)).toBe(`${memeSeance.titre}${INSECABLE}${RENVOI_TU}`);
+    // CONTRÔLE POSITIF, et il porte double : la seconde section est une SOUS-entrée du
+    // sommaire, donc c'est l'autre branche de `construireSommaire` qui est mesurée ici.
+    expect(texteDuLien(autreSeance.ancre)).toBe(`${autreSeance.titre}${INSECABLE}${RENVOI_ECRIT}`);
+  });
+
+  it('🔴 S-011 (e) — le `cours` d’un renvoi s’AFFICHE ENTIER sans faire naître un seul nœud', async () => {
+    // `renvoiCours.cours` est un CHAMP D'AUTEUR EN TEXTE LIBRE nouvellement rendu au DOM
+    // (`.claude/rules/security.md` §4, patron S-011 (e)). Aucun contenu ne l'atteint
+    // aujourd'hui — le compilateur refuse `cours=` sur un titre — mais la branche de rendu
+    // existe et le lot 1b la rendra atteignable : le filet arrive AVEC elle, pas après.
+    // Les DEUX mains comptent : une seule certifierait un assainissement dont l'autre
+    // moitié est un no-op.
+    const CHARGE = '<img src=x onerror=alert(1)>';
+    const leconMarquee = copie(lecon());
+    const premiere = leconMarquee.sections[0];
+    if (premiere === undefined) throw new Error('la fixture n’a aucune section');
+    premiere.renvoiCours = { seance: 8, diapos: [30], cours: CHARGE };
+
+    const rendu = await monter(manifesteReel, `/cours/securite-web/${slugTemoin}`, leconMarquee);
+
+    // Les deux surfaces que CETTE page rend (la troisième, l'étiquette d'encadré, vit dans
+    // `rendu-blocs`) : le renvoi posé sous le titre, et celui du lien de sommaire.
+    const porteurs = [
+      rendu.querySelector('p.renvoi-titre'),
+      rendu.querySelector(`nav.sommaire a[href$="#${premiere.ancre}"] span.renvoi`),
+    ];
+
+    for (const porteur of porteurs) {
+      // MAIN 1 — CONTRÔLE POSITIF : la charge est à l'écran, ENTIÈRE, caractère pour
+      // caractère. Sans elle, tout ce qui suit serait vrai d'un rendu qui n'affiche rien.
+      expect(porteur).not.toBeNull();
+      expect(porteur?.textContent).toContain(CHARGE);
+
+      // MAIN 2 — et pas un nœud n'en est né. On interroge le DOM, pas la source.
+      expect(porteur?.querySelectorAll('img, script').length).toBe(0);
+      expect(porteur?.children.length).toBe(0);
+
+      // MAIN 2, second volet : AUCUN ATTRIBUT ne vient du champ. C'est cette moitié-là qui
+      // attrape le déplacement futur d'une interpolation vers un `[attr.title]` ou un
+      // `aria-label` — Angular échappe « < » dans un nœud texte, il n'échappe PAS les
+      // guillemets dans une valeur d'attribut.
+      const attributs = [...(porteur?.attributes ?? [])];
+      expect(attributs.length).toBeGreaterThan(0); // on a bien regardé quelque chose
+      expect(
+        attributs
+          .filter((attribut) => /^on/i.test(attribut.name) || attribut.value.includes('alert'))
+          .map((attribut) => `${attribut.name}="${attribut.value}"`),
+      ).toEqual([]);
+    }
   });
 
   it('n’émet AUCUN `id` statique hors d’`ANCRES_RESERVEES`', async () => {

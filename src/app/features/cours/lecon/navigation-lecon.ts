@@ -32,6 +32,7 @@
 // =============================================================================
 
 import { leconsPubliees } from '../contenu-compile';
+import { INSECABLE, renvoiDeTitre } from './renvoi-au-cours';
 
 /**
  * Le préfixe des routes de leçon d'un cours — DÉRIVÉ DU SUJET, plus une constante.
@@ -267,6 +268,22 @@ export function titreDeDocument(
 export interface SousEntreeSommaire {
   readonly ancre: string;
   readonly titre: string;
+  /**
+   * LE RENVOI AU COURS, DÉJÀ COMPOSÉ ET PRÊT À ÊTRE COLLÉ AU TITRE — « (diapos 12 à 18) »,
+   * précédé de son insécable d'ouverture. Absent quand la section n'en porte aucun.
+   *
+   * 🔴 IL ENTRE DANS LE TEXTE DU LIEN, contrairement au renvoi posé sous un titre de section
+   * (`docs/contenu/ancrage-au-cours.md` §5 (d) et (e)). Un lecteur d'écran offre une « liste des
+   * titres » qu'un renvoi injecté dans chaque `<h2>`/`<h3>` rendrait illisible ; un lien de
+   * sommaire n'a pas ce mode de navigation à polluer, et c'est là que le lecteur cherche
+   * l'information avant de choisir où aller.
+   *
+   * ⚠️ L'INSÉCABLE D'OUVERTURE EST PORTÉE PAR LA CHAÎNE, JAMAIS PAR LE GABARIT (L-024) :
+   * `preserveWhitespaces: false` retire le nœud blanc entre le titre et le `<span>` du renvoi,
+   * et le nom accessible du lien se recollerait en « …l'ordre(diapos 12 à 18) ». Le `gap` CSS,
+   * lui, ne se lit pas.
+   */
+  readonly renvoiCours?: string;
 }
 
 /** Une entrée de sommaire de premier niveau (un `<h2>`), et ses sous-titres. */
@@ -291,16 +308,34 @@ export interface EntreeSommaire extends SousEntreeSommaire {
  */
 export function construireSommaire(
   sections: readonly SectionCompilee[],
+  seanceDuModule: number | undefined,
 ): readonly EntreeSommaire[] {
-  const sommaire: { ancre: string; titre: string; sousEntrees: SousEntreeSommaire[] }[] = [];
+  const sommaire: {
+    ancre: string;
+    titre: string;
+    renvoiCours?: string;
+    sousEntrees: SousEntreeSommaire[];
+  }[] = [];
+
+  // LA SÉANCE DU MODULE DESCEND JUSQU'ICI, ET ELLE N'EST PAS DÉCORATIVE : c'est elle qui
+  // décide si « séance N » s'écrit ou se tait (`renvoiDeTitre`). Sans elle, le sommaire
+  // répéterait la séance du module sous chacune de ses entrées, là où la page, elle, ne
+  // l'écrit que quand le renvoi pointe ailleurs — deux libellés différents pour le même
+  // renvoi, dans la même page, à trois centimètres l'un de l'autre.
+  const entreeDe = (section: SectionCompilee): SousEntreeSommaire => {
+    const renvoi = renvoiDeTitre(section.renvoiCours, seanceDuModule);
+    return renvoi === null
+      ? { ancre: section.ancre, titre: section.titre }
+      : { ancre: section.ancre, titre: section.titre, renvoiCours: `${INSECABLE}${renvoi}` };
+  };
 
   for (const section of sections) {
     const parent = sommaire.at(-1);
     if (section.niveau === 3 && parent !== undefined) {
-      parent.sousEntrees.push({ ancre: section.ancre, titre: section.titre });
+      parent.sousEntrees.push(entreeDe(section));
       continue;
     }
-    sommaire.push({ ancre: section.ancre, titre: section.titre, sousEntrees: [] });
+    sommaire.push({ ...entreeDe(section), sousEntrees: [] });
   }
 
   return sommaire;

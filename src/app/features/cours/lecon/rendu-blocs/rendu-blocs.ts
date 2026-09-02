@@ -58,6 +58,7 @@ import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 
 import { Quiz } from '../../quiz/quiz';
 import { Simulation } from '../../simulation/simulation';
+import { INSECABLE, libelleDiapositives } from '../renvoi-au-cours';
 
 /**
  * Les types de blocs que ce composant sait rendre — liste NOMINATIVE, jamais un
@@ -74,9 +75,6 @@ const TYPES_RENDUS = [
   'ancre-quiz',
   'ancre-simulation',
 ] as const;
-
-/** U+00A0 écrite en échappement : `no-irregular-whitespace` refuse la vraie dans un littéral. */
-const INSECABLE = '\u00A0';
 
 /**
  * Ce que la page peut HONNÊTEMENT constater d'une portée d'annotation — et ce qu'elle ne peut pas.
@@ -825,13 +823,11 @@ export class RenduBlocs {
       if (exercice === undefined || renvoi.seance !== exercice.seance) {
         morceaux.push(`Séance${INSECABLE}${renvoi.seance}`);
       }
-      // Le singulier n'est pas une coquetterie : « diapos 13 » ferait douter le lecteur qu'il
-      // manque un numéro. Les plages arrivent DÉPLIÉES, donc la longueur suffit à trancher.
-      if (renvoi.diapos.length === 1) {
-        morceaux.push(`diapo${INSECABLE}${renvoi.diapos[0]}`);
-      } else if (renvoi.diapos.length > 1) {
-        morceaux.push(`diapos${INSECABLE}${renvoi.diapos.join(', ')}`);
-      }
+      // LE LIBELLÉ DES DIAPOSITIVES VIENT DE LA FABRIQUE PARTAGÉE, jamais recomposé ici :
+      // singulier, repli des suites de trois numéros ou plus, insécables. Le `null` couvre
+      // le cas légal `diapos: []` (§5), où l'encadré ne déclare qu'une séance.
+      const diapositives = libelleDiapositives(renvoi.diapos);
+      if (diapositives !== null) morceaux.push(diapositives);
     }
 
     // L'espace INSÉCABLE d'ouverture n'est pas décorative. `preserveWhitespaces: false` retire le
