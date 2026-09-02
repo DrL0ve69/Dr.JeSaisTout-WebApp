@@ -1118,7 +1118,7 @@ const PREFIXE_MODULE = 'module:';
  * deux copies doivent voir la MÊME CHAÎNE : c'est le défaut du lot 1a (`### Titre ##`, fermeture
  * ATX légale que l'un voyait et l'autre pas), et il ne se repaie pas.
  */
-const MOTIF_VOIR_EN_TETE = new RegExp(`^\\{${ATTRIBUT_VOIR}="([^"]*)"\\}`);
+const MOTIF_VOIR_EN_TETE = new RegExp(String.raw`^\{${ATTRIBUT_VOIR}="([^"]*)"\}`);
 /** Ce qu'on cherche pour dire « il y a un renvoi ICI, mais pas au bon endroit ». */
 const AMORCE_VOIR = `{${ATTRIBUT_VOIR}=`;
 /**

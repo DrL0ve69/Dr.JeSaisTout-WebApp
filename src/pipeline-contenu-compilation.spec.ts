@@ -1803,43 +1803,66 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
       throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n'a pas mordu`);
     }
 
-    it('refuse un DEUXIÈME bloc de code dans une même étape, en nommant l’étape', () => {
-      const message = messageDEchecDeLaMarche('deux-codes', [
-        '1. Lancer la construction.',
-        '',
-        '   ```bash',
-        '   npm run content:build',
-        '   ```',
-        '',
-        '   ```bash',
-        '   npm run lint',
-        '   ```',
-      ]);
-      expect(message).toContain('DEUXIÈME bloc de code');
-      // Le numéro d'étape est ce que l'auteur VOIT à l'écran : sans lui, il relit toute la marche.
-      expect(message).toContain('étape n°\u00A01');
-    }, DELAI);
+    /**
+     * LES TROIS REFUS DE STRUCTURE, EN TABLE.
+     *
+     * Écrits en trois `it` recopiés mot pour mot à trois jetons près, ils formaient un bloc
+     * dupliqué de 41 lignes que SonarCloud a compté (PR #45 : 3,1 % de duplication sur le code
+     * neuf, seuil 3 %). La table dit la même chose une fois — et l'assertion sur le NUMÉRO
+     * D'ÉTAPE, qui vaut pour les trois, ne peut plus être oubliée sur l'un d'eux.
+     *
+     * ⚠️ Chaque cas garde sa CAUSE PROPRE : c'est ce qui distingue une table d'un test qui se
+     * contente de constater un refus. Un garde-fou qui refuserait tout passerait un test qui
+     * n'épingle que l'échec, jamais celui-ci.
+     */
+    const REFUS_DE_STRUCTURE: readonly {
+      nom: string;
+      quoi: string;
+      etape: readonly string[];
+      cause: string;
+    }[] = [
+      {
+        nom: 'deux-codes',
+        quoi: 'un DEUXIÈME bloc de code dans une même étape, en nommant l’étape',
+        etape: [
+          '1. Lancer la construction.',
+          '',
+          '   ```bash',
+          '   npm run content:build',
+          '   ```',
+          '',
+          '   ```bash',
+          '   npm run lint',
+          '   ```',
+        ],
+        cause: 'DEUXIÈME bloc de code',
+      },
+      {
+        nom: 'liste-imbriquee',
+        quoi: 'une liste imbriquée, et la NOMME plutôt que de l’avaler',
+        etape: ['1. Vérifier les deux points suivants.', '', '   - le premier', '   - le second'],
+        cause: 'une liste imbriquée',
+      },
+      {
+        nom: 'titre-dans-etape',
+        quoi: 'un titre dans une étape',
+        etape: ['1. Ouvrir le journal.', '', '   #### Un titre, là où le contrat n’en admet aucun'],
+        cause: 'un titre',
+      },
+    ];
 
-    it('refuse une liste imbriquée, et la NOMME plutôt que de l’avaler', () => {
-      const message = messageDEchecDeLaMarche('liste-imbriquee', [
-        '1. Vérifier les deux points suivants.',
-        '',
-        '   - le premier',
-        '   - le second',
-      ]);
-      expect(message).toContain('une liste imbriquée');
-      expect(message).toContain('étape n°\u00A01');
-    }, DELAI);
-
-    it('refuse un titre dans une étape', () => {
-      const message = messageDEchecDeLaMarche('titre-dans-etape', [
-        '1. Ouvrir le journal.',
-        '',
-        '   #### Un titre, là où le contrat n’en admet aucun',
-      ]);
-      expect(message).toContain('un titre');
-      expect(message).toContain('étape n°\u00A01');
-    }, DELAI);
+    for (const cas of REFUS_DE_STRUCTURE) {
+      it(
+        `refuse ${cas.quoi}`,
+        () => {
+          const message = messageDEchecDeLaMarche(cas.nom, cas.etape);
+          expect(message).toContain(cas.cause);
+          // Le numéro d'étape est ce que l'auteur VOIT à l'écran : sans lui, il relit toute la marche.
+          expect(message).toContain('étape n°\u00A01');
+        },
+        DELAI,
+      );
+    }
 
     it('refuse un renvoi qui n’est pas LITTÉRALEMENT en tête de l’étape', () => {
       const message = messageDEchecDeLaMarche('voir-pas-en-tete', [

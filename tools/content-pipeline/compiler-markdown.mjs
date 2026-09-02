@@ -278,7 +278,7 @@ const PREFIXE_MODULE = 'module:';
  * sur une annotation. Ancré sur `^`, donc aucun retour arrière possible : ce qui n'est pas en tête
  * n'est pas reconnu, et l'appelant le refuse en le nommant plutôt que de le laisser passer.
  */
-const MOTIF_VOIR_EN_TETE = new RegExp(`^\\{${ATTRIBUT_VOIR}="([^"]*)"\\}`);
+const MOTIF_VOIR_EN_TETE = new RegExp(String.raw`^\{${ATTRIBUT_VOIR}="([^"]*)"\}`);
 /** Ce qu'on cherche pour dire « il y a un renvoi ICI, mais pas au bon endroit ». */
 const AMORCE_VOIR = `{${ATTRIBUT_VOIR}=`;
 
