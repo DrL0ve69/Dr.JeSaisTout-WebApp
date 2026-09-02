@@ -27,11 +27,17 @@ personne ne vérifie ce que le spectateur pense du spectacle, mais tout le monde
 billet à la même forme. L'analogie casse ici : un billet refusé n'empêche pas la salle
 d'ouvrir, alors qu'une leçon refusée fait échouer la construction du site en entier.
 
-## Ce que le validateur regarde
+## Ce que le validateur regarde {diapos="12-18"}
 
 Cette section libre existe pour prouver un point du gabarit : entre la première section et
 « Exemple simple », l'auteur intercale autant de sections de théorie qu'il veut. Le validateur
 ancre seulement la première et la dernière. Durée annoncée : 5 minutes.
+
+### Citer une AUTRE séance du même cours {seance="1" diapos="45-50"}
+
+Un renvoi posé sur un titre suit la MÊME grammaire que celui d'un encadré : la plage est
+dépliée en six numéros par le compilateur, et le titre est DÉPOUILLÉ de son bloc avant que
+l'ancre ne soit fabriquée — sans quoi elle vaudrait « citer-une-autre-seance-seance-1-diapos-45-50 ».
 
 ::: cours
 Un renvoi est FACULTATIF : sans attribut, l’étiquette reste « COURS ». C’est la moitié du

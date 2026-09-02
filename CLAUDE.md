@@ -60,6 +60,32 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
+> ## ⏭️ REPRISE — chantier OUVERT au 2026-08-31 : « leçons actionnables »
+>
+> 🔴 **UNE REFONTE DU FORMAT DES LEÇONS EST EN COURS, branche `feat/refonte-lecons-actionnables`.**
+> Le propriétaire ne peut pas se servir d'une leçon pour **agir** : marche à suivre concise en tête,
+> renvois de diapositives jusque dans le sommaire, onglets pour comparer la méthode du cours et
+> l'équivalent moderne. Elle s'appliquera aux **dix** modules publiés, module 11 d'abord.
+> **Tout est dans [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) —
+> le lire AVANT de toucher au pipeline de contenu, au rendu d'une leçon ou à un `lecon.md`, et
+> commencer par son §6.** Ce pointeur reste court exprès : un bloc de reprise est payé par chaque
+> agent de chaque session.
+> 🔴 **LES SEPT ARBITRAGES DE LA REFONTE SONT RENDUS (2026-08-31), et ils font foi.** D-A conteneur
+> `:::: marche-a-suivre` · D-B l'attribut de diapos sur le **titre lui-même** · D-C onglets **CSS purs**
+> (radios), zéro JavaScript · D-D gate qui **se durcit module par module**, avec compteur · R-3 la règle
+> s'assouplit — une séance d'évaluation **pratique** peut porter un module, l'examen écrit reste interdit ·
+> R-7 **la reprise des dix modules passe DEVANT le contenu neuf** · R-4 la perte du `Ctrl+F` dans un
+> onglet masqué est **acceptée**, sous réserve écrite au contrat. Ce que chacun engage :
+> [`docs/design/refonte-lecons-actionnables.md`](docs/design/refonte-lecons-actionnables.md), bloc « VERDICT ».
+> ⚠️ **D-C repose sur une mesure NON FAITE (R-1)** : si l'hydratation réécrit le `checked` d'une radio
+> statique, le repli écrit est l'option 2. Mesurer **avant** de coder le lot 6.
+> ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
+> numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
+> `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
+> mémoire, et n'envoie pas `WebFetch` le lire : il invente plutôt que d'échouer.
+>
+> ---
+>
 > ## ⏭️ REPRISE — état au 2026-08-27
 
 > ✅ **NEUF LEÇONS SONT EN LIGNE. E3-ST16 `04-automatisation-surveillance` (séance 4) EST PUBLIÉE** —

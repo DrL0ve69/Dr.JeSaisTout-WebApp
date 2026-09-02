@@ -78,6 +78,8 @@ interface SectionLue {
   titre: string;
   ancre: string;
   niveau: number;
+  /** §3bis — présent seulement quand le TITRE de la section porte `{diapos="…"}`. */
+  renvoiCours?: { seance: number; diapos: number[]; cours?: string };
   blocs: BlocQuelconque[];
 }
 
@@ -1552,6 +1554,126 @@ describe('pipeline de contenu — compilation Markdown', () => {
         },
         DELAI,
       );
+    });
+  });
+
+  // ===========================================================================
+  // §3bis — LE RENVOI DE DIAPOSITIVES POSÉ SUR UN TITRE DE SECTION (lot 1a)
+  // ---------------------------------------------------------------------------
+  // L'ATTRIBUT EST RETIRÉ DU TEXTE DU TITRE AVANT TOUTE AUTRE CHOSE, et
+  // `docs/contenu/ancrage-au-cours.md` §3bis en donne trois conséquences dont chacune casserait
+  // EN SILENCE si elle était ratée : l'ANCRE (sinon `…-diapos-12-18`, et tout lien profond
+  // existant pointe à côté), le SOMMAIRE (qui afficherait les accolades) et les SECTIONS
+  // IMPOSÉES du gabarit (comparées par égalité de chaîne EXACTE). Les trois se constatent ici
+  // sur la même leçon compilée.
+  //
+  // ⚠️ CE QUE L'ASSERTION SUR `renvoiCours` EST LA SEULE À VOIR. Une implémentation qui
+  // NETTOIERAIT le bloc par motif au lieu de l'ANALYSER — la liste noire que
+  // `.claude/rules/security.md` §4 interdit, famille S-003/S-009/S-014 — produirait exactement
+  // les mêmes titres et les mêmes ancres, et un `renvoiCours` ABSENT. Sans elle, ce test resterait
+  // vert sur un pipeline qui aurait perdu le renvoi en route.
+  // ===========================================================================
+  describe('renvoi de diapositives sur un titre de section (§3bis)', () => {
+    const FIXTURE_ANCRAGE = 'tools/content-pipeline/__fixtures__/ancrage-au-cours';
+    let sections: SectionLue[] = [];
+
+    beforeAll(() => {
+      const resultat = compiler(FIXTURE_ANCRAGE, join(bacASable, 'ancrage.scss'));
+      const premiere = resultat.lecons[0];
+      if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
+      sections = premiere.sections;
+    }, DELAI);
+
+    function section(titre: string): SectionLue {
+      const trouvee = sections.find((s) => s.titre === titre);
+      if (trouvee === undefined) {
+        throw new Error(`section « ${titre} » absente — titres compilés : ${sections
+          .map((s) => s.titre)
+          .join(' | ')}`);
+      }
+      return trouvee;
+    }
+
+    it('dépouille le titre et fabrique l’ancre depuis le titre DÉPOUILLÉ', () => {
+      // `## Ce que le validateur regarde {diapos="12-18"}` dans la source.
+      expect(section('Ce que le validateur regarde').ancre).toBe('ce-que-le-validateur-regarde');
+      // ANTI-VACUITÉ : si le dépouillement disparaissait, le titre lui-même changerait et
+      // `section(…)` lèverait au lieu de laisser passer une ancre fautive.
+      expect(sections.map((s) => s.titre)).toContain('Citer une AUTRE séance du même cours');
+      expect(section('Citer une AUTRE séance du même cours').ancre).toBe(
+        'citer-une-autre-seance-du-meme-cours',
+      );
+    }, DELAI);
+
+    it('n’a bougé AUCUNE des six sections imposées du gabarit', () => {
+      // La section porteuse d'un renvoi n'en est PAS une : le contrôle du gabarit vit dans
+      // `valider.mjs`, mais le compilateur émet les mêmes chaînes, et c'est cette égalité-là que
+      // le lot 2 (sommaire) lira.
+      expect(sections.filter((s) => s.niveau === 2).map((s) => s.titre)).toEqual([
+        "L'idée en une image",
+        'Ce que le validateur regarde',
+        'Exemple simple',
+        'Exemple complet',
+        'À toi de jouer',
+        'À retenir',
+        'Aller plus loin',
+      ]);
+    }, DELAI);
+
+    it('déplie les plages et hérite la séance du frontmatter quand elle n’est pas déclarée', () => {
+      // `{diapos="12-18"}` seul : la séance est celle du module (`seance: 2`).
+      expect(section('Ce que le validateur regarde').renvoiCours).toEqual({
+        seance: 2,
+        diapos: [12, 13, 14, 15, 16, 17, 18],
+      });
+      // `{seance="1" diapos="45-50"}` : une AUTRE séance du MÊME cours, plage dépliée.
+      expect(section('Citer une AUTRE séance du même cours').renvoiCours).toEqual({
+        seance: 1,
+        diapos: [45, 46, 47, 48, 49, 50],
+      });
+    }, DELAI);
+
+    it('laisse SANS renvoi les titres qui n’en portent pas — le cas des dix leçons publiées', () => {
+      const sansRenvoi = sections.filter((s) => s.renvoiCours === undefined);
+      expect(sansRenvoi).toHaveLength(6);
+      expect(sansRenvoi.map((s) => s.titre)).toContain('Aller plus loin');
+    }, DELAI);
+
+    describe('les refus du compilateur — l’attribut est ANALYSÉ, jamais nettoyé', () => {
+      function messageDEchecDuTitre(attributs: string): string {
+        const racine = leconAdHoc(`titre-${attributs.replace(/[^a-z]+/g, '-')}`, (source) =>
+          source.replace(
+            '## Ce que le validateur regarde',
+            `## Ce que le validateur regarde ${attributs}`,
+          ),
+        );
+        try {
+          compiler(racine, join(bacASable, 'jetable-titre.scss'));
+        } catch (erreur) {
+          const echec = erreur as { status?: number; stderr?: string };
+          expect(echec.status).not.toBe(0);
+          return echec.stderr ?? '';
+        }
+        throw new Error(`« ${attributs} » a été ACCEPTÉ — le garde-fou n'a pas mordu`);
+      }
+
+      it('refuse une clef hors de la matrice fermée, en la NOMMANT', () => {
+        const message = messageDEchecDuTitre('{diapo="12"}');
+        expect(message).toContain('attribut « diapo » inconnu');
+        // Le message parle du TITRE, pas d'un « ::: » : envoyer l'auteur chercher un conteneur
+        // qui n'existe pas serait pire que pas de message.
+        expect(message).toContain('## Ce que le validateur regarde');
+        expect(message).not.toContain(':::');
+      }, DELAI);
+
+      it('refuse « cours="…" » — RECONNU, mais la résolution inter-cours n’est pas livrée', () => {
+        const message = messageDEchecDuTitre('{cours="php" diapos="12"}');
+        expect(message).toContain('cite un AUTRE cours');
+        // Le refus doit dire POURQUOI. « attribut inconnu » enverrait l'auteur corriger une
+        // faute de frappe imaginaire — la clef est au contrat, c'est sa résolution qui manque.
+        expect(message).not.toContain('inconnu');
+        expect(message).toContain('horaire');
+      }, DELAI);
     });
   });
 });

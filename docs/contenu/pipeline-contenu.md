@@ -97,6 +97,7 @@ sont **refusés**, jamais assimilés à « absent »).
 ```markdown
 # <Titre>
 ## L'idée en une image          <!-- l'accroche : l'analogie principale, bornée -->
+## En bref — la marche à suivre  <!-- CONDITIONNELLE : imposée aux seuls modules du format actionnable -->
 ## <Sections de théorie>         <!-- progressives ; Mermaid dès qu'un flux est expliqué -->
 ## Exemple simple                <!-- isole le mécanisme -->
 ## Exemple complet               <!-- situation réaliste ; vulnérable/corrigé côte à côte -->
@@ -251,6 +252,12 @@ La PISTE de résolution, jamais l'énoncé — celui-ci vient de `exercices.json
   [`ancrage-au-cours.md`](ancrage-au-cours.md) §6.
 - **`diapos` et `seance`** sont admis sur `cours`, `correction-du-cours` et `exercice-du-cours`
   seulement ([`ancrage-au-cours.md`](ancrage-au-cours.md) §3).
+- **Un TITRE de section porte lui aussi un renvoi**, en fin de ligne :
+  `## Les commandes, dans l'ordre {diapos="12-18"}`. Matrice fermée à `diapos` (**requis**),
+  `seance` (une autre séance du même cours) et `cours` (**refusé tant que la résolution
+  inter-cours n'est pas livrée**). L'attribut est retiré du titre AVANT l'ancre, le sommaire et
+  la reconnaissance des sections imposées — donc `## Exemple simple {diapos="30-34"}` **est** la
+  section « Exemple simple ». Contrat : [`ancrage-au-cours.md`](ancrage-au-cours.md) §3bis.
 - **Aucun pictogramme ne s'écrit en Markdown source.** Le 📘/🧩/⚠️ est posé par le **rendu**, jamais
   tapé par l'auteur — un pictogramme littéral dans le corps d'une leçon est refusé par **G1**
   (il reste légal à l'intérieur d'un bloc de code d'exemple : une leçon peut citer un extrait qui le
@@ -265,6 +272,181 @@ La PISTE de résolution, jamais l'énoncé — celui-ci vient de `exercices.json
   porter G1 sur la sortie **compilée**, pas d'énumérer des motifs d'entités ; lot à part.
 - **G2** — toute leçon en `statut: publiee` porte **au moins un** encadré `cours` ou `complement`.
 - **G3** — un `correction-du-cours` sans `{source="…"}` non vide est refusé.
+
+### Le conteneur `marche-a-suivre` — le résumé actionnable en tête de leçon
+
+> **Décision D-A, tranchée par le propriétaire le 2026-08-31**
+> ([`docs/design/refonte-lecons-actionnables.md`](../design/refonte-lecons-actionnables.md), bloc
+> « VERDICT »). Motif : une leçon dont la théorie est juste reste **inutilisable pour agir** s'il
+> faut la lire en entier pour retrouver une commande.
+
+La section `## En bref — la marche à suivre` se place **juste après `## L'idée en une image`**, avant
+la première section de théorie. Elle ne contient **que** ce conteneur, à quatre deux-points :
+
+````markdown
+:::: marche-a-suivre {titre="Monter l'environnement LAMP local"}
+
+1. {voir="Les commandes, dans l'ordre"} Installer WSL2 et Ubuntu 24.04 depuis PowerShell **en
+   administrateur**.
+
+   ```bash
+   wsl --install -d Ubuntu-24.04     # une seule fois par poste
+   ```
+
+2. {voir="module:02-environnement-linux"} Vérifier ce qui est réellement installé — pas ce qu'on
+   croit avoir installé.
+
+::::
+````
+
+**Ce qu'une étape admet, et rien d'autre** : une phrase **impérative**, puis **au plus un** bloc de
+code clôturé (langage pris dans les huit du contrat), puis **au plus un** renvoi `{voir="…"}` écrit
+**littéralement en tête** de l'item — même position imposée que `{lignes="…"}` sur une annotation. Un
+item sans phrase, un deuxième bloc de code, un titre ou une liste imbriquée sont des **refus
+nommés**. ⚠️ **C'est voulu** : le jour où une étape a besoin de trois paragraphes, elle appartient à
+la théorie, pas au résumé — et le renvoi existe exactement pour ça.
+
+**`titre` est obligatoire et non vide.** Il nomme la tâche que la marche accomplit ; c'est lui que lit
+un lecteur d'écran avant la liste.
+
+**La résolution de `{voir="…"}` — deux formes, toutes deux vérifiées au build.**
+
+| Forme | Se résout contre | Échec |
+|---|---|---|
+| `{voir="Titre de section"}` | le **texte écrit** des titres `##`/`###` de la **même leçon** | titre introuvable → build refusé, en nommant le titre cherché |
+| `{voir="module:<slug>"}` | le **manifeste de routes** | slug inconnu, **ou** module dont le `statut` n'est pas `publiee` → build refusé |
+
+🔴 **Le renvoi désigne un titre par son TEXTE, jamais par son ancre.** L'ancre est fabriquée par le
+compilateur (`ancrer`, qui **suffixe en cas de collision**) : un auteur qui écrirait
+`#les-commandes-dans-lordre` poserait un littéral fragile, qui casserait **en silence** au premier
+renommage. Même patron de liste blanche nominative que `ref` sur `exercice-du-cours`.
+
+🔴 **Deux sections au même titre rendent le renvoi AMBIGU — et l'ambiguïté est un refus**, jamais
+« la première gagne ». Le message nomme les **deux** sections en cause, avec leurs deux ancres
+suffixées, et l'auteur tranche en renommant l'une d'elles. Une résolution positionnelle serait
+exactement le littéral fragile qu'on vient d'interdire, déguisé en commodité.
+
+🔴 **`{voir="module:<slug>"}` exige `statut: publiee` sur la cible.** Un renvoi vers un module
+`verifiee` produit un **lien vers une page qui n'est pas prerendue**, donc une 404 servie — c'est
+l'incident de production du 2026-08-27, à l'identique. La vérification porte sur le statut **au
+moment du build**, pas sur l'intention de publier plus tard.
+
+### Le conteneur `methodes` — la même tâche par deux chemins, en onglets
+
+> **Décision D-C, tranchée par le propriétaire le 2026-08-31.** Elle **ne rouvre pas** la décision
+> **ST4-1** de `CLAUDE.md` (aucun sélecteur, aucun repliage sur `comparaison`) : elle porte sur un
+> conteneur **différent**, dont les bornes ci-dessous sont ce qui l'empêche d'y glisser.
+
+````markdown
+:::: methodes
+::: methode {libelle="La méthode du cours" defaut}
+```bash
+crontab -e
+```
+:::
+::: methode {libelle="L'équivalent moderne"}
+```bash
+systemctl edit --force --full surveillance.timer
+```
+:::
+::::
+````
+
+**Les bornes, toutes validées au build** — ce sont elles, et non une intention, qui tiennent le
+conteneur :
+
+- **2 ou 3 volets**, pas plus, pas moins. Un seul volet n'est pas une comparaison ; quatre est un
+  sommaire déguisé.
+- **Exactement un `defaut`**, marqueur sans valeur. Zéro `defaut` ou deux sont des refus : c'est ce
+  qui garantit qu'**un volet exactement** est visible dans le HTML servi, donc que « zéro volet à
+  l'écran » n'est pas un état atteignable (motif (c) de ST4-1, désarmé par construction).
+- **`libelle` obligatoire, non vide et unique dans le conteneur.** C'est le texte de l'onglet ; deux
+  onglets homonymes ne se distinguent ni à l'œil ni au lecteur d'écran.
+- **Aucun volet `vulnerable` / `corrige` à l'intérieur**, et aucun conteneur `comparaison` imbriqué.
+  Refus nommé.
+
+🔴 **LA CLAUSE QUI DISTINGUE CE CONTENEUR DE CE QU'INTERDIT ST4-1 — elle est au contrat, pas dans un
+commentaire de code.** Les volets d'un `methodes` sont **le même résultat par deux routes**
+(`crontab` ou un timer systemd ; `apt install composer` ou l'installeur amont). **Le contenu masqué
+est toujours l'ÉQUIVALENT du contenu visible, jamais une matière que le lecteur ne trouverait nulle
+part ailleurs.** Un volet qui enseigne quelque chose que l'autre n'enseigne pas n'est pas une
+méthode : c'est une section, et elle s'écrit dépliée. Aucun gate ne peut mesurer ça — c'est une
+**règle de rédaction**, relue par le `verificateur-theorie`.
+
+⚠️ **Le coût accepté (R-4), écrit ici pour qu'il ne se redécouvre pas** : le texte d'un volet masqué
+**n'est pas trouvable au `Ctrl+F`**, et un lien `#fragment` visant son intérieur ne l'ouvrira pas —
+il n'y a aucun JavaScript pour le faire. Le propriétaire a tranché le 2026-08-31 : **coût assumé**,
+les onglets sont gardés. C'est précisément pourquoi la clause ci-dessus est non négociable — ce qui
+est masqué doit être un doublon de but, jamais une information unique.
+
+**Les trois états du lecteur, qui sont un critère d'acceptation et non une note d'intention.**
+
+- **Sans JavaScript** : entièrement fonctionnel. Le mécanisme est un groupe de `<input type="radio">`
+  de même `name`, chacun suivi de son `<label>`, les panneaux montrés par `:checked ~ …`. Onglets
+  cliquables, pilotables aux flèches (comportement natif d'un groupe de radios). C'est le seul
+  mécanisme interactif du site qui n'a **pas besoin** de JS.
+- **Pendant la fenêtre de pré-hydratation** (**L-033**) : rien à perdre — il n'y a **aucune liaison**
+  Angular sur ces radios, donc aucune détection de changements ne peut écraser l'état que le DOM
+  natif a accepté. ⚠️ **À mesurer quand même en navigateur avant d'écrire le rendu** (risque R-1,
+  spike du lot 4bis) : si l'hydratation réécrivait le `checked` d'une radio statique, le repli écrit
+  est l'empilement vertical actuel.
+- **À l'impression** : **tous** les volets, chacun sous son libellé, dans l'ordre du document. Le
+  bloc `@media print` de `rendu-blocs.scss` doit le couvrir explicitement.
+
+⚠️ **`forced-colors: active` (contraste élevé Windows) réécrit fond et couleur** : l'onglet actif doit
+donc se signaler par un canal **non chromatique** (risque R-8). Le dépôt a déjà payé ce mode d'échec
+exact avec le filet `.ligne-annotee` d'E2-ST4, invisible en contraste forcé. WCAG 1.4.1 et 1.4.11.
+
+**CSP** : `script-src` reste à **zéro** — aucune solution ne peut le toucher. La règle CSS vit dans la
+feuille du composant `rendu-blocs`, qui **existe déjà** : son bloc `<style>` change de **contenu**,
+donc de **hachage**, sans que le **compte** de 14 bouge. Si un compte épinglé rougit, la première
+question est « **quelle page mesure-t-il maintenant ?** », jamais « quel chiffre y mettre » (S-010).
+
+### Le gate du format actionnable — une liste qui se durcit module par module
+
+> **Décision D-D, tranchée par le propriétaire le 2026-08-31.** Les dix modules déjà publiés se
+> reprennent **un à la fois** ; le format neuf ne peut donc pas être exigé de tous d'un coup, ni
+> rester une convention que rien ne mesure (mode d'échec **L-007**).
+
+`valider.mjs` porte une liste **nominative, écrite à la main** — jamais dérivée du corpus (**S-005**,
+même patron que les hachages de CSP) :
+
+```js
+// Les modules au FORMAT ACTIONNABLE. Un slug n'entre ici qu'au DERNIER geste de son lot de reprise,
+// après revue humaine. Entrer dans la liste, c'est déclarer le module ENTIÈREMENT conforme.
+const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['projet-de-session']);
+```
+
+**Pour un module de la liste**, le build **échoue** si :
+
+1. sa section `## En bref — la marche à suivre` est absente, mal placée (elle suit immédiatement
+   `## L'idée en une image`) ou ne porte pas de conteneur `marche-a-suivre` ;
+2. le module déclare un `seance` et **un de ses titres `##` ou `###`** n'a pas de renvoi `diapos`.
+   ⚠️ **Les deux niveaux comptent**, pas seulement `##` : le relevé qui a dimensionné ce chantier
+   compte 247 titres `##` **et** `###` ensemble, et n'exiger que les `##` laisserait la moitié du
+   corpus hors du gate sans que rien ne le dise ;
+3. le module **n'a pas** de `seance` — un module de la liste qui perdrait son `seance` perdrait
+   l'exigence (2) **en silence**. Le format actionnable suppose un ancrage au cours ; sortir du cours
+   se fait en sortant de la liste, à la main, visiblement.
+
+**Pour tout autre module**, les constructions neuves restent **optionnelles** : rien ne casse, on
+livre un module à la fois — exactement le comportement du gate de complétude des exercices
+([`ancrage-au-cours.md`](ancrage-au-cours.md) §6.4). ⚠️ **Corollaire de gabarit** : `## En bref — la
+marche à suivre` n'entre **pas** dans les sections inconditionnellement requises — l'y mettre ferait
+rougir le build sur les dix leçons publiées le jour de sa livraison, ce que D-D existe pour éviter.
+Quand elle est présente, sa **place** est vérifiée pour tout le monde.
+
+🔴 **La liste ne peut pas contenir de permission morte.** Un slug présent dans
+`MODULES_AU_FORMAT_ACTIONNABLE` **sans leçon correspondante** dans le corpus fait **échouer** le
+build : sans cette règle, un module renommé ou retiré laisserait derrière lui une entrée qui n'exige
+plus rien de personne, et que personne ne relirait (famille **S-005** — une permission qui ne
+correspond à rien est une permission qu'on croit appliquée).
+
+**Le compteur, c'est ce qui interdit d'oublier le durcissement.** Un spec compare la liste aux leçons
+publiées et **imprime combien il en reste**. Le jour où les deux ensembles coïncident, la constante
+est **supprimée** et la règle devient inconditionnelle. Un compteur qui descend vaut mieux qu'une
+promesse dans un backlog — et il **ne redescend jamais** : un slug n'en sort que si le module
+disparaît.
 
 ## Schéma `quiz.json`
 

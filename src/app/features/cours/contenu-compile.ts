@@ -491,6 +491,12 @@ export type SeanceDuCours = HoraireCompile['seances'][number];
 /** L'évaluation d'une séance, sans son `undefined` — même dérivation, même raison. */
 export type EvaluationDuCours = NonNullable<SeanceDuCours['evaluation']>;
 
+/**
+ * La `nature` d’une évaluation, telle que `types.d.ts` la déclare — l’UNE des trois écritures
+ * du contrat, et celle contre laquelle les deux autres s’apparient.
+ */
+export type NatureDEvaluation = EvaluationDuCours['nature'];
+
 /** `AAAA-MM-JJ`, la seule forme de date du contrat. Une CHAÎNE, jamais un `Date`. */
 const DATE_ISO_COURTE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -603,6 +609,29 @@ export function lireHoraires(
 }
 
 /**
+ * LES NATURES D'ÉVALUATION — et l'appariement des TROIS écritures du même contrat.
+ *
+ * Le contrat s'écrit trois fois : l'`enum` de `horaire.schema.json` (ce qu'Ajv accepte au
+ * BUILD), l’union de `types.d.ts` (ce que TypeScript connaît), et cette liste-ci (ce que le
+ * rétrécissement d'artéfact accepte au CHARGEMENT). Trois écritures divergent au premier ajout
+ * si rien ne les apparie (L-016).
+ *
+ * 🔴 CE QUE CE CODE GARANTIT LUI-MÊME : l'enregistrement ci-dessous est TOTAL sur l’union de
+ * `types.d.ts` — ajouter une nature au contrat sans l’ajouter ici NE COMPILE PAS, et en écrire
+ * une qui n’est pas au contrat non plus. La liste d’exécution en est DÉRIVÉE, elle n’est donc
+ * pas une quatrième écriture.
+ * 🔴 CE QU’UN TEST GARANTIT, ET PAS CE FICHIER : l’accord avec l’`enum` du schéma JSON, qu’aucun
+ * type ne peut voir — `src/contrat-nature-evaluation.spec.ts`.
+ */
+const NATURES_PAR_VALEUR: Record<NatureDEvaluation, true> = {
+  'examen-ecrit': true,
+  'evaluation-pratique': true,
+};
+
+/** La liste blanche d’exécution, DÉRIVÉE de l’enregistrement total ci-dessus. */
+export const NATURES_D_EVALUATION: readonly string[] = Object.keys(NATURES_PAR_VALEUR);
+
+/**
  * `evaluation` — OPTIONNELLE, et son absence SIGNIFIE « cette séance n'est pas une
  * évaluation ». Présente, elle oblige à un libellé non vide et à une pondération
  * finie : c'est ce libellé, tel quel, que la page de leçon écrit dans sa pastille.
@@ -620,6 +649,14 @@ function verifierEvaluationOptionnelle(seance: Objet, ou: string, manques: strin
   }
   if (!estChaineNonVide(evaluation['libelle'])) {
     manques.push(`${ou}.evaluation.libelle : chaîne non vide attendue`);
+  }
+  // 🔴 `nature` EST REQUISE, ET SA VALEUR EST CONTRAINTE — pas seulement son type. Un artéfact
+  // qui la porterait absente, vide ou inconnue traverserait sinon ce rétrécissement en silence,
+  // et `ancrerAuCours` la lirait comme « pas `evaluation-pratique` », donc comme un examen : le
+  // symptôme serait un build qui échoue en accusant le module, jamais l'horaire fautif.
+  if (!NATURES_D_EVALUATION.includes(evaluation['nature'] as string)) {
+    const natures = NATURES_D_EVALUATION.map((n) => `« ${n} »`).join(', ');
+    manques.push(`${ou}.evaluation.nature : une de ${natures} attendue`);
   }
   if (!estNombreFini(evaluation['ponderation'])) {
     manques.push(`${ou}.evaluation.ponderation : nombre attendu`);
@@ -718,10 +755,20 @@ export function ancrerAuCours(
       `séances connues : ${horaire.seances.map((s) => s.numero).join(', ')}`,
     ]);
   }
-  if (trouvee.evaluation !== undefined) {
+  // 🔴 SECONDE APPLICATION DE LA RÈGLE 3bis, et la première l'a précédée de quatre mois :
+  // `valider.mjs` la porte aussi, au build. Les deux DOIVENT dire la même chose — un module
+  // accepté par le validateur et refusé ici ferait échouer `ng build` sur une leçon que
+  // `content:build` vient de déclarer valide, et le message parlerait du mauvais contrat.
+  //
+  // ⚠️ ON NOMME LA NATURE AUTORISÉE, JAMAIS L'INTERDITE (`.claude/rules/security.md` §4) : une
+  // troisième valeur d'énumération ajoutée un jour serait REFUSÉE par défaut, jamais admise en
+  // silence. Même sens de lecture que `valider.mjs:verifierSeanceContreHoraire`.
+  if (trouvee.evaluation !== undefined && trouvee.evaluation.nature !== 'evaluation-pratique') {
     refuser(`l'ancrage au cours du sujet « ${sujet} »`, [
-      `« seance: ${seance} » désigne une évaluation (« ${trouvee.evaluation.libelle} »)`,
-      "il n'y a pas de module « Examen » — voir `ancrage-au-cours.md` §2",
+      `« seance: ${seance} » désigne une évaluation de nature « ${trouvee.evaluation.nature} »` +
+        ` (« ${trouvee.evaluation.libelle} »)`,
+      "un module ne se rattache qu'à une séance ordinaire ou à une " +
+        "« evaluation-pratique » — voir `ancrage-au-cours.md` §2",
     ]);
   }
 

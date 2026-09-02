@@ -322,9 +322,22 @@ type BlocContenu =
   | { type: 'ancre-simulation' };
 
 interface SectionCompilee {
+  /** Le titre DÉPOUILLÉ de son bloc d'attributs (`docs/contenu/ancrage-au-cours.md` §3bis). */
   titre: string;
   ancre: string; // kebab-case, unique dans la leçon — pour E2-ST2 (sommaire ancré)
   niveau: NiveauTitre;
+  /**
+   * Renseigné quand le titre porte `{diapos="…"}` / `{seance="…" diapos="…"}` (§3bis, décision
+   * D-B). Plages DÉJÀ DÉPLIÉES, comme sur un encadré : le rendu reçoit `[45, 46, 47]` et n'a
+   * jamais à connaître la grammaire d'auteur.
+   *
+   * ⚠️ `cours` EST AU CONTRAT MAIS AUCUN LOT NE LE PRODUIT ENCORE. Le pipeline est mono-sujet par
+   * exécution, si bien que `cours="…"` est REFUSÉ à l'usage par le validateur comme par le
+   * compilateur (lot 1a) ; sa résolution est le lot 1b. Quand il apparaîtra, il ne désignera
+   * jamais le `sujet` du module lui-même — la forme superflue est refusée, donc un `cours`
+   * renseigné est toujours une information, jamais une redite.
+   */
+  renvoiCours?: { seance: number; diapos: number[]; cours?: string };
   blocs: BlocContenu[];
 }
 
@@ -654,11 +667,19 @@ interface HoraireCompile {
     date: string;
     titre: string;
     /**
-     * OPTIONNEL. Présent ⇔ la séance EST une évaluation. Une séance qui en porte une n'est le
-     * support d'aucun module : `seance` ne peut pas la citer.
+     * OPTIONNEL. Présent ⇔ la séance EST une évaluation. Ce qu'elle interdit alors dépend de sa
+     * `nature` : un `examen-ecrit` n'est le support d'aucun module (`seance` ne peut pas le citer),
+     * une `evaluation-pratique` peut en porter un.
      */
     evaluation?: {
       libelle: string;
+      /**
+       * REQUISE, jamais optionnelle (arbitrage R-3, 2026-08-31). `examen-ecrit` : aucun module ne
+       * peut citer cette séance. `evaluation-pratique` : le projet de session, qui s'enseigne, et
+       * qu'un module PEUT donc couvrir. Optionnelle avec un défaut permissif, elle rouvrirait les
+       * séances d'examen en silence ; requise, une omission fait échouer le build en se nommant.
+       */
+      nature: 'examen-ecrit' | 'evaluation-pratique';
       /** Pourcentage de la note finale, entier. */
       ponderation: number;
       /**

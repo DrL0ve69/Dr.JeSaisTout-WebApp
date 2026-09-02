@@ -50,16 +50,18 @@ d'autre** ; aucun module ne recopie son contenu.
     { "numero": 4, "date": "2026-08-28", "titre": "Automatisation des tâches de surveillance et nettoyage" },
     { "numero": 5, "date": "2026-09-04", "titre": "Sécurité des utilisateurs" },
     { "numero": 6, "date": "2026-09-11", "titre": "Examen 1",
-      "evaluation": { "libelle": "Examen 1", "ponderation": 20, "portee": [1, 2, 3, 4] } },
+      "evaluation": { "libelle": "Examen 1", "nature": "examen-ecrit", "ponderation": 20,
+                      "portee": [1, 2, 3, 4] } },
     { "numero": 7, "date": "2026-09-18", "titre": "Sécurité du code" },
     { "numero": 8, "date": "2026-09-25", "titre": "Sécurité des services web et certificat HTTPS" },
     { "numero": 9, "date": "2026-10-02", "titre": "Sécurité des bases de données" },
     { "numero": 10, "date": "2026-10-09", "titre": "Sécurité des mécanismes d'authentification et autorisation" },
     { "numero": 11, "date": "2026-10-16", "titre": "Projet de session",
-      "evaluation": { "libelle": "Projet de session", "ponderation": 20 } },
+      "evaluation": { "libelle": "Projet de session", "nature": "evaluation-pratique",
+                      "ponderation": 20 } },
     { "numero": 12, "date": "2026-10-23", "titre": "Révision" },
     { "numero": 13, "date": "2026-10-30", "titre": "Examen final",
-      "evaluation": { "libelle": "Examen final", "ponderation": 60,
+      "evaluation": { "libelle": "Examen final", "nature": "examen-ecrit", "ponderation": 60,
                       "portee": [1, 2, 3, 4, 5, 7, 8, 9, 10] } }
   ]
 }
@@ -79,11 +81,37 @@ seance: 2      # entier 1-13, OPTIONNEL
 - **Absent** = module **complémentaire, hors cours**. Il s'affiche « Complément · hors cours » et
   n'apparaît dans la portée d'aucun examen. C'est le cas de `evaluation-cvss`, `jwt` et
   `en-tetes-securite-http`, mesurés à **0 📘** au recensement de provenance du 2026-08-19.
-- **Présent** : le numéro DOIT exister dans `horaire.json`, et cette séance **ne doit pas porter
-  d'`evaluation`** — il n'y a pas de module « Examen 1 ».
+- **Présent** : le numéro DOIT exister dans `horaire.json`, et cette séance ne doit pas être un
+  **examen écrit** — il n'y a pas de module « Examen 1 ». Une séance d'**évaluation pratique**,
+  elle, **peut** porter un module : voir la règle sous cette liste.
 - **Plusieurs modules peuvent partager une même séance.** La séance 7 « Sécurité du code » en donne
   cinq. Le rang dans la séance (« 1/5 ») est **dérivé** par le compilateur depuis `ordre`, jamais
   écrit à la main.
+
+🔴 **Toute évaluation n'est pas un examen — arbitrage R-3 du propriétaire, 2026-08-31.**
+Trois séances du cours portent une `evaluation` (6, 11, 13) et le schéma ne savait pas les
+distinguer : le validateur les refusait toutes les trois comme support de module. Or le
+**Projet de session** (séance 11) **s'enseigne** — consignes, barème, démarche, critères de
+remise — et c'est exactement ce qu'un module doit couvrir ; l'**Examen 1** et l'**Examen final**,
+eux, ne sont que des séances de passation, et un module rattaché à la séance 6 s'afficherait
+sous un jalon d'examen dans le sommaire. D'où le champ **`nature`** de l'`evaluation` :
+
+| `nature` | Un module peut-il citer cette séance ? | Exemple |
+|---|---|---|
+| `examen-ecrit` | **Non** — refusé par `valider.mjs` §3bis, en nommant la nature lue | séances 6 et 13 |
+| `evaluation-pratique` | **Oui** | séance 11, « Projet de session » |
+
+⚠️ **`nature` est REQUISE, jamais optionnelle, et c'est le cœur de la règle.** Optionnelle avec
+un défaut permissif, elle rouvrirait les séances 6 et 13 **en silence** le jour où quelqu'un
+l'omettrait. Requise, elle fait **échouer le build** tant que chaque évaluation n'a pas été
+qualifiée **à la main** : une omission se **nomme**, elle ne se devine pas. Le test de
+`valider.mjs` porte du reste sur la nature **autorisée**, jamais sur la nature interdite — une
+troisième valeur d'énumération ajoutée un jour serait refusée par défaut plutôt qu'admise sans
+que personne l'ait vue (`.claude/rules/security.md` §4 : liste blanche, pas liste noire).
+
+⚠️ **La règle des EXERCICES ne bouge pas** (§6) : un exercice ne peut citer **aucune** séance
+d'évaluation, quelle que soit sa nature — une feuille d'exercices ne se remet pas un jour
+d'évaluation, projet compris.
 
 🔴 **`ordre` ne devient PAS le numéro de séance.** `ordre` reste la position de lecture, unique, et
 égale au préfixe `nn` du dossier — c'est déjà le contrat de `valider.mjs` §3, et une séance à cinq
@@ -121,6 +149,62 @@ renvoi faux envoie l'étudiant réviser la mauvaise diapositive, en silence.
 **`seance` sur l'encadré** : optionnel, vaut par défaut le `seance` du frontmatter. **Obligatoire**
 si le frontmatter n'en a pas — sans quoi le renvoi ne désigne rien.
 
+## 3bis · Le renvoi de diapositives sur les TITRES de section
+
+> **Décision D-B, tranchée par le propriétaire le 2026-08-31**
+> ([`../design/refonte-lecons-actionnables.md`](../design/refonte-lecons-actionnables.md), bloc
+> « VERDICT »). Motif : *« les diapositives concernées devraient être affichées dans les titres, les
+> sous-titres, les étapes, les commandes — et dans la barre latérale »*. Le §3 ci-dessus ne couvrait
+> que les **encadrés** ; la numérotation est conservée telle quelle pour ne casser aucun renvoi
+> existant vers §4, §5 et §6.
+
+L'attribut se pose sur le titre **lui-même**, en fin de ligne :
+
+```markdown
+## Les commandes, dans l'ordre {diapos="12-18"}
+### Vérifier le service {seance="4" diapos="45-50"}
+### Le VirtualHost {seance="8" cours="php" diapos="30-42"}
+```
+
+**Trois règles, et rien d'autre.**
+
+- **`diapos` seul** = les diapositives de la séance du module, celle du frontmatter. C'est le cas de
+  **9 modules sur 10**.
+- **`seance`** ne s'écrit que pour citer une **autre** séance du **même** cours. Comme sur un
+  encadré (§3), il est **obligatoire** quand le frontmatter n'a pas de `seance` — sans quoi le
+  renvoi ne désigne rien.
+- **`cours`** ne s'écrit que pour citer un **autre cours**. Aujourd'hui un seul module en a besoin :
+  `11-projet-de-session`, qui mêle 420-B10-HU et 420-4P2-HU. 🔴 **Le validateur le REFUSE quand il
+  est superflu** — c'est-à-dire égal au `sujet` du module. Un attribut qu'on peut écrire sans effet
+  est un attribut qu'on finira par écrire au hasard.
+
+**La grammaire de `diapos` est celle du §3**, sans exception : numéros et plages séparés par des
+virgules (`"13"`, `"13, 17"`, `"45-50"`, `"13, 17, 45-50"`), entiers ≥ 1, strictement croissants d'un
+jeton au suivant, bornes de plage croissantes. Toute autre forme fait **échouer le build** en nommant
+le jeton fautif. La matrice d'attributs est **fermée à trois clefs** — `diapos`, `seance`, `cours` —
+et une clef inconnue est un refus nommé, jamais une valeur ignorée en silence.
+
+🔴 **L'attribut est retiré du texte du titre AVANT toute autre chose.** Trois conséquences qui ne se
+devinent pas, et dont chacune casserait en silence si elle était ratée :
+
+1. **L'ancre** est fabriquée depuis le titre **dépouillé** — sans quoi elle vaudrait
+   `les-commandes-dans-lordre-diapos-12-18`, et tout `{voir="…"}` ou lien profond existant
+   pointerait à côté.
+2. **Le sommaire** afficherait sinon l'attribut brut, accolades comprises.
+3. **Les sections imposées du gabarit se reconnaissent sur le titre dépouillé** : `## Exemple simple
+   {diapos="30-34"}` **est** la section « Exemple simple ». La comparaison de `valider.mjs` est une
+   égalité de chaîne exacte — si elle voit l'attribut, la leçon est refusée pour « section absente »,
+   et le message n'aide personne.
+
+⚠️ **Le renvoi inter-cours (`cours="…"`) n'est pas résoluble en l'état, et c'est mesuré.** Le pipeline
+est **mono-sujet par exécution** — `RACINE_PAR_DEFAUT` est en dur dans `build.mjs`,
+`compiler-markdown.mjs` et `valider.mjs`, et `validerLecon(dossier, horaire, exercices)` ne reçoit
+**qu'un** horaire, au singulier. Un `content/cours/php/horaire.json` déposé aujourd'hui n'est pas
+*accepté* : il n'est **jamais lu** (mesure du 2026-08-31, `4/5 sorties — … 1 horaire(s) de sujet :
+securite-web`). La résolution inter-cours est donc un lot à part, qui doit **d'abord** rendre le
+validateur multi-sujets. Tant qu'il n'est pas livré, `cours="…"` est refusé — un renvoi validé contre
+rien serait pire que pas de renvoi du tout.
+
 ## 4 · Ce que le contrat compilé gagne
 
 ```ts
@@ -134,6 +218,25 @@ si le frontmatter n'en a pas — sans quoi le renvoi ne désigne rien.
     blocs: BlocContenu[];
   }
 ```
+
+Depuis §3bis, **une section** peut elle aussi porter un renvoi — le même objet, plus le cours quand
+il est cité :
+
+```ts
+// SectionCompilee
+{
+  titre: string;          // le titre DÉPOUILLÉ de son bloc d'attributs
+  ancre: string;          // fabriquée depuis le titre dépouillé, jamais depuis la ligne brute
+  niveau: 2 | 3;
+  /** Renseigné quand le titre porte `{diapos="…"}`. Plages déjà dépliées, comme sur un encadré. */
+  renvoiCours?: { seance: number; diapos: number[]; cours?: string };
+  blocs: BlocContenu[];
+}
+```
+
+⚠️ **`cours` n'est présent que lorsqu'il désigne un AUTRE cours que le sujet du module** — le
+validateur refuse la forme superflue (§3bis), si bien qu'un `cours` renseigné dans le contrat compilé
+est toujours une information, jamais une redite.
 
 `LeconCompilee['frontmatter']` gagne `seance?: number`.
 `EntreeManifesteRoutes` gagne `seance?: number`.
@@ -156,6 +259,34 @@ séances 1 à 4 ── ».
 ⚠️ **WCAG 2.2 AA — la pastille ne peut pas être qu'une couleur** (1.4.1, l'information ne doit pas
 passer par la seule couleur). Elle porte un **texte explicite**, et son contraste se mesure comme
 toute paire du design system. Même exigence pour la séance : c'est un mot, pas une teinte.
+
+⚠️ **UNE ÉVALUATION NE COUVRE AUCUNE SÉANCE D’ÉVALUATION — quelle que soit sa NATURE.** La
+`portee` d’un examen cite des séances **enseignées** ; elle ne peut citer ni un autre examen, ni le
+projet de session, et `valider.mjs` le refuse sur la **présence** d’une `evaluation`, pas sur sa
+nature. R-3 n’y a rien changé, **délibérément** : le projet s’enseigne — il a donc un module — mais
+il n’est pas de la *matière* qu’un examen interroge. Même raison que pour les exercices (§6), et
+c’est le seul endroit où « évaluation pratique » reste traitée comme n’importe quelle évaluation.
+
+**(d) Renvoi posé sur un titre de section (§3bis).** Le renvoi s'affiche **sous** le titre et **non
+dedans** : un `<p>` **frère** du `<h2>`/`<h3>`, lu immédiatement après lui en lecture linéaire —
+« Séance 2 · diapos 12 à 18 », ou « 420-4P2-HU · séance 8 · diapos 30 à 42 » quand le renvoi cite un
+autre cours.
+
+🔴 **Pourquoi sous le titre, et pas dedans — c'est la partie accessibilité, et elle est décidée.** Un
+lecteur d'écran offre une **liste des titres** pour naviguer dans la page. Y injecter « diapos 12 à
+18 » sur les 247 titres du corpus transforme cet outil de navigation en bouillie : le nom accessible
+du titre doit rester le titre.
+
+**(e) Sommaire de la barre latérale.** Là, à l'inverse, le renvoi entre bien **dans le texte du
+lien** : `Les commandes, dans l'ordre (diapos 12-18)`. C'est là que le lecteur le cherche, et un
+lien de sommaire n'a pas de mode « navigation rapide » à polluer.
+
+⚠️ **Le piège technique à ne pas rater, il a déjà été payé (L-024)** : `preserveWhitespaces: false`
+supprime le nœud blanc entre deux `<span>`, et le nom accessible se calcule alors **en un seul mot**
+— l'espace visible ne venant que du `gap` CSS, qu'aucune API d'accessibilité ne lit. Le renvoi se
+construit donc comme **une seule chaîne interpolée dans un seul `<span>`**, avec ses U+00A0 —
+exactement ce que fait déjà `renvoiEncadre()` dans `rendu-blocs.ts`. On **réutilise cette fonction**,
+on n'en écrit pas une deuxième : deux fabriques de libellé divergent, et rien ne le signale.
 
 ---
 
