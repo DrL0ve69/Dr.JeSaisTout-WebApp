@@ -245,7 +245,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
-8**) → **`1a`** (`diapos` intra-sujet, chemin critique) → `2` → `3` → `4` → **`4bis`** (spike R-1,
+8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → **`2`** → `3` → `4` → **`4bis`** (spike R-1,
 jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (résolution inter-cours) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
@@ -352,6 +352,52 @@ trouvé au lot 0ter). Mais il faut aussi chercher les **consommateurs de l'invar
 teste rien et présuppose seulement que l'invariant tient. `positionDuJalon` ne lit aucune nature ; il
 suppose qu'un jalon ne partage jamais sa séance avec un module. Un tel consommateur ne rougit dans
 aucun grep de la règle.
+
+
+✅ **LE LOT 1a EST LIVRÉ — commit `e580698`, 2026-09-01.** `{diapos="…"}` / `{seance="…"}` sur les
+titres `##`/`###`, matrice fermée à trois clefs, plages dépliées, `SectionCompilee.renvoiCours`.
+`cours="…"` est **reconnu mais refusé à l'usage** en disant pourquoi — c'est le lot 1b. Rien n'est
+rendu : le rendu et le sommaire sont le lot 2. Fixtures invalides **45 → 48**.
+
+🔴 **LES TROIS DÉFAUTS DE CE LOT SE TAISAIENT DES DEUX CÔTÉS À LA FOIS — S-010, troisième forme.**
+Aux lots 0bis/0ter, la famille était « on relâche une règle et il manque un endroit qui l'applique ».
+Ici les deux copies **existaient**, **s'accordaient**, et **avaient tort ensemble** — donc aucun
+appariement compilateur/validateur ne pouvait rougir :
+- **(a)** Le découpage prend le **dernier** bloc `{…}`. `## A {seance="4"} {diapos="45-50"}` laissait
+  `{seance="4"}` dans le **texte** du titre — donc dans l'ancre et au sommaire — et la séance 4 était
+  **perdue** : le renvoi se résolvait sur la séance du frontmatter. Parade : refuser toute accolade
+  survivant au dépouillement, pendant exact du contrôle de **résidu** de `lireBlocDAttributs`.
+- **(b)** CommonMark admet `### Titre ##`. Le compilateur lit les jetons de markdown-it et **voyait**
+  l'attribut ; le validateur lit la ligne **brute** et ne le voyait **jamais**. ⚠️ **Les deux copies
+  d'une règle doivent voir la MÊME CHAÎNE** — ce n'est pas acquis quand l'une part de l'AST et
+  l'autre de la source.
+- **(c)** La §4d du validateur était **vacue** : `return null` à la place de sa queue laissait la
+  suite **entièrement verte**, le seul cas de titre du corpus sortant plus tôt.
+
+⚠️ **UNE FIXTURE QUI REFUSE NE PROUVE PAS QU'ELLE REFUSE POUR LA BONNE CAUSE.** En débranchant le
+retrait de la fermeture ATX, `corps-titre-atx-ferme` **reste refusée** — par le garde d'accolade
+résiduelle, sur la **mauvaise** cause. L'assertion épingle donc « séance 99 », seul discriminant.
+**Un contrôle positif qui ne vérifie que le refus est à moitié aveugle** dès que deux gardes se
+recouvrent.
+
+⚠️ **`content:build` RESTE VERT sous la mutation du dépouillement** : aucune des dix leçons publiées
+ne porte d'attribut de titre. Le corpus ne prouve donc **rien** ici — c'est la fixture, et elle seule.
+
+🔴 **LE DÉFAUT DE BRIEF DE CE LOT, PAYÉ 300k ET UNE HEURE QUARANTE.** J'ai écrit **`npm test`** dans le
+périmètre de l'implémenteur. Sur ce dépôt ce n'est pas une suite unitaire : c'est `content:build`
+(Mermaid via Chromium) **plus** un bundle Angular complet (**206 s** mesurés) **plus** ~980 tests — et
+le contrôle positif par mutation impose de rejouer ce cycle trois ou quatre fois, chaque passe laissant
+son mur de sortie dans le transcript. `.claude/rules/agent-context-budget.md` §4 le dit déjà :
+**l'implémenteur ne lance que les gates CIBLÉS**. La découpe juste était `lint` + `typecheck:tools` +
+`content:build` pour lui, `npm test` et la mutation pour l'appelant. ⚠️ **Aggravation à ne pas répéter :
+j'ai lancé deux builds Angular complets pendant qu'il tournait** — contention pure, un worker Vitest
+tué, et son mur allongé d'autant. **Un seul build lourd à la fois sur ce poste.**
+
+**Le geste suivant : le lot 2** (rendu du renvoi + sommaire). ⚠️ Il lance **aussi**
+`npm run design:contrastes:check`, absent de `npm run build`, et déclare **quelles paires il ajoute**
+avant d'écrire une couleur. ⚠️ Deux entrées l'attendent : `renvoiCours` peut porter `cours` (jamais
+aujourd'hui, le lot 1a le refuse) et **`diapos` n'est jamais vide** — le lot 1a l'a rendu requis sur
+un titre, si bien que le rendu n'a pas à cas-particulariser la liste vide.
 
 **5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
 assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.
