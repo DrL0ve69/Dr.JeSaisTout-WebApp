@@ -2478,4 +2478,38 @@ lecteur SUR TOUTE PLATEFORME ») ; CI 33527351852 ; PR #43 ; [[L-015]], [[L-078]
 
 ---
 
+## L-086 · Une fixture d'intégration où le paramètre vaut `undefined` ne distingue pas « câblé » de « jamais passé »
+
+**Symptôme.** Revue à regard neuf du 2026-09-02, sur le lot 2 de la refonte des leçons actionnables
+(constat Majeur). `lecon.ts` câble `this.frontmatter().seance` vers deux fabriques de libellé, à
+deux points d'appel distincts (`construireSommaire`, `renvoiDeTitre`). La règle métier : le renvoi
+de diapositives tait la séance quand elle coïncide avec celle du module. **Remplacer les deux
+arguments par `undefined` faisait passer les 994 tests du dépôt.** Vérifié par mutation, restauré
+ensuite (`sha256` identique).
+
+**Cause.** Deux couches de test existaient, aucune ne pouvait voir le défaut. Les tests unitaires
+des fabriques leur passaient la séance **à la main** : ils prouvent la fonction, jamais le câblage.
+Le seul test DOM tournait sur la fixture témoin, **dont le frontmatter ne porte pas `seance`** —
+c'est exactement le cas où « câblé » et « jamais passé » produisent la même chaîne
+(`undefined === undefined`). La prémisse du test était **vraie** (la fixture est un objet légitime)
+et pourtant le test était aveugle : 8 des 10 leçons en ligne déclarent `seance:`, donc la branche
+« la séance se tait » est la branche de **production**, et rien ne la prouvait.
+
+**Règle.** Une fixture d'intégration doit porter la valeur du **cas normal de production**, jamais
+la valeur par défaut/vide/zéro qui coïncide avec « paramètre jamais passé » — sinon la mutation qui
+supprime le câblage survit. Et : **N points d'appel exigent N assertions séparables** ; réunies en
+un seul test, la mutation d'un seul appel reste indiscernable de l'autre. Sous mutation, le
+correctif de ce lot produit exactement 2 tests rouges, un par câblage.
+
+**Cousine inversée de [[L-035]]** : là, une prémisse *fausse* faisait rougir un produit sain ; ici,
+une prémisse *vraie* (la fixture est légitime) rend le test aveugle sur la branche de production.
+Établie par la méthode de [[L-074]] (mesure par retrait, restaurée ensuite). Même famille que
+[[L-039]] (code exercé en apparence, jamais sur le chemin qui compte) ; la mesure a imprimé les
+lignes mutées avant exécution, précaution héritée de [[L-015]].
+
+**Réfs.** `src/app/features/cours/lecon/lecon.ts` (l. 475, 490) ; revue à regard neuf du
+2026-09-02, lot 2 « leçons actionnables » ; [[L-035]], [[L-074]], [[L-039]], [[L-015]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

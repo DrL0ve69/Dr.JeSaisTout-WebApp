@@ -1032,3 +1032,45 @@ raté sa propre règle.
 **Réfs.** `.claude/lessons/security-lessons.md` [[S-011]] (résidu complété au même geste),
 [[S-005]] (mécanisme juste, périmètre faux — même famille), [[S-009]] (texte qui promet plus que
 le code n'applique), lot E3-ST4 (2026-08-21).
+
+## S-026 · Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée)
+
+**Constat, pas incident — rien n'était exploitable au moment de la revue (2026-09-02, refonte
+« leçons actionnables », lot 2).** Le contrat compilé `renvoiCours` porte trois membres
+(`tools/content-pipeline/types.d.ts:340`) : `seance` et `diapos` ont chacun une grammaire totale et
+ancrée au compilateur (`compiler-markdown.mjs:1735` et `:1793`). **`cours` n'en a aucune** — il est
+poussé verbatim dans le libellé rendu (`src/app/features/cours/lecon/renvoi-au-cours.ts:141`),
+troisième membre du même triplet, seul sans juge.
+
+**Pourquoi ce n'est pas exploitable aujourd'hui.** Le lot 1a **refuse `cours` à l'usage** :
+`compiler-markdown.mjs:2022-2031` fait `echec()` sur tout `cours=` posé sur un titre — un refus
+fail-closed **au build**, pas un filtre de rendu. Aucun contenu ne peut donc atteindre la branche
+sans juge. Vérifié en même temps, et sain : les trois consommateurs de `cours` sont des
+interpolations en **nœud texte**, échappées par Angular — aucun `[attr.…]`, aucun `innerHTML`,
+aucun `bypassSecurityTrust*`. `cours` ne rejoint pas les champs d'auteur qui finissent en valeur
+d'attribut (les quatre écarts énumérés à `generer-config-swa.mjs:755-763`).
+
+**L'angle qui mérite d'être écrit, en deux parties.**
+1. **[[S-020]] transposée du SVG au Markdown d'auteur.** S-020 disait : une liste blanche
+   d'attributs qui ne contraint que les **noms** laisse libre toute **valeur** dont la grammaire
+   admet une référence externe. Ici, même défaut sur un attribut d'auteur : la matrice du lot 1a
+   est fermée à trois clefs (le nom **est** contraint), mais la valeur de l'une des trois ne l'est
+   pas. Le nom admis n'est pas une valeur admise — même apparence de rigueur, même angle mort.
+2. **Un refus `fail-closed` temporaire n'est pas une validation — c'est un report de dette non
+   relié mécaniquement à sa levée.** Il rend la branche injoignable *aujourd'hui*, ce qui est
+   correct ; mais rien ne force celui qui lèvera le `echec()` (lot 1b, résolution de renvois
+   inter-cours) à lire la revue qui a constaté l'absence de grammaire. Le danger n'est pas dans le
+   lot qui ferme, il est dans le lot **qui rouvrira**.
+
+**Règle.** Quand un `echec()`/refus au build rend une branche non rendue injoignable, traiter
+l'absence de grammaire sur son champ comme une **dette datée au commit qui lèvera le refus**, pas
+comme un non-sujet. Au commit qui lève le refus : poser une grammaire **nominative au compilateur**
+pour le champ concerné (jamais au rendu — [[S-014]]), dans le **même commit**, avec le test à deux
+mains de [[S-011]] sur les surfaces qui le rendent. Ne pas fabriquer de dette sur les surfaces où le
+champ **ne peut structurellement pas apparaître** (ici : l'étiquette d'encadré, typée sans `cours` —
+TypeScript rend le cas irreprésentable).
+
+**Réfs.** `tools/content-pipeline/types.d.ts:280,314,340`, `compiler-markdown.mjs:1735,1793,2022-2031`,
+`src/app/features/cours/lecon/renvoi-au-cours.ts:141`, `generer-config-swa.mjs:755-763` (les quatre
+écarts), refonte « leçons actionnables » lot 1a/1b (2026-09-02). Croise [[S-020]], [[S-011]],
+[[S-014]].

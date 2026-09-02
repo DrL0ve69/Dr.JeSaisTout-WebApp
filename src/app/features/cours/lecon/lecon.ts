@@ -86,6 +86,7 @@ import {
   cumulerFigures,
   type DecalageFigures,
 } from './rendu-blocs/rendu-blocs';
+import { renvoiDeTitre } from './renvoi-au-cours';
 
 /** Le nom du site, tel qu'il apparaît dans les métadonnées OpenGraph. */
 const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
@@ -262,16 +263,24 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
         <nav class="sommaire" aria-labelledby="titre-sommaire" tabindex="0">
           <h2 id="titre-sommaire">Sommaire</h2>
           <ol>
+            <!--
+            LE RENVOI ENTRE DANS LE TEXTE DU LIEN (§5 (e)), à l'inverse du titre de
+            section : c'est là que le lecteur le cherche avant de choisir où aller, et un
+            lien de sommaire n'a pas de « liste des titres » à polluer.
+            ⚠️ NE PAS AÉRER CES DEUX LIGNES. L'insécable qui sépare le titre du renvoi est
+            DANS la chaîne ; un retour à la ligne entre l'interpolation et le @if ajouterait
+            une espace ordinaire de plus au nom accessible (preserveWhitespaces: false ne
+            retire que les nœuds ENTIÈREMENT blancs). Le span enveloppant, lui, est exigé
+            par le display:flex du lien — voir lecon.scss.
+          -->
             @for (entree of sommaire(); track entree.ancre) {
               <li>
-                <a [routerLink]="[]" [fragment]="entree.ancre">{{ entree.titre }}</a>
+                <a [routerLink]="[]" [fragment]="entree.ancre"><span class="texte-lien">{{ entree.titre }}@if (entree.renvoiCours; as renvoi) {<span class="renvoi">{{ renvoi }}</span>}</span></a>
                 @if (entree.sousEntrees.length > 0) {
                   <ol>
                     @for (sousEntree of entree.sousEntrees; track sousEntree.ancre) {
                       <li>
-                        <a [routerLink]="[]" [fragment]="sousEntree.ancre">{{
-                          sousEntree.titre
-                        }}</a>
+                        <a [routerLink]="[]" [fragment]="sousEntree.ancre"><span class="texte-lien">{{ sousEntree.titre }}@if (sousEntree.renvoiCours; as renvoi) {<span class="renvoi">{{ renvoi }}</span>}</span></a>
                       </li>
                     }
                   </ol>
@@ -299,6 +308,24 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
                 @default {
                   <h3 class="titre-section" [id]="section.ancre">{{ section.titre }}</h3>
                 }
+              }
+
+              <!--
+            LE RENVOI AU COURS EST UN FRÈRE DU TITRE, JAMAIS SON CONTENU
+            (docs/contenu/ancrage-au-cours.md §5 (d), décidé).
+            Un lecteur d'écran offre une « liste des titres » pour naviguer dans la
+            page ; y injecter « diapos 12 à 18 » sur les 247 titres du corpus
+            transforme cet outil en bouillie. Le nom accessible du titre reste donc le
+            titre, et le renvoi se lit juste après lui en lecture linéaire — c'est
+            exactement l'ordre où on en a besoin.
+            ⚠️ UNE SEULE CHAÎNE, UN SEUL NŒUD TEXTE (L-024) : toutes les espaces qui
+            comptent sont insécables et viennent de la fabrique, aucune ne dépend du
+            gap CSS, qu'aucune API d'accessibilité ne lit.
+            Rien n'est rendu quand la section ne porte aucun renvoi : un <p> vide
+            serait un blanc que le lecteur d'écran annoncerait sans contenu.
+          -->
+              @if (renvoiDeSection(section); as renvoi) {
+                <p class="renvoi-titre">{{ renvoi }}</p>
               }
 
               <!--
@@ -445,8 +472,23 @@ export class Lecon {
   });
 
   readonly sommaire = computed<readonly EntreeSommaire[]>(() =>
-    construireSommaire(this.sections()),
+    construireSommaire(this.sections(), this.frontmatter().seance),
   );
+
+  /**
+   * LE RENVOI AU COURS D'UNE SECTION — « (diapos 12 à 18) », « (séance 4 · diapos 45 à 50) ».
+   *
+   * La MÊME fabrique alimente le sommaire (`construireSommaire`) et l'étiquette d'un encadré
+   * (`RenduBlocs.renvoiEncadre`) : le contrat l'exige nommément (§5), parce que deux fabriques
+   * de libellé finissent par dire deux choses du même renvoi sans que rien ne le signale.
+   * Ce qui diffère d'une surface à l'autre est l'EMBALLAGE, jamais la numérotation.
+   *
+   * La séance vient du FRONTMATTER, jamais de l'URL — même règle que `voisines` et `ancrage`.
+   * Elle sert à TAIRE « séance N » quand le renvoi pointe la séance du module lui-même.
+   */
+  renvoiDeSection(section: SectionCompilee): string | null {
+    return renvoiDeTitre(section.renvoiCours, this.frontmatter().seance);
+  }
 
   /**
    * Les voisines, cherchées avec le sujet ET le slug DU FRONTMATTER — jamais ceux de

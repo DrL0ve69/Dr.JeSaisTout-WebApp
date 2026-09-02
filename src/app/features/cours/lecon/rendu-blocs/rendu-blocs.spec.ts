@@ -968,6 +968,23 @@ describe('RenduBlocs', () => {
         );
       });
 
+      it('REPLIE une suite de trois numéros ou plus — le repli est PARTAGÉ avec les titres', async () => {
+        // Décision du propriétaire (2026-09-01) : la même fabrique compose les diapositives
+        // d'un encadré et celles d'un titre de section, donc l'encadré replie lui aussi.
+        // Écrire « 45, 46, 47, 48, 49, 50 » dans une étiquette noierait l'étendue du renvoi.
+        const rendu = await rendre([
+          {
+            type: 'encadre',
+            variante: 'cours',
+            renvoiCours: { seance: 3, diapos: [45, 46, 47, 48, 49, 50, 58, 59] },
+            blocs: [],
+          },
+        ]);
+        expect(rendu.querySelector('.renvoi')?.textContent?.trim()).toBe(
+          '· Séance\u00A03 · diapos\u00A045\u00A0à\u00A050, 58, 59',
+        );
+      });
+
       it('n’écrit QUE la séance quand l’encadré ne cite aucune diapositive', async () => {
         // Cas légal du contrat : `diapos` peut être vide quand l'encadré ne déclare qu'une
         // `seance`. Une étiquette qui finirait par « · diapos » sans numéro serait un renvoi mort.

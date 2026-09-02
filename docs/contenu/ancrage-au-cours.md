@@ -248,6 +248,17 @@ pour intercaler les jalons d'évaluation sans relire `content/` au runtime.
 **(a) Étiquette d'encadré.** « 📘 COURS · Séance 2 · diapos 13, 17 ». Sans renvoi, l'étiquette
 reste « 📘 COURS » — le contrat n'oblige personne à renseigner des diapositives.
 
+⚠️ **LE REPLI DES PLAGES S'APPLIQUE ICI AUSSI, depuis le 2026-09-02** — décision du propriétaire, et
+elle a changé le rendu de **six** encadrés déjà en ligne (`02-environnement-linux`,
+`03-communication-serveur`) sans qu'aucun fichier de contenu ne soit touché : « diapos 56, 57, 64,
+65, 66, 69, 70, 71 » se lit désormais « diapos 56, 57, 64 à 66, 69 à 71 ». **Une seule fabrique de
+libellé sert les encadrés et les titres** (`src/app/features/cours/lecon/renvoi-au-cours.ts`) : deux
+fabriques divergeraient, et rien ne le signalerait.
+
+**La règle de repli, en un mot :** une suite d'**au moins trois** numéros consécutifs se replie en
+« a à b » ; une suite de un ou deux reste séparée par des virgules — « 45, 46 » se lit mieux que
+« 45 à 46 ».
+
 **(b) En-tête de page de leçon.** « Séance 2 · Gestion d'environnement infonuagique », et la
 pastille **« À l'examen 1 »** quand la séance est dans la `portee` d'une évaluation à venir. Un
 module sans `seance` porte « Complément · hors cours ».
@@ -268,9 +279,25 @@ il n’est pas de la *matière* qu’un examen interroge. Même raison que pour 
 c’est le seul endroit où « évaluation pratique » reste traitée comme n’importe quelle évaluation.
 
 **(d) Renvoi posé sur un titre de section (§3bis).** Le renvoi s'affiche **sous** le titre et **non
-dedans** : un `<p>` **frère** du `<h2>`/`<h3>`, lu immédiatement après lui en lecture linéaire —
-« Séance 2 · diapos 12 à 18 », ou « 420-4P2-HU · séance 8 · diapos 30 à 42 » quand le renvoi cite un
-autre cours.
+dedans** : un `<p>` **frère** du `<h2>`/`<h3>`, lu immédiatement après lui en lecture linéaire.
+
+🔴 **SA FORME EST TRANCHÉE (propriétaire, 2026-09-02) : entre PARENTHÈSES, plages REPLIÉES, séance
+TUE quand elle est celle du module.** Pour un module dont le frontmatter porte `seance: 2` :
+
+| Le titre porte | Le lecteur voit |
+|---|---|
+| `{diapos="12-18"}` | `(diapos 12 à 18)` |
+| `{seance="4" diapos="45-50"}` | `(séance 4 · diapos 45 à 50)` |
+| `{cours="php" seance="8" diapos="30-42"}` | `(420-4P2-HU · séance 8 · diapos 30 à 42)` |
+
+- **La séance ne s'écrit que si elle DIFFÈRE** de celle du module. Répéter « séance 2 » sur les 17
+  titres d'un module de la séance 2 est du bruit, et c'est déjà le principe appliqué aux exercices
+  (§6.5). ⚠️ Quand `frontmatter.seance` est **absent**, elle s'écrit **toujours** — il n'y a alors
+  rien à quoi la comparer.
+- **Un `cours` renseigné FORCE l'affichage de la séance** : « 420-4P2-HU · diapos 30 à 42 » laisserait
+  croire que la séance est celle du module courant, alors qu'elle appartient à l'autre cours.
+- **Minuscule à « séance »** dans cette forme entre parenthèses ; l'encadré, lui, garde sa majuscule
+  (§5 (a)) — il ouvre une étiquette, pas une incise.
 
 🔴 **Pourquoi sous le titre, et pas dedans — c'est la partie accessibilité, et elle est décidée.** Un
 lecteur d'écran offre une **liste des titres** pour naviguer dans la page. Y injecter « diapos 12 à
@@ -278,7 +305,7 @@ lecteur d'écran offre une **liste des titres** pour naviguer dans la page. Y in
 du titre doit rester le titre.
 
 **(e) Sommaire de la barre latérale.** Là, à l'inverse, le renvoi entre bien **dans le texte du
-lien** : `Les commandes, dans l'ordre (diapos 12-18)`. C'est là que le lecteur le cherche, et un
+lien** : `Les commandes, dans l'ordre (diapos 12 à 18)`. C'est là que le lecteur le cherche, et un
 lien de sommaire n'a pas de mode « navigation rapide » à polluer.
 
 ⚠️ **Le piège technique à ne pas rater, il a déjà été payé (L-024)** : `preserveWhitespaces: false`
