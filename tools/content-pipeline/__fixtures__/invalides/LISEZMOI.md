@@ -64,6 +64,7 @@ rapportée est bien celle-là.
 | `provenance-absente-en-statut-publiee` | `statut: publiee`, aucun `::: cours`/`::: complement` | G2 — provenance tracée dès la publication |
 | `correction-du-cours-sans-source` | `::: correction-du-cours` sans attribut | G3 — `source` obligatoire |
 | `provenance-imbriquee-correction-sans-source` | `{source=""}` **vide** ; unique `::: cours` **imbriqué** dans un `:::: note` | G3 sur l’attribut vide **+** contrôle positif de la **récursion** de G2 |
+| `corps-titre-attribut-inconnu` | `## … {diapo="12"}` — la clef au **singulier**, sur un TITRE | matrice fermée des attributs de titre (§3bis) |
 
 ⚠️ **La faute de `corps-titre-de-section-vide` est faite de BLANCHES DE FIN DE LIGNE** : `##` suivi
 de trois espaces, **ligne 39 du fichier** (que le validateur rapporte comme « corps ligne 21 » — il
@@ -98,7 +99,16 @@ qu'une faute. Elle porte en plus l'ancre `[[quiz]]` et un marqueur de doute tol�
 `brouillon`) — deux différences sans effet sur le validateur, qui ne connaît ni l'une ni l'autre.
 
 ⚠️ **Ce ne sont pas des leçons** : ces dossiers appartiennent au moteur, pas à `content/`. Ils ne
-sont jamais compilés ni publiés.
+sont jamais compilés ni publiés.
+
+⚠️ **`corps-titre-attribut-inconnu` est le SEUL cas dont la faute est un ATTRIBUT DE TITRE**, et
+son intérêt n'est pas la faute de frappe. Un compilateur qui **nettoierait** le bloc `{…}` du titre
+par simple motif — au lieu de l'**analyser** contre une liste blanche nominative, ce que
+`.claude/rules/security.md` §4 impose (famille S-003/S-009/S-014) — produirait le **bon titre**, la
+**bonne ancre** et les **bonnes sections de gabarit**, tout en avalant `{diapo="12"}` en silence :
+l'auteur croirait avoir posé un renvoi que la page ne porte pas. Ce dossier est ce qui rougit dans
+ce cas-là. Sa leçon est **valide par ailleurs** — si le dépouillement du titre était raté, la cause
+imprimée serait « section « ## Ce que le validateur regarde » absente », qui n'aiderait personne.
 
 ⚠️ **`marqueur-a-verifier-en-statut-publiee` porte un `::: cours` qui n’a rien de décoratif.** C’est
 la seule fixture en `statut: publiee` parmi les cas d’origine, donc la seule que **G2** atteint. Sans

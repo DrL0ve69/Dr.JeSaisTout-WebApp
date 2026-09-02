@@ -3,7 +3,6 @@ titre: "Leçon témoin — validation du pipeline de contenu"
 slug: temoin
 sujet: securite-web
 ordre: 1
-seance: 2
 niveau: cegep                 # maternelle | primaire | secondaire | cegep | universite
 duree-estimee: 5
 objectifs:
@@ -27,34 +26,14 @@ personne ne vérifie ce que le spectateur pense du spectacle, mais tout le monde
 billet à la même forme. L'analogie casse ici : un billet refusé n'empêche pas la salle
 d'ouvrir, alors qu'une leçon refusée fait échouer la construction du site en entier.
 
-## Ce que le validateur regarde {diapos="12-18"}
+## Ce que le validateur regarde {diapo="12"}
 
 Cette section libre existe pour prouver un point du gabarit : entre la première section et
 « Exemple simple », l'auteur intercale autant de sections de théorie qu'il veut. Le validateur
 ancre seulement la première et la dernière. Durée annoncée : 5 minutes.
 
-### Citer une AUTRE séance du même cours {seance="1" diapos="45-50"}
-
-Un renvoi posé sur un titre suit la MÊME grammaire que celui d'un encadré : la plage est
-dépliée en six numéros par le compilateur, et le titre est DÉPOUILLÉ de son bloc avant que
-l'ancre ne soit fabriquée — sans quoi elle vaudrait « citer-une-autre-seance-seance-1-diapos-45-50 ».
-
-::: cours
-Un renvoi est FACULTATIF : sans attribut, l’étiquette reste « COURS ». C’est la moitié du
-contrat qu’on oublie de tester quand on n’écrit que des cas fautifs.
-:::
-
-::: cours {diapos="13, 17"}
-Deux diapositives isolées, croissantes. La séance est héritée du frontmatter.
-:::
-
-::: cours {seance="1" diapos="45-50"}
-Un module peut citer la diapositive d’une AUTRE séance que la sienne : la plage est dépliée
-en six numéros par le compilateur.
-:::
-
-::: correction-du-cours {source="NIST SP 800-63B rév. 4, §3.1.1" diapos="92"}
-La seule variante qui admet les trois attributs à la fois.
+::: note
+Un conteneur de la liste fermée passe. Un conteneur inventé fait échouer la construction.
 :::
 
 <!-- à-vérifier: ce commentaire est le CONTRÔLE POSITIF du retrait des marqueurs de doute

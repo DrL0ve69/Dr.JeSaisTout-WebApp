@@ -185,6 +185,30 @@ const ATTRIBUT_SOURCE = 'source';
 const ATTRIBUT_DIAPOS = 'diapos';
 const ATTRIBUT_SEANCE = 'seance';
 
+/**
+ * Le TROISIÈME attribut de renvoi, qui n'existe que sur un TITRE de section (§3bis, décision D-B) :
+ * citer une diapositive d'un AUTRE cours que celui du module.
+ *
+ * ⚠️ RECONNU, MAIS REFUSÉ À L'USAGE TANT QUE LE LOT 1b N'EST PAS LIVRÉ. Le pipeline est
+ * mono-sujet par exécution — `RACINE_PAR_DEFAUT` est en dur ici comme dans `valider.mjs`, et
+ * `validerLecon(dossier, horaire, exercices)` ne reçoit QU'UN horaire. Un `cours="php"` ne se
+ * résoudrait donc contre rien, et un renvoi validé contre rien est pire que pas de renvoi. La
+ * clef reste dans la matrice fermée pour que l'auteur reçoive un refus qui NOMME la raison,
+ * plutôt qu'un « attribut inconnu » qui l'enverrait corriger une faute de frappe imaginaire.
+ */
+const ATTRIBUT_COURS = 'cours';
+
+/**
+ * LA MATRICE D'ATTRIBUTS D'UN TITRE DE SECTION — fermée à trois clefs, et à celles-là seules.
+ *
+ * Elle est l'exacte jumelle de `CLEFS_RENVOI_DE_TITRE` dans `valider.mjs` ; la duplication est
+ * ASSUMÉE (le validateur ne dépend pas du compilateur), et l'appariement des deux copies est tenu
+ * par `src/pipeline-contenu-validation.spec.ts`, jamais par le commentaire que vous lisez (L-008).
+ *
+ * @type {readonly string[]}
+ */
+const CLEFS_RENVOI_DE_TITRE = [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE, ATTRIBUT_COURS];
+
 /** La variante qui EXIGE un `ref`, et le nom de cet attribut (E3-ST21, §6.2). */
 const VARIANTE_EXERCICE = 'exercice-du-cours';
 const ATTRIBUT_REF = 'ref';
@@ -976,10 +1000,27 @@ ${classes}
  */
 function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
   const reste = info.trim().slice(nom.length).trim();
+  return lireBlocDAttributs(reste, `::: ${nom}`, clefsAutorisees, nomFichier);
+}
+
+/**
+ * Le CŒUR de l'analyse `{clef="valeur"}` — commun au conteneur `:::` et, depuis le §3bis, au TITRE
+ * de section. Extrait de `lireAttributs` plutôt que recopié : une SECONDE écriture de la même
+ * grammaire finirait par en dire autre chose, et un message parlant de « ::: » sur un titre
+ * enverrait l'auteur chercher un conteneur qui n'existe pas.
+ *
+ * @param {string} reste `''`, ou le bloc `{…}` complet, déjà rogné
+ * @param {string} libelle ce que l'auteur a écrit (« ::: cours », « ## Les commandes ») — cité tel
+ *   quel dans les messages, c'est la seule chose qui distingue les deux appelants
+ * @param {readonly string[]} clefsAutorisees liste blanche NOMINATIVE
+ * @param {string} nomFichier
+ * @returns {Record<string, string>}
+ */
+function lireBlocDAttributs(reste, libelle, clefsAutorisees, nomFichier) {
   if (reste === '') return {};
   const accolade = /^\{(.*)\}$/.exec(reste);
   if (accolade === null) {
-    echec(`${nomFichier} : « ::: ${nom} » suivi de « ${reste} »`, [
+    echec(`${nomFichier} : « ${libelle} » suivi de « ${reste} »`, [
       'seule la forme {clef="valeur"} est acceptée après le nom du conteneur',
     ]);
   }
@@ -995,7 +1036,7 @@ function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
   for (const paire of corps.matchAll(MOTIF_PAIRE)) {
     const clef = paire[1] ?? '';
     if (!clefsAutorisees.includes(clef)) {
-      echec(`${nomFichier} : attribut « ${clef} » inconnu sur « ::: ${nom} »`, [
+      echec(`${nomFichier} : attribut « ${clef} » inconnu sur « ${libelle} »`, [
         `attendus : ${clefsAutorisees.join(', ') || '(aucun)'}`,
       ]);
     }
@@ -1006,7 +1047,7 @@ function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
   // 0 sans que rien ne le signale. Ce qui n'est pas compris est refusé, jamais ignoré.
   const residu = corps.replace(MOTIF_PAIRE, '').trim();
   if (residu !== '') {
-    echec(`${nomFichier} : attributs illisibles sur « ::: ${nom} » — « ${residu} »`, [
+    echec(`${nomFichier} : attributs illisibles sur « ${libelle} » — « ${residu} »`, [
       'forme attendue : {clef="valeur"}, valeurs toujours entre guillemets droits',
     ]);
   }
@@ -1549,7 +1590,7 @@ function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
     ATTRIBUTS_ADMIS_PAR_VARIANTE.get(variante) ?? [],
     ctx.nomFichier,
   );
-  const renvoiCours = lireRenvoiAuCours(variante, attributs, ctx);
+  const renvoiCours = lireRenvoiAuCours(`::: ${variante}`, attributs, ctx);
 
   if (variante === VARIANTE_EXERCICE) {
     /** @type {Extract<BlocContenu, { variante: 'exercice-du-cours' }>} */
@@ -1678,12 +1719,14 @@ function resoudreExerciceDuCours(attributs, ctx) {
  * Le rendu reçoit `[45, 46, 47, 48, 49, 50]` et n'a plus à connaître la grammaire d'auteur — une
  * seconde implémentation de « ce que veut dire 45-50 » finirait par en dire autre chose.
  *
- * @param {VarianteEncadre} variante
+ * @param {string} libelle ce que l'auteur a écrit (« ::: cours », « ## Les commandes »). C'était
+ *   la `variante` d'encadré jusqu'au §3bis ; un titre de section porte désormais le même renvoi,
+ *   et un message qui lui parlerait de « ::: » l'enverrait chercher un conteneur inexistant.
  * @param {Readonly<Record<string, string>>} attributs déjà restreints aux clefs admises
  * @param {Contexte} ctx
  * @returns {{ seance: number, diapos: number[] } | null}
  */
-function lireRenvoiAuCours(variante, attributs, ctx) {
+function lireRenvoiAuCours(libelle, attributs, ctx) {
   const diaposBrutes = attributs[ATTRIBUT_DIAPOS];
   const seanceBrute = attributs[ATTRIBUT_SEANCE];
   if (diaposBrutes === undefined && seanceBrute === undefined) return null;
@@ -1702,9 +1745,9 @@ function lireRenvoiAuCours(variante, attributs, ctx) {
   }
   if (seance === null) {
     echec(
-      `${ctx.nomFichier} : « ::: ${variante} » porte un renvoi au cours sans séance à laquelle le rattacher`,
+      `${ctx.nomFichier} : « ${libelle} » porte un renvoi au cours sans séance à laquelle le rattacher`,
       [
-        `le frontmatter de ce module n'a pas de « ${ATTRIBUT_SEANCE} » — l'attribut « ${ATTRIBUT_SEANCE} » devient obligatoire sur cet encadré`,
+        `le frontmatter de ce module n'a pas de « ${ATTRIBUT_SEANCE} » — l'attribut « ${ATTRIBUT_SEANCE} » devient obligatoire sur ce renvoi`,
       ],
     );
   }
@@ -1849,7 +1892,12 @@ function construireBlocs(jetons, ctx) {
 /**
  * Une section en cours d'accumulation : son titre, son niveau, et les jetons déjà absorbés.
  *
- * @typedef {{ titre: string, niveau: NiveauTitre, jetons: JetonMd[] }} SectionEnCours
+ * @typedef {{
+ *   titre: string,
+ *   niveau: NiveauTitre,
+ *   jetons: JetonMd[],
+ *   renvoiCours: { seance: number, diapos: number[] } | null,
+ * }} SectionEnCours
  */
 
 /**
@@ -1881,6 +1929,126 @@ function texteDuTitre(jetons, i) {
 }
 
 /**
+ * Sépare un titre ATX de son bloc d'attributs de fin de ligne (`## Les commandes {diapos="12-18"}`,
+ * `docs/contenu/ancrage-au-cours.md` §3bis, décision D-B).
+ *
+ * 🔴 LE DÉPOUILLEMENT EST LE PREMIER GESTE, et le contrat en donne les trois raisons : l'ANCRE se
+ * fabrique depuis le titre dépouillé (sans quoi elle vaudrait
+ * `les-commandes-dans-lordre-diapos-12-18` et tout lien profond existant pointerait à côté), le
+ * SOMMAIRE afficherait sinon l'attribut accolades comprises, et les sections imposées du gabarit
+ * se reconnaissent par ÉGALITÉ DE CHAÎNE EXACTE dans `valider.mjs`.
+ *
+ * ⚠️ `[^{}]*` REFUSE UNE ACCOLADE INTERNE, délibérément : un titre qui finirait par
+ * `{"a": {"b": 1}}` n'est pas un bloc d'attributs et reste du texte. On préfère ici ne PAS
+ * reconnaître plutôt que reconnaître de travers — ce qui EST reconnu part ensuite se faire juger
+ * par une liste blanche nominative (`.claude/rules/security.md` §4, famille S-003/S-009/S-014),
+ * jamais retirer par un nettoyage de motif.
+ *
+ * @param {string} titreBrut le titre tel que markdown-it le rend, déjà rogné
+ * @returns {{ titre: string, attributsBruts: string }} `attributsBruts` vaut `''` quand le titre
+ *   n'en porte pas — c'est le cas des dix leçons publiées
+ */
+function separerAttributsDuTitre(titreBrut) {
+  // La découpe se fait par INDEX, pas par un motif qui traverserait tout le titre : un
+  // `^([\s\S]*?)\s*(\{…\})$` est super-linéaire par retour arrière (S8786), et un titre est du
+  // texte d'auteur. `lastIndexOf` désigne la seule ouverture possible, puisque le bloc admis ne
+  // contient aucune accolade.
+  if (!titreBrut.endsWith('}')) return { titre: titreBrut, attributsBruts: '' };
+  const ouverture = titreBrut.lastIndexOf('{');
+  if (ouverture === -1) return { titre: titreBrut, attributsBruts: '' };
+  const bloc = titreBrut.slice(ouverture);
+  if (!/^\{[^{}]*\}$/.test(bloc)) return { titre: titreBrut, attributsBruts: '' };
+  return { titre: titreBrut.slice(0, ouverture).trim(), attributsBruts: bloc };
+}
+
+/**
+ * Le renvoi au cours porté par un TITRE de section (§3bis), et le titre dépouillé qui l'accompagne.
+ *
+ * Réemploie `lireBlocDAttributs` (la grammaire `{clef="valeur"}`) et `lireRenvoiAuCours` (la
+ * grammaire de `diapos`/`seance`, plages dépliées) : la troisième écriture de l'une ou de l'autre
+ * finirait par en dire autre chose.
+ *
+ * @param {string} titreBrut
+ * @param {number} niveau niveau ATX lu sur la balise
+ * @param {Contexte} ctx
+ * @returns {{ titre: string, renvoiCours: { seance: number, diapos: number[] } | null }}
+ */
+function lireRenvoiDeTitre(titreBrut, niveau, ctx) {
+  const { titre, attributsBruts } = separerAttributsDuTitre(titreBrut);
+
+  // 🔴 CE QUI RESTE APRÈS LE DÉPOUILLEMENT DOIT ÊTRE DU TEXTE — pas une accolade.
+  // Le découpage prend le DERNIER bloc `{…}` de la ligne. Sans ce contrôle, trois formes
+  // mesurées partaient en silence, et les deux copies de la règle étaient d'accord pour
+  // se taire (famille S-010) :
+  //   `## Les commandes {seance="4"} {diapos="45-50"}` → titre « Les commandes {seance="4"} »,
+  //      ancre `les-commandes-seance-4`, accolades AU SOMMAIRE, et la séance 4 PERDUE : le
+  //      renvoi se résolvait sur la séance du frontmatter.
+  //   `## Les commandes {diapos="12-18"`  (accolade fermante oubliée) → tout en texte de titre.
+  //   `## Les commandes {diapos="12-18"}}` → idem.
+  // C'est le pendant, sur le titre, du contrôle de RÉSIDU de `lireBlocDAttributs` : ce qui
+  // n'est pas compris est refusé, jamais ignoré. Mesuré : aucun titre des dix leçons publiées
+  // ne contient d'accolade, donc la règle forte ne coûte rien aujourd'hui — et le jour où un
+  // titre en aura légitimement besoin, c'est le CONTRAT qui change, pas ce garde qu'on affaiblit.
+  if (/[{}]/.test(titre)) {
+    echec(
+      `${ctx.nomFichier} : « ${'#'.repeat(niveau)} ${titreBrut} » laisse une accolade dans le TEXTE du titre`,
+      [
+        `titre dépouillé : « ${titre} »`,
+        'un titre porte AU PLUS un bloc d’attributs, en fin de ligne, de la forme {clef="valeur"}',
+        'docs/contenu/ancrage-au-cours.md §3bis',
+      ],
+    );
+  }
+
+  if (attributsBruts === '') return { titre: titreBrut, renvoiCours: null };
+
+  const libelle = `${'#'.repeat(niveau)} ${titre}`;
+  // Le contrat pose l'attribut sur une SECTION, et une section est un `##` ou un `###`. Ailleurs,
+  // le refus se nomme : avalé en silence, le bloc s'afficherait tel quel dans la prose.
+  if (niveau !== 2 && niveau !== 3) {
+    echec(`${ctx.nomFichier} : « ${libelle} » porte un bloc d'attributs « ${attributsBruts} »`, [
+      'un renvoi de diapositives ne se pose que sur un titre de niveau 2 ou 3',
+      'docs/contenu/ancrage-au-cours.md §3bis',
+    ]);
+  }
+
+  const attributs = lireBlocDAttributs(
+    attributsBruts,
+    libelle,
+    CLEFS_RENVOI_DE_TITRE,
+    ctx.nomFichier,
+  );
+
+  const autreCours = attributs[ATTRIBUT_COURS];
+  if (autreCours !== undefined) {
+    echec(
+      `${ctx.nomFichier} : « ${libelle} » cite un AUTRE cours (« ${ATTRIBUT_COURS}="${autreCours}" »)`,
+      [
+        "la résolution inter-cours n'est pas livrée — le pipeline ne lit QU'UN horaire par exécution",
+        `la clef « ${ATTRIBUT_COURS} » est RECONNUE, donc jamais avalée en silence, mais refusée à l'usage`,
+        'docs/contenu/ancrage-au-cours.md §3bis',
+      ],
+    );
+  }
+  // 🔴 SUR UN TITRE, `diapos` EST REQUIS — plus strict que sur un encadré, et délibérément.
+  // `{}` passe la grammaire des paires (rien à lire, rien en résidu) ; `{seance="5"}` seul la
+  // passe aussi, et produirait `renvoiCours: { seance: 5, diapos: [] }` — un « renvoi de
+  // diapositives » qui n'en cite AUCUNE, que le rendu (lot 2) devrait cas-particulariser. Or
+  // §3bis ne prévoit `seance` que pour DÉPLACER le renvoi vers une autre séance du même cours :
+  // seul, il ne renvoie nulle part. On refuse ici plutôt que de laisser la forme vide traverser
+  // jusqu'au contrat compilé, où elle deviendrait une dette silencieuse.
+  if (attributs[ATTRIBUT_DIAPOS] === undefined) {
+    echec(`${ctx.nomFichier} : « ${libelle} » porte un renvoi SANS « ${ATTRIBUT_DIAPOS} »`, [
+      `un titre ne renvoie à rien sans « ${ATTRIBUT_DIAPOS} » — retirer les accolades, ou citer les diapositives`,
+      `« ${ATTRIBUT_SEANCE} » seul ne fait que DÉPLACER le renvoi vers une autre séance`,
+      'docs/contenu/ancrage-au-cours.md §3bis',
+    ]);
+  }
+
+  return { titre, renvoiCours: lireRenvoiAuCours(libelle, attributs, ctx) };
+}
+
+/**
  * Fige une section accumulée en section compilée, en lui attribuant son ancre.
  *
  * @param {SectionEnCours} courante
@@ -1889,10 +2057,15 @@ function texteDuTitre(jetons, i) {
  * @returns {SectionCompilee}
  */
 function cloturerSection(courante, ancres, ctx) {
+  const renvoi = courante.renvoiCours;
   return {
     titre: courante.titre,
+    // 🔴 `courante.titre` est DÉJÀ DÉPOUILLÉ (§3bis) : `traiterTitre` a retiré le bloc d'attributs
+    // avant de fabriquer la section. C'est la ligne qui garantit que l'ancre ne vaut jamais
+    // `les-commandes-dans-lordre-diapos-12-18`.
     ancre: ancrer(courante.titre, ancres),
     niveau: courante.niveau,
+    ...(renvoi === null ? {} : { renvoiCours: renvoi }),
     blocs: construireBlocs(courante.jetons, ctx),
   };
 }
@@ -1902,13 +2075,17 @@ function cloturerSection(courante, ancres, ctx) {
  * (ouverture d'une section), ou un niveau inférieur qui n'en est pas un.
  *
  * @param {EtatDecoupage} etat muté sur place
- * @param {string} titre texte du titre
+ * @param {string} titreBrut texte du titre, bloc d'attributs de fin de ligne COMPRIS
  * @param {number} niveau niveau ATX lu sur la balise (`h1` → 1, `h2` → 2…)
  * @param {Contexte} ctx
  * @returns {boolean} `true` si le titre a été consommé comme titre ; `false` pour un `h4` et
  *   au-delà, qui n'est pas une section du sommaire mais du contenu légitime
  */
-function traiterTitre(etat, titre, niveau, ctx) {
+function traiterTitre(etat, titreBrut, niveau, ctx) {
+  // 🔴 PREMIER GESTE, avant toute autre décision (§3bis) : tout ce qui suit — le message du refus
+  // de `h1`, l'ancre, le sommaire, la comparaison au gabarit — travaille sur le titre DÉPOUILLÉ.
+  const { titre, renvoiCours } = lireRenvoiDeTitre(titreBrut, niveau, ctx);
+
   if (niveau === 1) {
     if (etat.titreLuNiveau1) echec(`${ctx.nomFichier} : deux titres de niveau 1`);
     if (etat.courante !== null) {
@@ -1924,7 +2101,12 @@ function traiterTitre(etat, titre, niveau, ctx) {
   if (etat.courante !== null) {
     etat.sections.push(cloturerSection(etat.courante, etat.ancres, ctx));
   }
-  etat.courante = { titre, niveau: /** @type {NiveauTitre} */ (niveau), jetons: [] };
+  etat.courante = {
+    titre,
+    niveau: /** @type {NiveauTitre} */ (niveau),
+    jetons: [],
+    renvoiCours,
+  };
   return true;
 }
 

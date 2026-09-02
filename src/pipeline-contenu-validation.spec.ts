@@ -56,6 +56,11 @@ const FIXTURE_SECTIONS_PARTOUT = 'tools/content-pipeline/__fixtures__/temoin/cou
  * diapos="45-50"}` (une AUTRE séance que celle du module) et la variante qui admet les trois
  * attributs à la fois. C'est la moitié POSITIVE de la pince pour les onze cas d'E3-ST20 : sans
  * elle, « refuse un renvoi fautif » serait indistinguable de « refuse tout renvoi ».
+ *
+ * ⚠️ ELLE PORTE AUSSI, DEPUIS LE LOT 1a, LES DEUX FORMES DE RENVOI SUR UN TITRE (§3bis) : un `##`
+ * qui déclare `{diapos="12-18"}` (séance héritée) et un `###` qui déclare `{seance="1"
+ * diapos="45-50"}` (une AUTRE séance du même cours). Le compilateur les mesure en plus dans
+ * `src/pipeline-contenu-compilation.spec.ts` — titre dépouillé, ancre, plages dépliées.
  */
 const FIXTURE_ANCRAGE = 'tools/content-pipeline/__fixtures__/ancrage-au-cours';
 
@@ -376,6 +381,62 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     dossier: 'encadre-exercice-ref-en-double',
     cause: /l'exercice « 1 » est déjà cité par « .*01-premier » — un exercice du cours se pose UNE fois/,
   },
+  // ---------------------------------------------------------------------------------------------
+  // Cas 45 (§3bis, lot 1a) — LE RENVOI POSÉ SUR UN TITRE DE SECTION.
+  // ---------------------------------------------------------------------------------------------
+  // 🔴 POURQUOI CE CAS-LÀ, ET PAS UN AUTRE. Deux fautes se disputaient la place : une clef hors
+  // matrice, et un `cours="…"` non résoluble. La clef inconnue l'emporte pour deux raisons.
+  // (a) ELLE EST PERMANENTE. Le refus de `cours` est une limite du lot 1a — le lot 1b rend le
+  //     validateur multi-sujets et le lève ; une fixture bâtie dessus aurait une date de
+  //     péremption, et une fixture périmée est réécrite par quelqu'un qui ne sait plus ce qu'elle
+  //     prouvait.
+  // (b) ELLE EST LA SEULE À DISTINGUER « ANALYSÉ » DE « NETTOYÉ ». Une implémentation qui
+  //     retirerait le bloc `{…}` du titre par simple motif — la liste noire que
+  //     `.claude/rules/security.md` §4 interdit (famille S-003/S-009/S-014) — produirait le bon
+  //     titre, la bonne ancre, les bonnes sections de gabarit… et avalerait `{diapo="12"}` EN
+  //     SILENCE. L'auteur croirait avoir posé un renvoi ; la page n'en porterait aucun. C'est ce
+  //     cas-ci, et lui seul, qui rougit sur une telle implémentation.
+  // ⚠️ La leçon reste par ailleurs valide : ses sections de gabarit sont intactes, et c'est le
+  // point — si le dépouillement du titre était raté, la cause imprimée serait « section
+  // « ## Ce que le validateur regarde » absente », qui n'aiderait personne.
+  {
+    dossier: 'corps-titre-attribut-inconnu',
+    cause:
+      /corps ligne 11 : attributs illisibles sur « ## Ce que le validateur regarde » — attribut « diapo » inconnu ; attributs admis sur un titre de section/,
+  },
+  // Le titre porte DEUX blocs d'attributs. Sans le garde de résidu, le découpage prend le
+  // DERNIER et laisse le premier dans le TEXTE du titre — donc dans l'ancre et au sommaire —
+  // tandis que la séance qu'il déclarait est perdue sans un mot : le renvoi se résout sur la
+  // séance du frontmatter. ⚠️ Les DEUX copies de la règle étaient d'accord pour se taire, si
+  // bien qu'aucun appariement compilateur/validateur ne pouvait rougir (famille S-010).
+  {
+    dossier: 'corps-titre-bloc-residuel',
+    cause:
+      /corps ligne 11 : accolade dans le TEXTE du titre \(« Ce que le validateur regarde \{seance="1"\} »\)/,
+  },
+  // 🔴 CE CAS EXISTE POUR RENDRE LA §4d NON VACUE, et c'est sa seule raison d'être.
+  // Mesuré : remplacer la queue de `verifierRenvoisDeTitres` par `return null` laissait la
+  // suite ENTIÈREMENT verte — le seul autre cas de titre (`corps-titre-attribut-inconnu`)
+  // sort plus tôt, sur la lecture des attributs. C'est donc la seule fixture qui prouve qu'un
+  // renvoi posé sur un TITRE est bien confronté à « horaire.json », et non pas seulement lu.
+  {
+    dossier: 'corps-titre-seance-inconnue',
+    cause:
+      /corps ligne 11 : « ## Ce que le validateur regarde » cite la séance 99, absente de « horaire\.json »/,
+  },
+  // 🔴 CE CAS DISCRIMINE, il ne se contente pas de refuser. CommonMark admet `### Titre ##` : les
+  // `#` de fin sont une FERMETURE. Le compilateur, qui lit les jetons de markdown-it, voyait donc
+  // l'attribut ; le validateur, qui lit la ligne brute, ne le voyait jamais — la séance 99
+  // n'était confrontée à aucun horaire (famille S-010, les deux copies ne voyaient pas la même
+  // chaîne). ⚠️ CONTRÔLE POSITIF EXÉCUTÉ : en débranchant le retrait de la fermeture, ce cas
+  // reste refusé — mais par le garde d'accolade résiduelle, donc sur la MAUVAISE cause. C'est
+  // pourquoi l'assertion épingle « séance 99 » et non le simple fait du refus : c'est le seul
+  // discriminant entre les deux gardes.
+  {
+    dossier: 'corps-titre-atx-ferme',
+    cause:
+      /corps ligne 11 : « ## Ce que le validateur regarde » cite la séance 99, absente de « horaire\.json »/,
+  },
 ];
 
 /**
@@ -460,13 +521,13 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les QUARANTE-QUATRE cas, et aucun ne manque à l’appel',
+    'traite les QUARANTE-HUIT cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('44 cas attendus INVALIDES');
-      expect(sortie).toContain('44/44 cas refusés avec une cause nommée');
+      expect(sortie).toContain('48 cas attendus INVALIDES');
+      expect(sortie).toContain('48/48 cas refusés avec une cause nommée');
     },
     DELAI,
   );
@@ -554,6 +615,43 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
   // Le troisième constat, celui qu'aucun des deux ci-dessus ne fait seul : les listes se
   // RECOUPENT. Retirer un nom d'un seul des deux fichiers fait rougir l'assertion de ce
   // fichier-là ; celle-ci rougit en plus en nommant l'écart, ce qui est le message utile.
+  // ---------------------------------------------------------------------------------------------
+  // LA SECONDE LISTE DUPLIQUÉE : les clefs admises sur un TITRE de section (§3bis, lot 1a).
+  // ---------------------------------------------------------------------------------------------
+  // Même duplication assumée, même mode d'échec asymétrique que ci-dessus. Elle s'extrait
+  // autrement : `CLEFS_RENVOI_DE_TITRE` est écrite en IDENTIFIANTS (`[ATTRIBUT_DIAPOS, …]`) et non
+  // en littéraux, pour qu'un nom d'attribut ne soit pas recopié deux fois DANS un même fichier.
+  // On résout donc chaque identifiant jusqu'à sa valeur — sans quoi ce test comparerait des noms
+  // de constantes, c'est-à-dire deux orthographes plutôt que deux contrats.
+  const TROIS_CLEFS_DE_TITRE = ['diapos', 'seance', 'cours'] as const;
+
+  function clefsDeTitreDeclarees(fichier: string): string[] {
+    const source = readFileSync(fichier, 'utf8');
+    const bloc = /const CLEFS_RENVOI_DE_TITRE = \[([^\]]*)\];/.exec(source)?.[1];
+    if (bloc === undefined) {
+      throw new Error(`CLEFS_RENVOI_DE_TITRE introuvable dans ${fichier} — extraction en échec`);
+    }
+    const identifiants = bloc
+      .split(',')
+      .map((jeton) => jeton.trim())
+      .filter((jeton) => jeton !== '');
+    if (identifiants.length === 0) {
+      throw new Error(`aucune clef lue dans ${fichier} — l'extraction ne prouverait rien`);
+    }
+    return identifiants.map((identifiant) => {
+      const valeur = new RegExp(`const ${identifiant} = '([a-z-]+)';`).exec(source)?.[1];
+      if (valeur === undefined) {
+        throw new Error(`« ${identifiant} » n'est pas une constante de chaîne de ${fichier}`);
+      }
+      return valeur;
+    });
+  }
+
+  it('les deux copies admettent EXACTEMENT les trois clefs du §3bis sur un titre', () => {
+    expect(clefsDeTitreDeclarees(COMPILATEUR)).toEqual([...TROIS_CLEFS_DE_TITRE]);
+    expect(clefsDeTitreDeclarees(VALIDATEUR)).toEqual([...TROIS_CLEFS_DE_TITRE]);
+  });
+
   it('aucune des deux copies ne connaît un encadré que l’autre ignore', () => {
     const duCompilateur = listeDeclaree(COMPILATEUR, /const VARIANTES_ENCADRE = \[([\s\S]*?)\];/);
     const duValidateur = listeDeclaree(

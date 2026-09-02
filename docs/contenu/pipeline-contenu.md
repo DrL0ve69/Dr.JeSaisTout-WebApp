@@ -252,6 +252,12 @@ La PISTE de résolution, jamais l'énoncé — celui-ci vient de `exercices.json
   [`ancrage-au-cours.md`](ancrage-au-cours.md) §6.
 - **`diapos` et `seance`** sont admis sur `cours`, `correction-du-cours` et `exercice-du-cours`
   seulement ([`ancrage-au-cours.md`](ancrage-au-cours.md) §3).
+- **Un TITRE de section porte lui aussi un renvoi**, en fin de ligne :
+  `## Les commandes, dans l'ordre {diapos="12-18"}`. Matrice fermée à `diapos` (**requis**),
+  `seance` (une autre séance du même cours) et `cours` (**refusé tant que la résolution
+  inter-cours n'est pas livrée**). L'attribut est retiré du titre AVANT l'ancre, le sommaire et
+  la reconnaissance des sections imposées — donc `## Exemple simple {diapos="30-34"}` **est** la
+  section « Exemple simple ». Contrat : [`ancrage-au-cours.md`](ancrage-au-cours.md) §3bis.
 - **Aucun pictogramme ne s'écrit en Markdown source.** Le 📘/🧩/⚠️ est posé par le **rendu**, jamais
   tapé par l'auteur — un pictogramme littéral dans le corps d'une leçon est refusé par **G1**
   (il reste légal à l'intérieur d'un bloc de code d'exemple : une leçon peut citer un extrait qui le

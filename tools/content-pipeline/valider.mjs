@@ -166,6 +166,31 @@ const ATTRIBUT_DIAPOS = 'diapos';
 const ATTRIBUT_SEANCE = 'seance';
 
 /**
+ * Le TROISIÈME attribut de renvoi, qui n'existe que sur un TITRE de section (§3bis, décision D-B) :
+ * citer une diapositive d'un AUTRE cours que celui du module.
+ *
+ * ⚠️ RECONNU, MAIS REFUSÉ À L'USAGE TANT QUE LE LOT 1b N'EST PAS LIVRÉ. Ce validateur est
+ * mono-sujet par exécution — `RACINE_PAR_DEFAUT` est en dur, et `validerLecon(dossier, horaire,
+ * exercices)` ne reçoit QU'UN horaire, au singulier. Un `cours="php"` ne se vérifierait donc
+ * contre rien, et un renvoi validé contre rien est pire que pas de renvoi. La clef reste dans la
+ * matrice fermée pour que l'auteur reçoive un refus qui NOMME la raison, plutôt qu'un « attribut
+ * inconnu » qui l'enverrait corriger une faute de frappe imaginaire.
+ */
+const ATTRIBUT_COURS = 'cours';
+
+/**
+ * LA MATRICE D'ATTRIBUTS D'UN TITRE DE SECTION — fermée à trois clefs, et à celles-là seules.
+ *
+ * Elle est l'exacte jumelle de `CLEFS_RENVOI_DE_TITRE` dans `compiler-markdown.mjs` ; la
+ * duplication est ASSUMÉE (ce validateur tourne AVANT le compilateur et ne doit pas en dépendre),
+ * et l'appariement des deux copies est tenu par `src/pipeline-contenu-validation.spec.ts`, jamais
+ * par le commentaire que vous lisez (L-008).
+ *
+ * @type {readonly string[]}
+ */
+const CLEFS_RENVOI_DE_TITRE = [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE, ATTRIBUT_COURS];
+
+/**
  * La variante qui EXIGE un `ref`, et le nom de cet attribut (E3-ST21, §6.2).
  *
  * `ref` est à `exercice-du-cours` ce que `source` est à `correction-du-cours` : sans lui, l'encadré
@@ -537,33 +562,108 @@ function normaliserApostrophes(texte) {
  * sécurité). Il sort donc par la seconde porte, `vides`, pour être refusé EN SE NOMMANT — c'est le
  * contrat du dépôt : ce qui n'est pas compris est refusé, jamais ignoré.
  *
+ * 🔴 LE BLOC D'ATTRIBUTS DE FIN DE LIGNE EST SÉPARÉ ICI, ET NULLE PART AILLEURS (§3bis, décision
+ * D-B). C'est le point unique où le texte d'un titre est fabriqué : les sections imposées du
+ * gabarit, l'ordre du gabarit et la comparaison au `titre` du frontmatter en dépendent toutes
+ * trois, et toutes trois sont des ÉGALITÉS DE CHAÎNE EXACTES. Un `## Exemple simple
+ * {diapos="30-34"}` doit donc y entrer comme « Exemple simple », sans quoi la leçon serait refusée
+ * pour « section absente » — un message qui n'aiderait personne. Le bloc n'est pas jeté : il
+ * ressort dans `attributsBruts`, pour être ANALYSÉ contre une liste blanche nominative par la
+ * règle 4d (`.claude/rules/security.md` §4, famille S-003/S-009/S-014 : ce qui est reconnu se
+ * juge, jamais ne se nettoie en silence).
+ *
  * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
- * @returns {{ titres: Array<{ niveau: number, texte: string, numero: number }>, vides: number[] }}
- *   `vides` porte les numéros de ligne des titres sans texte
+ * @returns {{
+ *   titres: Array<{ niveau: number, texte: string, numero: number, attributsBruts: string }>,
+ *   vides: number[],
+ *   residus: Array<{ numero: number, texte: string }>,
+ * }} `vides` porte les numéros de ligne des titres sans texte ; `residus` ceux dont le titre
+ *   DÉPOUILLÉ contient encore une accolade — un bloc d'attributs mal fermé, ou un second bloc
  */
 function titresDuCorps(lignes) {
-  /** @type {Array<{ niveau: number, texte: string, numero: number }>} */
+  /** @type {Array<{ niveau: number, texte: string, numero: number, attributsBruts: string }>} */
   const titres = [];
   /** @type {number[]} */
   const vides = [];
+  /** @type {Array<{ numero: number, texte: string }>} */
+  const residus = [];
   for (const l of lignes) {
     if (l.code) continue;
     // Préfixe seul (`###` + UNE blanche), le titre se prend en JS : `\s+` suivi de `(.+?)\s*$`
     // faisait travailler le moteur sur chaque découpe possible de la blanche (S8786).
     const t = /^(#{1,6})\s/.exec(l.texte);
     if (!t) continue;
-    const texte = l.texte.slice(t[0].length).trim();
+    // 🔴 LA SÉQUENCE ATX FERMANTE SE RETIRE ICI, PARCE QUE markdown-it LA RETIRE.
+    // CommonMark admet `### Titre ##` : les `#` de fin sont une fermeture, pas du texte. Le
+    // COMPILATEUR travaille sur les jetons de markdown-it et voit donc « Titre » ; le
+    // VALIDATEUR, lui, lit la ligne BRUTE et voyait « Titre ## ». Mesuré :
+    // `### Detail {seance="99" diapos="1"} ##` → le compilateur lit l'attribut et émet le
+    // renvoi, tandis que le validateur, la ligne ne finissant pas par `}`, rendait
+    // `attributsBruts = ''` et ne jugeait RIEN — la séance 99 n'était jamais confrontée à
+    // `horaire.json`. Sur une section imposée du gabarit, le titre gardait ses `##` et la
+    // leçon était refusée pour « section absente », le message que §3bis interdit
+    // nommément. Famille S-010 : les deux copies de la règle doivent voir la MÊME chaîne.
+    // La fermeture se retire EN JS, pas par `/\s+#+$/` : ce motif fait travailler le moteur sur
+    // chaque découpe possible de la blanche avant les `#`, donc en temps super-linéaire sur un
+    // titre qui finit par des espaces (S8786) — et un titre est du texte d'auteur. Même geste que
+    // le préfixe ci-dessus, pour la même raison.
+    let brut = l.texte.slice(t[0].length).trim();
+    let finDuTexte = brut.length;
+    while (finDuTexte > 0 && brut.charCodeAt(finDuTexte - 1) === 0x23) finDuTexte -= 1;
+    // Une séquence fermante n'en est une que si une BLANCHE la précède : `### C#` garde son `#`.
+    if (finDuTexte < brut.length && finDuTexte > 0 && /^\s$/.test(brut[finDuTexte - 1] ?? '')) {
+      brut = brut.slice(0, finDuTexte).trim();
+    }
+    const { texte, attributsBruts } = separerAttributsDuTitre(brut);
+    // Un titre réduit à son bloc d'attributs n'a pas de texte : il sort par la même porte qu'un
+    // `##` suivi de blanches seules, pour être refusé EN SE NOMMANT plutôt qu'ignoré.
     if (texte === '') {
       vides.push(l.numero);
+      continue;
+    }
+    // 🔴 TROISIÈME PORTE : ce qui reste après dépouillement doit être du TEXTE.
+    // Jumelle exacte du garde posé dans `lireRenvoiDeTitre` (compilateur) — voir son
+    // commentaire pour les trois formes mesurées. Sans elle, `## A {seance="4"} {diapos="1"}`
+    // laisse `{seance="4"}` dans le texte du titre, donc dans l'ancre et au sommaire, et la
+    // séance 4 est perdue sans un mot.
+    if (/[{}]/.test(texte)) {
+      residus.push({ numero: l.numero, texte });
       continue;
     }
     titres.push({
       niveau: (t[1] ?? '').length,
       texte: normaliserApostrophes(texte),
       numero: l.numero,
+      attributsBruts,
     });
   }
-  return { titres, vides };
+  return { titres, vides, residus };
+}
+
+/**
+ * Sépare un titre ATX de son bloc d'attributs de fin de ligne (`## Les commandes {diapos="12-18"}`).
+ *
+ * Jumelle de `separerAttributsDuTitre` dans `compiler-markdown.mjs`, MÊME motif et même refus.
+ *
+ * ⚠️ `[^{}]*` REFUSE UNE ACCOLADE INTERNE, délibérément : un titre qui finirait par
+ * `{"a": {"b": 1}}` n'est pas un bloc d'attributs et reste du texte. On préfère ne PAS reconnaître
+ * plutôt que reconnaître de travers — ce qui EST reconnu part ensuite se faire juger.
+ *
+ * @param {string} titreBrut titre déjà rogné, préfixe `#` retiré
+ * @returns {{ texte: string, attributsBruts: string }} `attributsBruts` vaut `''` quand le titre
+ *   n'en porte pas — c'est le cas de tous les titres des dix leçons publiées
+ */
+function separerAttributsDuTitre(titreBrut) {
+  // La découpe se fait par INDEX, pas par un motif qui traverserait tout le titre : un
+  // `^([\s\S]*?)\s*(\{…\})$` est super-linéaire par retour arrière (S8786), et un titre est du
+  // texte d'auteur. `lastIndexOf` désigne la seule ouverture possible, puisque le bloc admis ne
+  // contient aucune accolade.
+  if (!titreBrut.endsWith('}')) return { texte: titreBrut, attributsBruts: '' };
+  const ouverture = titreBrut.lastIndexOf('{');
+  if (ouverture === -1) return { texte: titreBrut, attributsBruts: '' };
+  const bloc = titreBrut.slice(ouverture);
+  if (!/^\{[^{}]*\}$/.test(bloc)) return { texte: titreBrut, attributsBruts: '' };
+  return { texte: titreBrut.slice(0, ouverture).trim(), attributsBruts: bloc };
 }
 
 // ---------------------------------------------------------------------------
@@ -1112,6 +1212,37 @@ function causeDAttributObligatoireAbsent(variante) {
 }
 
 /**
+ * Le CŒUR de l'analyse `{clef="valeur"}` — commun à l'encadré `:::` et, depuis le §3bis, au TITRE
+ * de section. Extrait de `causeDAttributsDEncadre` plutôt que recopié : une SECONDE écriture de la
+ * même grammaire finirait par en dire autre chose.
+ *
+ * 🔴 CE QUI RESTE une fois les paires reconnues retirées doit être VIDE, et toute clef hors de la
+ * liste blanche est un refus NOMMÉ. Sans le contrôle de résidu, `{diapos=12}` (guillemets oubliés)
+ * rendrait un objet vide et sortirait sous une cause qui n'est pas la faute commise — ou, pire,
+ * passerait pour un titre sans renvoi.
+ *
+ * @param {string} corpsAttributs l'intérieur des accolades
+ * @param {readonly string[]} admis liste blanche NOMINATIVE
+ * @returns {{ attributs: Record<string, string>, detail: string | null }} `detail` non nul = refus,
+ *   déjà rédigé pour être inséré dans le message de l'appelant
+ */
+function lireBlocDAttributs(corpsAttributs, admis) {
+  /** @type {Record<string, string>} */
+  const attributs = {};
+  MOTIF_PAIRE_ATTRIBUT.lastIndex = 0;
+  for (const paire of corpsAttributs.matchAll(MOTIF_PAIRE_ATTRIBUT)) {
+    attributs[paire[1] ?? ''] = paire[2] ?? '';
+  }
+  const residu = corpsAttributs.replace(MOTIF_PAIRE_ATTRIBUT, '').trim();
+  const clefsInconnues = Object.keys(attributs).filter((clef) => !admis.includes(clef));
+  if (residu !== '') return { attributs, detail: `« ${residu} »` };
+  if (clefsInconnues.length > 0) {
+    return { attributs, detail: `attribut « ${clefsInconnues[0]} » inconnu` };
+  }
+  return { attributs, detail: null };
+}
+
+/**
  * Lit la partie attributs d'une ouverture d'encadré et rend la CAUSE du refus.
  *
  * Fonction séparée de la boucle qui l'appelle pour une raison qui n'est pas cosmétique : chacune
@@ -1136,20 +1267,8 @@ function causeDAttributsDEncadre(variante, reste, ancrage) {
       `s'écrivent ENTRE ACCOLADES ; ${formeAttendue(variante)}`
     );
   }
-  const corpsAttributs = accolade[1] ?? '';
-  /** @type {Record<string, string>} */
-  const attributs = {};
-  MOTIF_PAIRE_ATTRIBUT.lastIndex = 0;
-  for (const paire of corpsAttributs.matchAll(MOTIF_PAIRE_ATTRIBUT)) {
-    attributs[paire[1] ?? ''] = paire[2] ?? '';
-  }
-  // CE QUI RESTE une fois les paires retirées doit être vide — même contrôle de résidu que
-  // `lireAttributs`. Sans lui, `{source=X}` (guillemets oubliés) rendrait un objet VIDE et
-  // sortirait sous la cause « attribut absent », qui n'est pas la faute commise.
-  const residu = corpsAttributs.replace(MOTIF_PAIRE_ATTRIBUT, '').trim();
-  const clefsInconnues = Object.keys(attributs).filter((clef) => !admis.includes(clef));
-  if (residu !== '' || clefsInconnues.length > 0) {
-    const detail = residu !== '' ? `« ${residu} »` : `attribut « ${clefsInconnues[0]} » inconnu`;
+  const { attributs, detail } = lireBlocDAttributs(accolade[1] ?? '', admis);
+  if (detail !== null) {
     return (
       `attributs illisibles sur « ::: ${variante} » — ${detail} ; ` +
       `${libelleDesAttributsAdmis(variante, admis)}, ${formeAttendue(variante)}`
@@ -1170,7 +1289,7 @@ function causeDAttributsDEncadre(variante, reste, ancrage) {
       );
     }
   }
-  const causeDuRenvoi = causeDuRenvoiAuCours(variante, attributs, ancrage);
+  const causeDuRenvoi = causeDuRenvoiAuCours(`::: ${variante}`, attributs, ancrage);
   if (causeDuRenvoi !== null || !exigeRef) return causeDuRenvoi;
   return causeDuRenvoiALExercice(attributs, ancrage);
 }
@@ -1241,19 +1360,21 @@ function causeDuRenvoiALExercice(attributs, ancrage) {
 /**
  * Juge la partie RENVOI AU COURS (`diapos`, `seance`) d'un encadré dont les clefs sont déjà admises.
  *
- * @param {string} variante
+ * @param {string} libelle ce que l'auteur a écrit (« ::: cours », « ## Les commandes »). C'était
+ *   la `variante` d'encadré jusqu'au §3bis ; un titre de section porte désormais le même renvoi,
+ *   et un message qui lui parlerait de « ::: » l'enverrait chercher un conteneur inexistant.
  * @param {Readonly<Record<string, string>>} attributs
  * @param {Ancrage} ancrage
  * @returns {string | null}
  */
-function causeDuRenvoiAuCours(variante, attributs, ancrage) {
+function causeDuRenvoiAuCours(libelle, attributs, ancrage) {
   const diaposBrutes = attributs[ATTRIBUT_DIAPOS];
   const seanceBrute = attributs[ATTRIBUT_SEANCE];
   if (diaposBrutes === undefined && seanceBrute === undefined) return null;
 
   if (diaposBrutes !== undefined) {
     const lu = analyserDiapos(diaposBrutes);
-    if (lu.cause !== undefined) return `« ::: ${variante} » — ${lu.cause}`;
+    if (lu.cause !== undefined) return `« ${libelle} » — ${lu.cause}`;
   }
 
   // La séance de l'encadré : celle qu'il déclare, sinon celle du module. Un renvoi qui ne désigne
@@ -1261,13 +1382,13 @@ function causeDuRenvoiAuCours(variante, attributs, ancrage) {
   let seance = ancrage.seanceFrontmatter;
   if (seanceBrute !== undefined) {
     if (!/^[1-9]\d?$/.test(seanceBrute)) {
-      return `« ::: ${variante} » — « ${ATTRIBUT_SEANCE}="${seanceBrute}" » n'est pas un numéro de séance (entier de 1 à 99, sans zéro de tête)`;
+      return `« ${libelle} » — « ${ATTRIBUT_SEANCE}="${seanceBrute}" » n'est pas un numéro de séance (entier de 1 à 99, sans zéro de tête)`;
     }
     seance = Number(seanceBrute);
   }
   if (seance === null) {
     return (
-      `« ::: ${variante} » porte un renvoi au cours sans séance à laquelle le rattacher — ` +
+      `« ${libelle} » porte un renvoi au cours sans séance à laquelle le rattacher — ` +
       `le frontmatter de ce module n'a pas de « ${ATTRIBUT_SEANCE} », l'attribut « ${ATTRIBUT_SEANCE} » ` +
       'devient donc obligatoire sur cet encadré'
     );
@@ -1277,12 +1398,85 @@ function causeDuRenvoiAuCours(variante, attributs, ancrage) {
   // pour une seule faute — ce que le mode `--fixtures` interdit par contrat.
   if (seanceBrute === undefined) return null;
   if (ancrage.seancesConnues === null) {
-    return `« ::: ${variante} » cite la séance ${seance}, mais la racine ne porte pas de « ${FICHIER_HORAIRE} » — un renvoi ne se vérifie contre rien`;
+    return `« ${libelle} » cite la séance ${seance}, mais la racine ne porte pas de « ${FICHIER_HORAIRE} » — un renvoi ne se vérifie contre rien`;
   }
   if (!ancrage.seancesConnues.has(seance)) {
-    return `« ::: ${variante} » cite la séance ${seance}, absente de « ${FICHIER_HORAIRE} »`;
+    return `« ${libelle} » cite la séance ${seance}, absente de « ${FICHIER_HORAIRE} »`;
   }
   return null;
+}
+
+/**
+ * --- 4d. Le RENVOI AU COURS porté par un TITRE de section (§3bis, décision D-B) ---
+ *
+ * Jumelle de `causeDAttributsDEncadre`, sur l'autre porteur de renvoi. Elle réemploie les deux
+ * mêmes juges — `lireBlocDAttributs` pour la grammaire `{clef="valeur"}`, `causeDuRenvoiAuCours`
+ * pour celle de `diapos`/`seance` — plutôt que d'écrire une TROISIÈME copie de l'une ou de l'autre.
+ *
+ * @param {{ niveau: number, texte: string, numero: number, attributsBruts: string }} titre
+ * @param {Ancrage} ancrage
+ * @returns {string | null} la cause du refus, sans le préfixe « corps ligne N : »
+ */
+function causeDuRenvoiDeTitre(titre, ancrage) {
+  const libelle = `${'#'.repeat(titre.niveau)} ${titre.texte}`;
+  // Le contrat pose l'attribut sur une SECTION, et une section est un `##` ou un `###`. Ailleurs,
+  // le refus se NOMME : avalé en silence, le bloc s'afficherait tel quel dans la page.
+  if (titre.niveau !== 2 && titre.niveau !== 3) {
+    return (
+      `« ${libelle} » porte un bloc d'attributs « ${titre.attributsBruts} » — un renvoi de ` +
+      'diapositives ne se pose que sur un titre de niveau 2 ou 3 ' +
+      '(docs/contenu/ancrage-au-cours.md §3bis)'
+    );
+  }
+  const accolade = /^\{(.*)\}$/.exec(titre.attributsBruts);
+  // Inatteignable par construction — `separerAttributsDuTitre` ne rend que `''` ou un bloc `{…}`
+  // complet. Le contrôle reste, parce qu'un `?? ''` silencieux ferait passer une future
+  // divergence entre les deux fonctions pour un titre sans renvoi.
+  if (accolade === null) {
+    return `« ${libelle} » porte un bloc d'attributs illisible « ${titre.attributsBruts} »`;
+  }
+  const { attributs, detail } = lireBlocDAttributs(accolade[1] ?? '', CLEFS_RENVOI_DE_TITRE);
+  if (detail !== null) {
+    const cites = CLEFS_RENVOI_DE_TITRE.map((clef) => `« ${clef} »`).join(', ');
+    return (
+      `attributs illisibles sur « ${libelle} » — ${detail} ; attributs admis sur un titre de ` +
+      `section : ${cites}, forme attendue : ## Titre {${ATTRIBUT_DIAPOS}="12-18"}`
+    );
+  }
+  const autreCours = attributs[ATTRIBUT_COURS];
+  if (autreCours !== undefined) {
+    return (
+      `« ${libelle} » cite un AUTRE cours (« ${ATTRIBUT_COURS}="${autreCours}" ») — la résolution ` +
+      "inter-cours n'est pas livrée : ce validateur ne lit QU'UN horaire par exécution, et un " +
+      'renvoi validé contre rien serait pire que pas de renvoi ' +
+      '(docs/contenu/ancrage-au-cours.md §3bis)'
+    );
+  }
+  // 🔴 SUR UN TITRE, `diapos` EST REQUIS — jumelle du garde du compilateur, même motif :
+  // `{}` comme `{seance="5"}` passent la grammaire des paires et ne renvoient nulle part.
+  if (attributs[ATTRIBUT_DIAPOS] === undefined) {
+    return (
+      `« ${libelle} » porte un renvoi SANS « ${ATTRIBUT_DIAPOS} » — un titre ne renvoie à rien ` +
+      `sans lui ; « ${ATTRIBUT_SEANCE} » seul ne fait que déplacer le renvoi vers une autre ` +
+      'séance (docs/contenu/ancrage-au-cours.md §3bis)'
+    );
+  }
+  return causeDuRenvoiAuCours(libelle, attributs, ancrage);
+}
+
+/**
+ * --- 4d (la boucle) : chaque titre qui porte un bloc d'attributs se fait juger ---
+ *
+ * @param {Array<{ niveau: number, texte: string, numero: number, attributsBruts: string }>} titres
+ * @param {Ancrage} ancrage
+ * @param {(cause: string) => void} signaler
+ */
+function verifierRenvoisDeTitres(titres, ancrage, signaler) {
+  for (const titre of titres) {
+    if (titre.attributsBruts === '') continue;
+    const cause = causeDuRenvoiDeTitre(titre, ancrage);
+    if (cause !== null) signaler(`corps ligne ${titre.numero} : ${cause}`);
+  }
 }
 
 /**
@@ -1426,7 +1620,7 @@ function verifierProvenanceVsStatut(lignes, statut, signaler) {
  */
 function verifierCorps(corps, statut, ancrage, signaler) {
   const lignes = lignesDuCorps(corps);
-  const { titres, vides } = titresDuCorps(lignes);
+  const { titres, vides, residus } = titresDuCorps(lignes);
 
   // --- 4. Sections du gabarit ---------------------------------------------
   // Les titres SANS texte se signalent AVANT tout le reste, et par leur vraie cause. Placés après,
@@ -1435,10 +1629,25 @@ function verifierCorps(corps, statut, ancrage, signaler) {
   for (const numero of vides) {
     signaler(`corps ligne ${numero} : titre de section sans texte (« # » suivi de blanches seules)`);
   }
+  // Même motif que `vides`, et pour la même raison : signalé AVANT le gabarit, sans quoi un
+  // « section absente » enverrait l'auteur corriger la mauvaise ligne. Le titre dépouillé est
+  // imprimé tel quel — c'est lui qui montre où l'accolade a survécu.
+  for (const { numero, texte } of residus) {
+    signaler(
+      `corps ligne ${numero} : accolade dans le TEXTE du titre (« ${texte} ») — un titre porte AU PLUS un bloc d'attributs, en fin de ligne`,
+    );
+  }
   verifierTitreDeNiveau1(titres, signaler);
   const textesH2 = titres.filter((t) => t.niveau === 2).map((t) => t.texte);
   const positions = releverPositionsDesSectionsRequises(textesH2, signaler);
   if (positions !== null) verifierOrdreEtBornesDesSections(positions, textesH2, signaler);
+
+  // --- 4d. Renvois de diapositives posés sur les TITRES (§3bis) -------------
+  // ⚠️ APRÈS le contrôle du gabarit, et ce n'est pas cosmétique : `titresDuCorps` a DÉPOUILLÉ les
+  // titres de leur bloc d'attributs, si bien que `## Exemple simple {diapos="30-34"}` EST la
+  // section « Exemple simple » ci-dessus. Un titre qui porte un renvoi fautif ne fait donc jamais
+  // rougir « section absente » — une cause qui n'aurait envoyé l'auteur nulle part.
+  verifierRenvoisDeTitres(titres, ancrage, signaler);
 
   // --- 5. Espaces fines interdites (hors code, hors code en ligne) ---------
   verifierEspacesFinesInterdites(lignes, signaler);
