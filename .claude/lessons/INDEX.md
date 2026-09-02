@@ -99,7 +99,11 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-083 | 2388–2411 | Un garde-fou de contenu qui sort dès qu'AUCUN attribut n'est fourni transforme une obligation en option — c'est le cas par défaut qui passe |
 | L-084 | 2412–2445 | Assouplir une règle exige de recenser aussi ce qui en DÉPEND sans la tester — pas seulement ce qui l'applique |
 | L-085 | 2446–2480 | Une garde de CHEMIN dont le verdict dépend de l'OS est DEUX gardes — `path` change de sémantique sous elle, et le vert local ne prouve alors rien |
-| L-086 | 2481–2516 | Une fixture d'intégration où le paramètre vaut `undefined` ne distingue pas « câblé » de « jamais passé » |
+| L-086 | 2481–2514 | Une fixture d'intégration où le paramètre vaut `undefined` ne distingue pas « câblé » de « jamais passé » |
+| L-087 | 2515–2540 | Deux copies d'un prédicat de nom doivent lire la MÊME chaîne — une divergence compte comme défaut même quand elle reste fail-closed |
+| L-088 | 2541–2562 | Une fixture invalide ne prouve QU'UNE des deux implémentations d'une règle dupliquée |
+| L-089 | 2563–2582 | Une assertion sur un message d'erreur FRANÇAIS se copie-colle depuis la sortie réelle, jamais ne se retape |
+| L-090 | 2583–2604 | La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -134,4 +138,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-024 | 1002–1035 | Fermer une leçon de sécurité exige de mesurer le RÉSIDU sur l'artéfact du lot, jamais de le raisonner de mémoire — le mécanisme et l'état du produit sont deux régimes de preuve distincts (A05 · discipline de clôture) |
 | S-026 | 1036–1077 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 
-_112 entrées indexées._
+_116 entrées indexées._

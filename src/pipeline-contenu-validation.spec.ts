@@ -437,6 +437,49 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     cause:
       /corps ligne 11 : « ## Ce que le validateur regarde » cite la séance 99, absente de « horaire\.json »/,
   },
+  // ---------------------------------------------------------------------------------------------
+  // Cas 49 et 50 (décision D-A, lot 3) — LES DEUX REFUS QUE LE CONTRAT ÉCRIT EN ROUGE
+  // sur le conteneur « :::: marche-a-suivre ».
+  // ---------------------------------------------------------------------------------------------
+  // 🔴 CES DEUX CAS DISCRIMINENT, ils ne se contentent pas de refuser. Les deux racines sont des
+  // copies de `__fixtures__/marche-a-suivre`, qui est VALIDE : la seule différence est la faute
+  // injectée, et l'assertion épingle le morceau de message qu'aucun autre garde ne produirait.
+  //
+  // (a) L'AMBIGUÏTÉ. Deux sections au même titre rendent `{voir="…"}` indécidable, et le contrat
+  //     l'écrit : c'est un refus, jamais « la première gagne ». Une résolution positionnelle serait
+  //     le littéral fragile que le contrat vient d'interdire, déguisé en commodité — renommer l'une
+  //     des deux sections déplacerait le renvoi EN SILENCE. L'assertion exige que les DEUX lignes
+  //     en cause soient nommées : un message qui dirait seulement « ambigu » n'aiderait personne.
+  {
+    dossier: 'voir-titre-ambigu',
+    cause:
+      /renvoie à « Ce que le validateur regarde », titre AMBIGU — 2 sections le portent \(lignes 28, 43\)/,
+  },
+  // (b) LA CIBLE NON PUBLIÉE. Un module `verifiee` n'est pas prerendu : le lien servirait une 404 —
+  //     l'incident de production du 2026-08-27, à l'identique. ⚠️ L'assertion épingle
+  //     « statut: verifiee » et non le simple fait du refus : sans ce discriminant, un garde qui
+  //     refuserait TOUT renvoi `module:` (parce que son index serait vide, disons) passerait pour
+  //     juste. Une fixture qui refuse ne prouve jamais seule qu'elle refuse pour la BONNE cause.
+  {
+    dossier: 'voir-module-non-publiee',
+    cause:
+      /« voir="module:cible" » renvoie à un module en « statut: verifiee » — un module non publié n'est pas prerendu/,
+  },
+  // (c) LE NOM COLLÉ À SON ACCOLADE — la DIVERGENCE entre les deux copies, mesurée le 2026-09-02.
+  //     `nomDeConteneur` lisait `/^([A-Za-z0-9-]+)/`, qui s'arrête sur `{` : le validateur rendait
+  //     « 2 leçon(s) valides » en code 0 sur cette racine, que le compilateur refusait. La
+  //     construction restait fail-CLOSED — rien n'était publié en clair — mais le juge d'AMONT
+  //     laissait passer ce que l'aval refuse, et l'auteur recevait le message générique du
+  //     compilateur au lieu de celui qui nomme sa faute (famille S-010).
+  // ⚠️ L'ASSERTION ÉPINGLE LE NOM COLLÉ, pas le simple fait du refus : un validateur qui
+  //     refuserait TOUT conteneur (liste vide, disons) passerait pour juste. Ce qui discrimine est
+  //     que le nom RETENU soit le premier jeton séparé par des blanches — `marche-a-suivre{titre="Faire`
+  //     — c'est-à-dire EXACTEMENT ce que markdown-it appelle le nom du conteneur.
+  {
+    dossier: 'marche-nom-colle-a-l-accolade',
+    cause:
+      /corps ligne 13 : conteneur « ::: marche-a-suivre\{titre="Faire » hors de la liste fermée/,
+  },
 ];
 
 /**
@@ -462,6 +505,15 @@ const SEPT_VARIANTES_ENCADRE = [
 
 /** Les trois conteneurs de comparaison, qui ne sont PAS des encadrés (ils n'ont pas de variante). */
 const TROIS_CONTENEURS_DE_COMPARAISON = ['comparaison', 'vulnerable', 'corrige'] as const;
+
+/**
+ * Le QUATRIÈME conteneur hors encadré (décision D-A, 2026-08-31) : la marche à suivre.
+ *
+ * Il n'a pas de variante non plus — il porte un `{titre="…"}` obligatoire et son contenu est une
+ * liste ordonnée d'étapes, pas de la prose libre. Il est isolé dans sa propre constante pour que
+ * l'assertion de recoupement ci-dessous continue de comparer des ENCADRÉS à des encadrés.
+ */
+const CONTENEUR_HORS_ENCADRE_MARCHE = ['marche-a-suivre'] as const;
 
 /**
  * Extrait les noms d'une déclaration de liste d'un fichier d'outillage.
@@ -521,13 +573,13 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les QUARANTE-HUIT cas, et aucun ne manque à l’appel',
+    'traite les CINQUANTE ET UN cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('48 cas attendus INVALIDES');
-      expect(sortie).toContain('48/48 cas refusés avec une cause nommée');
+      expect(sortie).toContain('51 cas attendus INVALIDES');
+      expect(sortie).toContain('51/51 cas refusés avec une cause nommée');
     },
     DELAI,
   );
@@ -606,10 +658,34 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
     ]);
   });
 
-  it('le validateur déclare les trois conteneurs de comparaison PUIS les sept mêmes variantes', () => {
+  it('le validateur déclare les quatre conteneurs hors encadré PUIS les sept mêmes variantes', () => {
     expect(
       listeDeclaree(VALIDATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/),
-    ).toEqual([...TROIS_CONTENEURS_DE_COMPARAISON, ...SEPT_VARIANTES_ENCADRE]);
+    ).toEqual([
+      ...TROIS_CONTENEURS_DE_COMPARAISON,
+      ...CONTENEUR_HORS_ENCADRE_MARCHE,
+      ...SEPT_VARIANTES_ENCADRE,
+    ]);
+  });
+
+  // 🔴 LE CONSTAT QUE L'ASSERTION DE RECOUPEMENT NE FAIT PAS, et qui manquait au lot 3.
+  // Celle du bas compare les ENCADRÉS des deux copies ; la marche à suivre n'en est pas un, et sa
+  // présence dans les deux fichiers n'était donc appariée par rien. Or le mode d'échec est le
+  // vicieux (voir l'en-tête de ce bloc) : un validateur qui ignorerait `marche-a-suivre` la
+  // refuserait comme conteneur inconnu, et l'auteur recevrait un refus pour un conteneur que le
+  // rendu sait afficher. La liste du compilateur est ici lue par ses LITTÉRAUX seuls — le
+  // `...VARIANTES_ENCADRE` qui la termine n'en est pas un, il est apparié par le test au-dessus.
+  it('les deux copies connaissent les MÊMES quatre conteneurs hors encadré', () => {
+    const attendus = [...TROIS_CONTENEURS_DE_COMPARAISON, ...CONTENEUR_HORS_ENCADRE_MARCHE];
+    expect(
+      listeDeclaree(COMPILATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/),
+    ).toEqual(attendus);
+    expect(
+      listeDeclaree(VALIDATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/).slice(
+        0,
+        attendus.length,
+      ),
+    ).toEqual(attendus);
   });
 
   // Le troisième constat, celui qu'aucun des deux ci-dessus ne fait seul : les listes se
@@ -657,7 +733,11 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
     const duValidateur = listeDeclaree(
       VALIDATEUR,
       /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/,
-    ).filter((nom) => !TROIS_CONTENEURS_DE_COMPARAISON.includes(nom as never));
+    ).filter(
+      (nom) =>
+        !TROIS_CONTENEURS_DE_COMPARAISON.includes(nom as never) &&
+        !CONTENEUR_HORS_ENCADRE_MARCHE.includes(nom as never),
+    );
     expect([...duValidateur].sort()).toEqual([...duCompilateur].sort());
   });
 });

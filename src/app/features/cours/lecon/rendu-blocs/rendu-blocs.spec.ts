@@ -135,7 +135,22 @@ const SVG_MERMAID = `<svg id="d0-diagramme" class="diagramme-mermaid" viewBox="0
 // Les fixtures d'AST — une par membre de l'union, garanties par le compilateur
 // -----------------------------------------------------------------------------
 
-const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
+/**
+ * 🔴 `marche-a-suivre` EST EXCLU, ET C'EST UN ÉTAT DATÉ — pas une dispense.
+ *
+ * Le lot 3 (2026-09-02) a ajouté ce membre au contrat (`tools/content-pipeline/types.d.ts`) : le
+ * conteneur est COMPILÉ et VALIDÉ, il n'est pas encore RENDU — c'est le lot 4. Le garde-fou de
+ * complétude ci-dessus est donc conservé pour TOUS les autres membres : ajouter un huitième type
+ * sans fixture casse toujours la compilation de ce fichier. Seule cette exclusion-là est nommée,
+ * et elle a son tripwire exécutable (« le contrat connaît un type que ce composant ne rend pas
+ * encore », plus bas), qui rougira le jour où le rendu arrivera.
+ *
+ * ⚠️ AUCUNE PAGE NE PEUT L'ATTEINDRE AUJOURD'HUI : aucune leçon de `content/` n'écrit ce
+ * conteneur, et `preparer()` échoue bruyamment sur un type inconnu — jamais un trou silencieux.
+ * Le jour où une leçon en écrit un AVANT le lot 4, c'est le prerender qui casse, en nommant le
+ * type, ce qui est le comportement voulu.
+ */
+const FIXTURES: Record<Exclude<BlocContenu['type'], 'marche-a-suivre'>, BlocContenu> = {
   prose: { type: 'prose', html: HTML_PROSE },
   code: { type: 'code', langage: 'php', htmlColore: HTML_CODE },
   comparaison: {
@@ -1803,6 +1818,23 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelector('.encadre')).not.toBeNull();
       expect(rendu.querySelector('app-quiz')).not.toBeNull();
       expect(rendu.querySelector('app-simulation')).not.toBeNull();
+    });
+
+    // 🔴 TRIPWIRE AUTO-PÉRIMANT — À SUPPRIMER AU LOT 4, avec l'`Exclude<…>` de `FIXTURES`.
+    // Le lot 3 a mis `marche-a-suivre` AU CONTRAT sans le rendre : ce test écrit l'état exact du
+    // dépôt plutôt que de le laisser à un commentaire (L-008). Il constate deux choses à la fois —
+    // que le type existe côté contrat, et que ce composant le refuse BRUYAMMENT en le nommant, ce
+    // qui est le comportement voulu tant que le rendu n'existe pas. Le jour où le lot 4 ajoute le
+    // cas au `@switch`, ce test rougit : c'est ainsi qu'il se retire.
+    it('🔴 LOT 4 : le contrat connaît « marche-a-suivre », ce composant ne le rend pas ENCORE', () => {
+      const marche = {
+        type: 'marche-a-suivre',
+        titre: 'Une marche à suivre compilée par le lot 3',
+        etapes: [{ html: 'Faire la chose.' }],
+      } as unknown as BlocContenu;
+      const fixture = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [FIXTURES.prose, marche]);
+      expect(() => fixture.detectChanges()).toThrowError(/marche-a-suivre/);
     });
 
     it('ÉCHOUE en NOMMANT le type, sur un bloc que le contrat ne connaît pas', () => {

@@ -261,8 +261,33 @@ const CONTENEURS_AUTORISES = new Set([
   'comparaison',
   'vulnerable',
   'corrige',
+  'marche-a-suivre',
   ...VARIANTES_ENCADRE,
 ]);
+
+/** Le conteneur du résumé actionnable (décision D-A, 2026-08-31). */
+const CONTENEUR_MARCHE = 'marche-a-suivre';
+/** Son unique attribut, OBLIGATOIRE et non vide. */
+const ATTRIBUT_TITRE = 'titre';
+/** L'attribut de renvoi d'une étape, écrit LITTÉRALEMENT en tête de l'item. */
+const ATTRIBUT_VOIR = 'voir';
+/** Ce qui, dans un `{voir="…"}`, désigne un autre module plutôt qu'un titre de la même leçon. */
+const PREFIXE_MODULE = 'module:';
+/**
+ * Le renvoi d'une étape, EN TÊTE et nulle part ailleurs — même position imposée que `{lignes="…"}`
+ * sur une annotation. Ancré sur `^`, donc aucun retour arrière possible : ce qui n'est pas en tête
+ * n'est pas reconnu, et l'appelant le refuse en le nommant plutôt que de le laisser passer.
+ */
+const MOTIF_VOIR_EN_TETE = new RegExp(String.raw`^\{${ATTRIBUT_VOIR}="([^"]*)"\}`);
+/** Ce qu'on cherche pour dire « il y a un renvoi ICI, mais pas au bon endroit ». */
+const AMORCE_VOIR = `{${ATTRIBUT_VOIR}=`;
+
+/**
+ * Une étape compilée — DÉRIVÉE du contrat, jamais réécrite. Recopier sa forme ici ferait deux
+ * vérités qui divergeraient au premier ajustement (L-016).
+ *
+ * @typedef {Extract<BlocContenu, { type: 'marche-a-suivre' }>['etapes'][number]} EtapeMarche
+ */
 
 /** Thèmes Shiki — un clair, un sombre, choisis en paire pour la bascule de thème du site. */
 const THEME_CLAIR = 'github-light';
@@ -487,12 +512,15 @@ function verifierConteneurs(corps, nomFichier) {
       // `(?!:)` INTERDIT le retour arrière : sans lui, `:{3,}` rendrait trois deux-points sur une
       // ligne de FERMETURE « :::: » et le quatrième passerait pour un nom de conteneur. Le
       // garde-fou refusait alors un fichier parfaitement correct, en nommant « ::: : ».
-      const ouverture = /^[ \t]{0,3}:{3,}(?!:)[ \t]*(\S+)/.exec(ligne);
-      const nom = ouverture?.[1];
+      // Le MARQUEUR est capturé, pas supposé : un message qui écrit « ::: » là où l'auteur a tapé
+      // « :::: » l'envoie chercher la faute au mauvais endroit — et la marche à suivre s'ouvre
+      // précisément à quatre deux-points.
+      const ouverture = /^[ \t]{0,3}(:{3,})(?!:)[ \t]*(\S+)/.exec(ligne);
+      const nom = ouverture?.[2];
       if (nom === undefined) continue;
       if (!CONTENEURS_AUTORISES.has(nom)) {
         echec(`${nomFichier} : conteneur inconnu`, [
-          `ligne ${numero} DU CORPS (frontmatter exclu) : « ::: ${nom} » n'appartient pas à la liste fermée`,
+          `ligne ${numero} DU CORPS (frontmatter exclu) : « ${ouverture?.[1] ?? ':::'} ${nom} » n'appartient pas à la liste fermée`,
           `attendus : ${[...CONTENEURS_AUTORISES].join(', ')}`,
         ]);
       }
@@ -1537,6 +1565,280 @@ function lireComparaison(enfants, ouverture, ctx) {
 }
 
 /**
+ * Nomme, en français, le jeton qu'une étape ne devrait pas porter.
+ *
+ * Une TABLE NOMINATIVE, et un repli qui cite le type brut : ce qui n'est pas prévu est nommé tel
+ * quel, jamais avalé (`.claude/rules/security.md` §4). Un « jeton inattendu » sans nom enverrait
+ * l'auteur relire toute sa marche à suivre.
+ *
+ * @param {string} type type du jeton markdown-it
+ * @returns {string}
+ */
+function libelleDeJetonDEtape(type) {
+  if (type.startsWith('heading_')) return 'un titre';
+  if (type === 'bullet_list_open' || type === 'ordered_list_open') return 'une liste imbriquée';
+  if (type === 'paragraph_open') return 'un second paragraphe';
+  if (type === 'blockquote_open') return 'une citation';
+  if (type === 'table_open') return 'un tableau';
+  if (type === 'hr') return 'un filet horizontal';
+  if (/^container_.+_open$/.test(type)) return 'un conteneur imbriqué';
+  return `un jeton « ${type} »`;
+}
+
+/**
+ * Blanchit les segments de `code en ligne`, SUR PLACE et à longueur égale.
+ *
+ * 🔴 POURQUOI L'AMORCE `{voir=` NE SE CHERCHE PAS SUR LA SOURCE BRUTE. Ce dépôt écrit des leçons
+ * SUR SON PROPRE PIPELINE : une étape qui DOCUMENTE la syntaxe du renvoi, en la citant entre
+ * accents graves au milieu de sa phrase, déclenchait « le renvoi n'est pas en TÊTE » sur du
+ * contenu parfaitement légitime. C'est le sur-refus de S-015 — le contenu le plus certain de faire
+ * mordre un garde-fou par motif est la leçon qui enseigne le motif surveillé. La MENTION n'est pas
+ * l'USAGE (famille L-043).
+ *
+ * ⚠️ Jumelle de `blanchirCodeEnLigne` dans `valider.mjs`, dupliquée pour la même raison que les
+ * deux listes fermées de conteneurs : le validateur tourne AVANT le compilateur et ne doit pas
+ * l'importer. La longueur est préservée, donc un `slice` calculé sur la source reste valide ici.
+ *
+ * @param {string} texte
+ * @returns {string} la même chaîne, ses segments entre accents graves remplacés par des espaces
+ */
+function blanchirCodeEnLigne(texte) {
+  return texte.replace(/`+[^`]*`+/g, (m) => ' '.repeat(m.length));
+}
+
+/**
+ * Lit le RENVOI d'une étape — `{voir="…"}`, écrit LITTÉRALEMENT en tête de l'item.
+ *
+ * 🔴 LE RENVOI DÉSIGNE UN TITRE PAR SON TEXTE, JAMAIS PAR SON ANCRE. L'ancre est fabriquée par
+ * `ancrer` (qui suffixe en cas de collision) : un auteur qui écrirait `#les-commandes` poserait un
+ * littéral fragile, qui casserait EN SILENCE au premier renommage. `ancre` est donc laissée vide
+ * ici, et remplie par `resoudreRenvoisDeSection` une fois TOUS les titres de la leçon connus — la
+ * marche à suivre est en tête de leçon et cite couramment une section située plus bas.
+ *
+ * @param {string} source texte BRUT du paragraphe de l'étape (jeton `inline`)
+ * @param {string} situe où l'erreur se lit, déjà rédigé
+ * @param {Contexte} ctx
+ * @returns {{ renvoi: NonNullable<EtapeMarche['renvoi']> | null, phrase: string }}
+ */
+function lireRenvoiDEtape(source, situe, ctx) {
+  // L'amorce se cherche HORS du `code en ligne` — voir `blanchirCodeEnLigne`.
+  const horsCode = blanchirCodeEnLigne(source);
+  const tete = MOTIF_VOIR_EN_TETE.exec(source);
+  if (tete === null) {
+    if (source.startsWith('{')) {
+      echec(`${ctx.nomFichier} : ${situe} — bloc d'attributs illisible en tête`, [
+        `seule la forme {${ATTRIBUT_VOIR}="…"} est acceptée, guillemets droits compris`,
+      ]);
+    }
+    if (horsCode.includes(AMORCE_VOIR)) {
+      echec(`${ctx.nomFichier} : ${situe} — le renvoi n'est pas en TÊTE de l'étape`, [
+        `« ${AMORCE_VOIR}…"} » s'écrit littéralement au début de l'item, avant la phrase`,
+        'même position imposée que {lignes="…"} sur une annotation',
+      ]);
+    }
+    return { renvoi: null, phrase: source.trim() };
+  }
+
+  const valeur = (tete[1] ?? '').trim();
+  const phrase = source.slice(tete[0].length).trim();
+  if (horsCode.slice(tete[0].length).includes(AMORCE_VOIR)) {
+    echec(`${ctx.nomFichier} : ${situe} — deux renvois sur la même étape`, [
+      'une étape porte AU PLUS un renvoi ; deux destinations valent deux étapes',
+    ]);
+  }
+  if (valeur === '') {
+    echec(`${ctx.nomFichier} : ${situe} — renvoi vide`, [
+      `{${ATTRIBUT_VOIR}=""} ne désigne rien — citer un titre de section, ou « ${PREFIXE_MODULE}<slug> »`,
+    ]);
+  }
+  if (!valeur.startsWith(PREFIXE_MODULE)) {
+    // `ancre` est délibérément VIDE à cet instant — voir l'en-tête de cette fonction.
+    return { renvoi: { cible: 'section', titre: valeur, ancre: '' }, phrase };
+  }
+  const slug = valeur.slice(PREFIXE_MODULE.length).trim();
+  if (slug === '') {
+    echec(`${ctx.nomFichier} : ${situe} — « ${PREFIXE_MODULE} » sans slug`, [
+      `forme attendue : {${ATTRIBUT_VOIR}="${PREFIXE_MODULE}02-environnement-linux"}`,
+    ]);
+  }
+  return { renvoi: { cible: 'module', slug }, phrase };
+}
+
+/**
+ * Lit UNE étape : une phrase impérative, puis AU PLUS un bloc de code clôturé.
+ *
+ * 🔴 CE QUI N'EST PAS ADMIS EST REFUSÉ EN SE NOMMANT — liste blanche NOMINATIVE de jetons, même
+ * patron que `resoudreExerciceDuCours` (`.claude/rules/security.md` §4, familles S-003/S-009/S-014).
+ * Un titre, une liste imbriquée ou un second paragraphe avalés en silence feraient d'un résumé
+ * actionnable une seconde théorie, ce que le conteneur existe précisément pour empêcher.
+ *
+ * ⚠️ « IMPÉRATIVE » N'EST PAS VÉRIFIÉ, ET NE PEUT PAS L'ÊTRE. Ce qui est vérifiable est que
+ * l'étape PORTE une phrase, et c'est ce qui est exigé. Le mode de la phrase relève de la relecture
+ * éditoriale, jamais d'un gate — écrire ici un détecteur d'impératif rendrait des refus faux sur du
+ * français correct, ce qui pousserait l'auteur à contourner le garde-fou.
+ *
+ * @param {readonly JetonMd[]} contenu jetons intérieurs de l'item, hors `list_item_open`/`_close`
+ * @param {number} rang numéro d'étape, en base 1 — c'est ce que l'auteur voit à l'écran
+ * @param {Contexte} ctx
+ * @returns {EtapeMarche}
+ */
+function lireEtape(contenu, rang, ctx) {
+  // ⚠️ L'ESPACE DE « n° 1 » EST UNE U+00A0 INSÉCABLE, ÉCRITE EN ÉCHAPPEMENT — même geste, même
+  // raison que `resoudreExerciceDuCours` : une fin de ligne qui couperait entre « n° » et son
+  // chiffre laisserait une abréviation qui ne désigne plus rien. U+00A0 et rien d'autre.
+  const situe = `« :::: ${CONTENEUR_MARCHE} », étape n°\u00A0${rang}`;
+  const phraseInline = contenu[1];
+  if (
+    contenu[0]?.type !== 'paragraph_open' ||
+    phraseInline?.type !== 'inline' ||
+    contenu[2]?.type !== 'paragraph_close'
+  ) {
+    echec(`${ctx.nomFichier} : ${situe} ne s'ouvre pas par une phrase`, [
+      'une étape s’écrit : une phrase impérative, puis AU PLUS un bloc de code clôturé',
+      'docs/contenu/pipeline-contenu.md, section « Le conteneur marche-a-suivre »',
+    ]);
+  }
+
+  const { renvoi, phrase } = lireRenvoiDEtape(phraseInline.content, situe, ctx);
+  if (phrase === '') {
+    echec(`${ctx.nomFichier} : ${situe} — étape sans phrase`, [
+      'un renvoi seul ne dit pas ce qu’il faut FAIRE — le résumé doit rester actionnable',
+    ]);
+  }
+
+  /** @type {EtapeMarche} */
+  // `renderInline` et non `render` : la phrase est rendue SANS `<p>`, le rendu (lot 4) l'enveloppe
+  // dans son `<li>`. Et c'est la SOURCE amputée de son bloc `{voir="…"}` qui est re-rendue, jamais
+  // le HTML découpé après coup : chercher un motif dans une chaîne qui contient du texte d'auteur
+  // est exactement ce que S-014 refuse.
+  const etape = { html: ctx.md.renderInline(phrase, {}).trim() };
+
+  /** @type {EtapeMarche['code']} */
+  let code;
+  for (let i = 3; i < contenu.length; i += 1) {
+    const jeton = contenu[i];
+    if (jeton === undefined) continue;
+    if (jeton.type !== 'fence') {
+      echec(`${ctx.nomFichier} : ${situe} porte ${libelleDeJetonDEtape(jeton.type)}`, [
+        'une étape n’admet qu’une phrase et au plus un bloc de code clôturé',
+        'le jour où une étape a besoin de plus, elle appartient à la théorie — c’est à ça que sert {voir="…"}',
+      ]);
+    }
+    if (code !== undefined) {
+      echec(`${ctx.nomFichier} : ${situe} porte un DEUXIÈME bloc de code`, [
+        'une étape en admet au plus un ; deux commandes distinctes valent deux étapes',
+      ]);
+    }
+    const bloc = blocDeCloture(jeton, ctx);
+    if (bloc.type !== 'code') {
+      echec(`${ctx.nomFichier} : ${situe} porte un bloc « mermaid »`, [
+        'une étape montre une commande, pas un diagramme — le diagramme vit dans la théorie',
+      ]);
+    }
+    code = { langage: bloc.langage, htmlColore: bloc.htmlColore };
+  }
+
+  if (code !== undefined) etape.code = code;
+  if (renvoi !== null) etape.renvoi = renvoi;
+  return etape;
+}
+
+/**
+ * Trouve la fermeture de l'item ouvert en `ouverture`, en comptant la PROFONDEUR.
+ *
+ * Un compteur et non « le prochain `list_item_close` » : une liste imbriquée en produit un avant
+ * celui de l'item courant. Elle sera refusée par `lireEtape`, mais elle doit d'abord être remise à
+ * la bonne étape — sans quoi le message nommerait le mauvais numéro.
+ *
+ * @param {readonly JetonMd[]} jetons
+ * @param {number} ouverture index du `list_item_open`
+ * @param {number} borne index exclusif de fin de recherche
+ * @param {Contexte} ctx
+ * @returns {number} index du `list_item_close` apparié
+ */
+function finDeListItem(jetons, ouverture, borne, ctx) {
+  let profondeur = 0;
+  for (let i = ouverture; i < borne; i += 1) {
+    const type = jetons[i]?.type;
+    if (type === 'list_item_open') profondeur += 1;
+    else if (type === 'list_item_close') {
+      profondeur -= 1;
+      if (profondeur === 0) return i;
+    }
+  }
+  return echec(`${ctx.nomFichier} : « :::: ${CONTENEUR_MARCHE} » — item de liste non refermé`);
+}
+
+/**
+ * Lit un `:::: marche-a-suivre` : un titre obligatoire, puis UNE liste ordonnée d'étapes.
+ *
+ * @param {readonly JetonMd[]} enfants
+ * @param {JetonMd} ouverture
+ * @param {Contexte} ctx
+ * @returns {BlocContenu}
+ */
+function lireMarcheASuivre(enfants, ouverture, ctx) {
+  const attributs = lireAttributs(
+    ouverture.info,
+    CONTENEUR_MARCHE,
+    [ATTRIBUT_TITRE],
+    ctx.nomFichier,
+  );
+  // OBLIGATOIRE ET NON VIDE, même geste que `{source="…"}` sur une correction du cours : `{titre=""}`
+  // passe la grammaire des paires et rendrait une liste que rien n'annonce — or c'est ce titre qu'un
+  // lecteur d'écran lit AVANT la liste (contrat, section « Le conteneur marche-a-suivre »).
+  const titre = (attributs[ATTRIBUT_TITRE] ?? '').trim();
+  if (titre === '') {
+    echec(
+      `${ctx.nomFichier} : « :::: ${CONTENEUR_MARCHE} » sans attribut « ${ATTRIBUT_TITRE} » non vide`,
+      [
+        `forme attendue : :::: ${CONTENEUR_MARCHE} {${ATTRIBUT_TITRE}="Monter l'environnement LAMP local"}`,
+        'il nomme la tâche que la marche accomplit — c’est lui qu’un lecteur d’écran annonce',
+      ],
+    );
+  }
+
+  const fin = enfants.length - 1;
+  if (enfants[0]?.type !== 'ordered_list_open' || enfants[fin]?.type !== 'ordered_list_close') {
+    echec(`${ctx.nomFichier} : « :::: ${CONTENEUR_MARCHE} » ne porte pas QU'une liste ordonnée`, [
+      'le conteneur ne contient rien d’autre : ni prose d’introduction, ni liste à puces, ni encadré',
+      'ce qu’il y aurait à dire autour des étapes appartient à la théorie',
+    ]);
+  }
+
+  /** @type {EtapeMarche[]} */
+  const etapes = [];
+  let i = 1;
+  while (i < fin) {
+    if (enfants[i]?.type !== 'list_item_open') {
+      // LE MESSAGE S'ADRESSE À UN AUTEUR DE CONTENU, pas à qui lit ce fichier. Le type brut d'un
+      // jeton markdown-it (`ordered_list_close`, ou la chaîne vide si la liste finit court) ne dit
+      // rien à personne : le rang de la DERNIÈRE étape lue situe la faute dans la marche, et le
+      // détail dit la règle. Même forme à deux lignes que tous les refus voisins.
+      const apres =
+        etapes.length === 0
+          ? 'avant la première étape'
+          : `après l’étape n°\u00A0${etapes.length}`;
+      echec(
+        `${ctx.nomFichier} : « :::: ${CONTENEUR_MARCHE} » — ${libelleDeJetonDEtape(enfants[i]?.type ?? '')} ${apres}`,
+        [
+          'le conteneur ne contient QU’une liste ordonnée : rien ne s’écrit entre deux items',
+          'ce qu’il y aurait à dire autour des étapes appartient à la théorie',
+        ],
+      );
+    }
+    const finItem = finDeListItem(enfants, i, fin, ctx);
+    etapes.push(lireEtape(enfants.slice(i + 1, finItem), etapes.length + 1, ctx));
+    i = finItem + 1;
+  }
+
+  if (etapes.length === 0) {
+    echec(`${ctx.nomFichier} : « :::: ${CONTENEUR_MARCHE} » ne contient aucune étape`);
+  }
+  return { type: 'marche-a-suivre', titre, etapes };
+}
+
+/**
  * Reconnaît une ANCRE DE COMPOSANT : un paragraphe qui ne contient que `[[quiz]]` ou
  * `[[simulation]]`, et rien d'autre.
  *
@@ -1573,6 +1875,7 @@ function lireAncreDeComposant(jetons, i) {
  */
 function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
   if (nom === 'comparaison') return lireComparaison(enfants, ouverture, ctx);
+  if (nom === CONTENEUR_MARCHE) return lireMarcheASuivre(enfants, ouverture, ctx);
   if (!ENCADRES.has(nom)) {
     echec(`${ctx.nomFichier} : « ::: ${nom} » hors d'un « :::: comparaison »`, [
       'vulnerable et corrige n’existent qu’appariés, à l’intérieur d’une comparaison',
@@ -2367,6 +2670,198 @@ export function compterAncres(blocs, type) {
 }
 
 /**
+ * Recense les `marche-a-suivre` d'une leçon, À TOUTE PROFONDEUR.
+ *
+ * 🔴 LA DESCENTE EST RÉCURSIVE POUR LA MÊME RAISON QUE `compterAncres` : `encadre` est le seul bloc
+ * qui en imbrique d'autres, et une marche à suivre écrite dans un `::: note` serait invisible à un
+ * balayage de premier niveau. Ses renvois resteraient alors NON RÉSOLUS — une ancre vide dans
+ * l'artéfact, donc un lien mort dans la page, et aucun gate rouge.
+ *
+ * 🔴 LA DESCENTE EST NOMINATIVE ET BRUYANTE. `encadre` est aujourd'hui le seul type qui imbrique
+ * des `blocs` — mais le lot 5 (`methodes`, décision D-C) en ajoute un second, et une marche qu'il
+ * porterait serait ici invisible : ses renvois resteraient NON RÉSOLUS, c'est-à-dire une `ancre`
+ * vide dans l'artéfact, un lien mort dans la page, et AUCUN gate rouge. Un type porteur de `blocs`
+ * qui n'est pas énuméré fait donc échouer la compilation en se nommant, plutôt que de laisser
+ * l'invariant dépendre de la mémoire du prochain lot (L-063 : un invariant que rien n'observe
+ * n'est pas vrai, il est indéterminé ; même geste que les listes blanches de `security.md` §4).
+ *
+ * @param {readonly BlocContenu[]} blocs
+ * @param {Extract<BlocContenu, { type: 'marche-a-suivre' }>[]} sortie mutée
+ * @param {string} nomFichier pour le message
+ * @returns {Extract<BlocContenu, { type: 'marche-a-suivre' }>[]} `sortie`, pour l'enchaînement
+ */
+function recenserMarches(blocs, sortie, nomFichier) {
+  for (const bloc of blocs) {
+    if (bloc.type === 'marche-a-suivre') sortie.push(bloc);
+    else if (bloc.type === 'encadre') recenserMarches(bloc.blocs, sortie, nomFichier);
+    else if ('blocs' in bloc) {
+      echec(
+        `${nomFichier} : bloc « ${bloc.type} » porteur de « blocs », NON ÉNUMÉRÉ par le recensement des marches à suivre`,
+        [
+          'une marche à suivre imbriquée dedans garderait une ancre VIDE — un lien mort, sans gate rouge',
+          'ajouter le type à la descente de `recenserMarches`, dans compiler-markdown.mjs',
+        ],
+      );
+    }
+  }
+  return sortie;
+}
+
+/**
+ * Recense les marches à suivre de TOUTES les sections d'une leçon.
+ *
+ * @param {readonly SectionCompilee[]} sections
+ * @param {string} nomFichier pour le message
+ * @returns {Extract<BlocContenu, { type: 'marche-a-suivre' }>[]}
+ */
+function marchesDeLaLecon(sections, nomFichier) {
+  /** @type {Extract<BlocContenu, { type: 'marche-a-suivre' }>[]} */
+  const marches = [];
+  for (const section of sections) recenserMarches(section.blocs, marches, nomFichier);
+  return marches;
+}
+
+/**
+ * RÉSOUT les `{voir="Titre de section"}` d'une leçon, EN SECOND TEMPS.
+ *
+ * 🔴 POURQUOI EN DEUX TEMPS, ET NON AU FIL DE L'EAU. La marche à suivre se place en TÊTE de leçon
+ * (juste après « L'idée en une image ») et cite couramment une section située PLUS BAS : au moment
+ * où `lireMarcheASuivre` la compile, le titre visé n'existe pas encore. La résolution attend donc
+ * que `construireSections` ait rendu la main — c'est-à-dire que TOUS les titres `##`/`###` et leurs
+ * ancres, suffixes de collision compris, soient connus.
+ *
+ * 🔴 DEUX SECTIONS AU MÊME TITRE SONT UN REFUS, jamais « la première gagne ». Une résolution
+ * positionnelle serait exactement le littéral fragile que le contrat interdit, déguisé en
+ * commodité : renommer l'une des deux sections déplacerait le renvoi EN SILENCE. Le message nomme
+ * les deux sections et leurs deux ancres suffixées, et l'auteur tranche.
+ *
+ * @param {readonly SectionCompilee[]} sections
+ * @param {Contexte} ctx
+ */
+function resoudreRenvoisDeSection(sections, ctx) {
+  /** @type {Map<string, SectionCompilee[]>} */
+  const parTitre = new Map();
+  for (const section of sections) {
+    const dejaVues = parTitre.get(section.titre);
+    if (dejaVues === undefined) parTitre.set(section.titre, [section]);
+    else dejaVues.push(section);
+  }
+
+  for (const marche of marchesDeLaLecon(sections, ctx.nomFichier)) {
+    for (const [rang, etape] of marche.etapes.entries()) {
+      const renvoi = etape.renvoi;
+      if (renvoi === undefined || renvoi.cible !== 'section') continue;
+      const situe = `« :::: ${CONTENEUR_MARCHE} », étape n°\u00A0${rang + 1}`;
+      resoudreUnRenvoiDeSection(renvoi, situe, parTitre, ctx);
+    }
+  }
+}
+
+/**
+ * Résout le renvoi de section d'UNE étape : cible UNIQUE exigée, puis ancre posée.
+ *
+ * Extraite de `resoudreRenvoisDeSection`, et pas seulement pour la complexité mesurée par
+ * G-lint : trois refus indépendants sur un même renvoi se lisent mieux hors de deux boucles
+ * imbriquées. Le comportement est INCHANGÉ, ligne pour ligne.
+ *
+ * @param {Extract<NonNullable<EtapeMarche['renvoi']>, { cible: 'section' }>} renvoi muté sur place
+ * @param {string} situe où l’erreur se lit, déjà rédigé
+ * @param {ReadonlyMap<string, SectionCompilee[]>} parTitre les sections de la leçon, par titre
+ * @param {Contexte} ctx
+ */
+function resoudreUnRenvoiDeSection(renvoi, situe, parTitre, ctx) {
+  const candidates = parTitre.get(renvoi.titre) ?? [];
+  if (candidates.length === 0) {
+    const connus = [...parTitre.keys()].map((t) => `« ${t} »`).join(', ') || '(aucun)';
+    echec(
+      `${ctx.nomFichier} : ${situe} renvoie à « ${renvoi.titre} », qui n'est le titre d'aucune section`,
+      [
+        `titres de section de cette leçon : ${connus}`,
+        'le renvoi cite le TEXTE d’un titre, jamais son ancre — l’ancre est fabriquée au build',
+      ],
+    );
+  }
+  if (candidates.length > 1) {
+    const portees = candidates.map((s) => `niveau ${s.niveau} → #${s.ancre}`).join(', ');
+    echec(`${ctx.nomFichier} : ${situe} renvoie à « ${renvoi.titre} », titre AMBIGU`, [
+      `${candidates.length} sections le portent : ${portees}`,
+      'renommer l’une d’elles — une résolution positionnelle casserait en silence au premier renommage',
+    ]);
+  }
+  // 🔴 PAS DE `?? ''` ICI. Les cas 0 et > 1 viennent d'échouer juste au-dessus : l'ancre existe
+  // forcément. Mais un repli sur la chaîne vide poserait au rendu (lot 4) un `fragment=''`,
+  // c'est-à-dire un lien mort qu'AUCUN gate ne verrait rougir — un invariant vrai que rien
+  // n'observe (L-063). On le rend observable : s'il se rompait, la compilation le dirait.
+  const ancre = candidates[0]?.ancre;
+  if (ancre === undefined || ancre === '') {
+    echec(`${ctx.nomFichier} : ${situe} — ancre introuvable pour « ${renvoi.titre} »`, [
+      'la section a été trouvée mais ne porte pas d’ancre — invariant rompu dans `construireSections`',
+    ]);
+  }
+  renvoi.ancre = ancre;
+}
+
+/**
+ * VÉRIFIE les `{voir="module:<slug>"}` de toute une racine, APRÈS compilation de ses leçons.
+ *
+ * 🔴 C'EST UNE VÉRIFICATION, PAS UNE TRANSFORMATION. Le lien lui-même est bâti au rendu ; ce qui se
+ * joue ici est qu'il désigne une page qui EXISTERA. Le manifeste de routes, lui, est produit APRÈS
+ * cette compilation (`generer-manifeste.mjs`) : il n'est pas consultable d'ici. Mais les leçons
+ * compilées portent leur `frontmatter.statut`, donc l'index slug → statut est gratuit une fois la
+ * racine compilée — c'est la même donnée, une passe plus tôt.
+ *
+ * 🔴 UNE CIBLE NON `publiee` EST UN REFUS. Elle n'est pas prerendue : le lien servirait une 404,
+ * c'est-à-dire l'incident de production du 2026-08-27 à l'identique. La vérification porte sur le
+ * statut AU MOMENT DU BUILD, jamais sur l'intention de publier plus tard.
+ *
+ * @param {readonly LeconCompilee[]} lecons
+ * @param {readonly string[]} dossiers mêmes indices que `lecons` — sert à NOMMER le fichier fautif
+ */
+function verifierRenvoisDeModule(lecons, dossiers) {
+  /** @type {Map<string, string>} */
+  const statutParSlug = new Map();
+  for (const lecon of lecons) statutParSlug.set(lecon.frontmatter.slug, lecon.frontmatter.statut);
+
+  for (const [index, lecon] of lecons.entries()) {
+    const nomFichier = afficher(join(dossiers[index] ?? '', 'lecon.md'));
+    for (const marche of marchesDeLaLecon(lecon.sections, nomFichier)) {
+      for (const [rang, etape] of marche.etapes.entries()) {
+        const renvoi = etape.renvoi;
+        if (renvoi === undefined || renvoi.cible !== 'module') continue;
+        const situe = `« :::: ${CONTENEUR_MARCHE} », étape n°\u00A0${rang + 1}`;
+        verifierUnRenvoiDeModule(renvoi.slug, situe, nomFichier, statutParSlug);
+      }
+    }
+  }
+}
+
+/**
+ * Juge UN renvoi « module: » : la cible doit exister dans le sujet ET être `publiee`.
+ *
+ * Extraite de `verifierRenvoisDeModule` pour la même raison que sa jumelle de section : deux
+ * refus indépendants au fond de trois boucles imbriquées. Comportement INCHANGÉ.
+ *
+ * @param {string} slug le slug cité par l’étape
+ * @param {string} situe où l’erreur se lit, déjà rédigé
+ * @param {string} nomFichier
+ * @param {ReadonlyMap<string, string>} statutParSlug index slug → statut, pour TOUT le sujet
+ */
+function verifierUnRenvoiDeModule(slug, situe, nomFichier, statutParSlug) {
+  const statut = statutParSlug.get(slug);
+  if (statut === undefined) {
+    echec(`${nomFichier} : ${situe} renvoie au module « ${slug} », inconnu de ce sujet`, [
+      `slugs déclarés : ${[...statutParSlug.keys()].join(', ') || '(aucun)'}`,
+    ]);
+  }
+  if (statut !== 'publiee') {
+    echec(`${nomFichier} : ${situe} renvoie au module « ${slug} », en « statut: ${statut} »`, [
+      'un module non publié n’est pas prerendu — le lien servirait une 404 (incident du 2026-08-27)',
+      'le contrôle porte sur le statut AU MOMENT DU BUILD, pas sur l’intention de publier plus tard',
+    ]);
+  }
+}
+
+/**
  * Lit `simulation.json` s'il existe, le revalide et l'émet en `SimulationCompilee`.
  *
  * POURQUOI `null` PLUTÔT QU'UN ÉCHEC QUAND LE FICHIER MANQUE — la seule différence de fond
@@ -2463,6 +2958,10 @@ export function compilerLecon(dossier, outils) {
     exercices: outils.exercices ?? null,
   };
   const sections = construireSections(outils.md.parse(nettoye.corps, {}), ctx);
+
+  // LES RENVOIS DE SECTION D'UNE MARCHE À SUIVRE SE RÉSOLVENT ICI, ET PAS PLUS TÔT : la marche est
+  // en tête de leçon et cite couramment une section située plus bas. Voir l'en-tête de la fonction.
+  resoudreRenvoisDeSection(sections, ctx);
 
   // CONTRÔLE DE CONSERVATION du retrait des commentaires : la sortie ne doit plus contenir NI
   // marqueur de doute, NI commentaire échappé. Le contrôle porte sur le HTML réellement produit,
@@ -2669,7 +3168,8 @@ export async function compilerRacine(racine, options = {}) {
   }
   const md = creerMarkdownIt();
   const exercices = lireExercices(racine);
-  const lecons = recenserLecons(racine).map((dossier) =>
+  const dossiers = recenserLecons(racine);
+  const lecons = dossiers.map((dossier) =>
     compilerLecon(dossier, {
       md,
       colorateur,
@@ -2677,6 +3177,9 @@ export async function compilerRacine(racine, options = {}) {
       exercices: indexerExercices(exercices),
     }),
   );
+  // APRÈS le `.map()`, et c'est le seul endroit possible : un `{voir="module:<slug>"}` se juge
+  // contre les AUTRES leçons du sujet, qu'une compilation module par module ne voit pas.
+  verifierRenvoisDeModule(lecons, dossiers);
   return {
     lecons,
     feuille: assemblerFeuille(colorateur.feuille()),

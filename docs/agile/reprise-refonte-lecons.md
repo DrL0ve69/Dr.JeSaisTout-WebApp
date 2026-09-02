@@ -245,7 +245,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
-8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → **`2`** → `3` → `4` → **`4bis`** (spike R-1,
+8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → **`4`** → **`4bis`** (spike R-1,
 jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (résolution inter-cours) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
@@ -456,10 +456,73 @@ dimensionnement du lot 0bis : le test du « + » se lit dans la **liste des gest
 d'objectif. En regard, l'agent de **correctifs** — périmètre étroit, trois filets nommés — a fini à **139k**,
 et les deux revues à **127k** et **103k**.
 
-**Le geste suivant : le lot 3** (conteneur `marche-a-suivre`, compilation et validation) — `compiler-markdown.mjs`,
-`valider.mjs`, `types.d.ts`, deux fixtures témoins. Gates : `content:build`, `npm test`, `typecheck:tools`.
-⚠️ Le corpus de **fixtures invalides** est le **lot 7**, délibérément à part (§9 du budget de contexte) : ne
-le laisse pas remonter dans le brief du lot 3.
+✅ **LE LOT 3 EST LIVRÉ — 2026-09-02.** Le conteneur `:::: marche-a-suivre` est **compilé et validé** :
+titre obligatoire non vide, liste ordonnée d’étapes, une phrase par étape et **au plus un** bloc de code,
+renvoi `{voir="…"}` littéralement en tête — résolu en **ancre** pour un titre de section, **vérifié** contre
+le statut de la cible pour un `module:<slug>`. Le rendu reste au lot 4 ; `rendu-blocs` refuse le type en le
+NOMMANT, sous tripwire auto-périmant. Fixtures invalides **48 → 51**.
+
+🔴 **LA DIVERGENCE ENTRE LES DEUX COPIES A ÉTÉ TROUVÉE PAR LA REVUE, ET LE DÉFAUT N’EST PAS CELUI QU’ELLE A
+TITRÉ.** `nomDeConteneur` (validateur) lisait `/^([A-Za-z0-9-]+)/`, **qui s’arrête sur `{`** ; markdown-it,
+lui, fait `params.trim().split(/\s+/)[0]`. Mesuré : sur `:::: marche-a-suivre{titre="…"}` — l’espace
+oubliée — le validateur rendait « 2 leçon(s) valides » **en code 0** quand le compilateur refusait la même
+racine. La revue a titré « Majeur : la construction publie du balisage d’auteur en clair » ; **c’est faux**,
+la construction est *fail-closed* et rien n’atteignait le lecteur. Le vrai défaut, suffisant, est que **le
+juge d’AMONT laisse passer ce que l’aval refuse** : l’auteur reçoit le message générique du compilateur au
+lieu de celui qui nomme sa faute, et rien ne garantit que la prochaine divergence penchera du bon côté.
+⚠️ **Ne pas laisser un surqualificatif se figer en folklore** — il fait corriger au mauvais endroit.
+Même famille, corrigée dans le même geste : `titresDuCorps` admet désormais les **0 à 3 blanches de tête**
+de CommonMark, sans quoi `  ## Titre` était une section pour le compilateur et n’existait pas pour le
+validateur (S-010, énième forme — cousine directe du `### Titre ##` du lot 1a).
+
+🔴 **UNE FIXTURE SOUS `__fixtures__/invalides/` NE PROUVE QU’UNE DES DEUX IMPLÉMENTATIONS.** Ce dossier est
+la table câblée de `pipeline-contenu-validation.spec.ts`, qui fait tourner **`valider.mjs` seul**. Or les
+deux règles que le contrat écrit en rouge — « deux sections au même titre = refus » et « un `module:` exige
+`statut: publiee` » — sont écrites **deux fois**. Trois fixtures neuves donnaient donc l’illusion d’une
+couverture complète, la moitié compilateur n’ayant **aucun** contrôle positif. Parade : la compilation
+pointe le COMPILATEUR sur les **mêmes racines**, et chaque assertion épingle ce que **seul** lui produit —
+les ancres suffixées `#…-2`, le `en « statut: verifiee »` lu sur la leçon compilée.
+**Preuve par mutation, mesurée** : `if (candidates.length > 1)` → `if (false)` ⇒ **1 rouge, le bon** ;
+`if (statut !== 'publiee')` → `if (false)` ⇒ **1 rouge, le bon** ; `html: false` → `true` ⇒ **les deux
+mains** du test d’échappement ; `renderInline(phrase)` tronqué ⇒ **la première main seule**, ce qui prouve
+que les deux moitiés sont séparables et qu’aucune n’est un no-op. Restauration prouvée par `sha256`
+identique avant/après à chaque fois.
+
+🔴 **G-LINT MANQUAIT À LA LISTE DE GATES DU BRIEF, ET C’EST LE SEUL QUI PORTE `sonarjs`.** Le brief nommait
+`content:build`, `npm test`, `typecheck:tools`. À la vérification finale, `npm run lint` est sorti **rouge
+sur 7 erreurs** — deux fonctions à complexité cognitive 19, une à 25, quatre gabarits imbriqués — sur un lot
+par ailleurs entièrement vert. Aucune n’était un défaut de comportement, toutes étaient de vraies dettes de
+lisibilité ; le correctif a été mécanique (trois fonctions extraites, quatre sous-expressions sorties en
+`const`, comportement inchangé ligne pour ligne). **Un lot qui écrit du code d’outillage neuf porte G-lint
+dans sa liste, quelle que soit la couche touchée** — l’omettre reporte un rouge certain sur le fil principal,
+à l’heure où le lot se croit fini.
+
+⚠️ **CE QUE LE CONTRAT PROMETTAIT ET QUE PERSONNE NE JUGEAIT (patron S-005).** « La section se place juste
+après *L’idée en une image* » n’était vérifié nulle part : c’est désormais un **refus nommé** du validateur,
+pour tout module qui porte une marche à suivre. « Elle ne contient **que** ce conteneur » ne l’est **pas**, et
+le contrat le dit maintenant en toutes lettres, dans un tableau « clause → jugée par → comment » :
+le validateur lit des **lignes brutes**, et juger ce qu’une section contient en plus l’obligerait à
+réimplémenter l’analyse des blocs de CommonMark — la liste de motifs sur format structuré que
+`.claude/rules/security.md` §4 interdit. **Contrat et gate disent désormais la même chose.**
+
+⚠️ **LE PIÈGE DES MESSAGES FRANÇAIS ÉPINGLÉS À L’OCTET.** Les refus de ce dépôt portent U+00A0 (`étape n° 1`,
+écrite en échappement des deux côtés), l’apostrophe typographique U+2019 **à côté** de l’apostrophe droite
+dans le même fichier, et les guillemets `«` `»`. Une assertion retapée au clavier échoue sur un produit
+**sain** — ou reste verte par vacuité. **On copie-colle depuis la sortie réelle, et tout caractère invisible
+s’écrit en échappement.** Cousine de L-015 : un octet qu’on ne voit pas fait diverger la mesure de l’intention.
+
+**Gates à la clôture du lot 3** : `lint` **0** · `typecheck:tools` **0** · `content:build` **10 leçon(s) ·
+0 dépassement** · `valider --fixtures` **51/51 refusés avec une cause nommée** · `npm test` **1019 / 45
+fichiers / 1 sauté / 0 échec** (997 à la clôture du lot 2) · `build` **13 routes · 14 hachages de style /
+0 de script — inchangés** · `a11y:axe` **13 fichiers · 1118 vérifications · 0 violation — inchangé** ·
+`e2e` **50 passés / 1 sauté** · `npm audit --omit=dev` **0**.
+
+**Le geste suivant : le lot 4** (le RENDU de la marche à suivre) — `rendu-blocs`, son gabarit, ses styles.
+⚠️ Il lance **aussi** `npm run design:contrastes:check`, absent de `npm run build`, et déclare **quelles
+paires il ajoute** avant d’écrire une couleur. ⚠️ **Deux tripwires du lot 3 rougiront, et c’est ainsi qu’ils
+se retirent** : l’`Exclude<…, 'marche-a-suivre'>` sur `FIXTURES` et le test « le contrat connaît
+« marche-a-suivre », ce composant ne le rend pas ENCORE », tous deux dans `rendu-blocs.spec.ts`.
+⚠️ Le corpus de **fixtures invalides** reste le **lot 7**, délibérément à part (§9 du budget de contexte).
 
 <!-- RÉCIT CLOS — le pointeur qui annonçait le lot 2, livré le 2026-09-02. Ses deux mises en garde ont
      TENU : `design:contrastes:check` a été lancé et n'a ajouté aucune paire ; `cours` reste refusé par le
