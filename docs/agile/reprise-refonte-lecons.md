@@ -393,11 +393,83 @@ son mur de sortie dans le transcript. `.claude/rules/agent-context-budget.md` §
 j'ai lancé deux builds Angular complets pendant qu'il tournait** — contention pure, un worker Vitest
 tué, et son mur allongé d'autant. **Un seul build lourd à la fois sur ce poste.**
 
+✅ **LE LOT 2 EST LIVRÉ — 2026-09-02.** Le renvoi de diapositives est **rendu** : un `<p class="renvoi-titre">`
+**frère** du `<h2>`/`<h3>`, et le renvoi **dans le texte** du lien de sommaire. Fabrique unique neuve
+`src/app/features/cours/lecon/renvoi-au-cours.ts` (153 l.), consommée par les titres **et** les encadrés.
+
+🔵 **DEUX DÉCISIONS DU PROPRIÉTAIRE, PRISES CE JOUR — elles font foi, reportées au contrat (`ancrage-au-cours.md` §5 (a)(d)(e)).**
+Le contrat écrivait **trois** formats divergents pour le même libellé, et la demande d'origine en disait un
+quatrième (« entre parenthèses ») : l'écart n'était pas tranchable sans arbitrage.
+**(1)** Sous un titre : **entre parenthèses, plages repliées, séance TUE quand elle est celle du module** —
+`(diapos 12 à 18)`, `(séance 4 · diapos 45 à 50)`, `(420-4P2-HU · séance 8 · diapos 30 à 42)`. Un `cours`
+renseigné **force** l'affichage de la séance ; un `frontmatter.seance` **absent** l'écrit toujours.
+**(2)** Le repli vaut **AUSSI pour les encadrés déjà en ligne** — une seule fabrique, jamais deux.
+Règle : **une suite d'au moins TROIS** numéros consécutifs se replie ; une ou deux restent en virgules.
+⚠️ **Mesuré : six libellés changent de rendu** dans **deux** leçons publiées (`02-environnement-linux` ×1,
+`03-communication-serveur` ×5) — « diapos 56, 57, 64, 65, 66, 69, 70, 71 » devient « 56, 57, 64 à 66, 69 à 71 ».
+**Aucun fichier de contenu n'est touché** : c'est le rendu seul.
+
+🔴 **LE DÉFAUT MAJEUR DU LOT, ET IL AVAIT SURVÉCU À 994 TESTS — [[L-086]].** Remplacer
+`this.frontmatter().seance` par `undefined` aux **deux** points d'appel de `lecon.ts` (l. 475 et 490)
+passait toute la suite. Les tests unitaires appelaient les fabriques **directement** (ils prouvaient la
+fonction, jamais le **câblage**), et le seul test DOM tournait sur la fixture témoin **sans `seance`** — le
+seul cas où « câblé » et « jamais passé » rendent la **même** chaîne. ⚠️ **La prémisse du test était VRAIE**
+et le rendait pourtant aveugle : c'est la cousine **inversée** de L-035. Or 8 des 10 leçons en ligne
+déclarent `seance:` — la branche non prouvée était celle de **production**.
+**Fermé, avec contrôle positif imprimé** : deux tests **séparés**, un par point d'appel (réunis, la mutation
+d'un seul serait indiscernable de l'autre) ; sous mutation **exactement 2 rouges**, et restauration de
+`lecon.ts` prouvée par `sha256` identique avant/après. La leçon retient aussi le corollaire : **N points
+d'appel demandent N assertions mutation-séparables.**
+
+⚠️ **AUCUN GATE D'ARTÉFACT N'A VU LE BALISAGE NEUF — à ne pas oublier au lot 8.** Mesuré : **zéro** titre du
+corpus ne porte `{diapos=…}` aujourd'hui, donc les 1118 vérifications d'axe portent sur des pages où le
+`<p class="renvoi-titre">` et le `<span class="texte-lien">` **n'existent pas**. Même famille que
+« `verifiee` n'est pas `publiee` », payée deux fois sur ce dépôt. **Relancer G-axe et G-e2e à la première
+leçon qui ancre un titre**, avant de la déclarer finie.
+
+🔵 **CE QUE LA REVUE DE SÉCURITÉ A ÉTABLI, ET LA DETTE QU'ELLE DATE — [[S-026]].** Rien d'exploitable :
+les consommateurs sont tous des interpolations en **nœud texte**, échappées par Angular ; aucun `[attr.…]`,
+aucun `innerHTML`, aucun `bypassSecurityTrust*` ; aucun `id` neuf, donc aucune collision d'ancre ; CSP
+inchangée et aucun littéral épinglé réaligné en douce.
+🔴 **Mais `cours` est le seul membre du renvoi SANS grammaire** — `seance` et `diapos` en ont chacune une,
+totale et ancrée au compilateur. Il n'est injoignable que par le `echec()` du lot 1a, et **un refus
+temporaire n'est pas une validation**. **Au lot 1b, dans le MÊME commit que la levée du `echec()`** :
+grammaire nominative **au compilateur** (`^[A-Z0-9-]{3,20}$` couvre `420-4P2-HU`), jamais au rendu.
+✅ Le **test à deux mains** de S-011 (e) a été **avancé à ce lot** plutôt que reporté : il couvre les deux
+surfaces qui existent réellement, avec son propre contrôle positif sur l'inspection d'attributs.
+✅ **Fausse dette écartée** : l'étiquette d'**encadré** n'est pas concernée — son `renvoiCours` est typé
+`{ seance, diapos }` **sans** `cours` (`types.d.ts:280` et `:314`). TypeScript rend le cas irreprésentable.
+
+**Gates à la clôture du lot 2** : `lint` **0** · `npm test` **997 / 45 fichiers / 1 sauté / 0 échec**
+(952/43 avant le chantier) · `build` **13 routes · 14 hachages de style / 0 de script — inchangés** ·
+`a11y:axe` **13 fichiers · 1118 vérifications · 0 violation** · `e2e` **50 passés / 1 sauté** ·
+`design:contrastes:check` **40 paires / 40 mesures · 0 paire neuve** (`--couleur-encre-tertiaire`, déjà
+mesuré sur `--couleur-surface` **et** `--couleur-surface-creuse`).
+
+⚠️ **LE DÉFAUT DE BRIEF DE CE LOT — l'implémenteur a fini à 199 397 tokens**, au ras du plafond
+« exceptionnel ». Les gates lourds étaient pourtant **sortis** de son périmètre (la leçon du lot 1a a tenu :
+`npx ng test --include "…/lecon/**/*.spec.ts" --no-watch` mesuré à **55 s / 159 tests**, contre un cycle
+`npm test` de plusieurs minutes). Ce qui a débordé est le **volume écrit** : ~300 lignes réparties sur
+7 fichiers, plus la lecture ciblée de deux specs de 1500+ lignes. **La découpe juste était « la fabrique et
+son adoption par les encadrés » puis « le rendu au titre et au sommaire ».** Même famille que le
+dimensionnement du lot 0bis : le test du « + » se lit dans la **liste des gestes**, pas dans la phrase
+d'objectif. En regard, l'agent de **correctifs** — périmètre étroit, trois filets nommés — a fini à **139k**,
+et les deux revues à **127k** et **103k**.
+
+**Le geste suivant : le lot 3** (conteneur `marche-a-suivre`, compilation et validation) — `compiler-markdown.mjs`,
+`valider.mjs`, `types.d.ts`, deux fixtures témoins. Gates : `content:build`, `npm test`, `typecheck:tools`.
+⚠️ Le corpus de **fixtures invalides** est le **lot 7**, délibérément à part (§9 du budget de contexte) : ne
+le laisse pas remonter dans le brief du lot 3.
+
+<!-- RÉCIT CLOS — le pointeur qui annonçait le lot 2, livré le 2026-09-02. Ses deux mises en garde ont
+     TENU : `design:contrastes:check` a été lancé et n'a ajouté aucune paire ; `cours` reste refusé par le
+     lot 1a (dette datée au lot 1b, [[S-026]]) et `diapos` n'est jamais vide sur un titre.
 **Le geste suivant : le lot 2** (rendu du renvoi + sommaire). ⚠️ Il lance **aussi**
 `npm run design:contrastes:check`, absent de `npm run build`, et déclare **quelles paires il ajoute**
 avant d'écrire une couleur. ⚠️ Deux entrées l'attendent : `renvoiCours` peut porter `cours` (jamais
 aujourd'hui, le lot 1a le refuse) et **`diapos` n'est jamais vide** — le lot 1a l'a rendu requis sur
 un titre, si bien que le rendu n'a pas à cas-particulariser la liste vide.
+-->
 
 **5. Ensuite les neuf autres modules** (R-7 : la reprise passe devant le contenu neuf). ⚠️ **Coût
 assumé par le propriétaire** : les séances enseignées d'ici la fin de la reprise n'auront pas de leçon.
