@@ -8,10 +8,10 @@ pas le code.
 > ### 🔒 Qui exécute ce contrôle, et pourquoi ce n'est PAS une étape de CI
 >
 > Le gate est **`src/pipeline-contenu-validation.spec.ts`**, donc **G-test** — qui tourne déjà dans
-> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **20/20 refus** et vérifie
+> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **50/50 refus** et vérifie
 > que **chaque cas est refusé sur SA cause propre** : seize refus pour une seule et même raison (un
 > chemin introuvable, disons) seraient sinon indistinguables de seize refus corrects. Il porte en
-> plus un **garde-fou de complétude** — ajouter un vingt-et-unième dossier ici sans écrire son assertion
+> plus un **garde-fou de complétude** — ajouter un cinquante-et-unième dossier ici sans écrire son assertion
 > fait ROUGIR le spec.
 >
 > N'ajoutez donc **pas** d'étape `content:valider:fixtures` aux workflows : elle ferait tourner la
@@ -133,3 +133,25 @@ ne sont PAS des doublons de `correction-du-cours-sans-source`.** Les deux écrit
 et faisaient échouer le **compilateur** à la place, sur une cause qui ne nomme pas la faute
 commise. Ils verrouillent le fait que le validateur lit désormais la **même grammaire** que
 `lireAttributs`, et non un motif cherché n’importe où dans la ligne.
+
+⚠️ **`voir-titre-ambigu` et `voir-module-non-publiee` sont des COPIES d’une racine VALIDE**
+(`__fixtures__/marche-a-suivre`), à une faute près — et c’est ce qui les rend lisibles : la
+différence avec le témoin *est* la faute. Ce sont les deux refus que le contrat du conteneur
+`:::: marche-a-suivre` écrit en rouge (`docs/contenu/pipeline-contenu.md`, section « Le conteneur
+`marche-a-suivre` ») :
+
+- **`voir-titre-ambigu`** — deux sections portent « Ce que le validateur regarde », si bien que
+  `{voir="…"}` ne désigne plus une section unique. **Jamais « la première gagne »** : une résolution
+  positionnelle serait le littéral fragile que le contrat vient d’interdire, déguisé en commodité —
+  renommer l’une des deux sections déplacerait le renvoi **en silence**. Le message nomme les deux
+  lignes en cause.
+- **`voir-module-non-publiee`** — la cible du renvoi `{voir="module:cible"}` est en `verifiee`. Elle
+  n’est donc **pas prerendue**, et le lien servirait une **404** : l’incident de production du
+  2026-08-27, à l’identique. ⚠️ L’assertion du spec épingle « statut: verifiee » et non le simple
+  fait du refus — sans ce discriminant, un garde qui refuserait *tout* renvoi `module:` (index vide,
+  disons) passerait pour juste.
+
+🔴 **Ces deux dossiers portent DEUX leçons chacun**, comme `frontmatter-section-partielle-dans-le-sujet` :
+leur faute est une **relation** entre modules (deux titres qui se disputent un renvoi, un statut lu
+sur une *autre* leçon), qu’aucun fichier pris isolément ne porte. C’est aussi pourquoi la règle
+`module:` vit dans `validerRacine` et dans `compilerRacine`, jamais dans la passe d’un module seul.

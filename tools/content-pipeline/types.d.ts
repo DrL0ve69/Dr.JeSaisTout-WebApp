@@ -318,6 +318,51 @@ type BlocContenu =
        */
       blocs: BlocContenu[];
     }
+  | {
+      /**
+       * LA MARCHE À SUIVRE — le résumé actionnable en tête de leçon (décision D-A du 2026-08-31,
+       * `docs/contenu/pipeline-contenu.md`, section « Le conteneur `marche-a-suivre` »).
+       *
+       * Le conteneur n'admet QU'UNE liste ordonnée, et une étape n'admet qu'une phrase, au plus un
+       * bloc de code et au plus un renvoi. Ce n'est pas une restriction de confort : le jour où une
+       * étape a besoin de trois paragraphes, elle appartient à la théorie, et `renvoi` existe
+       * exactement pour l'y envoyer.
+       */
+      type: 'marche-a-suivre';
+      /** OBLIGATOIRE et non vide — c'est lui qu'un lecteur d'écran annonce avant la liste. */
+      titre: string;
+      etapes: {
+        /**
+         * La phrase impérative, rendue en HTML **inline** (pas de `<p>`) : c'est le rendu qui
+         * l'enveloppe dans son `<li>`. Le bloc `{voir="…"}` de tête a déjà été retiré — il ressort
+         * dans `renvoi`, jamais dans le texte.
+         */
+        html: string;
+        /**
+         * AU PLUS UN bloc de code clôturé, colorié par le même chemin qu'un bloc `code` du corps
+         * (mêmes garanties, mêmes ancres de ligne). Un `mermaid` y est refusé : une étape montre
+         * une commande, pas un diagramme.
+         */
+        code?: { langage: Langage; htmlColore: string };
+        /**
+         * LE RENVOI, RÉSOLU AU BUILD — jamais un littéral d'auteur.
+         *
+         * 🔴 `ancre` est FABRIQUÉE par le compilateur (`ancrer`, qui suffixe en cas de collision)
+         * et n'est jamais écrite par l'auteur : celui-ci désigne un titre par son TEXTE. Un titre
+         * introuvable, ou porté par deux sections, fait ÉCHOUER la construction — jamais « la
+         * première gagne », qui serait le littéral fragile qu'on vient d'interdire, déguisé en
+         * commodité.
+         *
+         * 🔴 `slug` a été confronté au statut de sa cible : un renvoi vers un module qui n'est pas
+         * `publiee` est refusé au build, parce qu'il produirait un lien vers une page non
+         * prerendue — l'incident de production du 2026-08-27, à l'identique. C'est le RENDU (lot 4)
+         * qui bâtit le lien ; ce champ ne porte que la cible vérifiée.
+         */
+        renvoi?:
+          | { cible: 'section'; titre: string; ancre: string }
+          | { cible: 'module'; slug: string };
+      }[];
+    }
   | { type: 'ancre-quiz' }
   | { type: 'ancre-simulation' };
 

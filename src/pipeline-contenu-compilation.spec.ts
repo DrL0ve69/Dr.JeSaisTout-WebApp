@@ -57,6 +57,13 @@ interface BlocQuelconque {
   html?: string;
   htmlColore?: string;
   blocs?: BlocQuelconque[];
+  /** `marche-a-suivre` (décision D-A) — lu en forme LARGE, comme tout le reste de ce fichier. */
+  titre?: string;
+  etapes?: {
+    html: string;
+    code?: { langage: string; htmlColore: string };
+    renvoi?: { cible: string; titre?: string; ancre?: string; slug?: string };
+  }[];
   exemples?: {
     langage: string;
     vulnerable: { htmlColore: string; annotations: AnnotationLue[] };
@@ -1674,6 +1681,312 @@ describe('pipeline de contenu — compilation Markdown', () => {
         expect(message).not.toContain('inconnu');
         expect(message).toContain('horaire');
       }, DELAI);
+    });
+  });
+});
+
+// =============================================================================
+// LE CONTENEUR `marche-a-suivre` — décision D-A du 2026-08-31, lot 3
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC CONSTATE, ET QUE RIEN D'AUTRE NE PEUT CONSTATER. La structure d'une étape est
+// jugée par le COMPILATEUR seul (`valider.mjs` lit des lignes brutes ; réimplémenter dessus
+// l'analyse des listes de CommonMark serait la liste de motifs que `.claude/rules/security.md` §4
+// interdit — même arbitrage, mot pour mot, que le compte des ancres `[[quiz]]`). Les refus de
+// structure ci-dessous sont donc les SEULS contrôles positifs de ces règles dans tout le dépôt.
+//
+// ⚠️ LE RENDU N'EST PAS DE CE LOT (lot 4). Ce qui est vérifié ici est la FORME COMPILÉE : un
+// `html` inline sans son bloc `{voir="…"}`, un `code` colorié par le chemin existant, et un
+// `renvoi` dont la cible a été RÉSOLUE — l'ancre fabriquée pour un titre, le statut confronté pour
+// un module. Aucune assertion ne porte sur du balisage de page.
+// =============================================================================
+describe('le conteneur « :::: marche-a-suivre »', () => {
+  const FIXTURE_MARCHE = 'tools/content-pipeline/__fixtures__/marche-a-suivre';
+
+  // SON PROPRE BAC À SABLE, et il en faut un : celui du bloc précédent est supprimé par son
+  // `afterAll`, qui a déjà couru quand ce `describe` démarre. Réemployer la variable sans la
+  // réaffecter ferait écrire `leconAdHoc` dans un dossier effacé — une erreur d'ENOENT au milieu
+  // d'un test de compilation, c'est-à-dire une cause à côté de la vraie.
+  beforeAll(() => {
+    bacASable = mkdtempSync(join(tmpdir(), 'drjst-marche-'));
+  });
+
+  afterAll(() => {
+    rmSync(bacASable, { recursive: true, force: true });
+  });
+
+  describe('la forme compilée, sur la fixture témoin', () => {
+    let marche: BlocQuelconque | undefined;
+
+    beforeAll(() => {
+      const { lecons } = compiler(FIXTURE_MARCHE, join(bacASable, 'marche.scss'));
+      const guide = lecons.find((l) => l.frontmatter['slug'] === 'guide');
+      if (guide === undefined) throw new Error('la leçon « guide » n’a pas été compilée');
+      marche = tousLesBlocs(guide.sections).find((b) => b.type === 'marche-a-suivre');
+    }, DELAI);
+
+    it('porte son titre et ses trois étapes, dans l’ordre du document', () => {
+      expect(marche?.titre).toBe('Faire passer une leçon au validateur');
+      expect(marche?.etapes).toHaveLength(3);
+    }, DELAI);
+
+    it('rend la phrase en HTML INLINE, amputée de son bloc « {voir="…"} »', () => {
+      const premiere = marche?.etapes?.[0];
+      // Pas de `<p>` : c'est le rendu (lot 4) qui enveloppe la phrase dans son `<li>`.
+      expect(premiere?.html).not.toContain('<p>');
+      // ANTI-VACUITÉ : le bloc d'attributs a disparu du TEXTE, pas la phrase.
+      expect(premiere?.html).toContain('Écrire le frontmatter');
+      expect(premiere?.html).not.toContain('{voir=');
+    }, DELAI);
+
+    it('colorie le bloc de code de l’étape par le CHEMIN EXISTANT, langage déclaré', () => {
+      const code = marche?.etapes?.[0]?.code;
+      expect(code?.langage).toBe('bash');
+      // Les mêmes garanties que tout autre bloc `code` du corps : classes Shiki, zéro `style=`.
+      expect(code?.htmlColore).toContain('class="shiki');
+      expect(code?.htmlColore).not.toContain('style=');
+    }, DELAI);
+
+    it('RÉSOUT « {voir="Titre"} » en ancre — l’auteur n’écrit jamais l’ancre', () => {
+      // 🔴 LA SECTION VISÉE EST PLUS BAS QUE LA MARCHE À SUIVRE dans le document : cette assertion
+      // est ce qui prouve que la résolution se fait en SECOND TEMPS. Au fil de l'eau, le titre
+      // n'existe pas encore, et la compilation échouerait.
+      expect(marche?.etapes?.[0]?.renvoi).toEqual({
+        cible: 'section',
+        titre: 'Ce que le validateur regarde',
+        ancre: 'ce-que-le-validateur-regarde',
+      });
+    }, DELAI);
+
+    it('porte « {voir="module:…"} » tel quel, cible VÉRIFIÉE mais lien NON bâti', () => {
+      // Le lien vit au rendu (lot 4). Ce que la compilation garantit est que « cible » existe et
+      // qu'elle est `publiee` — c'est-à-dire réellement prerendue.
+      expect(marche?.etapes?.[1]?.renvoi).toEqual({ cible: 'module', slug: 'cible' });
+    }, DELAI);
+
+    it('laisse une étape SANS renvoi et SANS code — les deux sont optionnels', () => {
+      const troisieme = marche?.etapes?.[2];
+      expect(troisieme?.renvoi).toBeUndefined();
+      expect(troisieme?.code).toBeUndefined();
+      expect(troisieme?.html).toContain('Corriger');
+    }, DELAI);
+  });
+
+  describe('les refus de FORME — le compilateur en est le seul garde', () => {
+    /**
+     * Insère une marche à suivre dans la leçon-témoin et rend le message d'échec.
+     *
+     * Le contenu est passé LIGNE PAR LIGNE, jamais en littéral gabarit : une clôture de bloc de
+     * code y serait illisible, et l'indentation d'un item de liste est signifiante en CommonMark.
+     */
+    function messageDEchecDeLaMarche(nom: string, lignes: readonly string[]): string {
+      const bloc = [
+        '## En bref — la marche à suivre',
+        '',
+        ':::: marche-a-suivre {titre="Un titre valide, pour que la faute soit ailleurs"}',
+        '',
+        ...lignes,
+        '',
+        '::::',
+        '',
+        '## Ce que le validateur regarde',
+      ].join('\n');
+      const racine = leconAdHoc(`marche-${nom}`, (source) =>
+        source.replace('## Ce que le validateur regarde', bloc),
+      );
+      try {
+        compiler(racine, join(bacASable, `jetable-${nom}.scss`));
+      } catch (erreur) {
+        const echec = erreur as { status?: number; stderr?: string };
+        expect(echec.status).not.toBe(0);
+        return echec.stderr ?? '';
+      }
+      throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n'a pas mordu`);
+    }
+
+    it('refuse un DEUXIÈME bloc de code dans une même étape, en nommant l’étape', () => {
+      const message = messageDEchecDeLaMarche('deux-codes', [
+        '1. Lancer la construction.',
+        '',
+        '   ```bash',
+        '   npm run content:build',
+        '   ```',
+        '',
+        '   ```bash',
+        '   npm run lint',
+        '   ```',
+      ]);
+      expect(message).toContain('DEUXIÈME bloc de code');
+      // Le numéro d'étape est ce que l'auteur VOIT à l'écran : sans lui, il relit toute la marche.
+      expect(message).toContain('étape n°\u00A01');
+    }, DELAI);
+
+    it('refuse une liste imbriquée, et la NOMME plutôt que de l’avaler', () => {
+      const message = messageDEchecDeLaMarche('liste-imbriquee', [
+        '1. Vérifier les deux points suivants.',
+        '',
+        '   - le premier',
+        '   - le second',
+      ]);
+      expect(message).toContain('une liste imbriquée');
+      expect(message).toContain('étape n°\u00A01');
+    }, DELAI);
+
+    it('refuse un titre dans une étape', () => {
+      const message = messageDEchecDeLaMarche('titre-dans-etape', [
+        '1. Ouvrir le journal.',
+        '',
+        '   #### Un titre, là où le contrat n’en admet aucun',
+      ]);
+      expect(message).toContain('un titre');
+      expect(message).toContain('étape n°\u00A01');
+    }, DELAI);
+
+    it('refuse un renvoi qui n’est pas LITTÉRALEMENT en tête de l’étape', () => {
+      const message = messageDEchecDeLaMarche('voir-pas-en-tete', [
+        '1. Relire le journal {voir="Ce que le validateur regarde"} avant de corriger.',
+      ]);
+      expect(message).toContain("le renvoi n'est pas en TÊTE");
+      // ⚠️ DISCRIMINANT : un garde qui refuserait toute accolade ferait passer ce cas pour juste.
+      // Le message doit dire OÙ écrire le renvoi, pas seulement qu'il est mal placé.
+      expect(message).toContain('avant la phrase');
+    }, DELAI);
+
+    it('refuse une étape SANS phrase — un renvoi seul ne dit pas quoi FAIRE', () => {
+      const message = messageDEchecDeLaMarche('etape-sans-phrase', [
+        '1. {voir="Ce que le validateur regarde"}',
+      ]);
+      expect(message).toContain('étape sans phrase');
+    }, DELAI);
+
+    it('refuse un titre de section INTROUVABLE, en énumérant ceux qui existent', () => {
+      const message = messageDEchecDeLaMarche('voir-titre-introuvable', [
+        '1. {voir="Une section qui n’existe pas"} Corriger la leçon.',
+      ]);
+      expect(message).toContain("qui n'est le titre d'aucune section");
+      // LISTE BLANCHE NOMINATIVE : le refus énumère ce qui existe, sinon l'auteur devine.
+      expect(message).toContain('Ce que le validateur regarde');
+    }, DELAI);
+
+    it('refuse « {titre=""} » sur le conteneur — c’est lui qu’un lecteur d’écran annonce', () => {
+      const racine = leconAdHoc('marche-sans-titre', (source) =>
+        source.replace(
+          '## Ce que le validateur regarde',
+          [
+            '## En bref — la marche à suivre',
+            '',
+            ':::: marche-a-suivre {titre=""}',
+            '',
+            '1. Corriger la leçon.',
+            '',
+            '::::',
+            '',
+            '## Ce que le validateur regarde',
+          ].join('\n'),
+        ),
+      );
+      expect(() => compiler(racine, join(bacASable, 'jetable-sans-titre.scss'))).toThrow();
+    }, DELAI);
+  });
+
+  // ---------------------------------------------------------------------------------------------
+  // LES DEUX RÈGLES ROUGES DU CONTRAT, PROUVÉES CÔTÉ COMPILATEUR AUSSI
+  // ---------------------------------------------------------------------------------------------
+  // 🔴 UNE FIXTURE DÉPOSÉE SOUS `__fixtures__/invalides/` NE PROUVE QU'UNE DES DEUX COPIES.
+  // `pipeline-contenu-validation.spec.ts` fait tourner `valider.mjs` sur ces racines, et rien d'autre :
+  // le COMPILATEUR porte pourtant sa PROPRE implémentation des deux mêmes règles
+  // (`resoudreRenvoisDeSection`, `verifierRenvoisDeModule`). Les deux copies pouvaient donc diverger
+  // sans qu'aucun gate rougisse — c'est le défaut mesuré ce jour même sur `nomDeConteneur`, où le
+  // juge d'AMONT laissait passer ce que l'aval refusait (famille S-010). La parade est de pointer
+  // les DEUX moteurs sur la MÊME racine, jamais de supposer que l'un couvre l'autre.
+  //
+  // ⚠️ CE NE SONT PAS DES DOUBLONS : chaque assertion épingle le morceau de message que SEUL le
+  // compilateur peut produire — les ancres SUFFIXÉES pour l'ambiguïté (le validateur, qui ne voit
+  // que des lignes brutes, nomme des lignes), et le `statut` lu sur la leçon compilée pour le module.
+  describe('les deux règles rouges du contrat, côté COMPILATEUR', () => {
+    const INVALIDES = 'tools/content-pipeline/__fixtures__/invalides';
+
+    /** Compile une racine attendue ROUGE et rend son compte-rendu ; lève si elle est acceptée. */
+    function messageDEchecDeLaRacine(dossier: string): string {
+      try {
+        compiler(join(INVALIDES, dossier), join(bacASable, `racine-${dossier}.scss`));
+      } catch (erreur) {
+        const echec = erreur as { status?: number; stderr?: string };
+        expect(echec.status).not.toBe(0);
+        return echec.stderr ?? '';
+      }
+      throw new Error(`« ${dossier} » a été COMPILÉ — le garde-fou du compilateur n'a pas mordu`);
+    }
+
+    it('refuse un titre AMBIGU en nommant les DEUX ancres — jamais « la première gagne »', () => {
+      const message = messageDEchecDeLaRacine('voir-titre-ambigu');
+      expect(message).toContain('titre AMBIGU');
+      // 🔴 LE DISCRIMINANT EST LA SECONDE ANCRE, SUFFIXÉE. Un compilateur qui refuserait TOUT
+      // renvoi de section passerait la première assertion ; seule celle-ci prouve qu'il a bien
+      // trouvé DEUX sections et fabriqué deux ancres distinctes — c'est-à-dire qu'il a refusé pour
+      // la bonne cause. La virgule ancre la première : sans elle, elle serait un préfixe de la
+      // seconde et l'assertion se contenterait d'un message qui n'en nomme qu'une.
+      expect(message).toContain('#ce-que-le-validateur-regarde,');
+      expect(message).toContain('#ce-que-le-validateur-regarde-2');
+    }, DELAI);
+
+    it('refuse un renvoi « module: » dont la cible n’est pas « publiee » — sinon une 404 servie', () => {
+      const message = messageDEchecDeLaRacine('voir-module-non-publiee');
+      expect(message).toContain('« cible »');
+      // Le STATUT LU, pas le simple fait du refus : un compilateur dont l'index slug → statut
+      // serait vide refuserait TOUT renvoi « module: » et passerait pour juste.
+      expect(message).toContain('en « statut: verifiee »');
+    }, DELAI);
+  });
+
+  // ---------------------------------------------------------------------------------------------
+  // LA PHRASE D'UNE ÉTAPE — À DEUX MAINS (patron S-011 (e))
+  // ---------------------------------------------------------------------------------------------
+  // La phrase d'une étape est du TEXTE LIBRE D'AUTEUR nouvellement rendu au DOM, par un appel neuf
+  // à `md.renderInline`. Le patron du dépôt exige alors les DEUX moitiés : la charge s'affiche
+  // ENTIÈRE — sinon on certifierait un assainissement qui MANGE du contenu, et l'auteur perdrait du
+  // texte en silence — ET elle n'engendre AUCUN nœud, sinon on certifierait un affichage qui
+  // exécute. Un test qui ne vérifie qu'une moitié certifie un no-op sur l'autre.
+  describe('la phrase d’une étape, à DEUX MAINS', () => {
+    const CHARGE = '<img src=x onerror="alert(1)">';
+    let html = '';
+
+    beforeAll(() => {
+      const racine = leconAdHoc('marche-echappement', (source) =>
+        source.replace(
+          '## Ce que le validateur regarde',
+          [
+            '## En bref — la marche à suivre',
+            '',
+            ':::: marche-a-suivre {titre="Ne jamais recopier une charge utile"}',
+            '',
+            `1. Ne jamais coller ${CHARGE} dans une étape.`,
+            '',
+            '::::',
+            '',
+            '## Ce que le validateur regarde',
+          ].join('\n'),
+        ),
+      );
+      const { lecons } = compiler(racine, join(bacASable, 'marche-echappement.scss'));
+      const marche = tousLesBlocs(lecons[0]?.sections ?? []).find(
+        (bloc) => bloc.type === 'marche-a-suivre',
+      );
+      html = marche?.etapes?.[0]?.html ?? '';
+    }, DELAI);
+
+    it('AFFICHE la charge en ENTIER — l’échappement ne mange rien', () => {
+      const porteur = document.createElement('div');
+      porteur.innerHTML = html;
+      expect(porteur.textContent).toContain(CHARGE);
+    });
+
+    it('n’engendre AUCUN nœud élément — le texte de l’auteur reste du texte', () => {
+      const porteur = document.createElement('div');
+      porteur.innerHTML = html;
+      // ON ANALYSE, on ne cherche pas `<img` dans la chaîne : le texte de l'auteur CONTIENT la
+      // sous-chaîne surveillée, donc un motif s'apparierait à la charge AFFICHÉE aussi bien qu'à
+      // une balise réelle (S-014). L'arbre, lui, ne ment pas.
+      expect(porteur.querySelectorAll('*')).toHaveLength(0);
     });
   });
 });

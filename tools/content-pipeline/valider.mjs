@@ -131,6 +131,10 @@ const CONTENEURS_AUTORISES = new Set([
   'comparaison',
   'vulnerable',
   'corrige',
+  // LA MARCHE À SUIVRE (décision D-A, 2026-08-31) — le résumé actionnable en tête de leçon. Ce
+  // n'est pas un encadré : il n'a pas de variante, il porte un `{titre="…"}` obligatoire et son
+  // contenu est une liste ordonnée d'étapes, pas de la prose libre.
+  'marche-a-suivre',
   'attention',
   'note',
   'a-retenir',
@@ -591,7 +595,12 @@ function titresDuCorps(lignes) {
     if (l.code) continue;
     // Préfixe seul (`###` + UNE blanche), le titre se prend en JS : `\s+` suivi de `(.+?)\s*$`
     // faisait travailler le moteur sur chaque découpe possible de la blanche (S8786).
-    const t = /^(#{1,6})\s/.exec(l.texte);
+    // 🔴 LES 0 À 3 BLANCHES DE TÊTE SONT CELLES QUE COMMONMARK ADMET, et le même fichier les écrit
+    // déjà dans `marqueurDeConteneur` et `MOTIF_ITEM_ORDONNE`. Sans elles, `  ## Titre` était une
+    // section pour le compilateur et n'existait pas pour le validateur : un `{voir="Titre"}` était
+    // alors refusé pour « introuvable » — une cause FAUSSE — et les deux copies pouvaient compter
+    // un nombre différent de sections homonymes, donc diverger sur l'ambiguïté. Famille S-010.
+    const t = /^\s{0,3}(#{1,6})\s/.exec(l.texte);
     if (!t) continue;
     // 🔴 LA SÉQUENCE ATX FERMANTE SE RETIRE ICI, PARCE QUE markdown-it LA RETIRE.
     // CommonMark admet `### Titre ##` : les `#` de fin sont une fermeture, pas du texte. Le
@@ -922,11 +931,10 @@ function verifierConteneursEnListeFermee(lignes, signaler) {
     if (l.code) continue;
     const marqueur = marqueurDeConteneur(l.texte);
     if (marqueur === null || marqueur.suite === '') continue; // pas un marqueur, ou une fermeture
+    // Le nom est le PREMIER JETON séparé par des blanches, comme chez markdown-it : un
+    // `:::: marche-a-suivre{titre="…"}` (l'espace oubliée) tombe donc ici, et non dans la marche
+    // à suivre — voir l'en-tête de `nomDeConteneur`.
     const identifiant = nomDeConteneur(marqueur.suite);
-    if (identifiant === null) {
-      signaler(`corps ligne ${l.numero} : conteneur « ::: ${marqueur.suite} » sans nom lisible`);
-      continue;
-    }
     if (!CONTENEURS_AUTORISES.has(identifiant)) {
       signaler(
         `corps ligne ${l.numero} : conteneur « ::: ${identifiant} » hors de la liste fermée ` +
@@ -963,11 +971,47 @@ function marqueurDeConteneur(texte) {
 /**
  * Extrait le nom d'un conteneur de la suite rendue par `marqueurDeConteneur`.
  *
- * @param {string} suite
- * @returns {string | null} `null` si aucun nom lisible
+ * 🔴 LE PRÉDICAT EST CELUI DE markdown-it, MOT POUR MOT — `params.trim().split(/\s+/)[0] === nom`
+ * (`compiler-markdown.mjs`, `creerMarkdownIt`). Il ne l'était pas : ce fichier lisait
+ * `/^([A-Za-z0-9-]+)/`, qui **s'arrête sur `{`**. Mesuré le 2026-09-02 sur
+ * `:::: marche-a-suivre{titre="…"}` (l'espace oubliée) : le validateur rendait « 2 leçon(s)
+ * valides » en code 0, tandis que le compilateur refusait la même racine — « conteneur inconnu ».
+ * La construction restait fail-CLOSED (rien n'était publié en clair), mais les deux copies
+ * DIVERGEAIENT, et le juge d'amont laissait passer ce que l'aval refuse : famille S-010, les deux
+ * copies d'une règle doivent lire la MÊME chaîne. Un nom collé à son accolade est désormais un
+ * conteneur INCONNU ici aussi, refusé en se nommant par la règle 7.
+ *
+ * ⚠️ LE RETOUR N'EST PLUS NULLABLE, ET C'EST STRUCTUREL : `marqueurDeConteneur` rend une `suite`
+ * déjà rognée, et l'appelant a écarté la fermeture (`suite === ''`) ; un premier jeton d'une
+ * chaîne non vide sans blanche de tête ne peut pas être vide. Garder une branche « nom illisible »
+ * qu'aucune entrée ne peut atteindre serait un invariant que rien n'observe (L-063).
+ *
+ * @param {string} suite déjà rognée, et non vide (l'appelant a écarté la fermeture)
+ * @returns {string} le premier jeton séparé par des blanches — jamais vide
  */
 function nomDeConteneur(suite) {
-  return /^([A-Za-z0-9-]+)/.exec(suite)?.[1] ?? null;
+  return suite.trim().split(/\s+/)[0] ?? '';
+}
+
+/**
+ * Blanchit les segments de `code en ligne` d'une ligne, SUR PLACE et à longueur égale.
+ *
+ * 🔴 UN OUTIL, DEUX RÈGLES — ne pas en écrire un second. La règle G1 (marqueurs de provenance)
+ * s'en sert depuis toujours ; la marche à suivre s'en sert depuis le 2026-09-02, pour la même
+ * raison exactement : ce dépôt écrit des leçons SUR SON PROPRE PIPELINE, et une étape qui
+ * DOCUMENTE la syntaxe du renvoi — l'amorce citée entre accents graves, au milieu de la phrase —
+ * déclenchait « le renvoi n'est pas en TÊTE » sur du contenu parfaitement légitime. C'est le
+ * sur-refus de S-015 : le contenu le plus certain de faire mordre un garde-fou par motif est la
+ * leçon qui enseigne le motif surveillé.
+ *
+ * La longueur est PRÉSERVÉE pour que la colonne rapportée reste celle du fichier réel, et pour
+ * qu'un `slice` calculé sur la chaîne d'origine reste valide sur la chaîne blanchie.
+ *
+ * @param {string} texte
+ * @returns {string} la même chaîne, ses segments `…` remplacés par autant d'espaces
+ */
+function blanchirCodeEnLigne(texte) {
+  return texte.replace(/`+[^`]*`+/g, (m) => ' '.repeat(m.length));
 }
 
 /**
@@ -989,7 +1033,7 @@ function nomDeConteneur(suite) {
 function verifierMarqueursDeProvenanceLitteraux(lignes, signaler) {
   for (const l of lignes) {
     if (l.code) continue;
-    const texte = l.texte.replace(/`+[^`]*`+/g, (m) => ' '.repeat(m.length));
+    const texte = blanchirCodeEnLigne(l.texte);
     for (const [caractere, libelle] of MARQUEURS_PROVENANCE_LITTERAUX) {
       if (texte.includes(caractere)) {
         signaler(
@@ -1062,6 +1106,27 @@ const FORME_ATTENDUE_EXERCICE = `forme attendue : ::: ${VARIANTE_EXERCICE} {${AT
  * d'un appel à l'autre.
  */
 const MOTIF_PAIRE_ATTRIBUT = /\b([a-z-]+)="([^"]*)"/g;
+
+/** Le conteneur du résumé actionnable, et son unique attribut (obligatoire, non vide). */
+const CONTENEUR_MARCHE = 'marche-a-suivre';
+const ATTRIBUT_TITRE = 'titre';
+/** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
+const ATTRIBUT_VOIR = 'voir';
+const PREFIXE_MODULE = 'module:';
+/**
+ * Le renvoi d'une étape — ancré sur `^`, DONC EN TÊTE, exactement comme dans le compilateur. Les
+ * deux copies doivent voir la MÊME CHAÎNE : c'est le défaut du lot 1a (`### Titre ##`, fermeture
+ * ATX légale que l'un voyait et l'autre pas), et il ne se repaie pas.
+ */
+const MOTIF_VOIR_EN_TETE = new RegExp(`^\\{${ATTRIBUT_VOIR}="([^"]*)"\\}`);
+/** Ce qu'on cherche pour dire « il y a un renvoi ICI, mais pas au bon endroit ». */
+const AMORCE_VOIR = `{${ATTRIBUT_VOIR}=`;
+/**
+ * L'ITEM D'UNE LISTE ORDONNÉE, tel que CommonMark le définit : au plus trois blanches, un à neuf
+ * chiffres, un `.` ou un `)`, puis au moins une blanche. Préfixe seul, le texte se prend en JS —
+ * même raison qu'en `lignesDuCorps` et `titresDuCorps` (S8786).
+ */
+const MOTIF_ITEM_ORDONNE = /^\s{0,3}\d{1,9}[.)]\s/;
 
 /**
  * La forme d'auteur attendue, PAR VARIANTE. Un auteur qui se trompe doit lire la forme correcte
@@ -1492,11 +1557,241 @@ function verifierAttributsDesEncadres(lignes, ancrage, signaler) {
     const marqueur = marqueurDeConteneur(l.texte);
     if (marqueur === null || marqueur.suite === '') continue;
     const nom = nomDeConteneur(marqueur.suite);
-    // `null` : nom illisible, et un conteneur hors de la matrice n'est pas un encadré — les deux
-    // sont déjà nommés par la règle 7, qui en donne la vraie cause.
-    if (nom === null || !ATTRIBUTS_ADMIS_PAR_VARIANTE.has(nom)) continue;
+    // Un conteneur hors de la matrice n'est pas un encadré — et s'il est hors de la liste fermée,
+    // la règle 7 en donne déjà la vraie cause.
+    if (!ATTRIBUTS_ADMIS_PAR_VARIANTE.has(nom)) continue;
     const cause = causeDAttributsDEncadre(nom, marqueur.suite.slice(nom.length).trim(), ancrage);
     if (cause !== null) signaler(`corps ligne ${l.numero} : ${cause}`);
+  }
+}
+
+/**
+ * --- 11. La MARCHE À SUIVRE : son titre, et les renvois de ses étapes (décision D-A) ---
+ *
+ * 🔴 CE QUE CETTE COPIE JUGE, ET CE QU'ELLE LAISSE AU COMPILATEUR — délibérément, et écrit ici
+ * pour que personne ne « complète » la règle sans mesurer.
+ *
+ * Le validateur lit la LIGNE BRUTE ; le compilateur lit les jetons de markdown-it. Tout ce qui se
+ * juge sur une ligne — le `{titre="…"}` du conteneur, la grammaire du `{voir="…"}` et sa position
+ * en tête d'item, l'existence et l'unicité du titre de section visé — est jugé ici, sur EXACTEMENT
+ * la même chaîne que le compilateur (`titresDuCorps` a dépouillé les titres de leur bloc
+ * d'attributs ET de leur séquence ATX fermante, comme markdown-it le fait ; il admet les 0 à 3
+ * blanches de tête de CommonMark, et `nomDeConteneur` applique le prédicat de markdown-it —
+ * les deux divergeaient jusqu'au 2026-09-02, voir leurs en-têtes).
+ *
+ * ⚠️ CE QUE « LA MÊME CHAÎNE » NE COUVRE PAS, ET QU'IL FAUT LIRE COMME UNE RÉSERVE : le
+ * compilateur voit le document APRÈS le retrait des commentaires HTML et après l'analyse des
+ * listes de CommonMark. Une marche à suivre écrite dans un `::: note` est donc suivie par le
+ * compilateur (`recenserMarches` descend) et n'est ici qu'une suite de lignes ; et un item de
+ * liste PARESSEUX (continuation non indentée) n'est un item que pour markdown-it. Les deux cas
+ * sont refusés en aval, pas ici — c'est la même frontière que la STRUCTURE d'un item, décrite au
+ * paragraphe suivant.
+ *
+ * La STRUCTURE d'un item, elle, reste au compilateur : « pas de deuxième bloc de code », « pas de
+ * titre », « pas de liste imbriquée », « pas d'étape sans phrase ». La reproduire ici obligerait à
+ * réimplémenter l'analyse des listes de CommonMark sur des lignes — continuations, indentation,
+ * paragraphes lâches — c'est-à-dire la liste de motifs sur un format structuré que
+ * `.claude/rules/security.md` §4 interdit (S-001, S-003, S-009). Même arbitrage, mot pour mot, que
+ * le compte des ancres `[[quiz]]`, qui vit lui aussi dans le seul compilateur. ⚠️ La conséquence
+ * est nommée : une faute de STRUCTURE sort de `ng build`/`content:build` et non de la seule passe
+ * de validation — les deux tournent dans `content:build`, donc l'auteur la voit, mais pas au même
+ * endroit du journal.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {ReadonlyArray<{ niveau: number, texte: string, numero: number }>} titres titres DÉPOUILLÉS
+ * @param {(cause: string) => void} signaler
+ * @returns {{ ligne: number, slug: string }[]} les modules CITÉS — jugés par `validerRacine`, seule
+ *   à voir les autres leçons du sujet et leurs statuts
+ */
+function verifierMarchesASuivre(lignes, titres, signaler) {
+  /** @type {{ ligne: number, slug: string }[]} */
+  const modulesCites = [];
+  const sections = titres.filter((t) => t.niveau === 2 || t.niveau === 3);
+  const sectionsDeNiveau2 = titres.filter((t) => t.niveau === 2);
+  let dansLaMarche = false;
+  let ouvertures = 0;
+
+  for (const l of lignes) {
+    if (l.code) continue;
+    const marqueur = marqueurDeConteneur(l.texte);
+    if (marqueur !== null) {
+      // Une FERMETURE clôt la marche. Un conteneur imbriqué dans une marche à suivre est refusé par
+      // le compilateur ; ici, on se contente de ne pas prétendre le suivre.
+      if (marqueur.suite === '') dansLaMarche = false;
+      else if (nomDeConteneur(marqueur.suite) === CONTENEUR_MARCHE) {
+        dansLaMarche = true;
+        ouvertures += 1;
+        jugerOuvertureDeMarche(marqueur.suite, l.numero, ouvertures, sectionsDeNiveau2, signaler);
+      }
+      continue;
+    }
+    if (!dansLaMarche) continue;
+    const item = MOTIF_ITEM_ORDONNE.exec(l.texte);
+    if (item === null) continue;
+    jugerRenvoiDEtape(l.texte.slice(item[0].length), l.numero, sections, signaler, modulesCites);
+  }
+  return modulesCites;
+}
+
+/**
+ * Juge UNE ouverture de marche à suivre : son unicité dans la leçon, son titre, et sa place.
+ *
+ * Extraite de `verifierMarchesASuivre`, et pas seulement pour la complexité mesurée par G-lint :
+ * trois refus indépendants portés par une même ligne se lisent mieux hors du balayage. Le
+ * comportement est INCHANGÉ, ligne pour ligne.
+ *
+ * @param {string} suite ce qui suit les deux-points, déjà rogné (le nom du conteneur compris)
+ * @param {number} numero ligne de l'ouverture, dans le corps
+ * @param {number} ouvertures compte des ouvertures DÉJÀ vues, celle-ci comprise
+ * @param {ReadonlyArray<{ texte: string, numero: number }>} sectionsDeNiveau2 dans l’ordre du document
+ * @param {(cause: string) => void} signaler
+ */
+function jugerOuvertureDeMarche(suite, numero, ouvertures, sectionsDeNiveau2, signaler) {
+  // UNE SEULE MARCHE PAR LEÇON — le contrat dit « le résumé actionnable EN TÊTE », au singulier,
+  // et le rendu (lot 4) lui donne une place unique dans la page. Signalé sur la DEUXIÈME
+  // seulement : une troisième produirait une seconde cause pour une seule faute, ce que le mode
+  // `--fixtures` interdit.
+  if (ouvertures === 2) {
+    signaler(
+      `corps ligne ${numero} : DEUXIÈME « :::: ${CONTENEUR_MARCHE} » dans la même leçon — ` +
+        'une leçon n’a qu’un résumé actionnable ; ce qu’il y aurait à ajouter appartient à la théorie',
+    );
+  }
+  const cause = causeDuTitreDeLaMarche(suite.slice(CONTENEUR_MARCHE.length).trim());
+  if (cause !== null) signaler(`corps ligne ${numero} : ${cause}`);
+  const place = causeDeLaPlaceDeLaMarche(numero, sectionsDeNiveau2);
+  if (place !== null) signaler(`corps ligne ${numero} : ${place}`);
+}
+
+/**
+ * La PLACE de la marche à suivre : la section `##` qui la contient doit être celle qui suit
+ * IMMÉDIATEMENT « L'idée en une image ».
+ *
+ * 🔴 CETTE CLAUSE ÉTAIT ÉCRITE AU CONTRAT ET JUGÉE PAR PERSONNE (constat de revue du 2026-09-02,
+ * patron S-005 : une promesse plus forte que le gate). Elle est jugée ici parce que la donnée est
+ * déjà sous la main — le balayage connaît la ligne de l'ouverture, et `titresDuCorps` a rendu tous
+ * les `##` avec leur numéro. Ce qui reste NON jugé est nommé au contrat, section « Le conteneur
+ * `marche-a-suivre` » : le fait que la section ne contienne QUE ce conteneur.
+ *
+ * ⚠️ Silencieuse quand « L'idée en une image » manque : son absence est déjà refusée par la règle
+ * des sections requises, et une seconde cause pour une seule faute est interdite en `--fixtures`.
+ *
+ * @param {number} ligne ligne de l'ouverture `:::: marche-a-suivre`
+ * @param {ReadonlyArray<{ texte: string, numero: number }>} sectionsDeNiveau2 dans l'ordre du document
+ * @returns {string | null} la cause du refus, sans préfixe ; `null` si conforme
+ */
+function causeDeLaPlaceDeLaMarche(ligne, sectionsDeNiveau2) {
+  const ancre = sectionsDeNiveau2.findIndex((t) => t.texte === SECTIONS_REQUISES[0]);
+  if (ancre === -1) return null;
+  let contenante = -1;
+  for (let i = 0; i < sectionsDeNiveau2.length; i += 1) {
+    if ((sectionsDeNiveau2[i]?.numero ?? 0) < ligne) contenante = i;
+  }
+  if (contenante === ancre + 1) return null;
+  const nom =
+    contenante === -1 ? 'aucune section' : `« ## ${sectionsDeNiveau2[contenante]?.texte ?? ''} »`;
+  return (
+    `« :::: ${CONTENEUR_MARCHE} » est dans ${nom} — le contrat le place dans la section qui suit ` +
+    `IMMÉDIATEMENT « ## ${SECTIONS_REQUISES[0]} », avant la première section de théorie`
+  );
+}
+
+/**
+ * Le `{titre="…"}` d'une ouverture de marche à suivre — obligatoire, et NON VIDE.
+ *
+ * `{titre=""}` passe la grammaire des paires et rendrait une liste que rien n'annonce ; or c'est ce
+ * titre qu'un lecteur d'écran lit AVANT la liste. Même geste, même raison que `{source="…"}` sur
+ * une correction du cours.
+ *
+ * @param {string} reste ce qui suit le nom du conteneur, déjà rogné
+ * @returns {string | null} la cause du refus, sans préfixe ; `null` si conforme
+ */
+function causeDuTitreDeLaMarche(reste) {
+  const forme = `forme attendue : :::: ${CONTENEUR_MARCHE} {${ATTRIBUT_TITRE}="Monter l'environnement LAMP local"}`;
+  const accolade = /^\{(.*)\}$/.exec(reste);
+  if (accolade === null) {
+    const cite = reste === '' ? '' : ` (« ${reste} »)`;
+    return `« :::: ${CONTENEUR_MARCHE} » sans bloc d'attributs lisible${cite} — ${forme}`;
+  }
+  const { attributs, detail } = lireBlocDAttributs(accolade[1] ?? '', [ATTRIBUT_TITRE]);
+  if (detail !== null) {
+    return `attributs illisibles sur « :::: ${CONTENEUR_MARCHE} » — ${detail} ; ${forme}`;
+  }
+  if ((attributs[ATTRIBUT_TITRE] ?? '').trim() === '') {
+    return `« :::: ${CONTENEUR_MARCHE} » sans attribut « ${ATTRIBUT_TITRE} » non vide — ${forme}`;
+  }
+  return null;
+}
+
+/**
+ * Juge le renvoi d'UNE étape : sa grammaire, sa position, et — pour la forme « titre de section » —
+ * l'existence ET l'unicité de sa cible.
+ *
+ * 🔴 DEUX SECTIONS AU MÊME TITRE SONT UN REFUS, jamais « la première gagne ». Le message nomme les
+ * DEUX lignes en cause, et l'auteur tranche en renommant l'une d'elles. (Le compilateur, lui, nomme
+ * les deux ancres suffixées — il les a fabriquées ; ce fichier n'a que les lignes, et c'est
+ * l'information la plus directe pour aller corriger.)
+ *
+ * @param {string} texte le texte de l'item, marqueur de liste retiré
+ * @param {number} ligne
+ * @param {ReadonlyArray<{ niveau: number, texte: string, numero: number }>} sections titres `##`/`###`
+ * @param {(cause: string) => void} signaler
+ * @param {{ ligne: number, slug: string }[]} modulesCites muté
+ */
+function jugerRenvoiDEtape(texte, ligne, sections, signaler, modulesCites) {
+  const situe = `corps ligne ${ligne} : étape de « :::: ${CONTENEUR_MARCHE} »`;
+  // 🔴 L'AMORCE SE CHERCHE HORS DU `code en ligne`, JAMAIS SUR LA LIGNE BRUTE — même geste, même
+  // outil et même raison que la règle G1 (voir `blanchirCodeEnLigne`). La longueur est préservée,
+  // donc le `slice` calculé sur `tete[0]` reste valide sur la chaîne blanchie.
+  const horsCode = blanchirCodeEnLigne(texte);
+  const tete = MOTIF_VOIR_EN_TETE.exec(texte);
+  if (tete === null) {
+    if (texte.startsWith('{')) {
+      signaler(
+        `${situe} — bloc d'attributs illisible en tête ; seule la forme {${ATTRIBUT_VOIR}="…"} est acceptée, guillemets droits compris`,
+      );
+    } else if (horsCode.includes(AMORCE_VOIR)) {
+      signaler(
+        `${situe} — le renvoi n'est pas en TÊTE de l'étape ; « ${AMORCE_VOIR}…"} » s'écrit au début de l'item, avant la phrase`,
+      );
+    }
+    return;
+  }
+
+  const valeur = (tete[1] ?? '').trim();
+  if (horsCode.slice(tete[0].length).includes(AMORCE_VOIR)) {
+    signaler(`${situe} — deux renvois sur la même étape ; deux destinations valent deux étapes`);
+    return;
+  }
+  if (valeur === '') {
+    signaler(
+      `${situe} — renvoi vide ; citer un titre de section de cette leçon, ou « ${PREFIXE_MODULE}<slug> »`,
+    );
+    return;
+  }
+
+  if (valeur.startsWith(PREFIXE_MODULE)) {
+    const slug = valeur.slice(PREFIXE_MODULE.length).trim();
+    if (slug === '') signaler(`${situe} — « ${PREFIXE_MODULE} » sans slug`);
+    else modulesCites.push({ ligne, slug });
+    return;
+  }
+
+  const candidates = sections.filter((s) => s.texte === valeur);
+  if (candidates.length === 0) {
+    const connus = sections.map((s) => `« ${s.texte} »`).join(', ') || '(aucun)';
+    signaler(
+      `${situe} renvoie à « ${valeur} », qui n'est le titre d'aucune section de cette leçon ` +
+        `(titres : ${connus})`,
+    );
+    return;
+  }
+  if (candidates.length > 1) {
+    signaler(
+      `${situe} renvoie à « ${valeur} », titre AMBIGU — ${candidates.length} sections le portent ` +
+        `(lignes ${candidates.map((s) => s.numero).join(', ')}) ; renommer l'une d'elles, une ` +
+        'résolution positionnelle casserait en silence au premier renommage',
+    );
   }
 }
 
@@ -1531,8 +1826,8 @@ function compterEncadresDeProvenance(lignes) {
     const marqueur = marqueurDeConteneur(l.texte);
     if (marqueur === null || marqueur.suite === '') continue;
     const nom = nomDeConteneur(marqueur.suite);
-    // `null` : nom illisible — déjà signalé par la règle 7, qui en nomme la vraie cause.
-    if (nom !== null && VARIANTES_PROVENANCE.has(nom)) total += 1;
+    // Un nom hors de la liste fermée est déjà signalé par la règle 7, qui en nomme la vraie cause.
+    if (VARIANTES_PROVENANCE.has(nom)) total += 1;
   }
   return total;
 }
@@ -1615,7 +1910,7 @@ function verifierProvenanceVsStatut(lignes, statut, signaler) {
  * @param {string} statut
  * @param {Ancrage} ancrage
  * @param {(cause: string) => void} signaler
- * @returns {{ exercicesCites: { ligne: number, seance: number, reference: string }[] }} ce que le
+ * @returns {{ exercicesCites: { ligne: number, seance: number, reference: string }[], modulesCites: { ligne: number, slug: string }[] }} ce que le
  *   corps a CITÉ et que seule la racine entière peut juger (unicité et complétude, règles 16)
  */
 function verifierCorps(corps, statut, ancrage, signaler) {
@@ -1672,9 +1967,15 @@ function verifierCorps(corps, statut, ancrage, signaler) {
   // --- 10. Provenance tracée vs statut (G2) --------------------------------
   verifierProvenanceVsStatut(lignes, statut, signaler);
 
+  // --- 11. La marche à suivre : titre, et renvois de ses étapes (D-A) ------
+  // ⚠️ APRÈS le contrôle du gabarit, comme la règle 4d, et pour la même raison : les titres qu'elle
+  // confronte sont ceux que `titresDuCorps` a DÉPOUILLÉS. Elle recense en passant les modules cités,
+  // qu'elle ne peut pas juger seule.
+  const modulesCites = verifierMarchesASuivre(lignes, titres, signaler);
+
   // Le RECENSEMENT vient en dernier, et il ne signale rien : ce qu'il rend est jugé par
   // `validerRacine`, seule à voir toutes les leçons du sujet.
-  return { exercicesCites: recenserExercicesCites(lignes, ancrage) };
+  return { exercicesCites: recenserExercicesCites(lignes, ancrage), modulesCites };
 }
 
 /**
@@ -2176,7 +2477,7 @@ function verifierSeanceContreHoraire(frontmatter, horaire, signaler) {
  * @param {string} dossier chemin absolu du dossier de la leçon
  * @param {HoraireIndexe | null} horaire horaire du sujet, ou `null` s'il est absent ou refusé
  * @param {ExercicesIndexe | null} exercices registre du sujet, ou `null` s'il est absent ou refusé
- * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown, statut: string, seance: number | null, exercicesCites: { seance: number, reference: string }[] }}
+ * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown, statut: string, seance: number | null, exercicesCites: { seance: number, reference: string }[], modulesCites: { ligne: number, slug: string }[] }}
  */
 function validerLecon(dossier, horaire, exercices) {
   /** @type {Anomalie[]} */
@@ -2199,7 +2500,7 @@ function validerLecon(dossier, horaire, exercices) {
   const separation = MOTIF_FRONTMATTER.exec(texte);
   if (!separation) {
     signalerLecon('frontmatter absent ou non fermé — le fichier doit ouvrir par une ligne « --- »');
-    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [] };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [], modulesCites: [] };
   }
 
   /** @type {Record<string, unknown>} */
@@ -2208,13 +2509,13 @@ function validerLecon(dossier, horaire, exercices) {
     frontmatter = analyserFrontmatter(separation[1] ?? '');
   } catch (e) {
     signalerLecon(e instanceof ErreurContenu ? e.message : String(e));
-    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [] };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [], modulesCites: [] };
   }
 
   // --- 2. Schéma du frontmatter -------------------------------------------
   if (!validerFrontmatter(frontmatter)) {
     signalerLecon(`frontmatter : ${premiereErreurAjv(validerFrontmatter.errors)}`);
-    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [] };
+    return { anomalies, slug: null, ordre: null, sujet: null, section: null, statut: STATUT_INDETERMINE, seance: null, exercicesCites: [], modulesCites: [] };
   }
 
   const slug = String(frontmatter['slug']);
@@ -2243,7 +2544,7 @@ function validerLecon(dossier, horaire, exercices) {
         : new Map([...exercices.parSeance].map(([n, refs]) => [n, new Set(refs.keys())])),
   };
   const corps = texte.slice(separation[0].length);
-  const { exercicesCites } = verifierCorps(corps, statut, ancrage, signalerLecon);
+  const { exercicesCites, modulesCites } = verifierCorps(corps, statut, ancrage, signalerLecon);
   verifierTitreContreFrontmatter(corps, frontmatter, signalerLecon);
 
   // --- 8. quiz.json (obligatoire) -----------------------------------------
@@ -2261,6 +2562,7 @@ function validerLecon(dossier, horaire, exercices) {
     statut,
     seance: ancrage.seanceFrontmatter,
     exercicesCites,
+    modulesCites,
   };
 }
 
@@ -2770,6 +3072,57 @@ function exigerLesExercicesDuCours(racine, exercices, modules, anomalies) {
 }
 
 /**
+ * --- 17. Les renvois « module: » d'une marche à suivre (décision D-A) ---
+ *
+ * 🔴 CETTE RÈGLE NE PEUT VIVRE QU'ICI, comme la 16 : un `{voir="module:<slug>"}` se juge contre les
+ * AUTRES leçons du sujet, que `validerLecon` — qui n'en voit qu'une — ne peut pas comparer. Même
+ * stratification, même raison que la règle « tout-ou-rien » sur `section`.
+ *
+ * 🔴 UNE CIBLE QUI N'EST PAS `publiee` EST UN REFUS. Elle n'est pas prerendue : le lien servirait
+ * une 404 — l'incident de production du 2026-08-27 à l'identique. Le contrôle porte sur le statut
+ * AU MOMENT DU BUILD, jamais sur l'intention de publier plus tard.
+ *
+ * ⚠️ LE SLUG SE CONFRONTE AUX SLUGS DÉCLARÉS, PAS AUX NOMS DE DOSSIER. C'est le `slug` du
+ * frontmatter qui fait la route (`/cours/<sujet>/<slug>/`) ; un module dont le frontmatter est
+ * refusé n'en déclare aucun, il ne peut donc être ni cible ni source — le taire ici éviterait une
+ * SECONDE cause pour une faute déjà nommée.
+ *
+ * @param {readonly { rel: string, slug: string | null, statut: string, modulesCites: readonly { ligne: number, slug: string }[] }[]} modules
+ * @param {Anomalie[]} anomalies collecteur, muté sur place
+ */
+function exigerLesRenvoisDeModule(modules, anomalies) {
+  /** @type {Map<string, string>} */
+  const statutParSlug = new Map();
+  for (const module of modules) {
+    if (module.slug !== null) statutParSlug.set(module.slug, module.statut);
+  }
+  const declares = [...statutParSlug.keys()].join(', ') || '(aucun)';
+
+  for (const module of modules) {
+    for (const { ligne, slug } of module.modulesCites) {
+      const statut = statutParSlug.get(slug);
+      if (statut === undefined) {
+        anomalies.push({
+          fichier: module.rel,
+          cause:
+            `corps ligne ${ligne} : « ${ATTRIBUT_VOIR}="${PREFIXE_MODULE}${slug}" » renvoie à un ` +
+            `module inconnu de ce sujet (slugs déclarés : ${declares})`,
+        });
+        continue;
+      }
+      if (statut === 'publiee') continue;
+      anomalies.push({
+        fichier: module.rel,
+        cause:
+          `corps ligne ${ligne} : « ${ATTRIBUT_VOIR}="${PREFIXE_MODULE}${slug}" » renvoie à un ` +
+          `module en « statut: ${statut} » — un module non publié n'est pas prerendu, le lien ` +
+          'servirait une 404 (incident de production du 2026-08-27)',
+      });
+    }
+  }
+}
+
+/**
  * Valide toutes les leçons d'une racine.
  *
  * @param {string} racine chemin absolu
@@ -2806,7 +3159,7 @@ function validerRacine(racine) {
    * trié par `recenserLecons` (S-010 : un compte épinglé sur une cible découverte doit être
    * invariant, ou la découverte totalement ordonnée). Sans cet ordre, « déjà cité par X » nommerait
    * un module différent selon la plateforme.
-   * @type {{ rel: string, statut: string, seance: number | null, cites: { seance: number, reference: string }[] }[]}
+   * @type {{ rel: string, slug: string | null, statut: string, seance: number | null, cites: { seance: number, reference: string }[], modulesCites: { ligne: number, slug: string }[] }[]}
    */
   const modules = [];
 
@@ -2816,9 +3169,11 @@ function validerRacine(racine) {
     anomalies.push(...resultat.anomalies);
     modules.push({
       rel,
+      slug: resultat.slug,
       statut: resultat.statut,
       seance: resultat.seance,
       cites: resultat.exercicesCites,
+      modulesCites: resultat.modulesCites,
     });
     if (resultat.slug !== null) {
       const slug = resultat.slug;
@@ -2878,6 +3233,9 @@ function validerRacine(racine) {
 
   // --- 16. Exercices UNIQUES et TOUS placés (§6.4) -----------------------------
   exigerLesExercicesDuCours(racine, exercices, modules, anomalies);
+
+  // --- 17. Renvois « module: » d'une marche à suivre (décision D-A) -------------
+  exigerLesRenvoisDeModule(modules, anomalies);
 
   return { lecons: dossiers.length, anomalies };
 }

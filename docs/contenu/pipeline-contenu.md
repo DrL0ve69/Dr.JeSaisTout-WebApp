@@ -283,6 +283,26 @@ La PISTE de résolution, jamais l'énoncé — celui-ci vient de `exercices.json
 La section `## En bref — la marche à suivre` se place **juste après `## L'idée en une image`**, avant
 la première section de théorie. Elle ne contient **que** ce conteneur, à quatre deux-points :
 
+🔴 **CE QUE LE GATE JUGE, ET CE QU'IL LAISSE À LA RELECTURE — écrit ici pour que les deux ne se
+confondent pas.** Une clause de contrat que rien ne mesure est une promesse plus forte que le gate
+(patron **S-005**), et c'est exactement ce qu'une revue a trouvé sur ce paragraphe le 2026-09-02.
+
+| Clause | Jugée par | Comment |
+|---|---|---|
+| la **place** de la section — elle suit immédiatement `## L'idée en une image` | `valider.mjs` | refus nommé, pour **tout** module qui porte une marche à suivre |
+| le `{titre="…"}` obligatoire et non vide | les **deux** copies | refus nommé |
+| la grammaire et la position en tête du `{voir="…"}`, la cible d'un titre de section | les **deux** copies | refus nommé |
+| la cible d'un `{voir="module:<slug>"}` — slug connu **et** `statut: publiee` | les **deux** copies | refus nommé, à la racine entière (une leçon seule ne voit pas ses sœurs) |
+| la **structure** d'une étape (un seul bloc de code, aucune liste imbriquée, aucun titre) | `compiler-markdown.mjs` **seul** | refus nommé, à la compilation |
+| « la section ne contient **que** ce conteneur » | **personne** | convention éditoriale, tenue à la relecture |
+
+⚠️ **La dernière ligne est un choix, pas un oubli.** Le validateur lit des **lignes brutes** : juger
+ce qu'une section contient *en plus* du conteneur l'obligerait à réimplémenter l'analyse des blocs
+de CommonMark — continuations, paragraphes lâches, indentation — c'est-à-dire la liste de motifs sur
+un format structuré que [`.claude/rules/security.md`](../../.claude/rules/security.md) §4 interdit.
+Même arbitrage, mot pour mot, que la structure d'une étape, laissée au compilateur. Le jour où cette
+clause doit mordre, elle se juge **sur l'AST compilé**, jamais par un balayage de lignes.
+
 ````markdown
 :::: marche-a-suivre {titre="Monter l'environnement LAMP local"}
 

@@ -2512,4 +2512,92 @@ lignes mutées avant exécution, précaution héritée de [[L-015]].
 
 ---
 
+## L-087 · Deux copies d'un prédicat de nom doivent lire la MÊME chaîne — une divergence compte comme défaut même quand elle reste fail-closed
+
+**Symptôme.** Lot 3 « leçons actionnables » (2026-09-02). Le validateur amont (`valider.mjs`, lignes
+brutes) et le compilateur aval (`compiler-markdown.mjs`, jetons markdown-it) tiennent chacun leur
+propre lecture du nom d'un conteneur `::::`. Le validateur lisait `/^([A-Za-z0-9-]+)/` — qui s'arrête
+au premier `{` — quand markdown-it fait `params.trim().split(/\s+/)[0] === nom`. Sur
+`:::: marche-a-suivre{titre="…"}` (espace oubliée avant l'accolade), le validateur rendait « 2
+leçon(s) valides » en code 0, le compilateur refusait la même racine. Une revue de code a d'abord
+titré ça « Majeur : publication de balisage d'auteur en clair » — **faux**, la chaîne restait
+fail-closed, rien n'atteignait le lecteur.
+
+**Règle.** Le vrai défaut est la divergence elle-même : **le juge d'amont laissait passer ce que
+l'aval refuse**, donc l'auteur recevait le mauvais message et rien ne garantissait que la prochaine
+divergence tomberait, elle aussi, du bon côté. Une divergence entre deux implémentations d'une même
+règle **n'a pas besoin d'être exploitable pour compter comme défaut** — la surqualifier en faille
+est ce qui empêche de la corriger au bon endroit (dans le prédicat, pas dans une couche de défense).
+Cousine de [[L-064]] (deux mesures doivent porter sur la même couche d'observation) et de [[L-068]]
+(une règle dupliquée par une frontière structurelle doit couvrir toutes ses copies) : ici la
+frontière est amont/aval du même pipeline, pas un tsconfig.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` (`nomDeConteneur`, `titresDuCorps`) ;
+`tools/content-pipeline/compiler-markdown.mjs` ; lot 3 « leçons actionnables », 2026-09-02 ;
+[[L-064]], [[L-068]].
+
+---
+
+## L-088 · Une fixture invalide ne prouve QU'UNE des deux implémentations d'une règle dupliquée
+
+**Symptôme.** Même lot. `__fixtures__/invalides/` est la table câblée de
+`pipeline-contenu-validation.spec.ts`, qui ne fait tourner que **`valider.mjs`**. Deux règles du
+contrat de `:::: marche-a-suivre` — « deux sections au même titre = refus » et « un `{voir=…}`
+exige `statut: publiee` sur la cible » — sont implémentées une seconde fois côté **compilateur**
+(`resoudreRenvoisDeSection`, `verifierRenvoisDeModule`). Trois fixtures neuves donnaient l'illusion
+d'une couverture complète alors que la moitié compilateur n'avait aucun contrôle positif.
+
+**Règle.** Quand une règle existe en double par nécessité de frontière (amont/aval, cf. [[L-087]]),
+chaque copie a besoin de **son propre** contrôle positif prouvé par mutation — pointer les deux
+implémentations sur les **mêmes** racines de fixture, avec des assertions qui épinglent le fragment
+de message que **seule** cette copie peut produire. Preuve par mutation appliquée ici :
+`if (candidates.length > 1)` → `if (false)` et `if (statut !== 'publiee')` → `if (false)` donnent
+chacun exactement 1 rouge, restauration prouvée par `sha256` identique. Cousine directe de [[L-068]]
+et de la discipline de mutation de [[L-010]]/[[L-074]].
+
+**Réfs.** `src/pipeline-contenu-compilation.spec.ts` (neuf) ; `src/pipeline-contenu-validation.spec.ts` ;
+`resoudreRenvoisDeSection`, `verifierRenvoisDeModule` ; [[L-068]], [[L-087]], [[L-010]].
+
+---
+
+## L-089 · Une assertion sur un message d'erreur FRANÇAIS se copie-colle depuis la sortie réelle, jamais ne se retape
+
+**Symptôme.** Même lot. Les messages de refus du pipeline de contenu portent des caractères hors
+clavier : espace insécable U+00A0 (« étape n° 1 »), apostrophe typographique U+2019 (« n'est pas »)
+coexistant dans le même fichier avec l'apostrophe droite `'` (« qui n'est le titre »), guillemets
+« ». Une assertion retapée avec une espace ordinaire échoue sur un produit **sain** ; une assertion
+retapée avec la mauvaise apostrophe peut au contraire rester **verte par vacuité** si la sous-chaîne
+cherchée n'existe nulle part.
+
+**Règle.** Toute assertion sur un message d'erreur en français se copie-colle depuis la sortie
+réelle du programme, jamais ne se retape de mémoire ; tout caractère invisible qu'elle contient
+s'écrit en échappement (` `) pour rester visible à la relecture. Cousine directe de [[L-015]]
+(fins de ligne CRLF) et de [[L-066]] (`toContainText` normalise U+00A0) : même famille — un octet
+qu'on ne voit pas fait diverger la mesure de l'intention de l'assertion.
+
+**Réfs.** `src/pipeline-contenu-validation.spec.ts`, `src/pipeline-contenu-compilation.spec.ts` ;
+lot 3 « leçons actionnables », 2026-09-02 ; [[L-015]], [[L-066]].
+
+---
+
+## L-090 · La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche
+
+**Symptôme.** Même lot. Le brief nommait `content:build`, `npm test`, `typecheck:tools` — sans
+G-lint, le seul gate portant les règles `sonarjs` de complexité cognitive et de gabarits imbriqués.
+Le lot a écrit ~500 lignes de `.mjs` neuf ; à la vérification finale, `npm run lint` sortait rouge
+sur 7 erreurs (complexité 19/19/25, quatre gabarits imbriqués), sur un lot par ailleurs entièrement
+vert. Aucune n'était un défaut de comportement — toutes de vraies dettes de lisibilité, correctif
+mécanique (extraction de fonctions, sortie de sous-expressions en `const`).
+
+**Règle.** Un lot qui écrit du code d'**outillage** neuf (`tools/**/*.mjs`, scripts, générateurs)
+porte G-lint dans sa liste de gates, quelle que soit la couche visée (contenu, build, CI) — l'omettre
+reporte un rouge certain sur le fil principal, au moment où le lot se croit fini. Cousine de
+[[L-045]] (un périmètre de lot qui exclut un gate ne peut pas voir les régressions que ce gate
+attrape ailleurs).
+
+**Réfs.** `tools/content-pipeline/compiler-markdown.mjs`, `tools/content-pipeline/valider.mjs` ;
+`npm run lint` ; lot 3 « leçons actionnables », 2026-09-02 ; [[L-045]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
