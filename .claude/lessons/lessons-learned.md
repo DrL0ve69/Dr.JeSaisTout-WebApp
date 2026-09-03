@@ -2510,6 +2510,22 @@ lignes mutées avant exécution, précaution héritée de [[L-015]].
 **Réfs.** `src/app/features/cours/lecon/lecon.ts` (l. 475, 490) ; revue à regard neuf du
 2026-09-02, lot 2 « leçons actionnables » ; [[L-035]], [[L-074]], [[L-039]], [[L-015]].
 
+**Addendum (lot 4, 2026-09-02) — la variante SORTIE : exercer N branches n'est pas prouver N
+branches.** La fixture `marche-a-suivre` portait bien les quatre formes d'étape du contrat et le
+gabarit les rendait toutes — mais l'assertion sur la 4ᵉ branche (renvoi vers un **module**) ne
+lisait que `fragment` et `href` : muter `texte` en `''` laissait **1 028 tests** verts et publiait
+un `<a>` sans nom accessible (axe `link-name`, WCAG 2.4.4/4.1.2). Le commentaire de la fixture
+annonçait explicitement une couverture des quatre formes « pour ne laisser aucune branche sans
+exercice » — vrai sur l'exercice, faux sur la preuve. **Règle élargie de L-086 : pour chaque
+branche d'un gabarit, l'assertion ne se pose pas « est-elle rendue ? » mais « quelle mutation la
+ferait rougir ? »** — une fixture qui exerce N branches ne prouve pas N branches sans N assertions
+mutation-séparables. Corollaire mesuré au même lot : un `toContain(titre)` sur une chaîne
+**composée** (« Voir la section : « titre » ») reste vert si le préfixe disparaît — un `toContain`
+sur une chaîne ne tient que le fragment qu'il cite, jamais la forme entière.
+
+**Réfs addendum.** lot 4 « leçons actionnables », 2026-09-02 ; rendu `marche-a-suivre` (renvoi de
+module).
+
 ---
 
 ## L-087 · Deux copies d'un prédicat de nom doivent lire la MÊME chaîne — une divergence compte comme défaut même quand elle reste fail-closed
@@ -2597,6 +2613,53 @@ attrape ailleurs).
 
 **Réfs.** `tools/content-pipeline/compiler-markdown.mjs`, `tools/content-pipeline/valider.mjs` ;
 `npm run lint` ; lot 3 « leçons actionnables », 2026-09-02 ; [[L-045]].
+
+---
+
+## L-091 · Une liste d'exceptions NOMMÉES dans une feuille de styles ne pense pas toute seule au cas suivant — et un commentaire « même traitement que X » doit dire QUEL X
+
+**Symptôme.** Lot 4 « leçons actionnables » (2026-09-02). `rendu-blocs.scss` documente, en toutes
+lettres et avec sa raison, pourquoi quatre étiquettes d'encadré sortent du mixin `micro-etiquette` :
+il pose Silkscreen, une police bitmap faite pour deux mots, illisible en phrase longue. Le titre de
+`marche-a-suivre`, phrase de quatre à cinq mots par contrat, a été ajouté **sans passer devant ce
+paragraphe** — pire, son propre commentaire invoquait « le même traitement que l'étiquette d'un
+encadré », désignant en réalité les **trois** encadrés de ton, c'est-à-dire le mauvais précédent.
+
+**Règle.** Quand une feuille porte une liste d'exceptions nommées avec leur raison, tout ajout de
+même nature (une étiquette-phrase de plus) doit se demander s'il rejoint la liste — et **le dire**
+dans son propre commentaire, dans un sens ou dans l'autre. Un commentaire qui invoque « le même
+traitement que X » nomme **quel** X dès que X a plusieurs formes possibles. Ce qui a permis au
+défaut de survivre n'est pas la règle CSS elle-même mais l'absence de test : aucun test ne lisait
+`.marche-a-suivre` dans la feuille compilée, et la mutation de contrôle n'a rougi qu'**un seul**
+test — révélant que les quatre étiquettes-phrases d'encadré n'ont, elles non plus, aucune assertion
+de feuille. **Une exception documentée et non testée est une convention, pas un invariant.**
+
+**Réfs.** `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.scss` (mixin `micro-etiquette`) ;
+lot 4 « leçons actionnables », 2026-09-02.
+
+---
+
+## L-092 · `toContain` sur un TABLEAU teste l'égalité d'élément, pas l'inclusion de sous-chaîne — un matcher de sécurité doit se vérifier sur le type réellement observé
+
+**Symptôme.** Lot 4 « leçons actionnables » (2026-09-02). Une assertion de sécurité censée épingler
+le canal de sortie d'un champ d'auteur s'écrivait
+`expect(valeursDAttribut).not.toContain(charge)` sur un **tableau** de valeurs. Sous la mutation qui
+fait sortir la charge en `[attr.title]`, elle est restée **verte** : sur un tableau, `toContain`
+cherche un élément **égal**, alors que la valeur sortie était la charge **composée** dans une
+phrase (« Voir la section : « <charge> » »). Le même matcher sur une **chaîne** aurait cherché une
+sous-chaîne et aurait mordu.
+
+**Règle.** Un matcher dont la sémantique change avec le **type** de la valeur observée (tableau vs
+chaîne, pour `toContain`) se vérifie sur le type réellement produit par le code sous test — jamais
+sur la lecture du nom du matcher. Réécrite en `.some(v => v?.includes(charge))`, l'assertion rougit
+sous la même mutation, **mesuré, pas déduit**. Une assertion de sécurité qui passe son contrôle
+positif par accident de matcher est un no-op qui a l'air d'un garde-fou ; c'est exactement pour
+attraper cette classe d'écart — invisible à toute revue de lecture — que le contrôle positif par
+mutation est exigé sur ce dépôt. Cousine de [[L-086]] (une fixture/assertion qui a l'air complète
+ne l'est pas) et de la discipline de mutation de [[L-010]]/[[L-074]].
+
+**Réfs.** lot 4 « leçons actionnables », 2026-09-02 ; assertion de canal de sortie sur
+`marche-a-suivre` ; [[L-086]], [[L-010]], [[L-074]].
 
 ---
 
