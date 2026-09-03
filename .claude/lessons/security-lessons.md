@@ -569,6 +569,40 @@ l'état de cette collision précise.
 **Réfs.** `docs/contenu/pipeline-contenu.md` (section réécrite le 2026-08-21),
 `src/app/features/cours/simulation/simulation.ts` (commentaire d'en-tête corrigé le 2026-08-21).
 
+**🔴 NEUVIÈME AXE, le 2026-09-02 (lot 4 « marche-a-suivre », PR #46) — l'inventaire des QUATRE
+écarts lui-même se périme, en silence, du côté qui coûte cher.** Le commentaire de
+`generer-config-swa.mjs:755-763` **énumérait TROIS surfaces** pour l'écart (4) « valeur
+d'attribut », cité comme faisant foi à deux endroits (cette leçon, et le commentaire de sécurité
+écrit dans `rendu-blocs.ts` par le lot 4). Mesuré par grep des liaisons `[attr.…]`/`[value]` de
+`src/app`, il y en a **SIX** — les deux manquantes (`<option value>`/`[value]` du quiz, le nom de
+région de la simulation) n'avaient rien à voir avec ce lot : elles manquaient **depuis toujours**.
+Aggravant distinct : `CLAUDE.md` porte de son côté un **quatrième** inventaire, différent des deux
+autres — deux listes du même invariant, en désaccord, aucun test ne tenant ni l'une ni l'autre.
+**Ce que ça change par rapport à l'axe ci-dessus.** Le patron « à deux mains » (S-011 générale)
+protège le **canal** (texte vs attribut) au moment où un champ neuf est rendu. Il ne protège rien
+**après coup** : une liste de surfaces citée comme faisant foi, sans test qui la recompte contre le
+code réel, se périme à chaque `[attr.…]`/`[value]` ajouté à `src/app`, et son inexactitude ne se
+manifeste qu'au pire moment — le contrôle de conservation sort en code 1 **à la publication d'une
+leçon**, la personne qui diagnostique lit une liste **fausse**, le défaut paraît inexpliqué, et la
+correction qui vient à l'esprit sous pression est de **relâcher le compte** : exactement la pression
+que cette leçon existe pour désamorcer. **Un inventaire faux ne se contente pas d'être incomplet —
+il fabrique activement la pression d'assouplissement.**
+**Règle.** Une liste de surfaces citée comme preuve de complétude à plusieurs endroits (commentaire
+de code + `CLAUDE.md` + cette leçon) est un **contrat entre humains, non vérifié** — traiter sa
+dérive comme celle de tout garde-fou fail-closed non câblé ([[S-003]]) : soit un spec l'énumère et
+la confronte au code réel, soit le texte doit dire explicitement qu'elle n'est pas tenue par un
+test, pour qu'un lecteur sous pression sache qu'il lit une **conviction**, pas une **preuve**.
+**État réel, à ne pas confondre.** ✅ L'inventaire de `generer-config-swa.mjs` est corrigé : six
+surfaces énumérées avec `fichier:ligne`, et le commentaire dit désormais explicitement qu'aucun
+test ne le tient. 🔴 **Dette ouverte** : ni le spec d'énumération des liaisons `[attr.…]`/`[value]`
+de `src/app`, ni l'alignement de l'inventaire de `CLAUDE.md`. ⚠️ **Rien n'était exploitable** — le
+contrôle reste *fail-closed*, il casse le build au lieu de laisser passer ; le risque mesuré est un
+**diagnostic trompeur**, pas une faille. Ne pas surqualifier : ça ferait corriger au mauvais endroit.
+**Réfs additionnelles.** `tools/deploiement/generer-config-swa.mjs:755-763`,
+`src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts` (commentaire du lot 4), `CLAUDE.md`,
+PR #46 (lot 4, refonte « leçons actionnables »). Cousine de [[S-005]] (ce qu'un contrat promet doit
+être jugé par quelqu'un/quelque chose) et de [[S-020]] (valeur, pas seulement nom, à contraindre).
+
 ## S-012 · `npx` dans un job de CI qui produit l'artéfact publié est une résolution de code NON ÉPINGLÉE au moment de l'exécution (A08 · CICD-SEC)
 
 **Symptôme.** `ci.yml` bâtissait l'artéfact avec `npx ng build`. `npx` installe depuis le registre
