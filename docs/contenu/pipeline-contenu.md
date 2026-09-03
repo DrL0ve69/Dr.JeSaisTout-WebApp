@@ -336,6 +336,23 @@ un lecteur d'écran avant la liste.
 | `{voir="Titre de section"}` | le **texte écrit** des titres `##`/`###` de la **même leçon** | titre introuvable → build refusé, en nommant le titre cherché |
 | `{voir="module:<slug>"}` | le **manifeste de routes** | slug inconnu, **ou** module dont le `statut` n'est pas `publiee` → build refusé |
 
+**Ce que le lecteur voit, et c'est le RENDU qui le fixe (lot 4).** Le renvoi est le seul `<a>` de
+l'étape, bâti en `routerLink` + `fragment` — jamais un `href="#…"` nu, qui se résoudrait contre le
+`<base href="/">` et renverrait à l'accueil (**L-030**, mesurée sur ce dépôt).
+
+| Forme | Phrase rendue |
+|---|---|
+| `{voir="Les commandes, dans l'ordre"}` | Voir la section : « Les commandes, dans l'ordre » |
+| `{voir="module:02-environnement-linux"}` | Voir le module : « 02-environnement-linux » |
+
+🔴 **Le lien de module affiche le SLUG, pas le titre de la leçon cible — c'est un choix, et il est
+noté ici parce qu'il ne l'était nulle part.** Le contrat compilé ne porte que `{ cible:'module',
+slug }` : rendre le titre demanderait de l'ajouter au type, donc **d'amender le lot 3**, ce qui n'est
+pas un correctif de rendu. La matière existe pourtant (`compiler-markdown.mjs` bâtit déjà
+`statutParSlug` depuis `lecon.frontmatter`, qui porte `titre`) : **c'est un lot à part, pas un trou**.
+En attendant, un slug est un identifiant technique montré à un apprenant — l'auteur qui trouve cela
+rugueux renvoie vers une **section** plutôt que vers un module.
+
 🔴 **Le renvoi désigne un titre par son TEXTE, jamais par son ancre.** L'ancre est fabriquée par le
 compilateur (`ancrer`, qui **suffixe en cas de collision**) : un auteur qui écrirait
 `#les-commandes-dans-lordre` poserait un littéral fragile, qui casserait **en silence** au premier

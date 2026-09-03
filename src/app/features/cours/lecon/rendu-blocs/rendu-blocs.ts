@@ -14,7 +14,7 @@
 // `tsconfig.spec.json`. Une seule déclaration, trois programmes. Recopier ces formes
 // ici donnerait deux vérités qui divergeraient au premier champ ajouté (L-016).
 //
-// LES SEPT TYPES DE BLOCS SONT TRAITÉS EXPLICITEMENT, ET UN TYPE INCONNU LÈVE.
+// LES HUIT TYPES DE BLOCS SONT TRAITÉS EXPLICITEMENT, ET UN TYPE INCONNU LÈVE.
 // `preparer()` ci-dessous valide le `type` de chaque bloc contre une liste
 // NOMINATIVE avant tout rendu. Un JSON compilé par une version antérieure ou
 // postérieure du pipeline fait donc ÉCHOUER le prerender, en nommant le type fautif
@@ -55,9 +55,11 @@
 
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
+import { RouterLink } from '@angular/router';
 
 import { Quiz } from '../../quiz/quiz';
 import { Simulation } from '../../simulation/simulation';
+import { lienVersLecon } from '../navigation-lecon';
 import { INSECABLE, libelleDiapositives } from '../renvoi-au-cours';
 
 /**
@@ -72,6 +74,7 @@ const TYPES_RENDUS = [
   'comparaison',
   'mermaid',
   'encadre',
+  'marche-a-suivre',
   'ancre-quiz',
   'ancre-simulation',
 ] as const;
@@ -272,6 +275,33 @@ const VARIANTES_ENCADRE_RENDUES: readonly string[] = Object.keys(ETIQUETTES_ENCA
 const VARIANTE_SOURCEE = 'correction-du-cours';
 
 /**
+ * Les cibles de renvoi d'une étape que ce composant sait bâtir — liste NOMINATIVE.
+ *
+ * 🔴 CE N'EST PAS UNE PRÉCAUTION DE STYLE. Le gabarit ne porte qu'UN `<a>`, alimenté par
+ * `renvoiDeLEtape` ; sans cette liste, une cible inconnue venue d'un artéfact compilé par une
+ * autre version du pipeline tomberait dans la dernière branche et produirait un lien vers
+ * `['/cours/<sujet>', undefined]` — c'est-à-dire un lien MORT dans une leçon publiée, sans qu'aucun
+ * gate ne rougisse. L'inconnu échoue en se nommant, comme partout ailleurs dans ce fichier
+ * (patron S-009 / L-008).
+ */
+const CIBLES_RENVOI_RENDUES: readonly string[] = ['section', 'module'];
+
+/**
+ * Le refus d'une marche à suivre malformée, TOUJOURS sous le même préambule — même patron
+ * qu'`erreurPortee`, pour qu'un artéfact d'une autre version du pipeline se nomme de la même façon
+ * qu'il ait perdu son titre, ses étapes ou la cible d'un renvoi.
+ *
+ * @param ou la position fautive, déjà rédigée (« bloc n°2, étape n°1 »)
+ */
+function erreurMarche(ou: string, faute: string): Error {
+  return new Error(
+    `RenduBlocs : marche à suivre invalide (${ou}) — ${faute}. Le contrat est ` +
+      '`tools/content-pipeline/types.d.ts` ; le conteneur est compilé par ' +
+      '`compiler-markdown.mjs` — régénérer avec `npm run content:build`.',
+  );
+}
+
+/**
  * Le bloc `mermaid`, préparé : son `svg` est devenu une valeur de confiance, UNE
  * SEULE FOIS, dans `preparer()`. Le gabarit ne fait donc aucun appel de méthode —
  * une valeur `SafeHtml` recalculée à chaque détection remplacerait le SVG à chaque
@@ -289,6 +319,30 @@ interface MermaidPrepare {
 
 /** Ce que le gabarit consomme réellement : le contrat, `mermaid` mis à part. */
 type BlocPrepare = Exclude<BlocContenu, { type: 'mermaid' }> | MermaidPrepare;
+
+/** Le conteneur « marche à suivre » — décision D-A du 2026-08-31, rendu par le lot 4. */
+type BlocMarche = Extract<BlocContenu, { type: 'marche-a-suivre' }>;
+
+/** UNE étape de marche à suivre. Dérivée du contrat, jamais recopiée (L-016). */
+type EtapeMarche = BlocMarche['etapes'][number];
+
+/**
+ * Le renvoi d'une étape, RÉSOLU EN COMMANDES DE ROUTEUR — la seule forme que le gabarit lie.
+ *
+ * 🔴 `commandes` + `fragment`, JAMAIS un `href="#…"` (L-030, mesurée sur ce dépôt) :
+ * `index.html` pose un `<base href="/">`, donc un fragment NU se résout contre la BASE du
+ * document et renvoie le lecteur à l'ACCUEIL. Un `[routerLink]="[]"` désigne la route COURANTE
+ * et le routeur écrit un `href` ABSOLU, fragment compris, que le navigateur suit sans JS.
+ * Même patron que `simulation.ts` et que le sommaire de `lecon.ts`.
+ */
+interface RenvoiPrepare {
+  /** Le texte VISIBLE du lien — composé ici, interpolé là-bas dans un nœud texte. */
+  readonly texte: string;
+  /** `[]` pour la route courante (renvoi de section), le chemin du module sinon. */
+  readonly commandes: readonly string[];
+  /** `undefined` pour un renvoi de module : il vise une page, pas un titre. */
+  readonly fragment: string | undefined;
+}
 
 /**
  * Ce que le comptage des figures sait parcourir : le contrat, ET sa forme préparée. Les deux
@@ -391,7 +445,7 @@ interface TableDesRangs {
 
 @Component({
   selector: 'app-rendu-blocs',
-  imports: [Quiz, Simulation],
+  imports: [Quiz, Simulation, RouterLink],
   styleUrl: './rendu-blocs.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // AUCUN `@default` dans le `@switch` ci-dessous, et c'est délibéré : le cas
@@ -668,6 +722,99 @@ interface TableDesRangs {
               <p class="source">Source&nbsp;: {{ bloc.source }}</p>
             }
           </aside>
+        }
+
+        @case ('marche-a-suivre') {
+          <!--
+            LA MARCHE À SUIVRE — le résumé ACTIONNABLE en tête de leçon (refonte du
+            2026-08-31, décision D-A ; compilée au lot 3, rendue ici au lot 4).
+
+            🔴 LE TITRE EST UN <p>, PAS UN <h_>. Ce composant est monté une fois par
+            SECTION, et une fois de plus par récursion dans chaque encadré : il ne
+            connaît donc pas le niveau de titre où il se trouve. Émettre un <h3> ici
+            ferait sauter un niveau dès qu'un auteur pose sa marche à suivre sous un
+            <h2> ou dans un encadré — c'est-à-dire une violation heading-order
+            d'axe, publiée en silence. Le rôle de titre est rendu VISUELLEMENT
+            (micro-étiquette, même traitement que celui d'un encadré) et
+            SÉMANTIQUEMENT par le nom accessible de la liste, ci-dessous.
+
+            ⚠️ LE NOM DE LA LISTE PASSE PAR aria-label, JAMAIS PAR aria-labelledby +
+            id — même raison que le défileur de code plus haut : une leçon peut
+            porter plusieurs marches à suivre (une par module repris), plusieurs
+            instances de ce composant sont montées par page, et un identifiant qui se
+            répète est L-026. Le texte est donc écrit deux fois — vu dans le <p>,
+            entendu sur le <ol> —, ce qui est le prix à payer pour ne pas fabriquer
+            d'identifiant.
+            ⚠️ ET LE TITRE SORT DONC AUSSI EN VALEUR D'ATTRIBUT — c'est le résidu
+            nommé de S-011 sur ce chemin. Angular échappe la valeur, le DOM est sain
+            (mesuré à deux mains dans le spec) ; mais la SÉRIALISATION du prerender
+            n'échappe pas « < » dans une valeur d'attribut, si bien qu'un titre
+            d'auteur contenant « <script » ferait rougir le compte brut de
+            tools/deploiement/generer-config-swa.mjs. La parade est ÉDITORIALE,
+            jamais un assouplissement du gate — même patron que simulation.titre.
+
+            <ol> ET NON <ul> : la numérotation est SÉMANTIQUE. Une marche à suivre
+            dont on inverse deux pas n'est plus la même marche à suivre ; le lecteur
+            d'écran doit entendre « 1 sur 4 », pas une puce.
+          -->
+          <section class="marche-a-suivre">
+            <p class="etiquette">{{ bloc.titre }}</p>
+            <ol class="etapes" [attr.aria-label]="bloc.titre">
+              @for (etape of bloc.etapes; track $index; let rangEtape = $index) {
+                <li class="etape">
+                  <!--
+                    html est INLINE au contrat (pas de <p>) : c'est ce <span> qui
+                    l'accueille, à l'intérieur du <li>. Sanitizer d'Angular ACTIF,
+                    aucun contournement — même chemin que le bloc prose.
+                  -->
+                  <span class="phrase" [innerHTML]="etape.html"></span>
+                  @if (etape.code; as code) {
+                    <!--
+                      🔴 CE BLOC DE CODE N'A PAS DE NUMÉRO DE FIGURE, ET C'EST UN
+                      ARBITRAGE DU PROPRIÉTAIRE (2026-09-02), pas un oubli. Aucun
+                      <figcaption> « Exemple n° N », et cumulerFigures n'a pas de
+                      branche marche-a-suivre : la marche à suivre RÉSUME la leçon,
+                      une commande résumée en tête ne vole pas son numéro à l'exemple
+                      qui l'enseigne plus bas. Le jour où l'on voudrait la numéroter,
+                      c'est cumulerFigures qu'il faudrait toucher — et alors TOUS
+                      les décalages de la page bougeraient.
+                      ⚠️ LE DÉFILEUR RESTE UN ARRÊT DE TABULATION NOMMÉ. Pas de
+                      numéro de figure ne veut pas dire pas de nom : une région qui
+                      défile s'atteint au clavier (WCAG 2.1.1) et porte un nom
+                      accessible (2.4.6). Il est composé à partir du rang de l'ÉTAPE
+                      et du langage — jamais par etiquetteCode, dont la table des
+                      rangs ne connaît pas ces blocs, et qui lèverait.
+                    -->
+                    <div
+                      class="defileur"
+                      role="group"
+                      tabindex="0"
+                      [attr.aria-label]="etiquetteEtape(rangEtape, code.langage)"
+                      [innerHTML]="code.htmlColore"
+                    ></div>
+                  }
+                  @if (renvoiDeLEtape(etape); as renvoi) {
+                    <!--
+                      UN SEUL <a>, DEUX CIBLES : renvoiDeLEtape a déjà choisi les
+                      commandes et le fragment. Écrire deux liens dans deux branches
+                      de gabarit donnerait deux endroits où le patron routerLink
+                      pourrait diverger — et c'est justement celui que L-030 existe
+                      pour tenir.
+                      LE TEXTE EST INTERPOLÉ : renvoi.titre et renvoi.slug sont
+                      des champs d'auteur en texte libre (S-011). Jamais [innerHTML],
+                      jamais une valeur d'attribut concaténée.
+                    -->
+                    <a
+                      class="renvoi"
+                      [routerLink]="renvoi.commandes"
+                      [fragment]="renvoi.fragment"
+                      >{{ renvoi.texte }}</a
+                    >
+                  }
+                </li>
+              }
+            </ol>
+          </section>
         }
 
         @case ('ancre-quiz') {
@@ -954,6 +1101,76 @@ export class RenduBlocs {
   }
 
   /**
+   * Le nom accessible du défileur d'une ÉTAPE de marche à suivre — « Étape n° 1 — bash ».
+   *
+   * 🔴 IL NE PASSE PAS PAR `etiquetteCode`, ET CE N'EST PAS UNE DUPLICATION. Le bloc de code
+   * d'une étape n'entre PAS dans la numérotation des figures (arbitrage du propriétaire du
+   * 2026-09-02, écrit au point d'appel dans le gabarit) : `cumulerFigures` ne le compte pas, donc
+   * la table des rangs n'a aucune entrée pour lui et `etiquetteCode` LÈVERAIT. Le rang annoncé
+   * ici est celui de l'étape dans SA liste — la seule numérotation que le lecteur voit à côté,
+   * puisqu'elle est celle du `<ol>`. Les deux canaux disent donc la même chose (WCAG 2.5.3).
+   *
+   * ⚠️ AUCUN `<figcaption>` NE REPREND CETTE CHAÎNE, à la différence d'`etiquetteCode` : c'est le
+   * marqueur du `<li>` qui porte le numéro à l'œil. Le nom n'existe que pour la région défilante,
+   * qui doit en avoir un (WCAG 2.4.6) et rester un arrêt de tabulation (2.1.1).
+   */
+  etiquetteEtape(rangEtape: number, langage: Langage): string {
+    return `Étape n°${INSECABLE}${String(rangEtape + 1)}${INSECABLE}— ${langage}`;
+  }
+
+  /**
+   * Le renvoi d'une étape, résolu en commandes de routeur — ou `null` si l'étape n'en porte pas.
+   *
+   * UNE SEULE PLACE OÙ LE LIEN SE DÉCIDE, pour les DEUX cibles : le gabarit n'écrit qu'un `<a>`.
+   * Deux branches de gabarit donneraient deux endroits où le patron `[routerLink]` + `[fragment]`
+   * pourrait diverger, et c'est exactement celui que L-030 existe pour tenir.
+   *
+   * · `section` → `[]`, la route COURANTE, plus le fragment ; l'ancre a été FABRIQUÉE au build
+   *   (`ancrer`, `compiler-markdown.mjs`), elle n'est jamais un littéral d'auteur.
+   * · `module` → le chemin de la leçon, par `lienVersLecon` — LA fabrique du dépôt, jamais un
+   *   second chemin écrit ici (L-016). Le slug a été confronté au manifeste ET à `statut: publiee`
+   *   au build : un renvoi vers une page non prerendue est refusé là-bas, pas ici.
+   *
+   * `preparer()` a déjà refusé toute cible hors `CIBLES_RENVOI_RENDUES` — la levée finale couvre
+   * le seul cas qui resterait, celui d'un appel direct, et elle NOMME la cible plutôt que de
+   * rendre un lien mort.
+   *
+   * ⚠️ OUI, ELLE ALLOUE À CHAQUE DÉTECTION DE CHANGEMENTS, ET C'EST DÉLIBÉRÉ — la règle que ce
+   * fichier pose plus haut pour `MermaidPrepare` (« calculer UNE FOIS, jamais à chaque cycle »)
+   * ne s'applique pas ici, et le lecteur suivant ne doit pas y voir un oubli. Ce que cette règle
+   * protège est une IDENTITÉ DOM : un `SafeHtml` recréé fait remplacer le sous-arbre lié en
+   * `[innerHTML]`, donc perdre la position de défilement et le focus. La valeur rendue ici n'est
+   * ni un `SafeHtml` ni du HTML : c'est un texte interpolé et deux entrées de directive, qu'Angular
+   * compare par valeur (`texte`) ou dont `RouterLink` recalcule un `href` IDENTIQUE (`commandes`,
+   * `fragment`). Aucun nœud n'est remplacé, aucun état d'interaction n'est perdu. Mémoïser
+   * coûterait une table indexée par étape pour ne rien gagner de mesurable sur une page prerendue.
+   */
+  renvoiDeLEtape(etape: EtapeMarche): RenvoiPrepare | null {
+    const renvoi = etape.renvoi;
+    if (renvoi === undefined) return null;
+    const cible: string = renvoi.cible;
+
+    if (renvoi.cible === 'section') {
+      return {
+        texte: `Voir la section${INSECABLE}: «${INSECABLE}${renvoi.titre}${INSECABLE}»`,
+        commandes: [],
+        fragment: renvoi.ancre,
+      };
+    }
+    if (renvoi.cible === 'module') {
+      return {
+        texte: `Voir le module${INSECABLE}: «${INSECABLE}${renvoi.slug}${INSECABLE}»`,
+        commandes: lienVersLecon(this.sujet(), renvoi.slug),
+        fragment: undefined,
+      };
+    }
+    throw erreurMarche(
+      'renvoi d’étape',
+      `cible inconnue « ${cible} » (rendues${INSECABLE}: ${CIBLES_RENVOI_RENDUES.join(', ')})`,
+    );
+  }
+
+  /**
    * L'étiquette de portée d'une annotation : « Ensemble du bloc », « Ligne 3 », « Lignes 1 et 2 ».
    *
    * La portée est ÉCRITE, jamais seulement suggérée par une couleur ou une position — c'est ce qui
@@ -978,6 +1195,11 @@ export class RenduBlocs {
 
     if (bloc.type === 'comparaison') {
       this.verifierPortees(bloc, rang);
+      return bloc;
+    }
+
+    if (bloc.type === 'marche-a-suivre') {
+      this.verifierMarche(bloc, rang);
       return bloc;
     }
 
@@ -1097,6 +1319,120 @@ export class RenduBlocs {
           '(`tools/content-pipeline/valider.mjs`, règle G3) : un ⚠️ qui accuse le cours doit ' +
           'citer sa référence, sinon il salit un enseignant sans preuve.',
       );
+    }
+  }
+
+  /**
+   * Refuse une marche à suivre malformée, en NOMMANT le bloc et l'étape.
+   *
+   * 🔴 CE QUE CE CONTRÔLE COUVRE, ET POURQUOI IL EXISTE ALORS QUE LE BUILD VALIDE DÉJÀ. Le lot 3
+   * a mis le conteneur au schéma (`valider.mjs`) et le compilateur a RÉSOLU l'ancre d'un renvoi de
+   * section comme le statut d'un renvoi de module. Le seul cas qui reste — le même que pour les
+   * portées, les diagrammes et les variantes d'encadré — est un `lecons/<slug>.json` compilé par
+   * une AUTRE version du pipeline : là, le TYPE ment par construction, et sans garde le rendu
+   * produirait un titre vide, une liste sans nom accessible, une liste SANS AUCUN PAS, un
+   * `aria-label` disant « undefined » ou un lien vers `undefined`. Aucun de ces cinq défauts ne
+   * ferait rougir un gate ; tous seraient publiés. Le rendu ayant lieu au prerender, on lève, et
+   * la construction casse.
+   * ⚠️ CETTE ÉNUMÉRATION EST CELLE DES GARDES ÉCRITES CI-DESSOUS, et elle se recompte quand on en
+   * ajoute une (L-075) — un inventaire périmé sous un en-tête qui se donne l'air exhaustif est
+   * pire que pas d'inventaire.
+   *
+   * ⚠️ LES GARDES SONT ÉCRITES EN `unknown`, PAS EN LECTURE DIRECTE, pour la même raison que les
+   * `Array.isArray` de `verifierPortees` : au moment où ce cas se produit, le type ne protège de
+   * rien, et une lecture directe ferait lever un `TypeError` ANONYME depuis le garde-fou censé
+   * nommer la faute (patron S-009 / L-008).
+   */
+  private verifierMarche(bloc: BlocMarche, rang: number): void {
+    const ouBloc = `bloc n°${rang + 1}`;
+
+    // LE TITRE EST LE NOM ACCESSIBLE DE LA LISTE. Vide, la liste n'aurait plus de nom du tout —
+    // un défaut que seul un audit manuel verrait, puisqu'un `aria-label=""` ne rougit nulle part.
+    const titre: unknown = bloc.titre;
+    if (typeof titre !== 'string' || titre.trim() === '') {
+      throw erreurMarche(ouBloc, '« titre » absent ou vide (c’est le nom accessible de la liste)');
+    }
+
+    if (!Array.isArray(bloc.etapes)) {
+      throw erreurMarche(ouBloc, '« etapes » absent ou non-tableau');
+    }
+
+    const etapes: readonly EtapeMarche[] = bloc.etapes;
+
+    // UNE MARCHE À SUIVRE SANS UN SEUL PAS N'EST PAS UNE MARCHE À SUIVRE. `compiler-markdown.mjs`
+    // (`minItems: 1`) refuse déjà le cas à la source ; le chemin qui reste est très exactement
+    // celui que cette fonction existe pour couvrir — un artéfact d'une autre version du pipeline.
+    // Sans ce refus, le rendu serait un `<ol aria-label="…">` VIDE : un cartouche titré promettant
+    // une procédure, et rien dedans. Aucun gate ne rougirait, et la leçon serait publiée ainsi.
+    if (etapes.length === 0) {
+      throw erreurMarche(ouBloc, '« etapes » vide (le cartouche serait titré, et sans un seul pas)');
+    }
+
+    for (const [rangEtape, etape] of etapes.entries()) {
+      const ou = `${ouBloc}, étape n°${rangEtape + 1}`;
+
+      // `etape?.` et non `etape.` : un artéfact périmé peut avoir perdu l'étape elle-même, et
+      // `undefined.html` relèverait très exactement le `TypeError` anonyme que ces gardes
+      // suppriment (même raison que le `volet?.` de `verifierPortees`).
+      if (typeof etape?.html !== 'string') {
+        throw erreurMarche(ou, '« html » absent ou non-chaîne');
+      }
+
+      const code: unknown = etape.code;
+      if (code !== undefined) {
+        // `=== null` EN PLUS DU `typeof`, patron de `verifierVariante` : `typeof null === 'object'`,
+        // donc un `"code": null` — JSON parfaitement légal, et exactement l'artéfact d'une autre
+        // version du pipeline que ce contrôle déclare couvrir — passerait la garde puis ferait
+        // lever un `TypeError` ANONYME sur la ligne suivante, depuis le garde-fou censé nommer la
+        // faute (patron S-009 / L-008). Un non-objet (chaîne, nombre) est refusé pour la même
+        // raison : la lecture qui suit rendrait `undefined` sans le dire.
+        if (typeof code !== 'object' || code === null) {
+          throw erreurMarche(ou, '« code » présent mais non-objet');
+        }
+        const langage: unknown = (code as { langage?: unknown }).langage;
+        const htmlColore: unknown = (code as { htmlColore?: unknown }).htmlColore;
+        if (typeof langage !== 'string' || typeof htmlColore !== 'string') {
+          // Le nom du défileur est composé À PARTIR du langage : sans lui, la région défilante
+          // s'annoncerait « Étape n° 1 — undefined » (WCAG 2.4.6 franchi, mais mensongèrement).
+          throw erreurMarche(ou, 'bloc de code sans « langage » ni « htmlColore »');
+        }
+      }
+
+      const renvoi: unknown = etape.renvoi;
+      if (renvoi === undefined) continue;
+
+      // MÊME GARDE QUE POUR `code`, MÊME RAISON : `"renvoi": null` est du JSON légal et
+      // `typeof null === 'object'` — sans ce `=== null`, la lecture de `.cible` juste en dessous
+      // lèverait un `TypeError` anonyme depuis le garde-fou censé nommer la faute.
+      if (typeof renvoi !== 'object' || renvoi === null) {
+        throw erreurMarche(ou, '« renvoi » présent mais non-objet');
+      }
+
+      // LISTE BLANCHE NOMINATIVE des cibles — voir `CIBLES_RENVOI_RENDUES` pour ce qu'une cible
+      // inconnue produirait si on la laissait passer.
+      const cible: unknown = (renvoi as { cible?: unknown }).cible;
+      if (typeof cible !== 'string' || !CIBLES_RENVOI_RENDUES.includes(cible)) {
+        // UNE CHAÎNE SE CITE NUE, comme le fait `verifierVariante` : `decrire` passe par
+        // `JSON.stringify`, si bien qu'une cible textuelle sortait entre guillemets JSON À
+        // L'INTÉRIEUR des guillemets français — « "glossaire" ». `decrire` reste employé pour
+        // tout le reste, où il est exactement ce qu'il faut : il distingue `null` de `undefined`.
+        const citee = typeof cible === 'string' ? cible : decrire(cible);
+        throw erreurMarche(
+          ou,
+          `cible de renvoi inconnue « ${citee} » (rendues${INSECABLE}: ` +
+            `${CIBLES_RENVOI_RENDUES.join(', ')})`,
+        );
+      }
+
+      const champs =
+        cible === 'section'
+          ? (['titre', 'ancre'] as const)
+          : (['slug'] as const);
+      for (const champ of champs) {
+        if (typeof (renvoi as Record<string, unknown>)[champ] !== 'string') {
+          throw erreurMarche(ou, `renvoi « ${cible} » sans « ${champ} »`);
+        }
+      }
     }
   }
 

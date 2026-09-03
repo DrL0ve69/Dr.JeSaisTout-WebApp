@@ -31,7 +31,7 @@ import { join } from 'node:path';
 import { TestBed } from '@angular/core/testing';
 import type { ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { RouterLink, provideRouter } from '@angular/router';
 import { compile } from 'sass';
 
 import { Quiz } from '../../quiz/quiz';
@@ -136,21 +136,17 @@ const SVG_MERMAID = `<svg id="d0-diagramme" class="diagramme-mermaid" viewBox="0
 // -----------------------------------------------------------------------------
 
 /**
- * 🔴 `marche-a-suivre` EST EXCLU, ET C'EST UN ÉTAT DATÉ — pas une dispense.
+ * ✅ `marche-a-suivre` EST RENTRÉ DANS LA TABLE (lot 4, 2026-09-02) — l'`Exclude<…>` a disparu.
  *
- * Le lot 3 (2026-09-02) a ajouté ce membre au contrat (`tools/content-pipeline/types.d.ts`) : le
- * conteneur est COMPILÉ et VALIDÉ, il n'est pas encore RENDU — c'est le lot 4. Le garde-fou de
- * complétude ci-dessus est donc conservé pour TOUS les autres membres : ajouter un huitième type
- * sans fixture casse toujours la compilation de ce fichier. Seule cette exclusion-là est nommée,
- * et elle a son tripwire exécutable (« le contrat connaît un type que ce composant ne rend pas
- * encore », plus bas), qui rougira le jour où le rendu arrivera.
+ * Le lot 3 avait mis ce membre au contrat (`tools/content-pipeline/types.d.ts`) sans le rendre :
+ * la table le nommait alors en exclusion, avec un tripwire exécutable qui rougissait le jour du
+ * rendu. Le rendu est là, l'exclusion et le tripwire sont partis — un garde-fou franchi qu'on
+ * laisserait en place deviendrait un mensonge sur ce que ce composant sait faire.
  *
- * ⚠️ AUCUNE PAGE NE PEUT L'ATTEINDRE AUJOURD'HUI : aucune leçon de `content/` n'écrit ce
- * conteneur, et `preparer()` échoue bruyamment sur un type inconnu — jamais un trou silencieux.
- * Le jour où une leçon en écrit un AVANT le lot 4, c'est le prerender qui casse, en nommant le
- * type, ce qui est le comportement voulu.
+ * LE GARDE-FOU DE COMPLÉTUDE EST DONC DE NOUVEAU ENTIER : `Record<BlocContenu['type'], …>`
+ * refuse de COMPILER tant qu'un neuvième membre de l'union n'a pas sa fixture ici.
  */
-const FIXTURES: Record<Exclude<BlocContenu['type'], 'marche-a-suivre'>, BlocContenu> = {
+const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
   prose: { type: 'prose', html: HTML_PROSE },
   code: { type: 'code', langage: 'php', htmlColore: HTML_CODE },
   comparaison: {
@@ -189,9 +185,44 @@ const FIXTURES: Record<Exclude<BlocContenu['type'], 'marche-a-suivre'>, BlocCont
     variante: 'attention',
     blocs: [{ type: 'prose', html: '<p>Un enfant rendu par la récursion.</p>' }],
   },
+  // LA MARCHE À SUIVRE PORTE LES QUATRE FORMES D'ÉTAPE DU CONTRAT, et c'est délibéré : une
+  // phrase nue, une phrase + code, une phrase + renvoi de SECTION, une phrase + renvoi de
+  // MODULE. Une fixture qui n'en porterait qu'une laisserait trois branches du gabarit sans
+  // aucun exercice — le mode d'échec que la table d'exhaustivité existe pour fermer, d'un cran
+  // plus bas.
+  'marche-a-suivre': {
+    type: 'marche-a-suivre',
+    titre: 'Durcir la configuration en quatre gestes',
+    etapes: [
+      { html: 'Ouvre le fichier de configuration du service.' },
+      {
+        html: 'Recharge le service pour appliquer la <strong>directive</strong>.',
+        code: {
+          langage: 'bash',
+          htmlColore:
+            '<pre class="shiki"><code><span class="line">sudo systemctl reload nginx</span></code></pre>',
+        },
+      },
+      {
+        html: 'Relis le détail de la directive avant de la copier.',
+        renvoi: {
+          cible: 'section',
+          titre: 'La directive, en détail',
+          ancre: 'la-directive-en-detail',
+        },
+      },
+      {
+        html: 'Reprends les bases si le vocabulaire manque.',
+        renvoi: { cible: 'module', slug: '01-fondamentaux' },
+      },
+    ],
+  },
   'ancre-quiz': { type: 'ancre-quiz' },
   'ancre-simulation': { type: 'ancre-simulation' },
 };
+
+/** Le chemin que `lienVersLecon` fabrique pour la fixture ci-dessus — écrit, pas importé (L-012). */
+const CHEMIN_MODULE_ATTENDU = '/cours/securite-web/01-fondamentaux';
 
 /**
  * L'ENCADRÉ D'EXERCICE DU COURS (E3-ST21, lot B) — la 7ᵉ variante, restée non rendue jusqu'ici.
@@ -600,7 +631,10 @@ describe('RenduBlocs', () => {
       const appels = source.match(/this\.assainisseur\.bypassSecurityTrust\w*\(/g) ?? [];
       expect(appels).toHaveLength(1);
       expect(appels[0]).toBe('this.assainisseur.bypassSecurityTrustHtml(');
-      // Les trois autres liaisons de HTML passent par le sanitizer, nues.
+      // Les CINQ autres liaisons de HTML passent par le sanitizer, nues — recompté au lot 4, qui
+      // en ajoute deux (`etape.html` et le `htmlColore` d'un code d'étape). ⚠️ Seul ce
+      // commentaire pouvait mentir : l'assertion voisine porte sur le COMPTE de
+      // `bypassSecurityTrust*`, et elle est restée juste tout du long.
       expect(source).not.toContain('bypassSecurityTrustScript');
       expect(source).not.toContain('bypassSecurityTrustResourceUrl');
     });
@@ -1683,6 +1717,32 @@ describe('RenduBlocs', () => {
       const ecran = feuilleCompilee().split('@media print')[0] ?? '';
       expect(ecran).toMatch(/\.defileur[^{]*\{[^}]*overflow-x:\s*auto/);
     });
+
+    it('🔴 le titre d’une marche à suivre est une PHRASE : il LÈVE le tampon `micro-etiquette`', () => {
+      // Trouvé par la revue du lot 4, et aucun gate ne pouvait le voir : `.marche-a-suivre >
+      // .etiquette` ne réécrivait que `color`, si bien que la règle générique `.etiquette` lui
+      // appliquait `--police-micro` (Silkscreen, une police BITMAP), `text-transform: uppercase`
+      // et la chasse de tampon — sur une phrase de quatre à cinq mots. La feuille lève déjà ces
+      // trois propriétés pour les QUATRE étiquettes d'encadré qui portent une phrase, avec la
+      // raison écrite ; la marche à suivre est la cinquième et n'était pas passée devant.
+      // ⚠️ AUCUN TEST NE LISAIT `.marche-a-suivre` DANS LA FEUILLE avant celui-ci : c'est le trou
+      // qui a laissé passer le défaut, pas la règle CSS elle-même.
+      // AUCUNE REGEX ICI, DÉLIBÉRÉMENT. Un motif ancré sur une feuille est doublement fragile
+      // sur ce dépôt : les fins de ligne sont mixtes (L-015), et un antislash perdu à l'écriture
+      // donne un motif qui ne matche jamais — ou pire, qui matche par accident. On lit donc le
+      // bloc à l'index, comme le fait déjà `blocMedia` plus haut.
+      const css = feuilleCompilee();
+      const selecteur = '.marche-a-suivre > .etiquette';
+      const position = css.indexOf(selecteur);
+      // Contrôle positif de la sonde : sans lui, un sélecteur renommé rendrait tout le reste vacu.
+      expect(position).toBeGreaterThan(-1);
+      const ouvrante = css.indexOf('{', position);
+      const declarations = css.slice(ouvrante + 1, css.indexOf('}', ouvrante));
+
+      expect(declarations).toContain('text-transform: none');
+      expect(declarations).toContain('font-family: var(--police-corps)');
+      expect(declarations).toContain('letter-spacing: normal');
+    });
   });
 
   describe('ancres de quiz et de simulation', () => {
@@ -1802,13 +1862,250 @@ describe('RenduBlocs', () => {
     });
   });
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // La MARCHE À SUIVRE — le conteneur actionnable (refonte du 2026-08-31, lot 4)
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('marche à suivre — le résumé actionnable en tête de leçon', () => {
+    /** Le bloc de la table, retypé pour pouvoir en dériver des variantes fautives. */
+    const MARCHE = FIXTURES['marche-a-suivre'] as Extract<
+      BlocContenu,
+      { type: 'marche-a-suivre' }
+    >;
+
+    it('rend un titre VISIBLE et une liste ORDONNÉE portant le même nom accessible', async () => {
+      const rendu = await rendre([MARCHE]);
+
+      const conteneur = rendu.querySelector('.marche-a-suivre');
+      expect(conteneur).not.toBeNull();
+      expect(conteneur?.querySelector('.etiquette')?.textContent).toContain(
+        'Durcir la configuration',
+      );
+
+      // `<ol>` et non `<ul>` : la numérotation est SÉMANTIQUE, pas décorative.
+      const liste = conteneur?.querySelector('ol.etapes');
+      expect(liste).not.toBeNull();
+      expect(liste?.getAttribute('aria-label')).toBe(MARCHE.titre);
+      expect(liste?.querySelectorAll('li.etape')).toHaveLength(4);
+
+      // AUCUN `<h_>` ÉMIS. Le composant ignore le niveau de titre où il est monté (une
+      // instance par section, plus une par encadré) : en émettre un ferait sauter un niveau
+      // et rougir `heading-order` d'axe, sur une page publiée.
+      expect(conteneur?.querySelectorAll('h1, h2, h3, h4, h5, h6')).toHaveLength(0);
+
+      // `html` est INLINE au contrat : il est rendu tel quel, sans être remis dans un `<p>`.
+      const phrases = [...(liste?.querySelectorAll('li.etape > .phrase') ?? [])];
+      expect(phrases).toHaveLength(4);
+      expect(phrases[1]?.querySelector('strong')?.textContent).toBe('directive');
+      expect(phrases[1]?.querySelector('p')).toBeNull();
+    });
+
+    it('🔴 le renvoi de SECTION est un `routerLink` + `fragment`, jamais un `href="#…"` nu', async () => {
+      // L-030, mesurée sur ce dépôt : `index.html` pose `<base href="/">`, donc un fragment NU
+      // se résout contre la BASE du document et renverrait le lecteur à l'ACCUEIL. Deux
+      // assertions, parce qu'elles ne prouvent pas la même chose : la DIRECTIVE reçoit bien le
+      // fragment, et l'`href` RÉELLEMENT écrit est absolu.
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [MARCHE]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
+      fixture.componentRef.setInput('simulation', SIMULATION);
+      await fixture.whenStable();
+
+      const liens = fixture.debugElement.queryAll(By.directive(RouterLink));
+      expect(liens).toHaveLength(2);
+
+      const versSection = liens[0]?.injector.get(RouterLink);
+      expect(versSection?.fragment).toBe('la-directive-en-detail');
+
+      const href = (liens[0]?.nativeElement as HTMLAnchorElement).getAttribute('href');
+      expect(href).toContain('#la-directive-en-detail');
+      expect(href?.startsWith('/')).toBe(true);
+      // Le contrôle qui fait foi : ce n'est PAS le fragment nu que L-030 interdit.
+      expect(href).not.toBe('#la-directive-en-detail');
+
+      // 🔴 LE TEXTE ENTIER, EN ÉGALITÉ STRICTE — un `toContain` sur le seul titre resterait VERT
+      // si le préfixe « Voir la section : » disparaissait, et le lien perdrait la moitié de son
+      // nom accessible sans qu'aucun gate ne le voie (revue du lot 4).
+      expect((liens[0]?.nativeElement as HTMLAnchorElement).textContent?.trim()).toBe(
+        `Voir la section${INSECABLE}: «${INSECABLE}La directive, en détail${INSECABLE}»`,
+      );
+    });
+
+    it('le renvoi de MODULE passe par `lienVersLecon`, sans fragment', async () => {
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [MARCHE]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
+      fixture.componentRef.setInput('simulation', SIMULATION);
+      await fixture.whenStable();
+
+      const liens = fixture.debugElement.queryAll(By.directive(RouterLink));
+      const versModule = liens[1]?.injector.get(RouterLink);
+      expect(versModule?.fragment).toBeUndefined();
+
+      const href = (liens[1]?.nativeElement as HTMLAnchorElement).getAttribute('href');
+      expect(href).toBe(CHEMIN_MODULE_ATTENDU);
+
+      // 🔴 LA BRANCHE QUE PERSONNE NE TENAIT — trouvée par la revue du lot 4. Ce test n'assérait
+      // que `fragment` et `href` : muter `texte` en '' dans la branche `module` laissait la suite
+      // ENTIÈRE verte, et publiait un <a> SANS NOM ACCESSIBLE (axe `link-name`, WCAG 2.4.4 /
+      // 4.1.2). ⚠️ Or `a11y:axe` ne voit rien de ce balisage : aucune leçon de `content/` n'écrit
+      // encore ce conteneur. La preuve est ICI, ou elle n'est nulle part.
+      expect((liens[1]?.nativeElement as HTMLAnchorElement).textContent?.trim()).toBe(
+        `Voir le module${INSECABLE}: «${INSECABLE}01-fondamentaux${INSECABLE}»`,
+      );
+    });
+
+    it('🔴 le code d’une étape est NOMMÉ et atteignable, mais N’ENTRE PAS dans la numérotation', async () => {
+      // ARBITRAGE DU PROPRIÉTAIRE (2026-09-02) : la marche à suivre RÉSUME la leçon, une
+      // commande résumée en tête ne vole pas son numéro à l'exemple qui l'enseigne plus bas.
+      // Le contrôle qui le PROUVE est croisé : deux blocs `code` php encadrent la marche, et
+      // le second doit rester « Code n°2 » — s'il devenait « Code n°3 », le code de l'étape
+      // aurait consommé un rang.
+      const rendu = await rendre([FIXTURES.code, MARCHE, CODE_PHP_BIS]);
+
+      expect(nomsDesDefileurs(rendu)).toEqual([
+        `Code n°1${INSECABLE}— php`,
+        `Étape n°${INSECABLE}2${INSECABLE}— bash`,
+        `Code n°2${INSECABLE}— php`,
+      ]);
+
+      // L'autre moitié de la preuve, au COMPTEUR lui-même : `cumulerFigures` ne descend pas.
+      expect(cumulerFigures([MARCHE], SANS_DECALAGE)).toEqual({ blocsDeCode: 0, paires: 0 });
+
+      // Et AUCUN `<figcaption>` : pas de numéro de figure, donc pas de légende qui en annonce un.
+      const marche = rendu.querySelector('.marche-a-suivre');
+      expect(marche?.querySelectorAll('figcaption')).toHaveLength(0);
+
+      // Le défileur reste un ARRÊT DE TABULATION nommé (WCAG 2.1.1 / 2.4.6).
+      const defileur = marche?.querySelector('.defileur');
+      expect(defileur?.getAttribute('tabindex')).toBe('0');
+      expect(defileur?.getAttribute('role')).toBe('group');
+      expect(defileur?.textContent).toContain('systemctl reload nginx');
+    });
+
+    it('🔴 AFFICHE un titre hostile sans en faire naître un seul nœud', async () => {
+      // S-011, patron « à deux mains ». Ce qui tient l'invariant est que `titre` est INTERPOLÉ
+      // dans un nœud texte et lié par `[attr.aria-label]` — jamais `[innerHTML]`, jamais une
+      // valeur d'attribut concaténée. Vérifier une seule des deux moitiés certifierait un
+      // assainissement dont l'autre moitié est un no-op.
+      const charge = '"><img src=x onerror=alert(1)><script>alert(1)</script>';
+      const rendu = await rendre([{ ...MARCHE, titre: charge }]);
+
+      expect(rendu.querySelector('.marche-a-suivre > .etiquette')?.textContent).toContain(charge);
+      expect(rendu.querySelector('ol.etapes')?.getAttribute('aria-label')).toBe(charge);
+      expect(rendu.querySelectorAll('img, script')).toHaveLength(0);
+    });
+
+    it('🔴 AFFICHE un titre de renvoi hostile sans en faire naître un seul nœud', async () => {
+      // 🔴 LE CANAL EST ÉPINGLÉ, PAS SEULEMENT LES DEUX MAINS (revue de sécurité du lot 4).
+      // Les deux moitiés de S-011 ne disent rien de l'endroit OÙ la valeur sort : poser demain
+      // un `[attr.title]` ou un `[attr.aria-label]` sur le <a class="renvoi"> créerait une
+      // surface d'attribut de plus — celle que `generer-config-swa.mjs` compte en brut, et où la
+      // sérialisation n'échappe pas `<` — sans qu'aucun test rougisse.
+      // ⚠️ LA CHARGE EST DISTINCTE DE CELLE DU TITRE, ET C'EST CE QUI REND L'ASSERTION NON VACUE :
+      // le <ol> porte LÉGITIMEMENT `aria-label="{{ titre }}"`, si bien qu'une charge commune
+      // ferait passer le test pour la mauvaise raison — il refuserait sur le titre, pas sur le
+      // renvoi (le piège des deux gardes qui se recouvrent, payé au lot 1a).
+      const charge = '"><img src=x onerror=alert(1)><script>alert(1)</script>';
+      const rendu = await rendre([
+        {
+          ...MARCHE,
+          titre: 'Un titre parfaitement anodin',
+          etapes: [
+            {
+              html: 'Relis la section.',
+              renvoi: { cible: 'section', titre: charge, ancre: 'une-ancre' },
+            },
+          ],
+        },
+      ]);
+
+      expect(rendu.querySelector('.marche-a-suivre .renvoi')?.textContent).toContain(charge);
+      expect(rendu.querySelectorAll('img, script')).toHaveLength(0);
+
+      // Le canal : la charge ne doit sortir dans AUCUNE valeur d'attribut du conteneur.
+      const valeursDAttribut = [
+        ...rendu.querySelectorAll('.marche-a-suivre [aria-label], .marche-a-suivre [title]'),
+      ].map((element) => element.getAttribute('aria-label') ?? element.getAttribute('title'));
+      // 🔴 `INCLUT`, PAS `ÉGALE` — corrigé après un contrôle positif qui a RATÉ. La première
+      // écriture était `expect(valeursDAttribut).not.toContain(charge)`, qui teste sur un tableau
+      // l'ÉGALITÉ d'un élément : elle serait restée VERTE devant un `[attr.title]="renvoi.texte"`,
+      // puisque la valeur sortie est la charge COMPOSÉE dans « Voir la section : « … » », jamais la
+      // charge nue. Mesuré, pas déduit : la mutation n'a rougi qu'après ce changement.
+      const fuite = valeursDAttribut.some((valeur) => valeur?.includes(charge) === true);
+      expect(fuite).toBe(false);
+      // Contrôle positif de la sonde elle-même : elle a bien REGARDÉ quelque chose. Sans lui,
+      // un sélecteur devenu faux rendrait la liste vide et l'assertion ci-dessus serait vacue.
+      expect(valeursDAttribut.length).toBeGreaterThan(0);
+    });
+
+    it('🔴 AFFICHE un SLUG de renvoi hostile sans en faire naître un seul nœud', async () => {
+      // Le slug est le troisième champ d'auteur du conteneur, et le seul qu'aucun test à deux
+      // mains ne couvrait (revue de sécurité du lot 4). Il est composé dans le texte du lien
+      // ET passé à `lienVersLecon`, donc à `routerLink` : les deux sorties sont vérifiées ici.
+      const charge = '"><img src=x onerror=alert(1)><script>alert(1)</script>';
+      const rendu = await rendre([
+        {
+          ...MARCHE,
+          etapes: [
+            { html: 'Reprends les bases.', renvoi: { cible: 'module', slug: charge } },
+          ],
+        },
+      ]);
+
+      expect(rendu.querySelector('.marche-a-suivre .renvoi')?.textContent).toContain(charge);
+      expect(rendu.querySelectorAll('img, script')).toHaveLength(0);
+    });
+
+    describe('échec bruyant — ce que `preparer()` NOMME', () => {
+      it('un titre vide : la liste perdrait son nom accessible en silence', async () => {
+        await expect(rendre([FIXTURES.prose, { ...MARCHE, titre: '   ' }])).rejects.toThrowError(
+          /« titre » absent ou vide/,
+        );
+        await expect(
+          rendre([FIXTURES.prose, { ...MARCHE, titre: '   ' }]),
+        ).rejects.toThrowError(/bloc n°2/);
+      });
+
+      it('`etapes` absent : jamais un `TypeError` anonyme', async () => {
+        const ampute = { type: 'marche-a-suivre', titre: 'Un titre' } as unknown as BlocContenu;
+        await expect(rendre([FIXTURES.prose, ampute])).rejects.toThrowError(/« etapes » absent/);
+        // Le message NOMME le composant et le bloc — ce n'est pas un `TypeError` anonyme.
+        await expect(rendre([FIXTURES.prose, ampute])).rejects.toThrowError(
+          /RenduBlocs : marche à suivre invalide \(bloc n°2\)/,
+        );
+      });
+
+      it('🔴 REFUSE une cible de renvoi inconnue — sinon c’est un lien MORT publié', async () => {
+        // Le gabarit ne porte qu'UN `<a>` : sans cette liste blanche, une cible venue d'un
+        // artéfact compilé par une autre version du pipeline tomberait dans la branche
+        // « module » et produirait `['/cours/securite-web', undefined]`.
+        const exotique = {
+          ...MARCHE,
+          etapes: [{ html: 'Aller ailleurs.', renvoi: { cible: 'glossaire', terme: 'CSP' } }],
+        } as unknown as BlocContenu;
+        await expect(rendre([exotique])).rejects.toThrowError(/cible de renvoi inconnue/);
+        await expect(rendre([exotique])).rejects.toThrowError(/glossaire/);
+      });
+
+      it('refuse un bloc de code sans langage — le défileur s’annoncerait « undefined »', async () => {
+        const sansLangage = {
+          ...MARCHE,
+          etapes: [{ html: 'Lancer.', code: { htmlColore: '<pre></pre>' } }],
+        } as unknown as BlocContenu;
+        await expect(rendre([sansLangage])).rejects.toThrowError(/bloc de code sans/);
+      });
+    });
+  });
+
   describe('complétude et échec bruyant', () => {
-    it('rend les SEPT types du contrat sans lever', async () => {
+    it('rend les HUIT types du contrat sans lever', async () => {
       // `FIXTURES` est un `Record<BlocContenu['type'], BlocContenu>` : ce test ne
       // pourrait pas COMPILER s'il manquait un membre de l'union. C'est le
       // compilateur qui tient la complétude, pas une liste recopiée.
       const tous = Object.values(FIXTURES);
-      expect(tous).toHaveLength(7);
+      expect(tous).toHaveLength(8);
 
       const rendu = await rendre(tous);
       expect(rendu.querySelector('.prose')).not.toBeNull();
@@ -1816,25 +2113,9 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelector('.comparaison')).not.toBeNull();
       expect(rendu.querySelector('.diagramme')).not.toBeNull();
       expect(rendu.querySelector('.encadre')).not.toBeNull();
+      expect(rendu.querySelector('.marche-a-suivre')).not.toBeNull();
       expect(rendu.querySelector('app-quiz')).not.toBeNull();
       expect(rendu.querySelector('app-simulation')).not.toBeNull();
-    });
-
-    // 🔴 TRIPWIRE AUTO-PÉRIMANT — À SUPPRIMER AU LOT 4, avec l'`Exclude<…>` de `FIXTURES`.
-    // Le lot 3 a mis `marche-a-suivre` AU CONTRAT sans le rendre : ce test écrit l'état exact du
-    // dépôt plutôt que de le laisser à un commentaire (L-008). Il constate deux choses à la fois —
-    // que le type existe côté contrat, et que ce composant le refuse BRUYAMMENT en le nommant, ce
-    // qui est le comportement voulu tant que le rendu n'existe pas. Le jour où le lot 4 ajoute le
-    // cas au `@switch`, ce test rougit : c'est ainsi qu'il se retire.
-    it('🔴 LOT 4 : le contrat connaît « marche-a-suivre », ce composant ne le rend pas ENCORE', () => {
-      const marche = {
-        type: 'marche-a-suivre',
-        titre: 'Une marche à suivre compilée par le lot 3',
-        etapes: [{ html: 'Faire la chose.' }],
-      } as unknown as BlocContenu;
-      const fixture = TestBed.createComponent(RenduBlocs);
-      fixture.componentRef.setInput('blocs', [FIXTURES.prose, marche]);
-      expect(() => fixture.detectChanges()).toThrowError(/marche-a-suivre/);
     });
 
     it('ÉCHOUE en NOMMANT le type, sur un bloc que le contrat ne connaît pas', () => {
