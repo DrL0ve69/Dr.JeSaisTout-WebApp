@@ -757,7 +757,21 @@ for (const page of pages) {
   //   · un `<script` dans la chaîne d'un script ;
   //   · un `<script ` dans une VALEUR D'ATTRIBUT — et celui-là n'est PAS théorique ici : la
   //     sérialisation HTML n'échappe pas `<` dans une valeur d'attribut, et du TEXTE D'AUTEUR
-  //     atteint bien des attributs (`bloc.titreAccessible`, `etape.nom`, `module.nomAccessible`).
+  //     atteint bien des attributs. 🔴 L'INVENTAIRE CI-DESSOUS EST CITÉ COMME FAISANT FOI PAR
+  //     S-011 ET PAR `rendu-blocs.ts` : il en nommait TROIS jusqu'au lot 4, mesuré à SIX par
+  //     `grep '[attr.|[value]' src/app`. Deux manquaient DEPUIS TOUJOURS. Les six :
+  //       1. `bloc.titreAccessible` — l'`accTitle` d'un mermaid   (rendu-blocs.ts:627)
+  //       2. `etape.nom` — le nom d'une étape de simulation       (simulation.ts:386)
+  //       3. `module.nomAccessible` — le sommaire du cours        (sommaire.html:103)
+  //       4. `simulation.titre` — le nom de la région             (simulation.ts:283)
+  //       5. `paires[].droite` / `ligne.valeur` — <option value>  (quiz.ts:387,429,480)
+  //       6. `marche-a-suivre.titre` — le nom du <ol> d'étapes    (rendu-blocs.ts:762)
+  //     ⚠️ POURQUOI L'EXACTITUDE DE CETTE LISTE COMPTE, et ce n'est pas de la tenue de registre :
+  //     le jour où un champ d'auteur contenant `<script ` fait sortir ce gate en code 1, celui
+  //     qui diagnostique lit cette liste. Si elle ne nomme pas la surface fautive, la correction
+  //     « rapide » devient de relâcher le compte — c'est-à-dire la pression S-011 elle-même, au
+  //     pire moment, sur un site qui enseigne la CSP. ⚠️ AUCUN TEST NE TIENT CETTE LISTE : elle
+  //     se périme en silence à chaque liaison `[attr.…]`/`[value]` ajoutée à `src/app`.
   //     Charge mesurée : `<p aria-label="diagramme : injection d'un <script> dans le DOM">` donne 1
   //     occurrence brute pour 0 élément, donc code 1 sur un dépôt SAIN. Faux positif LÉGITIME et
   //     conservé — rien ne garantit que tous les analyseurs lisent cette valeur comme celui-ci.

@@ -245,7 +245,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
-8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → **`4`** → **`4bis`** (spike R-1,
+8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → **`4bis`** (spike R-1,
 jetable, **avant** d'écrire le lot 5) → `5` → `6` → `7` → **`1b`** (résolution inter-cours) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
@@ -517,11 +517,154 @@ fichiers / 1 sauté / 0 échec** (997 à la clôture du lot 2) · `build` **13 r
 0 de script — inchangés** · `a11y:axe` **13 fichiers · 1118 vérifications · 0 violation — inchangé** ·
 `e2e` **50 passés / 1 sauté** · `npm audit --omit=dev` **0**.
 
+<!-- RÉCIT CLOS — le pointeur qui annonçait le lot 4, livré le 2026-09-02. Ses trois mises en garde ont
+     TENU : `design:contrastes:check` lancé, 0 paire neuve ; les DEUX tripwires du lot 3 se sont retirés
+     comme prévu ; le corpus de fixtures invalides reste au lot 7.
 **Le geste suivant : le lot 4** (le RENDU de la marche à suivre) — `rendu-blocs`, son gabarit, ses styles.
-⚠️ Il lance **aussi** `npm run design:contrastes:check`, absent de `npm run build`, et déclare **quelles
-paires il ajoute** avant d’écrire une couleur. ⚠️ **Deux tripwires du lot 3 rougiront, et c’est ainsi qu’ils
-se retirent** : l’`Exclude<…, 'marche-a-suivre'>` sur `FIXTURES` et le test « le contrat connaît
-« marche-a-suivre », ce composant ne le rend pas ENCORE », tous deux dans `rendu-blocs.spec.ts`.
+-->
+
+✅ **LE LOT 4 EST LIVRÉ — 2026-09-02.** Le conteneur `marche-a-suivre` est **rendu** : `<ol>` sémantique
+nommé par `aria-label`, titre en `<p class="etiquette">`, code d'étape dans un défileur nommé, renvoi en
+`routerLink` + `fragment`. Aucun composant neuf, donc **aucun hachage `style-src` de plus**. Les deux
+tripwires du lot 3 se sont retirés des deux côtés.
+
+🔵 **UN ARBITRAGE DU PROPRIÉTAIRE, PRIS CE JOUR — il fait foi.** **Le bloc de code d'une étape n'entre PAS
+dans la numérotation continue des figures.** Pas de `<figcaption>` « Exemple n° N », et `cumulerFigures`
+reste **inchangée** — vérifié : ses trois occurrences au diff sont toutes en commentaire. Motif écrit : la
+marche à suivre *résume* la leçon, une commande résumée en tête ne vole pas son numéro à l'exemple qui
+l'enseigne plus bas. Le défileur garde son nom (« Étape n° 1 — bash ») et son arrêt de tabulation : **pas de
+numéro de figure ne veut pas dire pas de nom** (WCAG 2.4.6 / 2.1.1). La preuve de non-numérotation est
+**croisée à trois endroits** — les noms des défileurs, `cumulerFigures([MARCHE]) === {0,0}`, et le compte de
+`figcaption` à 0.
+
+🔴 **LE DÉFAUT QUE 1 028 TESTS NE VOYAIENT PAS — la variante SORTIE de [[L-086]].** Le lien de renvoi vers un
+**module** n'était tenu par aucune assertion sur son texte : le test ne lisait que `fragment` et `href`.
+Muter `texte` en `''` laissait la suite **entière verte** et publiait un `<a>` **sans nom accessible** (axe
+`link-name`, WCAG 2.4.4 / 4.1.2). ⚠️ La fixture portait pourtant **les quatre formes d'étape** du contrat, et
+le gabarit les rendait toutes : **une fixture qui exerce N branches ne prouve pas N branches — il faut N
+assertions mutation-séparables.** Au lot 2, L-086 était la variante *entrée* (les tests appelaient les
+fabriques directement) ; ici c'est la *sortie*. Le geste : pour chaque branche du gabarit, se demander non
+pas « est-elle rendue ? » mais « quelle mutation la ferait rougir ? ». **Fermé, avec contrôle positif : sous
+mutation, exactement 2 rouges.**
+
+🔴 **UNE FEUILLE QUI DOCUMENTE UNE EXCEPTION N'Y PENSE PAS TOUTE SEULE POUR LE CAS SUIVANT.** Le titre de la
+marche à suivre recevait le tampon `micro-etiquette` — **Silkscreen, une police BITMAP**, plus
+`text-transform: uppercase` et la chasse de tampon — alors qu'il est **une phrase par contrat** (quatre à
+cinq mots). Or `rendu-blocs.scss` **lève déjà ces trois propriétés**, avec la raison écrite, pour les
+**quatre** étiquettes d'encadré qui portent une phrase ; la marche à suivre est la **cinquième** et n'était
+pas passée devant la liste. Son propre commentaire (« même traitement que l'étiquette d'un encadré »)
+désignait les **trois** encadrés de ton — le mauvais précédent. ⚠️ **Aucun gate ne pouvait le voir** : **aucun
+test ne lisait `.marche-a-suivre` dans la feuille compilée**, et la mutation de contrôle a rougi **1 seul
+test** — révélant au passage que les quatre étiquettes-phrases d'encadré n'ont, elles non plus, aucune
+assertion de feuille. Quand une feuille porte une liste d'exceptions **nommées**, tout ajout de même nature
+doit se demander s'il rejoint la liste — et le **dire** dans son commentaire, dans un sens ou dans l'autre.
+
+🔴 **L'INVENTAIRE DE SÉCURITÉ CITÉ COMME FAISANT FOI ÉTAIT FAUX DE MOITIÉ — [[S-011]], angle neuf.**
+`generer-config-swa.mjs` énumère les champs d'auteur qui atteignent une **valeur d'attribut** (où la
+sérialisation n'échappe pas `<`, donc où le compte brut de `<script` sort en **code 1** sur un dépôt sain).
+Il en nommait **trois** ; mesuré par grep des liaisons `[attr.…]`/`[value]` de `src/app`, il y en a **six** —
+le `<option value>` du quiz et le nom de région de la simulation manquaient **depuis toujours**, avant ce
+lot. ⚠️ **Pourquoi ça compte, et ce n'est pas de la tenue de registre** : le jour où ce gate sort en code 1,
+celui qui diagnostique **lit cette liste** ; si elle ne nomme pas la surface fautive, la correction
+« rapide » devient de **relâcher le compte** — la pression S-011 elle-même, au pire moment, sur un site qui
+enseigne la CSP. Les six sont désormais énumérés avec leur `fichier:ligne`. 🔴 **Dette nommée, non fermée :
+aucun test ne tient cette liste**, elle se périmera au prochain `[attr.…]` ajouté à `src/app`.
+
+🔴 **MON PROPRE CORRECTIF A RATÉ SON CONTRÔLE POSITIF, ET C'EST LA LEÇON LA PLUS UTILE DU LOT.** L'assertion
+censée épingler le **canal** de `renvoi.titre` s'écrivait `expect(valeursDAttribut).not.toContain(charge)`.
+Sous la mutation qui ajoute `[attr.title]="renvoi.texte"` au gabarit, elle est restée **VERTE** : sur un
+tableau, `toContain` teste l'**ÉGALITÉ** d'un élément, or la valeur sortie est la charge **composée** dans
+« Voir la section : « … » », jamais la charge nue. ⚠️ **Une assertion de sécurité qui passe son contrôle
+positif par accident de matcher est un no-op qui a l'air d'un garde-fou.** Réécrite avec `.some(v =>
+v?.includes(charge))`, elle rougit — **mesuré, pas déduit**. Corollaire : `toContain` sur un **tableau** et
+sur une **chaîne** ne veulent pas dire la même chose, et c'est le genre d'écart qu'aucune revue de lecture
+n'attrape.
+
+⚠️ **DEUX PIÈGES D'ÉCRITURE PAYÉS EN DIRECT, tous deux de la famille [[L-015]].** (1) Un motif multi-ligne
+écrit en `\n` **n'a pas mordu** sur un passage CRLF — le garde-fou du script de mutation l'a attrapé, au lieu
+de me faire mesurer la référence en croyant mesurer la variante. (2) Les **antislashs d'une regex** écrite
+dans un script d'édition ont été **mangés** : le test est sorti avec un motif qui ne matche jamais. Il a
+rougi bruyamment — mais un motif subtilement faux serait passé **vert et vacu**. Parade adoptée :
+l'assertion de feuille est écrite **sans aucune regex**, par `indexOf` sur le bloc, comme le fait déjà
+`blocMedia`. **Les fins de ligne sont MIXTES à l'intérieur d'un même fichier** — `rendu-blocs.spec.ts` en
+porte des deux sortes.
+
+🔴 **LE BUDGET DE `rendu-blocs.scss` EST FRANCHI — AVERTISSEMENT, PAS ERREUR, ET LE LOT 6 EST PRÉVENU.**
+Mesuré par compilation directe des deux versions : **5 769 o avant → 6 465 o après**. `angular.json`
+(l. 46-57) pose `anyComponentStyle` à **6 kB d'avertissement / 8 kB d'erreur**. La CI ne rougit pas (elle
+lance `npm run build`, code 0), mais **la marge jusqu'à l'erreur dure tombe à ~1 727 o**. **Le lot 4 ne
+dégraisse pas** : ses règles neuves ont été relues une par une, aucune n'est morte ni redondante — couper là
+couperait du comportement. **Relever le budget est refusé** : cacher la mesure n'est pas une option ici.
+**Trois conditions écrites, à porter DANS LE BRIEF DU LOT 6** :
+
+1. **Le lot 6 mesure AVANT d'écrire**, pas après :
+   `npx sass --style=compressed …/rendu-blocs.scss | wc -c`, puis `npm run build` pour le chiffre qui fait
+   foi. Son plafond à lui est **8 192 o**, pas 6 144. ⚠️ **Et ceci, qui n'est pas intuitif : chaque sélecteur
+   neuf coûte ~22 o de PLUS que ce que `sass` affiche**, à cause de l'attribut d'encapsulation
+   `[_ngcontent-…]` ajouté à chacun. Des onglets CSS purs, ce sont **beaucoup** de sélecteurs
+   (`input:checked + label`, `input:checked ~ .volet`, `:focus-visible`…) : la sous-estimation y serait
+   mécanique.
+2. **La coupe est déjà identifiée et chiffrée** : fusionner les **13** blocs `@media (forced-colors: active)`
+   en un seul, en fin de feuille — **~372 o** récupérés, mêmes spécificités, toutes les règles de base
+   précèdent déjà. ⚠️ Elle touche `cartouche` / `contraste-force`, donc **d'autres composants** : c'est un
+   **lot de feuille à part**, pas un correctif du lot 6.
+3. **Si le lot 6 déborde malgré ça, le levier n'est ni le budget ni un composant neuf** (un composant
+   coûterait un hachage `style-src` de plus, ce que la décision du lot 4 refuse) : c'est de sortir les styles
+   d'onglets en **partiale globale** — `src/styles/_onglets-methodes.scss`, précédent `_code.scss` —, ce qui
+   bascule les octets sous le budget `initial`, **mesuré lui aussi**. Coût réel à écrire : la règle globale
+   ne fuit que si elle reste **strictement namespacée sous `.methodes`**, et elle sort du champ de
+   `feuilleCompilee()` pour entrer dans celui de `design-system.spec.ts`.
+
+⚠️ **AUCUN GATE D'ARTÉFACT N'A VU CE BALISAGE, et il faut le dire ainsi.** **Zéro** leçon de `content/`
+n'écrit `:::: marche-a-suivre` : les 1 118 vérifications d'axe et les 50 e2e portent sur des pages où le
+`<ol class="etapes">`, le défileur d'étape et le lien de renvoi **n'existent pas**. Leur vert prouve la
+**non-régression**, jamais le rendu. **La preuve du rendu est dans `rendu-blocs.spec.ts`, ou elle n'est nulle
+part** — même famille que « `verifiee` n'est pas `publiee` », payée trois fois ici. **Relancer G-axe et G-e2e
+à la première leçon qui écrit le conteneur** (lot 8), avant de la déclarer finie.
+
+**Deux dettes datées, délibérément HORS de ce lot** — les corriger d'un seul côté fabriquerait la divergence
+que le dépôt paie depuis trois lots :
+
+- **L'insécable des noms de défileurs.** `Étape n° 1 — bash` (U+00A0, convention française) contre
+  `Code n°1 — php` (aucune) : les deux se lisent à la suite sur la même page. Aligner `etiquetteCode`
+  **déplace des littéraux épinglés dans plusieurs specs** — c'est un lot à part, pas un correctif.
+- **`code.langage` sort en valeur d'attribut sans grammaire runtime** ([[S-020]] transposée) :
+  `verifierMarche` ne vérifie que `typeof === 'string'`, pas l'appartenance aux huit langages du contrat.
+  **Défaut PRÉ-EXISTANT et présent à DEUX endroits** (`etiquetteEtape` **et** `etiquetteCode`) : à traiter
+  aux deux dans le même commit, avec une liste blanche **dérivée** du contrat, jamais recopiée.
+
+**Ce que les deux revues ont établi, et qui est propre** : aucun `bypassSecurityTrust*` neuf (l'unique appel
+du dépôt reste scopé à `mermaid`, son garde-fou source intact) · les deux `[innerHTML]` neufs sont **nus**,
+sanitizer actif, alimentés par `markdown-it` en `html: false` · **aucun `id` fabriqué** (L-026) ·
+`routerLink` + `fragment`, jamais un `href="#…"` nu (L-030), avec contrôle négatif · **aucun jeton
+`--couleur-…` neuf** · aucun littéral épinglé réaligné en douce · le choix `<p class="etiquette">` plutôt
+qu'un `<h_>` est **juste et pour la bonne raison** (le composant ignore son niveau de titre ; un `<h_>`
+ferait rougir `heading-order`).
+
+**Gates à la clôture du lot 4** : `lint` **0** · `typecheck:tools` **0** · `content:build` **10 leçon(s) ·
+33 SVG · 939/939 identifiants uniques** · `npm test` **1030 / 45 fichiers / 1 sauté / 0 échec** (1019 à la
+clôture du lot 3) · `build` **13 routes · 14 hachages de style / 0 de script — inchangés**, plus **1
+avertissement de budget SCSS, neuf et assumé** · `a11y:axe` **13 fichiers · 1118 vérifications · 0 violation
+— inchangé** · `e2e` **50 passés / 1 sauté** · `design:contrastes:check` **40 paires / 40 mesures · 0 paire
+neuve** · `npm audit --omit=dev` **0**.
+
+⚠️ **LES DEUX DÉFAUTS DE BRIEF DE CE LOT, à ne pas répéter au lot 5.** (1) **L'implémenteur a fini à
+218 355 tokens**, au-delà du plafond « exceptionnel » de 200k, alors que le brief annonçait « trois
+fichiers » — ce qui *paraissait* dimensionné. La vraie mesure était le **volume écrit** (~580 lignes) plus la
+lecture ciblée d'un spec de 1 900 lignes. **La découpe juste était « le rendu et ses styles » puis « les
+tests et leurs contrôles positifs ».** Même famille que les lots 0bis et 2 : *le test du « + » se lit dans la
+liste des gestes, jamais dans la phrase d'objectif.* (2) **L'agent de correctifs a été coupé en cours de
+route** par une limite de session, après C1-C4 et avant A1, A2, B1-B3, C5. ⚠️ **Son rapport d'étape annonçait
+« maintenant C4 » — il avait traité les items DANS UN AUTRE ORDRE que le brief**, si bien que la position
+déclarée ne disait **rien** de ce qui restait. Le fil principal a terminé le reste lui-même. **Constater
+l'état sur DISQUE, item par item, est le seul relevé qui fasse foi** quand un agent s'arrête en chemin —
+jamais sa dernière phrase.
+
+**Le geste suivant : le lot 4bis** (spike R-1, jetable) — mesurer si l'hydratation d'Angular réécrit le
+`checked` d'une radio **statique** dans une page prerendue. ⚠️ **C'est une MESURE, pas une déduction
+([[L-074]])** : il n'existe aujourd'hui aucune radio non liée dans une page prerendue, donc le spike commence
+par **fabriquer sa fixture**. Le verdict commande le lot 6 : si le `checked` est réécrit, D-C tombe et le
+repli écrit est l'option 2. **Le mesurer AVANT d'écrire une ligne du lot 5.**
 ⚠️ Le corpus de **fixtures invalides** reste le **lot 7**, délibérément à part (§9 du budget de contexte).
 
 <!-- RÉCIT CLOS — le pointeur qui annonçait le lot 2, livré le 2026-09-02. Ses deux mises en garde ont

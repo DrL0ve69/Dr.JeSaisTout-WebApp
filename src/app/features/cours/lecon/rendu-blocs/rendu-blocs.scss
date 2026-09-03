@@ -57,7 +57,8 @@
 .bloc-code,
 .comparaison,
 .diagramme,
-.encadre {
+.encadre,
+.marche-a-suivre {
   margin-block: var(--espace-4);
 }
 
@@ -349,10 +350,16 @@
 // ⚠️ QUATRE DEPUIS E3-ST21 : `exercice-du-cours` rejoint la liste. Son mot est court, mais son
 // étiquette ne l'est pas — elle porte « · Séance 2 · n° 8 », et une capitale espacée en police
 // bitmap sur cette suite de chiffres serait pénible à lire là où elle sert le plus.
+// ⚠️ CINQ DEPUIS LE LOT 4 : le titre d'une marche à suivre est une PHRASE par contrat — le
+// gabarit d'auteur écrit `{titre="Monter l'environnement LAMP local"}`, quatre à cinq mots. Il
+// rejoint donc la liste, et pas la règle générique. ⚠️ CELA NE RETIRE AUCUN CANAL de WCAG 1.4.1 :
+// le mot reste ÉCRIT, en police de corps, et ce sont le cadre de `cartouche` et les marqueurs du
+// `<ol>` qui portent les canaux non chromatiques.
 .encadre[data-variante='cours'] > .etiquette,
 .encadre[data-variante='complement'] > .etiquette,
 .encadre[data-variante='exercice-du-cours'] > .etiquette,
-.encadre[data-variante='correction-du-cours'] > .etiquette {
+.encadre[data-variante='correction-du-cours'] > .etiquette,
+.marche-a-suivre > .etiquette {
   // 🔴 LA POLICE EST LEVÉE AVEC LE RESTE DEPUIS E6, ET C'EST LA MOITIÉ QUI COMPTE.
   // `micro-etiquette` pose `--police-micro` (Silkscreen), une police BITMAP faite
   // pour des étiquettes de deux mots ; une phrase entière rendue avec elle devient
@@ -467,4 +474,66 @@
     border-color: CanvasText;
     background-color: Canvas;
   }
+}
+
+// -----------------------------------------------------------------------------
+// Marche à suivre — le résumé actionnable en tête de leçon (refonte, lot 4)
+// -----------------------------------------------------------------------------
+// AUCUN JETON DE COULEUR NEUF, ET C'EST UNE CONTRAINTE DE GATE, PAS UNE PRÉFÉRENCE.
+// `tools/design/verifier-contrastes.mjs` porte une table `PAIRES` écrite à la main
+// et refuse tout jeton non apparié ; il ne tourne PAS dans `npm run build`, seulement
+// en CI. Un jeton neuf passerait donc en local et ferait rougir la CI sur une PR qui
+// ne touche pas au design — L-080, à l'identique. Ce bloc réemploie exactement la
+// recette de l'encadré `a-retenir` : cadre `--couleur-accent`, fond
+// `--couleur-surface-creuse`, étiquette `--couleur-accent`. Les trois paires sont
+// déjà à la table (« Lien dans un encart », « Bordure interne d'un encart »).
+//
+// 🔴 LE REPÈRE NE TIENT PAS SUR LA COULEUR SEULE (WCAG 1.4.1). Trois canaux
+// indépendants : le CADRE (`--filet-marge`, rebranché sur `CanvasText` par
+// `cartouche` en contraste forcé), l'ÉTIQUETTE ÉCRITE en capitales de la police
+// micro, et la NUMÉROTATION du `<ol>`, qui est sémantique et ne se retire pas.
+.marche-a-suivre {
+  @include m.cartouche(var(--couleur-accent), var(--filet-marge));
+
+  padding: var(--espace-3);
+  background-color: var(--couleur-surface-creuse);
+}
+
+// Le titre d'une marche à suivre est un titre VISUEL, jamais un `<h_>` — le composant
+// ignore le niveau de titre où il est monté, et en émettre un ferait sauter un niveau
+// (voir le gabarit).
+// ⚠️ « MÊME TRAITEMENT QUE L'ÉTIQUETTE D'UN ENCADRÉ » SERAIT FAUX, et cette ligne a dit le
+// contraire jusqu'au lot 4 : les TROIS encadrés de ton gardent le tampon `micro-etiquette`,
+// les QUATRE qui portent une phrase le lèvent (plus haut). C'est à ce second groupe que la
+// marche à suivre appartient — elle y est nommée, et seule la teinte se règle ici.
+.marche-a-suivre > .etiquette {
+  color: var(--couleur-accent);
+}
+
+// LES MARQUEURS DE LISTE SONT CONSERVÉS. `list-style: none` retire, sur WebKit, le
+// rôle de liste avec la puce — et ici le numéro n'est pas un décor : c'est l'ordre
+// des pas. Le retrait en `padding-inline-start` lui laisse la place.
+.marche-a-suivre > .etapes {
+  margin-block: 0;
+  padding-inline-start: var(--espace-4);
+  color: var(--couleur-encre);
+}
+
+.marche-a-suivre .etape + .etape {
+  margin-block-start: var(--espace-3);
+}
+
+// Le défileur d'une étape prend son `overflow-x` de la règle `.defileur` commune,
+// plus haut — seule l'espace qui le sépare de sa phrase est décidée ici.
+.marche-a-suivre .etape > .defileur {
+  margin-block-start: var(--espace-2);
+}
+
+// LE RENVOI EST UN LIEN DE BLOC : il commence sa ligne, sous la phrase et sous le
+// code éventuel. `inline-block` et non `block` pour que l'anneau de focus épouse le
+// texte du lien plutôt que toute la largeur de l'étape.
+.marche-a-suivre .renvoi {
+  display: inline-block;
+  margin-block-start: var(--espace-2);
+  color: var(--couleur-accent);
 }
