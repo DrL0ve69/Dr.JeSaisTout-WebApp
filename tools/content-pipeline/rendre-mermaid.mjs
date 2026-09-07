@@ -1472,6 +1472,10 @@ function collecterSvg(lecons) {
     for (const bloc of blocs) {
       if (bloc.type === 'mermaid') trouves.push(bloc.svg);
       else if (bloc.type === 'encadre') descendre(bloc.blocs);
+      // Le SECOND type porteur de blocs (lot 5, `methodes`) : ses enfants vivent un cran plus bas,
+      // dans chaque volet. Un diagramme écrit dans un onglet échapperait sinon à la récolte, donc
+      // au contrôle d'assainissement du SVG — un manque silencieux, pas un rouge.
+      else if (bloc.type === 'methodes') for (const volet of bloc.volets) descendre(volet.blocs);
     }
   };
   for (const lecon of lecons) for (const section of lecon.sections) descendre(section.blocs);

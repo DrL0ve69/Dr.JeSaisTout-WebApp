@@ -253,8 +253,12 @@ const AMPLITUDE_MAX_PLAGE = 100;
 /**
  * Conteneurs `:::` autorisés — liste FERMÉE, la MÊME que celle de `valider.mjs`. Deux listes
  * séparées est une redondance assumée : le compilateur ne suppose pas que le validateur a tourné,
- * et le lot 5 les rapprochera par un test plutôt que par un import (un import ferait des deux une
- * seule vérité, donc une seule occasion de se tromper).
+ * et un import ferait des deux une seule vérité, donc une seule occasion de se tromper.
+ *
+ * Les deux copies sont APPARIÉES PAR UN TEST depuis le lot 5 —
+ * `src/pipeline-contenu-validation.spec.ts`, bloc « les deux copies de la liste fermée de
+ * conteneurs », contre des noms écrits À LA MAIN (L-012). Le commentaire n'est donc plus le seul
+ * lien entre elles (L-008).
  */
 /** @type {ReadonlySet<string>} */
 const CONTENEURS_AUTORISES = new Set([
@@ -262,6 +266,8 @@ const CONTENEURS_AUTORISES = new Set([
   'vulnerable',
   'corrige',
   'marche-a-suivre',
+  'methodes',
+  'methode',
   ...VARIANTES_ENCADRE,
 ]);
 
@@ -273,6 +279,25 @@ const ATTRIBUT_TITRE = 'titre';
 const ATTRIBUT_VOIR = 'voir';
 /** Ce qui, dans un `{voir="…"}`, désigne un autre module plutôt qu'un titre de la même leçon. */
 const PREFIXE_MODULE = 'module:';
+
+/** Le conteneur des ONGLETS de méthode (décision D-C, 2026-08-31), et son volet. */
+const CONTENEUR_METHODES = 'methodes';
+const CONTENEUR_VOLET = 'methode';
+/** Le texte de l'onglet — obligatoire, non vide, UNIQUE dans le conteneur. */
+const ATTRIBUT_LIBELLE = 'libelle';
+/**
+ * Le MARQUEUR SANS VALEUR qui désigne le volet visible. Exactement un volet le porte.
+ *
+ * 🔴 C'est le premier marqueur du dépôt : la grammaire d'attributs n'acceptait jusqu'ici que des
+ * paires `clef="valeur"` et refusait tout résidu. La liste blanche des marqueurs est passée PAR
+ * L'APPELANT, comme `clefsAutorisees` — `defaut` n'est admis que sur `::: methode`, jamais sur un
+ * titre de section ni sur un encadré (`.claude/rules/security.md` §4 : ce qui n'est pas nommé est
+ * refusé en se nommant).
+ */
+const MARQUEUR_DEFAUT = 'defaut';
+/** Bornes du nombre de volets : un seul n'est pas une comparaison, quatre est un sommaire déguisé. */
+const VOLETS_MIN = 2;
+const VOLETS_MAX = 3;
 /**
  * Le renvoi d'une étape, EN TÊTE et nulle part ailleurs — même position imposée que `{lignes="…"}`
  * sur une annotation. Ancré sur `^`, donc aucun retour arrière possible : ce qui n'est pas en tête
@@ -1024,11 +1049,52 @@ ${classes}
  * @param {string} nom nom du conteneur, pour le message
  * @param {readonly string[]} clefsAutorisees
  * @param {string} nomFichier
+ * @param {string} [marque] le marqueur RÉELLEMENT écrit par l'auteur (`ouverture.markup`), cité
+ *   tel quel dans les messages. Défaut `':::'` pour les conteneurs qui n'admettent que cette
+ *   longueur. 🔴 CE PARAMÈTRE N'EST PAS COSMÉTIQUE : un littéral `':::'` faisait dire au refus
+ *   d'un `::: methodes` (3 deux-points, la forme qui NE MARCHE PAS puisque le conteneur doit
+ *   s'ouvrir plus long que ses volets) « ::: methodes » — c'est-à-dire qu'il rendait à l'auteur
+ *   sa propre faute comme si c'était la forme attendue.
  * @returns {Record<string, string>}
  */
-function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
+function lireAttributs(info, nom, clefsAutorisees, nomFichier, marque = ':::') {
   const reste = info.trim().slice(nom.length).trim();
-  return lireBlocDAttributs(reste, `::: ${nom}`, clefsAutorisees, nomFichier);
+  return lireBlocDAttributs(reste, `${marque} ${nom}`, clefsAutorisees, nomFichier).attributs;
+}
+
+/**
+ * La même lecture, pour le SEUL appelant qui admet des marqueurs sans valeur (`::: methode`).
+ *
+ * Fonction distincte plutôt qu'un cinquième paramètre sur `lireAttributs` : les six autres
+ * appelants rendent un `Record` et n'ont aucun marqueur à connaître. Un appelant qui ne déclare
+ * aucun marqueur doit se comporter EXACTEMENT comme avant le lot 5 — c'est ce que garantit le
+ * défaut `[]` de `lireBlocDAttributs`.
+ *
+ * @param {string} info le `info` du jeton d'ouverture
+ * @param {string} nom nom du conteneur
+ * @param {readonly string[]} clefsAutorisees liste blanche NOMINATIVE des paires
+ * @param {readonly string[]} marqueursAutorises liste blanche NOMINATIVE des marqueurs sans valeur
+ * @param {string} nomFichier
+ * @param {string} [marque] le marqueur réellement écrit (`ouverture.markup`) — même raison que
+ *   sur `lireAttributs` : un volet niché dans un conteneur à cinq deux-points s'ouvre à quatre.
+ * @returns {{ attributs: Record<string, string>, marqueurs: string[] }}
+ */
+function lireAttributsEtMarqueurs(
+  info,
+  nom,
+  clefsAutorisees,
+  marqueursAutorises,
+  nomFichier,
+  marque = ':::',
+) {
+  const reste = info.trim().slice(nom.length).trim();
+  return lireBlocDAttributs(
+    reste,
+    `${marque} ${nom}`,
+    clefsAutorisees,
+    nomFichier,
+    marqueursAutorises,
+  );
 }
 
 /**
@@ -1040,12 +1106,21 @@ function lireAttributs(info, nom, clefsAutorisees, nomFichier) {
  * @param {string} reste `''`, ou le bloc `{…}` complet, déjà rogné
  * @param {string} libelle ce que l'auteur a écrit (« ::: cours », « ## Les commandes ») — cité tel
  *   quel dans les messages, c'est la seule chose qui distingue les deux appelants
+ * 🔴 LES MARQUEURS SANS VALEUR (lot 5, `::: methode {libelle="…" defaut}`) SONT UNE LISTE BLANCHE
+ * PASSÉE PAR L'APPELANT, exactement comme `clefsAutorisees`. Un appelant qui n'en déclare AUCUN
+ * retombe, à l'octet près, sur le comportement d'avant : tout résidu est refusé par le message
+ * « attributs illisibles ». C'est ce qui garde le contrôle de résidu SENSIBLE — il existe pour
+ * attraper `{lignes=2}` (guillemets oubliés), qui rendrait un objet vide et enverrait une
+ * annotation à la ligne 0 sans que rien ne le signale.
+ *
  * @param {readonly string[]} clefsAutorisees liste blanche NOMINATIVE
  * @param {string} nomFichier
- * @returns {Record<string, string>}
+ * @param {readonly string[]} [marqueursAutorises] liste blanche NOMINATIVE des marqueurs SANS
+ *   valeur ; vide par défaut, ce qui rend le résidu entièrement refusé
+ * @returns {{ attributs: Record<string, string>, marqueurs: string[] }}
  */
-function lireBlocDAttributs(reste, libelle, clefsAutorisees, nomFichier) {
-  if (reste === '') return {};
+function lireBlocDAttributs(reste, libelle, clefsAutorisees, nomFichier, marqueursAutorises = []) {
+  if (reste === '') return { attributs: {}, marqueurs: [] };
   const accolade = /^\{(.*)\}$/.exec(reste);
   if (accolade === null) {
     echec(`${nomFichier} : « ${libelle} » suivi de « ${reste} »`, [
@@ -1074,12 +1149,32 @@ function lireBlocDAttributs(reste, libelle, clefsAutorisees, nomFichier) {
   // `{lignes=2}` (guillemets oubliés) rendrait un objet VIDE : l'annotation partirait sur la ligne
   // 0 sans que rien ne le signale. Ce qui n'est pas compris est refusé, jamais ignoré.
   const residu = corps.replace(MOTIF_PAIRE, '').trim();
-  if (residu !== '') {
+  if (residu === '') return { attributs, marqueurs: [] };
+  // AUCUN MARQUEUR DÉCLARÉ = le comportement d'avant le lot 5, mot pour mot. C'est la branche que
+  // prennent le titre de section, l'encadré, la comparaison et la marche à suivre.
+  if (marqueursAutorises.length === 0) {
     echec(`${nomFichier} : attributs illisibles sur « ${libelle} » — « ${residu} »`, [
       'forme attendue : {clef="valeur"}, valeurs toujours entre guillemets droits',
     ]);
   }
-  return attributs;
+  const marqueurs = residu.split(/\s+/);
+  const inconnu = marqueurs.find((jeton) => !marqueursAutorises.includes(jeton));
+  if (inconnu !== undefined) {
+    echec(
+      `${nomFichier} : « ${inconnu} » n’est ni un attribut ni un marqueur connu sur « ${libelle} »`,
+      [
+        `marqueurs admis : ${marqueursAutorises.join(', ')}`,
+        'un attribut s’écrit clef="valeur" ; un marqueur s’écrit seul, sans valeur ni guillemets',
+      ],
+    );
+  }
+  // Un marqueur répété est une frappe, pas une intention : il ne veut rien dire de plus que le
+  // premier, et l'avaler laisserait croire que la ligne a été comprise en entier.
+  const repete = marqueurs.find((jeton, rang) => marqueurs.indexOf(jeton) !== rang);
+  if (repete !== undefined) {
+    echec(`${nomFichier} : marqueur « ${repete} » écrit deux fois sur « ${libelle} »`);
+  }
+  return { attributs, marqueurs };
 }
 
 // ---------------------------------------------------------------------------
@@ -1459,19 +1554,25 @@ function lireExemple(enfants, ouverture, nom, ctx) {
  * Tolérer de la prose ici reviendrait à la perdre : le contrat de `comparaison` n'a pas de place
  * pour elle. Mieux vaut le dire à l'auteur.
  *
+ * 🔴 LE PRÉDICAT EST POSITIF, ET IL DOIT L'ÊTRE (`.claude/rules/security.md` §4). Il ne l'était
+ * pas : `jeton.nesting === 1 || jeton.type === 'fence'` est une LISTE NOIRE, donc tout jeton de
+ * `nesting 0` glissé entre deux paires était avalé EN SILENCE — mesuré avec le markdown-it du
+ * dépôt, un `---` entre deux paires produit trois jetons `hr` de `nesting 0`, aucun refusé.
+ * Ici RIEN n'est légitime : les fermetures d'une paire sont consommées par `trouverFermeture`,
+ * après quoi l'appelant reprend à `fin + 1`. Tout ce qui atteint cette fonction est donc une
+ * faute, et se nomme.
+ *
  * @param {JetonMd} jeton jeton rencontré, dont le type n'est pas `container_vulnerable_open`
  * @param {string} nomFichier fichier de contenu, pour nommer la faute
- * @returns {void} rend la main si le jeton est un simple résidu de balisage à ignorer
+ * @returns {void} ne rend jamais la main — `echec` termine le processus
  */
 function refuserJetonHorsPaire(jeton, nomFichier) {
   if (jeton.type === 'container_corrige_open') {
     echec(`${nomFichier} : « ::: corrige » sans « ::: vulnerable » juste avant`);
   }
-  if (jeton.nesting === 1 || jeton.type === 'fence') {
-    echec(`${nomFichier} : « :::: comparaison » ne peut contenir que des paires`, [
-      `« ${jeton.type} » rencontré — attendu « ::: vulnerable » puis « ::: corrige »`,
-    ]);
-  }
+  echec(`${nomFichier} : « :::: comparaison » ne peut contenir que des paires`, [
+    `« ${jeton.type} » rencontré — attendu « ::: vulnerable » puis « ::: corrige »`,
+  ]);
 }
 
 /**
@@ -1562,6 +1663,219 @@ function lireComparaison(enfants, ouverture, ctx) {
     echec(`${ctx.nomFichier} : « :::: comparaison » ne contient aucune paire vulnérable/corrigé`);
   }
   return { type: 'comparaison', exemples };
+}
+
+/**
+ * Les conteneurs BANNIS à l'intérieur d'un volet de méthode, avec le libellé d'auteur de chacun.
+ *
+ * 🔴 POURQUOI CE BANNISSEMENT EST AU CONTRAT ET NON UNE PRÉFÉRENCE. Les volets d'un `methodes`
+ * sont **le même résultat par deux routes** ; un exemple vulnérable et sa parade ne sont pas deux
+ * routes vers le même résultat, et l'un des deux se retrouverait MASQUÉ derrière un onglet — donc
+ * introuvable au `Ctrl+F` (coût R-4, assumé seulement parce que ce qui est masqué est un doublon
+ * de but). Un `methodes` imbriqué, lui, est un sommaire déguisé à deux étages.
+ *
+ * TABLE NOMINATIVE : ce qui n'est pas prévu est nommé tel quel, jamais avalé
+ * (`.claude/rules/security.md` §4).
+ *
+ * @type {ReadonlyMap<string, string>}
+ */
+const INTERDITS_DANS_UN_VOLET = new Map([
+  ['container_comparaison_open', ':::: comparaison'],
+  ['container_vulnerable_open', '::: vulnerable'],
+  ['container_corrige_open', '::: corrige'],
+  ['container_methodes_open', ':::: methodes'],
+  ['container_methode_open', '::: methode'],
+]);
+
+/**
+ * Refuse un jeton rencontré dans un `:::: methodes` là où une ouverture `::: methode` était
+ * attendue.
+ *
+ * Même arbitrage, mot pour mot, que `refuserJetonHorsPaire` : tolérer de la prose ici reviendrait
+ * à la perdre, puisque le contrat du conteneur n'a pas de place pour elle.
+ *
+ * 🔴 LE PRÉDICAT EST POSITIF, ET IL DOIT L'ÊTRE — voir `refuserJetonHorsPaire`, dont ce lot a
+ * REDUPLIQUÉ la liste noire avant qu'une revue ne la mesure. AUCUN jeton n'est légitime ici : les
+ * fermetures d'un volet sont consommées par `trouverFermeture`, après quoi `lireMethodes` reprend
+ * à `fin + 1`. Ce qui arrive ici est donc toujours une faute, et se nomme par son `type`.
+ *
+ * @param {JetonMd} jeton jeton rencontré, dont le type n'est pas `container_methode_open`
+ * @param {string} nomFichier
+ * @returns {void} ne rend jamais la main — `echec` termine le processus
+ */
+function refuserJetonHorsVolet(jeton, nomFichier) {
+  echec(`${nomFichier} : « :::: ${CONTENEUR_METHODES} » ne peut contenir que des volets`, [
+    `« ${jeton.type} » rencontré — attendu « ::: ${CONTENEUR_VOLET} {${ATTRIBUT_LIBELLE}="…"} »`,
+    'ce qu’il y aurait à dire autour des volets appartient à la théorie, hors du conteneur',
+  ]);
+}
+
+/**
+ * Lit UN volet `::: methode {libelle="…" defaut}`.
+ *
+ * @param {readonly JetonMd[]} enfants jetons intérieurs du volet
+ * @param {JetonMd} ouverture jeton d'ouverture, porteur de son `info`
+ * @param {Contexte} ctx
+ * @returns {{ libelle: string, defaut: boolean, blocs: BlocContenu[] }}
+ */
+function lireVoletDeMethode(enfants, ouverture, ctx) {
+  const { attributs, marqueurs } = lireAttributsEtMarqueurs(
+    ouverture.info,
+    CONTENEUR_VOLET,
+    [ATTRIBUT_LIBELLE],
+    [MARQUEUR_DEFAUT],
+    ctx.nomFichier,
+    ouverture.markup,
+  );
+  // OBLIGATOIRE ET NON VIDE, même geste que `{titre="…"}` sur la marche à suivre : `{libelle=""}`
+  // passe la grammaire des paires et rendrait un onglet que rien ne nomme — ni à l'œil, ni au
+  // lecteur d'écran, qui n'aurait alors qu'une radio anonyme à annoncer.
+  const libelle = (attributs[ATTRIBUT_LIBELLE] ?? '').trim();
+  if (libelle === '') {
+    echec(
+      `${ctx.nomFichier} : « ::: ${CONTENEUR_VOLET} » sans attribut « ${ATTRIBUT_LIBELLE} » non vide`,
+      [
+        `forme attendue : ::: ${CONTENEUR_VOLET} {${ATTRIBUT_LIBELLE}="La méthode du cours" ${MARQUEUR_DEFAUT}}`,
+        'c’est le texte de l’onglet — le seul nom accessible que le volet aura',
+      ],
+    );
+  }
+
+  // Le balayage porte sur la liste PLATE des jetons du volet : un conteneur banni niché trois
+  // niveaux plus bas y figure au même titre qu'un enfant direct.
+  for (const jeton of enfants) {
+    const banni = INTERDITS_DANS_UN_VOLET.get(jeton.type);
+    if (banni !== undefined) {
+      echec(
+        `${ctx.nomFichier} : « ${banni} » dans le volet « ${libelle} » d’un « :::: ${CONTENEUR_METHODES} »`,
+        [
+          'un volet montre une ROUTE vers le même résultat, pas un exemple vulnérable et sa parade',
+          'une comparaison s’écrit dépliée, hors du conteneur d’onglets — la moitié masquée serait introuvable',
+        ],
+      );
+    }
+  }
+
+  return {
+    libelle,
+    defaut: marqueurs.includes(MARQUEUR_DEFAUT),
+    blocs: construireBlocs(enfants, ctx),
+  };
+}
+
+/**
+ * Les TROIS bornes de cardinalité d'un `:::: methodes`, jugées une fois les volets lus.
+ *
+ * Isolée de `lireMethodes` pour la même raison que `causeDAttributsDEncadre` l'est de sa boucle :
+ * la boucle parcourt, cette fonction juge — et chacune des trois fautes est une décision distincte.
+ *
+ * @param {ReadonlyArray<{ libelle: string, defaut: boolean, marque: string }>} volets dans l'ordre
+ *   du document ; `marque` est le marqueur réellement écrit par l'auteur pour ce volet
+ * @param {string} marqueDuConteneur `ouverture.markup` du `:::: methodes`
+ * @param {string} nomFichier
+ * @returns {void}
+ */
+function verifierBornesDesVolets(volets, marqueDuConteneur, nomFichier) {
+  // SITUER LA FAUTE : dans une leçon qui porte trois jeux d'onglets, « porte 1 volet(s) » sans le
+  // moindre libellé oblige l'auteur à chercher lequel des trois est visé.
+  const tous = volets.map((volet) => `« ${volet.libelle} »`).join(', ');
+  const situes = tous === '' ? '' : ` : ${tous}`;
+
+  if (volets.length < VOLETS_MIN || volets.length > VOLETS_MAX) {
+    /** @type {string[]} */
+    const details = [
+      `le contrat en admet ${VOLETS_MIN} ou ${VOLETS_MAX}`,
+      'un seul volet n’est pas une comparaison ; quatre est un sommaire déguisé (ST4-1)',
+    ];
+    // 🔴 LA CAUSE LA PLUS FRÉQUENTE D'UN COMPTE TROP BAS N'EST PAS UN VOLET MANQUANT, C'EST UN
+    // MARQUEUR TROP COURT. `markdown-it-container` referme un conteneur sur la première ligne de
+    // deux-points AU MOINS AUSSI LONGUE que son ouverture : un `::: methodes` contenant des
+    // `::: methode` se referme donc tout seul, et l'auteur lit « porte 1 volet(s) » alors qu'il en
+    // a écrit deux. Le dire, plutôt que de le laisser deviner.
+    if (
+      volets.length < VOLETS_MIN &&
+      volets.some((volet) => volet.marque.length <= marqueDuConteneur.length)
+    ) {
+      details.push(
+        `« ${marqueDuConteneur} » n’est pas plus long que le marqueur d’un volet : le conteneur s’ouvre avec AU MOINS UN « : » DE PLUS que ses volets`,
+      );
+    }
+    echec(
+      `${nomFichier} : « ${marqueDuConteneur} ${CONTENEUR_METHODES} » porte ${volets.length} volet(s)${situes}`,
+      details,
+    );
+  }
+
+  // EXACTEMENT UN `defaut` — c'est ce qui garantit qu'un volet exactement est visible dans le HTML
+  // servi, donc que « zéro volet à l'écran » n'est pas un état atteignable.
+  const parDefaut = volets.filter((volet) => volet.defaut).map((volet) => volet.libelle);
+  if (parDefaut.length !== 1) {
+    const cites = parDefaut.map((libelle) => `« ${libelle} »`).join(', ');
+    const constat =
+      parDefaut.length === 0
+        ? `aucun volet ne porte le marqueur « ${MARQUEUR_DEFAUT} »${situes}`
+        : `${parDefaut.length} volets le portent (${cites})`;
+    echec(`${nomFichier} : « ${marqueDuConteneur} ${CONTENEUR_METHODES} » — ${constat}`, [
+      `exactement un volet porte « ${MARQUEUR_DEFAUT} » : c’est celui qui s’affiche sans JavaScript`,
+      `forme attendue : ::: ${CONTENEUR_VOLET} {${ATTRIBUT_LIBELLE}="La méthode du cours" ${MARQUEUR_DEFAUT}}`,
+    ]);
+  }
+
+  const doublon = volets.find(
+    (volet, rang) => volets.findIndex((autre) => autre.libelle === volet.libelle) !== rang,
+  );
+  if (doublon !== undefined) {
+    echec(
+      `${nomFichier} : « ${marqueDuConteneur} ${CONTENEUR_METHODES} » porte deux volets nommés « ${doublon.libelle} »`,
+      ['deux onglets homonymes ne se distinguent ni à l’œil ni au lecteur d’écran'],
+    );
+  }
+}
+
+/**
+ * Lit un `:::: methodes` : une suite de 2 ou 3 volets `::: methode`, et rien d'autre.
+ *
+ * @param {readonly JetonMd[]} enfants
+ * @param {JetonMd} ouverture
+ * @param {Contexte} ctx
+ * @returns {BlocContenu}
+ */
+function lireMethodes(enfants, ouverture, ctx) {
+  // Le conteneur lui-même n'admet AUCUN attribut : tout ce qui se déclare se déclare sur un volet.
+  // `lireAttributs` refuse NOMMÉMENT toute clef, et le résidu reste illisible faute de marqueur
+  // déclaré ici — `defaut` posé sur le conteneur plutôt que sur un volet est donc une faute nommée.
+  lireAttributs(ouverture.info, CONTENEUR_METHODES, [], ctx.nomFichier, ouverture.markup);
+
+  /** @type {{ libelle: string, defaut: boolean, blocs: BlocContenu[], marque: string }[]} */
+  const volets = [];
+  let i = 0;
+  while (i < enfants.length) {
+    const jeton = enfants[i];
+    if (jeton === undefined) break;
+    if (jeton.type !== `container_${CONTENEUR_VOLET}_open`) {
+      refuserJetonHorsVolet(jeton, ctx.nomFichier);
+      i += 1;
+      continue;
+    }
+    const fin = trouverFermeture(enfants, i, CONTENEUR_VOLET, ctx.nomFichier);
+    volets.push({
+      ...lireVoletDeMethode(enfants.slice(i + 1, fin), jeton, ctx),
+      marque: jeton.markup,
+    });
+    i = fin + 1;
+  }
+
+  verifierBornesDesVolets(volets, ouverture.markup, ctx.nomFichier);
+  // `marque` ne sert QU'aux messages de refus : elle ne franchit pas la frontière du contrat, et
+  // la reconstruction est NOMINATIVE — un `...volet` y laisserait entrer tout champ futur.
+  return {
+    type: 'methodes',
+    volets: volets.map((volet) => ({
+      libelle: volet.libelle,
+      defaut: volet.defaut,
+      blocs: volet.blocs,
+    })),
+  };
 }
 
 /**
@@ -1876,6 +2190,16 @@ function lireAncreDeComposant(jetons, i) {
 function classerConteneurOuvert(enfants, ouverture, nom, ctx) {
   if (nom === 'comparaison') return lireComparaison(enfants, ouverture, ctx);
   if (nom === CONTENEUR_MARCHE) return lireMarcheASuivre(enfants, ouverture, ctx);
+  if (nom === CONTENEUR_METHODES) return lireMethodes(enfants, ouverture, ctx);
+  // Un volet rencontré ICI a été écrit SEUL : `lireMethodes` consomme les siens et ne repasse
+  // jamais par cette fonction pour eux. Même refus nommé que `::: corrige` hors d'une comparaison
+  // — sans lui, le message générique du dessous parlerait de comparaison, donc de la mauvaise
+  // faute, et enverrait l'auteur chercher un conteneur qu'il n'a pas écrit.
+  if (nom === CONTENEUR_VOLET) {
+    echec(`${ctx.nomFichier} : « ::: ${CONTENEUR_VOLET} » hors d’un « :::: ${CONTENEUR_METHODES} »`, [
+      `un volet n’existe qu’à l’intérieur du conteneur d’onglets, entre ${VOLETS_MIN} et ${VOLETS_MAX} frères`,
+    ]);
+  }
   if (!ENCADRES.has(nom)) {
     echec(`${ctx.nomFichier} : « ::: ${nom} » hors d'un « :::: comparaison »`, [
       'vulnerable et corrige n’existent qu’appariés, à l’intérieur d’une comparaison',
@@ -2315,7 +2639,9 @@ function lireRenvoiDeTitre(titreBrut, niveau, ctx) {
     ]);
   }
 
-  const attributs = lireBlocDAttributs(
+  // AUCUN MARQUEUR SUR UN TITRE DE SECTION : le quatrième argument s'arrête là, donc le défaut
+  // `[]` s'applique et `defaut` y reste un résidu illisible, refusé comme avant le lot 5.
+  const { attributs } = lireBlocDAttributs(
     attributsBruts,
     libelle,
     CLEFS_RENVOI_DE_TITRE,
@@ -2665,6 +2991,15 @@ export function compterAncres(blocs, type) {
   for (const bloc of blocs) {
     if (bloc.type === type) total += 1;
     else if (bloc.type === 'encadre') total += compterAncres(bloc.blocs, type);
+    // LE SECOND TYPE PORTEUR DE BLOCS (lot 5) : ses `blocs` vivent un cran plus bas, dans chaque
+    // volet. Une ancre `[[quiz]]` écrite dans un onglet serait invisible à une descente qui ne
+    // connaîtrait que `encadre` — et le compte sortirait juste sur une leçon qui en porte une
+    // ailleurs, donc VERT. La copie jumelle de `src/app/features/cours/contenu-compile.ts` porte
+    // la MÊME descente, et `src/compter-ancres-parite.spec.ts` fait compter le même corpus aux
+    // deux (L-037).
+    else if (bloc.type === 'methodes') {
+      for (const volet of bloc.volets) total += compterAncres(volet.blocs, type);
+    }
   }
   return total;
 }
@@ -2677,13 +3012,32 @@ export function compterAncres(blocs, type) {
  * balayage de premier niveau. Ses renvois resteraient alors NON RÉSOLUS — une ancre vide dans
  * l'artéfact, donc un lien mort dans la page, et aucun gate rouge.
  *
- * 🔴 LA DESCENTE EST NOMINATIVE ET BRUYANTE. `encadre` est aujourd'hui le seul type qui imbrique
- * des `blocs` — mais le lot 5 (`methodes`, décision D-C) en ajoute un second, et une marche qu'il
- * porterait serait ici invisible : ses renvois resteraient NON RÉSOLUS, c'est-à-dire une `ancre`
- * vide dans l'artéfact, un lien mort dans la page, et AUCUN gate rouge. Un type porteur de `blocs`
- * qui n'est pas énuméré fait donc échouer la compilation en se nommant, plutôt que de laisser
- * l'invariant dépendre de la mémoire du prochain lot (L-063 : un invariant que rien n'observe
- * n'est pas vrai, il est indéterminé ; même geste que les listes blanches de `security.md` §4).
+ * 🔴 LA DESCENTE EST NOMINATIVE ET BRUYANTE. `encadre` a été rejoint au lot 5 par `methodes`
+ * (décision D-C), dont les `blocs` vivent un cran plus bas, dans chaque volet — une marche qu'un
+ * volet porterait serait invisible à une descente qui l'ignorerait : ses renvois resteraient NON
+ * RÉSOLUS, c'est-à-dire une `ancre` vide dans l'artéfact, un lien mort dans la page, et AUCUN gate
+ * rouge.
+ *
+ * 🔴 CE QUE LA GARDE BRUYANTE DU DESSOUS NE COUVRE PAS — à lire avant de s'y fier. Elle apparie
+ * `'blocs' in bloc`, donc elle ne voit QUE les enfants portés sous la clef `blocs`. Elle n'aurait
+ * PAS attrapé `methodes`, dont les enfants vivent sous `volets[].blocs` : ce n'est pas elle qui a
+ * tenu au lot 5, c'est la relecture à la main. Un type porteur d'enfants SOUS UNE AUTRE CLEF lui
+ * échappe entièrement, et en silence.
+ *
+ * ⚠️ CONSÉQUENCE OPÉRATOIRE, ET ELLE EST MANUELLE. Le prochain `BlocContenu` imbriquant DOIT être
+ * vérifié À LA MAIN aux QUATRE descentes du dépôt, qu'aucune garde partagée ne relie :
+ *   · `recenserMarches`         — tools/content-pipeline/compiler-markdown.mjs:3045
+ *   · `compterAncres`           — tools/content-pipeline/compiler-markdown.mjs:2989
+ *   · `compterAncres` (jumelle) — src/app/features/cours/contenu-compile.ts:242
+ *   · `collecterSvg`            — tools/content-pipeline/rendre-mermaid.mjs:1467
+ * (Les numéros datent du 2026-09-07 et se périment ; les NOMS de fonction, eux, sont stables —
+ * c'est par eux qu'on retrouve les quatre, la ligne n'est qu'un raccourci.)
+ * Les trois autres n'ont AUCUNE garde du tout. La couverture est complète AUJOURD'HUI parce que
+ * `encadre` et `methodes` sont les deux seuls types imbriquants — c'est un constat daté, pas une
+ * propriété tenue par du code. Ne pas écrire l'inverse ici : une conviction annoncée comme preuve
+ * fabrique la pression d'assouplissement (S-011), et un invariant que rien n'observe n'est pas
+ * vrai, il est indéterminé (L-063). Une garde structurelle PARTAGÉE serait la vraie parade ; c'est
+ * une décision d'architecture, hors du périmètre de ce lot.
  *
  * @param {readonly BlocContenu[]} blocs
  * @param {Extract<BlocContenu, { type: 'marche-a-suivre' }>[]} sortie mutée
@@ -2694,7 +3048,9 @@ function recenserMarches(blocs, sortie, nomFichier) {
   for (const bloc of blocs) {
     if (bloc.type === 'marche-a-suivre') sortie.push(bloc);
     else if (bloc.type === 'encadre') recenserMarches(bloc.blocs, sortie, nomFichier);
-    else if ('blocs' in bloc) {
+    else if (bloc.type === 'methodes') {
+      for (const volet of bloc.volets) recenserMarches(volet.blocs, sortie, nomFichier);
+    } else if ('blocs' in bloc) {
       echec(
         `${nomFichier} : bloc « ${bloc.type} » porteur de « blocs », NON ÉNUMÉRÉ par le recensement des marches à suivre`,
         [
@@ -2994,8 +3350,10 @@ export function compilerLecon(dossier, outils) {
   // niveau ET une seconde dans un encadré comptait donc 1, passait le contrôle, et le
   // composant rendait le quiz DEUX fois : `id` de questions dupliqués dans le
   // document, c'est-à-dire très exactement ce que le paragraphe ci-dessus promet
-  // d'empêcher. `encadre` est le seul bloc qui en imbrique d'autres (`comparaison`
-  // porte des `exemples`, pas des blocs).
+  // d'empêcher. ⚠️ `encadre` N'EST PLUS LE SEUL bloc qui en imbrique d'autres : le lot 5 lui a
+  // adjoint `methodes`, dont les enfants vivent un cran plus bas, dans `volets[].blocs`
+  // (`comparaison`, elle, porte des `exemples`, pas des blocs). `compterAncres` descend dans les
+  // deux — voir la descente elle-même, qui est nominative.
   const blocsDuCorps = sections.flatMap((section) => section.blocs);
   const ancresQuiz = compterAncres(blocsDuCorps, 'ancre-quiz');
   if (ancresQuiz !== 1) {

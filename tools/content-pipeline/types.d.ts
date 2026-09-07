@@ -363,6 +363,54 @@ type BlocContenu =
           | { cible: 'module'; slug: string };
       }[];
     }
+  | {
+      /**
+       * LES ONGLETS DE MÉTHODE — la même tâche par deux (ou trois) chemins (décision D-C du
+       * 2026-08-31, `docs/contenu/pipeline-contenu.md`, section « Le conteneur `methodes` »).
+       *
+       * 🔴 CE QUI DISTINGUE CE CONTENEUR DE CE QU'INTERDIT ST4-1 EST UNE CLAUSE DE RÉDACTION, PAS
+       * UNE FORME : les volets sont **le même résultat par deux routes** (`crontab` ou un timer
+       * systemd), donc le contenu masqué est toujours l'ÉQUIVALENT du contenu visible. Aucun gate
+       * ne peut mesurer ça — c'est le `verificateur-theorie` qui le relit. Ce que le build mesure,
+       * lui, ce sont les bornes ci-dessous, et elles sont ce qui empêche le conteneur de glisser
+       * vers le sommaire déguisé que ST4-1 refuse.
+       *
+       * Un volet admet du contenu de bloc GÉNÉRAL, comme un encadré — c'est précisément ce qui
+       * donne son sens au bannissement de `vulnerable`/`corrige`/`comparaison` à l'intérieur : un
+       * exemple vulnérable et sa parade ne sont pas deux ROUTES vers le même résultat, et l'un des
+       * deux serait masqué.
+       *
+       * ⚠️ MAIS CETTE PROMESSE A UNE CONDITION DE FORME, MESURÉE LE 2026-09-07, et l'exemple
+       * canonique du contrat ne la remplit pas. `markdown-it-container` ferme un conteneur à la
+       * PREMIÈRE ligne dont le marqueur est au moins aussi long que celui de l'ouverture : les
+       * longueurs doivent donc DÉCROÎTRE STRICTEMENT en descendant. Avec `::::` pour le conteneur
+       * et `:::` pour un volet — la forme écrite dans les fixtures et dans la doc — il ne reste
+       * aucune longueur disponible en dessous, et un `::: note` imbriqué est refermé par la
+       * fermeture du volet, sans erreur d'auteur visible. Avec `:::::` / `::::` / `:::`,
+       * l'imbrication fonctionne : mesuré, un volet rend alors `['prose', 'code', 'encadre']`.
+       * Autrement dit, ce n'est pas le CONTENU qui est borné, c'est la LONGUEUR DU MARQUEUR qu'il
+       * faut choisir d'avance en fonction de la profondeur qu'on compte atteindre.
+       */
+      type: 'methodes';
+      /**
+       * DEUX OU TROIS volets, jamais un (ce n'est pas une comparaison) ni quatre (c'est un
+       * sommaire déguisé). Le tableau est ordonné comme le document.
+       */
+      volets: {
+        /**
+         * Le texte de l'onglet — OBLIGATOIRE, non vide et UNIQUE dans le conteneur : deux onglets
+         * homonymes ne se distinguent ni à l'œil ni au lecteur d'écran.
+         */
+        libelle: string;
+        /**
+         * Exactement UN volet le porte à `true` — c'est ce qui garantit qu'un volet exactement est
+         * visible dans le HTML servi, donc que « zéro volet à l'écran » n'est pas un état
+         * atteignable (motif (c) de ST4-1, désarmé par construction).
+         */
+        defaut: boolean;
+        blocs: BlocContenu[];
+      }[];
+    }
   | { type: 'ancre-quiz' }
   | { type: 'ancre-simulation' };
 

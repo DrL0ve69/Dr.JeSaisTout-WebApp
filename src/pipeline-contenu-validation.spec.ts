@@ -35,7 +35,16 @@
 // =============================================================================
 
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
@@ -516,6 +525,21 @@ const TROIS_CONTENEURS_DE_COMPARAISON = ['comparaison', 'vulnerable', 'corrige']
 const CONTENEUR_HORS_ENCADRE_MARCHE = ['marche-a-suivre'] as const;
 
 /**
+ * Les CINQUIÈME et SIXIÈME conteneurs hors encadré (décision D-C, 2026-08-31) : les onglets de
+ * méthode et leur volet.
+ *
+ * Ils n'ont pas de variante non plus. `methodes` n'admet AUCUN attribut ; `methode` porte un
+ * `{libelle="…"}` obligatoire et le premier MARQUEUR SANS VALEUR du dépôt, `defaut`. Leur ordre
+ * est celui des deux déclarations : le conteneur, puis son volet.
+ *
+ * ⚠️ Ce littéral est écrit À LA MAIN, comme les trois du dessus, et c'est le geste qui oblige un
+ * humain à constater qu'un nom est apparu (L-012). Le commentaire de `compiler-markdown.mjs` qui
+ * promettait ce test au « lot 5 » a été corrigé dans le même diff : il ne promet plus un travail
+ * fait (L-070).
+ */
+const DEUX_CONTENEURS_DE_METHODES = ['methodes', 'methode'] as const;
+
+/**
  * Extrait les noms d'une déclaration de liste d'un fichier d'outillage.
  *
  * ANALYSE PAR LIGNES, PAS UNE RECHERCHE GLOBALE DE CHAÎNES CITÉES. Les deux déclarations portent
@@ -658,12 +682,13 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
     ]);
   });
 
-  it('le validateur déclare les quatre conteneurs hors encadré PUIS les sept mêmes variantes', () => {
+  it('le validateur déclare les six conteneurs hors encadré PUIS les sept mêmes variantes', () => {
     expect(
       listeDeclaree(VALIDATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/),
     ).toEqual([
       ...TROIS_CONTENEURS_DE_COMPARAISON,
       ...CONTENEUR_HORS_ENCADRE_MARCHE,
+      ...DEUX_CONTENEURS_DE_METHODES,
       ...SEPT_VARIANTES_ENCADRE,
     ]);
   });
@@ -675,8 +700,12 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
   // refuserait comme conteneur inconnu, et l'auteur recevrait un refus pour un conteneur que le
   // rendu sait afficher. La liste du compilateur est ici lue par ses LITTÉRAUX seuls — le
   // `...VARIANTES_ENCADRE` qui la termine n'en est pas un, il est apparié par le test au-dessus.
-  it('les deux copies connaissent les MÊMES quatre conteneurs hors encadré', () => {
-    const attendus = [...TROIS_CONTENEURS_DE_COMPARAISON, ...CONTENEUR_HORS_ENCADRE_MARCHE];
+  it('les deux copies connaissent les MÊMES six conteneurs hors encadré', () => {
+    const attendus = [
+      ...TROIS_CONTENEURS_DE_COMPARAISON,
+      ...CONTENEUR_HORS_ENCADRE_MARCHE,
+      ...DEUX_CONTENEURS_DE_METHODES,
+    ];
     expect(
       listeDeclaree(COMPILATEUR, /const CONTENEURS_AUTORISES = new Set\(\[([\s\S]*?)\]\);/),
     ).toEqual(attendus);
@@ -736,7 +765,8 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
     ).filter(
       (nom) =>
         !TROIS_CONTENEURS_DE_COMPARAISON.includes(nom as never) &&
-        !CONTENEUR_HORS_ENCADRE_MARCHE.includes(nom as never),
+        !CONTENEUR_HORS_ENCADRE_MARCHE.includes(nom as never) &&
+        !DEUX_CONTENEURS_DE_METHODES.includes(nom as never),
     );
     expect([...duValidateur].sort()).toEqual([...duCompilateur].sort());
   });
@@ -799,6 +829,221 @@ describe('l’autre moitié de la pince — le validateur ne refuse pas TOUT', (
     'accepte DEUX leçons qui portent chacune une « section » — le tout-ou-rien satisfait',
     () => {
       const { sortie, code } = lancer(['--racine', FIXTURE_SECTIONS_PARTOUT]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/2 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+});
+
+// =============================================================================
+// LES VOLETS D'UN `:::: methodes` — la moitié VALIDATEUR (décision D-C, lot 5)
+// -----------------------------------------------------------------------------
+// 🔴 POURQUOI CE BLOC MONTE SES RACINES À LA VOLÉE PLUTÔT QUE D'ENTRER DANS
+// `__fixtures__/invalides/`. Le corpus de cas invalides du conteneur `methodes` est un lot à part
+// (lot 7) : chacun de ses cas exige un dossier complet et fait bouger le compte en dur de ce
+// fichier. Or la grammaire de MARQUEURS ajoutée au lot 5 (`{libelle="…" defaut}`) est une
+// extension du validateur, et un garde-fou qu'aucun runner n'exerce est une intention, pas un
+// gate (L-019). Les cas ci-dessous sont donc écrits ici, dans un bac à sable jetable, et ne
+// touchent ni au dossier `invalides/` ni au compte de 51.
+//
+// ⚠️ LE DERNIER CAS EST LE CONTRÔLE POSITIF DU CONTRÔLE DE RÉSIDU, et il porte sur un appelant
+// SANS marqueur : `::: note {lignes=2}` (guillemets oubliés). C'est ce que l'extension pouvait
+// casser sans que rien d'autre le dise — un résidu avalé rendrait un objet vide et enverrait une
+// annotation à la ligne 0. Les messages sont COPIÉS de la sortie réelle (L-089).
+// =============================================================================
+describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
+  const FIXTURE_METHODES = 'tools/content-pipeline/__fixtures__/methodes';
+  let bac = '';
+
+  beforeAll(() => {
+    bac = mkdtempSync(join(tmpdir(), 'drjst-methodes-'));
+  });
+
+  afterAll(() => {
+    rmSync(bac, { recursive: true, force: true });
+  });
+
+  /**
+   * Monte une racine d'un module en remplaçant le conteneur `methodes` de la fixture témoin par
+   * le bloc donné, puis rend la sortie du validateur.
+   */
+  function causeDuBloc(nom: string, bloc: string): string {
+    const source = readFileSync(join(FIXTURE_METHODES, '01-deux-volets', 'lecon.md'), 'utf8');
+    const debut = source.indexOf(':::: methodes');
+    const fin = source.indexOf('## Exemple simple');
+    const dossier = join(bac, nom, '01-deux-volets');
+    mkdirSync(dossier, { recursive: true });
+    writeFileSync(
+      join(dossier, 'lecon.md'),
+      `${source.slice(0, debut)}${bloc}\n\n${source.slice(fin)}`,
+      'utf8',
+    );
+    writeFileSync(
+      join(dossier, 'quiz.json'),
+      readFileSync(join(FIXTURE_METHODES, '01-deux-volets', 'quiz.json'), 'utf8'),
+      'utf8',
+    );
+    const { sortie, code } = lancer(['--racine', join(bac, nom)]);
+    if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n'a pas mordu`);
+    return sortie;
+  }
+
+  const VOLET_VALIDE = ['::: methode {libelle="B"}', '', 'Deux.', '', ':::'].join('\n');
+
+  it(
+    'refuse un MARQUEUR inconnu en le nommant, et énumère ceux qu’il admet',
+    () => {
+      const sortie = causeDuBloc(
+        'marqueur-inconnu',
+        [
+          ':::: methodes',
+          '',
+          '::: methode {libelle="A" defo}',
+          '',
+          'Un.',
+          '',
+          ':::',
+          '',
+          VOLET_VALIDE,
+          '',
+          '::::',
+        ].join('\n'),
+      );
+      // LISTE BLANCHE NOMINATIVE : le refus nomme le jeton fautif ET ce qui est admis.
+      expect(sortie).toContain('« defo » n\u2019est ni un attribut ni un marqueur connu');
+      expect(sortie).toContain('marqueurs admis : defaut');
+    },
+    DELAI,
+  );
+
+  it(
+    'refuse « {libelle=""} » — c’est le seul nom accessible que l’onglet aura',
+    () => {
+      const sortie = causeDuBloc(
+        'libelle-vide',
+        [
+          ':::: methodes',
+          '',
+          '::: methode {libelle="" defaut}',
+          '',
+          'Un.',
+          '',
+          ':::',
+          '',
+          VOLET_VALIDE,
+          '',
+          '::::',
+        ].join('\n'),
+      );
+      expect(sortie).toContain('« ::: methode » sans attribut « libelle » non vide');
+    },
+    DELAI,
+  );
+
+  // 🔴 LA DIVERGENCE QU'UNE REVUE A MESURÉE (correctif C1), ET C'EST LE CAS LE PLUS GRAVE DU LOT.
+  // Cette copie ne filtrait QUE `::: methode` : la ligne d'ouverture du conteneur n'était jamais
+  // regardée. Mesuré sur ce bloc exact — validateur « 1 leçon(s) valides », code 0 ; compilateur
+  // code 1, « attribut « titre » inconnu ». Le juge d'amont laissait passer ce que l'aval refuse
+  // (famille S-010). Le fragment asserté est COPIÉ de la sortie réelle des DEUX copies.
+  it(
+    'refuse un attribut posé sur le CONTENEUR — la ligne que cette copie ne regardait pas',
+    () => {
+      const sortie = causeDuBloc(
+        'attribut-sur-le-conteneur',
+        [
+          ':::: methodes {titre="Deux chemins"}',
+          '',
+          '::: methode {libelle="A" defaut}',
+          '',
+          'Un.',
+          '',
+          ':::',
+          '',
+          VOLET_VALIDE,
+          '',
+          '::::',
+        ].join('\n'),
+      );
+      expect(sortie).toContain('attribut « titre » inconnu');
+      expect(sortie).toContain('n’admet aucun attribut');
+    },
+    DELAI,
+  );
+
+  // Le marqueur RÉPÉTÉ : branche présente des deux côtés depuis le lot 5, exercée par aucun
+  // runner (L-019). Elle refuse correctement — encore fallait-il qu'un gate le dise.
+  it(
+    'refuse un marqueur « defaut » écrit deux fois — une frappe, pas une intention',
+    () => {
+      const sortie = causeDuBloc(
+        'defaut-repete',
+        [
+          ':::: methodes',
+          '',
+          '::: methode {libelle="A" defaut defaut}',
+          '',
+          'Un.',
+          '',
+          ':::',
+          '',
+          VOLET_VALIDE,
+          '',
+          '::::',
+        ].join('\n'),
+      );
+      expect(sortie).toContain('marqueur « defaut » écrit deux fois');
+    },
+    DELAI,
+  );
+
+  // 🔴 PARITÉ D'ORDRE AVEC LE COMPILATEUR (correctif C5). Sur `{libelle="…" titre="X" defo}`, les
+  // deux copies refusaient — pour deux causes DIFFÉRENTES : le compilateur juge les clefs dans sa
+  // boucle de paires, donc avant le résidu, et cette copie jugeait le résidu d'abord. L'auteur
+  // corrigeait « defo » ou « titre » selon le gate qui avait rougi. Le MÊME littéral est asserté
+  // dans `pipeline-contenu-compilation.spec.ts`, cas « clef-inconnue-avant-residu » : c'est le
+  // couple des deux assertions qui prouve la parité, aucune ne la prouve seule (L-089).
+  it(
+    'refuse une clef inconnue AVANT un marqueur inconnu, comme le compilateur',
+    () => {
+      const sortie = causeDuBloc(
+        'clef-inconnue-avant-residu',
+        [
+          ':::: methodes',
+          '',
+          '::: methode {libelle="A" titre="X" defo}',
+          '',
+          'Un.',
+          '',
+          ':::',
+          '',
+          VOLET_VALIDE,
+          '',
+          '::::',
+        ].join('\n'),
+      );
+      expect(sortie).toContain('attribut « titre » inconnu');
+      expect(sortie).not.toContain('« defo »');
+    },
+    DELAI,
+  );
+
+  it(
+    'refuse ENCORE « {lignes=2} » sur un appelant SANS marqueur — le résidu reste sensible',
+    () => {
+      const sortie = causeDuBloc(
+        'residu-sans-marqueur',
+        ['::: note {lignes=2}', 'Un encadré.', ':::'].join('\n'),
+      );
+      expect(sortie).toContain('attributs illisibles sur « ::: note » — « lignes=2 »');
+    },
+    DELAI,
+  );
+
+  it(
+    'accepte la racine témoin — 2 volets et 3 volets, en code 0',
+    () => {
+      const { sortie, code } = lancer(['--racine', FIXTURE_METHODES]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/2 leçon\(s\) valides/);
     },

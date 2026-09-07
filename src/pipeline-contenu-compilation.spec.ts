@@ -69,6 +69,8 @@ interface BlocQuelconque {
     vulnerable: { htmlColore: string; annotations: AnnotationLue[] };
     corrige: { htmlColore: string; annotations: AnnotationLue[] };
   }[];
+  /** `methodes` (décision D-C) — lu en forme LARGE lui aussi, jamais typé depuis le contrat. */
+  volets?: { libelle: string; defaut: boolean; blocs: BlocQuelconque[] }[];
 }
 
 /**
@@ -2011,5 +2013,407 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
       // une balise réelle (S-014). L'arbre, lui, ne ment pas.
       expect(porteur.querySelectorAll('*')).toHaveLength(0);
     });
+  });
+});
+
+// =============================================================================
+// LE CONTENEUR `methodes` — décision D-C du 2026-08-31, lot 5
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC CONSTATE, ET QUE RIEN D'AUTRE NE PEUT CONSTATER. Cinq des bornes du contrat sont
+// jugées par le COMPILATEUR SEUL — le NOMBRE de volets, l'unicité du `defaut`, l'unicité des
+// libellés, le bannissement de `vulnerable`/`corrige`/`comparaison` dans un volet, et le refus
+// d'un `::: methode` orphelin. Les cinq exigent de savoir quel conteneur contient quoi, donc un
+// arbre de conteneurs que `valider.mjs` ne construit pas (il ne rend même plus la LONGUEUR d'un
+// marqueur, si bien qu'il ne distingue pas le `:::` qui ferme un volet du `::::` qui ferme le
+// conteneur). Les refus ci-dessous sont donc les SEULS contrôles positifs de ces cinq règles dans
+// tout le dépôt — la moitié LIGNE PAR LIGNE, elle, est prouvée côté validateur
+// (`pipeline-contenu-validation.spec.ts`). C'est le patron de L-088 : une règle dupliquée par une
+// frontière amont/aval a besoin d'un contrôle positif PAR COPIE.
+//
+// ⚠️ LE RENDU N'EST PAS DE CE LOT (lot 6). Ce qui est vérifié ici est la FORME COMPILÉE : des
+// libellés, un booléen `defaut` par volet, et des blocs récursifs. Aucune assertion ne porte sur
+// du balisage de page, aucune sur une radio ni sur une règle CSS.
+// =============================================================================
+describe('le conteneur « :::: methodes »', () => {
+  const FIXTURE_METHODES = 'tools/content-pipeline/__fixtures__/methodes';
+
+  // Son propre bac à sable, pour la même raison que le bloc « marche-a-suivre » : celui du bloc
+  // précédent est supprimé par son `afterAll`, qui a déjà couru quand ce `describe` démarre.
+  beforeAll(() => {
+    bacASable = mkdtempSync(join(tmpdir(), 'drjst-methodes-'));
+  });
+
+  afterAll(() => {
+    rmSync(bacASable, { recursive: true, force: true });
+  });
+
+  describe('la forme compilée, sur la racine témoin', () => {
+    let parSlug = new Map<string, BlocQuelconque | undefined>();
+
+    beforeAll(() => {
+      const { lecons } = compiler(FIXTURE_METHODES, join(bacASable, 'methodes.scss'));
+      parSlug = new Map(
+        lecons.map((l) => [
+          String(l.frontmatter['slug']),
+          tousLesBlocs(l.sections).find((b) => b.type === 'methodes'),
+        ]),
+      );
+    }, DELAI);
+
+    it('rend DEUX volets, dans l’ordre du document, avec leurs libellés', () => {
+      expect(parSlug.get('deux-volets')?.volets?.map((v) => v.libelle)).toEqual([
+        'La méthode du cours',
+        "L'équivalent moderne",
+      ]);
+    }, DELAI);
+
+    it('rend TROIS volets — la borne haute du contrat', () => {
+      expect(parSlug.get('trois-volets')?.volets?.map((v) => v.libelle)).toEqual([
+        'La méthode du cours',
+        "L'installeur amont",
+        'Le conteneur jetable',
+      ]);
+    }, DELAI);
+
+    // 🔴 LE DISCRIMINANT DU MARQUEUR. Un compilateur qui poserait `defaut: true` sur le PREMIER
+    // volet quel que soit l'écrit passerait la fixture à deux volets, où le marqueur est justement
+    // sur le premier. La fixture à trois volets le porte sur le SECOND : c'est elle qui prouve que
+    // le marqueur est LU, et non déduit d'une position.
+    it('porte « defaut » sur le volet qui l’écrit, jamais sur le premier par défaut', () => {
+      expect(parSlug.get('deux-volets')?.volets?.map((v) => v.defaut)).toEqual([true, false]);
+      expect(parSlug.get('trois-volets')?.volets?.map((v) => v.defaut)).toEqual([
+        false,
+        true,
+        false,
+      ]);
+    }, DELAI);
+
+    it('rend le contenu d’un volet en BLOCS, prose et code compris', () => {
+      const premier = parSlug.get('trois-volets')?.volets?.[0];
+      expect(premier?.blocs?.map((b) => b.type)).toEqual(['prose', 'code']);
+      // ANTI-VACUITÉ : la liste à puces du volet est bien dans la prose, pas perdue en chemin.
+      expect(premier?.blocs?.[0]?.html).toContain('<li>');
+      // Les mêmes garanties que tout autre bloc `code` du corps : classes Shiki, zéro `style=`.
+      expect(premier?.blocs?.[1]?.htmlColore).toContain('class="shiki');
+      expect(premier?.blocs?.[1]?.htmlColore).not.toContain('style=');
+    }, DELAI);
+  });
+
+  describe('les refus de FORME — le compilateur en est le seul garde', () => {
+    /**
+     * Insère un conteneur d'onglets dans la leçon-témoin et rend le message d'échec.
+     *
+     * Contenu passé LIGNE PAR LIGNE, jamais en littéral gabarit : une clôture de bloc de code y
+     * serait illisible, et le nombre de deux-points est signifiant.
+     */
+    function messageDEchecDesMethodes(nom: string, lignes: readonly string[]): string {
+      const racine = leconAdHoc(`methodes-${nom}`, (source) =>
+        source.replace(
+          '## Ce que le validateur regarde',
+          [...lignes, '', '## Ce que le validateur regarde'].join('\n'),
+        ),
+      );
+      try {
+        compiler(racine, join(bacASable, `jetable-${nom}.scss`));
+      } catch (erreur) {
+        const echec = erreur as { status?: number; stderr?: string };
+        expect(echec.status).not.toBe(0);
+        return echec.stderr ?? '';
+      }
+      throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n'a pas mordu`);
+    }
+
+    /** Un volet conforme, pour que la faute du cas reste toujours l'unique variable. */
+    const volet = (libelle: string, marqueur = ''): readonly string[] => [
+      `::: methode {libelle="${libelle}"${marqueur}}`,
+      '',
+      `Le chemin ${libelle}.`,
+      '',
+      ':::',
+      '',
+    ];
+
+    /**
+     * LES CINQ REFUS DE CARDINALITÉ ET DE STRUCTURE, EN TABLE.
+     *
+     * ⚠️ Chaque cas garde sa CAUSE PROPRE : c'est ce qui distingue une table d'un test qui se
+     * contente de constater un refus. Un garde-fou qui refuserait tout passerait un test qui
+     * n'épingle que l'échec, jamais celui-ci. Les fragments sont COPIÉS de la sortie réelle du
+     * programme (L-089) — apostrophes typographiques comprises.
+     */
+    const REFUS: readonly { nom: string; quoi: string; bloc: readonly string[]; cause: string }[] =
+      [
+        {
+          nom: 'un-seul-volet',
+          quoi: 'UN SEUL volet — ce n’est pas une comparaison',
+          bloc: [':::: methodes', '', ...volet('A', ' defaut'), '::::'],
+          cause: 'porte 1 volet(s)',
+        },
+        {
+          nom: 'quatre-volets',
+          quoi: 'QUATRE volets — c’est un sommaire déguisé',
+          bloc: [
+            ':::: methodes',
+            '',
+            ...volet('A', ' defaut'),
+            ...volet('B'),
+            ...volet('C'),
+            ...volet('D'),
+            '::::',
+          ],
+          cause: 'porte 4 volet(s)',
+        },
+        {
+          nom: 'zero-defaut',
+          quoi: 'ZÉRO « defaut » — sans lui, aucun volet ne serait visible sans JavaScript',
+          bloc: [':::: methodes', '', ...volet('A'), ...volet('B'), '::::'],
+          cause: 'aucun volet ne porte le marqueur « defaut »',
+        },
+        {
+          nom: 'deux-defauts',
+          quoi: 'DEUX « defaut », en nommant les deux volets fautifs',
+          bloc: [':::: methodes', '', ...volet('A', ' defaut'), ...volet('B', ' defaut'), '::::'],
+          cause: '2 volets le portent (« A », « B »)',
+        },
+        {
+          nom: 'prose-entre-volets',
+          quoi: 'de la prose entre deux volets, plutôt que de la perdre',
+          bloc: [
+            ':::: methodes',
+            '',
+            ...volet('A', ' defaut'),
+            'Une phrase qui n’appartient à aucun volet.',
+            '',
+            ...volet('B'),
+            '::::',
+          ],
+          cause: 'ne peut contenir que des volets',
+        },
+        // 🔴 CONTRÔLE POSITIF DU PRÉDICAT INVERSÉ (correctif de revue C2). `refuserJetonHorsVolet`
+        // était une LISTE NOIRE — `nesting === 1 || type === 'fence'` — si bien que tout jeton de
+        // `nesting 0` entre deux volets était AVALÉ EN SILENCE. Un `---` en produit un : le
+        // conteneur compilait vert, filet horizontal perdu, sans un mot. Le cas épingle le TYPE
+        // nommé, pas le seul fait d'échouer : c'est lui qui distingue un refus qui a compris de
+        // ce qu'un refus global aurait aussi passé.
+        {
+          nom: 'filet-entre-volets',
+          quoi: 'un « --- » entre deux volets — le jeton de `nesting 0` que la liste noire avalait',
+          bloc: [':::: methodes', '', ...volet('A', ' defaut'), '---', '', ...volet('B'), '::::'],
+          cause: '« hr » rencontré',
+        },
+        // CONTRÔLE POSITIF DU CORRECTIF C1, MOITIÉ COMPILATEUR : le conteneur n'admet AUCUN
+        // attribut, et c'est la règle que le validateur ne jugeait pas (divergence S-010).
+        {
+          nom: 'attribut-sur-le-conteneur',
+          quoi: 'un attribut posé sur le CONTENEUR — tout se déclare sur un volet',
+          bloc: [
+            ':::: methodes {titre="Deux chemins"}',
+            '',
+            ...volet('A', ' defaut'),
+            ...volet('B'),
+            '::::',
+          ],
+          cause: 'attribut « titre » inconnu sur « :::: methodes »',
+        },
+        // CONTRÔLE POSITIF DU CORRECTIF C3 : le message ne doit plus se contenter de compter des
+        // volets que l'auteur croit avoir écrits — il doit nommer la vraie cause, un marqueur
+        // d'ouverture qui n'est pas plus long que celui de ses volets.
+        {
+          nom: 'conteneur-trop-court',
+          quoi: 'un conteneur ouvert à trois « : » comme ses volets — il se referme sur le premier',
+          bloc: ['::: methodes', '', ...volet('A', ' defaut'), ...volet('B'), ':::'],
+          cause: 'AU MOINS UN « : » DE PLUS',
+        },
+        // LE MARQUEUR RÉPÉTÉ : la branche existait des DEUX côtés depuis le lot 5 et aucun runner
+        // ne l'exerçait (L-019 — un contrôle que rien n'exécute est une intention).
+        {
+          nom: 'defaut-repete',
+          quoi: 'un marqueur « defaut » écrit deux fois — une frappe, pas une intention',
+          bloc: [
+            ':::: methodes',
+            '',
+            '::: methode {libelle="A" defaut defaut}',
+            '',
+            'Le chemin A.',
+            '',
+            ':::',
+            '',
+            ...volet('B'),
+            '::::',
+          ],
+          cause: 'marqueur « defaut » écrit deux fois',
+        },
+        // PARITÉ D'ORDRE AVEC LE VALIDATEUR (correctif C5) : une clef inconnue ET un résidu sur la
+        // même ligne doivent sortir sous la MÊME cause des deux côtés. Le validateur jugeait le
+        // résidu en premier et sortait « defo », le compilateur « titre » — deux fautes à corriger
+        // selon le gate qui rougissait. Le même littéral est asserté dans le spec du validateur.
+        {
+          nom: 'clef-inconnue-avant-residu',
+          quoi: 'une clef inconnue AVANT un marqueur inconnu — l’ordre de jugement, pas seulement la cause',
+          bloc: [
+            ':::: methodes',
+            '',
+            '::: methode {libelle="A" titre="X" defo}',
+            '',
+            'Le chemin A.',
+            '',
+            ':::',
+            '',
+            ...volet('B', ' defaut'),
+            '::::',
+          ],
+          cause: 'attribut « titre » inconnu',
+        },
+      ];
+
+    for (const cas of REFUS) {
+      it(
+        `refuse ${cas.quoi}`,
+        () => {
+          expect(messageDEchecDesMethodes(cas.nom, cas.bloc)).toContain(cas.cause);
+        },
+        DELAI,
+      );
+    }
+
+    it('refuse deux volets HOMONYMES — ils ne se distinguent pas au lecteur d’écran', () => {
+      const message = messageDEchecDesMethodes('homonymes', [
+        ':::: methodes',
+        '',
+        ...volet('Même', ' defaut'),
+        ...volet('Même'),
+        '::::',
+      ]);
+      expect(message).toContain('deux volets nommés « Même »');
+    }, DELAI);
+
+    it('refuse un « ::: methode » écrit HORS d’un « :::: methodes »', () => {
+      const message = messageDEchecDesMethodes('volet-orphelin', [...volet('Seul', ' defaut')]);
+      // ⚠️ DISCRIMINANT : le message générique du conteneur inconnu parlerait de comparaison, donc
+      // enverrait l'auteur chercher un conteneur qu'il n'a pas écrit.
+      expect(message).toContain('« ::: methode » hors d’un « :::: methodes »');
+    }, DELAI);
+
+    // 🔴 LE BANNISSEMENT QUI DONNE SON SENS AU CONTENEUR. Un volet montre une ROUTE vers le même
+    // résultat ; un exemple vulnérable et sa parade ne sont pas deux routes, et l'un des deux
+    // serait MASQUÉ derrière un onglet, donc introuvable au Ctrl+F (coût R-4, assumé seulement
+    // parce que ce qui est masqué est un doublon de but). Les marqueurs sont ici plus longs d'un
+    // cran, sans quoi `markdown-it-container` refermerait le volet sur la première ligne `:::`.
+    it('refuse un « ::: vulnerable » à l’intérieur d’un volet, en nommant le volet', () => {
+      const message = messageDEchecDesMethodes('vulnerable-dans-un-volet', [
+        '::::: methodes',
+        '',
+        ':::: methode {libelle="A" defaut}',
+        '',
+        'Le chemin A.',
+        '',
+        '::: vulnerable',
+        '```php',
+        '$x = 1;',
+        '```',
+        ':::',
+        '',
+        '::::',
+        '',
+        ':::: methode {libelle="B"}',
+        '',
+        'Le chemin B.',
+        '',
+        '::::',
+        '',
+        ':::::',
+      ]);
+      expect(message).toContain('« ::: vulnerable » dans le volet « A »');
+    }, DELAI);
+
+    // 🔴 LA TABLE `INTERDITS_DANS_UN_VOLET` PORTE CINQ ENTRÉES ; UNE SEULE ÉTAIT EXERCÉE.
+    // Quatre branches nominatives qu'aucun runner n'atteignait sont quatre intentions, pas un
+    // gate (L-019) — et une table nominative dont on ne mesure qu'une ligne se dégrade sans
+    // rougir : une entrée mal orthographiée n'apparierait plus rien, en silence. Les deux cas
+    // ci-dessous couvrent les deux familles restantes (le volet d'une comparaison, et le
+    // conteneur d'onglets lui-même) ; chacun épingle le libellé FRANÇAIS de sa propre entrée,
+    // jamais le seul fait d'échouer.
+    it('refuse un « ::: corrige » à l’intérieur d’un volet, en nommant le volet', () => {
+      const message = messageDEchecDesMethodes('corrige-dans-un-volet', [
+        '::::: methodes',
+        '',
+        ':::: methode {libelle="A" defaut}',
+        '',
+        'Le chemin A.',
+        '',
+        '::: corrige',
+        '```php',
+        '$x = 1;',
+        '```',
+        ':::',
+        '',
+        '::::',
+        '',
+        ':::: methode {libelle="B"}',
+        '',
+        'Le chemin B.',
+        '',
+        '::::',
+        '',
+        ':::::',
+      ]);
+      expect(message).toContain('« ::: corrige » dans le volet « A »');
+    }, DELAI);
+
+    it('refuse un « :::: methodes » IMBRIQUÉ dans un volet, en nommant le volet', () => {
+      const message = messageDEchecDesMethodes('methodes-imbrique', [
+        '::::: methodes',
+        '',
+        ':::: methode {libelle="A" defaut}',
+        '',
+        'Le chemin A.',
+        '',
+        '::: methodes',
+        '',
+        ':::',
+        '',
+        '::::',
+        '',
+        ':::: methode {libelle="B"}',
+        '',
+        'Le chemin B.',
+        '',
+        '::::',
+        '',
+        ':::::',
+      ]);
+      expect(message).toContain('« :::: methodes » dans le volet « A »');
+    }, DELAI);
+
+    // 🔴 LE CONTRÔLE POSITIF DU CONTRÔLE DE RÉSIDU, MOITIÉ COMPILATEUR. La grammaire d'attributs a
+    // appris les marqueurs sans valeur au lot 5 ; elle pouvait l'apprendre en devenant tolérante à
+    // TOUT résidu, ce qui rendrait `{lignes=2}` (guillemets oubliés) silencieux et enverrait une
+    // annotation à la ligne 0. Ces deux cas prouvent que le résidu est toujours jugé — nommément
+    // quand des marqueurs sont déclarés, globalement quand il n'y en a aucun.
+    it('refuse un marqueur INCONNU sur un volet, en le nommant', () => {
+      const message = messageDEchecDesMethodes('marqueur-inconnu', [
+        ':::: methodes',
+        '',
+        '::: methode {libelle="A" defo}',
+        '',
+        'Le chemin A.',
+        '',
+        ':::',
+        '',
+        ...volet('B', ' defaut'),
+        '::::',
+      ]);
+      expect(message).toContain('« defo » n’est ni un attribut ni un marqueur connu');
+      expect(message).toContain('marqueurs admis : defaut');
+    }, DELAI);
+
+    it('refuse ENCORE « {lignes=2} » sur un appelant SANS marqueur déclaré', () => {
+      const message = messageDEchecDesMethodes('residu-sans-marqueur', [
+        '::: note {lignes=2}',
+        'Un encadré.',
+        ':::',
+      ]);
+      expect(message).toContain('attributs illisibles sur « ::: note » — « lignes=2 »');
+    }, DELAI);
   });
 });
