@@ -2720,4 +2720,30 @@ donné) — ici le « corpus » manquant est un espace de formes, pas une source
 
 ---
 
+## L-094 · Un lot DIFFÉRÉ se re-mesure contre l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé
+
+**Symptôme.** Lot 7 « leçons actionnables » (2026-09-07, PR #51). Le plan (`docs/design/refonte-lecons-actionnables.md`)
+avait sorti « le corpus de fixtures invalides » en lot à part, explicitement au nom de [[L-047]]
+(« un corpus de fixtures a déjà doublé un lot ») — ~12 cas invalides annoncés. À l'ouverture, la
+mesure préalable du corpus (le geste que [[L-047]] impose) a établi que **dix des douze cas
+étaient déjà écrits** — par les lots 3 et 5, les voisins mêmes que la mise à part devait protéger.
+Un commentaire de `src/pipeline-contenu-validation.spec.ts` dit noir sur blanc que ces cas ont été
+montés en bac à sable jetable **parce que** le corpus était renvoyé au lot 7 — le report de la
+tâche a directement poussé ses voisins à écrire eux-mêmes la couverture qu'elle devait fournir.
+
+**Règle.** Différer un lot n'est jamais neutre : l'avoir annoncé change ce que ses voisins écrivent
+en attendant. Rouvrir un lot différé exige donc de **remesurer le corpus contre l'état RÉEL du
+dépôt ce jour-là** — jamais de relire la ligne du plan qui l'a créé et de l'exécuter telle quelle.
+Avant d'écrire quoi que ce soit, poser la question qui précède celle de [[L-047]] (mesurer le
+volume) : **ce corpus a-t-il encore un objet ?** Un lot mis à part pour ne pas gonfler son voisin
+peut être vidé de sa substance par ce voisin même, et l'écrire quand même aurait recopié ~1 900
+lignes pour rejouer une couverture qui existe déjà, plus un compte en dur agrandi de douze crans
+qu'un humain doit relire pour rien.
+
+**Réfs.** `docs/design/refonte-lecons-actionnables.md` (§ Lot 7) ;
+`src/pipeline-contenu-compilation.spec.ts` (table `REFUS`) ;
+`src/pipeline-contenu-validation.spec.ts` (~l. 841, bac à sable) ; PR #51, 2026-09-07 ; [[L-047]].
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
