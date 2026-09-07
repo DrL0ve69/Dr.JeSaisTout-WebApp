@@ -355,15 +355,20 @@
 // rejoint donc la liste, et pas la règle générique. ⚠️ CELA NE RETIRE AUCUN CANAL de WCAG 1.4.1 :
 // le mot reste ÉCRIT, en police de corps, et ce sont le cadre de `cartouche` et les marqueurs du
 // `<ol>` qui portent les canaux non chromatiques.
+// ⚠️ SIX DEPUIS LE LOT 6a (revue) : la `<legend>` d'un conteneur d'onglets porte « Choix de la
+// méthode » — quatre mots, donc une phrase, donc ce groupe-ci et non la règle générique. Elle
+// était restée en dehors, et sortait en Silkscreen capitales espacées ; c'est aussi le NOM
+// ACCESSIBLE du groupe de radios, celui que le lecteur d'écran répète à chaque onglet.
 .encadre[data-variante='cours'] > .etiquette,
 .encadre[data-variante='complement'] > .etiquette,
 .encadre[data-variante='exercice-du-cours'] > .etiquette,
 .encadre[data-variante='correction-du-cours'] > .etiquette,
-.marche-a-suivre > .etiquette {
+.marche-a-suivre > .etiquette,
+.methodes > .etiquette {
   // 🔴 LA POLICE EST LEVÉE AVEC LE RESTE DEPUIS E6, ET C'EST LA MOITIÉ QUI COMPTE.
   // `micro-etiquette` pose `--police-micro` (Silkscreen), une police BITMAP faite
   // pour des étiquettes de deux mots ; une phrase entière rendue avec elle devient
-  // pénible bien avant d'être illisible. Ces trois-là retournent donc à la police
+  // pénible bien avant d'être illisible. Ces six-là retournent donc à la police
   // de corps, pour la même raison qui leur rend la bas de casse.
   font-family: var(--police-corps);
   letter-spacing: normal;
@@ -506,7 +511,15 @@
 // contraire jusqu'au lot 4 : les TROIS encadrés de ton gardent le tampon `micro-etiquette`,
 // les QUATRE qui portent une phrase le lèvent (plus haut). C'est à ce second groupe que la
 // marche à suivre appartient — elle y est nommée, et seule la teinte se règle ici.
-.marche-a-suivre > .etiquette {
+// La `<legend>` d'un conteneur d'onglets de méthode REJOINT CE SÉLECTEUR plutôt que
+// d'ouvrir une règle à elle (lot 6) : même recette, même teinte, et cette feuille est
+// à quelques centaines d'octets du plafond d'`angular.json`.
+// ⚠️ « MÊME RECETTE » N'ÉTAIT VRAI QU'À MOITIÉ jusqu'à la revue du lot 6a — la teinte se
+// réglait bien ici, mais la `<legend>` manquait au groupe qui LÈVE `micro-etiquette` plus
+// haut, et « Choix de la méthode » sortait en Silkscreen capitales espacées. Elle y est
+// désormais ; les deux moitiés de la recette sont donc partagées, et la phrase est vraie.
+.marche-a-suivre > .etiquette,
+.methodes > .etiquette {
   color: var(--couleur-accent);
 }
 
@@ -536,4 +549,111 @@
   display: inline-block;
   margin-block-start: var(--espace-2);
   color: var(--couleur-accent);
+}
+
+// -----------------------------------------------------------------------------
+// Onglets de méthode — la même tâche par deux chemins (refonte, lot 6)
+// -----------------------------------------------------------------------------
+// ZÉRO JAVASCRIPT : la feuille porte TOUT le mécanisme. Un groupe de radios de même
+// `name` (unique dans la page, voir l'input `chemin` du composant), chacune suivie
+// de son `<label>`, et les panneaux montrés par `:checked ~ …`. `script-src` reste à
+// zéro, et rien ici ne dépend de l'hydratation (L-033).
+//
+// 🔴 LA STRUCTURE EST PLATE, ET C'EST LE COMBINATEUR QUI L'IMPOSE. `~` ne remonte
+// pas : envelopper les panneaux mettrait `:checked` hors de portée et forcerait du
+// JS. Radios et labels sont EN LIGNE, donc ils forment d'eux-mêmes la rangée
+// d'onglets ; les panneaux sont des blocs, donc ils passent à la ligne. Aucun
+// `display: flex` — inutile ici, et le rendu d'une `<legend>` en conteneur flex est
+// inégal d'un moteur à l'autre.
+//
+// ⚠️ LES SÉLECTEURS NE SE PRÉFIXENT PAS DE `.methodes >`, ET C'EST UN CHOIX DE
+// BUDGET. Cette feuille est à quelques centaines d'octets du plafond d'erreur
+// d'`angular.json` (8 kB), et chaque sélecteur composé coûte en plus l'attribut
+// d'encapsulation `[_ngcontent-…]` — la portée est DÉJÀ assurée par cet attribut,
+// un préfixe de classe ne ferait que la payer deux fois.
+//
+// AUCUN JETON DE COULEUR NEUF (même contrainte de gate que la marche à suivre,
+// L-080) : recette de l'encadré `a-retenir` — `--couleur-accent` et
+// `--couleur-surface-creuse` —, dont les paires sont déjà à la table de
+// `tools/design/verifier-contrastes.mjs`.
+.methodes {
+  @include m.cartouche(var(--couleur-accent), var(--filet-marge));
+
+  // 🔴 LE <fieldset> A UNE LARGEUR MINIMALE IMPOSÉE PAR LA FEUILLE DE L'AGENT UTILISATEUR :
+  // `min-inline-size: min-content`, qu'aucune autre règle d'ici ne réinitialise. Un volet
+  // portant un tableau large ou un `<pre>` non défilant pousserait donc le conteneur au-delà
+  // de la page. Ce dépôt a déjà payé ce mode d'échec exact — le débordement horizontal de la
+  // leçon 05, qui a fait peindre un anneau de focus HORS DE L'ÉCRAN (WCAG 2.4.11). Vingt
+  // octets, contre un défaut qu'aucun `getComputedStyle` ne montre (L-025).
+  min-inline-size: 0;
+  padding: var(--espace-3);
+  background-color: var(--couleur-surface-creuse);
+}
+
+// 🔴 LA RADIO RESTE VISIBLE : c'est le canal NON CHROMATIQUE de R-8. En
+// `forced-colors: active` fond et couleur sont réécrits, et un onglet actif signalé
+// par une teinte disparaîtrait — mode d'échec déjà payé par `.ligne-annotee`
+// (E2-ST4). Le point d'une radio cochée est peint par l'agent utilisateur et
+// survit ; le filet ci-dessous n'est qu'un SECOND canal.
+.onglet {
+  margin-inline-end: var(--espace-1);
+}
+
+// LA CIBLE DE POINTAGE (WCAG 2.5.8) EST FAITE DE PADDING, jamais d'une hauteur
+// littérale : elle suit ainsi la taille de police du lecteur au lieu de la figer. Le
+// filet est TOUJOURS là, transparent quand l'onglet est inactif — sans lui, cocher
+// un onglet décalerait toute la rangée.
+.onglet-nom {
+  display: inline-block;
+  padding: var(--espace-1) var(--espace-2);
+  border-block-end: var(--filet-fin) solid transparent;
+  color: var(--couleur-encre);
+}
+
+// L'ONGLET ACTIF — DEUX CANAUX, DONT UN D'ÉPAISSEUR. La teinte tombe en contraste
+// forcé, l'épaisseur non : c'est pourquoi la règle change la LARGEUR du filet et pas
+// seulement sa couleur.
+.onglet:checked + .onglet-nom {
+  border-block-end-width: var(--filet-marge);
+  border-block-end-color: var(--couleur-accent);
+  font-weight: var(--graisse-titre);
+}
+
+// UN SEUL PANNEAU À L'ÉCRAN. `nth-of-type` se résout sur le PARENT : `div:nth-of-type(N)`
+// désigne le N-ième `<div>` du conteneur, et les panneaux en sont les seuls.
+// ⚠️ TROIS RÈGLES, PARCE QUE LE CONTRAT BORNE À TROIS VOLETS. Un quatrième serait
+// invisible en silence — c'est exactement pourquoi `verifierMethodes` le refuse en
+// NOMMANT le bloc, plutôt que de laisser la feuille décider.
+.panneau {
+  display: none;
+  margin-block-start: var(--espace-3);
+}
+
+.onglet:nth-of-type(1):checked ~ div:nth-of-type(1),
+.onglet:nth-of-type(2):checked ~ div:nth-of-type(2),
+.onglet:nth-of-type(3):checked ~ div:nth-of-type(3) {
+  display: block;
+}
+
+// LE NOM DE PANNEAU N'EXISTE QUE POUR LE PAPIER. À l'écran il est retiré du flux ET
+// de l'arbre d'accessibilité : le libellé est déjà dit par le `<label>` de l'onglet,
+// et l'entendre deux fois serait un doublon au lecteur d'écran.
+.panneau-nom {
+  display: none;
+}
+
+// À L'IMPRESSION, TOUS LES VOLETS, CHACUN SOUS SON LIBELLÉ, DANS L'ORDRE DU DOCUMENT
+// — troisième des « trois états du lecteur », donc un critère d'acceptation du
+// contrat. Radios et labels disparaissent : un widget de sélection sur une feuille
+// A4 promet une interaction que le papier n'a pas.
+@media print {
+  .onglet,
+  .onglet-nom {
+    display: none;
+  }
+
+  .panneau,
+  .panneau-nom {
+    display: block;
+  }
 }

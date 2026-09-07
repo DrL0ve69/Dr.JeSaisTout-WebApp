@@ -353,6 +353,14 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
             « Code n°1 » quatre fois dans la leçon-témoin, mesuré. La page est le
             seul endroit qui voit TOUTES les sections, donc le seul qui puisse dire
             à chacune ce qui a déjà été numéroté avant elle.
+
+            LE CHEMIN EST L'ANCRE DE LA SECTION (lot 6 de la refonte). C'est le
+            préfixe qui rend uniques, DANS TOUTE LA PAGE, les name des groupes de
+            radios d'onglets de méthode. On passe l'ancre et pas le rang parce
+            qu'elle est déjà unique par construction — contenu-compile.ts la dérive
+            et la dédoublonne —, alors qu'un rang de section serait recomposé ici,
+            donc une seconde définition de l'unicité. Voir l'input « chemin » de
+            RenduBlocs pour la mesure qui a écarté le décalage de figures.
           -->
               <app-rendu-blocs
                 [blocs]="section.blocs"
@@ -360,6 +368,7 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
                 [sujet]="frontmatter().sujet"
                 [simulation]="lecon().simulation"
                 [decalage]="decalageDeSection(rangSection)"
+                [chemin]="section.ancre"
               />
             </section>
           }

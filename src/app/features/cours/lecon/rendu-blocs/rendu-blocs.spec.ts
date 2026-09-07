@@ -143,14 +143,13 @@ const SVG_MERMAID = `<svg id="d0-diagramme" class="diagramme-mermaid" viewBox="0
  * rendu. Le rendu est là, l'exclusion et le tripwire sont partis — un garde-fou franchi qu'on
  * laisserait en place deviendrait un mensonge sur ce que ce composant sait faire.
  *
- * 🔴 `methodes` EST EXCLU À SON TOUR, ET C'EST UN ÉTAT DATÉ — pas une dispense. Le lot 5
- * (2026-09-06) a ajouté ce neuvième membre au contrat (`tools/content-pipeline/types.d.ts`) : le
- * compilateur le produit, ce composant ne le rend pas encore (lot 6). MÊME PATRON, MOT POUR MOT,
- * que `marche-a-suivre` entre les lots 3 et 4 — l'exclusion est NOMMÉE, le garde-fou de complétude
- * reste entier pour tous les autres membres (un dixième type ferait toujours rougir la
- * compilation), et elle a son tripwire exécutable plus bas, qui rougira le jour du rendu.
+ * ✅ `methodes` EST RENTRÉ À SON TOUR (lot 6, 2026-09-07) — l'`Exclude<…>` et son tripwire ont
+ * disparu, même geste et même raison que pour `marche-a-suivre` entre les lots 3 et 4 : un
+ * garde-fou franchi qu'on laisserait en place deviendrait un mensonge sur ce que ce composant sait
+ * faire. La table redevient donc TOTALE, et un dixième membre de l'union ferait rougir la
+ * compilation tant qu'il n'y figure pas.
  */
-const FIXTURES: Record<Exclude<BlocContenu['type'], 'methodes'>, BlocContenu> = {
+const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
   prose: { type: 'prose', html: HTML_PROSE },
   code: { type: 'code', langage: 'php', htmlColore: HTML_CODE },
   comparaison: {
@@ -218,6 +217,28 @@ const FIXTURES: Record<Exclude<BlocContenu['type'], 'methodes'>, BlocContenu> = 
       {
         html: 'Reprends les bases si le vocabulaire manque.',
         renvoi: { cible: 'module', slug: '01-fondamentaux' },
+      },
+    ],
+  },
+  methodes: {
+    type: 'methodes',
+    volets: [
+      {
+        libelle: 'La méthode du cours',
+        defaut: true,
+        blocs: [
+          {
+            type: 'code',
+            langage: 'bash',
+            htmlColore:
+              '<pre class="shiki"><code><span class="line">crontab -e</span></code></pre>',
+          },
+        ],
+      },
+      {
+        libelle: "L'équivalent moderne",
+        defaut: false,
+        blocs: [{ type: 'prose', html: '<p>Un timer systemd fait la même chose.</p>' }],
       },
     ],
   },
@@ -493,6 +514,72 @@ function tousLesBlocsMedia(css: string, condition: string): string[] {
     corps.push(bloc);
     depuis = debut + `@media ${condition}`.length;
   }
+}
+
+/**
+ * La feuille PRIVÉE de ses blocs « @media <condition> » — la contrepartie de « tousLesBlocsMedia ».
+ *
+ * Une assertion sur ce que la feuille fait À L'ÉCRAN doit retirer l'impression, sinon elle mesure
+ * les deux cascades à la fois. Le cas est arrivé à ce lot, et la pince de R-8 a mordu dessus : la
+ * règle d’impression cache LÉGITIMEMENT les radios et leurs libellés — sur papier, tous les volets
+ * sont dépliés, chacun sous son nom, et une rangée d’onglets n’a plus rien à commander.
+ */
+function sansBlocsMedia(css: string, condition: string): string {
+  let restant = css;
+  for (;;) {
+    const debut = restant.indexOf(`@media ${condition}`);
+    if (debut === -1) return restant;
+    const corps = blocMedia(restant.slice(debut), condition);
+    if (corps === null) return restant;
+    const ouvrante = restant.indexOf('{', debut);
+    restant = restant.slice(0, debut) + restant.slice(ouvrante + corps.length + 2);
+  }
+}
+
+/**
+ * Les corps des règles dont le SUJET est `<classe>` — celles qui stylent CET élément, et non un
+ * frère qu'il sélectionne : le sujet de `.onglet:checked + .onglet-nom` est le LABEL, pas la radio.
+ *
+ * Même patron que `blocMedia` — appariement d'accolades, aucune regex de structure. Un corps de
+ * règle de la sortie `sass` ne contient pas d'accolade, si bien que la fermante suivante est
+ * toujours la bonne ; un prélude commençant par `@` est une at-règle, dont on TRAVERSE le corps
+ * pour atteindre les règles qu'elle contient (c'est là que vivent les `@media`).
+ */
+function corpsDesReglesDeSujet(css: string, classe: string): string[] {
+  const estLeSujet = (selecteur: string): boolean => {
+    const compounds = selecteur.trim().split(/[\s>+~]+/);
+    const dernier = compounds[compounds.length - 1] ?? '';
+    return dernier === classe || dernier.startsWith(`${classe}:`) || dernier.startsWith(`${classe}[`);
+  };
+
+  const corps: string[] = [];
+  let debutPrelude = 0;
+  for (let i = 0; i < css.length; i += 1) {
+    if (css[i] === '}') {
+      debutPrelude = i + 1;
+      continue;
+    }
+    if (css[i] !== '{') continue;
+    const prelude = css.slice(debutPrelude, i).trim();
+    if (prelude.startsWith('@')) {
+      debutPrelude = i + 1;
+      continue;
+    }
+    const fermante = css.indexOf('}', i);
+    const fin = fermante === -1 ? css.length : fermante;
+    if (prelude.split(',').some(estLeSujet)) corps.push(css.slice(i + 1, fin));
+    i = fin;
+    debutPrelude = i + 1;
+  }
+  return corps;
+}
+
+/** Les NOMS de propriété déclarés dans un corps de règle, dans l'ordre source. */
+function proprietesDeclarees(corpsDeRegle: string): string[] {
+  return corpsDeRegle
+    .split(';')
+    .map((declaration) => declaration.split(':')[0]?.trim() ?? '')
+    .filter((nom) => nom.length > 0);
 }
 
 function sourceDuComposant(): string {
@@ -2103,13 +2190,457 @@ describe('RenduBlocs', () => {
     });
   });
 
+  describe('onglets de méthode', () => {
+    it('coche le volet « defaut », et chaque label pointe l’id de SON input', async () => {
+      const rendu = await rendre([FIXTURES.methodes]);
+
+      const onglets = [...rendu.querySelectorAll<HTMLInputElement>('.methodes > .onglet')];
+      const labels = [...rendu.querySelectorAll<HTMLLabelElement>('.methodes > .onglet-nom')];
+      expect(onglets).toHaveLength(2);
+      expect(labels).toHaveLength(2);
+
+      // L'ATTRIBUT, PAS LA PROPRIÉTÉ. C'est lui que la sérialisation du prerender écrit : une page
+      // servie sans lui n'aurait AUCUN volet à l'écran pour un lecteur sans JavaScript.
+      expect(onglets[0]?.hasAttribute('checked')).toBe(true);
+      expect(onglets[1]?.hasAttribute('checked')).toBe(false);
+
+      expect(labels.map((l) => l.textContent?.trim())).toEqual([
+        'La méthode du cours',
+        "L'équivalent moderne",
+      ]);
+      // Le `for` d'un label vaut l'`id` de l'input qui le PRÉCÈDE — sans quoi cliquer sur un
+      // onglet en ouvrirait un autre, ou aucun.
+      expect(labels.map((l) => l.getAttribute('for'))).toEqual(onglets.map((o) => o.id));
+      expect(onglets[0]?.id).not.toBe(onglets[1]?.id);
+    });
+
+    // 🔴 LE TEST À DEUX MAINS DE S-011, exigé au contrat de ce lot. `libelle` est un champ
+    // d'auteur en texte libre rendu au DOM ; sa grammaire au compilateur est `[^"]*`. Les DEUX
+    // moitiés comptent : vérifier seulement que la charge s'affiche certifierait un affichage dont
+    // l'assainissement peut être un no-op, et vérifier seulement l'absence de nœud certifierait un
+    // assainissement qui aurait pu tout AVALER en silence.
+    it('affiche un libellé hostile ENTIER, et n’en fabrique aucun nœud', async () => {
+      const CHARGE = '<img src=x onerror=alert(1)>Méthode';
+      const hostile = {
+        type: 'methodes',
+        volets: [
+          { libelle: CHARGE, defaut: true, blocs: [] },
+          { libelle: 'Sain', defaut: false, blocs: [] },
+        ],
+      } as unknown as BlocContenu;
+
+      const rendu = await rendre([hostile]);
+      const label = rendu.querySelector<HTMLLabelElement>('.methodes > .onglet-nom');
+
+      // Main 1 — la charge s'affiche ENTIÈRE, en texte.
+      expect(label?.textContent?.trim()).toBe(CHARGE);
+      // Main 2 — elle n'engendre AUCUN nœud : ni l'`<img>` qu'elle vise, ni aucun élément.
+      expect(rendu.querySelector('img')).toBeNull();
+      expect(label?.children.length).toBe(0);
+      // …et elle n'a fui dans AUCUNE VALEUR D'ATTRIBUT de la page. C'est la moitié qui compte pour
+      // le prerender : la sérialisation n'échappe pas « < » dans un attribut (S-011), si bien
+      // qu'un libellé posé en `aria-label` ou en `value` ferait rougir le compte brut de
+      // `tools/deploiement/generer-config-swa.mjs`. Les `name`, `id` et `for` viennent d'indices
+      // seuls, précisément pour que cette surface n'existe pas.
+      for (const element of rendu.querySelectorAll('*')) {
+        for (const attribut of element.attributes) {
+          expect(attribut.value).not.toContain('onerror');
+        }
+      }
+    });
+
+    /**
+     * L'ESPACE DE NOMS DES ANCRES DU DÉPÔT, recopié depuis `contenu-compile.ts` (constante
+     * `KEBAB_CASE`) plutôt qu'importé : c'est un outil de build (`tools/`), hors du graphe de
+     * l'application. La recopie est le point du test — elle mesure l'argument de DISJONCTION au
+     * lieu de l'affirmer (famille L-019). Le souligné est impossible en kebab-case ; tout `id`
+     * fabriqué par les onglets en porte au moins un, donc aucun ne peut collisionner avec une
+     * ancre de section, un `quiz-…` ni un identifiant d'étape de simulation.
+     */
+    const KEBAB_CASE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+    it('rend TOUS les « name » distincts dans la page, et TOUS les « id » hors kebab-case', async () => {
+      // Deux conteneurs au premier niveau, plus un TROISIÈME niché dans un encadré : c'est la
+      // récursion qui a produit le défaut mesuré au lot 4bis, chaque instance recommençant son
+      // `@for` à l'index 0. Des `name` homonymes seraient FUSIONNÉS par le navigateur.
+      const dansUnEncadre = {
+        type: 'encadre',
+        variante: 'note',
+        blocs: [FIXTURES.methodes],
+      } as unknown as BlocContenu;
+
+      // 🔴 LA DESCENTE LA PLUS PROFONDE, ET ELLE MANQUAIT : un conteneur niché dans un VOLET d'un
+      // autre conteneur. C'est le seul cas où le `chemin` se compose DEUX fois — `bloc_isole_m3`
+      // pour le groupe extérieur, puis `bloc_isole_m3_v1` comme `chemin` de l'enfant, d'où
+      // `bloc_isole_m3_v1_m0` pour le groupe intérieur. Un `chemin` que le volet ne rallongerait
+      // pas (par exemple `[chemin]="chemin()"` recopié depuis le cas `encadre`) redonnerait
+      // `bloc_isole_m0` au groupe niché : deux groupes HOMONYMES, fusionnés par le navigateur,
+      // dont un seul garderait sa coche.
+      const dansUnVolet: BlocContenu = {
+        type: 'methodes',
+        volets: [
+          { libelle: 'Sans niche', defaut: true, blocs: [] },
+          { libelle: 'Avec niche', defaut: false, blocs: [FIXTURES.methodes] },
+        ],
+      };
+
+      const rendu = await rendre([
+        FIXTURES.methodes,
+        FIXTURES.methodes,
+        dansUnEncadre,
+        dansUnVolet,
+      ]);
+      const onglets = [...rendu.querySelectorAll<HTMLInputElement>('.onglet')];
+      // CONTRÔLE POSITIF (L-019) : cinq conteneurs de deux onglets ont RÉELLEMENT été rendus —
+      // sans ce compte, « tous les noms sont distincts » resterait vrai d'une page vide.
+      expect(onglets).toHaveLength(10);
+
+      const noms = onglets.map((o) => o.getAttribute('name') ?? '');
+      expect(new Set(noms).size, noms.join(' · ')).toBe(5);
+
+      const identifiants = onglets.map((o) => o.id);
+      expect(new Set(identifiants).size, identifiants.join(' · ')).toBe(10);
+      for (const identifiant of identifiants) {
+        expect(KEBAB_CASE.test(identifiant)).toBe(false);
+      }
+    });
+
+    it('🔴 numérote les figures EN CONTINU À TRAVERS les volets, puis après le conteneur', async () => {
+      // LA DÉCISION QUE CETTE ASSERTION TIENT : on compte TOUS les volets, parce que `@media print`
+      // les rend tous. Le décalage du volet n°2 est donc celui du n°1 AUGMENTÉ des figures du n°1,
+      // et le bloc qui SUIT le conteneur reprend après les deux.
+      // 🔴 LA MUTATION QU'ELLE TUE. Partir du même `avant` pour tous les volets
+      // (`decalagesDesVolets.set(clefDeVolet(rangBloc, rangVolet), avant)` sans le cumul) donnerait
+      // « Code n°1 » aux DEUX volets — deux figures différentes sous un même numéro, invisible à
+      // l'écran puisqu'un seul volet est ouvert, et visible seulement sur le papier.
+      const conteneur: BlocContenu = {
+        type: 'methodes',
+        volets: [
+          { libelle: 'La méthode du cours', defaut: true, blocs: [FIXTURES.code] },
+          { libelle: "L'équivalent moderne", defaut: false, blocs: [CODE_PHP_BIS] },
+        ],
+      };
+
+      const rendu = await rendre([conteneur, CODE_PHP_BIS]);
+
+      const noms = nomsDesDefileurs(rendu);
+      // CONTRÔLE POSITIF (L-019) : trois figures, toutes du MÊME langage — sans quoi la continuité
+      // serait vraie d'un rendu qui aurait caché le second volet au lieu de le rendre.
+      expect(noms).toHaveLength(3);
+      expect(rendu.querySelectorAll('.methodes .defileur')).toHaveLength(2);
+      expect(noms).toEqual([
+        `Code n°1${INSECABLE}— php`,
+        `Code n°2${INSECABLE}— php`,
+        `Code n°3${INSECABLE}— php`,
+      ]);
+
+      // Le rang est VU autant qu'entendu (WCAG 2.5.3) — même méthode des deux côtés.
+      const legendes = [...rendu.querySelectorAll('figcaption.etiquette')].map(
+        (l) => l.textContent?.trim() ?? '',
+      );
+      expect(legendes).toEqual(noms);
+    });
+
+    /**
+     * 🔴 LE CONSTAT CRITIQUE DE LA REVUE DU LOT 6a, ET SON GARDE-FOU : le `checked` du volet
+     * `defaut` est un attribut STATIQUE du gabarit, jamais une liaison.
+     *
+     * CE QUI CASSE SI L'ON REMET `[attr.checked]`. Une liaison d'attribut est RÉÉVALUÉE à
+     * l'hydratation — mesuré au spike du lot 4bis, un `[attr.name]` passant de `spike-34-0` au
+     * prerendu à `spike-1-0` après —, alors que le spike n'avait levé R-1 que pour un `checked`
+     * STATIQUE. Le lecteur qui coche un autre onglet pendant la fenêtre de pré-hydratation ne pose
+     * le *dirty checkedness flag* que sur CE volet-là ; la première détection de changements
+     * réécrit l'attribut sur le volet `defaut`, dont le flag est resté `false`, si bien que sa
+     * checkedness repasse à `true` et DÉCOCHE le choix du lecteur, en silence.
+     *
+     * ⚠️ POURQUOI LA MOITIÉ DISCRIMINANTE PORTE SUR LE GABARIT ET NON SUR UNE SECONDE PASSE DE
+     * DÉTECTION — mesuré à ce lot, et c'est une prémisse qu'il faut écrire pour ne pas la
+     * réinventer (famille L-035). `ɵɵattribute` passe par `bindingUpdated` : une passe de
+     * détection dont la valeur liée n'a pas bougé n'écrit RIEN dans le DOM. Un test qui se
+     * contenterait de rappeler `whenStable()` après le geste du lecteur resterait donc VERT avec
+     * `[attr.checked]` remis — il certifierait un garde-fou qui n'a jamais tourné. Ce qui sépare
+     * réellement les deux formes, c'est l'écriture d'attribut elle-même : la MAIN 1 la rejoue sur
+     * le DOM rendu pour montrer que le vol de coche est réel, la MAIN 2 prouve que ce composant
+     * n'a aucune façon de l'émettre.
+     */
+    it('🔴 MAIN 1 — réécrire l’attribut `checked` VOLE le choix du lecteur (le danger est réel)', async () => {
+      const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [FIXTURES.methodes]);
+      fixture.componentRef.setInput('quiz', QUIZ);
+      fixture.componentRef.setInput('sujet', SUJET);
+      fixture.componentRef.setInput('simulation', SIMULATION);
+      await fixture.whenStable();
+      const rendu = fixture.nativeElement as HTMLElement;
+
+      const onglets = [...rendu.querySelectorAll<HTMLInputElement>('.methodes > .onglet')];
+      // PRÉMISSE MESURÉE (L-010) : deux radios d'un MÊME groupe, la première cochée par l'attribut.
+      // Sans elle, tout ce qui suit vaudrait d'un rendu qui n'aurait pas de groupe du tout.
+      expect(onglets).toHaveLength(2);
+      const premier = onglets[0];
+      const second = onglets[1];
+      if (premier === undefined || second === undefined) throw new Error('prémisse : deux onglets');
+      expect(premier.getAttribute('name')).toBe(second.getAttribute('name'));
+      expect(premier.checked).toBe(true);
+
+      // LE GESTE DU LECTEUR — la PROPRIÉTÉ, jamais `setAttribute` : c'est elle qui pose le *dirty
+      // checkedness flag*, et c'est ce flag qui décide de tout ce qui suit.
+      second.checked = true;
+      expect(premier.checked).toBe(false);
+
+      // Le produit d'aujourd'hui laisse ce choix tranquille à travers une passe de détection de
+      // plus. ⚠️ CETTE ASSERTION N'EST PAS LA MOITIÉ DISCRIMINANTE (voir l'en-tête) : elle
+      // resterait verte avec une liaison, faute de valeur changée. Elle est ici comme témoin du
+      // comportement attendu, pas comme preuve.
+      fixture.componentRef.setInput('decalage', { blocsDeCode: 0, paires: 0 });
+      await fixture.whenStable();
+      expect(second.checked).toBe(true);
+      expect(premier.checked).toBe(false);
+
+      // MAIN 1 — l'écriture qu'une liaison ferait à l'hydratation, rejouée telle quelle : elle
+      // SUFFIT à voler la coche. Le premier onglet, dont le flag est resté faux, redevient coché
+      // et décoche le second. C'est la mesure qui donne sa raison d'être à la MAIN 2.
+      premier.setAttribute('checked', '');
+      expect(premier.checked).toBe(true);
+      expect(second.checked).toBe(false);
+    });
+
+    it('🔴 MAIN 2 — le gabarit ne porte AUCUNE liaison de `checked`', () => {
+      /**
+       * ⚠️ USAGE ≠ MENTION (L-043). Le gabarit EXPLIQUE en commentaire pourquoi `[checked]` et
+       * `[attr.checked]` sont refusés : un balayage brut de la source verrait ces deux mentions et
+       * rougirait sur un produit sain. Les commentaires HTML sont donc retirés AVANT la recherche.
+       */
+      const liaisonDeChecked = (source: string): boolean =>
+        /\[\s*(?:attr\.)?checked\s*\]/.test(source.replace(/<!--[\s\S]*?-->/g, ''));
+
+      // CONTRÔLE POSITIF ET TÉMOIN (L-019) : le détecteur voit les deux formes de liaison, et
+      // ignore la mention en commentaire. Sans ces trois lignes, « aucune liaison » resterait vrai
+      // d'un détecteur qui ne détecte rien.
+      expect(liaisonDeChecked('<input [attr.checked]="volet.defaut" />')).toBe(true);
+      expect(liaisonDeChecked('<input [checked]="volet.defaut" />')).toBe(true);
+      expect(liaisonDeChecked('<!-- une liaison [attr.checked] serait refusée -->')).toBe(false);
+
+      const source = sourceDuComposant();
+      // La forme VOULUE est écrite : deux branches, dont une seule porte l'attribut littéral.
+      expect(source).toContain('@if (volet.defaut === true) {');
+      // …et aucune liaison ne la double. C'est CETTE assertion qui rougit si `[attr.checked]`
+      // revient — vérifié par retrait à ce lot.
+      expect(liaisonDeChecked(source)).toBe(false);
+    });
+
+    /**
+     * 🔴 LE CANAL NON CHROMATIQUE DE R-8, MESURÉ PLUTÔT QU'AFFIRMÉ.
+     *
+     * Le critère d'acceptation écrit du lot 6 (`docs/design/refonte-lecons-actionnables.md` §D.4)
+     * exige un canal qui SURVIVE à `forced-colors: active`, où le système réécrit fond et couleur.
+     * La forme retenue est la plus économique des deux qu'il autorise : la radio native est LAISSÉE
+     * VISIBLE, et son point coché est peint par l'agent utilisateur. Le filet épais sous l'onglet
+     * actif n'est qu'un SECOND canal.
+     *
+     * ⚠️ CE QUE CE TEST DÉFEND CONTRE, ET CE N'EST PAS THÉORIQUE. Masquer la radio native pour ne
+     * garder que le label est le premier réflexe de qui style une rangée d'onglets — un
+     * `appearance: none`, un `opacity: 0`, le `position: absolute` du patron « visually hidden ».
+     * Chacun rend la feuille plus jolie ET détruit le seul canal qui tient en contraste forcé, sans
+     * qu'aucun gate du dépôt ne rougisse : `forced-colors: active` n'est mesuré par AUCUN d'eux, et
+     * axe ne voit qu'un balisage inchangé. Ce dépôt a déjà payé ce mode d'échec exact avec le filet
+     * `.ligne-annotee` d'E2-ST4 (WCAG 1.4.1 / 1.4.11).
+     *
+     * IL EST ÉCRIT SUR LA FEUILLE ET NON SUR LE RENDU parce qu'un `getComputedStyle` de jsdom ne
+     * prouve aucun pixel peint (L-025) : ce qui se mesure honnêtement ici est la RÈGLE, et le pixel
+     * appartient à la capture manuelle en contraste forcé, que le lot 8 fera sur une page réelle.
+     */
+    it('🔴 R-8 — la feuille ne retire JAMAIS la radio native, seul canal qui tient en contraste forcé', () => {
+      /**
+       * Les propriétés par lesquelles une radio DISPARAÎT. Volontairement bornée à ce qui l'efface
+       * ou la remplace : redimensionner une radio VISIBLE ne coûte pas le canal, et l'interdire
+       * ferait rougir un lot honnête. C'est une pince, pas un budget.
+       */
+      const PROPRIETES_QUI_EFFACENT_LA_RADIO = [
+        'appearance',
+        '-webkit-appearance',
+        'display',
+        'visibility',
+        'opacity',
+        'clip',
+        'clip-path',
+        'position',
+        'forced-color-adjust',
+      ];
+
+      // 🔴 À L’ÉCRAN SEULEMENT, et c’est la pince elle-même qui l’a appris : le bloc d’impression
+      // cache les radios, LÉGITIMEMENT (voir l’assertion d’impression en fin de test). Mesurer les
+      // deux cascades ensemble ferait rougir ce test sur un produit sain — une prémisse fausse sur
+      // un produit sain, exactement L-035.
+      const ecran = sansBlocsMedia(feuilleCompilee(), 'print');
+      const reglesDeLaRadio = corpsDesReglesDeSujet(ecran, '.onglet');
+
+      // CONTRÔLE POSITIF (L-019), EN DEUX MOITIÉS — sans elles, « aucune propriété interdite »
+      // resterait vrai d'une aide qui ne trouve aucune règle, ou d'une liste mal orthographiée.
+      // (a) L'aide a RÉELLEMENT trouvé la règle de la radio, et elle la distingue du label :
+      //     `.onglet:checked + .onglet-nom` a pour sujet `.onglet-nom`, et n'entre donc pas ici.
+      expect(reglesDeLaRadio).toHaveLength(1);
+      expect(proprietesDeclarees(reglesDeLaRadio[0] ?? '')).toEqual(['margin-inline-end']);
+      // (b) …et la pince MORD sur la forme qu'elle est censée refuser.
+      const temoin = corpsDesReglesDeSujet('.onglet{appearance:none}.autre{opacity:0}', '.onglet');
+      expect(temoin.map(proprietesDeclarees)).toEqual([['appearance']]);
+
+      for (const corps of reglesDeLaRadio) {
+        for (const propriete of proprietesDeclarees(corps)) {
+          expect(
+            PROPRIETES_QUI_EFFACENT_LA_RADIO,
+            `« ${propriete} » est déclarée sur « .onglet » : la radio native est le canal non ` +
+              'chromatique de R-8, et l’effacer le supprime sans faire rougir aucun autre gate.',
+          ).not.toContain(propriete);
+        }
+      }
+
+      // LE SECOND CANAL EST BIEN UNE ÉPAISSEUR, pas seulement une teinte. Une règle d'onglet actif
+      // qui ne changerait que `border-block-end-color` disparaîtrait avec elle en contraste forcé.
+      const reglesDuLabel = corpsDesReglesDeSujet(ecran, '.onglet-nom');
+      expect(
+        reglesDuLabel.some((corps) => proprietesDeclarees(corps).includes('border-block-end-width')),
+      ).toBe(true);
+
+      // ET L’IMPRESSION, ELLE, LES CACHE — c’est le seul endroit où « display: none » sur une radio
+      // est juste, et l’écrire ici dit POURQUOI le retrait ci-dessus n’est pas un trou dans la pince.
+      const surPapier = tousLesBlocsMedia(feuilleCompilee(), 'print');
+      expect(
+        surPapier.flatMap((bloc) => corpsDesReglesDeSujet(bloc, '.onglet')).map(proprietesDeclarees),
+      ).toEqual([['display']]);
+    });
+
+    /**
+     * LES SEPT GARDES DE `verifierMethodes` — aucune n'était exercée avant ce lot, si bien qu'un
+     * `<` inversé, un `!==` passé en `===` ou une clef mal orthographiée traversait G-test au vert
+     * (L-019 : un argument non mesuré n'est pas un garde-fou).
+     *
+     * CE QU'ELLES DÉFENDENT, ET QUI N'EST PAS THÉORIQUE : un `lecons/<slug>.json` compilé par une
+     * AUTRE version du pipeline, où le TYPE ment par construction. Chaque cas ci-dessous vérifie
+     * que la faute se NOMME — le bloc, et le volet quand il y en a un — plutôt qu'un `toThrow()`
+     * nu qu'un `TypeError` anonyme contenterait aussi.
+     */
+    describe('les sept gardes de `verifierMethodes`', () => {
+      /** Un volet VALIDE : tout ce qui n'est pas le sujet du cas reste conforme. */
+      const volet = (libelle: string, defaut = false): unknown => ({
+        libelle,
+        defaut,
+        blocs: [],
+      });
+      /** Le conteneur fautif est TOUJOURS le bloc n°2 — la position doit être dite, pas devinée. */
+      const conteneur = (volets: unknown): readonly BlocContenu[] => [
+        FIXTURES.prose,
+        { type: 'methodes', volets } as unknown as BlocContenu,
+      ];
+
+      it('1 · « volets » absent ou non-tableau : jamais un `TypeError` anonyme', async () => {
+        await expect(rendre(conteneur(undefined))).rejects.toThrowError(
+          /RenduBlocs : conteneur de méthodes invalide \(bloc n°2\)/,
+        );
+        await expect(rendre(conteneur(undefined))).rejects.toThrowError(
+          /« volets » absent ou non-tableau/,
+        );
+        // « PAS un `TypeError` » se mesure SYNCHRONEMENT, sur le calcul lui-même : c'est la moitié
+        // qui distingue une garde d'un plantage, et `rejects` la rendrait indirecte.
+        const fixture: ComponentFixture<RenduBlocs> = TestBed.createComponent(RenduBlocs);
+        fixture.componentRef.setInput('blocs', conteneur(undefined));
+        fixture.componentRef.setInput('quiz', QUIZ);
+        fixture.componentRef.setInput('sujet', SUJET);
+        expect(() => fixture.componentInstance.blocsPrepares()).not.toThrowError(TypeError);
+
+        // Un objet passe le `typeof`, pas l'`Array.isArray` — c'est la forme qu'un JSON tordu prend.
+        await expect(rendre(conteneur({ 0: volet('Un', true) }))).rejects.toThrowError(
+          /« volets » absent ou non-tableau/,
+        );
+      });
+
+      it('2 · moins de deux volets : un onglet unique n’est pas une comparaison', async () => {
+        await expect(rendre(conteneur([volet('Seul', true)]))).rejects.toThrowError(
+          /1 volet\(s\) au lieu de 2 ou 3/,
+        );
+        await expect(rendre(conteneur([]))).rejects.toThrowError(/0 volet\(s\) au lieu de 2 ou 3/);
+      });
+
+      it('3 · 🔴 plus de trois volets : la feuille n’a que TROIS règles `nth-of-type`', async () => {
+        // C'est la garde la plus silencieuse des sept : sans elle, un quatrième volet serait rendu
+        // dans le DOM, compté par l'impression… et INVISIBLE à l'écran, aucune règle
+        // `:checked ~ …` ne le désignant. Rien ne rougirait.
+        const quatre = [
+          volet('Un', true),
+          volet('Deux'),
+          volet('Trois'),
+          volet('Quatre'),
+        ];
+        await expect(rendre(conteneur(quatre))).rejects.toThrowError(
+          /4 volet\(s\) au lieu de 2 ou 3/,
+        );
+        await expect(rendre(conteneur(quatre))).rejects.toThrowError(/bloc n°2/);
+      });
+
+      it('4 · « libelle » absent ou vide : un onglet sans nom accessible', async () => {
+        const sansLibelle = [volet('Un', true), { defaut: false, blocs: [] }];
+        await expect(rendre(conteneur(sansLibelle))).rejects.toThrowError(
+          /« libelle » absent ou vide/,
+        );
+        // Et il dit QUEL volet — « volet n°2 », pas « un volet quelque part ».
+        await expect(rendre(conteneur(sansLibelle))).rejects.toThrowError(
+          /bloc n°2, volet n°2/,
+        );
+        // Des blanches ne sont pas un libellé : le `trim()` est le point de la garde.
+        await expect(
+          rendre(conteneur([volet('Un', true), volet('   ')])),
+        ).rejects.toThrowError(/« libelle » absent ou vide/);
+      });
+
+      it('5 · deux « libelle » identiques : deux onglets qu’on ne distingue pas', async () => {
+        const jumeaux = [volet('La méthode du cours', true), volet('La méthode du cours')];
+        await expect(rendre(conteneur(jumeaux))).rejects.toThrowError(/« libelle » en double/);
+        // Le message CITE le libellé fautif : sans lui, l'auteur cherche dans tout le fichier.
+        await expect(rendre(conteneur(jumeaux))).rejects.toThrowError(/La méthode du cours/);
+      });
+
+      it('6 · ZÉRO volet « defaut » : la page servie n’aurait AUCUN volet à l’écran', async () => {
+        // Le cas le plus grave du lot : sans JavaScript — donc sur la page prerendue, avant
+        // hydratation, et pour tout lecteur qui n'en a pas — la matière du conteneur DISPARAÎT.
+        await expect(
+          rendre(conteneur([volet('Un'), volet('Deux')])),
+        ).rejects.toThrowError(/0 volet\(s\) marqués/);
+      });
+
+      it('6bis · DEUX volets « defaut » : le navigateur n’en garde qu’un, arbitrairement', async () => {
+        // Deux `checked` dans un même `name` : le dernier gagne, et le volet ouvert n'est pas
+        // celui que l'auteur a désigné. Aucun gate ne verrait la différence.
+        await expect(
+          rendre(conteneur([volet('Un', true), volet('Deux', true)])),
+        ).rejects.toThrowError(/2 volet\(s\) marqués/);
+      });
+
+      it('7 · « blocs » absent d’un volet : le `TypeError` viendrait de l’ENFANT', async () => {
+        // Sans cette garde, `[blocs]="volet.blocs"` livre `undefined` à `app-rendu-blocs`, qui
+        // lève depuis un composant qui n'est PAS le fautif — sans le rang du bloc ni celui du
+        // volet. Même moitié manquante que pour l'encadré (S-009 / L-008).
+        const sansBlocs = [{ libelle: 'Un', defaut: true }, volet('Deux')];
+        await expect(rendre(conteneur(sansBlocs))).rejects.toThrowError(
+          /« blocs » absent ou non-tableau/,
+        );
+        await expect(rendre(conteneur(sansBlocs))).rejects.toThrowError(/bloc n°2, volet n°1/);
+      });
+
+      it('CONTRÔLE POSITIF : le conteneur conforme de `FIXTURES` passe les sept', async () => {
+        // L-019 — sans lui, les sept refus ci-dessus resteraient vrais d'une garde qui refuserait
+        // TOUT, y compris le contenu que le pipeline produit vraiment.
+        const rendu = await rendre(conteneur([volet('Un', true), volet('Deux'), volet('Trois')]));
+        expect(rendu.querySelectorAll('.methodes > .onglet')).toHaveLength(3);
+      });
+    });
+  });
+
   describe('complétude et échec bruyant', () => {
-    it('rend les HUIT types du contrat sans lever', async () => {
+    it('rend les NEUF types du contrat sans lever', async () => {
       // `FIXTURES` est un `Record<BlocContenu['type'], BlocContenu>` : ce test ne
       // pourrait pas COMPILER s'il manquait un membre de l'union. C'est le
       // compilateur qui tient la complétude, pas une liste recopiée.
       const tous = Object.values(FIXTURES);
-      expect(tous).toHaveLength(8);
+      expect(tous).toHaveLength(9);
 
       const rendu = await rendre(tous);
       expect(rendu.querySelector('.prose')).not.toBeNull();
@@ -2118,28 +2649,9 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelector('.diagramme')).not.toBeNull();
       expect(rendu.querySelector('.encadre')).not.toBeNull();
       expect(rendu.querySelector('.marche-a-suivre')).not.toBeNull();
+      expect(rendu.querySelector('.methodes')).not.toBeNull();
       expect(rendu.querySelector('app-quiz')).not.toBeNull();
       expect(rendu.querySelector('app-simulation')).not.toBeNull();
-    });
-
-    // 🔴 TRIPWIRE AUTO-PÉRIMANT — À SUPPRIMER AU LOT 6, avec l'`Exclude<…>` de `FIXTURES`.
-    // Le lot 5 a mis `methodes` AU CONTRAT sans le rendre : ce test écrit l'état exact du dépôt
-    // plutôt que de le laisser à un commentaire (L-008). Il constate deux choses à la fois — que
-    // le type existe côté contrat, et que ce composant le refuse BRUYAMMENT en le nommant, ce qui
-    // est le comportement voulu tant que le rendu n'existe pas. Le jour où le lot 6 ajoute le cas
-    // au `@switch`, ce test rougit : c'est ainsi qu'il se retire. Même geste, même raison que le
-    // tripwire de `marche-a-suivre` entre les lots 3 et 4.
-    it('🔴 LOT 6 : le contrat connaît « methodes », ce composant ne le rend pas ENCORE', () => {
-      const onglets = {
-        type: 'methodes',
-        volets: [
-          { libelle: 'La méthode du cours', defaut: true, blocs: [] },
-          { libelle: "L'équivalent moderne", defaut: false, blocs: [] },
-        ],
-      } as unknown as BlocContenu;
-      const fixture = TestBed.createComponent(RenduBlocs);
-      fixture.componentRef.setInput('blocs', [FIXTURES.prose, onglets]);
-      expect(() => fixture.detectChanges()).toThrowError(/methodes/);
     });
 
     it('ÉCHOUE en NOMMANT le type, sur un bloc que le contrat ne connaît pas', () => {

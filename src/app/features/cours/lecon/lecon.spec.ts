@@ -348,6 +348,27 @@ describe('rétrécissement `unknown` → `LeconCompilee`', () => {
       },
       attendu: 'ancre',
     },
+    // ─── LE MAILLON AMONT DE LA DISJONCTION D'IDENTIFIANTS (revue de sécurité du lot 6a) ──────
+    // `section.ancre` traverse `lecon.ts` jusqu'à l'input `chemin` de `RenduBlocs`, qui en compose
+    // TROIS valeurs d'attribut : le `name` du groupe d'onglets, l'`id` de chaque radio et le `for`
+    // de son `<label>`. Ce qui interdit qu'un `"` ou un `<` y entre n'est PAS un assainissement au
+    // rendu — il n'y en a aucun — mais cette règle kebab-case, ici, en amont. Le cas voisin
+    // ci-dessus mesure la règle sur une ancre simplement mal formée ; ces deux-là la mesurent sur
+    // les CARACTÈRES qui casseraient un attribut, c'est-à-dire sur ce que le refus protège.
+    {
+      nom: 'une ancre portant le guillemet qui fermerait l’attribut',
+      muter: (l) => {
+        (l.sections[0] as unknown as Record<string, unknown>)['ancre'] = 'intro" onfocus=x';
+      },
+      attendu: 'kebab-case',
+    },
+    {
+      nom: 'une ancre portant le chevron qui ouvrirait une balise',
+      muter: (l) => {
+        (l.sections[0] as unknown as Record<string, unknown>)['ancre'] = 'intro<script>';
+      },
+      attendu: 'kebab-case',
+    },
     {
       nom: 'un niveau de titre hors de 2 | 3',
       muter: (l) => {
@@ -1715,6 +1736,57 @@ describe('rendu de la page', () => {
       `Code n°2${INSECABLE}— php`,
       `Code n°3${INSECABLE}— php`,
     ]);
+  });
+
+  it('🔴 rend des « name » d’onglets DISTINCTS d’une section à l’autre', async () => {
+    // 🔴 LA MOITIÉ QUI COMPTE DU CRITÈRE D'ACCEPTATION DU LOT 6 — « prouver l'unicité du `name` sur
+    // la PAGE ENTIÈRE » —, et elle ne peut se mesurer QUE d'ici. `rendu-blocs.spec.ts` ne monte
+    // qu'UNE instance racine ; or la page de leçon en monte une PAR SECTION, et c'est `lecon.ts`
+    // qui leur donne des `chemin` disjoints (`[chemin]="section.ancre"`). Sans ce test, le lot
+    // n'aurait qu'un ARGUMENT là où il promet une mesure (L-019).
+    // LA MUTATION QU'IL TUE : retirer `[chemin]="section.ancre"` de `lecon.ts`. Chaque instance
+    // retombe alors sur la valeur par défaut de l'input, les deux sections produisent le MÊME
+    // `…_m0`, et le navigateur FUSIONNE les deux groupes de radios — un seul jeu d'onglets
+    // fonctionne par page, en silence (c'est le défaut mesuré au spike du lot 4bis).
+    const conteneur = (): unknown => ({
+      type: 'methodes',
+      volets: [
+        { libelle: 'La méthode du cours', defaut: true, blocs: [] },
+        { libelle: 'L’équivalent moderne', defaut: false, blocs: [] },
+      ],
+    });
+    const surMesure = copie(lecon()) as unknown as Record<string, unknown>;
+    // Même raison qu'au test voisin : cette leçon de mesure réécrit ses sections, donc perd
+    // l'ancre `[[simulation]]`, et le champ doit partir avec elle.
+    delete surMesure['simulation'];
+    surMesure['sections'] = [
+      { titre: 'Première', ancre: 'premiere-methode', niveau: 2, blocs: [conteneur()] },
+      {
+        titre: 'Deuxième',
+        ancre: 'deuxieme-methode',
+        niveau: 2,
+        blocs: [conteneur(), { type: 'ancre-quiz' }],
+      },
+    ];
+    const rendu = await monter(
+      manifesteReel,
+      `/cours/securite-web/${slugTemoin}`,
+      lireLeconCompilee(surMesure, 'leçon de mesure — unicité des groupes d’onglets'),
+    );
+
+    const onglets = [...rendu.querySelectorAll<HTMLInputElement>('.methodes > .onglet')];
+    // CONTRÔLE POSITIF (L-019) : quatre onglets ont RÉELLEMENT été rendus, deux par section —
+    // sans ce compte, « les `name` sont distincts » resterait vrai d'une page qui n'en rend aucun.
+    expect(onglets).toHaveLength(4);
+
+    const noms = onglets.map((onglet) => onglet.getAttribute('name') ?? '');
+    expect(new Set(noms).size, noms.join(' · ')).toBe(2);
+    // Et l'ancre de la section se lit dans le `name` : c'est ELLE qui porte la disjonction, pas
+    // un hasard de rendu. Les `id`, eux, sont distincts un par un.
+    expect(noms[0]).toContain('premiere-methode');
+    expect(noms[2]).toContain('deuxieme-methode');
+    const identifiants = onglets.map((onglet) => onglet.id);
+    expect(new Set(identifiants).size, identifiants.join(' · ')).toBe(4);
   });
 
   it('ne laisse AUCUN nom de défileur en double sur la leçon-témoin réelle', async () => {
