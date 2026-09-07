@@ -660,11 +660,59 @@ déclarée ne disait **rien** de ce qui restait. Le fil principal a terminé le 
 l'état sur DISQUE, item par item, est le seul relevé qui fasse foi** quand un agent s'arrête en chemin —
 jamais sa dernière phrase.
 
-**Le geste suivant : le lot 4bis** (spike R-1, jetable) — mesurer si l'hydratation d'Angular réécrit le
-`checked` d'une radio **statique** dans une page prerendue. ⚠️ **C'est une MESURE, pas une déduction
-([[L-074]])** : il n'existe aujourd'hui aucune radio non liée dans une page prerendue, donc le spike commence
-par **fabriquer sa fixture**. Le verdict commande le lot 6 : si le `checked` est réécrit, D-C tombe et le
-repli écrit est l'option 2. **Le mesurer AVANT d'écrire une ligne du lot 5.**
+✅ **LE LOT 4bis EST LIVRÉ — spike jetable, 2026-09-06. LE VERDICT EST : D-C OPTION 1 TIENT.**
+Mesuré en navigateur sur `/cours/securite-web/automatisation-surveillance/` (`ROUTE_LECON_QUIZ`), fenêtre
+de pré-hydratation réellement ouverte (chunk paresseux `chunk-BbiB0V41.js` retenu), spec **2 passés / 0
+échec**. Fixture fabriquée pour l'occasion — un groupe de radios dont le `name` est **lié** et le `checked`
+**statique**, posé dans le `@for` de `rendu-blocs.ts` —, puis arbre de travail remis propre. Preuves
+conservées hors dépôt (`spike-r1-rendu-blocs.diff`, `spike-r1.spec.ts`, journaux de run).
+
+| Mesure | Verdict |
+|---|---|
+| **M1** — l'hydratation réécrit-elle le `checked` d'une radio statique ? | **NON.** La coche posée par le visiteur pendant la fenêtre survit ; le `checked` statique n'est **pas** réappliqué |
+| **M2** — le `@for` recrée-t-il les `<input>` lors d'une interaction voisine ? | **NON.** Volet coché, puis quiz répondu et corrigé (`data-verdict="juste"`, donc le quiz a bien réagi) : l'onglet est **intact** |
+| le `checked` est-il sérialisé dans le HTML prerendu ? | **OUI** — 85 `checked` pour 85 groupes |
+| la fenêtre était-elle ouverte ? (contrôle positif **comportemental**) | **OUI** — un clic sur « Corriger mes réponses » émis dedans est **PERDU** (`.verdict` à 0 après hydratation) |
+
+**Conséquence : le repli option 2 n'est pas nécessaire, `defaut` garde tout son sens, et les bornes du
+conteneur `methodes` tiennent telles qu'elles sont écrites au contrat.** R-1 est **levé, par mesure**.
+
+🔴 **LE SPIKE A TROUVÉ PLUS GRAVE QUE CE QU'IL CHERCHAIT, ET ÇA CHANGE LE CRITÈRE D'ACCEPTATION DU LOT 6.**
+Le plan prescrit un `name` de groupe **dérivé du décalage de figures**, « jamais une constante ». Mesuré :
+**ce décalage n'est pas un identifiant unique de page.** Plusieurs `app-rendu-blocs` sont montés par page —
+un par encadré, par récursion — et **chacun recommence son `@for` à l'index 0** ; par ailleurs deux encadrés
+sans figure entre eux **portent le même décalage**. Constaté en direct sur la fixture : 85 groupes ayant reçu
+le même `name` ont été **fusionnés en un seul groupe par le navigateur**, et seul le **dernier** `checked` a
+survécu — une radio dont l'attribut `checked` était pourtant bien présent s'affichait **décochée**.
+⚠️ **C'est le vrai risque de D-C, et ce n'est pas l'hydratation.** Le lot 6 doit donc **prouver l'unicité du
+`name` sur la page entière**, pas seulement sa dérivation ; sans quoi **un seul jeu d'onglets fonctionnerait
+par page**, en silence, et le mode d'échec ressemblerait à un bug de CSS. Même famille que [[L-026]] (aucun
+`id` fabriqué), et même famille que **S-010** : la promesse « dérivé, donc distinct » est un raisonnement,
+et le décalage de figures ne la tient pas.
+
+⚠️ **UNE LIAISON `[attr.name]` EST RÉÉVALUÉE À L'HYDRATATION** — mesuré : `spike-34-0` dans le HTML prerendu,
+`spike-1-0` après hydratation, parce que la clef de la fixture était un compteur de module. Sans conséquence
+là (les deux radios de la paire ont migré ensemble), mais **toute clef non déterministe entre le rendu
+serveur et le client réécrit le `name` en silence**. Le décalage de figures est déterministe — à condition
+que le point ci-dessus soit réglé.
+
+⚠️ **PIÈGE D'ÉCRITURE PAYÉ AU PASSAGE, hors sujet mais coûteux :** un **backtick dans un commentaire HTML**
+d'un gabarit *inline* **ferme le template literal TypeScript**. Le build sort rouge sur « Unexpected ";" »
+et trois `NG8110` pointant **350 lignes plus bas** — aucun message ne nomme la cause. Candidat à
+`lessons-learned.md`.
+
+⚠️ **Coût du lot : 158 473 tokens / 42 appels**, au-dessus du gros maximum de 150k. Défaut de brief, pas
+d'agent : j'ai mis `npm run build` (≈ 3-4 min, mur de sortie) **et** la boucle Playwright dans le même
+périmètre. La découpe juste était « fabriquer la fixture et bâtir » puis « mesurer ». À retenir : **un spike
+qui doit BÂTIR avant de MESURER est déjà deux lots.**
+
+**Le geste suivant : le lot 5** (conteneur `methodes` — compilation et validation).
+⚠️ **Le piège du lot, mesuré par le fil principal avant d'écrire le brief** : `defaut` est un **marqueur sans
+valeur**, et **aucune grammaire d'attribut du dépôt ne sait en lire un**. `lireBlocDAttributs`
+(`compiler-markdown.mjs:1047`) et `MOTIF_PAIRE_ATTRIBUT` (`valider.mjs:1108`) n'acceptent que des paires
+`clef="valeur"` et **refusent tout résidu** — donc `{libelle="…" defaut}` est refusé **des deux côtés**
+aujourd'hui. La grammaire s'étend dans les **deux** copies, par **liste blanche nominative** passée par
+l'appelant, et le contrôle de résidu doit **rester sensible** à `{lignes=2}`.
 ⚠️ Le corpus de **fixtures invalides** reste le **lot 7**, délibérément à part (§9 du budget de contexte).
 
 <!-- RÉCIT CLOS — le pointeur qui annonçait le lot 2, livré le 2026-09-02. Ses deux mises en garde ont
@@ -689,3 +737,74 @@ sinon le prochain rédacteur écrira à l'ancien format.
 écrit**, pas au nombre de constats ni de livrables. Le dernier agent de correctifs du module 11 a
 fini à **178k** pour 7 bloquants, parce que la leçon est passée de 731 à 939 lignes. Un correctif qui
 fait croître une leçon de plus de ~15 % **est une réécriture partielle et se scinde**.
+
+---
+
+## CLÔTURE — LOT 5 : le conteneur `methodes` est compilé et validé (2026-09-07)
+
+**Livré.** `:::: methodes` / `::: methode {libelle="…" defaut}` est désormais **compilé**
+(`compiler-markdown.mjs`, `lireMethodes`) et **validé** (`valider.mjs`), avec la grammaire
+d'attributs étendue **dans les deux copies** au marqueur SANS VALEUR `defaut`, par **liste blanche
+nominative passée par l'appelant** (`marqueursAutorises`, `[]` par défaut — les cinq autres
+conteneurs gardent leur message à l'octet près). Deux fixtures suivies
+(`tools/content-pipeline/__fixtures__/methodes/`) pour les deux cardinalités, le reste sur racines
+jetables. **Pas de rendu** : `TYPES_RENDUS` exclut toujours `methodes`, le lot 6 lève l'exclusion.
+
+**Gates à la clôture — les sept verts, deux fois** (une fois sur le lot brut, une fois après les
+correctifs de revue) : G-lint 0 · G-typage-outils 0 · G-content **10 leçon(s) compilée(s)**, 0
+dépassement de poids · G-test **1061 passés / 1 sauté / 45 fichiers** (1051 avant les correctifs :
+**+10 contrôles positifs**) · G-build **13 routes prerendues, 14 hachages de style / 0 de script** —
+inchangé · G-axe **13 fichiers, 1118 vérifications, 0 violation** · G-e2e **50 passés / 1 sauté** ·
+`npm audit --omit=dev` **0**.
+
+**Deux revues indépendantes, verdict identique : APPROUVÉ AVEC RÉSERVES**, aucune faille
+exploitable — tout ce qu'elles ont trouvé est *fail-closed* ou préventif. Les huit correctifs ont
+été appliqués par un agent **frais**.
+
+🔴 **CE QUE LES REVUES ONT ATTRAPÉ, ET QUI SE REPRODUIRA SI ON N'Y PENSE PAS.**
+**(a) La parité des deux copies a été honorée pour l'ENFANT et oubliée pour le PARENT.**
+`verifierVoletsDeMethode` n'inspectait que les lignes `::: methode` : `:::: methodes {titre="x"}`
+passait la validation **code 0** et cassait la construction. Famille **S-010**. ⚠️ Quand un lot
+ajoute un couple **conteneur/volet**, la parité se vérifie **aux deux niveaux**.
+**(b) Une liste noire se réplique par COPIER-COLLER.** `refuserJetonHorsVolet` avait hérité le
+prédicat négatif de `refuserJetonHorsPaire` — jamais mesuré. Mesuré à la revue : un `---` entre deux
+volets produit **3 jetons `hr` de nesting 0**, tous **avalés en silence**. Les deux jumeaux refusent
+désormais **tout** jeton en nommant son `type`. ⚠️ Le `content:build` post-correctif confirme les
+**10 leçons** : le resserrement n'a cassé aucune leçon publiée.
+**(c) Un message d'erreur peut suggérer à l'auteur la forme qui ne marche pas.** `::: methodes`
+(3 `:`) avec 2 volets disait « porte **1** volet(s) », et `lireAttributs` composait son libellé avec
+`':::'` **en dur**. Le libellé vient maintenant de `ouverture.markup`, et le refus dit qu'un
+conteneur s'ouvre avec **au moins un `:` de plus** que ses volets.
+**(d) L-019 récidive PAR TABLE.** `INTERDITS_DANS_UN_VOLET` a 5 entrées, **1 seule** était exercée :
+une clef mal orthographiée n'apparierait plus rien, **en silence**. Trois entrées de plus sont
+couvertes ; la 5ᵉ (`comparaison` imbriquée) exigerait six niveaux de deux-points — **résidu nommé**.
+
+✅ **UNE CONCLUSION DE REVUE CORRIGÉE PAR LA MESURE DU FIL PRINCIPAL — et c'est la leçon de méthode
+du lot.** Les deux revues concluaient qu'un volet **ne peut pas** contenir d'encadré, donc que
+`types.d.ts` et `pipeline-contenu.md` mentaient en promettant « du contenu de bloc **général** ».
+**Mesure : c'est faux.** `markdown-it-container` ferme un conteneur à la première ligne dont le
+marqueur est **au moins aussi long** que l'ouverture — les longueurs doivent seulement **décroître
+strictement**. Sous `:::::` / `::::` / `:::`, un volet rend `['prose', 'code', 'encadre']`, mesuré.
+Le contrat n'était donc pas **menteur** mais **incomplet** : ce qui manquait est la règle de
+longueur, écrite depuis aux **trois** endroits (`types.d.ts`, `docs/contenu/pipeline-contenu.md`,
+et le `LISEZMOI.md` de la fixture, dont le titre absolu est corrigé). ⚠️ **Les deux revues avaient
+mesuré le bon cas et généralisé d'un cran de trop** — un constat mesuré sur UNE forme ne devient pas
+une impossibilité tant que les formes voisines n'ont pas été essayées.
+
+⚠️ **COÛT DES AGENTS DE CE LOT, et les deux défauts de brief qui l'expliquent.** Rédaction **305k**
+(le double du maximum admissible) · revue de code **164k** · revue de sécurité **155k** · correctifs
+**183k**. Le brief de rédaction passait le test du « + » sur sa phrase d'objectif, mais portait
+**quatre** gestes : étendre la grammaire d'attributs dans deux copies, écrire le lecteur du
+conteneur, étendre quatre descentes récursives, **et** écrire les fixtures témoins. La découpe juste
+était « la grammaire des marqueurs sans valeur, les deux copies, avec ses contrôles positifs » puis
+« le conteneur `methodes` et ses bornes ». Le brief de correctifs portait **huit** correctifs dont un
+resserrement à risque de régression : deux lots, là aussi.
+
+**Le geste suivant : le lot 6** (rendu CSS pur du conteneur). Ses critères d'acceptation ont grossi
+de deux familles pendant ce lot, tous deux écrits dans
+[`docs/design/refonte-lecons-actionnables.md`](../design/refonte-lecons-actionnables.md) § « Lot 6 » :
+les **quatre** critères du `libelle` (nœud texte seul, `name`/`id`/`for` dérivés d'indices, test à
+deux mains de S-011 dans le même lot, inventaire des six écarts) et les **deux descentes de
+`rendu-blocs.ts`** — `cumulerFigures` (~l. 426) et `decalagesDesSections` (~l. 1026) — qui ne voient
+pas `methodes[].volets[].blocs` et doivent être corrigées **dans le commit qui ajoute le `@case`**,
+sous peine d'un décalage de figures silencieusement faux.

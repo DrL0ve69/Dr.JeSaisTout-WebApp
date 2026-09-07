@@ -30,7 +30,7 @@ tranchés.** Ce qui suit n'est plus discutable dans ce chantier ; ce qui n'y fig
 | **D-D** | La reprise des dix modules publiés | **Gate qui se durcit module par module, avec compteur** (option 3) |
 | **R-3** | La séance 11 ne peut pas être déclarée | **La règle s'assouplit** : une séance d'évaluation **pratique** peut porter un module ; une séance d'**examen écrit** reste interdite |
 | **R-7** | Reprise des 10 modules **contre** contenu neuf | **La reprise passe devant.** Le contenu neuf des séances restantes attend qu'elle soit finie |
-| **R-4** | Le `Ctrl+F` ne trouve pas un onglet masqué | **Coût accepté**, les onglets sont gardés — réserve nommée au contrat, et **R-1 se mesure d'abord** |
+| **R-4** | Le `Ctrl+F` ne trouve pas un onglet masqué | **Coût accepté**, les onglets sont gardés — réserve nommée au contrat. ✅ **R-1 mesuré et levé le 2026-09-06** |
 
 **Ce que chaque verdict engage, en une ligne chacun.**
 
@@ -40,8 +40,10 @@ tranchés.** Ce qui suit n'est plus discutable dans ce chantier ; ce qui n'y fig
 - **D-B** — l'attribut entre dans le **nom accessible** du titre, donc dans la liste des titres d'un
   lecteur d'écran et dans le sommaire. La contrainte L-024 (`preserveWhitespaces: false` supprime le
   nœud blanc entre deux `<span>`) est à traiter **dans le lot 2**, pas après.
-- **D-C** — dépend entièrement de **R-1** : si l'hydratation réécrit le `checked` d'une radio
-  statique, le repli écrit est l'option 2. **Mesurer avant de coder le lot 6.**
+- **D-C** — ✅ **confirmé par la mesure du lot 4bis (2026-09-06)** : l'hydratation ne réécrit **pas**
+  le `checked` d'une radio statique, et une interaction voisine ne réinitialise pas l'onglet. Le repli
+  option 2 est **sans objet**. 🔴 Le risque restant n'est pas l'hydratation mais l'**unicité du `name`
+  sur la page** — critère d'acceptation du lot 6, voir (B).
 - **D-D** — le compteur est un littéral épinglé de plus. Il monte de 1 à chaque module repris, et
   **il ne redescend jamais** : c'est le cliquet qui interdit la régression silencieuse.
 - **R-3** — modification de contrat dans `ancrage-au-cours.md` §2 **et** `valider.mjs:1942-1947`.
@@ -417,12 +419,51 @@ vide et unique, aucun volet `vulnerable`/`corrige`). Deux fixtures témoins.
 
 `rendu-blocs.ts`/`.scss`/`.spec.ts` · `e2e/` : un spec neuf qui mesure les trois états (sans JS,
 pendant la pré-hydratation, après hydratation) dans un vrai navigateur — **c'est la seule preuve
-recevable pour la famille L-033**. `name` du groupe de radios **dérivé du décalage de figures**
-existant, jamais une constante (deux groupes homonymes lieraient deux conteneurs sans rapport :
-famille S-010). Les `id` neufs ne doivent pas collisionner avec l'espace de noms d'ancres que
+recevable pour la famille L-033**.
+
+🔴 **LE `name` DU GROUPE DE RADIOS — CORRIGÉ PAR LA MESURE DU LOT 4bis (2026-09-06).**
+Ce plan prescrivait un `name` **dérivé du décalage de figures**, « jamais une constante ». La mesure
+RÉFUTE la moitié utile de cette phrase : le décalage de figures **n’est pas unique dans une page**.
+Plusieurs `app-rendu-blocs` sont montés par récursion (un par encadré) et **chacun recommence son
+`@for` à l’index 0** ; deux encadrés sans figure entre eux portent en outre **le même décalage**.
+Constaté en direct : des groupes ayant reçu le même `name` ont été **fusionnés par le navigateur**,
+seul le **dernier** `checked` survivant — une radio portant bien `checked` s’affichait décochée.
+⚠️ **Le critère d’acceptation du lot 6 devient donc : PROUVER l’unicité du `name` sur la page
+entière**, et pas seulement sa dérivation. Sans quoi **un seul jeu d’onglets fonctionne par page**,
+en silence, avec un symptôme qui ressemble à un défaut de CSS. Famille S-010 (« dérivé, donc
+distinct » est un raisonnement, pas une garantie) et [[L-026]] (aucun `id` fabriqué).
+⚠️ **Une liaison `[attr.name]` EST réévaluée à l’hydratation** — mesuré : `spike-34-0` au prerendu,
+`spike-1-0` après. Toute clef **non déterministe** entre serveur et client réécrit le `name` en
+silence. Les `id` neufs ne doivent pas collisionner avec l'espace de noms d'ancres que
 `lireLeconCompilee` protège. **Gates** : `npm test`, `npm run build`, `npm run a11y:axe`,
 `npm run e2e`, `npm run config:swa`. **Littéraux** : vérifier les 14, les 6 et les 7 ; les porter
 seulement après avoir nommé la page.
+
+🔴 **`libelle` DEVIENT UN CHAMP D'AUTEUR RENDU AU DOM — quatre critères d'acceptation, nommés ici
+plutôt que laissés en dette floue** (revue de sécurité du lot 5, 2026-09-07 ; famille **S-011**).
+Aujourd'hui `libelle` est **inexploitable et fail-closed** : sa grammaire est `[^"]*`, donc
+`libelle="<script src=x>"` est accepté verbatim et part dans l'artéfact, mais `TYPES_RENDUS` /
+`preparer()` **lèvent** sur un bloc `methodes` — aucune surface HTML n'existe encore. D-C en crée
+nécessairement une (radios + `<label for>`), et la sérialisation **n'échappe pas `<` dans une valeur
+d'attribut**. Donc, dans le commit qui ajoute le `@case` :
+
+1. `libelle` est rendu **uniquement en nœud texte** dans le `<label>` — **jamais** `aria-label`,
+   `title`, `value`, `id` ni aucun autre attribut.
+2. `name`, `id` et `for` se dérivent **d'indices seuls**, jamais du `libelle` — ce qui converge avec
+   l'unicité du `name` exigée ci-dessus.
+3. Le **test à deux mains** de S-011 est écrit **dans le même lot** : la charge s'affiche *entière*
+   **et** n'engendre *aucun nœud*. Une seule des deux moitiés certifierait un assainissement dont
+   l'autre est un no-op.
+4. Si une **septième** surface naît, l'inventaire de `tools/deploiement/generer-config-swa.mjs`
+   (aujourd'hui six écarts, l. 755-763) se met à jour dans le même commit.
+
+🔴 **DEUX DESCENTES DE `rendu-blocs.ts` NE VOIENT PAS `methodes`, ET ELLES DOIVENT ÊTRE CORRIGÉES
+DANS LE COMMIT QUI AJOUTE LE `@case`** (revue de code du lot 5). `cumulerFigures` (~l. 426) et
+`decalagesDesSections` (~l. 1026) ne descendent que dans `encadre` ; elles ignorent
+`methodes[].volets[].blocs`. C'est *fail-loud* tant que `TYPES_RENDUS` exclut `methodes` — le
+tripwire `rendu-blocs.spec.ts:2125` l'épingle — mais le jour où le `@case` lève cette exclusion,
+**le décalage de figures devient silencieusement faux**. Le côté outil est déjà couvert : six
+descentes recensées et re-dérivées à la revue, cinq correctes.
 
 ## Lot 7 — Le corpus de fixtures invalides (LOT À PART)
 
@@ -477,12 +518,14 @@ demi-lots thématiques, seuil déjà mesuré quatre fois.
 
 # (C) Les risques que je n'ai PAS levés
 
-**R-1 · L'hydratation d'Angular peut-elle réécrire l'attribut `checked` d'une radio statique ?**
-Toute l'option 1 de D-C repose sur « aucune liaison, donc rien à écraser ». C'est une déduction, pas
-une mesure — et **L-074** dit exactement ce que valent les déductions de ce genre. *À mesurer* :
-Playwright, cocher un onglet pendant la fenêtre de pré-hydratation (chunk paresseux retenu, comme le
-fait déjà le harnais e2e), laisser hydrater, vérifier que la coche survit. Si elle ne survit pas,
-**replier sur D-C option 2**.
+✅ **R-1 · LEVÉ PAR LA MESURE, 2026-09-06 (lot 4bis) — l’hydratation ne réécrit PAS le `checked`
+d’une radio statique.** La question était : « toute l’option 1 de D-C repose sur *aucune liaison, donc
+rien à écraser* — déduction, pas mesure, et **L-074** dit ce que valent ces déductions ». Mesuré en
+navigateur, fenêtre de pré-hydratation réellement ouverte (chunk paresseux retenu, contrôle positif
+comportemental : un clic émis dedans est perdu) : la coche du visiteur **survit** à l’hydratation,
+**et** survit à une interaction voisine — le `@for` ne recrée pas les `<input>`. **Option 1 retenue,
+le repli option 2 est sans objet.** 🔴 Le spike a toutefois trouvé un risque **plus grave**, qui n’est
+pas l’hydratation : l’**unicité du `name`** — voir le lot 6 ci-dessus.
 
 **R-2 · Un `content/cours/php/horaire.json` sans aucun module passe-t-il le pipeline ?** Le
 validateur et `generer-manifeste.mjs` n'ont jamais vu un sujet à zéro leçon. *À mesurer* : déposer le

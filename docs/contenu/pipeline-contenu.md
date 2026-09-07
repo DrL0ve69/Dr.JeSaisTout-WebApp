@@ -402,6 +402,20 @@ conteneur :
 - **Aucun volet `vulnerable` / `corrige` à l'intérieur**, et aucun conteneur `comparaison` imbriqué.
   Refus nommé.
 
+⚠️ **LA LONGUEUR DES MARQUEURS SE CHOISIT D'AVANCE — l'exemple ci-dessus ne laisse aucune place en
+dessous** (mesuré le 2026-09-07 ; ce paragraphe corrige une promesse que le contrat faisait sans sa
+condition). `markdown-it-container` ferme un conteneur à la **première** ligne dont le marqueur est
+**au moins aussi long** que celui de l'ouverture : les longueurs doivent donc **décroître
+strictement** en descendant. Avec `::::` pour le conteneur et `:::` pour un volet — la forme écrite
+juste au-dessus — un `::: note` imbriqué dans un volet est **refermé par la fermeture du volet**, et
+le `:::` orphelin devient un paragraphe que plus rien n'attend. Ce n'est donc pas le **contenu** d'un
+volet qui est borné : un volet admet bien du contenu de bloc général, encadré compris, à condition
+d'ouvrir `:::::` methodes / `::::` methode / `:::` note. Mesuré sous cette forme, un volet rend
+`['prose', 'code', 'encadre']`.
+✅ **Depuis le lot 5, l'auteur qui se trompe est prévenu au lieu d'être ignoré** : tout jeton égaré
+entre deux volets — le `:::` orphelin comme un filet `---` — fait échouer la construction en
+**nommant le type du jeton rencontré**, au lieu d'être avalé en silence.
+
 🔴 **LA CLAUSE QUI DISTINGUE CE CONTENEUR DE CE QU'INTERDIT ST4-1 — elle est au contrat, pas dans un
 commentaire de code.** Les volets d'un `methodes` sont **le même résultat par deux routes**
 (`crontab` ou un timer systemd ; `apt install composer` ou l'installeur amont). **Le contenu masqué

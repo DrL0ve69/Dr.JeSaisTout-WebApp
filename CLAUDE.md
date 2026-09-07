@@ -77,8 +77,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > R-7 **la reprise des dix modules passe DEVANT le contenu neuf** · R-4 la perte du `Ctrl+F` dans un
 > onglet masqué est **acceptée**, sous réserve écrite au contrat. Ce que chacun engage :
 > [`docs/design/refonte-lecons-actionnables.md`](docs/design/refonte-lecons-actionnables.md), bloc « VERDICT ».
-> ⚠️ **D-C repose sur une mesure NON FAITE (R-1)** : si l'hydratation réécrit le `checked` d'une radio
-> statique, le repli écrit est l'option 2. Mesurer **avant** de coder le lot 6.
+> ✅ **R-1 EST LEVÉ PAR LA MESURE (2026-09-06, lot 4bis)** : l'hydratation ne réécrit **pas** le
+> `checked` d'une radio statique, et une interaction voisine ne réinitialise pas l'onglet. **Les onglets
+> CSS purs de D-C sont confirmés, le repli option 2 est sans objet.**
+> 🔴 **Mais le spike a trouvé plus grave, et c'est le critère d'acceptation du LOT 6 :** le `name` du
+> groupe de radios, que le plan disait de **dériver du décalage de figures**, **n'est pas unique dans une
+> page** — plusieurs `app-rendu-blocs` sont montés par récursion et **chacun recommence son `@for` à
+> l'index 0**. Mesuré : des groupes homonymes sont **fusionnés par le navigateur**, seul le dernier
+> `checked` survit, et une radio portant `checked` s'affiche décochée. **Le lot 6 doit PROUVER l'unicité
+> du `name` sur la page entière**, sinon un seul jeu d'onglets fonctionne par page, en silence.
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
