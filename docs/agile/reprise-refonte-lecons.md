@@ -246,7 +246,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → ~~**`4bis`**~~ **✅**
-(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48, 2026-09-07) → **`6`** → `7` → **`1b`** (résolution inter-cours) → `8`
+(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → **`7`** → **`1b`** (résolution inter-cours) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
@@ -808,3 +808,100 @@ deux mains de S-011 dans le même lot, inventaire des six écarts) et les **deux
 `rendu-blocs.ts`** — `cumulerFigures` (~l. 426) et `decalagesDesSections` (~l. 1026) — qui ne voient
 pas `methodes[].volets[].blocs` et doivent être corrigées **dans le commit qui ajoute le `@case`**,
 sous peine d'un décalage de figures silencieusement faux.
+
+---
+
+## CLÔTURE — LOT 6 : le conteneur `methodes` est RENDU, en CSS pur (2026-09-07)
+
+**Livré.** Le `@case ('methodes')` lève l'exclusion de `TYPES_RENDUS` : un groupe de radios de même
+`name`, chacune suivie de son `<label>`, et les panneaux montrés par `:checked ~ …`. **Aucun
+JavaScript, aucun composant neuf** — `script-src` reste à zéro, et aucun hachage `style-src` ne
+s'ajoute (le bloc `<style>` d'un composant existant ne change pas de page).
+
+**Gates à la clôture — les huit verts, deux fois** (une fois sur le lot brut, une fois après les
+correctifs de revue) : G-lint 0 · G-typage-outils 0 · G-content **10 leçon(s)**, 0 dépassement ·
+G-test **1081 passés / 1 sauté / 45 fichiers** (1061 au lot 5) · G-build **13 routes prerendues,
+14 hachages de style / 0 de script** — inchangés · G-axe **13 fichiers, 1118 vérifications, 0
+violation** · G-e2e **50 passés / 1 sauté** · G-contrastes **40 paires, aucune neuve** ·
+`npm audit --omit=dev` **0**. PR **#50**, CI verte, SonarCloud vert.
+
+🔴 **CE QUE LE LOT PROUVE, ET QUI N'ÉTAIT QU'UN RAISONNEMENT DANS LE PLAN.** Le critère d'acceptation
+né du spike 4bis — « l'unicité du `name` sur la PAGE ENTIÈRE » — est tenu **par construction, puis
+mesuré aux deux étages**. Le préfixe vient d'un input `chemin` : `Lecon` passe `section.ancre` (que
+`contenu-compile.ts` dérive en kebab-case **et** dédoublonne), la récursion d'un encadré compose
+`<chemin>_e<rang>`, un volet `<chemin>_m<rang>_v<rang>`. Le souligné étant impossible en kebab-case,
+la disjonction avec l'espace de noms d'ancres est **structurelle**, pas argumentée.
+⚠️ **Et il fallait DEUX specs, pas un** : `rendu-blocs.spec.ts` ne monte qu'une instance racine et
+mesure la disjonction *à l'intérieur* (jusqu'au conteneur niché DANS un volet, le seul cas où le
+chemin se compose deux fois) ; seul `lecon.spec.ts` mesure la disjonction *d'une section à l'autre*,
+et lui seul tue la mutation « retirer `[chemin]="section.ancre"` ». C'est **L-086** appliquée
+d'avance : un test qui appelle la fabrique prouve la fonction, jamais le **câblage**.
+
+🔴 **`checked` EST UN ATTRIBUT LITTÉRAL, ET LES DEUX AUTRES FORMES CASSENT DIFFÉREMMENT.** Une
+liaison de **propriété** (`[checked]`) ne touche que l'IDL, que la sérialisation du prerender
+n'écrit pas : la page servie n'aurait **aucun** volet à l'écran. Une liaison d'**attribut**
+(`[attr.checked]`) sérialise bien, mais le spike 4bis a mesuré qu'elle est **réévaluée à
+l'hydratation** : le lecteur qui coche un autre onglet pendant la fenêtre de pré-hydratation ne pose
+le *dirty checkedness flag* que sur CE volet-là, si bien que la réécriture rendrait sa coche au volet
+`defaut` — l'onglet choisi sauterait en arrière, **en silence**, sur le seul mécanisme du site censé
+être immunisé à L-033. D'où l'attribut statique, au prix assumé de deux branches `@if`/`@else`
+identiques à un mot près.
+
+🔴 **LE CRITÈRE R-8 A REÇU SA PINCE, ET C'EST LE GESTE QUE LE PLAN NE DEMANDAIT PAS.** Le contrat
+exigeait un canal non chromatique ; la forme retenue est la plus économique qu'il autorise — la
+**radio native reste visible**, son point coché étant peint par l'agent utilisateur, avec l'épaisseur
+du filet en second canal. Mais rien ne **tenait** ce choix : `forced-colors: active` n'est mesuré par
+aucun gate du dépôt, et un `appearance: none` posé plus tard par un lot qui trouve la radio
+inélégante aurait détruit le canal **sans faire rougir quoi que ce soit** — le mode d'échec exact du
+filet `.ligne-annotee` d'E2-ST4. Un test de feuille refuse désormais toute propriété qui efface la
+radio, et l'assertion d'impression dit **pourquoi** le bloc `@media print` en est exempté (sur
+papier, tous les volets sont dépliés : la rangée d'onglets n'a plus rien à commander). Contrôle
+positif par mutation : **exactement 1 rouge**.
+
+🔴 **CE QUE LA REVUE À REGARD NEUF A ATTRAPÉ — verdict APPROUVÉ AVEC RÉSERVES, rien de Critique.**
+Les quatre axes qu'elle devait forcer (unicité, divergence serveur/client, fuite de `libelle`,
+décalage de figures) sont ressortis propres, **par la construction et non par l'argument**. Ses trois
+réserves étaient réelles et sont payées :
+**(a) Deux gardes voisines comparaient deux chaînes différentes.** La vacuité du `libelle` se jugeait
+sur la valeur **ébarbée**, le doublon sur la valeur **brute** — « Cours » et « Cours » suivie d'une
+espace passaient donc toutes deux, alors que la garde du doublon existe précisément pour refuser deux
+onglets qu'on ne distingue ni à l'œil ni au lecteur d'écran, et qu'une espace finale ne se voit dans
+**aucun** des deux. ⚠️ **Une garde qui normalise d'un côté et compare de l'autre laisse passer
+exactement ce qu'elle refuse** — et les deux lignes étaient voisines.
+**(b) La pince de R-8, écrite au même lot, était elle-même une liste NOIRE.** Elle reconnaissait le
+sujet d'une règle par **préfixe de chaîne** : `input.onglet { appearance: none }` et
+`.onglet.actif { opacity: 0 }` lui échappaient — c'est-à-dire les deux formes les plus naturelles
+pour qui veut masquer une radio. Le patron S-001/S-003 **récidive jusque dans le garde-fou écrit pour
+l'appliquer** : on découpe désormais le compound en sélecteurs simples et on cherche la classe par
+**appartenance**.
+**(c) `nth-of-type` présupposait une composition que seul un commentaire tenait.** La correspondance
+onglet ↔ panneau n'est juste que si les panneaux sont les seuls `<div>` du `<fieldset>` et les
+onglets ses seuls `<input>` — `nth-of-type` compte par **nom d'élément**, sans regarder les classes.
+Un `<div>` d'habillage décalerait toute la table : le deuxième onglet ouvrirait le premier panneau,
+en silence.
+
+🔴 **LA RÉSERVE MAJEURE EST REPORTÉE PAR ÉCRIT, ET C'EST LE POINT À NE PAS LAISSER TACITE.** Le
+contrat du lot 6 nomme le spec e2e des trois états « la **seule** preuve recevable pour la famille
+L-033 ». **Il n'est pas livré, et il ne pouvait pas l'être** : aucune leçon de `content/` n'écrit
+`:::: methodes`, si bien qu'un spec e2e n'aurait aucune page à naviguer.
+⚠️ **Conséquence à dire franchement : les 1 118 vérifications d'axe et les 50 e2e de ce lot n'ont vu
+AUCUN `.methodes`.** Leur vert prouve la **non-régression**, jamais le rendu — ils sont verts *par
+absence de données*, et les citer comme preuve du lot leur prêterait une portée qu'ils n'ont pas.
+Concrètement, **rien ne mesure aujourd'hui que cocher un onglet montre son panneau** : jsdom ne
+calcule pas la cascade, et `:checked ~ div:nth-of-type(N)` n'est vérifié par aucun test.
+**Ce qui part donc avec le lot 8** (la première leçon qui écrira le conteneur), et qui n'est PAS clos
+ici : le spec e2e des trois états, la passe G-axe sur une page portant des onglets, et la **capture
+manuelle en contraste forcé** qu'exige §D.4. Même patron que le lot 4 (`marche-a-suivre`), et même
+famille que « `verifiee` n'est pas `publiee` », payée trois fois sur ce dépôt.
+
+⚠️ **RÉSIDU CHIFFRÉ — `rendu-blocs.scss` compile à 7 425 o**, sous le plafond d'**erreur** de 8 192 o
+d'`angular.json`, mais à **~600 o** de lui (l'avertissement à 6 144 o est franchi depuis le lot 4).
+Les trois conditions écrites pour ce lot ont tenu : mesure avant écriture, aucune coupe improvisée
+dans les règles d'autrui, aucun jeton de couleur neuf. Le levier écrit pour le prochain lot qui
+touchera cette feuille reste la **partiale globale** `src/styles/_onglets-methodes.scss` (précédent
+`_code.scss`), qui bascule les octets sous le budget `initial` — **pas** un relèvement du budget, qui
+reviendrait à cacher la mesure.
+
+**Le geste suivant : le lot 7** — le corpus de fixtures invalides du conteneur. ⚠️ Il est à part
+**délibérément** (§9 du budget de contexte) : un corpus de fixtures a déjà **doublé** un lot sur ce
+dépôt, et il se compte — nombre de dossiers × lignes par dossier — **avant** d'écrire le brief.
