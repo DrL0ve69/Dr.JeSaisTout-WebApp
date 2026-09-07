@@ -143,10 +143,14 @@ const SVG_MERMAID = `<svg id="d0-diagramme" class="diagramme-mermaid" viewBox="0
  * rendu. Le rendu est là, l'exclusion et le tripwire sont partis — un garde-fou franchi qu'on
  * laisserait en place deviendrait un mensonge sur ce que ce composant sait faire.
  *
- * LE GARDE-FOU DE COMPLÉTUDE EST DONC DE NOUVEAU ENTIER : `Record<BlocContenu['type'], …>`
- * refuse de COMPILER tant qu'un neuvième membre de l'union n'a pas sa fixture ici.
+ * 🔴 `methodes` EST EXCLU À SON TOUR, ET C'EST UN ÉTAT DATÉ — pas une dispense. Le lot 5
+ * (2026-09-06) a ajouté ce neuvième membre au contrat (`tools/content-pipeline/types.d.ts`) : le
+ * compilateur le produit, ce composant ne le rend pas encore (lot 6). MÊME PATRON, MOT POUR MOT,
+ * que `marche-a-suivre` entre les lots 3 et 4 — l'exclusion est NOMMÉE, le garde-fou de complétude
+ * reste entier pour tous les autres membres (un dixième type ferait toujours rougir la
+ * compilation), et elle a son tripwire exécutable plus bas, qui rougira le jour du rendu.
  */
-const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
+const FIXTURES: Record<Exclude<BlocContenu['type'], 'methodes'>, BlocContenu> = {
   prose: { type: 'prose', html: HTML_PROSE },
   code: { type: 'code', langage: 'php', htmlColore: HTML_CODE },
   comparaison: {
@@ -2116,6 +2120,26 @@ describe('RenduBlocs', () => {
       expect(rendu.querySelector('.marche-a-suivre')).not.toBeNull();
       expect(rendu.querySelector('app-quiz')).not.toBeNull();
       expect(rendu.querySelector('app-simulation')).not.toBeNull();
+    });
+
+    // 🔴 TRIPWIRE AUTO-PÉRIMANT — À SUPPRIMER AU LOT 6, avec l'`Exclude<…>` de `FIXTURES`.
+    // Le lot 5 a mis `methodes` AU CONTRAT sans le rendre : ce test écrit l'état exact du dépôt
+    // plutôt que de le laisser à un commentaire (L-008). Il constate deux choses à la fois — que
+    // le type existe côté contrat, et que ce composant le refuse BRUYAMMENT en le nommant, ce qui
+    // est le comportement voulu tant que le rendu n'existe pas. Le jour où le lot 6 ajoute le cas
+    // au `@switch`, ce test rougit : c'est ainsi qu'il se retire. Même geste, même raison que le
+    // tripwire de `marche-a-suivre` entre les lots 3 et 4.
+    it('🔴 LOT 6 : le contrat connaît « methodes », ce composant ne le rend pas ENCORE', () => {
+      const onglets = {
+        type: 'methodes',
+        volets: [
+          { libelle: 'La méthode du cours', defaut: true, blocs: [] },
+          { libelle: "L'équivalent moderne", defaut: false, blocs: [] },
+        ],
+      } as unknown as BlocContenu;
+      const fixture = TestBed.createComponent(RenduBlocs);
+      fixture.componentRef.setInput('blocs', [FIXTURES.prose, onglets]);
+      expect(() => fixture.detectChanges()).toThrowError(/methodes/);
     });
 
     it('ÉCHOUE en NOMMANT le type, sur un bloc que le contrat ne connaît pas', () => {

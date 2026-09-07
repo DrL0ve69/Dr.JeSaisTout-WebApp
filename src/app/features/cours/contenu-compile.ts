@@ -249,6 +249,16 @@ export function compterAncres(
     if (bloc['type'] === type) total += 1;
     else if (bloc['type'] === 'encadre' && Array.isArray(bloc['blocs'])) {
       total += compterAncres(bloc['blocs'], type);
+    } else if (bloc['type'] === 'methodes' && Array.isArray(bloc['volets'])) {
+      // LE SECOND TYPE PORTEUR DE BLOCS (lot 5, décision D-C) : ses enfants vivent un cran plus
+      // bas, dans chaque volet. La copie jumelle vit dans `tools/content-pipeline/compiler-markdown.mjs`
+      // et `src/compter-ancres-parite.spec.ts` fait compter le MÊME corpus aux deux (L-037) — sans
+      // quoi une descente mise à jour d'un seul côté ferait SOUS-COMPTER l'autre, en restant verte.
+      for (const volet of bloc['volets']) {
+        if (estObjet(volet) && Array.isArray(volet['blocs'])) {
+          total += compterAncres(volet['blocs'], type);
+        }
+      }
     }
   }
   return total;

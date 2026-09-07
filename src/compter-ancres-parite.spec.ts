@@ -90,9 +90,31 @@ const PROGRAMME = [
   'process.stdout.write(JSON.stringify(comptes));',
 ].join('\n');
 
-/** Un encadré, tel que `construireBlocs` l'écrit — le SEUL bloc qui en imbrique d'autres. */
+/**
+ * Un encadré, tel que `construireBlocs` l'écrit — le PREMIER bloc qui en imbrique d'autres. Il
+ * était le seul jusqu'au lot 5 ; `methodes` (ci-dessous) est le second, et il les imbrique sous
+ * une AUTRE clef.
+ */
 function encadre(...blocs: readonly unknown[]): Record<string, unknown> {
   return { type: 'encadre', variante: 'note', titre: 'Note', blocs };
+}
+
+/**
+ * Un conteneur d'onglets (lot 5, décision D-C) — le SECOND type porteur de blocs, et il ne les
+ * porte PAS sous la clef `blocs` : ils vivent un cran plus bas, dans chaque volet.
+ *
+ * 🔴 C'est exactement le cas que l'en-tête de ce fichier annonçait : « le jour où un `BlocContenu`
+ * neuf portera des blocs imbriqués ». Une descente qui ne connaîtrait que `encadre` compte 0 ici,
+ * et le côté qui sous-compte trouverait son compte juste sur toute leçon dont l'ancre est ailleurs.
+ */
+function methodes(...blocs: readonly unknown[]): Record<string, unknown> {
+  return {
+    type: 'methodes',
+    volets: [
+      { libelle: 'La méthode du cours', defaut: true, blocs },
+      { libelle: "L'équivalent moderne", defaut: false, blocs: [] },
+    ],
+  };
 }
 
 /** Un bloc quelconque qui n'est ni une ancre ni un encadré — du bruit, qui doit être ignoré. */
@@ -143,6 +165,20 @@ const CORPUS: readonly {
   {
     etiquette: 'une ancre dans un encadré DANS un encadré — imbrication à DEUX niveaux',
     blocs: [encadre(PARAGRAPHE, encadre({ type: 'ancre-simulation' }))],
+    type: 'ancre-simulation',
+    bienForme: true,
+  },
+  {
+    // 🔴 LE CAS DU SECOND TYPE IMBRIQUANT (lot 5). Les enfants sont sous `volets[].blocs`, pas
+    // sous `blocs` : une descente qui apparierait « a une clef blocs » compte 0 ici.
+    etiquette: 'une ancre dans un volet de `:::: methodes` — imbrication sous une AUTRE clef',
+    blocs: [PARAGRAPHE, methodes({ type: 'ancre-quiz' })],
+    type: 'ancre-quiz',
+    bienForme: true,
+  },
+  {
+    etiquette: 'une ancre dans un encadré DANS un volet de `:::: methodes` — DEUX niveaux mixtes',
+    blocs: [methodes(encadre({ type: 'ancre-simulation' }))],
     type: 'ancre-simulation',
     bienForme: true,
   },

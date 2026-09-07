@@ -135,6 +135,11 @@ const CONTENEURS_AUTORISES = new Set([
   // n'est pas un encadré : il n'a pas de variante, il porte un `{titre="…"}` obligatoire et son
   // contenu est une liste ordonnée d'étapes, pas de la prose libre.
   'marche-a-suivre',
+  // LES ONGLETS DE MÉTHODE (décision D-C, 2026-08-31) — le conteneur et son volet. Ce ne sont pas
+  // des encadrés non plus : `methodes` n'admet AUCUN attribut, et `methode` porte un
+  // `{libelle="…"}` obligatoire plus le premier MARQUEUR sans valeur du dépôt, `defaut`.
+  'methodes',
+  'methode',
   'attention',
   'note',
   'a-retenir',
@@ -1113,6 +1118,13 @@ const ATTRIBUT_TITRE = 'titre';
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
 const PREFIXE_MODULE = 'module:';
+
+/** Le conteneur des ONGLETS de méthode (décision D-C), son volet, et ce qu'un volet déclare. */
+const CONTENEUR_METHODES = 'methodes';
+const CONTENEUR_VOLET = 'methode';
+const ATTRIBUT_LIBELLE = 'libelle';
+/** Le premier MARQUEUR SANS VALEUR du dépôt — admis sur un volet, et nulle part ailleurs. */
+const MARQUEUR_DEFAUT = 'defaut';
 /**
  * Le renvoi d'une étape — ancré sur `^`, DONC EN TÊTE, exactement comme dans le compilateur. Les
  * deux copies doivent voir la MÊME CHAÎNE : c'est le défaut du lot 1a (`### Titre ##`, fermeture
@@ -1286,12 +1298,21 @@ function causeDAttributObligatoireAbsent(variante) {
  * rendrait un objet vide et sortirait sous une cause qui n'est pas la faute commise — ou, pire,
  * passerait pour un titre sans renvoi.
  *
+ * 🔴 LES MARQUEURS SANS VALEUR (lot 5, `::: methode {libelle="…" defaut}`) SONT UNE LISTE BLANCHE
+ * PASSÉE PAR L'APPELANT, exactement comme `admis` — et exactement comme dans
+ * `compiler-markdown.mjs`, dont cette copie doit rendre le MÊME verdict (L-087). Un appelant qui
+ * n'en déclare aucun retombe à l'octet près sur le comportement d'avant : tout résidu est un
+ * refus. C'est ce qui garde le contrôle sensible à `{diapos=12}` / `{lignes=2}` (guillemets
+ * oubliés), qui rendrait un objet vide et sortirait sous une cause qui n'est pas la faute commise.
+ *
  * @param {string} corpsAttributs l'intérieur des accolades
  * @param {readonly string[]} admis liste blanche NOMINATIVE
- * @returns {{ attributs: Record<string, string>, detail: string | null }} `detail` non nul = refus,
- *   déjà rédigé pour être inséré dans le message de l'appelant
+ * @param {readonly string[]} [marqueursAdmis] liste blanche NOMINATIVE des marqueurs SANS valeur ;
+ *   vide par défaut, ce qui rend le résidu entièrement refusé
+ * @returns {{ attributs: Record<string, string>, marqueurs: string[], detail: string | null }}
+ *   `detail` non nul = refus, déjà rédigé pour être inséré dans le message de l'appelant
  */
-function lireBlocDAttributs(corpsAttributs, admis) {
+function lireBlocDAttributs(corpsAttributs, admis, marqueursAdmis = []) {
   /** @type {Record<string, string>} */
   const attributs = {};
   MOTIF_PAIRE_ATTRIBUT.lastIndex = 0;
@@ -1299,12 +1320,40 @@ function lireBlocDAttributs(corpsAttributs, admis) {
     attributs[paire[1] ?? ''] = paire[2] ?? '';
   }
   const residu = corpsAttributs.replace(MOTIF_PAIRE_ATTRIBUT, '').trim();
+  // 🔴 LES CLEFS SE JUGENT AVANT LE RÉSIDU, PARCE QUE LE COMPILATEUR LES JUGE AVANT (L-089).
+  // Ce test vivait plus bas, et l'ordre divergeait en silence : mesuré sur
+  // `{libelle="…" titre="X" defo}`, le compilateur sortait « attribut « titre » inconnu » (il juge
+  // chaque clef DANS sa boucle de paires, donc avant d'avoir vu le résidu) tandis que cette copie
+  // sortait « « defo » n’est ni un attribut ni un marqueur connu ». Deux copies qui refusent la
+  // même ligne pour deux causes différentes envoient l'auteur corriger deux fautes distinctes
+  // selon le gate qui a rougi — le commentaire ci-dessus promet les MÊMES MOTS, il faut donc aussi
+  // le même ORDRE de jugement.
   const clefsInconnues = Object.keys(attributs).filter((clef) => !admis.includes(clef));
-  if (residu !== '') return { attributs, detail: `« ${residu} »` };
   if (clefsInconnues.length > 0) {
-    return { attributs, detail: `attribut « ${clefsInconnues[0]} » inconnu` };
+    return { attributs, marqueurs: [], detail: `attribut « ${clefsInconnues[0]} » inconnu` };
   }
-  return { attributs, detail: null };
+  const marqueurs = residu === '' ? [] : residu.split(/\s+/);
+  const inconnu = marqueurs.find((jeton) => !marqueursAdmis.includes(jeton));
+  // AUCUN MARQUEUR DÉCLARÉ : `inconnu` est alors le résidu tout entier, et la cause est celle
+  // d'avant le lot 5, mot pour mot.
+  if (inconnu !== undefined) {
+    return {
+      attributs,
+      marqueurs,
+      detail:
+        marqueursAdmis.length === 0
+          ? `« ${residu} »`
+          : // ⚠️ APOSTROPHE TYPOGRAPHIQUE, comme la copie du compilateur — les deux copies d'une
+            // même règle doivent dire les mêmes MOTS, sans quoi une assertion écrite sur l'une
+            // reste verte par vacuité sur l'autre (L-089, mesuré à ce lot).
+            `« ${inconnu} » n’est ni un attribut ni un marqueur connu (marqueurs admis : ${marqueursAdmis.join(', ')})`,
+    };
+  }
+  const repete = marqueurs.find((jeton, rang) => marqueurs.indexOf(jeton) !== rang);
+  if (repete !== undefined) {
+    return { attributs, marqueurs, detail: `marqueur « ${repete} » écrit deux fois` };
+  }
+  return { attributs, marqueurs, detail: null };
 }
 
 /**
@@ -1563,6 +1612,121 @@ function verifierAttributsDesEncadres(lignes, ancrage, signaler) {
     const cause = causeDAttributsDEncadre(nom, marqueur.suite.slice(nom.length).trim(), ancrage);
     if (cause !== null) signaler(`corps ligne ${l.numero} : ${cause}`);
   }
+}
+
+/**
+ * --- 12. Les VOLETS d'un `:::: methodes` : ce qui se juge sur UNE ligne (décision D-C) ---
+ *
+ * 🔴 CE QUE CETTE COPIE JUGE, ET CE QU'ELLE LAISSE AU COMPILATEUR — délibérément, et écrit ici
+ * pour que personne ne « complète » la règle sans mesurer, exactement comme au bloc 11.
+ *
+ * JUGÉ ICI, parce qu'une seule ligne suffit : le bloc d'attributs d'un `::: methode` — la
+ * grammaire `{clef="valeur"}` (la MÊME que celle du compilateur, `lireBlocDAttributs` de part et
+ * d'autre), le `libelle` obligatoire et non vide, et le fait que `defaut` soit le SEUL marqueur
+ * admis. C'est la faute la plus fréquente à l'écriture, et celle qu'un auteur corrige en regardant
+ * sa ligne.
+ *
+ * 🔴 JUGÉ ICI AUSSI DEPUIS LE CORRECTIF DE REVUE : la ligne d'ouverture du CONTENEUR lui-même. Le
+ * compilateur n'y admet AUCUN attribut (`lireAttributs(…, CONTENEUR_METHODES, [], …)`), et cette
+ * copie ne regardait que les volets — mesuré sur `:::: methodes {titre="Deux chemins"}` : le
+ * validateur rendait « 1 leçon(s) valides » en code 0 pendant que le compilateur sortait en code 1
+ * sur « attribut « titre » inconnu ». Divergence de famille S-010, exactement celle que le bloc
+ * ci-dessous existe pour empêcher : le juge d'amont laissait passer ce que l'aval refuse. Le
+ * verdict rendu ici cite la MÊME cause, mot pour mot, parce que les deux copies partagent la
+ * grammaire.
+ *
+ * ⚠️ LAISSÉ AU COMPILATEUR, ET CE N'EST PAS UN OUBLI : le NOMBRE de volets (2 ou 3), l'unicité du
+ * `defaut`, l'unicité des libellés dans le conteneur, le bannissement de
+ * `vulnerable`/`corrige`/`comparaison` à l'intérieur, et le refus d'un `::: methode` écrit hors
+ * d'un `:::: methodes`. Les cinq exigent de savoir QUEL conteneur contient QUOI — donc un arbre de
+ * conteneurs, que ce fichier ne construit pas : `marqueurDeConteneur` ne rend même plus la
+ * LONGUEUR du marqueur, si bien qu'il ne peut pas distinguer le `:::` qui ferme un volet du
+ * `::::` qui ferme le conteneur. Le reconstruire serait la réimplémentation d'un format structuré
+ * sur des lignes que `.claude/rules/security.md` §4 interdit — même arbitrage, mot pour mot, que
+ * la STRUCTURE d'une étape de marche à suivre. Conséquence nommée : ces cinq fautes sortent de
+ * `ng build`/`content:build` et non de la seule passe de validation.
+ *
+ * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
+ * @param {(cause: string) => void} signaler
+ */
+function verifierVoletsDeMethode(lignes, signaler) {
+  for (const l of lignes) {
+    if (l.code) continue;
+    const marqueur = marqueurDeConteneur(l.texte);
+    if (marqueur === null || marqueur.suite === '') continue;
+    const nom = nomDeConteneur(marqueur.suite);
+    if (nom !== CONTENEUR_VOLET && nom !== CONTENEUR_METHODES) continue;
+    const reste = marqueur.suite.slice(nom.length).trim();
+    const cause =
+      nom === CONTENEUR_VOLET ? causeDuVoletDeMethode(reste) : causeDuConteneurDeMethodes(reste);
+    if (cause !== null) signaler(`corps ligne ${l.numero} : ${cause}`);
+  }
+}
+
+/**
+ * La ligne d'ouverture d'un `:::: methodes` : elle n'admet AUCUN attribut.
+ *
+ * Tout ce qui se déclare se déclare sur un volet — c'est le contrat du compilateur
+ * (`lireAttributs(ouverture.info, CONTENEUR_METHODES, [], …)`, liste de clefs VIDE), et cette
+ * copie le rend mot pour mot en appelant la même grammaire avec les deux listes blanches vides.
+ *
+ * ⚠️ LE MARQUEUR CITÉ EST LE CANONIQUE, PAS CELUI DE L'AUTEUR — et c'est délibéré. Ce fichier ne
+ * connaît pas la LONGUEUR du marqueur (`marqueurDeConteneur` ne la rend pas, voir le bloc
+ * ci-dessus : la lui redonner rouvrirait la reconstruction d'un arbre de conteneurs que ce fichier
+ * refuse de faire). Citer `::::` est donc à la fois tout ce qu'on peut faire et ce qu'il faut
+ * faire : c'est la forme VALIDE. Ce qui doit coïncider entre les deux copies est la CAUSE
+ * — « attribut « x » inconnu », « attributs illisibles … » — et elle coïncide.
+ *
+ * @param {string} reste ce qui suit le nom du conteneur, déjà rogné
+ * @returns {string | null} la cause du refus, sans préfixe ; `null` si conforme
+ */
+function causeDuConteneurDeMethodes(reste) {
+  if (reste === '') return null;
+  const forme = `« :::: ${CONTENEUR_METHODES} » n’admet aucun attribut : tout ce qui se déclare se déclare sur un volet (::: ${CONTENEUR_VOLET} {${ATTRIBUT_LIBELLE}="La méthode du cours" ${MARQUEUR_DEFAUT}})`;
+  const accolade = /^\{(.*)\}$/.exec(reste);
+  if (accolade === null) {
+    return `« :::: ${CONTENEUR_METHODES} » suivi de « ${reste} » — ${forme}`;
+  }
+  const { detail } = lireBlocDAttributs(accolade[1] ?? '', [], []);
+  // Pas de « attributs illisibles » ici : la cause rendue par la grammaire peut être « attribut
+  // inconnu », qui se lit très bien. Un préfixe qui décrit mal la faute envoie chercher ailleurs.
+  if (detail !== null) {
+    return `« :::: ${CONTENEUR_METHODES} » — ${detail} ; ${forme}`;
+  }
+  // `{}` vide : la grammaire des paires le traverse sans rien déclarer, et le COMPILATEUR
+  // l'accepte. Le refuser ici recréerait la divergence dans l'autre sens (L-087).
+  return null;
+}
+
+/**
+ * Le `{libelle="…" defaut}` d'un volet — `libelle` obligatoire et NON VIDE, `defaut` seul marqueur.
+ *
+ * `{libelle=""}` passe la grammaire des paires et rendrait un onglet que rien ne nomme : c'est le
+ * seul nom accessible que la radio aura. Même geste, même raison que `{titre="…"}` sur la marche à
+ * suivre et `{source="…"}` sur une correction du cours.
+ *
+ * @param {string} reste ce qui suit le nom du conteneur, déjà rogné
+ * @returns {string | null} la cause du refus, sans préfixe ; `null` si conforme
+ */
+function causeDuVoletDeMethode(reste) {
+  const forme = `forme attendue, dans un « :::: ${CONTENEUR_METHODES} » : ::: ${CONTENEUR_VOLET} {${ATTRIBUT_LIBELLE}="La méthode du cours" ${MARQUEUR_DEFAUT}}`;
+  const accolade = /^\{(.*)\}$/.exec(reste);
+  if (accolade === null) {
+    const cite = reste === '' ? '' : ` (« ${reste} »)`;
+    return `« ::: ${CONTENEUR_VOLET} » sans bloc d'attributs lisible${cite} — ${forme}`;
+  }
+  const { attributs, detail } = lireBlocDAttributs(
+    accolade[1] ?? '',
+    [ATTRIBUT_LIBELLE],
+    [MARQUEUR_DEFAUT],
+  );
+  if (detail !== null) {
+    return `attributs illisibles sur « ::: ${CONTENEUR_VOLET} » — ${detail} ; ${forme}`;
+  }
+  if ((attributs[ATTRIBUT_LIBELLE] ?? '').trim() === '') {
+    return `« ::: ${CONTENEUR_VOLET} » sans attribut « ${ATTRIBUT_LIBELLE} » non vide — ${forme}`;
+  }
+  return null;
 }
 
 /**
@@ -1972,6 +2136,9 @@ function verifierCorps(corps, statut, ancrage, signaler) {
   // confronte sont ceux que `titresDuCorps` a DÉPOUILLÉS. Elle recense en passant les modules cités,
   // qu'elle ne peut pas juger seule.
   const modulesCites = verifierMarchesASuivre(lignes, titres, signaler);
+
+  // --- 12. Les volets d'un `:::: methodes` : ce qui se juge sur UNE ligne (D-C) -----
+  verifierVoletsDeMethode(lignes, signaler);
 
   // Le RECENSEMENT vient en dernier, et il ne signale rien : ce qu'il rend est jugé par
   // `validerRacine`, seule à voir toutes les leçons du sujet.

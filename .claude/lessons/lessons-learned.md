@@ -582,6 +582,19 @@ attrapé immédiatement. Refaite par capture d'image (screencast), qui a confirm
 de mesure sans contrôle positif ne distingue pas « j'ai vu 0 » de « je suis aveugle » — pire, il peut
 confondre son erreur d'exécution avec le signal qu'il cherche.
 
+**Addendum (lot 5 « leçons actionnables », 2026-09-07) — la même faute PAR TABLE.** Le principe
+« contrôle négatif seul ne prouve rien » vaut aussi entrée par entrée dans une **table nominative**
+de refus. `INTERDITS_DANS_UN_VOLET` (5 entrées) n'avait de contrôle positif que pour **une seule** :
+une clef mal orthographiée dans une telle table n'apparie plus rien, **sans rougir** — le refus
+disparaît en silence. Trois entrées de plus ont reçu leur contrôle positif ; la 5ᵉ reste un
+**résidu nommé** (exigerait six niveaux de deux-points d'imbrication pour être exercée). **Règle
+élargie** : une table de refus nominatifs est un contrôle **par entrée**, pas un contrôle unique —
+chaque clef a besoin de son cas qui la déclenche volontairement, ou d'être explicitement nommée
+comme non exercée dans un commentaire.
+
+**Réfs (addendum).** `tools/content-pipeline/valider.mjs` (`INTERDITS_DANS_UN_VOLET`) ; commits
+`86cdd90`, `df02e63`, lot 5 « leçons actionnables ».
+
 ---
 
 ## L-020 · L-014 s'applique à **chaque nouveau programme TypeScript**, pas qu'à celui qui l'a fait naître
@@ -2016,6 +2029,22 @@ même diff) : ici c'est le recensement initial, pas la croissance, qui a manqué
 **Réfs.** `src/app/**/quiz.ts` (`decouperLignesDeCode`) ; `tools/content-pipeline/valider.mjs` ;
 `e2e/aides/quiz-source.ts` ; `src/compter-lignes-parite.spec.ts` ; `tsconfig.e2e.json`.
 
+**Addendum (lot 5 « leçons actionnables », 2026-09-07).** La duplication n'a pas besoin d'être
+« plate » (N fonctions au même niveau) pour piéger un contrôle de parité — elle peut être
+**hiérarchique**. Le conteneur `:::: methodes` porte un volet `::: methode` : le lot avait apparié
+soigneusement les deux copies de grammaire (compilateur/validateur) pour l'**enfant**, et oublié le
+**parent**. Mesuré : `:::: methodes {titre="x"}` validait (code 0) côté `valider.mjs` et échouait
+(code 1) côté `compiler-markdown.mjs` — le commentaire du validateur énumérait cinq règles
+délibérément déléguées au compilateur, celle-ci n'y figurait pas, donc rien n'observait la
+divergence. **Règle élargie** : la parité d'un couple conteneur/volet (ou plus généralement d'une
+structure parent/enfant dupliquée) se vérifie **aux deux niveaux**, et toute délégation assumée
+d'une règle à l'autre copie s'écrit nommément dans la liste des délégations — sinon un parent oublié
+est indiscernable d'un parent couvert.
+
+**Réfs (addendum).** `tools/content-pipeline/compiler-markdown.mjs`,
+`tools/content-pipeline/valider.mjs` (conteneur `:::: methodes` / volet `::: methode`) ; commits
+`86cdd90`, `df02e63` ; famille [[S-010]] côté sécurité.
+
 ---
 
 ## L-069 · `CLAUDE.md` est capturé au démarrage de session — un sous-agent lancé ensuite hérite de cet instantané, pas du fichier au disque
@@ -2660,6 +2689,34 @@ ne l'est pas) et de la discipline de mutation de [[L-010]]/[[L-074]].
 
 **Réfs.** lot 4 « leçons actionnables », 2026-09-02 ; assertion de canal de sortie sur
 `marche-a-suivre` ; [[L-086]], [[L-010]], [[L-074]].
+
+---
+
+## L-093 · Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait
+
+**Symptôme.** Lot 5 « leçons actionnables » (2026-09-07). Deux revues indépendantes ont mesuré
+qu'un volet `::: methode` ne pouvait pas contenir d'encadré, et en ont conclu que `types.d.ts` et
+`docs/contenu/pipeline-contenu.md` **mentaient** en promettant « du contenu de bloc général ». Le
+fil principal a remesuré avant de corriger le contrat : `markdown-it-container` ferme un conteneur
+à la première ligne dont le marqueur est **au moins aussi long** que l'ouverture — les longueurs
+doivent seulement **décroître strictement**. Sous `:::::` / `::::` / `:::` (au lieu de `::::` /
+`:::` testé par les deux revues), un volet rend bien `['prose', 'code', 'encadre']`, mesuré sur le
+compilateur réel. Le contrat n'était pas menteur : il était **incomplet** sur la forme testée par
+les deux revues, et correct sur une forme voisine qu'aucune n'avait essayée.
+
+**Règle.** Une mesure qui réfute UNE forme d'un mécanisme (un jeu de longueurs de marqueurs, un
+jeu de paramètres, une seule fixture) ne prouve une impossibilité générale que si on a essayé les
+formes voisines évidentes — sinon la conclusion correcte est « faux dans le cas testé », pas
+« impossible ». Avant d'écrire une impossibilité dans un contrat (`types.d.ts`, une doc, une
+règle), reproduire la mesure sous au moins une variante plausible. C'est le pendant **négatif** de
+[[L-079]] (une vérification qui CONFIRME l'hypothèse de départ doit être relancée verbatim avant
+d'être crue) : là, une mesure qui infirme trop largement doit être élargie avant d'être crue.
+Cousine aussi de [[L-046]] (un contrôle d'exhaustivité ne vaut que pour le corpus qu'on lui a
+donné) — ici le « corpus » manquant est un espace de formes, pas une source documentaire.
+
+**Réfs.** `tools/content-pipeline/compiler-markdown.mjs` (markdown-it-container, imbrication
+`:::::`/`::::`/`:::`) ; `types.d.ts`, `docs/contenu/pipeline-contenu.md` ; commits `86cdd90`,
+`df02e63`, lot 5 « leçons actionnables », 2026-09-07 ; [[L-079]], [[L-046]].
 
 ---
 

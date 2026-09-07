@@ -39,6 +39,30 @@ que de deviner.
 **Réfs.** `tools/deploiement/generer-config-swa.mjs`, `.claude/rules/security.md` §1,
 `docs/agile/backlog-phase-1.md` §E1-ST1 (ST1-C).
 
+**Occurrence neuve, axe COPIER-COLLER — refonte « leçons actionnables » lot 5 (2026-09-07),
+`refuserJetonHorsVolet`.** `compiler-markdown.mjs:1683` a été écrite en copiant
+`refuserJetonHorsPaire` (`:1543`, ancien code déjà en production) plutôt que remesurée depuis la
+règle de `.claude/rules/security.md` §4 (liste BLANCHE nominative sur un format structuré, jamais
+une liste noire). Le prédicat copié refusait par exclusion négative
+(`!(nesting === 1 || type === 'fence')`) — une liste noire de deux exceptions, pas une liste
+blanche. Mesuré avec le markdown-it du dépôt (`html:false`) : un `---` posé entre deux volets
+produit 3 jetons `hr` de nesting 0, **aucun refusé**, conteneur compilé vert. L'angle mort n'avait
+jamais mordu dans l'original non plus, pour une raison structurelle indépendante (les jetons de
+fermeture sont consommés en amont) — ce qui l'a laissé **non mesuré** sur des mois de production
+avant d'être copié tel quel dans du code neuf. **La provenance a fait échapper la copie à la
+relecture** : le code source était déjà en production, donc « déjà validé » en apparence — personne
+ne l'a reconfronté à la règle avant l'adoption. Issue : les deux jumeaux inversés en liste blanche
+positive (refuser tout jeton en **nommant** son `jeton.type`), contrôle positif
+`filet-entre-volets` ajouté, `content:build` reconfirmé vert sur les 10 leçons publiées.
+**Règle additionnelle.** Une fonction créée par copier-coller **importe aussi les défauts non
+mesurés de son original** — la provenance (« ce code est déjà en production ») n'est pas une
+preuve de conformité à la règle du dépôt. Toute fonction issue d'un copier-coller touchant à
+l'appariement d'un format structuré (jetons markdown-it compris, pas seulement SVG/HTML) se
+**remesure contre la liste blanche nominative** avant adoption, comme si elle était neuve — le
+diff qui la crée ne dispense pas de la revue que son original aurait dû recevoir.
+**Réfs lot 5.** `tools/content-pipeline/compiler-markdown.mjs:1543,1683`, spec
+`filet-entre-volets`, commits `86cdd90`/`df02e63`.
+
 ## S-002 · Une autorisation CSP se compare à une valeur revue épinglée, jamais ne se dérive de l'artéfact (A05/A08)
 
 **Symptôme.** La première version de ST1-C hachait « ce qui portait le bon `id` » : n'importe quel
@@ -155,6 +179,27 @@ garde-fou script **et** style reposent désormais sur un seul parse jsdom par pa
 restants ne servent plus qu'à **compter** le brut pour le contrôle de conservation, jamais à
 décider — 14 contournements exécutés par `npm test`. **Reste hors de cette fermeture** : tout autre
 garde-fou par motif du dépôt (voir [[S-014]]/[[S-015]] pour `compiler-markdown.mjs`).
+
+**Occurrence neuve, DATÉE plutôt qu'exploitable — refonte « leçons actionnables » lot 5
+(2026-09-07, `:::: methodes`).** Le pipeline parcourt l'arbre de blocs par **quatre** descentes
+récursives distinctes (`recenserMarches` et `compterAncres` dans `compiler-markdown.mjs`, leur
+miroir dans `src/app/features/cours/contenu-compile.ts`, et `collecterSvg` dans
+`rendre-mermaid.mjs`). Une seule portait une garde de complétude, et elle testait `'blocs' in
+bloc` — or `methodes` porte ses enfants sous `volets[].blocs`, une clef différente : la garde
+**n'aurait pas attrapé** le type neuf, aucune des quatre descentes ne l'aurait fait. Le plus
+mordant des quatre est `collecterSvg` : une descente manquée signifie qu'un SVG Mermaid **n'atteint
+jamais le contrôle d'assainissement**. Ce qui a évité l'incident n'est **pas le code** — c'est le
+rappel écrit dans le brief de l'agent, de l'aveu du commentaire laissé dans la source. Couverture
+mesurée **complète aujourd'hui** (seuls `encadre` et `methodes` portent des enfants) : c'est donc
+une dette datée au **prochain type de bloc imbriquant**, famille [[S-026]]. Correctif appliqué,
+délibérément documentaire et non structurel : le commentaire nomme les quatre descentes en
+`fichier:ligne`, dit explicitement que la garde ne couvre pas les enfants portés sous une autre
+clef, et qu'un type imbriquant neuf se vérifie **à la main** contre cette liste. Une garde
+structurelle unique, partagée entre l'outil et l'application (ex. un visiteur générique sur
+`ENFANTS_PAR_TYPE`), reste une **décision d'architecture non prise** — laissée au propriétaire.
+**Règle additionnelle.** Une garde de complétude sur un arbre à variantes ne se pose jamais sur le
+**nom** de la clef d'enfants (`'blocs' in bloc`) sans énumérer, à côté, **tous** les noms de clefs
+qu'un type peut porter (`blocs`, `volets[].blocs`, …) — sinon elle protège le passé, pas l'avenir.
 
 ## S-004 · Une config de déploiement qui NOMME un chemin doit prouver qu'il existe dans l'artéfact (A05 · fail-open)
 
@@ -1108,3 +1153,24 @@ TypeScript rend le cas irreprésentable).
 `src/app/features/cours/lecon/renvoi-au-cours.ts:141`, `generer-config-swa.mjs:755-763` (les quatre
 écarts), refonte « leçons actionnables » lot 1a/1b (2026-09-02). Croise [[S-020]], [[S-011]],
 [[S-014]].
+
+**Occurrence neuve, même mécanique — lot 5 (2026-09-07), `libelle` du conteneur `:::: methodes`.**
+`libelle` (texte de l'onglet) est le seul champ d'auteur neuf introduit ; sa grammaire est `[^"]*`
+— aucune contrainte de forme, `libelle="<script src=x>"` part verbatim dans l'artéfact compilé.
+**Inexploitable aujourd'hui, et fail-closed pour une raison différente de S-026 d'origine** :
+`TYPES_RENDUS`/`preparer()` lèvent inconditionnellement sur tout bloc `methodes`, donc aucune
+surface HTML n'existe encore pour ce champ — la dette n'est pas fermée par un `echec()` sur le
+champ lui-même, mais par l'absence totale de rendu du conteneur qui le porte. Elle a la **même
+échéance** : le lot qui donnera un rendu à `methodes` (radios + `<label for>`, lot 6 du plan) rendra
+`libelle` atteignable, et la sérialisation Angular n'échappe pas `<` dans une **valeur d'attribut**
+(inventaire des écarts : `generer-config-swa.mjs:755-763`, six entrées désormais). **Parade retenue
+ici : écrire les critères d'acceptation nommément dans le plan du lot qui lèvera le refus**, plutôt
+que de compter sur cette entrée seule — `docs/design/refonte-lecons-actionnables.md`, section
+« Lot 6 » : nœud texte seul pour `libelle`, `name`/`id`/`for` dérivés d'indices seuls (jamais du
+texte d'auteur), test à deux mains dans le **même** lot, mise à jour de l'inventaire des écarts.
+**Règle renforcée** : quand la branche qui rend un champ sans grammaire est fermée par l'absence de
+rendu du **conteneur** (et non par un refus sur le champ), le pointeur vers le lot qui lèvera le
+refus doit vivre dans le **document de planification** du lot suivant, pas seulement dans cette
+leçon — une dette datée n'est utile que si l'agent du lot qui l'ouvre a une chance de la lire.
+**Réfs lot 5.** `tools/content-pipeline/compiler-markdown.mjs` (`methodes`), `valider.mjs`,
+`docs/design/refonte-lecons-actionnables.md` § Lot 6, commits `86cdd90`/`df02e63`.
