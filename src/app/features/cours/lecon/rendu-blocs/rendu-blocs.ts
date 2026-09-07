@@ -1674,10 +1674,17 @@ export class RenduBlocs {
       if (typeof libelle !== 'string' || libelle.trim() === '') {
         throw erreurMethodes(ou, '« libelle » absent ou vide (c’est le texte de l’onglet)');
       }
-      if (libelles.includes(libelle)) {
-        throw erreurMethodes(ou, `« libelle » en double (« ${libelle} »)`);
+      // 🔴 LES DEUX GARDES COMPARENT LA MÊME CHAÎNE, ET C’EST LE POINT (revue du lot 6).
+      // La vacuité se jugeait sur le libellé ÉBARBÉ, le doublon sur le libellé BRUT : « Cours »
+      // et « Cours » suivi d’une espace passaient donc tous deux, alors que la garde du doublon
+      // existe précisément pour refuser deux onglets qu’on ne distingue NI À L’ŒIL ni au lecteur
+      // d’écran — et une espace finale ne se voit dans aucun des deux. Une garde qui normalise
+      // d’un côté et compare de l’autre laisse passer exactement ce qu’elle refuse.
+      const libelleNet = libelle.trim();
+      if (libelles.includes(libelleNet)) {
+        throw erreurMethodes(ou, `« libelle » en double (« ${libelleNet} »)`);
       }
-      libelles.push(libelle);
+      libelles.push(libelleNet);
 
       // LE VOLET EST UN CONTENEUR : ses `blocs` traversent l'input `[blocs]` de l'enfant, et un
       // `undefined` y lèverait un `TypeError` ANONYME depuis `app-rendu-blocs` — donc depuis un

@@ -546,10 +546,29 @@ function sansBlocsMedia(css: string, condition: string): string {
  * pour atteindre les règles qu'elle contient (c'est là que vivent les `@media`).
  */
 function corpsDesReglesDeSujet(css: string, classe: string): string[] {
+  // 🔴 LE SUJET SE RECONNAÎT PAR APPARTENANCE, JAMAIS PAR PRÉFIXE DE CHAÎNE (revue du lot 6).
+  // Un `startsWith` ne voit que la forme que son auteur a imaginée : `input.onglet { … }` et
+  // `.onglet.actif { … }` lui échappaient tous deux, et une pince qui ne refuse que les formes
+  // prévues est une LISTE NOIRE — le patron systémique que ce dépôt refuse (S-001/S-003). On
+  // découpe donc le dernier compound en ses sélecteurs SIMPLES et on teste l’appartenance.
+  const selecteursSimples = (compound: string): string[] => {
+    const morceaux: string[] = [];
+    let courant = '';
+    for (const caractere of compound) {
+      if ('.#:['.includes(caractere) && courant !== '') {
+        morceaux.push(courant);
+        courant = '';
+      }
+      courant += caractere;
+    }
+    if (courant !== '') morceaux.push(courant);
+    return morceaux;
+  };
+
   const estLeSujet = (selecteur: string): boolean => {
     const compounds = selecteur.trim().split(/[\s>+~]+/);
     const dernier = compounds[compounds.length - 1] ?? '';
-    return dernier === classe || dernier.startsWith(`${classe}:`) || dernier.startsWith(`${classe}[`);
+    return selecteursSimples(dernier).includes(classe);
   };
 
   const corps: string[] = [];
@@ -2480,9 +2499,19 @@ describe('RenduBlocs', () => {
       //     `.onglet:checked + .onglet-nom` a pour sujet `.onglet-nom`, et n'entre donc pas ici.
       expect(reglesDeLaRadio).toHaveLength(1);
       expect(proprietesDeclarees(reglesDeLaRadio[0] ?? '')).toEqual(['margin-inline-end']);
-      // (b) …et la pince MORD sur la forme qu'elle est censée refuser.
-      const temoin = corpsDesReglesDeSujet('.onglet{appearance:none}.autre{opacity:0}', '.onglet');
-      expect(temoin.map(proprietesDeclarees)).toEqual([['appearance']]);
+      // (b) …et la pince MORD sur les TROIS formes qu’elle est censée refuser — dont les deux
+      //     qui lui échappaient avant la revue : la classe QUALIFIÉE par un type (`input.onglet`)
+      //     et la classe COMPOSÉE avec une autre (`.onglet.actif`). Le témoin `.autre`, lui, ne
+      //     doit jamais entrer : sans lui, une pince qui prendrait TOUT resterait verte ici.
+      const temoin = corpsDesReglesDeSujet(
+        '.onglet{appearance:none}input.onglet{opacity:0}.onglet.actif{display:none}.autre{position:absolute}',
+        '.onglet',
+      );
+      expect(temoin.map(proprietesDeclarees)).toEqual([
+        ['appearance'],
+        ['opacity'],
+        ['display'],
+      ]);
 
       for (const corps of reglesDeLaRadio) {
         for (const propriete of proprietesDeclarees(corps)) {
@@ -2507,6 +2536,39 @@ describe('RenduBlocs', () => {
       expect(
         surPapier.flatMap((bloc) => corpsDesReglesDeSujet(bloc, '.onglet')).map(proprietesDeclarees),
       ).toEqual([['display']]);
+    });
+
+    /**
+     * 🔴 CE QUE `nth-of-type` PRÉSUPPOSE, ET QUE SEUL UN COMMENTAIRE TENAIT (revue du lot 6).
+     *
+     * La correspondance onglet ↔ panneau est écrite
+     * `.onglet:nth-of-type(N):checked ~ div:nth-of-type(N)`. Elle n’est juste QUE si les panneaux
+     * sont les seuls `<div>` du `<fieldset>` et les onglets ses seuls `<input>` — car
+     * `nth-of-type` compte par NOM D’ÉLÉMENT, sans regarder les classes. Un `<div>` d’habillage
+     * ajouté dans le `<fieldset>` décalerait donc toute la table : le deuxième onglet ouvrirait le
+     * premier panneau, et ainsi de suite.
+     *
+     * ⚠️ AUCUN GATE NE VERRAIT CE DÉCALAGE. jsdom ne calcule pas la cascade, le balisage resterait
+     * valide pour axe, et aucune leçon publiée n’emploie encore le conteneur. Le tripwire coûte
+     * cinq lignes ; le défaut coûterait une leçon dont les onglets ouvrent le mauvais volet, en
+     * silence.
+     */
+    it('🔴 le <fieldset> ne porte QUE ce que `nth-of-type` compte : legend, inputs, labels, divs', async () => {
+      const rendu = await rendre([FIXTURES.methodes]);
+      const fieldset = rendu.querySelector('.methodes');
+      const composition = [...(fieldset?.children ?? [])].map((enfant) => enfant.tagName);
+
+      // Le conteneur témoin porte DEUX volets : une légende, puis les paires radio/label dans
+      // l’ordre du document, puis les panneaux. C’est cet ordre-là que la feuille lit.
+      expect(composition).toEqual([
+        'LEGEND',
+        'INPUT',
+        'LABEL',
+        'INPUT',
+        'LABEL',
+        'DIV',
+        'DIV',
+      ]);
     });
 
     /**
@@ -2596,6 +2658,15 @@ describe('RenduBlocs', () => {
         await expect(rendre(conteneur(jumeaux))).rejects.toThrowError(/« libelle » en double/);
         // Le message CITE le libellé fautif : sans lui, l'auteur cherche dans tout le fichier.
         await expect(rendre(conteneur(jumeaux))).rejects.toThrowError(/La méthode du cours/);
+      });
+
+      it('5bis · deux « libelle » que SEULE une espace sépare : le lecteur ne les distingue pas', async () => {
+        // 🔴 CE CAS PASSAIT (revue du lot 6). La garde de vacuité jugeait le libellé ÉBARBÉ, la
+        // garde du doublon comparait le libellé BRUT : deux gardes voisines, deux chaînes
+        // différentes. Or une espace finale ne se voit NI à l’œil NI au lecteur d’écran — c’est
+        // exactement ce que la garde 5 existe pour refuser, et elle le laissait passer.
+        const presqueJumeaux = [volet('La méthode du cours', true), volet('La méthode du cours ')];
+        await expect(rendre(conteneur(presqueJumeaux))).rejects.toThrowError(/« libelle » en double/);
       });
 
       it('6 · ZÉRO volet « defaut » : la page servie n’aurait AUCUN volet à l’écran', async () => {
