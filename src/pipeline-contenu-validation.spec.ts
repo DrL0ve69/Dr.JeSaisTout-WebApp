@@ -891,24 +891,37 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
 
   const VOLET_VALIDE = ['::: methode {libelle="B"}', '', 'Deux.', '', ':::'].join('\n');
 
+  /**
+   * Monte un conteneur d’onglets à DEUX volets dont seule la partie VARIABLE est passée ici.
+   *
+   * Les refus ci-dessous ne diffèrent que par UNE ligne — l’ouverture du conteneur, ou les
+   * attributs du premier volet. Recopier le gabarit entier à chaque cas noyait cette ligne dans
+   * dix autres identiques : il fallait comparer deux blocs à l’œil pour voir ce qui était
+   * mesuré. SonarCloud l’a chiffré — 52,8 % de duplication sur le code neuf de ce fichier, et
+   * la porte rouge sur la PR du lot 5. Ce qui varie est un argument ; le reste s’écrit une fois.
+   */
+  function conteneurDeMethodes(premierVolet: string, ouverture = ':::: methodes'): string {
+    return [
+      ouverture,
+      '',
+      premierVolet,
+      '',
+      'Un.',
+      '',
+      ':::',
+      '',
+      VOLET_VALIDE,
+      '',
+      '::::',
+    ].join('\n');
+  }
+
   it(
     'refuse un MARQUEUR inconnu en le nommant, et énumère ceux qu’il admet',
     () => {
       const sortie = causeDuBloc(
         'marqueur-inconnu',
-        [
-          ':::: methodes',
-          '',
-          '::: methode {libelle="A" defo}',
-          '',
-          'Un.',
-          '',
-          ':::',
-          '',
-          VOLET_VALIDE,
-          '',
-          '::::',
-        ].join('\n'),
+        conteneurDeMethodes('::: methode {libelle="A" defo}'),
       );
       // LISTE BLANCHE NOMINATIVE : le refus nomme le jeton fautif ET ce qui est admis.
       expect(sortie).toContain('« defo » n\u2019est ni un attribut ni un marqueur connu');
@@ -922,19 +935,7 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
     () => {
       const sortie = causeDuBloc(
         'libelle-vide',
-        [
-          ':::: methodes',
-          '',
-          '::: methode {libelle="" defaut}',
-          '',
-          'Un.',
-          '',
-          ':::',
-          '',
-          VOLET_VALIDE,
-          '',
-          '::::',
-        ].join('\n'),
+        conteneurDeMethodes('::: methode {libelle="" defaut}'),
       );
       expect(sortie).toContain('« ::: methode » sans attribut « libelle » non vide');
     },
@@ -951,19 +952,7 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
     () => {
       const sortie = causeDuBloc(
         'attribut-sur-le-conteneur',
-        [
-          ':::: methodes {titre="Deux chemins"}',
-          '',
-          '::: methode {libelle="A" defaut}',
-          '',
-          'Un.',
-          '',
-          ':::',
-          '',
-          VOLET_VALIDE,
-          '',
-          '::::',
-        ].join('\n'),
+        conteneurDeMethodes('::: methode {libelle="A" defaut}', ':::: methodes {titre="Deux chemins"}'),
       );
       expect(sortie).toContain('attribut « titre » inconnu');
       expect(sortie).toContain('n’admet aucun attribut');
@@ -978,19 +967,7 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
     () => {
       const sortie = causeDuBloc(
         'defaut-repete',
-        [
-          ':::: methodes',
-          '',
-          '::: methode {libelle="A" defaut defaut}',
-          '',
-          'Un.',
-          '',
-          ':::',
-          '',
-          VOLET_VALIDE,
-          '',
-          '::::',
-        ].join('\n'),
+        conteneurDeMethodes('::: methode {libelle="A" defaut defaut}'),
       );
       expect(sortie).toContain('marqueur « defaut » écrit deux fois');
     },
@@ -1008,19 +985,7 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
     () => {
       const sortie = causeDuBloc(
         'clef-inconnue-avant-residu',
-        [
-          ':::: methodes',
-          '',
-          '::: methode {libelle="A" titre="X" defo}',
-          '',
-          'Un.',
-          '',
-          ':::',
-          '',
-          VOLET_VALIDE,
-          '',
-          '::::',
-        ].join('\n'),
+        conteneurDeMethodes('::: methode {libelle="A" titre="X" defo}'),
       );
       expect(sortie).toContain('attribut « titre » inconnu');
       expect(sortie).not.toContain('« defo »');

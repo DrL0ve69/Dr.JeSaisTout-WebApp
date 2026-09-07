@@ -2134,6 +2134,44 @@ describe('le conteneur « :::: methodes »', () => {
     ];
 
     /**
+     * Le même volet, d'un cran de marqueur plus long. C'est la forme obligatoire dès qu'un
+     * conteneur doit tenir DANS un volet : `markdown-it-container` ferme au premier marqueur au
+     * moins aussi long que l'ouverture, donc les longueurs décroissent strictement en descendant.
+     */
+    const voletLong = (libelle: string, marqueur = ''): readonly string[] => [
+      `:::: methode {libelle="${libelle}"${marqueur}}`,
+      '',
+      `Le chemin ${libelle}.`,
+      '',
+      '::::',
+      '',
+    ];
+
+    /**
+     * Un conteneur d'onglets à marqueurs longs dont le PREMIER volet porte le conteneur interdit
+     * qu'on veut voir refusé.
+     *
+     * Les trois refus de contenu banni ne diffèrent que par ces quelques lignes-là et par le
+     * message attendu ; le gabarit qui les entoure était recopié trois fois, et SonarCloud l'a
+     * chiffré — 27 % de duplication sur le code neuf de ce fichier, porte rouge sur la PR du
+     * lot 5. Ce qui varie est l'argument ; ce qui entoure ne s'écrit qu'une fois.
+     */
+    const methodesAvecInterdit = (interdit: readonly string[]): readonly string[] => [
+      '::::: methodes',
+      '',
+      ':::: methode {libelle="A" defaut}',
+      '',
+      'Le chemin A.',
+      '',
+      ...interdit,
+      '',
+      '::::',
+      '',
+      ...voletLong('B'),
+      ':::::',
+    ];
+
+    /**
      * LES CINQ REFUS DE CARDINALITÉ ET DE STRUCTURE, EN TABLE.
      *
      * ⚠️ Chaque cas garde sa CAUSE PROPRE : c'est ce qui distingue une table d'un test qui se
@@ -2300,29 +2338,10 @@ describe('le conteneur « :::: methodes »', () => {
     // parce que ce qui est masqué est un doublon de but). Les marqueurs sont ici plus longs d'un
     // cran, sans quoi `markdown-it-container` refermerait le volet sur la première ligne `:::`.
     it('refuse un « ::: vulnerable » à l’intérieur d’un volet, en nommant le volet', () => {
-      const message = messageDEchecDesMethodes('vulnerable-dans-un-volet', [
-        '::::: methodes',
-        '',
-        ':::: methode {libelle="A" defaut}',
-        '',
-        'Le chemin A.',
-        '',
-        '::: vulnerable',
-        '```php',
-        '$x = 1;',
-        '```',
-        ':::',
-        '',
-        '::::',
-        '',
-        ':::: methode {libelle="B"}',
-        '',
-        'Le chemin B.',
-        '',
-        '::::',
-        '',
-        ':::::',
-      ]);
+      const message = messageDEchecDesMethodes(
+        'vulnerable-dans-un-volet',
+        methodesAvecInterdit(['::: vulnerable', '```php', '$x = 1;', '```', ':::']),
+      );
       expect(message).toContain('« ::: vulnerable » dans le volet « A »');
     }, DELAI);
 
@@ -2334,54 +2353,18 @@ describe('le conteneur « :::: methodes »', () => {
     // conteneur d'onglets lui-même) ; chacun épingle le libellé FRANÇAIS de sa propre entrée,
     // jamais le seul fait d'échouer.
     it('refuse un « ::: corrige » à l’intérieur d’un volet, en nommant le volet', () => {
-      const message = messageDEchecDesMethodes('corrige-dans-un-volet', [
-        '::::: methodes',
-        '',
-        ':::: methode {libelle="A" defaut}',
-        '',
-        'Le chemin A.',
-        '',
-        '::: corrige',
-        '```php',
-        '$x = 1;',
-        '```',
-        ':::',
-        '',
-        '::::',
-        '',
-        ':::: methode {libelle="B"}',
-        '',
-        'Le chemin B.',
-        '',
-        '::::',
-        '',
-        ':::::',
-      ]);
+      const message = messageDEchecDesMethodes(
+        'corrige-dans-un-volet',
+        methodesAvecInterdit(['::: corrige', '```php', '$x = 1;', '```', ':::']),
+      );
       expect(message).toContain('« ::: corrige » dans le volet « A »');
     }, DELAI);
 
     it('refuse un « :::: methodes » IMBRIQUÉ dans un volet, en nommant le volet', () => {
-      const message = messageDEchecDesMethodes('methodes-imbrique', [
-        '::::: methodes',
-        '',
-        ':::: methode {libelle="A" defaut}',
-        '',
-        'Le chemin A.',
-        '',
-        '::: methodes',
-        '',
-        ':::',
-        '',
-        '::::',
-        '',
-        ':::: methode {libelle="B"}',
-        '',
-        'Le chemin B.',
-        '',
-        '::::',
-        '',
-        ':::::',
-      ]);
+      const message = messageDEchecDesMethodes(
+        'methodes-imbrique',
+        methodesAvecInterdit(['::: methodes', '', ':::']),
+      );
       expect(message).toContain('« :::: methodes » dans le volet « A »');
     }, DELAI);
 
