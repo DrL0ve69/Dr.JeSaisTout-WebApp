@@ -1961,6 +1961,24 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
       // serait vide refuserait TOUT renvoi « module: » et passerait pour juste.
       expect(message).toContain('en « statut: verifiee »');
     }, DELAI);
+
+    // 🔴 LA BRANCHE JUMELLE, QU'AUCUN RUNNER N'EXERÇAIT AVANT LE LOT 7 (L-019). « cible inconnue »
+    // et « cible non publiée » sortent de DEUX `if` distincts de `verifierUnRenvoiDeModule` : le
+    // cas ci-dessus laissait le premier entièrement libre. C'est pourtant lui que l'auteur
+    // rencontre le plus — une faute de frappe dans un slug, ou un module cité avant d'exister.
+    // ⚠️ LE DISCRIMINANT EST « slugs déclarés : guide », l'index NON VIDE. Sans lui, un
+    // compilateur dont la carte slug → statut ne se remplirait pas refuserait TOUT renvoi
+    // « module: » — y compris le cas ci-dessus — et les deux tests passeraient ensemble.
+    // La MOITIÉ VALIDATEUR de cette même racine est assertée dans
+    // `pipeline-contenu-validation.spec.ts` (cas « voir-module-inconnu ») : c'est le COUPLE des
+    // deux qui prouve la parité des deux copies, aucune ne la prouve seule (S-010).
+    it('refuse un renvoi « module: » vers un slug INCONNU, en énumérant ceux du sujet', () => {
+      const message = messageDEchecDeLaRacine('voir-module-inconnu');
+      expect(message).toContain('renvoie au module « cible-absente », inconnu de ce sujet');
+      expect(message).toContain('slugs déclarés : guide');
+      // Le NUMÉRO D'ÉTAPE : c'est ce que l'auteur voit à l'écran, pas une ligne de fichier.
+      expect(message).toContain('étape n° 2');
+    }, DELAI);
   });
 
   // ---------------------------------------------------------------------------------------------

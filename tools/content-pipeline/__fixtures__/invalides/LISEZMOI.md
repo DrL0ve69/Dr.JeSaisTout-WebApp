@@ -8,10 +8,10 @@ pas le code.
 > ### 🔒 Qui exécute ce contrôle, et pourquoi ce n'est PAS une étape de CI
 >
 > Le gate est **`src/pipeline-contenu-validation.spec.ts`**, donc **G-test** — qui tourne déjà dans
-> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **50/50 refus** et vérifie
+> `ci.yml` **et** `deploy.yml`. Le spec lance la commande ci-dessus, exige **52/52 refus** et vérifie
 > que **chaque cas est refusé sur SA cause propre** : seize refus pour une seule et même raison (un
 > chemin introuvable, disons) seraient sinon indistinguables de seize refus corrects. Il porte en
-> plus un **garde-fou de complétude** — ajouter un cinquante-et-unième dossier ici sans écrire son assertion
+> plus un **garde-fou de complétude** — ajouter un cinquante-troisième dossier ici sans écrire son assertion
 > fait ROUGIR le spec.
 >
 > N'ajoutez donc **pas** d'étape `content:valider:fixtures` aux workflows : elle ferait tourner la
@@ -150,6 +150,19 @@ différence avec le témoin *est* la faute. Ce sont les deux refus que le contra
   2026-08-27, à l’identique. ⚠️ L’assertion du spec épingle « statut: verifiee » et non le simple
   fait du refus — sans ce discriminant, un garde qui refuserait *tout* renvoi `module:` (index vide,
   disons) passerait pour juste.
+
+- **`voir-module-inconnu`** *(lot 7)* — la cible `{voir="module:cible-absente"}` **n'existe pas**
+  dans le sujet. C'est la branche **jumelle** de la précédente, et elles sortent de deux `if`
+  distincts : `voir-module-non-publiee` a une cible qui EXISTE, dont seul le statut pèche. Jusqu'au
+  lot 7, la branche « slug inconnu » n'était exercée par **rien**, dans **aucune** des deux copies
+  de la règle (L-019) — alors que c'est celle que l'auteur rencontre le plus : une faute de frappe
+  dans un slug, ou un module cité avant d'exister.
+  ⚠️ **Ce dossier ne porte qu'UNE leçon**, contrairement à ses deux voisins `voir-…`. Sa faute
+  n'est pas une relation entre modules : un slug est déjà absent du sujet quand le sujet n'en
+  compte qu'un. C'est ce qui rend son discriminant lisible — l'assertion épingle
+  « slugs déclarés : **guide** », c'est-à-dire un index **non vide**, donc réellement construit.
+  Sans ce discriminant, un validateur dont la carte slug → statut resterait vide refuserait **tout**
+  renvoi `module:` et passerait pour juste.
 
 🔴 **Ces deux dossiers portent DEUX leçons chacun**, comme `frontmatter-section-partielle-dans-le-sujet` :
 leur faute est une **relation** entre modules (deux titres qui se disputent un renvoi, un statut lu

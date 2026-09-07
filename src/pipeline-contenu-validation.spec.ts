@@ -36,6 +36,7 @@
 
 import { execFileSync } from 'node:child_process';
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -489,6 +490,24 @@ const CAS_ATTENDUS: readonly { dossier: string; cause: RegExp }[] = [
     cause:
       /corps ligne 13 : conteneur « ::: marche-a-suivre\{titre="Faire » hors de la liste fermée/,
   },
+  // ---------------------------------------------------------------------------------------------
+  // Cas 52 (lot 7) — LE SLUG INCONNU, la branche jumelle de « la cible n'est pas publiee ».
+  // ---------------------------------------------------------------------------------------------
+  // 🔴 CETTE BRANCHE EXISTAIT DANS LES DEUX COPIES ET AUCUN RUNNER NE L'EXERÇAIT (L-019). Elle est
+  //     pourtant celle que l'auteur rencontre le plus : une faute de frappe dans un slug, ou un
+  //     module cité avant d'exister. `voir-module-non-publiee` ne la couvre pas — sa cible EXISTE,
+  //     c'est son statut qui pèche, et les deux refus sortent de deux `if` distincts.
+  // ⚠️ CE DOSSIER NE PORTE QU'UNE LEÇON, à la différence de ses deux voisins `voir-…`. Sa faute
+  //     n'est pas une relation entre modules : un slug absent du sujet l'est déjà quand le sujet
+  //     n'en compte qu'un. C'est ce qui rend son discriminant lisible — « slugs déclarés : guide »
+  //     énumère un index NON VIDE, donc construit. Sans lui, un validateur dont l'index resterait
+  //     vide refuserait TOUT renvoi « module: » et passerait pour juste, exactement comme le
+  //     rappelle l'assertion de `voir-module-non-publiee` sur le statut lu.
+  {
+    dossier: 'voir-module-inconnu',
+    cause:
+      /corps ligne 22 : « voir="module:cible-absente" » renvoie à un module inconnu de ce sujet \(slugs déclarés : guide\)/,
+  },
 ];
 
 /**
@@ -597,13 +616,13 @@ describe('le contrôle positif du validateur de contenu', () => {
   }, DELAI);
 
   it(
-    'traite les CINQUANTE ET UN cas, et aucun ne manque à l’appel',
+    'traite les CINQUANTE-DEUX cas, et aucun ne manque à l’appel',
     () => {
       // Compte en DUR, pas `CAS_ATTENDUS.length` : dériver l'attendu de la table qui sert déjà à
       // la boucle ci-dessous ferait un test qui se compare à lui-même (L-012). Ce littéral est ce
       // qui oblige un humain à constater qu'un cas est apparu ou a disparu.
-      expect(sortie).toContain('51 cas attendus INVALIDES');
-      expect(sortie).toContain('51/51 cas refusés avec une cause nommée');
+      expect(sortie).toContain('52 cas attendus INVALIDES');
+      expect(sortie).toContain('52/52 cas refusés avec une cause nommée');
     },
     DELAI,
   );
@@ -1009,6 +1028,163 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
     'accepte la racine témoin — 2 volets et 3 volets, en code 0',
     () => {
       const { sortie, code } = lancer(['--racine', FIXTURE_METHODES]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/2 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+});
+
+// =============================================================================
+// LE RENVOI `{voir="…"}` D'UNE ÉTAPE — la moitié VALIDATEUR (décision D-A, lot 7)
+// -----------------------------------------------------------------------------
+// 🔴 POURQUOI CE BLOC EXISTE, ET CE QUE LA MESURE A TROUVÉ. `jugerRenvoiDEtape` porte SEPT refus.
+// Un seul était exercé au 2026-09-07 — le titre AMBIGU, par la fixture `voir-titre-ambigu`. Les
+// six autres étaient du code mort du point de vue des gates : présents, corrects, et invisibles à
+// toute régression (L-019). Le compilateur, lui, a ses propres contrôles positifs pour quelques-
+// unes de ces formes — ce qui est exactement le mode d'échec que ce dépôt a déjà payé trois fois :
+// l'aval refuse, l'amont laisse passer, et l'auteur reçoit le message de l'aval, qui parle d'un
+// objet (une étape compilée) qu'il n'a pas sous les yeux. Famille S-010.
+//
+// ⚠️ POURQUOI ICI PLUTÔT QUE DANS `__fixtures__/invalides/`. Chacun de ces six cas est une
+// MUTATION D'UNE SEULE LIGNE de la racine témoin `__fixtures__/marche-a-suivre`, qui est VALIDE.
+// En faire six dossiers coûterait ~1 000 lignes recopiées pour six lignes utiles, et §9 de
+// `.claude/rules/agent-context-budget.md` dit qu'un corpus de fixtures se COMPTE avant d'être
+// écrit. Le bac à sable jetable exécute le MÊME binaire sur une VRAIE racine : la couverture est
+// la même, le coût ne l'est pas. Le dossier `invalides/` reste réservé aux fautes qu'une mutation
+// d'une ligne ne sait pas écrire — d'où `voir-module-inconnu`, qui a besoin d'un sujet à lui.
+//
+// ⚠️ LES MESSAGES SONT COPIÉS DE LA SORTIE RÉELLE (L-089), jamais rédigés de mémoire — et
+// l'APOSTROPHE est le piège de ce bloc, payé une fois en écrivant : `jugerRenvoiDEtape` compose
+// ses causes avec des apostrophes DROITES (« qui n'est le titre d'aucune section »), alors que la
+// prose de ce dépôt emploie la courbe et qu'un éditeur la substitue volontiers. Une assertion
+// « normalisée » à la relecture rougirait donc sur un produit parfaitement sain (L-035).
+// ⚠️ Corollaire, visible dans la table : le texte de l'ÉTAPE injectée peut porter la courbe
+// (elle vient de l'auteur et traverse le validateur telle quelle) là où la CAUSE attendue porte
+// la droite. Les deux apparaissent dans le même cas `titre-introuvable` — ce n'est pas une faute
+// de frappe.
+// =============================================================================
+describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () => {
+  const FIXTURE_MARCHE = 'tools/content-pipeline/__fixtures__/marche-a-suivre';
+
+  /** L'étape témoin de la racine valide — la SEULE ligne que chaque cas remplace. */
+  const ETAPE_TEMOIN =
+    '2. {voir="module:cible"} Relire la PREMIÈRE anomalie du journal, jamais la dernière.';
+
+  let bac = '';
+
+  beforeAll(() => {
+    bac = mkdtempSync(join(tmpdir(), 'drjst-voir-'));
+  });
+
+  afterAll(() => {
+    rmSync(bac, { recursive: true, force: true });
+  });
+
+  /**
+   * Copie la racine témoin, remplace son étape n°2 par celle du cas, et rend la sortie du refus.
+   *
+   * 🔴 LA MUTATION EST VÉRIFIÉE AVANT D'ÊTRE MESURÉE (L-015). Les fins de ligne de ce dépôt sont
+   * mixtes ; un remplacement qui ne mordrait pas laisserait la racine VALIDE, et le `throw` de la
+   * fin accuserait le garde-fou d'un défaut qui serait celui du harnais. On lève donc sur
+   * l'absence de l'étape témoin — c'est-à-dire sur la fixture qui aurait changé de forme.
+   */
+  function causeDeLEtape(nom: string, etape: string): string {
+    const racine = join(bac, nom);
+    cpSync(FIXTURE_MARCHE, racine, { recursive: true });
+    const fichier = join(racine, '02-guide', 'lecon.md');
+    const source = readFileSync(fichier, 'utf8');
+    if (!source.includes(ETAPE_TEMOIN)) {
+      throw new Error(`« ${nom} » : l’étape témoin est introuvable — la fixture a changé de forme`);
+    }
+    writeFileSync(fichier, source.replace(ETAPE_TEMOIN, etape), 'utf8');
+    const { sortie, code } = lancer(['--racine', racine]);
+    if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n’a pas mordu`);
+    return sortie;
+  }
+
+  /**
+   * LES SIX REFUS, EN TABLE — chacun sur SA cause propre.
+   *
+   * ⚠️ Un garde-fou qui refuserait TOUT renvoi passerait un test qui n'épingle que l'échec. Ce qui
+   * discrimine est le fragment de message : il nomme la faute commise, et lui seul distingue ces
+   * six branches les unes des autres.
+   */
+  const REFUS: readonly { nom: string; quoi: string; etape: string; cause: string }[] = [
+    {
+      nom: 'renvoi-vide',
+      quoi: 'un renvoi VIDE — il ne désigne rien, et le dire vaut mieux que l’ignorer',
+      etape: '2. {voir=""} Relire la PREMIÈRE anomalie du journal.',
+      cause: 'renvoi vide ; citer un titre de section de cette leçon, ou « module:<slug> »',
+    },
+    {
+      nom: 'module-sans-slug',
+      quoi: 'un « module: » SANS slug — le préfixe seul ne nomme aucune cible',
+      etape: '2. {voir="module:"} Relire la PREMIÈRE anomalie du journal.',
+      cause: '« module: » sans slug',
+    },
+    {
+      // ⚠️ DISCRIMINANT : le message ÉNUMÈRE les titres existants. Sans cette moitié, un
+      // validateur dont la liste de sections serait vide refuserait TOUT renvoi de section et
+      // passerait pour juste — même piège que l'index vide de `voir-module-inconnu`.
+      nom: 'titre-introuvable',
+      quoi: 'un titre de section INTROUVABLE, en énumérant ceux qui existent',
+      etape: '2. {voir="Une section qui n’existe pas"} Relire le journal.',
+      cause:
+        "qui n'est le titre d'aucune section de cette leçon (titres : « L'idée en une image »",
+    },
+    {
+      // Le renvoi est SYNTAXIQUEMENT juste et sa cible EXISTE : seule sa POSITION pèche. C'est le
+      // cas qui prouve que la règle porte sur la tête de l'item, et non sur la seule présence
+      // d'un bloc d'accolades quelque part dans la phrase.
+      nom: 'renvoi-pas-en-tete',
+      quoi: 'un renvoi valide mais posé AU MILIEU de la phrase',
+      etape: '2. Relire le journal {voir="Ce que le validateur regarde"} sans tarder.',
+      cause: "le renvoi n'est pas en TÊTE de l'étape",
+    },
+    {
+      nom: 'deux-renvois',
+      quoi: 'DEUX renvois sur la même étape — deux destinations valent deux étapes',
+      etape: '2. {voir="Ce que le validateur regarde"} Relire {voir="module:cible"} le journal.',
+      cause: 'deux renvois sur la même étape',
+    },
+    {
+      // 🔴 LES GUILLEMETS COURBES. Un traitement de texte, ou un éditeur réglé sur la typographie
+      // française, les substitue SANS PRÉVENIR. Le refus doit donc dire que seuls les droits sont
+      // acceptés — sinon l'auteur relit dix fois une ligne qui lui paraît identique au contrat.
+      nom: 'accolade-illisible',
+      quoi: 'un bloc d’attributs aux guillemets COURBES, en disant lesquels sont acceptés',
+      etape: '2. {voir=“Ce que le validateur regarde”} Relire le journal.',
+      cause:
+        'bloc d\'attributs illisible en tête ; seule la forme {voir="…"} est acceptée, guillemets droits compris',
+    },
+  ];
+
+  for (const cas of REFUS) {
+    it(
+      `refuse ${cas.quoi}`,
+      () => {
+        const sortie = causeDeLEtape(cas.nom, cas.etape);
+        expect(sortie).toContain(cas.cause);
+        // La LIGNE du corps est ce que l'auteur voit dans son éditeur : sans elle, il relit toute
+        // la marche à suivre. Les six cas mutent la même ligne, donc l'attendu est le même.
+        expect(sortie).toContain('corps ligne 22');
+        // UNE faute, jamais deux : le contrat « un cas = une cause » du mode --fixtures vaut aussi
+        // ici. Une cause parasite masquerait la disparition de celle qu'on mesure.
+        expect(sortie).toContain('1 anomalie(s)');
+      },
+      DELAI,
+    );
+  }
+
+  // L'AUTRE MOITIÉ DE LA PINCE : la racine témoin, NON mutée, passe en code 0. Sans elle, les six
+  // refus ci-dessus resteraient compatibles avec un validateur qui refuserait toute marche à
+  // suivre — et les deux renvois valides qu'elle porte (un titre, un module publié) sont
+  // précisément les formes que les six cas mutent.
+  it(
+    'accepte la racine témoin — les deux renvois valides passent, en code 0',
+    () => {
+      const { sortie, code } = lancer(['--racine', FIXTURE_MARCHE]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/2 leçon\(s\) valides/);
     },

@@ -84,6 +84,20 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > `name` sur la page entière, qui était son critère d'acceptation, est tenue **par construction** (un
 > input `chemin` : ancre de section, puis `_e`/`_m`/`_v` par récursion) et mesurée aux **deux** étages —
 > `rendu-blocs.spec.ts` à l'intérieur d'une instance, `lecon.spec.ts` d'une section à l'autre.
+> ✅ **LE LOT 7 EST LIVRÉ (2026-09-07), ET SON PÉRIMÈTRE A ÉTÉ RÉFUTÉ PAR LA MESURE.** Le plan
+> annonçait ~12 dossiers de fixtures invalides ; **dix étaient déjà écrits** par les lots 3 et 5,
+> et le douzième attend le lot 9. Ce que la mesure a trouvé à la place : `jugerRenvoiDEtape` — la
+> copie **validateur** de `{voir="…"}` — porte **sept** refus dont **un seul** était exercé, pendant
+> que le compilateur avait les siens : **l’aval refusait, l’amont laissait passer** (S-010, L-019).
+> Livré : six cas en bac à sable jetable + la fixture `voir-module-inconnu` (compte en dur
+> **51 → 52**), deux contrôles positifs par mutation à **1 rouge exactement** — dont un où la racine
+> reste refusée et où **seule la cause propre attrape la régression**.
+> 🔴 **UN LOT DIFFÉRÉ SE RE-MESURE CONTRE L’ÉTAT DU DÉPÔT LE JOUR OÙ IL S’OUVRE, jamais contre la
+> ligne du plan qui l’a nommé** : les lots 3 et 5 avaient écrit leurs contrôles positifs en bac à
+> sable *précisément parce que* le corpus était renvoyé au lot 7 — le lot différé peut donc être
+> vidé de sa substance par ses propres voisins. Détail :
+> [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 7 ».
+>
 > 🔴 **CE QUI RESTE OUVERT, ET QUI PART AVEC LE LOT 8 :** aucune leçon n'écrit encore `:::: methodes`,
 > donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
 > **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la

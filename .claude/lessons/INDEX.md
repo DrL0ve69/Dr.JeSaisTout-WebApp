@@ -106,7 +106,8 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-090 | 2628–2647 | La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche |
 | L-091 | 2648–2670 | Une liste d'exceptions NOMMÉES dans une feuille de styles ne pense pas toute seule au cas suivant — et un commentaire « même traitement que X » doit dire QUEL X |
 | L-092 | 2671–2694 | `toContain` sur un TABLEAU teste l'égalité d'élément, pas l'inclusion de sous-chaîne — un matcher de sécurité doit se vérifier sur le type réellement observé |
-| L-093 | 2695–2724 | Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait |
+| L-093 | 2695–2722 | Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait |
+| L-094 | 2723–2750 | Un lot DIFFÉRÉ se re-mesure contre l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -141,4 +142,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-024 | 1081–1114 | Fermer une leçon de sécurité exige de mesurer le RÉSIDU sur l'artéfact du lot, jamais de le raisonner de mémoire — le mécanisme et l'état du produit sont deux régimes de preuve distincts (A05 · discipline de clôture) |
 | S-026 | 1115–1177 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 
-_119 entrées indexées._
+_120 entrées indexées._

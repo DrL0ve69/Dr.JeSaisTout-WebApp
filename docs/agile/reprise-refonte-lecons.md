@@ -246,7 +246,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → ~~**`4bis`**~~ **✅**
-(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → **`7`** → **`1b`** (résolution inter-cours) → `8`
+(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → **`1b`** (résolution inter-cours) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
@@ -905,3 +905,89 @@ reviendrait à cacher la mesure.
 **Le geste suivant : le lot 7** — le corpus de fixtures invalides du conteneur. ⚠️ Il est à part
 **délibérément** (§9 du budget de contexte) : un corpus de fixtures a déjà **doublé** un lot sur ce
 dépôt, et il se compte — nombre de dossiers × lignes par dossier — **avant** d'écrire le brief.
+
+---
+
+## CLÔTURE — LOT 7 : les contrôles positifs de `{voir="…"}`, et le corpus qui n'avait plus d'objet (2026-09-07)
+
+🔴 **LE PÉRIMÈTRE ÉCRIT AU PLAN A ÉTÉ RÉFUTÉ PAR LA MESURE, ET C'EST LE RÉSULTAT PRINCIPAL DU LOT.**
+Le plan annonçait « ~12 cas invalides » en dossiers `__fixtures__/invalides/`. Le geste qu'impose
+§9 du budget de contexte — **compter le corpus avant d'écrire le brief** — a montré que **dix des
+douze étaient déjà écrits**, par les lots 3 et 5 eux-mêmes (table `REFUS` de
+`pipeline-contenu-compilation.spec.ts`, bac à sable de `pipeline-contenu-validation.spec.ts`), et
+que le douzième (« marche à suivre absente d'un module de la liste ») n'est **pas implémentable** :
+`MODULES_AU_FORMAT_ACTIONNABLE` n'existe pas encore, c'est le lot 9. Écrire les douze aurait
+recopié ~1 900 lignes pour rejouer une couverture existante, **et** gonflé de douze crans le compte
+en dur que ce dépôt oblige un humain à relire. Le détail, cas par cas :
+[`docs/design/refonte-lecons-actionnables.md`](../design/refonte-lecons-actionnables.md), bloc
+« CE PÉRIMÈTRE A ÉTÉ RÉFUTÉ PAR LA MESURE ».
+
+🔴 **CE QUE LA MESURE A TROUVÉ À LA PLACE — S-010, sixième forme, et personne ne la cherchait là.**
+`jugerRenvoiDEtape` (la copie **validateur** de `{voir=…}`) porte **SEPT** refus. **Un seul** était
+exercé : le titre ambigu, par `invalides/voir-titre-ambigu`. Les six autres étaient présents,
+corrects, et **invisibles à toute régression** (**L-019**) — pendant que le **compilateur**, lui,
+avait ses propres contrôles positifs pour plusieurs de ces mêmes formes. C'est exactement le motif
+payé au lot 1a et au correctif C1 du lot 5 : **l'aval refuse, l'amont laisse passer**, et l'auteur
+reçoit le message de l'aval, qui lui parle d'une **étape compilée** qu'il n'a pas sous les yeux.
+⚠️ **Le grep qui aurait dû l'attraper ne pouvait pas** : les deux copies existaient, s'accordaient
+sur le fond, et une seule était mesurée. Rien ne rougissait, rien n'était en `skip` — c'est la
+**population des tests** qui était trouée, pas leur résultat. Chercher « quelle branche du juge
+d'AMONT aucun runner n'atteint » est un geste distinct de « les deux copies disent-elles la même
+chose ».
+
+**Livré, et pourquoi sous cette forme plutôt qu'en douze dossiers.**
+
+| Où | Quoi |
+|---|---|
+| `src/pipeline-contenu-validation.spec.ts` | bloc neuf : **six** refus de `jugerRenvoiDEtape` en bac à sable jetable (renvoi vide · `module:` sans slug · titre introuvable · renvoi hors tête · deux renvois · guillemets courbes), **plus la pince** — la racine témoin non mutée passe en code 0 |
+| `tools/content-pipeline/__fixtures__/invalides/voir-module-inconnu/` | **un** dossier, UNE leçon : `{voir="module:cible-absente"}` vers un slug absent du sujet |
+| `src/pipeline-contenu-compilation.spec.ts` | la branche **jumelle** du compilateur sur la même racine — c'est le COUPLE des deux assertions qui prouve la parité, aucune ne la prouve seule |
+| comptes en dur | `51 → 52`, aux deux littéraux du spec et aux deux du `LISEZMOI` |
+
+⚠️ **Chaque cas du bac à sable est une mutation d'UNE LIGNE de `__fixtures__/marche-a-suivre`**, qui
+est valide. Le binaire exécuté est le même, la racine est vraie : la couverture est celle d'un
+dossier, le coût ne l'est pas. `invalides/` reste réservé aux fautes qu'une mutation d'une ligne ne
+sait pas écrire — d'où `voir-module-inconnu`, qui a besoin d'un **sujet** à lui.
+⚠️ **Ce dossier ne porte qu'UNE leçon**, contrairement à ses deux voisins `voir-…` : un slug est
+déjà absent d'un sujet qui n'en compte qu'un. Son discriminant est « slugs déclarés : **guide** »,
+c'est-à-dire un **index non vide** — sans lui, un juge dont la carte slug → statut resterait vide
+refuserait **tout** renvoi `module:` et passerait pour juste.
+
+✅ **LES DEUX CONTRÔLES POSITIFS PAR MUTATION SONT EXÉCUTÉS, et le second est le plus instructif.**
+Branche « renvoi vide » débranchée → **exactement 1 rouge**, le cas neuf. Branche « slug inconnu »
+débranchée → **exactement 1 rouge**, et 🔴 **la racine reste REFUSÉE** : `52/52 cas refusés` demeure
+**vert**, le renvoi retombant sur la branche du statut et sortant « statut: undefined ». Seule
+l'assertion de **cause propre** l'attrape. C'est la démonstration, sur pièce, de ce que le
+`LISEZMOI` de `invalides/` promet depuis le début — **un cas qui refuse ne prouve rien tant que la
+cause n'est pas épinglée**, et c'est la discipline « un dossier = une faute » qui rend l'épinglage
+possible.
+
+⚠️ **UN PIÈGE PAYÉ EN ÉCRIVANT, ET IL EST TYPOGRAPHIQUE.** `jugerRenvoiDEtape` compose ses causes
+avec des apostrophes **DROITES** (« qui n'est le titre d'aucune section »), alors que la prose de ce
+dépôt emploie la **courbe** et qu'un éditeur la substitue volontiers. Première exécution : **1
+rouge sur un produit sain** (**L-035**), l'assertion ayant été « normalisée » à la relecture. Le
+texte de l'**étape injectée** peut, lui, porter la courbe — elle vient de l'auteur et traverse le
+validateur telle quelle. Les deux graphies coexistent donc dans le même cas, et un commentaire le
+dit sur place pour qu'un futur formateur ne les uniformise pas.
+
+**Gates à la clôture — tous verts.** G-lint **0** · G-typage-outils **0** · G-content **10 leçon(s),
+5/5 poids, 0 dépassement** · `--fixtures` **52/52 cas refusés avec une cause nommée** · G-test
+**1090 passés / 1 sauté / 45 fichiers** (1081 au lot 6 : **+9**, soit 6 bacs à sable + la pince
+témoin + le cas de fixture + la jumelle compilateur) · G-build **13 routes prerendues, 14 hachages
+de style / 0 de script — inchangés** · `npm audit --omit=dev` **0**.
+⚠️ **G-axe et G-e2e ne sont pas relancés localement et c'est délibéré** : ce lot ne touche **aucun**
+code produit (`git diff` sur `valider.mjs` et `compiler-markdown.mjs` est **vide**), aucune feuille
+de style et aucun contenu. La CI les exécute ; les citer comme preuve d'un lot qui n'a rien rendu
+leur prêterait une portée qu'ils n'ont pas — même réserve qu'au lot 6, écrite pour la même raison.
+
+⏳ **RÉSIDU NOMMÉ, à ne pas perdre.** L'inventaire des branches non exercées a été fait sur
+`jugerRenvoiDEtape` et sur `exigerLesRenvoisDeModule`, pas sur le pipeline entier : un balayage
+plus large a rendu **trop de faux positifs** pour faire foi (une assertion existante peut épingler
+un fragment plus court que le message). **Ce lot ne prétend donc pas avoir fermé L-019 partout** —
+il ferme la surface `{voir=…}`. Le balayage général reste à faire, et il demande de comparer des
+**assertions** à des **branches**, pas des chaînes à des chaînes.
+
+**Le geste suivant : le lot `1b`** (résolution inter-cours de `cours="…"`), puis le **lot 8** — le
+module 11 repris, en deux demi-lots. ⚠️ Le lot 8 reste porteur de ce que le lot 6 lui a légué et
+qui n'est **pas** clos : le spec e2e des trois états d'un onglet, la passe G-axe sur une page
+portant des onglets, et la capture manuelle en contraste forcé.

@@ -475,6 +475,50 @@ double, `vulnerable` dans `methodes`, marche à suivre absente d'un module de la
 transcript des lots 1/3/5 : la liste des règles suffit.
 **Gates** : `npm run content:build -- --fixtures`, `npm test`.
 
+### 🔴 CE PÉRIMÈTRE A ÉTÉ RÉFUTÉ PAR LA MESURE — livré autrement le 2026-09-07
+
+**Le geste que §9 impose a été fait : compter le corpus AVANT d'écrire le brief.** Résultat, les
+douze cas annoncés ci-dessus ne coûtaient pas ~1 900 lignes de travail neuf — ils étaient, pour
+l'essentiel, **déjà écrits**, par les lots 3 et 5 eux-mêmes :
+
+| Cas planifié | État mesuré au 2026-09-07 |
+|---|---|
+| 1 méthode · 4 méthodes · zéro `defaut` · deux `defaut` · `libelle` en double · `vulnerable` dans un volet | **couverts** — table `REFUS` de `src/pipeline-contenu-compilation.spec.ts` |
+| `libelle` vide · attribut sur le conteneur | **couverts** — bac à sable de `src/pipeline-contenu-validation.spec.ts` |
+| `{voir="Titre"}` introuvable · `cours` superflu · diapos malformées sur un titre | **couverts** côté compilateur ; le câblage du titre vers `causeDuRenvoiAuCours` l'est par `invalides/corps-titre-seance-inconnue` |
+| marche à suivre absente d'un module de la liste | **pas implémentable** — `MODULES_AU_FORMAT_ACTIONNABLE` n'existe pas encore (lot 9) |
+
+⚠️ **Écrire les douze aurait rejoué la même couverture en douze dossiers.** Un dossier de
+`invalides/` pèse ~155 lignes (un `lecon.md` de gabarit + un `quiz.json` de cinq questions) : le
+corpus annoncé était un **second livrable** au sens de §9, mais un second livrable **redondant** —
+le pire des deux mondes, puisqu'il aurait aussi grossi de douze crans le compte en dur que ce
+fichier oblige un humain à relire.
+
+**Ce que la mesure a trouvé À LA PLACE, et qui n'était couvert par rien.** `jugerRenvoiDEtape` —
+la copie **validateur** de `{voir=…}` — porte **sept** refus ; **un seul** était exercé (le titre
+ambigu, par `invalides/voir-titre-ambigu`). Les six autres étaient corrects et invisibles à toute
+régression (**L-019**), alors que le compilateur, lui, avait ses propres contrôles positifs pour
+plusieurs de ces formes : **l'aval refusait, l'amont laissait passer** — famille **S-010**, la
+même que le lot 1a et le correctif C1 du lot 5. S'y ajoutait la branche « slug **inconnu** de ce
+sujet », muette dans les **deux** copies : `voir-module-non-publiee` ne l'atteint pas, sa cible
+existant et seul son statut péchant — deux `if` distincts.
+
+**Livré** : six cas en bac à sable jetable (mutation d'**une ligne** de la racine témoin valide,
+même binaire, même vraie racine) + **un** dossier `invalides/voir-module-inconnu`, réservé au seul
+cas qu'une mutation d'une ligne ne sait pas écrire. Compte en dur **51 → 52**.
+**Contrôles positifs par mutation, exécutés** : la branche « renvoi vide » débranchée →
+**exactement 1 rouge**, le cas neuf ; la branche « slug inconnu » débranchée → **exactement 1
+rouge**, et la racine reste **refusée** (52/52 toujours vert) — seule l'assertion de **cause
+propre** l'attrape. C'est la démonstration que ces deux tests **discriminent** au lieu de constater
+un échec.
+
+🔴 **LA LEÇON DE MÉTHODE, PLUS GÉNÉRALE QUE LE LOT.** §9 apprend à mesurer un corpus **avant** de
+l'écrire. Ce lot ajoute la question d'avant : **ce corpus a-t-il encore un objet ?** Un lot sorti
+« à part » pour ne pas gonfler son voisin peut être **vidé de sa substance par ce voisin même** —
+les lots 3 et 5 ont écrit leurs contrôles positifs en bac à sable *précisément parce que* le
+corpus était renvoyé ici. Le plan, lui, n'a pas été relu. **Un lot différé se re-mesure contre
+l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé.**
+
 ## Lot 8 — Le module 11 repris (CONTENU, boucle `/lecon`)
 
 `content/cours/securite-web/11-projet-de-session/lecon.md` : la marche à suivre en tête, `diapos` sur
