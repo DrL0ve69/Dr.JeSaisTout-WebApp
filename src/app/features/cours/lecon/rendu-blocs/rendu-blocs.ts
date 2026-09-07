@@ -75,6 +75,7 @@ const TYPES_RENDUS = [
   'mermaid',
   'encadre',
   'marche-a-suivre',
+  'methodes',
   'ancre-quiz',
   'ancre-simulation',
 ] as const;
@@ -302,6 +303,22 @@ function erreurMarche(ou: string, faute: string): Error {
 }
 
 /**
+ * Le refus d'un conteneur `methodes` malformé, TOUJOURS sous le même préambule — même patron
+ * qu'`erreurMarche` juste au-dessus, et pour la même raison : un artéfact compilé par une autre
+ * version du pipeline doit se nommer de la même façon quelle que soit la borne qu'il franchit.
+ *
+ * @param ou la position fautive, déjà rédigée (« bloc n°2 », « bloc n°2, volet n°1 »)
+ */
+function erreurMethodes(ou: string, faute: string): Error {
+  return new Error(
+    `RenduBlocs : conteneur de méthodes invalide (${ou}) — ${faute}. Le contrat est ` +
+      '`tools/content-pipeline/types.d.ts` et `docs/contenu/pipeline-contenu.md` (section ' +
+      '« Le conteneur `methodes` ») ; il est compilé par `compiler-markdown.mjs` — régénérer ' +
+      'avec `npm run content:build`.',
+  );
+}
+
+/**
  * Le bloc `mermaid`, préparé : son `svg` est devenu une valeur de confiance, UNE
  * SEULE FOIS, dans `preparer()`. Le gabarit ne fait donc aucun appel de méthode —
  * une valeur `SafeHtml` recalculée à chaque détection remplacerait le SVG à chaque
@@ -432,16 +449,67 @@ export function cumulerFigures(
       // Ne pas descendre est le bon repli ICI : ce n'est pas à un compteur d'échouer, c'est à
       // `preparer()` de NOMMER l'encadré fautif, ce qu'il fait maintenant (patron S-009 / L-008).
       cumul = Array.isArray(bloc.blocs) ? cumulerFigures(bloc.blocs, cumul) : cumul;
+    } else if (bloc.type === 'methodes') {
+      // LA NUMÉROTATION DESCEND DANS TOUS LES VOLETS, PAS SEULEMENT DANS CELUI QUI PORTE
+      // `defaut` — et la raison est le PAPIER. Le contrat (`docs/contenu/pipeline-contenu.md`,
+      // « les trois états du lecteur ») impose que `@media print` rende TOUS les volets, chacun
+      // sous son libellé, dans l'ordre du document. Ne compter que le volet coché donnerait donc
+      // deux défauts d'un coup : des numéros SAUTÉS à l'impression, et une numérotation dont la
+      // valeur dépendrait de l'onglet que le lecteur a choisi — le même « Code n°3 » désignant
+      // deux figures selon le clic. Un compteur de figures ne peut pas dépendre d'un état d'IHM.
+      // MÊME GARDE, MÊME RAISON QUE `bloc.blocs` DE L'ENCADRÉ juste au-dessus : ce n'est pas à un
+      // compteur d'échouer sur un artéfact d'une autre version du pipeline, c'est à `preparer()`
+      // de NOMMER le bloc fautif — ce que fait `verifierMethodes` (patron S-009 / L-008).
+      if (Array.isArray(bloc.volets)) {
+        for (const volet of bloc.volets) {
+          cumul = Array.isArray(volet?.blocs) ? cumulerFigures(volet.blocs, cumul) : cumul;
+        }
+      }
     }
   });
   return cumul;
 }
 
-/** La table des rangs d'une instance, et les décalages à passer à ses encadrés enfants. */
+/** La table des rangs d'une instance, et les décalages à passer à ses enfants récursifs. */
 interface TableDesRangs {
   readonly rangs: ReadonlyMap<string, number>;
   readonly decalagesDesEncadres: ReadonlyMap<number, DecalageFigures>;
+  /** Clef composite `rangBloc:rangVolet` — un `methodes` a deux ou trois enfants, l'encadré un. */
+  readonly decalagesDesVolets: ReadonlyMap<string, DecalageFigures>;
 }
+
+/** La clef d'un volet dans `decalagesDesVolets`. Deux indices, donc jamais ambiguë. */
+function clefDeVolet(rangBloc: number, rangVolet: number): string {
+  return `${String(rangBloc)}:${String(rangVolet)}`;
+}
+
+/**
+ * Le préfixe d'identifiant d'une instance montée SEULE — voir l'input `chemin`.
+ *
+ * 🔴 IL PORTE UN « _ », ET C'EST LA MOITIÉ EXÉCUTABLE D'UN ARGUMENT DE DISJONCTION. Tout `id`
+ * fabriqué par ce composant contient au moins un souligné (`…_m0_v1`), or l'espace de noms des
+ * ancres du dépôt est en kebab-case strict — `contenu-compile.ts` : `/^[a-z0-9]+(-[a-z0-9]+)*$/`,
+ * où le souligné est IMPOSSIBLE. Aucun `id` d'onglet ne peut donc collisionner avec une ancre de
+ * section, ni avec les `quiz-…` des questions, ni avec les identifiants d'étape d'une simulation.
+ * La disjonction est STRUCTURELLE : elle ne demande aucun contrôle à l'exécution, et c'est
+ * pourquoi `contenu-compile.ts` n'en porte aucun. Elle est confrontée à cette regex dans le spec
+ * (L-019 : un argument non mesuré n'est pas un garde-fou).
+ */
+const CHEMIN_ISOLE = 'bloc_isole';
+
+/**
+ * LE NOM ACCESSIBLE DU GROUPE D'ONGLETS — une chaîne FIXE, jamais un `libelle` d'auteur.
+ *
+ * 🔴 IL EST PORTÉ PAR UNE <fieldset>/<legend>, PAS PAR UN `aria-label` SUR UN CONTENEUR. La raison
+ * est écrite au cas `encadre` de ce même gabarit et vaut mot pour mot ici : donner un nom
+ * accessible à un élément de section le PROMEUT en repère, et deux repères homonymes violent
+ * `landmark-unique`. Or deux conteneurs `methodes` dans une même leçon est un cas NORMAL, et leur
+ * nom est fixe donc forcément homonyme. Un `<fieldset>` n'est pas un repère — son rôle implicite
+ * est `group` —, si bien que le groupe de radios est nommé sans qu'aucun repère naisse, quel que
+ * soit le nombre de conteneurs sur la page. La `<legend>` est du TEXTE VISIBLE : elle survit à
+ * l'impression, à la police de repli et au contraste forcé, là où un attribut ne survivrait pas.
+ */
+const NOM_GROUPE_ONGLETS = 'Choix de la méthode';
 
 @Component({
   selector: 'app-rendu-blocs',
@@ -710,6 +778,7 @@ interface TableDesRangs {
               [sujet]="sujet()"
               [simulation]="simulation()"
               [decalage]="decalageDeLEncadre(rangBloc)"
+              [chemin]="chemin() + '_e' + rangBloc"
             />
             <!-- LA SOURCE D'UNE CORRECTION EST PUBLIÉE, PAS SEULEMENT VALIDÉE.
                  .claude/rules/contenu-pedagogique.md §6 : un ⚠️ qui accuse le
@@ -817,6 +886,131 @@ interface TableDesRangs {
           </section>
         }
 
+        @case ('methodes') {
+          <!--
+            LES ONGLETS DE MÉTHODE — décision D-C du 2026-08-31, compilés au lot 5,
+            rendus ici au lot 6. AUCUN JAVASCRIPT, AUCUN COMPOSANT NEUF : un groupe
+            de radios de même name, chacune suivie de son label, et les panneaux
+            montrés par « :checked ~ … » dans rendu-blocs.scss. C'est le seul
+            mécanisme interactif du site qui n'a pas besoin de JS — et c'est aussi
+            ce qui le rend immunisé à la fenêtre de pré-hydratation (L-033) : sans
+            liaison (change) ni (click), ET l'attribut checked étant LITTÉRAL (voir
+            juste en dessous, c'est la moitié qui manquait), aucune détection de
+            changements ne peut écraser l'état que le DOM natif a accepté. Cette
+            phrase était FAUSSE tant que checked passait par une liaison d'attribut.
+            script-src reste à ZÉRO.
+
+            🔴 LE name VIENT DU CHEMIN, PAS DU DÉCALAGE DE FIGURES — voir l'input
+            « chemin » pour la mesure du lot 4bis qui a écarté le décalage, et pour
+            la preuve d'unicité par construction. Des groupes homonymes sont
+            FUSIONNÉS par le navigateur : un seul jeu d'onglets aurait fonctionné
+            par page, en silence.
+
+            🔴 checked EST UN ATTRIBUT LITTÉRAL — trois formes existent, une seule
+            tient, et les deux autres cassent de deux façons différentes.
+            (1) [checked] est une liaison de PROPRIÉTÉ : elle ne touche que l'IDL, que
+            la sérialisation du prerender n'écrit pas. La page servie n'aurait AUCUN
+            volet coché, donc rien à l'écran sans JavaScript — exactement l'état
+            « zéro volet » que le contrat désarme par construction.
+            (2) [attr.checked] sérialise bien, mais c'est une LIAISON, et le spike du
+            lot 4bis a MESURÉ qu'une liaison d'attribut est réévaluée à l'hydratation
+            (un [attr.name] passait de spike-34-0 au prerendu à spike-1-0 après). Le
+            lecteur qui coche un autre onglet PENDANT la fenêtre de pré-hydratation ne
+            pose le dirty checkedness flag que sur CE volet-là ; à la première
+            détection de changements, la liaison réécrirait checked sur le volet
+            « defaut », dont le flag est resté faux — sa checkedness repasserait donc à
+            vrai et décocherait le choix du lecteur. L'onglet choisi sauterait en
+            arrière, EN SILENCE : L-033, sur le seul mécanisme du site censé y être
+            immunisé.
+            (3) L'ATTRIBUT LITTÉRAL est la forme, et la seule, que le spike a mesurée
+            comme sûre — « l'hydratation ne réécrit pas le checked d'une radio
+            STATIQUE ». C'est celle-ci, au prix des deux branches @if/@else ci-dessous.
+
+            🔴 LE GROUPE EST NOMMÉ PAR UNE <legend>, ET C'EST UN CHOIX D'ACCESSIBILITÉ
+            MOTIVÉ, pas un habillage — voir NOM_GROUPE_ONGLETS : un fieldset n'est pas
+            un repère, donc deux conteneurs sur une même page ne peuvent pas violer
+            landmark-unique, à la différence d'un aside nommé (cas encadre plus haut).
+
+            LE LIBELLÉ D'AUTEUR NE SORT QU'EN NŒUD TEXTE (S-011) : jamais en
+            aria-label, title, value, id ou data-*. Les name, id et for se composent
+            d'INDICES SEULS. Aucune surface d'attribut neuve n'est donc créée, et
+            l'inventaire de tools/deploiement/generer-config-swa.mjs reste juste.
+          -->
+          <fieldset class="methodes">
+            <legend class="etiquette">{{ nomGroupeOnglets }}</legend>
+            @for (volet of bloc.volets; track $index; let rangVolet = $index) {
+              <!--
+                LA RADIO RESTE VISIBLE, ET C'EST LE CANAL NON CHROMATIQUE DE R-8
+                (WCAG 1.4.1 / 1.4.11). En forced-colors: active, fond et couleur
+                sont réécrits et une teinte d'onglet actif disparaîtrait — le
+                dépôt a déjà payé ce mode d'échec exact avec le filet
+                .ligne-annotee d'E2-ST4. Le point d'une radio cochée, lui, est
+                peint par l'agent utilisateur et survit ; la feuille ajoute un
+                second canal, l'ÉPAISSEUR du filet sous l'onglet actif.
+              -->
+              <!--
+                LES DEUX BRANCHES SONT IDENTIQUES À UN MOT PRÈS, ET CETTE DUPLICATION EST
+                LE COÛT ASSUMÉ DU checked LITTÉRAL : aucune forme d'Angular ne pose un
+                attribut STATIQUE sous condition, il faut donc deux input dont un seul le
+                porte. Les deux autres attributs RESTENT des liaisons, et c'est sûr : leur
+                réécriture à l'hydratation est idempotente, elles ne dépendent que des
+                inputs du composant, donc le client recalcule exactement la valeur que le
+                serveur a sérialisée.
+                🔴 LE PRÉDICAT EST « === true », LE MÊME QUE CELUI DE verifierMethodes qui
+                compte les coches. Tester la véracité ici et l'identité là-bas laisserait
+                passer un volet à « defaut: 1 » : la garde compterait UNE coche, le gabarit
+                en rendrait DEUX dans le même name, le navigateur garderait la dernière, et
+                le mauvais volet s'ouvrirait sans qu'un seul gate rougisse.
+              -->
+              @if (volet.defaut === true) {
+                <input
+                  class="onglet"
+                  type="radio"
+                  checked
+                  [attr.name]="nomDuGroupe(rangBloc)"
+                  [attr.id]="idDuVolet(rangBloc, rangVolet)"
+                />
+              } @else {
+                <input
+                  class="onglet"
+                  type="radio"
+                  [attr.name]="nomDuGroupe(rangBloc)"
+                  [attr.id]="idDuVolet(rangBloc, rangVolet)"
+                />
+              }
+              <label class="onglet-nom" [attr.for]="idDuVolet(rangBloc, rangVolet)">{{
+                volet.libelle
+              }}</label>
+            }
+            @for (volet of bloc.volets; track $index; let rangVolet = $index) {
+              <!--
+                LES PANNEAUX SONT DES FRÈRES DES RADIOS, ET C'EST STRUCTUREL : le
+                combinateur « ~ » ne remonte pas. Les envelopper dans un conteneur
+                mettrait les panneaux hors de portée de :checked, et il faudrait
+                alors du JavaScript — ce que ce lot refuse.
+              -->
+              <div class="panneau">
+                <!--
+                  LE LIBELLÉ EST RÉÉCRIT ICI POUR LE PAPIER, où le contrat exige
+                  TOUS les volets « chacun sous son libellé ». À l'écran cette
+                  ligne est retirée du flux ET de l'arbre d'accessibilité par la
+                  feuille : le libellé y est déjà dit par le <label> de l'onglet,
+                  et l'entendre deux fois ferait un doublon au lecteur d'écran.
+                -->
+                <p class="panneau-nom">{{ volet.libelle }}</p>
+                <app-rendu-blocs
+                  [blocs]="volet.blocs"
+                  [quiz]="quiz()"
+                  [sujet]="sujet()"
+                  [simulation]="simulation()"
+                  [decalage]="decalageDuVolet(rangBloc, rangVolet)"
+                  [chemin]="idDuVolet(rangBloc, rangVolet)"
+                />
+              </div>
+            }
+          </fieldset>
+        }
+
         @case ('ancre-quiz') {
           <!--
             E2-ST3 (lot C) : le quiz se rend ICI, à la position que l'auteur a
@@ -915,6 +1109,34 @@ export class RenduBlocs {
    * la récursion du cas `encadre`, qui le calcule elle-même.
    */
   readonly decalage = input<DecalageFigures>(SANS_DECALAGE);
+
+  /**
+   * LE PRÉFIXE D'IDENTIFIANT DE CETTE INSTANCE — ce qui rend uniques les `name` des groupes de
+   * radios d'onglets (conteneur `methodes`, lot 6 de la refonte du 2026-08-31).
+   *
+   * 🔴 POURQUOI PAS LE DÉCALAGE DE FIGURES, QUI ÉTAIT LE PLAN. Le spike du lot 4bis l'a MESURÉ :
+   * le décalage n'est pas unique dans une page. Plusieurs `RenduBlocs` sont montés par récursion —
+   * un par section, un de plus par encadré — et chacun recommence son `@for` à l'index 0 ; deux
+   * encadrés qui ne contiennent aucune figure portent en outre le MÊME décalage. Des groupes de
+   * radios homonymes sont FUSIONNÉS par le navigateur : seul le dernier `checked` survit, et une
+   * radio portant `checked` s'affiche décochée. Un seul jeu d'onglets aurait fonctionné par page,
+   * en silence — aucun gate ne rougit sur un onglet qui ne s'ouvre pas.
+   *
+   * CE QUI EST APPLIQUÉ, ET POURQUOI L'UNICITÉ EST PAR CONSTRUCTION PLUTÔT QUE PAR RAISONNEMENT.
+   * `Lecon` passe l'ANCRE de la section, unique dans la page (`contenu-compile.ts` la dérive et la
+   * dédoublonne) ; la récursion d'un encadré passe `<chemin>_e<rangBloc>` ; un volet d'onglets
+   * passe `<chemin>_m<rangBloc>_v<rangVolet>`. Chaque descente compose donc un préfixe DÉJÀ unique
+   * avec un rang unique dans sa propre liste — le produit ne peut pas collisionner.
+   *
+   * ⚠️ IL NE DÉPEND QUE DES INPUTS, ce qui est la condition pour qu'il soit IDENTIQUE au serveur
+   * et au client : un compteur d'instance ou un `Math.random` ferait diverger le `for` d'un
+   * `<label>` de l'`id` de son input pendant l'hydratation, sur une page prerendue.
+   *
+   * OPTIONNEL ET NEUTRE PAR DÉFAUT, exactement comme `decalage` et pour la même raison : le sens du
+   * défaut en cas d'oubli. Un composant monté SEUL (ses specs, un fragment hors leçon) est le seul
+   * de sa page ; un préfixe fixe y suffit, et le rendu reste juste.
+   */
+  readonly chemin = input<string>(CHEMIN_ISOLE);
 
   /**
    * Valide puis prépare les blocs. Deux choses s'y passent, et une seule est
@@ -1016,6 +1238,7 @@ export class RenduBlocs {
   private readonly tableDesRangs = computed<TableDesRangs>(() => {
     const rangs = new Map<string, number>();
     const decalagesDesEncadres = new Map<number, DecalageFigures>();
+    const decalagesDesVolets = new Map<string, DecalageFigures>();
     cumulerFigures(this.blocsPrepares(), this.decalage(), (bloc, rangBloc, avant) => {
       if (bloc.type === 'code') {
         rangs.set(clefDeRang(rangBloc, PAS_UN_EXEMPLE), avant.blocsDeCode + 1);
@@ -1025,9 +1248,23 @@ export class RenduBlocs {
         });
       } else if (bloc.type === 'encadre') {
         decalagesDesEncadres.set(rangBloc, avant);
+      } else if (bloc.type === 'methodes') {
+        // UN DÉCALAGE PAR VOLET, ET ILS S'ENCHAÎNENT. `cumulerFigures` compte les volets À LA
+        // SUITE, dans l'ordre du document (voir sa branche `methodes` et le pourquoi qui l'y
+        // accompagne) : le décalage du volet n°2 est donc celui du n°1 augmenté des figures du
+        // n°1. On refait ici exactement ce cumul plutôt que de partir du même `avant` pour tous —
+        // sinon deux volets attribueraient le même numéro à deux figures différentes, ce que
+        // l'impression, qui les rend tous, rendrait visible.
+        let cumulDuVolet = avant;
+        for (const [rangVolet, volet] of bloc.volets.entries()) {
+          decalagesDesVolets.set(clefDeVolet(rangBloc, rangVolet), cumulDuVolet);
+          cumulDuVolet = Array.isArray(volet.blocs)
+            ? cumulerFigures(volet.blocs, cumulDuVolet)
+            : cumulDuVolet;
+        }
       }
     });
-    return { rangs, decalagesDesEncadres };
+    return { rangs, decalagesDesEncadres, decalagesDesVolets };
   });
 
   /**
@@ -1047,6 +1284,43 @@ export class RenduBlocs {
       );
     }
     return decalage;
+  }
+
+  /**
+   * Le décalage à passer au volet `rangVolet` du conteneur `methodes` de rang `rangBloc`.
+   *
+   * IL LÈVE, pour la raison exacte de `decalageDeLEncadre` juste au-dessus : un repli muet sur
+   * `SANS_DECALAGE` ferait repartir de 1 les compteurs d'un volet, sans qu'aucun gate ne rougisse.
+   */
+  decalageDuVolet(rangBloc: number, rangVolet: number): DecalageFigures {
+    const decalage = this.tableDesRangs().decalagesDesVolets.get(clefDeVolet(rangBloc, rangVolet));
+    if (decalage === undefined) {
+      throw new Error(
+        `RenduBlocs : aucun décalage pour le volet n°${String(rangVolet + 1)} du bloc ` +
+          `n°${String(rangBloc + 1)}. La table des rangs et le gabarit parcourent le même ` +
+          'tableau — cet écart est un défaut de ce composant.',
+      );
+    }
+    return decalage;
+  }
+
+  /**
+   * Le `name` du groupe de radios d'un conteneur `methodes` — voir l'input `chemin` pour la preuve
+   * d'unicité, qui est le cœur de ce lot. Composé d'INDICES SEULS : jamais du `libelle`, qui est
+   * du texte d'auteur libre (S-011) et n'a donc rien à faire dans un attribut.
+   */
+  nomDuGroupe(rangBloc: number): string {
+    return `${this.chemin()}_m${String(rangBloc)}`;
+  }
+
+  /** L'`id` d'un onglet, et le `for` de son `<label>` — même composition, une seule définition. */
+  idDuVolet(rangBloc: number, rangVolet: number): string {
+    return `${this.nomDuGroupe(rangBloc)}_v${String(rangVolet)}`;
+  }
+
+  /** Le nom accessible, fixe, du groupe d'onglets. Voir `NOM_GROUPE_ONGLETS`. */
+  get nomGroupeOnglets(): string {
+    return NOM_GROUPE_ONGLETS;
   }
 
   /**
@@ -1203,6 +1477,11 @@ export class RenduBlocs {
       return bloc;
     }
 
+    if (bloc.type === 'methodes') {
+      this.verifierMethodes(bloc, rang);
+      return bloc;
+    }
+
     // LE GARDE-FOU QUI NOMME (revue du lot C1). `cumulerFigures` se contente de ne pas descendre
     // dans un encadré sans `blocs` — c'est ici que le défaut se dit, avec le rang du bloc, comme
     // `verifierPortees` le fait pour une comparaison. Sans ces deux moitiés, un artéfact compilé
@@ -1318,6 +1597,116 @@ export class RenduBlocs {
           "L'attribut `{source=\"…\"}` est obligatoire et non vide sur `correction-du-cours` " +
           '(`tools/content-pipeline/valider.mjs`, règle G3) : un ⚠️ qui accuse le cours doit ' +
           'citer sa référence, sinon il salit un enseignant sans preuve.',
+      );
+    }
+  }
+
+  /**
+   * Refuse un conteneur `methodes` malformé, en NOMMANT le bloc et le volet.
+   *
+   * 🔴 CE QU'IL COUVRE, ET POURQUOI IL EXISTE ALORS QUE LE BUILD VALIDE DÉJÀ. Le lot 5 a mis le
+   * conteneur au schéma (`valider.mjs`) et le compilateur applique les bornes. Le seul cas qui
+   * reste — le même que pour les portées, les diagrammes, les variantes d'encadré et les marches à
+   * suivre — est un `lecons/<slug>.json` compilé par une AUTRE version du pipeline : là, le TYPE
+   * ment par construction. Les sept gardes ci-dessous sont exactement celles dont l'absence rendrait
+   * une page FAUSSE au lieu de la casser, et rien de plus :
+   *   1. `volets` non-tableau — le `@for` du gabarit lèverait un `TypeError` ANONYME ;
+   *   2. moins de deux volets — un onglet unique n'est pas une comparaison, et la borne du contrat
+   *      serait franchie sans un mot ;
+   *   3. plus de trois volets — au-delà, la feuille n'a PAS de règle `:checked ~ …` (elle en porte
+   *      trois, nominativement) : un quatrième volet serait rendu INVISIBLE en silence ;
+   *   4. un nombre de `defaut: true` différent de 1 — zéro coche rend l'état « ZÉRO volet à
+   *      l'écran » que le contrat désarme par construction, et donc une page servie où la matière
+   *      a disparu pour un lecteur sans JavaScript ; deux coches sur un même `name` laissent le
+   *      navigateur n'en garder qu'une, arbitrairement ;
+   *   5. un `libelle` vide ou non-chaîne — l'onglet n'aurait aucun nom accessible et serait une
+   *      cible de pointage vide, sans qu'aucun gate ne rougisse ;
+   *   6. deux `libelle` identiques — deux onglets qu'on ne distingue ni à l'œil ni au lecteur
+   *      d'écran (borne explicite du contrat) ;
+   *   7. les `blocs` d'un volet absents ou non-tableau — `cumulerFigures` et `decalageDuVolet`
+   *      retombent proprement sur leur `Array.isArray`, puis `[blocs]="volet.blocs"` livre
+   *      `undefined` à l'enfant, qui lève un `TypeError` ANONYME depuis un composant qui n'est
+   *      PAS le fautif. Même moitié manquante que pour l'encadré, où elle est déjà écrite (voir
+   *      le garde-fou `bloc.type === 'encadre'` de `preparer`), et que le commentaire de
+   *      `cumulerFigures` promettait déjà ici alors qu'elle n'y était pas.
+   * ⚠️ CETTE ÉNUMÉRATION EST CELLE DES GARDES ÉCRITES CI-DESSOUS, et elle se recompte quand on en
+   * ajoute une (L-075) — la 7ᵉ a été ajoutée à la revue du lot 6a, et ce compte avec elle.
+   *
+   * ⚠️ LES GARDES SONT ÉCRITES EN `unknown`, comme celles de `verifierMarche` et pour la même
+   * raison : au moment où ce cas se produit, le type ne protège de rien, et une lecture directe
+   * ferait lever un `TypeError` ANONYME depuis le garde-fou censé nommer la faute (S-009 / L-008).
+   *
+   * CE QU'IL NE FAIT PAS, DÉLIBÉRÉMENT : aucun contrôle de collision d'identifiants. La disjonction
+   * avec l'espace de noms des ancres est STRUCTURELLE — voir `CHEMIN_ISOLE` — et un contrôle à
+   * l'exécution ferait croire à une garantie que le kebab-case donne déjà.
+   */
+  private verifierMethodes(
+    bloc: Extract<BlocContenu, { type: 'methodes' }>,
+    rang: number,
+  ): void {
+    const ouBloc = `bloc n°${String(rang + 1)}`;
+
+    if (!Array.isArray(bloc.volets)) {
+      throw erreurMethodes(ouBloc, '« volets » absent ou non-tableau');
+    }
+
+    const volets: readonly unknown[] = bloc.volets;
+    if (volets.length < 2 || volets.length > 3) {
+      throw erreurMethodes(
+        ouBloc,
+        `${String(volets.length)} volet(s) au lieu de 2 ou 3 (un seul n'est pas une comparaison, ` +
+          'quatre est un sommaire déguisé — et la feuille ne montre que les trois premiers)',
+      );
+    }
+
+    const libelles: string[] = [];
+    let coches = 0;
+
+    for (const [rangVolet, brut] of volets.entries()) {
+      const ou = `${ouBloc}, volet n°${String(rangVolet + 1)}`;
+
+      // `brut?.` et non une lecture directe : un artéfact périmé peut avoir perdu le volet
+      // lui-même, et `undefined.libelle` relèverait le `TypeError` anonyme que ces gardes
+      // suppriment (même raison que le `etape?.` de `verifierMarche`).
+      const volet = brut as { libelle?: unknown; defaut?: unknown; blocs?: unknown } | undefined;
+
+      const libelle: unknown = volet?.libelle;
+      if (typeof libelle !== 'string' || libelle.trim() === '') {
+        throw erreurMethodes(ou, '« libelle » absent ou vide (c’est le texte de l’onglet)');
+      }
+      // 🔴 LES DEUX GARDES COMPARENT LA MÊME CHAÎNE, ET C’EST LE POINT (revue du lot 6).
+      // La vacuité se jugeait sur le libellé ÉBARBÉ, le doublon sur le libellé BRUT : « Cours »
+      // et « Cours » suivi d’une espace passaient donc tous deux, alors que la garde du doublon
+      // existe précisément pour refuser deux onglets qu’on ne distingue NI À L’ŒIL ni au lecteur
+      // d’écran — et une espace finale ne se voit dans aucun des deux. Une garde qui normalise
+      // d’un côté et compare de l’autre laisse passer exactement ce qu’elle refuse.
+      const libelleNet = libelle.trim();
+      if (libelles.includes(libelleNet)) {
+        throw erreurMethodes(ou, `« libelle » en double (« ${libelleNet} »)`);
+      }
+      libelles.push(libelleNet);
+
+      // LE VOLET EST UN CONTENEUR : ses `blocs` traversent l'input `[blocs]` de l'enfant, et un
+      // `undefined` y lèverait un `TypeError` ANONYME depuis `app-rendu-blocs` — donc depuis un
+      // composant qui n'est pas le fautif, sans le rang du bloc ni celui du volet. C'est ici que
+      // le défaut se dit, comme il se dit pour l'encadré (S-009 / L-008).
+      if (!Array.isArray(volet?.blocs)) {
+        throw erreurMethodes(
+          ou,
+          '« blocs » absent ou non-tableau (un volet est un CONTENEUR ; le contrat est ' +
+            '`tools/content-pipeline/types.d.ts`, où `blocs` est requis, un tableau vide compris) ' +
+            '— reconstruire `content:build`',
+        );
+      }
+
+      if (volet?.defaut === true) coches += 1;
+    }
+
+    if (coches !== 1) {
+      throw erreurMethodes(
+        ouBloc,
+        `${String(coches)} volet(s) marqués « defaut » au lieu d’exactement 1 (zéro laisserait la ` +
+          'page servie SANS aucun volet à l’écran pour un lecteur sans JavaScript)',
       );
     }
   }

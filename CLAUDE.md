@@ -80,12 +80,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ✅ **R-1 EST LEVÉ PAR LA MESURE (2026-09-06, lot 4bis)** : l'hydratation ne réécrit **pas** le
 > `checked` d'une radio statique, et une interaction voisine ne réinitialise pas l'onglet. **Les onglets
 > CSS purs de D-C sont confirmés, le repli option 2 est sans objet.**
-> 🔴 **Mais le spike a trouvé plus grave, et c'est le critère d'acceptation du LOT 6 :** le `name` du
-> groupe de radios, que le plan disait de **dériver du décalage de figures**, **n'est pas unique dans une
-> page** — plusieurs `app-rendu-blocs` sont montés par récursion et **chacun recommence son `@for` à
-> l'index 0**. Mesuré : des groupes homonymes sont **fusionnés par le navigateur**, seul le dernier
-> `checked` survit, et une radio portant `checked` s'affiche décochée. **Le lot 6 doit PROUVER l'unicité
-> du `name` sur la page entière**, sinon un seul jeu d'onglets fonctionne par page, en silence.
+> ✅ **LE LOT 6 EST LIVRÉ (PR #50, 2026-09-07) — les onglets sont RENDUS, en CSS pur.** L'unicité du
+> `name` sur la page entière, qui était son critère d'acceptation, est tenue **par construction** (un
+> input `chemin` : ancre de section, puis `_e`/`_m`/`_v` par récursion) et mesurée aux **deux** étages —
+> `rendu-blocs.spec.ts` à l'intérieur d'une instance, `lecon.spec.ts` d'une section à l'autre.
+> 🔴 **CE QUI RESTE OUVERT, ET QUI PART AVEC LE LOT 8 :** aucune leçon n'écrit encore `:::: methodes`,
+> donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
+> **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la
+> passe axe sur une page portant des onglets et la capture en contraste forcé se font à la première leçon
+> qui emploie le conteneur.
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
