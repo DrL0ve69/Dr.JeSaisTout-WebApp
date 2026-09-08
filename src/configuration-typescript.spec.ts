@@ -204,6 +204,60 @@ describe('rigueur du compilateur', () => {
     });
   });
 
+
+  // ---------------------------------------------------------------------------
+  // La plomberie de test partagée est-elle du bon côté de la frontière ? (lot 1b-B)
+  // ---------------------------------------------------------------------------
+  // `src/aides-de-test/` porte la plomberie que DEUX specs partagent — elle appelle `node:fs`.
+  // Elle a été extraite parce que SonarCloud a rougi sur sa duplication, et parce que la règle du
+  // dépôt le demandait : la duplication est le contrat pour ce qui JUGE, jamais pour ce qui
+  // RECENSE (précédent `tools/content-pipeline/sujets-freres.mjs`, lot 1b).
+  //
+  // 🔴 CE QUE CETTE EXTRACTION A DÉPLACÉ, ET QUE CES DEUX ASSERTIONS RATTRAPENT. `tsconfig.app.json`
+  // inclut `src/**/*.ts` en n'excluant QUE `*.spec.ts` : un helper Node posé sous `src/` entre donc
+  // par DÉFAUT dans le programme de l'application, où `"types": []` interdit délibérément les API
+  // Node (un `process.cwd()` dans un composant casse au navigateur — c'est la panne qui a fait
+  // naître la « frontière Node » ci-dessus). L'exclusion est ce qui l'en tient dehors.
+  //
+  // POURQUOI DEUX ASSERTIONS ET NON UNE. Exactement la raison du contrat de contenu : chaque moitié
+  // casse un SEUL programme à la fois. Retirer l'exclusion de `tsconfig.app.json` laisse `npm test`
+  // intégralement vert et ne fait rougir que `ng build`, plus tard, sur un message qui parle de
+  // `cpSync` introuvable sans dire pourquoi ; retirer l'inclusion de `tsconfig.spec.json` laisse
+  // les specs compiler par import transitif, mais fait sortir l'aide du programme DÉCLARÉ — le jour
+  // où plus aucun spec ne l'importe, un défaut de typage y dormirait en silence (L-005).
+  //
+  // ⚠️ La vérification porte sur les `rootNames` RÉELLEMENT RÉSOLUS, jamais sur le texte des
+  // configurations relu par lui-même (L-012).
+  describe('frontière de la plomberie de test partagée', () => {
+    const DOSSIER_AIDES = 'src/aides-de-test';
+
+    /** Les `rootNames` d'un programme, en séparateurs POSIX et relatifs à la racine du dépôt. */
+    function fichiersDuProgramme(programme: string): string[] {
+      const { rootNames } = readConfiguration(join(process.cwd(), programme));
+      const racine = process.cwd().replace(/\\/g, '/');
+      return rootNames
+        .map((chemin) => chemin.replace(/\\/g, '/'))
+        .map((chemin) => (chemin.startsWith(`${racine}/`) ? chemin.slice(racine.length + 1) : chemin));
+    }
+
+    it('n’entre PAS dans le programme de l’application', () => {
+      const intrus = fichiersDuProgramme('tsconfig.app.json').filter((chemin) =>
+        chemin.startsWith(`${DOSSIER_AIDES}/`),
+      );
+      expect(intrus).toEqual([]);
+    });
+
+    it('entre bien dans le programme des tests', () => {
+      const vus = fichiersDuProgramme('tsconfig.spec.json').filter((chemin) =>
+        chemin.startsWith(`${DOSSIER_AIDES}/`),
+      );
+      // ANTI-VACUITÉ : sans ce plancher, l'assertion resterait vraie d'un dossier VIDE — et les
+      // deux moitiés de la pince passeraient sur une plomberie qui n'existe plus.
+      expect(vus.length).toBeGreaterThan(0);
+      expect(vus).toContain(`${DOSSIER_AIDES}/bac-a-sable-inter-cours.ts`);
+    });
+  });
+
   // ---------------------------------------------------------------------------
   // Vérifier la bonne cible — sinon le test garde un fichier que personne ne compile
   // ---------------------------------------------------------------------------

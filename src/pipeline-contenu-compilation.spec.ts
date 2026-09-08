@@ -40,9 +40,15 @@
 // =============================================================================
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  FIXTURE_INTER_COURS,
+  horaireDuFrereMute,
+  preparerArbreInterCours,
+  type MutationInterCours,
+} from './aides-de-test/bac-a-sable-inter-cours';
 
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
 const FIXTURE_TEMOIN = 'tools/content-pipeline/__fixtures__/temoin-minimal';
@@ -2497,13 +2503,6 @@ describe('le conteneur « :::: methodes »', () => {
 // ⚠️ LES MESSAGES SONT COPIÉS DE LA SORTIE RÉELLE (L-089) — apostrophes DROITES comprises.
 // =============================================================================
 describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () => {
-  /** L'arbre COMPLET : la racine compilée ET son sujet frère, sans lequel rien ne se résout. */
-  const FIXTURE_INTER = 'tools/content-pipeline/__fixtures__/inter-cours/cours';
-
-  /** Le titre témoin — la SEULE ligne que les cas de renvoi remplacent. */
-  const TITRE_TEMOIN =
-    '### Le VirtualHost, côté cours de PHP {cours="php" seance="8" diapos="30-42"}';
-
   let bac = '';
 
   beforeAll(() => {
@@ -2515,54 +2514,21 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
   });
 
   /**
-   * Copie l'arbre témoin, applique LA mutation du cas, compile, et rend la sortie d'échec.
-   *
-   * 🔴 LA MUTATION EST VÉRIFIÉE AVANT D'ÊTRE MESURÉE (L-015) : les fins de ligne de ce dépôt sont
-   * mixtes, et un remplacement qui ne mordrait pas laisserait l'arbre VALIDE — le `throw` final
-   * accuserait alors le garde-fou d'un défaut qui serait celui du harnais.
+   * Bâtit l'arbre muté du cas — plomberie PARTAGÉE avec le spec de validation
+   * (`aides-de-test/bac-a-sable-inter-cours.ts`, qui porte la vérification L-015 de la mutation) —
+   * puis rend la sortie d'échec du COMPILATEUR. Ce qui reste ici est ce qui JUGE : la cause
+   * attendue, et l'exigence que la compilation échoue.
    */
-  function echecDeCompilation(nom: string, mutation: { titre?: string; horaire?: string }): string {
-    const arbre = join(bac, nom);
-    cpSync(FIXTURE_INTER, arbre, { recursive: true });
-    if (mutation.titre !== undefined) {
-      const fichier = join(arbre, 'securite-web', '01-temoin', 'lecon.md');
-      const source = readFileSync(fichier, 'utf8');
-      if (!source.includes(TITRE_TEMOIN)) {
-        throw new Error(
-          `« ${nom} » : le titre témoin est introuvable — la fixture a changé de forme`,
-        );
-      }
-      writeFileSync(fichier, source.replace(TITRE_TEMOIN, mutation.titre), 'utf8');
-    }
-    if (mutation.horaire !== undefined) {
-      writeFileSync(join(arbre, 'php', 'horaire.json'), mutation.horaire, 'utf8');
-    }
+  function echecDeCompilation(nom: string, mutation: MutationInterCours): string {
+    const racine = preparerArbreInterCours(bac, nom, mutation);
     try {
-      compiler(join(arbre, 'securite-web'), join(bac, `${nom}.scss`));
+      compiler(racine, join(bac, `${nom}.scss`));
     } catch (erreur) {
       const echec = erreur as { status?: number; stderr?: string };
       expect(echec.status).not.toBe(0);
       return echec.stderr ?? '';
     }
     throw new Error(`« ${nom} » a été COMPILÉ — le garde-fou n’a pas mordu`);
-  }
-
-  /**
-   * Mute le `cours.code` ou le `seances` de l'horaire du frère, en partant du fichier RÉEL.
-   *
-   * ANTI-VACUITÉ : le code témoin est confronté à sa valeur attendue avant d'être remplacé. S'il
-   * cessait d'être conforme, la mutation ne prouverait plus rien — on mesurerait un horaire déjà
-   * refusé pour une autre raison que celle qu'on croit tester.
-   */
-  function horaireMute(muter: (donnees: Record<string, unknown>) => void): string {
-    const brut = readFileSync(join(FIXTURE_INTER, 'php', 'horaire.json'), 'utf8');
-    const donnees = JSON.parse(brut) as Record<string, unknown>;
-    const cours = donnees['cours'] as { code?: string } | undefined;
-    if (cours?.code !== '420-4P2-HU') {
-      throw new Error(`le code témoin a changé : « ${String(cours?.code)} »`);
-    }
-    muter(donnees);
-    return JSON.stringify(donnees, null, 2);
   }
 
   /**
@@ -2648,7 +2614,7 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
     'refuse un horaire de frère SANS « cours.code » — il n’y a rien à afficher',
     () => {
       const sortie = echecDeCompilation('c-horaire-sans-code', {
-        horaire: horaireMute((donnees) => {
+        horaire: horaireDuFrereMute((donnees) => {
           delete (donnees['cours'] as Record<string, unknown>)['code'];
         }),
       });
@@ -2662,7 +2628,7 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
     'refuse un horaire de frère dont « seances » n’est pas un tableau',
     () => {
       const sortie = echecDeCompilation('c-horaire-sans-seances', {
-        horaire: horaireMute((donnees) => {
+        horaire: horaireDuFrereMute((donnees) => {
           donnees['seances'] = {};
         }),
       });
@@ -2687,7 +2653,7 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
     'refuse un « cours.code » de forme inattendue — la grammaire est tenue AU COMPILATEUR (S-026)',
     () => {
       const sortie = echecDeCompilation('c-horaire-code-mal-forme', {
-        horaire: horaireMute((donnees) => {
+        horaire: horaireDuFrereMute((donnees) => {
           (donnees['cours'] as Record<string, unknown>)['code'] = '420-zzz-hu';
         }),
       });
@@ -2710,7 +2676,7 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
     'compile l’arbre témoin NON muté — le renvoi inter-cours valide passe',
     () => {
       const { lecons } = compiler(
-        join(FIXTURE_INTER, 'securite-web'),
+        join(FIXTURE_INTER_COURS, 'securite-web'),
         join(bac, 'temoin-non-mute.scss'),
       );
       expect(lecons).toHaveLength(1);

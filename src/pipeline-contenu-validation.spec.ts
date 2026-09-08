@@ -46,6 +46,12 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  FIXTURE_INTER_COURS,
+  horaireDuFrereMute,
+  preparerArbreInterCours,
+  type MutationInterCours,
+} from './aides-de-test/bac-a-sable-inter-cours';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
@@ -1223,13 +1229,6 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
 // la courbe. Une assertion « normalisée » à la relecture rougirait sur un produit sain (L-035).
 // =============================================================================
 describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR', () => {
-  /** L'arbre COMPLET — la racine validée ET son sujet frère, qui est la moitié utile. */
-  const FIXTURE_INTER = 'tools/content-pipeline/__fixtures__/inter-cours/cours';
-
-  /** Le titre témoin de la racine valide — la SEULE ligne que les cinq premiers cas remplacent. */
-  const TITRE_TEMOIN =
-    '### Le VirtualHost, côté cours de PHP {cours="php" seance="8" diapos="30-42"}';
-
   let bac = '';
 
   beforeAll(() => {
@@ -1241,30 +1240,14 @@ describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR',
   });
 
   /**
-   * Copie l'arbre témoin, applique LA mutation du cas, et rend la sortie du refus.
-   *
-   * 🔴 LA MUTATION EST VÉRIFIÉE AVANT D'ÊTRE MESURÉE (L-015). Les fins de ligne de ce dépôt sont
-   * mixtes ; un remplacement qui ne mordrait pas laisserait l'arbre VALIDE, et le `throw` de la
-   * fin accuserait le garde-fou d'un défaut qui serait celui du harnais. On lève donc sur
-   * l'absence du titre témoin — c'est-à-dire sur la fixture qui aurait changé de forme.
+   * Bâtit l'arbre muté du cas — plomberie PARTAGÉE avec le spec de compilation
+   * (`aides-de-test/bac-a-sable-inter-cours.ts`, qui porte la vérification L-015 de la mutation) —
+   * puis rend la sortie du refus du VALIDATEUR. Ce qui reste ici est ce qui JUGE : la cause
+   * attendue, et l'exigence que le cas soit refusé.
    */
-  function causeDuRenvoi(nom: string, mutation: { titre?: string; horaire?: string }): string {
-    const arbre = join(bac, nom);
-    cpSync(FIXTURE_INTER, arbre, { recursive: true });
-    if (mutation.titre !== undefined) {
-      const fichier = join(arbre, 'securite-web', '01-temoin', 'lecon.md');
-      const source = readFileSync(fichier, 'utf8');
-      if (!source.includes(TITRE_TEMOIN)) {
-        throw new Error(
-          `« ${nom} » : le titre témoin est introuvable — la fixture a changé de forme`,
-        );
-      }
-      writeFileSync(fichier, source.replace(TITRE_TEMOIN, mutation.titre), 'utf8');
-    }
-    if (mutation.horaire !== undefined) {
-      writeFileSync(join(arbre, 'php', 'horaire.json'), mutation.horaire, 'utf8');
-    }
-    const { sortie, code } = lancer(['--racine', join(arbre, 'securite-web')]);
+  function causeDuRenvoi(nom: string, mutation: MutationInterCours): string {
+    const racine = preparerArbreInterCours(bac, nom, mutation);
+    const { sortie, code } = lancer(['--racine', racine]);
     if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n’a pas mordu`);
     return sortie;
   }
@@ -1279,7 +1262,7 @@ describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR',
   const REFUS: readonly {
     nom: string;
     quoi: string;
-    mutation: { titre?: string; horaire?: string };
+    mutation: MutationInterCours;
     cause: string;
   }[] = [
     {
@@ -1376,16 +1359,13 @@ describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR',
   it(
     'refuse un « cours.code » de forme inattendue dans l’horaire du frère (S-026, moitié schéma)',
     () => {
-      const horaire = readFileSync(join(FIXTURE_INTER, 'php', 'horaire.json'), 'utf8');
-      const donnees = JSON.parse(horaire) as { cours: { code: string } };
-      // ANTI-VACUITÉ : si le code témoin cessait d'être conforme, la mutation ne prouverait plus
-      // rien — on mesurerait un horaire déjà refusé pour une autre raison.
-      if (donnees.cours.code !== '420-4P2-HU') {
-        throw new Error(`le code témoin a changé : « ${donnees.cours.code} »`);
-      }
-      donnees.cours.code = '420-zzz-hu';
+      // `horaireDuFrereMute` porte l'ANTI-VACUITÉ : elle confronte le code témoin à sa valeur
+      // attendue avant de le remplacer, faute de quoi on mesurerait un horaire déjà refusé pour
+      // une autre raison que celle qu'on croit tester.
       const sortie = causeDuRenvoi('code-de-cours-mal-forme', {
-        horaire: JSON.stringify(donnees, null, 2),
+        horaire: horaireDuFrereMute((donnees) => {
+          (donnees['cours'] as Record<string, unknown>)['code'] = '420-zzz-hu';
+        }),
       });
       expect(sortie).toContain("dont l'horaire est refusé —");
       // LE MOTIF, pas seulement le champ : c'est lui qui distingue « le code est absent » de « le
@@ -1401,7 +1381,7 @@ describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR',
   it(
     'accepte l’arbre témoin — le renvoi inter-cours valide passe, en code 0',
     () => {
-      const { sortie, code } = lancer(['--racine', join(FIXTURE_INTER, 'securite-web')]);
+      const { sortie, code } = lancer(['--racine', join(FIXTURE_INTER_COURS, 'securite-web')]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/1 leçon\(s\) valides/);
     },

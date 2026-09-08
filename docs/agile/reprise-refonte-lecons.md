@@ -1054,6 +1054,41 @@ donc une part du corpus est peut-être déjà écrite. **Compter avant d'écrire
 Résidu nommé : le contrôle du lien symbolique sur l'`horaire.json` n'a **pas** de contrôle positif
 — en écrire un demande un lien réel, ce que Windows n'accorde pas sans privilège.
 
+🔴 **SONARCLOUD A ROUGI, ET IL AVAIT RAISON — POUR LA RÈGLE QUE CE DÉPÔT AVAIT LUI-MÊME ÉCRITE AU
+LOT 1b.** 6,1 % de lignes dupliquées sur le code neuf (seuil 3 %). Le réflexe aurait été de classer
+ça en faux positif : « deux specs qui mesurent deux copies d'un juge se ressemblent forcément ».
+**C'était faux, et la mesure le dit.** Sur les trois blocs signalés, **deux étaient pré-existants**
+et un seul était de ce lot : **15 lignes**, le harnais de bac à sable — copier l'arbre témoin,
+muter une ligne, vérifier que la mutation a mordu — recopié à l'identique dans les deux specs.
+
+⚠️ **C'est exactement la distinction du lot 1b, appliquée aux specs cette fois : la duplication est
+le contrat pour ce qui JUGE, jamais pour ce qui RECENSE.** Les quinze causes de refus restent
+écrites deux fois, et doivent l'être — c'est leur appariement qui interdit « l'aval refuse, l'amont
+laisse passer ». Mais « bâtir l'arbre » ne juge rien. Si les deux harnais divergeaient, chaque spec
+construirait un arbre légèrement différent et rendrait la **bonne** cause pour l'arbre qu'il a
+construit. Extrait dans `src/aides-de-test/bac-a-sable-inter-cours.ts`, importé par les deux.
+⚠️ **Nuance honnête, écrite pour ne pas être gommée :** contrairement au balayage de production de
+`sujets-freres.mjs`, cette divergence-ci ne serait **pas totalement silencieuse** — chaque spec
+épingle une cause précise et lève si sa mutation ne mord pas. C'est « plus sûr et moins cher », pas
+« la seule option correcte ». Le dire évite qu'on cite ce précédent, plus tard, pour une extraction
+qui n'aurait pas les mêmes raisons.
+
+🔴 **L'EXTRACTION A DÉPLACÉ UNE FRONTIÈRE, ET C'EST LA VRAIE DÉPENSE DE CE CORRECTIF (L-034).**
+`tsconfig.app.json` inclut `src/**/*.ts` en n'excluant **que** `*.spec.ts`, et porte `"types": []`
+pour qu'aucune API Node ne soit atteignable depuis un composant — c'est la panne d'E1 qui a fait
+naître ce réglage. Une aide qui appelle `node:fs`, posée n'importe où sous `src/`, entre donc **par
+défaut** dans le programme de l'**application**. Il n'existait aucun emplacement pour ça : tout
+`.ts` non-spec de `src/` est du code d'application, **mesuré avant d'écrire**. D'où
+`src/aides-de-test/`, **exclu** nominativement de `tsconfig.app.json` et **inclus** nominativement
+dans `tsconfig.spec.json`.
+⚠️ **Les deux moitiés sont tenues par un garde-fou neuf**, sur le modèle exact du contrat de
+contenu : chacune ne casse **qu'un seul programme à la fois**. Retirer l'exclusion laisse `npm
+test` intégralement vert et ne fait rougir que `ng build`, plus tard, sur un message qui parle de
+`cpSync` introuvable sans dire pourquoi ; retirer l'inclusion laisse les specs compiler **par
+import transitif**, mais fait sortir l'aide du programme **déclaré**. Mutation exécutée sur
+l'exclusion : **1 rouge exactement**, le bon test. G-build **inchangé** après l'extraction — 13
+routes, 14 hachages de style / 0 de script.
+
 **Gates à la clôture — tous verts, tous exécutés localement.** G-lint **0** · G-typage-outils **0**
 · G-content **10 leçon(s), 5/5 poids, 0 dépassement**, journal neuf `4/5 sujets frères — 1 sujet(s)
 voisin(s) portant un « horaire.json » : php` (L-005) · `--fixtures` **52/52 cas refusés avec une
@@ -1126,7 +1161,9 @@ poste sont mixtes) :
 | validateur · 6ᵉ branche « horaire refusé » | **2** | les deux cas qui traversent cette branche unique, chacun par sa cause |
 | **compilateur · grammaire `cours.code` (S-026)** | **1** | exactement le test S-026 — la preuve que la revue demandait, désormais rejouable |
 
-Restauration vérifiée après chaque passe : `git diff` **vide** sur les deux outils.
+Restauration vérifiée après chaque passe — les deux outils reviennent à l'octet près à leur état
+d'avant mutation. (Ces trois passes ont précédé la correction des deux commentaires de comptage
+ci-dessus : le `git diff` alors constaté vide l'était donc légitimement.)
 
 ⚠️ **UN DISCRIMINANT QUE LE TEST EXISTANT NE POUVAIT PAS PORTER.** Le refus « sujet inconnu » avait
 déjà un contrôle positif — mais sur une racine **ad hoc sans frère**, où le message sort en
@@ -1144,16 +1181,23 @@ relecture voudra uniformiser.
 
 **Gates à la clôture — tous verts, tous exécutés localement.** G-lint **0** · G-typage-outils **0**
 · G-content **10 leçon(s), 5/5 poids, 0 dépassement** · `--fixtures` **52/52 cas refusés avec une
-cause nommée** (inchangé, voulu) · G-test **1109 passés / 1 sauté / 45 fichiers** (1091 au lot 1b : **+18**, soit 8 tests côté validateur et 10 côté compilateur) · `npm audit --omit=dev` **0**.
-⚠️ **G-axe, G-e2e et G-build ne sont pas relancés localement, et c'est délibéré** — même réserve
-qu'au lot 7 : ce lot ne change **aucune ligne exécutable**, aucune feuille de style, aucun
-contenu. ⚠️ **La formule du lot 7 — « `git diff` est vide sur les deux outils » — ne s'applique PAS
-telle quelle ici, et la recopier aurait été un mensonge** : `valider.mjs` et `compiler-markdown.mjs
-sont modifiés, de **commentaires seulement** (les deux comptes de refus périmés, ci-dessus).
-Vérifié par mesure plutôt qu'affirmé — le diff des deux outils, privé de ses lignes de
-commentaire, est **vide** ; `content:build` et les deux specs de pipeline sont verts après la
-correction. La CI exécute G-axe, G-e2e et G-build ; les citer comme preuve d'un lot qui ne rend
-aucun pixel leur prêterait une portée qu'ils n'ont pas.
+cause nommée** (inchangé, voulu) · G-test **1111 passés / 1 sauté / 45 fichiers** (1091 au lot 1b : **+20** — 18 contrôles
+positifs de refus, plus les 2 gardes de la frontière ouverte par l'extraction) ·
+`npm audit --omit=dev` **0**.
+⚠️ **G-axe et G-e2e ne sont pas relancés localement, et c'est délibéré** — même réserve qu'au
+lot 7 : ce lot ne rend **aucun pixel**, ne touche aucune feuille de style et aucun contenu. La CI
+les exécute ; les citer comme preuve d'un lot qui n'affiche rien leur prêterait une portée qu'ils
+n'ont pas.
+
+⚠️ **DEUX FORMULES DU LOT 7 NE S'APPLIQUENT PAS ICI, ET LES RECOPIER AURAIT ÉTÉ UN MENSONGE.**
+**(a)** « `git diff` est vide sur les deux outils » : `valider.mjs` et `compiler-markdown.mjs` SONT
+modifiés — de **commentaires seulement** (les deux comptes de refus périmés, ci-dessus). Vérifié
+par mesure plutôt qu'affirmé : leur diff, privé de ses lignes de commentaire, est **vide**.
+**(b)** « aucune ligne exécutable » : c'était vrai avant le correctif SonarCloud, ça ne l'est
+plus. L'extraction ajoute `src/aides-de-test/bac-a-sable-inter-cours.ts` et modifie **deux
+tsconfig**. C'est précisément pourquoi **G-build A ÉTÉ relancé** — et il est **inchangé** : 13
+routes prerendues, 14 hachages de style / 0 de script. Un lot qui touche au périmètre d'un
+programme TypeScript ne peut pas se réclamer de la réserve « aucun pixel rendu ».
 
 ⚠️ **G-TEST COMPLET N'A PAS PU TOURNER D'UN SEUL TENANT SUR CE POSTE — mesuré, pas supposé.** Deux
 tentatives ont été **tuées pour mémoire** (8 Go de RAM, ~2 Go libres, un navigateur en occupant
