@@ -44,9 +44,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  bacASableInterCours,
   FIXTURE_INTER_COURS,
   horaireDuFrereMute,
+  ISSUES_DU_BLOC_VIDE,
   preparerArbreInterCours,
+  REFUS_DU_MARQUEUR_HORS_COURS,
+  TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
 
@@ -2703,23 +2707,15 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
 // ⚠️ AUCUN DOSSIER DE FIXTURE : mutations d'UNE ligne de titre par la plomberie partagée.
 // =============================================================================
 describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côté COMPILATEUR', () => {
-  let bac = '';
-
-  beforeAll(() => {
-    bac = mkdtempSync(join(tmpdir(), 'drjst-hors-cours-c-'));
-  });
-
-  afterAll(() => {
-    rmSync(bac, { recursive: true, force: true });
-  });
-
-  const TITRE = '### Le VirtualHost, côté cours de PHP';
+  const bac = bacASableInterCours('hors-cours-c');
+  beforeAll(bac.ouvrir);
+  afterAll(bac.fermer);
 
   it('pose « horsCours: true » au contrat compilé, SANS renvoi à côté', () => {
-    const racine = preparerArbreInterCours(bac, 'c-hors-cours-seul', {
-      titre: `${TITRE} {hors-cours}`,
+    const racine = preparerArbreInterCours(bac.chemin(), 'c-hors-cours-seul', {
+      titre: `${TITRE_NU_INTER_COURS} {hors-cours}`,
     });
-    const { lecons } = compiler(racine, join(bac, 'hors-cours.scss'));
+    const { lecons } = compiler(racine, join(bac.chemin(), 'hors-cours.scss'));
     const premiere = lecons[0];
     if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
     const section = premiere.sections.find((s) => s.titre === 'Le VirtualHost, côté cours de PHP');
@@ -2739,10 +2735,10 @@ describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côt�
   }, DELAI);
 
   it('laisse le champ ABSENT sur les sections qui ne déclarent rien — absent ≠ false', () => {
-    const racine = preparerArbreInterCours(bac, 'c-champ-absent', {
-      titre: `${TITRE} {hors-cours}`,
+    const racine = preparerArbreInterCours(bac.chemin(), 'c-champ-absent', {
+      titre: `${TITRE_NU_INTER_COURS} {hors-cours}`,
     });
-    const { lecons } = compiler(racine, join(bac, 'absent.scss'));
+    const { lecons } = compiler(racine, join(bac.chemin(), 'absent.scss'));
     const premiere = lecons[0];
     if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
     const autres = premiere.sections.filter((s) => s.titre !== 'Le VirtualHost, côté cours de PHP');
@@ -2751,41 +2747,23 @@ describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côt�
   }, DELAI);
 
   /**
-   * LES TROIS REFUS, en table — chacun sur SA cause propre. Un compilateur qui refuserait TOUT
-   * bloc d'attributs passerait un test qui n'épingle que l'échec ; ce qui discrimine est le
-   * fragment, et le chemin passant ci-dessus interdit cette lecture-là.
+   * LES TROIS REFUS VIENNENT DE LA PLOMBERIE PARTAGÉE — la MÊME table que le spec du validateur.
+   * Ce qui doit rester écrit deux fois, ce sont les branches des deux juges, pas l’attente : le
+   * contrat veut la même phrase des deux côtés, puisque l’auteur ne sait pas lequel des deux
+   * outils l’a repoussé. Chaque moitié lance TOUJOURS son propre juge sur cette table.
+   *
+   * ANTI-VACUITÉ : un compilateur qui refuserait TOUT bloc d’attributs passerait une table qui
+   * n’épingle que l’échec. C’est le chemin passant ci-dessus qui interdit cette lecture, et le
+   * FRAGMENT propre à chaque cause qui distingue les trois refus les uns des autres.
    */
-  const REFUS: readonly { nom: string; quoi: string; titre: string; cause: string }[] = [
-    {
-      nom: 'c-marqueur-et-renvoi',
-      quoi: 'le marqueur ET un renvoi — en NOMMANT la clef trouvée à côté',
-      titre: `${TITRE} {hors-cours diapos="30-42"}`,
-      cause: "porte le marqueur « hors-cours » ET l'attribut « diapos »",
-    },
-    {
-      // ⚠️ DISCRIMINANT : « attribut « hors-cours » inconnu » enverrait l'auteur corriger une
-      // faute de frappe dans un nom qui est au contrat — c'est sa FORME qui est fautive.
-      nom: 'c-marqueur-avec-valeur',
-      quoi: 'le marqueur écrit avec une valeur, sous la grammaire des MARQUEURS',
-      titre: `${TITRE} {hors-cours="oui"}`,
-      cause: '« hors-cours » est un marqueur : il s\u2019écrit seul, sans valeur ni guillemets',
-    },
-    {
-      nom: 'c-ni-l-un-ni-l-autre',
-      quoi: 'un bloc vide — en nommant LES DEUX issues',
-      titre: `${TITRE} {}`,
-      cause: 'ne renvoie à rien',
-    },
-  ];
-
   /**
    * Bâtit l'arbre muté du cas — plomberie PARTAGÉE, qui porte la vérification L-015 de la
    * mutation — puis rend la sortie d'échec du COMPILATEUR.
    */
   function echecDuTitre(nom: string, titre: string): string {
-    const racine = preparerArbreInterCours(bac, nom, { titre });
+    const racine = preparerArbreInterCours(bac.chemin(), nom, { titre });
     try {
-      compiler(racine, join(bac, `${nom}.scss`));
+      compiler(racine, join(bac.chemin(), `${nom}.scss`));
     } catch (erreur) {
       const echec = erreur as { status?: number; stderr?: string };
       expect(echec.status).not.toBe(0);
@@ -2794,7 +2772,7 @@ describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côt�
     throw new Error(`« ${nom} » a été COMPILÉ — le garde-fou n’a pas mordu`);
   }
 
-  it.each(REFUS)(
+  it.each(REFUS_DU_MARQUEUR_HORS_COURS)(
     'refuse $quoi',
     ({ nom, titre, cause }) => {
       expect(echecDuTitre(nom, titre)).toContain(cause);
@@ -2803,8 +2781,7 @@ describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côt�
   );
 
   it('nomme LES DEUX issues quand le bloc ne renvoie à rien', () => {
-    const stderr = echecDuTitre('c-deux-issues', `${TITRE} {}`);
-    expect(stderr).toContain('citer des diapositives avec « diapos="12-18" »');
-    expect(stderr).toContain('ou déclarer le marqueur « hors-cours »');
+    const stderr = echecDuTitre('c-deux-issues', `${TITRE_NU_INTER_COURS} {}`);
+    for (const issue of ISSUES_DU_BLOC_VIDE) expect(stderr).toContain(issue);
   }, DELAI);
 });

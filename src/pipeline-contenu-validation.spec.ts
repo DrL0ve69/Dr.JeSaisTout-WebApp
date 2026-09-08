@@ -47,9 +47,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  bacASableInterCours,
   FIXTURE_INTER_COURS,
   horaireDuFrereMute,
+  ISSUES_DU_BLOC_VIDE,
   preparerArbreInterCours,
+  REFUS_DU_MARQUEUR_HORS_COURS,
+  TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
 
@@ -1426,55 +1430,25 @@ describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR',
 // vérification L-015 de la mutation). Le compte en dur de `--fixtures` reste 52.
 // =============================================================================
 describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côté VALIDATEUR', () => {
-  let bac = '';
-
-  beforeAll(() => {
-    bac = mkdtempSync(join(tmpdir(), 'drjst-hors-cours-v-'));
-  });
-
-  afterAll(() => {
-    rmSync(bac, { recursive: true, force: true });
-  });
-
-  const TITRE = '### Le VirtualHost, côté cours de PHP';
+  const bac = bacASableInterCours('hors-cours-v');
+  beforeAll(bac.ouvrir);
+  afterAll(bac.fermer);
 
   it('ACCEPTE un titre qui ne porte que le marqueur — sans lui, les trois refus ne prouveraient rien', () => {
-    const racine = preparerArbreInterCours(bac, 'v-hors-cours-seul', {
-      titre: `${TITRE} {hors-cours}`,
+    const racine = preparerArbreInterCours(bac.chemin(), 'v-hors-cours-seul', {
+      titre: `${TITRE_NU_INTER_COURS} {hors-cours}`,
     });
     const { sortie, code } = lancer(['--racine', racine]);
     expect(code, sortie).toBe(0);
     expect(sortie).toMatch(/1 leçon\(s\) valides/);
   }, DELAI);
 
-  const REFUS: readonly { nom: string; quoi: string; titre: string; cause: string }[] = [
-    {
-      // ⚠️ CE QUI DISCRIMINE EST LE NOM DE LA CLEF VOISINE. « les deux se contredisent » sans nom
-      // obligerait l'auteur d'un titre qui porte trois attributs à relire toute la ligne.
-      nom: 'v-marqueur-et-renvoi',
-      quoi: 'le marqueur ET un renvoi — en NOMMANT la clef trouvée à côté',
-      titre: `${TITRE} {hors-cours diapos="30-42"}`,
-      cause: "porte le marqueur « hors-cours » ET l'attribut « diapos »",
-    },
-    {
-      // ⚠️ DISCRIMINANT : « attribut « hors-cours » inconnu » enverrait l'auteur corriger une
-      // faute de frappe dans un nom qui est, lui, parfaitement au contrat — c'est sa FORME qui
-      // est fautive, et le message doit nommer la grammaire des MARQUEURS.
-      nom: 'v-marqueur-avec-valeur',
-      quoi: 'le marqueur écrit avec une valeur, sous la grammaire des MARQUEURS',
-      titre: `${TITRE} {hors-cours="oui"}`,
-      cause: '« hors-cours » est un marqueur : il s\u2019écrit seul, sans valeur ni guillemets',
-    },
-    {
-      nom: 'v-ni-l-un-ni-l-autre',
-      quoi: 'un bloc vide — en nommant LES DEUX issues, pas seulement « diapos »',
-      titre: `${TITRE} {}`,
-      cause: 'ne renvoie à rien',
-    },
-  ];
+  // LES TROIS REFUS VIENNENT DE LA PLOMBERIE PARTAGÉE — la MÊME table que le spec du compilateur.
+  // Le contrat veut la même phrase des deux côtés (l’auteur ne sait pas lequel des deux outils
+  // l’a repoussé) ; ce qui reste écrit deux fois, ce sont les branches des deux juges.
 
-  it.each(REFUS)('refuse $quoi', ({ nom, titre, cause }) => {
-    const racine = preparerArbreInterCours(bac, nom, { titre });
+  it.each(REFUS_DU_MARQUEUR_HORS_COURS)('refuse $quoi', ({ nom, titre, cause }) => {
+    const racine = preparerArbreInterCours(bac.chemin(), nom, { titre });
     const { sortie, code } = lancer(['--racine', racine]);
     if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n’a pas mordu`);
     expect(sortie).toContain(cause);
@@ -1484,9 +1458,8 @@ describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côt�
   // issues. N'en nommer qu'une enverrait l'auteur inventer un renvoi là où le cours n'a rien —
   // exactement ce que le marqueur existe pour éviter.
   it('nomme LES DEUX issues quand le bloc ne renvoie à rien', () => {
-    const racine = preparerArbreInterCours(bac, 'v-deux-issues', { titre: `${TITRE} {}` });
+    const racine = preparerArbreInterCours(bac.chemin(), 'v-deux-issues', { titre: `${TITRE_NU_INTER_COURS} {}` });
     const { sortie } = lancer(['--racine', racine]);
-    expect(sortie).toContain('citer des diapositives avec « diapos="12-18" »');
-    expect(sortie).toContain('ou déclarer le marqueur « hors-cours »');
+    for (const issue of ISSUES_DU_BLOC_VIDE) expect(sortie).toContain(issue);
   }, DELAI);
 });
