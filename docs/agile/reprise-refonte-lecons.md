@@ -246,7 +246,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → ~~**`4bis`**~~ **✅**
-(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → **`1b`** (résolution inter-cours) → `8`
+(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → ~~**`1b`**~~ **✅ livré** (PR #52, 2026-09-08 — résolution inter-cours) → **`1b-B`** (les contrôles positifs des cinq refus) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
@@ -987,7 +987,87 @@ un fragment plus court que le message). **Ce lot ne prétend donc pas avoir ferm
 il ferme la surface `{voir=…}`. Le balayage général reste à faire, et il demande de comparer des
 **assertions** à des **branches**, pas des chaînes à des chaînes.
 
-**Le geste suivant : le lot `1b`** (résolution inter-cours de `cours="…"`), puis le **lot 8** — le
-module 11 repris, en deux demi-lots. ⚠️ Le lot 8 reste porteur de ce que le lot 6 lui a légué et
-qui n'est **pas** clos : le spec e2e des trois états d'un onglet, la passe G-axe sur une page
-portant des onglets, et la capture manuelle en contraste forcé.
+---
+
+## CLÔTURE — LOT 1b : la résolution inter-cours de `cours="…"` (2026-09-08)
+
+✅ **LE REFUS PROVISOIRE DU LOT 1a EST LEVÉ, DES DEUX CÔTÉS DANS LE MÊME COMMIT.** `cours="php"`
+nomme un **dossier de sujet frère** ; le compilateur lit le `cours.code` de son `horaire.json` et
+pose **ce code** au contrat compilé, d'où il part au rendu. PR **#52**, trois commits.
+Contenu neuf : `content/cours/php/horaire.json` — les 13 séances du **420-4P2-HU**, relevées sur le
+site de l'enseignant (deux lectures indépendantes concordantes ; pondérations 10+20+10+60 = 100).
+Aucune `portee` n'est publiée par l'enseignant, donc **aucune n'est inventée**. Racine sans leçon
+jusqu'à E7 — mesuré : son horaire est **tout de même validé par le schéma**.
+
+🔵 **QUATRE DÉCISIONS PRISES EN L'ABSENCE DU PROPRIÉTAIRE, écrites au contrat AVANT le code**
+([`docs/contenu/ancrage-au-cours.md`](../contenu/ancrage-au-cours.md) §3bis et §4). Elles sont
+réversibles ; ce qui suit est le raisonnement, pour qu'il n'ait pas à le redériver.
+**(1)** La valeur de `cours` est un **nom de dossier**, jamais un code de cours — donc le membre
+rendu **cesse d'être du texte d'auteur**, ce qui ferme **S-026** par construction et non par une
+regex. **(2)** Le registre est indexé par **nom de dossier** et non par le champ `sujet` déclaré :
+**mesuré**, les racines de fixtures déclarent presque toutes `securite-web`, et une clef sur ce
+champ les mettrait toutes en collision — chaque exécution de fixture rougirait sur une faute qui
+n'est pas la sienne. **(3)** `seance` devient **obligatoire** dès que `cours` est écrit : sans
+elle, le renvoi retomberait sur la séance du frontmatter, qui appartient à l'**autre** cours.
+**(4)** Un dossier frère sans `horaire.json` n'est pas un sujet ; le refus **énumère les sujets
+connus**, comme `voir-module-inconnu` au lot 7.
+
+🔴 **CE QUE LA REVUE DE SÉCURITÉ A TROUVÉ, ET QUI VAUT AU-DELÀ DE CE LOT — « fermée pour le
+PIPELINE » n'est pas « fermée pour la FONCTION ».** La grammaire du code de cours vivait dans
+`schemas/horaire.schema.json`, donc dans `valider.mjs`, qui tourne **avant** le compilateur sur le
+chemin de `build.mjs`. S-026 exigeait pourtant une grammaire **au compilateur** — et c'est lui,
+seul, qui pose `code` au contrat compilé. La stratification du pipeline **fermait la dette là où
+on la regardait**, pas là où elle vit. ⚠️ Contrôle positif exécuté, et c'est la moitié qui compte :
+le garde débranché, `420-zzz-hu` **traverse jusqu'au contrat compilé** — la mesure dit donc que
+c'est ce garde-là qui attrape, et pas un voisin. Compilateur restauré, `sha256` identique.
+Second constat, corrigé dans le même commit : `Dirent.isDirectory()` fermait la porte du
+**dossier**, mais `readFileSync` suivait encore un lien symbolique sur l'`horaire.json` **lui-même**
+— `lstatSync().isFile()` (et non `statSync`, qui suit le lien) la ferme. **Un contrôle
+d'EXISTENCE ne dit jamais rien du TYPE de ce qui existe** (S-021, deuxième forme).
+
+🔴 **SONARCLOUD A ROUGI, ET IL AVAIT RAISON — 22,1 % de lignes dupliquées sur le code neuf (seuil
+3 %).** Le réflexe du dépôt est de classer une duplication compilateur/validateur en faux positif :
+la duplication **est** le contrat, appariée par les specs. **Ce cas-ci est l'exception, et la
+distinction mérite d'être retenue : la duplication est le contrat pour ce qui JUGE, jamais pour ce
+qui RECENSE.** Une divergence sur « quels frères existent » serait du pire genre — chaque copie
+rendrait la **bonne** cause pour la population qu'elle a balayée, et aucun appariement de messages
+ne pourrait la voir. Une seule source y est donc **plus forte** que deux. Le balayage est extrait
+dans `tools/content-pipeline/sujets-freres.mjs`, importé par les deux (précédent
+`compter-lignes.mjs`, même dossier) ; les **cinq refus**, eux, restent dupliqués.
+
+⚠️ **DEUX DÉFAUTS TROUVÉS EN RELISANT LE DIFF, ET LE PREMIER EST UNE L-074.** Le commentaire du
+spec affirmait que `420-4P2-HU` « n'apparaît **nulle part** dans le `lecon.md` » — c'était **faux**,
+la prose de la fixture l'écrivait. Corrigé **en retirant le littéral de la fixture**, et non en
+amendant le commentaire : la propriété devient vraie **par mesure** au lieu d'être affirmée. Second
+défaut : un message de refus mélangeait apostrophe **courbe et droite dans la même phrase** —
+exactement le piège payé au lot 7.
+
+⚠️ **LE LOT 1b-B RESTE OUVERT, ET C'EST DÉLIBÉRÉ** (§9 du budget de contexte : un corpus de
+fixtures est un **second livrable**). Les **cinq refus** de `causeDuRenvoiInterCours` — forme du
+nom, superflu, sujet inconnu, séance absente, séance inexistante dans l'horaire cité — n'ont
+**aucun contrôle positif** dans `invalides/` ni en bac à sable : seul le chemin **passant** est
+mesuré. 🔴 **C'est exactement la population trouée de S-010/L-019**, et le lot 7 a montré qu'un
+juge peut porter sept refus dont un seul est exercé. ⚠️ **L-094 s'applique : ce lot différé se
+re-mesurera contre l'état du dépôt le jour où il s'ouvrira**, pas contre cette ligne — l'agent du
+lot 1b-A a déjà **retargeté** un test existant du refus 1a vers le refus « pas un sujet frère »,
+donc une part du corpus est peut-être déjà écrite. **Compter avant d'écrire le brief.**
+Résidu nommé : le contrôle du lien symbolique sur l'`horaire.json` n'a **pas** de contrôle positif
+— en écrire un demande un lien réel, ce que Windows n'accorde pas sans privilège.
+
+**Gates à la clôture — tous verts, tous exécutés localement.** G-lint **0** · G-typage-outils **0**
+· G-content **10 leçon(s), 5/5 poids, 0 dépassement**, journal neuf `4/5 sujets frères — 1 sujet(s)
+voisin(s) portant un « horaire.json » : php` (L-005) · `--fixtures` **52/52 cas refusés avec une
+cause nommée** (inchangé — aucun cas neuf, voulu) · G-test **1091 passés / 1 sauté / 45 fichiers**
+(1090 au lot 7 : **+1**, l'assertion du chemin passant) · G-build **13 routes · 14 hachages de style
+/ 0 de script — inchangés** · G-axe **13 fichiers / 1118 vérifications / 0 violation** · G-e2e
+**50 passés / 1 sauté** · `npm audit --omit=dev` **0**.
+⚠️ G-axe et G-e2e sont verts **par absence de données** : aucune leçon de `content/` ne porte encore
+`{cours=…}`, donc leur vert prouve la **non-régression**, jamais le rendu — même réserve qu'aux
+lots 6 et 7, écrite pour la même raison.
+
+---
+
+**Le geste suivant : le lot `1b-B`** (les contrôles positifs des cinq refus inter-cours), puis le
+**lot 8** — le module 11 repris, en deux demi-lots. ⚠️ Le lot 8 reste porteur de ce que le lot 6 lui
+a légué et qui n'est **pas** clos : le spec e2e des trois états d'un onglet, la passe G-axe sur une
+page portant des onglets, et la capture manuelle en contraste forcé.

@@ -2745,5 +2745,70 @@ qu'un humain doit relire pour rien.
 `src/pipeline-contenu-validation.spec.ts` (~l. 841, bac à sable) ; PR #51, 2026-09-07 ; [[L-047]].
 
 ---
+## L-095 · La duplication est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE — et la divergence d'un recensement est INVISIBLE à tout appariement de messages
+
+**Symptôme.** Lot 1b « leçons actionnables » (2026-09-08, PR #52). `cours="php"` se résout contre un
+**registre des sujets frères** : un balayage de dossiers, puis un jugement en cinq refus. Les deux
+moitiés ont d'abord été écrites **deux fois**, une par copie (`compiler-markdown.mjs` et
+`valider.mjs`), par application mécanique de la règle du dépôt — « chaque règle vit en deux copies,
+appariées par les specs ». SonarCloud a rougi : **22,1 % de lignes dupliquées sur le code neuf**,
+seuil 3 %. Le réflexe acquis ici est de classer une duplication compilateur/validateur en **faux
+positif** ([[L-019]], et le précédent de la PR #1 cité par `CLAUDE.md`). **Ce cas-ci est
+l'exception**, et la distinction vaut d'être gardée.
+
+**Pourquoi la duplication existe, et où elle cesse d'être justifiée.** Deux copies d'un **refus**
+sont une garantie : les specs les apparient, et une divergence rougit — c'est la parade au motif
+« l'aval refuse, l'amont laisse passer » ([[S-010]], sixième forme au lot 7). Mais **un recensement
+ne juge rien.** Une divergence sur « quels frères existent » ne peut faire rougir **aucun**
+appariement de messages, parce que chaque copie rendrait la **bonne** cause pour la population
+qu'elle a balayée : le validateur accepterait `cours="php"` que le compilateur ne trouverait pas,
+et les deux messages seraient justes. Rien n'est en `skip`, rien ne ment — c'est la **population**
+qui diverge sous l'instrument, exactement le mode d'échec que [[S-010]] décrit et qu'un
+appariement de chaînes ne voit pas.
+
+**Règle.** Avant de dupliquer, demander : **est-ce que ce code JUGE, ou est-ce qu'il RECENSE ?** Ce
+qui juge se duplique et s'apparie. Ce qui recense — balayer un dossier, indexer, ordonner — se
+**partage**, dans un module importé par les deux copies : une seule source y est **plus forte** que
+deux, pas plus faible. Précédent du même dossier, à citer plutôt qu'à redécouvrir :
+`tools/content-pipeline/compter-lignes.mjs`. ⚠️ Et le corollaire d'outillage : un gate de
+duplication qui rougit sur ce dépôt n'est **pas** un faux positif par défaut — la question à poser
+est « quelle moitié du bloc dupliqué juge, et quelle moitié recense ? ».
+
+**Réfs.** `tools/content-pipeline/sujets-freres.mjs` (le module extrait, son en-tête porte le
+raisonnement) ; `compiler-markdown.mjs` / `valider.mjs` (`construireRegistreDesSujetsFreres`, ce
+qui reste propre à chaque copie) ; PR #52, 2026-09-08 ; [[S-010]], [[L-019]].
+
+---
+
+## L-096 · Le compte de tokens qu'un sous-agent s'attribue dans son rapport n'est PAS une mesure — seul celui du harnais l'est
+
+**Symptôme.** Même lot (2026-09-08). L'implémenteur a clos son rapport sur « ~46 appels d'outils,
+clôture ≈ **118k** tokens » — sous la cible de 120k, donc rien à signaler. Le harnais, lui, a
+rapporté **221 664 tokens et 76 appels d'outils** : un facteur **1,9** sur les tokens, et **65 %**
+d'appels d'outils en plus. Les deux chiffres du rapport étaient faux dans le même sens, et le
+rapport était par ailleurs exact sur tout ce qui était vérifiable (gates, fichiers, mesures).
+
+**Pourquoi c'est grave ici en particulier.** Toute la discipline de
+`.claude/rules/agent-context-budget.md` se lit **dans les rapports de clôture** — « vérifie le
+`subagent_tokens` rapporté », « un dépassement se motive dans le rapport ». Si le chiffre vient de
+l'agent lui-même, un lot à 220k se déclare vert à 118k et **le défaut de brief n'est jamais
+constaté**. Un agent n'a aucun accès fiable à son propre compteur : il **estime**, et il estime
+bas — c'est une introspection, pas une mesure, exactement comme un commentaire qui affirme une
+cause sans l'avoir mesurée par retrait ([[L-074]]).
+
+**Règle.** Ne jamais lire le compte de tokens **dans le corps** d'un rapport d'agent : lire celui
+que le harnais rapporte à la fin de l'appel, et c'est **lui seul** qui décide s'il y a dépassement.
+Corollaire pour le brief : demander à un agent « tes tokens de clôture » est inoffensif mais ne
+prouve rien — ne pas fonder sur cette ligne la décision de redécouper ou non le lot suivant.
+⚠️ Et le constat de fond, à ne pas oublier au prochain découpage : ce lot **a bien dépassé**, à
+221k pour ~560 lignes écrites sur 6 fichiers plus une fixture — la moitié *écriture* avait de
+nouveau été sous-estimée (§9 du budget de contexte, [[L-047]]).
+
+**Réfs.** PR #52, 2026-09-08 (`subagent_tokens` 221 664 contre « ≈118k » annoncé) ;
+`.claude/rules/agent-context-budget.md` §3 et §9 ; [[L-047]], [[L-074]].
+
+---
+
+
 
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
