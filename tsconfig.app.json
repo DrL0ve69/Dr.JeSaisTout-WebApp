@@ -34,5 +34,12 @@
   // épinglé par `src/configuration-typescript.spec.ts` : les retirer d'ici seulement
   // laisserait `npm test` vert et casserait `ng build` un lot plus tard.
   "include": ["src/**/*.ts", "tools/content-pipeline/types.d.ts"],
-  "exclude": ["src/**/*.spec.ts"]
+  // `src/aides-de-test/**` EST EXCLU POUR LA MÊME RAISON QUE `"types": []` CI-DESSUS (lot 1b-B).
+  // Ce dossier porte la plomberie partagée des specs — elle appelle `node:fs`. Sans cette ligne,
+  // elle entrerait dans le programme de l'APPLICATION, où `@types/node` est délibérément absent :
+  // `ng build` casserait, et surtout la frontière que ce fichier défend deviendrait franchissable
+  // par simple voisinage de dossier. L'exclusion et l'inclusion symétrique dans
+  // `tsconfig.spec.json` sont tenues ENSEMBLE par `src/configuration-typescript.spec.ts` — retirer
+  // celle-ci seule laisserait `npm test` intégralement vert (L-005).
+  "exclude": ["src/**/*.spec.ts", "src/aides-de-test/**"]
 }

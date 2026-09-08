@@ -3780,7 +3780,16 @@ function lireHoraireDUnSujetFrere(nom, frere, ctx) {
 }
 
 /**
- * Résout un renvoi qui cite un AUTRE cours : quatre refus, puis le code du cours cité.
+ * Résout un renvoi qui cite un AUTRE cours : CINQ refus, puis le code du cours cité.
+ *
+ * ⚠️ CE COMPTE DISAIT « QUATRE » JUSQU'AU LOT 1b-B, ET IL AVAIT TORT. Le juge en porte cinq, et
+ * `lireHoraireDUnSujetFrere`, qu'il appelle, en porte QUATRE de plus (JSON illisible, `cours.code`
+ * absent, `cours.code` de forme inattendue, `seances` qui n'est pas un tableau) — neuf en tout pour
+ * ce chemin. Le compte périmé a servi à dimensionner le lot de ses contrôles positifs, qui a donc
+ * été planifié sur une population fausse : on ne recense pas des branches en énumérant les façons
+ * d'écrire un attribut, mais en lisant le juge. Les neuf sont désormais tenues une par une par
+ * `src/pipeline-contenu-compilation.spec.ts`, et une mutation mesure que le garde de `cours.code`
+ * discrimine (S-026).
  *
  * L'ordre des refus est celui de `causeDuRenvoiInterCours` dans `valider.mjs` — les deux copies
  * voient la même chaîne et doivent rendre des causes DISTINCTES mais CONCORDANTES : ici un échec

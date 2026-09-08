@@ -1564,10 +1564,18 @@ const LONGUEUR_MAX_NOM_DE_SUJET = 40;
 /**
  * --- 4c bis. Le renvoi qui cite un AUTRE COURS (§3bis, lot 1b) ---
  *
- * Cinq refus, dans cet ordre, et l'ordre EST le contrat : le mode `--fixtures` ne compare que la
+ * SIX refus, dans cet ordre, et l'ordre EST le contrat : le mode `--fixtures` ne compare que la
  * PREMIÈRE anomalie de chaque cas, si bien qu'un cas fautif sur deux points doit sortir par sa
- * faute la plus locale. Forme du nom → superflu → sujet inconnu → séance absente → séance
- * inexistante dans l'horaire cité.
+ * faute la plus locale. Forme du nom → superflu → sujet inconnu → séance absente → horaire du
+ * frère refusé → séance inexistante dans l'horaire cité.
+ *
+ * ⚠️ CE COMPTE DISAIT « CINQ » JUSQU'AU LOT 1b-B, ET IL AVAIT TORT — le refus « horaire du frère
+ * refusé » manquait à la fois au nombre et à l'énumération. Ce n'est pas anodin : c'est ce
+ * commentaire qui a servi à dimensionner le lot de ses contrôles positifs, lequel a donc été
+ * planifié sur une population fausse. Un compte écrit une fois et jamais remesuré devient un
+ * mensonge silencieux. Les six branches sont désormais tenues une par une par
+ * `src/pipeline-contenu-validation.spec.ts`, et une mutation par branche mesure qu'elles
+ * discriminent.
  *
  * @param {string} libelle
  * @param {string} coursBrut la valeur écrite par l'auteur — un NOM DE DOSSIER, jamais un code

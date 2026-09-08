@@ -46,6 +46,12 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  FIXTURE_INTER_COURS,
+  horaireDuFrereMute,
+  preparerArbreInterCours,
+  type MutationInterCours,
+} from './aides-de-test/bac-a-sable-inter-cours';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
@@ -1187,6 +1193,197 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
       const { sortie, code } = lancer(['--racine', FIXTURE_MARCHE]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/2 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+});
+
+// =============================================================================
+// LE RENVOI « {cours="…"} » — la moitié VALIDATEUR (§3bis, lot 1b-B)
+// -----------------------------------------------------------------------------
+// 🔴 POURQUOI CE BLOC EXISTE, ET CE QUE LE RECENSEMENT A TROUVÉ. Le lot 1b a livré la résolution
+// inter-cours et n'a mesuré que le chemin PASSANT ; sa clôture annonçait « cinq refus » sans
+// contrôle positif. Recomptés contre le dépôt le 2026-09-08 (L-094, qui exige exactement ce
+// recomptage), ils sont QUINZE, répartis sur trois juges : six dans `causeDuRenvoiInterCours`
+// ici, cinq dans `resoudreRenvoiInterCours` du compilateur, quatre dans son
+// `lireHoraireDUnSujetFrere`. Une seule branche était exercée. C'est la population trouée de
+// S-010/L-019, dans la forme même que le lot 7 avait payée sur `jugerRenvoiDEtape` — et la ligne
+// du plan ne pouvait pas la voir, puisqu'elle comptait ce que le plan annonçait, non ce que le
+// code porte.
+//
+// 🔴 LA SIXIÈME BRANCHE N'ÉTAIT DANS AUCUN PLAN : « dont l'horaire est refusé ». Elle ne se
+// déclenche pas en mutant la leçon — il faut abîmer l'`horaire.json` DU FRÈRE. C'est pour cela
+// qu'elle avait échappé au compte : on ne la trouve qu'en lisant le juge, jamais en listant les
+// façons d'écrire un attribut.
+//
+// ⚠️ POURQUOI ICI PLUTÔT QUE DANS `__fixtures__/invalides/`. Même arbitrage qu'au lot 7, et il
+// pèse plus lourd encore : chacun de ces cas est une mutation d'UNE ligne d'une racine VALIDE qui
+// a besoin d'un SUJET FRÈRE à côté d'elle. En dossiers, chaque cas coûterait l'arbre entier
+// (`cours/securite-web/01-temoin/{lecon.md,quiz.json}` + `cours/php/horaire.json`) pour une ligne
+// utile — §9 de `.claude/rules/agent-context-budget.md`, qui dit qu'un corpus de fixtures se
+// COMPTE avant d'être écrit. Le bac à sable exécute le MÊME binaire sur une VRAIE racine.
+//
+// ⚠️ LES CAUSES SONT COPIÉES DE LA SORTIE RÉELLE (L-089), jamais rédigées de mémoire — et le
+// piège d'apostrophe du lot 7 est ici aussi : `causeDuRenvoiInterCours` compose ses messages avec
+// des apostrophes DROITES (« n'est pas un nom de dossier »), quand la prose de ce fichier emploie
+// la courbe. Une assertion « normalisée » à la relecture rougirait sur un produit sain (L-035).
+// =============================================================================
+describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR', () => {
+  let bac = '';
+
+  beforeAll(() => {
+    bac = mkdtempSync(join(tmpdir(), 'drjst-inter-refus-'));
+  });
+
+  afterAll(() => {
+    rmSync(bac, { recursive: true, force: true });
+  });
+
+  /**
+   * Bâtit l'arbre muté du cas — plomberie PARTAGÉE avec le spec de compilation
+   * (`aides-de-test/bac-a-sable-inter-cours.ts`, qui porte la vérification L-015 de la mutation) —
+   * puis rend la sortie du refus du VALIDATEUR. Ce qui reste ici est ce qui JUGE : la cause
+   * attendue, et l'exigence que le cas soit refusé.
+   */
+  function causeDuRenvoi(nom: string, mutation: MutationInterCours): string {
+    const racine = preparerArbreInterCours(bac, nom, mutation);
+    const { sortie, code } = lancer(['--racine', racine]);
+    if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n’a pas mordu`);
+    return sortie;
+  }
+
+  /**
+   * LES SIX REFUS, EN TABLE — chacun sur SA cause propre, dans l'ordre du juge.
+   *
+   * ⚠️ Un garde-fou qui refuserait TOUT renvoi inter-cours passerait un test qui n'épingle que
+   * l'échec. Ce qui discrimine est le fragment : il nomme la faute commise, et lui seul distingue
+   * ces six branches les unes des autres.
+   */
+  const REFUS: readonly {
+    nom: string;
+    quoi: string;
+    mutation: MutationInterCours;
+    cause: string;
+  }[] = [
+    {
+      // ⚠️ CE REFUS N'EST PAS LE GARDE-FOU DE SÉCURITÉ, et l'assertion ne doit pas le laisser
+      // croire : ce qui rend `cours="…"` inoffensif est le REGISTRE (la valeur d'auteur est une
+      // clef de `Map`, jamais un composant de chemin). Ce cas constate seulement que `../php`
+      // sort sous SA faute — « pas un nom de dossier » — au lieu de tomber dans « sujet inconnu »,
+      // qui enverrait l'auteur chercher un dossier qu'il n'a jamais voulu nommer.
+      nom: 'forme-du-nom',
+      quoi: 'une valeur qui n’est pas un nom de dossier, sous sa faute PROPRE',
+      mutation: {
+        titre: '### Le VirtualHost, côté cours de PHP {cours="../php" seance="8" diapos="30-42"}',
+      },
+      cause: "« cours=\"../php\" » n'est pas un nom de dossier de sujet",
+    },
+    {
+      nom: 'sujet-de-la-racine',
+      quoi: 'un « cours » qui nomme le sujet du module LUI-MÊME — l’attribut est sans effet',
+      mutation: {
+        titre:
+          '### Le VirtualHost, côté cours de PHP {cours="securite-web" seance="8" diapos="30-42"}',
+      },
+      cause: "nomme le sujet de ce module lui-même : l'attribut est superflu, retirez-le",
+    },
+    {
+      // ⚠️ DISCRIMINANT : le message ÉNUMÈRE les sujets réellement balayés. Sans cette moitié, un
+      // validateur dont le registre serait TOUJOURS VIDE refuserait tout renvoi inter-cours et
+      // passerait pour juste — c'est le piège de l'index vide, nommé au lot 7 sur
+      // `voir-module-inconnu`, et la raison pour laquelle ce cas-ci ne peut pas vivre sur une
+      // racine ad hoc sans frère.
+      nom: 'sujet-inconnu',
+      quoi: 'un sujet qui n’est pas frère de cette racine, en énumérant ceux qui le sont',
+      mutation: {
+        titre: '### Le VirtualHost, côté cours de PHP {cours="csharp" seance="8" diapos="30-42"}',
+      },
+      cause: "qui n'est pas un sujet frère de cette racine — sujets connus : « php »",
+    },
+    {
+      // La décision (3) du lot 1b, mesurée : sans `seance`, le renvoi retomberait sur celle du
+      // frontmatter — qui vaut 2 et appartient à CE cours-ci. Le refus est ce qui empêche un
+      // renvoi de citer, en silence, une séance que personne n'a écrite.
+      nom: 'seance-absente',
+      quoi: 'un « cours » SANS « seance » — la séance du frontmatter appartient à l’autre cours',
+      mutation: {
+        titre: '### Le VirtualHost, côté cours de PHP {cours="php" diapos="30-42"}',
+      },
+      cause: 'cite le cours « php » sans « seance »',
+    },
+    {
+      nom: 'seance-inexistante',
+      quoi: 'une séance absente de l’horaire du cours CITÉ, pas de celui de la racine',
+      mutation: {
+        titre: '### Le VirtualHost, côté cours de PHP {cours="php" seance="42" diapos="30-42"}',
+      },
+      cause: 'cite la séance 42 du cours « php », absente de',
+    },
+    {
+      // 🔴 LA SIXIÈME BRANCHE, celle qu'aucun plan n'avait comptée. Le renvoi est IRRÉPROCHABLE :
+      // c'est l'horaire du frère qui est cassé. Le refus doit donc dire d'où vient la faute —
+      // sinon l'auteur relit un renvoi juste. La cause est repassée telle quelle : c'est elle qui
+      // nomme le fichier fautif, que l'auteur n'a pas ouvert.
+      nom: 'horaire-du-frere-illisible',
+      quoi: 'un renvoi juste vers un frère dont l’horaire ne se lit pas, en disant lequel',
+      mutation: { horaire: '{{ pas du JSON' },
+      cause: "dont l'horaire est refusé —",
+    },
+  ];
+
+  for (const cas of REFUS) {
+    it(
+      `refuse ${cas.quoi}`,
+      () => {
+        const sortie = causeDuRenvoi(cas.nom, cas.mutation);
+        expect(sortie).toContain(cas.cause);
+        // La LIGNE du corps est ce que l'auteur voit dans son éditeur. Les cinq premiers cas
+        // mutent la même ligne ; le sixième ne mute pas la leçon du tout, et pointe pourtant la
+        // même — c'est le renvoi qui est en cause, pas le fichier qu'on a abîmé.
+        expect(sortie).toContain('corps ligne 17');
+        // UNE faute, jamais deux : le contrat « un cas = une cause » du mode --fixtures vaut
+        // aussi ici. Une cause parasite masquerait la disparition de celle qu'on mesure.
+        expect(sortie).toContain('1 anomalie(s)');
+      },
+      DELAI,
+    );
+  }
+
+  // 🔴 LE CAS QUE LA REVUE DE SÉCURITÉ DU 2026-09-08 A EXIGÉ, ET QUE RIEN NE REJOUAIT. S-026 veut
+  // que la GRAMMAIRE du code de cours soit tenue là où le code entre au contrat compilé. La revue
+  // l'a mesurée une fois, à la main, en débranchant le garde — une mesure qui ne laisse aucune
+  // trace qu'un gate puisse relancer est une intention, pas un contrôle positif (L-019). Côté
+  // validateur, cette grammaire vit dans `schemas/horaire.schema.json` : ce test est la moitié
+  // « fermée pour le PIPELINE » du couple, sa jumelle « fermée pour la FONCTION » étant dans le
+  // spec de compilation. Les deux ensemble sont ce que la revue demandait.
+  it(
+    'refuse un « cours.code » de forme inattendue dans l’horaire du frère (S-026, moitié schéma)',
+    () => {
+      // `horaireDuFrereMute` porte l'ANTI-VACUITÉ : elle confronte le code témoin à sa valeur
+      // attendue avant de le remplacer, faute de quoi on mesurerait un horaire déjà refusé pour
+      // une autre raison que celle qu'on croit tester.
+      const sortie = causeDuRenvoi('code-de-cours-mal-forme', {
+        horaire: horaireDuFrereMute((donnees) => {
+          (donnees['cours'] as Record<string, unknown>)['code'] = '420-zzz-hu';
+        }),
+      });
+      expect(sortie).toContain("dont l'horaire est refusé —");
+      // LE MOTIF, pas seulement le champ : c'est lui qui distingue « le code est absent » de « le
+      // code est là, mais ne ressemble pas à un code de cours ».
+      expect(sortie).toContain('/cours/code — ne respecte pas le motif attendu');
+    },
+    DELAI,
+  );
+
+  // L'AUTRE MOITIÉ DE LA PINCE : l'arbre témoin, NON muté, passe en code 0. Sans elle, les sept
+  // refus ci-dessus resteraient compatibles avec un validateur qui refuserait TOUT renvoi
+  // inter-cours — et le renvoi valide qu'il porte est précisément la forme que les cas mutent.
+  it(
+    'accepte l’arbre témoin — le renvoi inter-cours valide passe, en code 0',
+    () => {
+      const { sortie, code } = lancer(['--racine', join(FIXTURE_INTER_COURS, 'securite-web')]);
+      expect(code).toBe(0);
+      expect(sortie).toMatch(/1 leçon\(s\) valides/);
     },
     DELAI,
   );

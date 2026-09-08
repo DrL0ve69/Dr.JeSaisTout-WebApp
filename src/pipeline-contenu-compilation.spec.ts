@@ -43,6 +43,12 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  FIXTURE_INTER_COURS,
+  horaireDuFrereMute,
+  preparerArbreInterCours,
+  type MutationInterCours,
+} from './aides-de-test/bac-a-sable-inter-cours';
 
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
 const FIXTURE_TEMOIN = 'tools/content-pipeline/__fixtures__/temoin-minimal';
@@ -2467,4 +2473,214 @@ describe('le conteneur « :::: methodes »', () => {
       expect(message).toContain('attributs illisibles sur « ::: note » — « lignes=2 »');
     }, DELAI);
   });
+});
+
+// =============================================================================
+// LE RENVOI « {cours="…"} » — les refus, côté COMPILATEUR (§3bis, lot 1b-B)
+// -----------------------------------------------------------------------------
+// 🔴 CE QUE LE RECENSEMENT DU 2026-09-08 A TROUVÉ, ET POURQUOI CE BLOC EST PLUS LARGE QUE SON
+// PLAN. La clôture du lot 1b annonçait « cinq refus » sans contrôle positif. Recomptés contre le
+// dépôt (L-094), les refus inter-cours du compilateur sont NEUF, portés par DEUX fonctions :
+// cinq dans `resoudreRenvoiInterCours` (forme du nom, sujet de la racine, sujet inconnu, séance
+// absente, séance inexistante) et QUATRE de plus dans `lireHoraireDUnSujetFrere`, qui juge
+// l'horaire du frère (JSON illisible, `cours.code` absent, `cours.code` de forme inattendue,
+// `seances` qui n'est pas un tableau). Un seul des neuf était exercé.
+//
+// 🔴 CE BLOC EST L'AUTRE MOITIÉ D'UNE PINCE, ET C'EST TOUT SON INTÉRÊT. Sa jumelle
+// (`pipeline-contenu-validation.spec.ts`) mesure les mêmes fautes chez le validateur. Ce dépôt
+// DUPLIQUE délibérément ce qui JUGE — mais une duplication n'est un contrat que si les deux
+// copies sont mesurées : sans ce bloc-ci, « l'aval refuse, l'amont laisse passer » resterait
+// possible dans un sens, et l'auteur recevrait une erreur de compilation là où il attendait une
+// anomalie nommée (famille S-010, mode d'échec payé au lot 7 sur `jugerRenvoiDEtape`).
+//
+// ⚠️ CE QUI DISTINGUE UNE COPIE DE L'AUTRE, ET QU'IL NE FAUT PAS « HARMONISER » EN RELISANT. Les
+// deux copies rendent des causes DISTINCTES mais CONCORDANTES, par contrat : le validateur ramène
+// les quatre fautes d'horaire sous une seule branche (« dont l'horaire est refusé — <cause
+// Ajv> »), là où le compilateur en nomme quatre séparément. Les deux disent la même chose à
+// l'auteur ; aucune n'est la reformulation de l'autre, et une assertion recopiée d'un fichier à
+// l'autre rougirait sur un produit sain (L-035).
+//
+// ⚠️ LES MESSAGES SONT COPIÉS DE LA SORTIE RÉELLE (L-089) — apostrophes DROITES comprises.
+// =============================================================================
+describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () => {
+  let bac = '';
+
+  beforeAll(() => {
+    bac = mkdtempSync(join(tmpdir(), 'drjst-inter-refus-c-'));
+  });
+
+  afterAll(() => {
+    rmSync(bac, { recursive: true, force: true });
+  });
+
+  /**
+   * Bâtit l'arbre muté du cas — plomberie PARTAGÉE avec le spec de validation
+   * (`aides-de-test/bac-a-sable-inter-cours.ts`, qui porte la vérification L-015 de la mutation) —
+   * puis rend la sortie d'échec du COMPILATEUR. Ce qui reste ici est ce qui JUGE : la cause
+   * attendue, et l'exigence que la compilation échoue.
+   */
+  function echecDeCompilation(nom: string, mutation: MutationInterCours): string {
+    const racine = preparerArbreInterCours(bac, nom, mutation);
+    try {
+      compiler(racine, join(bac, `${nom}.scss`));
+    } catch (erreur) {
+      const echec = erreur as { status?: number; stderr?: string };
+      expect(echec.status).not.toBe(0);
+      return echec.stderr ?? '';
+    }
+    throw new Error(`« ${nom} » a été COMPILÉ — le garde-fou n’a pas mordu`);
+  }
+
+  /**
+   * LES CINQ REFUS DU RENVOI LUI-MÊME, en table — chacun sur SA cause propre, dans l'ordre du
+   * juge (l'ordre EST le contrat : un cas fautif sur deux points sort par sa faute la plus locale).
+   *
+   * ⚠️ Un compilateur qui refuserait TOUT renvoi inter-cours passerait un test qui n'épingle que
+   * l'échec. Ce qui discrimine est le fragment de message.
+   */
+  const REFUS_DU_RENVOI: readonly { nom: string; quoi: string; titre: string; cause: string }[] = [
+    {
+      // ⚠️ CE REFUS N'EST PAS LE GARDE-FOU DE SÉCURITÉ : ce qui rend `cours="…"` inoffensif est le
+      // REGISTRE — la valeur d'auteur est une clef de `Map`, jamais un composant de chemin. Ce
+      // cas constate seulement que `../php` sort sous SA faute plutôt que sous « sujet inconnu ».
+      nom: 'c-forme-du-nom',
+      quoi: 'une valeur qui n’est pas un nom de dossier, sous sa faute PROPRE',
+      titre: '### Le VirtualHost, côté cours de PHP {cours="../php" seance="8" diapos="30-42"}',
+      cause: "« cours=\"../php\" » n'est pas un nom de dossier de sujet",
+    },
+    {
+      nom: 'c-sujet-de-la-racine',
+      quoi: 'un « cours » qui nomme le sujet du module LUI-MÊME',
+      titre:
+        '### Le VirtualHost, côté cours de PHP {cours="securite-web" seance="8" diapos="30-42"}',
+      cause: 'nomme le sujet de ce module lui-même',
+    },
+    {
+      // ⚠️ DISCRIMINANT, ET C'EST LA MOITIÉ QUI MANQUAIT. Le seul contrôle positif que ce refus
+      // avait déjà (plus haut, sur une racine ad hoc) ne pouvait PAS mesurer l'énumération : sa
+      // racine n'a aucun frère, donc le message y sort avec zéro sujet cité. Un registre
+      // TOUJOURS VIDE aurait passé ce test-là. Ici la racine a un frère, et le message doit le
+      // nommer — c'est le piège de l'index vide, nommé au lot 7 sur `voir-module-inconnu`.
+      nom: 'c-sujet-inconnu',
+      quoi: 'un sujet non frère, en ÉNUMÉRANT ceux que le registre a réellement vus',
+      titre: '### Le VirtualHost, côté cours de PHP {cours="csharp" seance="8" diapos="30-42"}',
+      cause: 'sujets connus : « php »',
+    },
+    {
+      nom: 'c-seance-absente',
+      quoi: 'un « cours » SANS « seance » — celle du frontmatter appartient à l’autre cours',
+      titre: '### Le VirtualHost, côté cours de PHP {cours="php" diapos="30-42"}',
+      cause: 'cite le cours « php » sans « seance »',
+    },
+    {
+      nom: 'c-seance-inexistante',
+      quoi: 'une séance absente de l’horaire du cours CITÉ, pas de celui de la racine',
+      titre: '### Le VirtualHost, côté cours de PHP {cours="php" seance="42" diapos="30-42"}',
+      cause: 'cite la séance 42 du cours « php », absente de son horaire',
+    },
+  ];
+
+  for (const cas of REFUS_DU_RENVOI) {
+    it(
+      `refuse ${cas.quoi}`,
+      () => {
+        const sortie = echecDeCompilation(cas.nom, { titre: cas.titre });
+        expect(sortie).toContain(cas.cause);
+        // Le message nomme le FICHIER fautif : sans lui, l'auteur d'un sujet à treize modules ne
+        // sait pas lequel relire.
+        expect(sortie).toContain('lecon.md');
+      },
+      DELAI,
+    );
+  }
+
+  // 🔴 LES QUATRE REFUS DE L'HORAIRE DU FRÈRE — le renvoi est IRRÉPROCHABLE dans les quatre cas.
+  // Ils ne se déclenchent pas en écrivant un attribut : il faut abîmer un fichier d'une AUTRE
+  // racine. C'est pour cela qu'aucun plan ne les avait comptés — on ne les trouve qu'en lisant le
+  // juge. Ils ne tiennent pas en table : chacun mute une CLEF différente de l'horaire, là où les
+  // cinq précédents remplacent tous la même ligne de titre.
+
+  it(
+    'refuse un horaire de frère qui n’est pas du JSON, en disant que c’est LUI qui pèche',
+    () => {
+      const sortie = echecDeCompilation('c-horaire-json-illisible', { horaire: '{{ pas du JSON' });
+      expect(sortie).toContain('JSON illisible');
+      expect(sortie).toContain("le renvoi cite le cours « php », dont l'horaire ne se lit pas");
+    },
+    DELAI,
+  );
+
+  it(
+    'refuse un horaire de frère SANS « cours.code » — il n’y a rien à afficher',
+    () => {
+      const sortie = echecDeCompilation('c-horaire-sans-code', {
+        horaire: horaireDuFrereMute((donnees) => {
+          delete (donnees['cours'] as Record<string, unknown>)['code'];
+        }),
+      });
+      expect(sortie).toContain("n'a pas de « cours.code »");
+      expect(sortie).toContain('dont le CODE est ce que le rendu affiche');
+    },
+    DELAI,
+  );
+
+  it(
+    'refuse un horaire de frère dont « seances » n’est pas un tableau',
+    () => {
+      const sortie = echecDeCompilation('c-horaire-sans-seances', {
+        horaire: horaireDuFrereMute((donnees) => {
+          donnees['seances'] = {};
+        }),
+      });
+      expect(sortie).toContain("n'a pas de tableau « seances »");
+    },
+    DELAI,
+  );
+
+  // 🔴 LE CAS QUE LA REVUE DE SÉCURITÉ DU 2026-09-08 A EXIGÉ, ET QUE RIEN NE REJOUAIT — c'est le
+  // test le plus important de ce bloc. S-026 veut la grammaire du code de cours tenue là où le
+  // code entre au CONTRAT COMPILÉ ; la revue l'avait mesurée une fois, à la main, en débranchant
+  // le garde. Une mesure qui ne laisse aucune trace qu'un gate puisse relancer est une intention,
+  // pas un contrôle positif (L-019).
+  //
+  // ⚠️ C'EST ICI QUE VIT « FERMÉE POUR LA FONCTION ». Sa jumelle du spec de validation mesure la
+  // moitié « fermée pour le PIPELINE » (la grammaire du schéma, via `valider.mjs`). Les deux sont
+  // nécessaires, et la raison est exactement celle qu'a écrite la revue : `valider.mjs` tourne
+  // AVANT le compilateur sur le chemin de `build.mjs`, si bien qu'un test qui ne passerait que
+  // par le pipeline ne prouverait RIEN de cette fonction-ci — or c'est elle, seule, qui pose
+  // `code` au contrat, d'où il part au rendu. Retirer l'un des deux rouvre S-026 en silence.
+  it(
+    'refuse un « cours.code » de forme inattendue — la grammaire est tenue AU COMPILATEUR (S-026)',
+    () => {
+      const sortie = echecDeCompilation('c-horaire-code-mal-forme', {
+        horaire: horaireDuFrereMute((donnees) => {
+          (donnees['cours'] as Record<string, unknown>)['code'] = '420-zzz-hu';
+        }),
+      });
+      expect(sortie).toContain('porte un « cours.code » de forme inattendue');
+      // LA VALEUR LUE EST CITÉE : c'est elle qui distingue « le champ manque » de « le champ est
+      // là, mais ne ressemble pas à un code de cours ».
+      expect(sortie).toContain('lu : « 420-zzz-hu »');
+      // ET LA RAISON D'ÊTRE DU GARDE, écrite dans le message même : ce code part TEL QUEL au
+      // rendu. Sans cette moitié, le refus passerait pour une coquetterie de forme.
+      expect(sortie).toContain('ce code part tel quel au rendu');
+    },
+    DELAI,
+  );
+
+  // L'AUTRE MOITIÉ DE LA PINCE. Les neuf refus ci-dessus resteraient compatibles avec un
+  // compilateur qui refuserait TOUT renvoi inter-cours : c'est l'arbre témoin NON muté qui
+  // l'exclut. Il porte déjà son assertion de résolution dans le bloc du lot 1b — ici on ne
+  // constate que le code 0, pour que ce bloc-ci soit lisible seul.
+  it(
+    'compile l’arbre témoin NON muté — le renvoi inter-cours valide passe',
+    () => {
+      const { lecons } = compiler(
+        join(FIXTURE_INTER_COURS, 'securite-web'),
+        join(bac, 'temoin-non-mute.scss'),
+      );
+      expect(lecons).toHaveLength(1);
+    },
+    DELAI,
+  );
 });

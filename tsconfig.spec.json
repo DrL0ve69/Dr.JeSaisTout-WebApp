@@ -14,5 +14,15 @@
   // `tsconfig.app.json` (E2-ST2, lot A — le raisonnement complet y est écrit). Sans elle,
   // les fixtures d'AST des specs seraient typées `any` sous un `ng test` vert : c'est
   // TypeScript qui garde ces fixtures conformes au contrat, pas une relecture (L-005).
-  "include": ["src/**/*.d.ts", "src/**/*.spec.ts", "tools/content-pipeline/types.d.ts"]
+  // `src/aides-de-test/**/*.ts` : la plomberie partagée des specs (lot 1b-B). Elle entre
+  // NOMINATIVEMENT, en miroir de l'exclusion posée dans `tsconfig.app.json` — les deux moitiés se
+  // lisent ensemble. Un import transitif suffirait à la faire compiler, mais pas à la DÉCLARER :
+  // le jour où plus aucun spec ne l'importe, elle sortirait du programme en silence et un défaut
+  // de typage y dormirait jusqu'au prochain appelant.
+  "include": [
+    "src/**/*.d.ts",
+    "src/**/*.spec.ts",
+    "src/aides-de-test/**/*.ts",
+    "tools/content-pipeline/types.d.ts"
+  ]
 }
