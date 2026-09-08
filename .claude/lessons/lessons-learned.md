@@ -595,6 +595,19 @@ comme non exercée dans un commentaire.
 **Réfs (addendum).** `tools/content-pipeline/valider.mjs` (`INTERDITS_DANS_UN_VOLET`) ; commits
 `86cdd90`, `df02e63`, lot 5 « leçons actionnables ».
 
+**Addendum (lot 1b-B « leçons actionnables », 2026-09-08) — une mesure de REVUE n'est pas un
+contrôle positif, même si elle a réellement été faite.** La revue de sécurité du lot 1b avait exigé
+S-026 et **mesuré** le garde en le débranchant à la main (valeur hors grammaire traversant jusqu'au
+contrat compilé, garde remis) — vrai, mais fait **une fois**, par quelqu'un qui n'écrivait pas de
+code. Rien dans le dépôt ne rejouait cette mesure : aucun spec ne citait `MOTIF_CODE_DE_COURS`,
+`cours.code` ni une valeur hors grammaire. **Le garde le plus récemment posé du dépôt était, à la
+clôture même du lot qui l'a posé, le moins protégé contre sa propre disparition.** Angle neuf sur la
+même règle : une revue mesure pour **décider**, et sa mesure **meurt avec son rapport** si personne
+ne la transforme en test committé — un contrôle positif « exécuté » en clôture de lot n'est acquis
+que s'il est **rejoué par un runner**, pas relaté dans un compte rendu.
+
+**Réfs (addendum lot 1b-B).** S-026, S-027 ; lot 1b-B « leçons actionnables », PR #53, 2026-09-08.
+
 ---
 
 ## L-020 · L-014 s'applique à **chaque nouveau programme TypeScript**, pas qu'à celui qui l'a fait naître
@@ -1099,6 +1112,21 @@ coexistent, le nommer au pluriel ou le paramétrer plutôt que de garder un sing
 
 **Réfs addendum 2.** branche `feat/e3-st2-st3-lecons` ; `e2e/aides/` (constante
 `BLOCS_STYLE_PAGE_LECON`).
+
+**Addendum (lot 1b-B, 2026-09-08) — une prémisse VRAIE mais DÉGÉNÉRÉE laisse un test vert sans rien
+prouver, symétrique de la faute d'origine.** Le refus « sujet frère inconnu » avait déjà un
+contrôle positif — mais posé sur une racine de fixture **sans aucun frère déclaré**, où le message
+d'erreur énumère **zéro** sujet connu. Un registre resté **vide par bug** aurait passé ce test tout
+aussi bien qu'un registre correctement peuplé : rien ne distinguait « le message nomme
+correctement les frères connus » de « il n'y a jamais rien à nommer ». Corrigé en rebâtissant le
+cas sur une racine qui **a** un frère, avec l'assertion que le message le **cite nommément**. Même
+piège que la fixture `voir-module-inconnu` du lot 7 (index vide, [[L-094]]). **Règle élargie** :
+avant de faire confiance à un contrôle positif existant, vérifier que la **population** sur laquelle
+il tourne n'est pas dégénérée (vide, à un seul élément, à zéro branche) — un intitulé de test ne dit
+jamais s'il tourne à vide, seule la relecture du corps de la fixture le dit.
+
+**Réfs (addendum lot 1b-B).** `tools/content-pipeline/__fixtures__/` (cas `cours-sujet-frere-inconnu`,
+reconstruit) ; [[L-094]] ; PR #53, 2026-09-08.
 
 ---
 
@@ -2743,6 +2771,22 @@ qu'un humain doit relire pour rien.
 **Réfs.** `docs/design/refonte-lecons-actionnables.md` (§ Lot 7) ;
 `src/pipeline-contenu-compilation.spec.ts` (table `REFUS`) ;
 `src/pipeline-contenu-validation.spec.ts` (~l. 841, bac à sable) ; PR #51, 2026-09-07 ; [[L-047]].
+
+**Addendum (lot 1b-B, 2026-09-08) — DEUXIÈME occurrence d'affilée, et elle nomme la cause
+structurelle : on recense les branches en lisant le JUGE, jamais en énumérant les entrées
+d'auteur.** Le plan annonçait cinq refus pour `cours="…"` (résolution inter-cours) ; le recomptage
+en a trouvé **quinze**, sur **trois** juges (`causeDuRenvoiInterCours` : 6, `resoudreRenvoiInterCours` :
+5, `lireHoraireDUnSujetFrere` : 4), dont **un seul exercé avant le lot**. Les cinq du plan étaient
+exactement celles qu'un auteur peut déclencher en tapant dans son `lecon.md` ; les dix autres
+n'existent qu'en abîmant l'`horaire.json` du **sujet frère** — aucune lecture de la grammaire
+d'auteur ne pouvait les révéler, seule la lecture du corps des trois fonctions le pouvait. **Règle
+élargie** : recenser les branches d'un juge en lisant sa **signature de refus** (chaque `return`/
+`throw` d'erreur), jamais en énumérant ce qu'un auteur peut écrire — les deux ensembles divergent
+dès qu'une entrée provient d'un fichier que l'auteur ne contrôle pas directement.
+
+**Réfs (addendum lot 1b-B).** `tools/content-pipeline/valider.mjs` (`causeDuRenvoiInterCours`),
+`tools/content-pipeline/compiler-markdown.mjs` (`resoudreRenvoiInterCours`,
+`lireHoraireDUnSujetFrere`) ; PR #53, 2026-09-08.
 
 ---
 ## L-095 · La duplication est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE — et la divergence d'un recensement est INVISIBLE à tout appariement de messages
