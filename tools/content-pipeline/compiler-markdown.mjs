@@ -107,6 +107,7 @@ import conteneurPlugin from 'markdown-it-container';
 import { createHighlighter } from 'shiki';
 import { transformerStyleToClass } from '@shikijs/transformers';
 import { compterLignes } from './compter-lignes.mjs';
+import { recenserLesSujetsFreres } from './sujets-freres.mjs';
 
 /** @typedef {ReturnType<InstanceType<typeof MarkdownIt>['parse']>[number]} JetonMd */
 
@@ -3686,33 +3687,29 @@ function lireHoraire(racine) {
  * horaire volontairement fautif.
  *
  * @param {string} racine chemin absolu
+ * ⚠️ LE BALAYAGE LUI-MÊME EST PARTAGÉ — `./sujets-freres.mjs`, importé par les DEUX copies. La
+ * duplication est le contrat de ce dépôt pour ce qui JUGE ; recenser des dossiers ne juge rien, et
+ * une divergence sur « quels frères existent » serait invisible à tout appariement de messages (le
+ * raisonnement complet vit dans l'en-tête du module partagé). Ce qui reste ici est la seule chose
+ * propre à cette copie : la FORME que prend un frère une fois recensé.
+ *
  * @returns {Map<string, SujetFrere>}
  */
 function construireRegistreDesSujetsFreres(racine) {
   /** @type {Map<string, SujetFrere>} */
   const registre = new Map();
-  const parent = dirname(racine);
-  const nomDeLaRacine = basename(racine);
-  /** @type {import('node:fs').Dirent[]} */
-  let entrees;
-  try {
-    entrees = readdirSync(parent, { withFileTypes: true });
-  } catch {
-    return registre;
-  }
-  // TRIÉ EXPLICITEMENT : `readdirSync` ne trie pas, et l'énumération des sujets connus part dans un
-  // message d'échec, donc dans une assertion (S-010).
-  const noms = entrees
-    .filter((entree) => entree.isDirectory() && entree.name !== nomDeLaRacine)
-    .map((entree) => entree.name)
-    .sort(comparerOctets);
-  for (const nom of noms) {
-    const chemin = join(parent, nom, FICHIER_HORAIRE);
-    if (!existsSync(chemin)) continue;
+  for (const [nom, chemin] of recenserLesSujetsFreres(racine)) {
     registre.set(nom, { chemin, affiche: afficher(chemin), resolu: null });
   }
   return registre;
 }
+
+/**
+ * LA FORME D'UN CODE DE COURS DU RÉSEAU COLLÉGIAL — la jumelle de `cours.code` dans
+ * `schemas/horaire.schema.json`. Recopiée, jamais dérivée du schéma : une valeur autorisée doit
+ * l'avoir été par un humain, pas par ce que la prochaine version du schéma y mettra (S-005).
+ */
+const MOTIF_CODE_DE_COURS = /^[0-9A-Z]{3}-[0-9A-Z]{3}-[0-9A-Z]{2}$/;
 
 /**
  * Lit l'horaire d'UN sujet frère et n'en garde que ce qu'un renvoi exige : le CODE du cours et les
@@ -3747,8 +3744,24 @@ function lireHoraireDUnSujetFrere(nom, frere, ctx) {
   if (typeof code !== 'string' || code === '') {
     return echec(`${ctx.nomFichier} : « ${frere.affiche} » n'a pas de « cours.code »`, [
       `le renvoi cite le cours « ${nom} », dont le CODE est ce que le rendu affiche`,
-      'la forme de ce champ est tenue par schemas/horaire.schema.json, via valider.mjs',
     ]);
+  }
+  // 🔴 LA GRAMMAIRE DU CODE EST POSÉE ICI AUSSI, ET PAS SEULEMENT DANS LE SCHÉMA — S-026 À LA
+  // LETTRE (constat de la revue de sécurité du 2026-09-08, PR #52). Le schéma vit dans
+  // `valider.mjs`, qui tourne AVANT ce compilateur sur le chemin de `build.mjs` : la dette était
+  // donc fermée pour le PIPELINE, pas pour cette FONCTION. Or c'est elle, et elle seule, qui pose
+  // `code` au contrat compilé, d'où il part au rendu — le jour où un appelant écrirait l'artéfact
+  // sans passer par le validateur, cette copie serait la dernière autorité. Le littéral est celui
+  // de `cours.code` dans schemas/horaire.schema.json, RECOPIÉ ET REVU À LA MAIN plutôt que dérivé
+  // du schéma : une liste blanche dérivée autorise tout ce qu'une future version y mettra (S-005).
+  if (!MOTIF_CODE_DE_COURS.test(code)) {
+    return echec(
+      `${ctx.nomFichier} : « ${frere.affiche} » porte un « cours.code » de forme inattendue`,
+      [
+        `lu : « ${code} » — forme attendue : 420-4P2-HU (trois blocs, chiffres et MAJUSCULES)`,
+        `le renvoi cite le cours « ${nom} », et ce code part tel quel au rendu`,
+      ],
+    );
   }
   const seances = donnees.seances;
   if (!Array.isArray(seances)) {

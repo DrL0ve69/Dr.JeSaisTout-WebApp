@@ -95,6 +95,7 @@ import { Ajv } from 'ajv';
 // `compiler-markdown.mjs` pour cette fonction chargerait Shiki et markdown-it au démarrage du
 // validateur et inverserait la stratification du pipeline. Voir `compter-lignes.mjs`.
 import { compterLignes } from './compter-lignes.mjs';
+import { recenserLesSujetsFreres } from './sujets-freres.mjs';
 
 const RACINE_DEPOT = process.cwd();
 // Chemin CANONIQUE du cours, écrit en séparateurs POSIX : c'est celui du backlog (§E2-ST1, §E3) et
@@ -3133,31 +3134,18 @@ function validerHoraireDeLaRacine(racine, anomalies) {
  * anomalie qui n'est pas la sienne, alors que le mode `--fixtures` ne compare que celle-là.
  *
  * @param {string} racine chemin absolu
+ * ⚠️ LE BALAYAGE LUI-MÊME EST PARTAGÉ — `./sujets-freres.mjs`, importé par les DEUX copies. La
+ * duplication est le contrat de ce dépôt pour ce qui JUGE ; recenser des dossiers ne juge rien, et
+ * une divergence sur « quels frères existent » serait invisible à tout appariement de messages (le
+ * raisonnement complet vit dans l'en-tête du module partagé). Ce qui reste ici est la seule chose
+ * propre à cette copie : la FORME que prend un frère une fois recensé.
+ *
  * @returns {Map<string, SujetFrere>}
  */
 function construireRegistreDesSujetsFreres(racine) {
   /** @type {Map<string, SujetFrere>} */
   const registre = new Map();
-  const parent = dirname(racine);
-  const nomDeLaRacine = basename(racine);
-  /** @type {import('node:fs').Dirent[]} */
-  let entrees;
-  try {
-    entrees = readdirSync(parent, { withFileTypes: true });
-  } catch {
-    // Un parent illisible n'est pas une faute de contenu : le registre est vide, et tout
-    // `cours="…"` sera refusé en énumérant zéro sujet — fail-closed, en le disant.
-    return registre;
-  }
-  // TRIÉ EXPLICITEMENT : `readdirSync` ne trie pas, et l'énumération des sujets connus part dans
-  // un message de refus — donc dans une assertion de fixture (S-010, L-072).
-  const noms = entrees
-    .filter((entree) => entree.isDirectory() && entree.name !== nomDeLaRacine)
-    .map((entree) => entree.name)
-    .sort(comparerOctets);
-  for (const nom of noms) {
-    const chemin = join(parent, nom, FICHIER_HORAIRE);
-    if (!existsSync(chemin)) continue;
+  for (const [nom, chemin] of recenserLesSujetsFreres(racine)) {
     registre.set(nom, {
       chemin,
       rel: relative(RACINE_DEPOT, chemin).replaceAll('\\', '/'),
