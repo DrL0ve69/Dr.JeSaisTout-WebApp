@@ -4002,6 +4002,17 @@ lecture du hero. Corrigée en déplaçant la couche hors du champ de texte.
 > critique et **ne se négocie pas** ; E7 se livre après. Si le calendrier dérape, **c'est E7 qui
 > ralentit**, module par module, jamais le bloc A.
 
+✅ **`content/cours/php/horaire.json` EXISTE DÉJÀ — écrit au lot 1b de la refonte, 2026-09-08.** Les
+**13 séances** du 420-4P2-HU y sont, relevées sur le site de l’enseignant (deux lectures indépendantes
+concordantes ; pondérations 10+20+10+60 = 100). Aucune `portee` n’est publiée par l’enseignant, donc
+**aucune n’est inventée** — le sommaire n’annoncera aucune portée pour ce cours plutôt que d’en
+fabriquer une. La racine est **valide à zéro leçon** (mesuré), et son horaire est **tout de même**
+confronté au schéma. ⚠️ **Ne pas le réécrire** : E7 n’a plus qu’à y déposer ses modules. Le mapping
+module → séance de la table ci-dessous s’y confronte — séances 1-5, 7, 8 et 10 portent un module, les
+séances 6, 9, 12 et 13 sont des examens ou la révision. ⚠️ La séance **11 (Projet de session)** est
+une `evaluation-pratique` : elle **peut** porter un module (arbitrage R-3), comme la 11 du cours de
+sécurité — E7 n'en prévoit pas aujourd'hui, ce n'est pas une interdiction.
+
 **Processus** : identique à E3 — skill **`/lecon`** (`professeur-web` → `verificateur-theorie`) à
 partir des fiches de `KnowledgeBase\web\php\`, fusionnées par la passe E3-ST0 du 2026-08-19.
 Livrable : `content/cours/php/NN-slug/`.
