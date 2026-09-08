@@ -122,11 +122,32 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > Et **la duplication compilateur/validateur est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE**
 > (L-095) — le balayage vit désormais dans `tools/content-pipeline/sujets-freres.mjs`, partagé.
 >
-> 🔴 **CE QUI RESTE OUVERT, ET QUI PART AVEC LE LOT 8 :** aucune leçon n'écrit encore `:::: methodes`,
+> ✅ **LE LOT 1c EST LIVRÉ (PR #55, 2026-09-08) — `{hors-cours}` SE COMPILE, SE VALIDE ET SE REND.**
+> Il écrit qu’une section EST cartographiée et qu’aucune diapositive ne la porte, ce qui la distingue du
+> **silence**, réservé au non-cartographié. `horsCours?: true` est un champ **distinct**, pas une union :
+> absent ≠ `false`, et c’est ce qui permettra au gate du lot 9 d’être total. ⚠️ `SousEntreeSommaire`
+> nomme désormais son champ **`mention`** et non plus `renvoiCours` — il peut porter « (hors du cours) »,
+> l’exact contraire d’un renvoi (famille S-010 : une promesse au singulier a une date de péremption).
+> 🔴 **SONARCLOUD A RÉVÉLÉ CE QUE LES GATES DU DÉPÔT NE MESURENT PAS** — 10,8 % de duplication sur le
+> code neuf. La plomberie du bac à sable et la table des refus sont montées dans
+> `src/aides-de-test/bac-a-sable-inter-cours.ts` (**→ 0,0 %**, comptes de tests identiques). ⚠️ **Partager
+> une table d’ATTENTE n’affaiblit pas L-095** : chaque spec lance toujours son propre juge, et le contrat
+> veut la même phrase des deux côtés puisque l’auteur ne sait pas lequel des deux outils l’a repoussé.
+> ✅ **LE LOT 8-A EST LIVRÉ (PR #56, 2026-09-08), ET IL LÈVE LA RÉSERVE DU LOT 5 PAR MESURE.** Les onze
+> titres de la moitié haute du module 11 sont ancrés. Relevé sur l’artéfact prerendu : **11**
+> `<p class="renvoi-titre">`, et au sommaire **18 entrées dont 11 portent une mention et 7 restent
+> MUETTES** — le silence d’« absent ≠ false » est donc visible **en production**. ⚠️ **`{hors-cours}`
+> n’est pas « je n’ai pas cherché »** : les sept sont adossés à une mesure d’absence sur les 16 extraits
+> (748 diapositives). La matière est dans `docs/contenu/renvois-diapos-module-11.md` ; **le lot 8-B**
+> (moitié basse) y trouve ses cinq réserves déjà mesurées, R-2, R-4, R-5, R-7 et R-8.
+> ⚠️ **DÉFAUT NEUF, NOMMÉ ET NON CORRIGÉ : le pipeline ne rend pas le code en ligne dans un TITRE** — ni
+> dans le `<h3>`, ni au sommaire ; le lecteur voit les accents graves. Contourné côté contenu au module
+> 11 ; toute leçon qui met des rétronotations dans un titre reproduira le défaut.
+> 🔴 **CE QUI RESTE OUVERT, ET QUI DEMANDE UN LOT À LUI :** aucune leçon n'écrit encore `:::: methodes`,
 > donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
 > **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la
 > passe axe sur une page portant des onglets et la capture en contraste forcé se font à la première leçon
-> qui emploie le conteneur.
+> qui emploie le conteneur — et ils ne tiennent pas dans une ligne de plus du lot 8-B.
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
