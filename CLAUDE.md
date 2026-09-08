@@ -98,6 +98,20 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > vidé de sa substance par ses propres voisins. Détail :
 > [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 7 ».
 >
+> ✅ **LE LOT 1b EST LIVRÉ (PR #52, 2026-09-08) — `cours="…"` SE RÉSOUT.** Sa valeur est un **nom de
+> dossier** de sujet frère (`php`), jamais un code de cours : le compilateur lit le `cours.code` de
+> l'`horaire.json` cité et pose **ce code** au contrat compilé — le membre rendu **cesse d'être du texte
+> d'auteur**, ce qui ferme **S-026**. `content/cours/php/horaire.json` existe (13 séances du 420-4P2-HU,
+> relevées sur le site de l’enseignant). ⚠️ **La clef du registre est le nom de DOSSIER, pas le champ
+> `sujet` déclaré** — mesuré : les racines de fixtures déclarent presque toutes `securite-web`.
+> 🔴 **LES CINQ REFUS INTER-COURS N'ONT AUCUN CONTRÔLE POSITIF — c'est le lot `1b-B`, le geste suivant.**
+> Seul le chemin **passant** est mesuré : population trouée de S-010/L-019, celle même que le lot 7 a
+> payée. ⚠️ **L-094** : le re-mesurer contre le dépôt, un test existant ayant déjà été retargeté.
+> 🔴 **« Fermée pour le PIPELINE » n’est pas « fermée pour la FONCTION » (S-027)** : une grammaire
+> qui ne vit que dans le schéma ne protège que le chemin où le validateur tourne avant le compilateur.
+> Et **la duplication compilateur/validateur est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE**
+> (L-095) — le balayage vit désormais dans `tools/content-pipeline/sujets-freres.mjs`, partagé.
+>
 > 🔴 **CE QUI RESTE OUVERT, ET QUI PART AVEC LE LOT 8 :** aucune leçon n'écrit encore `:::: methodes`,
 > donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
 > **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la

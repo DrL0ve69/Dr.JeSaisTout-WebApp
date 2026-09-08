@@ -83,7 +83,7 @@
  * fabriquerait une divergence qui n'existe pas.
  */
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { join, relative, resolve, basename } from 'node:path';
+import { dirname, join, relative, resolve, basename } from 'node:path';
 // IMPORT NOMMÉ, PAS L'IMPORT PAR DÉFAUT. `import Ajv from 'ajv'` fonctionne à l'exécution (Node
 // donne `module.exports`, qui EST la classe) mais ne compile pas sous `checkJs` + `nodenext` : le
 // typage résout alors l'espace de noms du module, non constructable (TS2351). L'export nommé
@@ -95,6 +95,7 @@ import { Ajv } from 'ajv';
 // `compiler-markdown.mjs` pour cette fonction chargerait Shiki et markdown-it au démarrage du
 // validateur et inverserait la stratification du pipeline. Voir `compter-lignes.mjs`.
 import { compterLignes } from './compter-lignes.mjs';
+import { recenserLesSujetsFreres } from './sujets-freres.mjs';
 
 const RACINE_DEPOT = process.cwd();
 // Chemin CANONIQUE du cours, écrit en séparateurs POSIX : c'est celui du backlog (§E2-ST1, §E3) et
@@ -178,12 +179,12 @@ const ATTRIBUT_SEANCE = 'seance';
  * Le TROISIÈME attribut de renvoi, qui n'existe que sur un TITRE de section (§3bis, décision D-B) :
  * citer une diapositive d'un AUTRE cours que celui du module.
  *
- * ⚠️ RECONNU, MAIS REFUSÉ À L'USAGE TANT QUE LE LOT 1b N'EST PAS LIVRÉ. Ce validateur est
- * mono-sujet par exécution — `RACINE_PAR_DEFAUT` est en dur, et `validerLecon(dossier, horaire,
- * exercices)` ne reçoit QU'UN horaire, au singulier. Un `cours="php"` ne se vérifierait donc
- * contre rien, et un renvoi validé contre rien est pire que pas de renvoi. La clef reste dans la
- * matrice fermée pour que l'auteur reçoive un refus qui NOMME la raison, plutôt qu'un « attribut
- * inconnu » qui l'enverrait corriger une faute de frappe imaginaire.
+ * 🔴 SA VALEUR EST UN NOM DE DOSSIER DE SUJET FRÈRE, JAMAIS UN CODE DE COURS — `cours="php"`, pas
+ * `cours="420-4P2-HU"` (lot 1b, 2026-09-08). Ce validateur reste mono-sujet par exécution : il ne
+ * valide QUE les leçons de sa racine. Ce qu'il gagne au lot 1b n'est pas une seconde racine, c'est
+ * un REGISTRE — les dossiers frères de la racine qui portent un `horaire.json`, indexés par leur
+ * nom de dossier (`construireRegistreDesSujetsFreres`). Un `cours="php"` se confronte donc à
+ * l'horaire de `php`, et un renvoi ne se valide plus contre rien.
  */
 const ATTRIBUT_COURS = 'cours';
 
@@ -1269,6 +1270,14 @@ function analyserDiapos(valeur) {
  * @property {ReadonlySet<number> | null} seancesConnues les numéros de `horaire.json`
  * @property {ReadonlyMap<number, ReadonlySet<string>> | null} exercicesConnus les `reference` du
  *   registre `exercices.json`, indexées par numéro de séance
+ * @property {string} nomDeLaRacine le NOM DU DOSSIER de la racine compilée (`securite-web`), et
+ *   non le `sujet` qu'elle déclare. ⚠️ NON NULLABLE, contrairement aux trois champs ci-dessus, et
+ *   ce n'est pas une inattention : un dossier a toujours un nom, il n'y a donc pas de « la racine
+ *   ne porte pas cette source » à exprimer. Il sert à refuser un `cours` SUPERFLU (§3bis).
+ * @property {RegistreSujetsFreres} sujetsFreres les sujets frères de la racine, indexés par nom de
+ *   dossier. ⚠️ NON NULLABLE lui aussi : une racine sans aucun frère porteur d'horaire donne un
+ *   registre VIDE, ce qui n'est pas la même chose qu'une source absente — le refus peut alors dire
+ *   « aucun sujet frère », et l'énumération des sujets connus reste possible dans les deux cas.
  */
 
 /**
@@ -1484,20 +1493,37 @@ function causeDuRenvoiALExercice(attributs, ancrage) {
 function causeDuRenvoiAuCours(libelle, attributs, ancrage) {
   const diaposBrutes = attributs[ATTRIBUT_DIAPOS];
   const seanceBrute = attributs[ATTRIBUT_SEANCE];
-  if (diaposBrutes === undefined && seanceBrute === undefined) return null;
+  // `cours` est lu ICI, avec les deux autres, pour que le renvoi vide reste vide : sans lui dans
+  // ce garde, un `{cours="php"}` seul rendrait `null` — donc « pas de renvoi » — et l'attribut
+  // serait avalé en silence, ce que ce fichier ne fait nulle part.
+  const coursBrut = attributs[ATTRIBUT_COURS];
+  if (diaposBrutes === undefined && seanceBrute === undefined && coursBrut === undefined) {
+    return null;
+  }
 
   if (diaposBrutes !== undefined) {
     const lu = analyserDiapos(diaposBrutes);
     if (lu.cause !== undefined) return `« ${libelle} » — ${lu.cause}`;
   }
 
+  // LA GRAMMAIRE DU NUMÉRO DE SÉANCE SE JUGE ICI, AVANT LE PARTAGE DES CHEMINS : elle est la même
+  // pour un renvoi intra-sujet et pour un renvoi inter-cours, et une SECONDE copie du message
+  // finirait par en dire autre chose que celle-ci (même raison que le partage de `analyserDiapos`).
+  if (seanceBrute !== undefined && !/^[1-9]\d?$/.test(seanceBrute)) {
+    return `« ${libelle} » — « ${ATTRIBUT_SEANCE}="${seanceBrute}" » n'est pas un numéro de séance (entier de 1 à 99, sans zéro de tête)`;
+  }
+
+  // LE RENVOI INTER-COURS PART ICI, ET NE REDESCEND PAS : sa séance ne s'hérite pas du frontmatter
+  // (elle appartiendrait à l'AUTRE cours) et ne se confronte pas à `seancesConnues` (l'horaire de
+  // CETTE racine). Tout ce qui suit ce branchement est le renvoi intra-sujet, inchangé.
+  if (coursBrut !== undefined) {
+    return causeDuRenvoiInterCours(libelle, coursBrut, seanceBrute, ancrage);
+  }
+
   // La séance de l'encadré : celle qu'il déclare, sinon celle du module. Un renvoi qui ne désigne
   // AUCUNE séance ne désigne rien du tout — d'où l'obligation quand le module n'en porte pas.
   let seance = ancrage.seanceFrontmatter;
   if (seanceBrute !== undefined) {
-    if (!/^[1-9]\d?$/.test(seanceBrute)) {
-      return `« ${libelle} » — « ${ATTRIBUT_SEANCE}="${seanceBrute}" » n'est pas un numéro de séance (entier de 1 à 99, sans zéro de tête)`;
-    }
     seance = Number(seanceBrute);
   }
   if (seance === null) {
@@ -1516,6 +1542,79 @@ function causeDuRenvoiAuCours(libelle, attributs, ancrage) {
   }
   if (!ancrage.seancesConnues.has(seance)) {
     return `« ${libelle} » cite la séance ${seance}, absente de « ${FICHIER_HORAIRE} »`;
+  }
+  return null;
+}
+
+/**
+ * La FORME d'un nom de dossier de sujet — la jumelle de `definitions.kebab` dans
+ * `schemas/horaire.schema.json`, recopiée parce que ce contrôle-ci ne porte pas sur un document
+ * JSON et n'a donc pas de schéma à interroger.
+ *
+ * ⚠️ CE N'EST PAS LE GARDE-FOU DE SÉCURITÉ, ET IL NE FAUT PAS LE PRENDRE POUR TEL. Ce qui rend
+ * `cours="…"` inoffensif est le REGISTRE : la valeur d'auteur est une CLEF de `Map`, jamais un
+ * composant de chemin (voir `construireRegistreDesSujetsFreres`). Ce motif-ci ne sert qu'à donner
+ * à `cours="../x"` sa faute PROPRE — « ce n'est pas un nom de dossier » — plutôt que de le laisser
+ * sortir sous « sujet inconnu », qui enverrait l'auteur chercher un dossier qu'il n'a jamais voulu
+ * nommer. Deux causes distinctes pour deux fautes distinctes.
+ */
+const MOTIF_NOM_DE_SUJET = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const LONGUEUR_MAX_NOM_DE_SUJET = 40;
+
+/**
+ * --- 4c bis. Le renvoi qui cite un AUTRE COURS (§3bis, lot 1b) ---
+ *
+ * Cinq refus, dans cet ordre, et l'ordre EST le contrat : le mode `--fixtures` ne compare que la
+ * PREMIÈRE anomalie de chaque cas, si bien qu'un cas fautif sur deux points doit sortir par sa
+ * faute la plus locale. Forme du nom → superflu → sujet inconnu → séance absente → séance
+ * inexistante dans l'horaire cité.
+ *
+ * @param {string} libelle
+ * @param {string} coursBrut la valeur écrite par l'auteur — un NOM DE DOSSIER, jamais un code
+ * @param {string | undefined} seanceBrute déjà confrontée à la grammaire du numéro par l'appelante
+ * @param {Ancrage} ancrage
+ * @returns {string | null}
+ */
+function causeDuRenvoiInterCours(libelle, coursBrut, seanceBrute, ancrage) {
+  if (!MOTIF_NOM_DE_SUJET.test(coursBrut) || coursBrut.length > LONGUEUR_MAX_NOM_DE_SUJET) {
+    return (
+      `« ${libelle} » — « ${ATTRIBUT_COURS}="${coursBrut}" » n'est pas un nom de dossier de sujet ` +
+      `(minuscules, chiffres et tirets simples, ${LONGUEUR_MAX_NOM_DE_SUJET} caractères au plus)`
+    );
+  }
+  if (coursBrut === ancrage.nomDeLaRacine) {
+    return (
+      `« ${libelle} » — « ${ATTRIBUT_COURS}="${coursBrut}" » nomme le sujet de ce module ` +
+      "lui-même : l'attribut est superflu, retirez-le — un attribut qu'on peut écrire sans effet " +
+      "est un attribut qu'on finira par écrire au hasard (docs/contenu/ancrage-au-cours.md §3bis)"
+    );
+  }
+  const frere = ancrage.sujetsFreres.get(coursBrut);
+  if (frere === undefined) {
+    const cites = [...ancrage.sujetsFreres.keys()].map((nom) => `« ${nom} »`);
+    const enumeration =
+      cites.length === 0
+        ? `aucun dossier voisin de la racine ne porte de « ${FICHIER_HORAIRE} »`
+        : `sujets connus : ${cites.join(', ')}`;
+    return (
+      `« ${libelle} » cite le cours « ${coursBrut} », qui n'est pas un sujet frère de cette ` +
+      `racine — ${enumeration}`
+    );
+  }
+  if (seanceBrute === undefined) {
+    return (
+      `« ${libelle} » cite le cours « ${coursBrut} » sans « ${ATTRIBUT_SEANCE} » — la séance du ` +
+      "frontmatter appartient à CE cours-ci, elle ne peut donc pas servir de défaut à un renvoi " +
+      `vers un autre ; « ${ATTRIBUT_SEANCE} » est obligatoire dès que « ${ATTRIBUT_COURS} » est écrit`
+    );
+  }
+  const seance = Number(seanceBrute);
+  const resolu = resoudreSujetFrere(frere);
+  if (resolu === null) {
+    return `« ${libelle} » cite le cours « ${coursBrut} », dont l'horaire est refusé — ${frere.cause}`;
+  }
+  if (!resolu.numeros.has(seance)) {
+    return `« ${libelle} » cite la séance ${seance} du cours « ${coursBrut} », absente de « ${frere.rel} »`;
   }
   return null;
 }
@@ -1555,15 +1654,6 @@ function causeDuRenvoiDeTitre(titre, ancrage) {
     return (
       `attributs illisibles sur « ${libelle} » — ${detail} ; attributs admis sur un titre de ` +
       `section : ${cites}, forme attendue : ## Titre {${ATTRIBUT_DIAPOS}="12-18"}`
-    );
-  }
-  const autreCours = attributs[ATTRIBUT_COURS];
-  if (autreCours !== undefined) {
-    return (
-      `« ${libelle} » cite un AUTRE cours (« ${ATTRIBUT_COURS}="${autreCours}" ») — la résolution ` +
-      "inter-cours n'est pas livrée : ce validateur ne lit QU'UN horaire par exécution, et un " +
-      'renvoi validé contre rien serait pire que pas de renvoi ' +
-      '(docs/contenu/ancrage-au-cours.md §3bis)'
     );
   }
   // 🔴 SUR UN TITRE, `diapos` EST REQUIS — jumelle du garde du compilateur, même motif :
@@ -2644,9 +2734,11 @@ function verifierSeanceContreHoraire(frontmatter, horaire, signaler) {
  * @param {string} dossier chemin absolu du dossier de la leçon
  * @param {HoraireIndexe | null} horaire horaire du sujet, ou `null` s'il est absent ou refusé
  * @param {ExercicesIndexe | null} exercices registre du sujet, ou `null` s'il est absent ou refusé
+ * @param {RegistreSujetsFreres} sujetsFreres les sujets frères de la racine, indexés par nom de
+ *   dossier — la seule chose qu'un `cours="…"` puisse nommer (§3bis, lot 1b)
  * @returns {{ anomalies: Anomalie[], slug: string | null, ordre: unknown, sujet: unknown, section: unknown, statut: string, seance: number | null, exercicesCites: { seance: number, reference: string }[], modulesCites: { ligne: number, slug: string }[] }}
  */
-function validerLecon(dossier, horaire, exercices) {
+function validerLecon(dossier, horaire, exercices, sujetsFreres) {
   /** @type {Anomalie[]} */
   const anomalies = [];
   const cheminLecon = join(dossier, 'lecon.md');
@@ -2709,6 +2801,10 @@ function validerLecon(dossier, horaire, exercices) {
       exercices === null
         ? null
         : new Map([...exercices.parSeance].map(([n, refs]) => [n, new Set(refs.keys())])),
+    // LE NOM DU DOSSIER PARENT, ET NON LE `sujet` DU FRONTMATTER : c'est lui qui indexe le
+    // registre (voir `construireRegistreDesSujetsFreres`), donc lui qu'un `cours` superflu répète.
+    nomDeLaRacine: basename(dirname(dossier)),
+    sujetsFreres,
   };
   const corps = texte.slice(separation[0].length);
   const { exercicesCites, modulesCites } = verifierCorps(corps, statut, ancrage, signalerLecon);
@@ -2995,6 +3091,110 @@ function validerHoraireDeLaRacine(racine, anomalies) {
     signaler,
   );
   return indexe;
+}
+
+/**
+ * UN SUJET FRÈRE, tel que le registre le retient : d'abord un chemin, puis — seulement s'il est
+ * consulté — l'horaire résolu ou la cause de son refus.
+ *
+ * @typedef {object} SujetFrere
+ * @property {string} chemin chemin absolu de son `horaire.json`
+ * @property {string} rel le même, relatif au dépôt : c'est CE nom-là qui se lit dans un refus
+ * @property {{ code: string, numeros: ReadonlySet<number> } | null} resolu mémoïsation de la
+ *   lecture — `null` tant que personne ne l'a consulté, ET `null` quand il a été refusé
+ * @property {string | null} cause la raison du refus, quand il y en a une
+ */
+
+/** @typedef {ReadonlyMap<string, SujetFrere>} RegistreSujetsFreres */
+
+/**
+ * --- LE REGISTRE DES SUJETS FRÈRES (§3bis, lot 1b) ---
+ *
+ * Les dossiers **frères de la racine** qui portent un `horaire.json`, indexés par leur **nom de
+ * dossier**. C'est tout ce qu'un `cours="…"` peut nommer.
+ *
+ * 🔴 LA VALEUR ÉCRITE PAR L'AUTEUR EST UNE CLEF DE `Map`, JAMAIS UN COMPOSANT DE CHEMIN. On
+ * BALAIE d'abord le dossier parent, on construit le registre depuis ce que le système de fichiers
+ * rend, PUIS on fait un `.get(valeur)`. Un `join(parent, valeurDeLAuteur)` — sous quelque forme
+ * que ce soit — offrirait une traversée de chemin à un champ d'auteur (famille S-003/S-020 de
+ * `.claude/rules/security.md` §4) : `cours="../../.."` deviendrait un chemin, et non plus une
+ * clef absente. La forme de la valeur est vérifiée par ailleurs
+ * (`MOTIF_NOM_DE_SUJET`) pour la QUALITÉ DU MESSAGE, jamais comme garde ; le garde, c'est ceci.
+ * Un lien symbolique n'est pas retenu : `Dirent.isDirectory()` décrit l'entrée elle-même, si bien
+ * qu'un lien portant un nom admis tombe hors du registre plutôt que d'y entrer (S-021).
+ *
+ * 🔴 LA CLEF EST LE NOM DE DOSSIER, PAS LE CHAMP `sujet` DÉCLARÉ, et c'est une mesure qui
+ * l'impose : les racines de fixtures du dépôt déclarent TOUTES `"sujet": "securite-web"`, si bien
+ * qu'une clef prise sur ce champ les mettrait toutes en collision.
+ *
+ * ⚠️ LA RÉSOLUTION EST PARESSEUSE, ET C'EST STRUCTUREL. Le contrat dit que le validateur confronte
+ * au schéma « chaque horaire frère qu'il CONSULTE ». Le lire ici serait pire qu'inutile : sous
+ * `__fixtures__/invalides/`, les 52 cas sont frères les uns des autres et plusieurs portent un
+ * `horaire.json` volontairement fautif — les valider tous donnerait à CHAQUE cas une première
+ * anomalie qui n'est pas la sienne, alors que le mode `--fixtures` ne compare que celle-là.
+ *
+ * @param {string} racine chemin absolu
+ * ⚠️ LE BALAYAGE LUI-MÊME EST PARTAGÉ — `./sujets-freres.mjs`, importé par les DEUX copies. La
+ * duplication est le contrat de ce dépôt pour ce qui JUGE ; recenser des dossiers ne juge rien, et
+ * une divergence sur « quels frères existent » serait invisible à tout appariement de messages (le
+ * raisonnement complet vit dans l'en-tête du module partagé). Ce qui reste ici est la seule chose
+ * propre à cette copie : la FORME que prend un frère une fois recensé.
+ *
+ * @returns {Map<string, SujetFrere>}
+ */
+function construireRegistreDesSujetsFreres(racine) {
+  /** @type {Map<string, SujetFrere>} */
+  const registre = new Map();
+  for (const [nom, chemin] of recenserLesSujetsFreres(racine)) {
+    registre.set(nom, {
+      chemin,
+      rel: relative(RACINE_DEPOT, chemin).replaceAll('\\', '/'),
+      resolu: null,
+      cause: null,
+    });
+  }
+  return registre;
+}
+
+/**
+ * Résout UN sujet frère — la seule porte par laquelle un horaire étranger entre dans ce fichier.
+ *
+ * Il est confronté à `schemas/horaire.schema.json`, comme celui de la racine : c'est `valider.mjs`
+ * qui porte le schéma (stratification du pipeline), et un horaire frère consulté sans être validé
+ * ferait entrer au contrat compilé un code de cours dont personne n'a vérifié la forme.
+ *
+ * ⚠️ SEUL LE SCHÉMA S'APPLIQUE ICI, PAS LES RÈGLES HORS SCHÉMA de `validerHoraireDeLaRacine`
+ * (croissance stricte des numéros, portée des évaluations) : elles se vérifient quand ce sujet-là
+ * est LUI-MÊME la racine d'une exécution, et les redire ici ferait sortir la même faute deux fois,
+ * sous deux fichiers différents.
+ *
+ * @param {SujetFrere} frere muté sur place — la lecture est mémoïsée, un même sujet cité dix fois
+ *   n'est lu qu'une
+ * @returns {{ code: string, numeros: ReadonlySet<number> } | null} `null` si l'horaire est refusé,
+ *   `frere.cause` porte alors la raison
+ */
+function resoudreSujetFrere(frere) {
+  if (frere.resolu !== null || frere.cause !== null) return frere.resolu;
+  avecJson(
+    frere.chemin,
+    (donnees) => {
+      if (!validerHoraire(donnees)) {
+        frere.cause = `« ${frere.rel} » : ${premiereErreurAjv(validerHoraire.errors)}`;
+        return;
+      }
+      const horaire = /** @type {{ cours: { code: string }, seances: { numero: number }[] }} */ (
+        donnees
+      );
+      frere.resolu = {
+        code: horaire.cours.code,
+        numeros: new Set(horaire.seances.map((seance) => seance.numero)),
+      };
+    },
+    (cause) => {
+      frere.cause = `« ${frere.rel} » : ${cause}`;
+    },
+  );
+  return frere.resolu;
 }
 
 /**
@@ -3305,6 +3505,11 @@ function validerRacine(racine) {
   // anomalie doit sortir avant celles des modules qui citent ses exercices — sans quoi un registre
   // faux se lirait comme une faute des leçons qui le référencent.
   const exercices = validerExercicesDeLaRacine(racine, horaire, anomalies);
+  // LE REGISTRE DES SUJETS FRÈRES SE LIT APRÈS L'HORAIRE PROPRE, et il ne pousse AUCUNE anomalie :
+  // il ne fait que recenser des chemins (§3bis, lot 1b). Un horaire frère n'est lu — et confronté
+  // au schéma — que le jour où un `cours="…"` le nomme, et son refus sort alors comme la cause du
+  // renvoi qui l'a consulté, sous le `lecon.md` fautif : c'est là que l'auteur peut agir.
+  const sujetsFreres = construireRegistreDesSujetsFreres(racine);
   const dossiers = recenserLecons(racine);
 
   /** @type {Map<string, string>} */
@@ -3332,7 +3537,7 @@ function validerRacine(racine) {
 
   for (const dossier of dossiers) {
     const rel = relative(RACINE_DEPOT, dossier).replaceAll('\\', '/');
-    const resultat = validerLecon(dossier, horaire, exercices);
+    const resultat = validerLecon(dossier, horaire, exercices, sujetsFreres);
     anomalies.push(...resultat.anomalies);
     modules.push({
       rel,

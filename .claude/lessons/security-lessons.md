@@ -1174,3 +1174,53 @@ refus doit vivre dans le **document de planification** du lot suivant, pas seule
 leçon — une dette datée n'est utile que si l'agent du lot qui l'ouvre a une chance de la lire.
 **Réfs lot 5.** `tools/content-pipeline/compiler-markdown.mjs` (`methodes`), `valider.mjs`,
 `docs/design/refonte-lecons-actionnables.md` § Lot 6, commits `86cdd90`/`df02e63`.
+
+## S-027 · « Fermée pour le PIPELINE » n'est pas « fermée pour la FONCTION » — une grammaire portée par une couche AMONT laisse la copie AVAL seule autorité sur tout chemin qui court-circuite l'amont (A03 · CWE-20, septième forme de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]]/[[S-026]])
+
+**Constat, pas incident — rien n'était exploitable au moment de la revue (2026-09-08, lot 1b, PR
+#52).** Le lot lève le refus provisoire de `cours="…"` et pose au contrat compilé le `cours.code`
+lu dans l'`horaire.json` d'un sujet frère. Ce code part **verbatim** dans le libellé rendu. Sa
+grammaire (`^[0-9A-Z]{3}-[0-9A-Z]{3}-[0-9A-Z]{2}$`) existait — mais **uniquement** dans
+`schemas/horaire.schema.json`, donc dans `valider.mjs`. Le compilateur, lui, ne vérifiait que
+`typeof code === 'string' && code !== ''`.
+
+**Pourquoi ça passait pour clos.** La stratification du pipeline est réelle et documentée :
+`build.mjs` fait tourner `valider.mjs` **avant** `compiler-markdown.mjs`, et le compilateur
+s'interdit délibérément de porter un second exemplaire du schéma — deux autorités sur la même
+forme finiraient par diverger. Le raisonnement est juste, et la conclusion « la dette S-026 est
+fermée » ne l'était pas : **elle est fermée pour le CHEMIN, pas pour la FONCTION.** Or c'est la
+fonction, seule, qui écrit `code` dans le contrat compilé.
+
+**Ce qui rouvre le trou, et qui est banal.** Un appelant qui produit un artéfact sans passer par
+le validateur. Mesuré au moment de la revue : `build.mjs` appelle `etapeValider` sans aucun
+drapeau de contournement, et les deux autres appelants de `compilerRacine` (la CLI de
+`compiler-markdown.mjs`, `rendre-mermaid.mjs`) n'écrivent pas `src/content-generated/`. La
+propriété tenait donc — par un état du dépôt, pas par une garantie. **Une garantie qui dépend de
+l'ordre des étapes d'un script n'est pas une garantie : c'est une convention, et un lot la change
+sans le savoir** (même famille que [[S-018]], où un garde-fou d'ordonnancement se contournait par
+le corps du script npm qu'il appelait).
+
+**Règle.** Quand une valeur traverse une couche pour arriver **rendue**, la grammaire se pose sur
+**la fonction qui la pose au contrat**, pas seulement sur la couche qui la valide en amont. Le
+littéral se **recopie et se relit à la main**, jamais ne se dérive du schéma ([[S-005]] : une
+liste blanche dérivée autorise ce qu'une future version y mettra). Le doublon est ici **voulu** :
+il ne crée pas deux autorités sur la forme, il place la même autorité aux deux endroits où la
+valeur peut entrer. ⚠️ Et le contrôle positif se fait **par retrait** : garde débranché, la valeur
+fautive doit **traverser jusqu'au contrat compilé** — sans cette moitié, on ne sait pas si c'est
+ce garde-là qui attrape ou un voisin ([[L-074]]). Mesuré ici : `420-zzz-hu` arrive intact dans
+`renvoiCours.cours` quand le garde est débranché.
+
+**Second constat du même lot, même famille de raisonnement — un contrôle d'EXISTENCE ne dit rien
+du TYPE.** Le registre filtrait les dossiers par `Dirent.isDirectory()` (fail-closed : un lien de
+dossier ou une jonction NTFS sort du registre, [[S-021]]) mais lisait ensuite l'`horaire.json`
+par `existsSync` + `readFileSync`, qui **suivent** un lien symbolique. Primitive de lecture très
+étroite — le fichier visé doit valider le schéma d'un horaire, et n'exfiltre que `cours.code` —
+mais gratuite à fermer : `lstatSync(chemin).isFile()`, et surtout **pas** `statSync`, qui suit le
+lien et rendrait `true` pour exactement le cas refusé. ⚠️ Résidu nommé : ce contrôle **n'a pas de
+contrôle positif**, un lien réel demandant un privilège que Windows n'accorde pas au poste.
+
+**Réfs.** `tools/content-pipeline/compiler-markdown.mjs` (`MOTIF_CODE_DE_COURS`,
+`lireHoraireDUnSujetFrere`) ; `tools/content-pipeline/sujets-freres.mjs` (`lstatSync().isFile()`) ;
+`tools/content-pipeline/schemas/horaire.schema.json` (`cours.code`) ; `build.mjs` (ordre
+valider → compiler) ; PR #52, 2026-09-08. Croise [[S-026]], [[S-020]], [[S-021]], [[S-018]],
+[[S-005]], [[L-074]].

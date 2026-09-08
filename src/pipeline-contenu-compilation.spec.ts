@@ -1675,16 +1675,66 @@ describe('pipeline de contenu — compilation Markdown', () => {
         expect(message).not.toContain(':::');
       }, DELAI);
 
-      it('refuse « cours="…" » — RECONNU, mais la résolution inter-cours n’est pas livrée', () => {
-        const message = messageDEchecDuTitre('{cours="php" diapos="12"}');
-        expect(message).toContain('cite un AUTRE cours');
+      // ⚠️ CE TEST A CHANGÉ DE CIBLE AU LOT 1b, IL N'A PAS ÉTÉ AFFAIBLI. Il constatait le refus
+      // provisoire du lot 1a (« la résolution inter-cours n'est pas livrée ») ; cette phrase
+      // n'existe plus, la résolution étant livrée. Ce qu'il constate désormais est le refus qui
+      // l'a remplacée sur cette fixture-ci : `php` n'est PAS un sujet frère d'une racine ad hoc,
+      // et le message le dit en énumérant ce que le registre a réellement vu.
+      it('refuse « cours="…" » qui ne nomme aucun sujet frère, en énumérant ce qu’il connaît', () => {
+        const message = messageDEchecDuTitre('{cours="php" seance="8" diapos="12"}');
+        expect(message).toContain("n'est pas un sujet frère de cette racine");
         // Le refus doit dire POURQUOI. « attribut inconnu » enverrait l'auteur corriger une
-        // faute de frappe imaginaire — la clef est au contrat, c'est sa résolution qui manque.
+        // faute de frappe imaginaire — la clef est au contrat, c'est sa cible qui manque.
         expect(message).not.toContain('inconnu');
-        expect(message).toContain('horaire');
       }, DELAI);
     });
   });
+});
+
+// =============================================================================
+// §3bis — LA RÉSOLUTION INTER-COURS DE « cours="…" » (lot 1b, chemin passant)
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC EST LE SEUL À VOIR. La fixture mime la PRODUCTION : la racine compilée
+// (`inter-cours/cours/securite-web`) a un sujet FRÈRE (`inter-cours/cours/php`) qui ne porte
+// qu'un `horaire.json`, sans une seule leçon. Le titre `{cours="php" seance="8" diapos="30-42"}`
+// n'est donc validable qu'en lisant un fichier d'une AUTRE racine.
+//
+// 🔴 L'ASSERTION PORTE SUR LE CODE RÉSOLU, ET C'EST TOUT SON INTÉRÊT. Une implémentation qui
+// recopierait le nom de dossier écrit par l'auteur — `cours: 'php'` — produirait les mêmes
+// titres, les mêmes ancres et les mêmes diapositives : seule l'égalité avec « 420-4P2-HU », qui
+// n'apparaît NULLE PART dans le `lecon.md`, distingue une résolution d'une recopie (S-026).
+//
+// ⚠️ LES REFUS SONT LE LOT 1b-B, délibérément : ce bloc-ci ne mesure que le chemin passant.
+// =============================================================================
+describe('la résolution inter-cours d’un renvoi de section (§3bis, lot 1b)', () => {
+  const FIXTURE_INTER = 'tools/content-pipeline/__fixtures__/inter-cours/cours/securite-web';
+
+  // SON PROPRE BAC À SABLE, même raison que les blocs voisins : celui du bloc précédent a déjà
+  // été supprimé par son `afterAll` quand ce `describe` démarre.
+  beforeAll(() => {
+    bacASable = mkdtempSync(join(tmpdir(), 'drjst-inter-cours-'));
+  });
+
+  afterAll(() => {
+    rmSync(bacASable, { recursive: true, force: true });
+  });
+
+  it('résout le NOM DE DOSSIER en CODE de cours, et pose ce code au contrat compilé', () => {
+    const { lecons } = compiler(FIXTURE_INTER, join(bacASable, 'inter-cours.scss'));
+    const premiere = lecons[0];
+    if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
+    const section = premiere.sections.find((s) => s.titre === 'Le VirtualHost, côté cours de PHP');
+    if (section === undefined) {
+      throw new Error(
+        `section absente — titres compilés : ${premiere.sections.map((s) => s.titre).join(' | ')}`,
+      );
+    }
+    expect(section.renvoiCours).toEqual({
+      seance: 8,
+      diapos: Array.from({ length: 13 }, (_, i) => 30 + i),
+      cours: '420-4P2-HU',
+    });
+  }, DELAI);
 });
 
 // =============================================================================

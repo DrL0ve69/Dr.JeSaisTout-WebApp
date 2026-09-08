@@ -424,11 +424,13 @@ interface SectionCompilee {
    * D-B). Plages DÉJÀ DÉPLIÉES, comme sur un encadré : le rendu reçoit `[45, 46, 47]` et n'a
    * jamais à connaître la grammaire d'auteur.
    *
-   * ⚠️ `cours` EST AU CONTRAT MAIS AUCUN LOT NE LE PRODUIT ENCORE. Le pipeline est mono-sujet par
-   * exécution, si bien que `cours="…"` est REFUSÉ à l'usage par le validateur comme par le
-   * compilateur (lot 1a) ; sa résolution est le lot 1b. Quand il apparaîtra, il ne désignera
-   * jamais le `sujet` du module lui-même — la forme superflue est refusée, donc un `cours`
-   * renseigné est toujours une information, jamais une redite.
+   * 🔴 `cours` PORTE LE CODE DE COURS RÉSOLU (`420-4P2-HU`), JAMAIS LE NOM DE DOSSIER ÉCRIT PAR
+   * L'AUTEUR (lot 1b, 2026-09-08). L'auteur écrit une CLEF — `{cours="php" …}`, un nom de dossier
+   * de sujet frère — et le compilateur la résout en lisant le `cours.code` de l'`horaire.json` de
+   * ce dossier. Ce membre du contrat n'est donc PLUS du texte d'auteur : le rendu n'a rien à
+   * recopier, et le jour où le code du cours change, il change à un seul endroit.
+   * ⚠️ Il ne désigne jamais le sujet du module lui-même — la forme superflue est refusée des deux
+   * côtés, donc un `cours` renseigné est toujours une information, jamais une redite.
    */
   renvoiCours?: { seance: number; diapos: number[]; cours?: string };
   blocs: BlocContenu[];
