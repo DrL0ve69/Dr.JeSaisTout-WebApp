@@ -1,0 +1,14 @@
+{
+  "sujet": "php",
+  "cours": {
+    "code": "420-4P2-HU",
+    "titre": "Développement d'application en PHP",
+    "enseignant": "Alexandre Mageau-Pétrin",
+    "etablissement": "Cégep de l'Outaouais",
+    "session": "Automne 2026"
+  },
+  "seances": [
+    { "numero": 1, "date": "2026-08-04", "titre": "Introduction à PHP" },
+    { "numero": 8, "date": "2026-09-22", "titre": "Déploiement d'application" }
+  ]
+}

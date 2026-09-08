@@ -222,8 +222,10 @@ registre.
 `securite-web` et `php` — et c'est tout ce que `cours="…"` peut nommer.
 
 🔴 **La clef est le NOM DE DOSSIER, pas le champ `sujet` déclaré, et c'est une mesure qui l'impose.**
-Les racines de fixtures du dépôt (`tools/content-pipeline/__fixtures__/**/horaire.json`, 25 fichiers
-au 2026-09-08) déclarent **toutes** `"sujet": "securite-web"` : une clef prise sur ce champ les
+Les racines de fixtures du dépôt (`tools/content-pipeline/__fixtures__/**/horaire.json`, 27 fichiers
+au 2026-09-08 — 25 avant que le lot 1b n'en ajoute deux avec `__fixtures__/inter-cours/cours/`)
+déclarent **presque toutes** `"sujet": "securite-web"` (la seule exception est le sujet frère
+`inter-cours/cours/php`, précisément parce qu'il faut un second sujet pour exercer la résolution) : une clef prise sur ce champ les
 mettrait toutes en collision, et chaque exécution de fixture rougirait sur une faute qui n'est pas la
 sienne. Le nom de dossier, lui, est unique par construction — c'est le système de fichiers qui le
 garantit, pas une règle qu'on espère tenue.

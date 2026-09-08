@@ -196,7 +196,7 @@ function etapeValider(racineAbsolue) {
  *
  * @param {string} racineAbsolue
  * @param {string | undefined} cacheDiagrammes dossier de cache des SVG, ou `undefined` pour le défaut
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null }>}
+ * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
  */
 async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
   /** @type {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | undefined} */
@@ -341,7 +341,7 @@ async function principal() {
 
   etapePurger(sortieAbsolue);
 
-  const { lecons, feuille, horaire, exercices } = await etapeCompiler(
+  const { lecons, feuille, horaire, exercices, sujetsFreres } = await etapeCompiler(
     racineAbsolue,
     cacheDiagrammes,
   );
@@ -381,6 +381,14 @@ async function principal() {
   etape(
     `4/5 exercices — ${sujetsAvecExercices.length} registre(s) de sujet` +
       (sujetsAvecExercices.length > 0 ? ` : ${sujetsAvecExercices.join(', ')}` : ''),
+  );
+  // LE REGISTRE DES SUJETS FRÈRES S'ANNONCE MÊME À ZÉRO, POUR LA MÊME RAISON (L-005). C'est lui
+  // qui borne ce qu'un `{cours="…"}` peut nommer (§3bis) : sans cette ligne, « la racine n'a aucun
+  // sujet frère » et « la lecture du registre est débranchée » s'écriraient exactement pareil, et
+  // un renvoi refusé enverrait chercher la faute dans la leçon plutôt que dans l'arborescence.
+  etape(
+    `4/5 sujets frères — ${sujetsFreres.length} sujet(s) voisin(s) portant un « horaire.json »` +
+      (sujetsFreres.length > 0 ? ` : ${sujetsFreres.join(', ')}` : ''),
   );
   // LE FILTRE S'ANNONCE TOUJOURS, MÊME À ZÉRO (L-005) : un gate qui n'a rien retiré doit se voir
   // dans le journal, sinon « aucun brouillon » et « filtre débranché » s'écrivent pareil.
