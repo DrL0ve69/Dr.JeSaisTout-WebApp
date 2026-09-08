@@ -433,6 +433,23 @@ interface SectionCompilee {
    * côtés, donc un `cours` renseigné est toujours une information, jamais une redite.
    */
   renvoiCours?: { seance: number; diapos: number[]; cours?: string };
+  /**
+   * `true` quand le titre porte le marqueur `{hors-cours}` (§3bis, lot 1c, 2026-09-08) : **aucune
+   * diapositive des deux cours ne porte cette section**. C'est un AVEU ÉCRIT, pas une absence —
+   * mesuré sur le module 11, 10 de ses 18 titres sont dans ce cas.
+   *
+   * 🔴 POURQUOI UN CHAMP SÉPARÉ ET NON UNE UNION AVEC `renvoiCours`. Une union
+   * (`renvoiCours?: {…} | { horsCours: true }`) obligerait CHAQUE consommateur du contrat à
+   * discriminer avant de lire `diapos` — le rendu, le sommaire, le gate du lot 9 — pour une
+   * information que la plupart n'ont pas à connaître. Deux champs optionnels indépendants laissent
+   * un lecteur qui ignore celui-ci fonctionner à l'identique, et le validateur comme le
+   * compilateur refusent la seule combinaison qui n'a pas de sens : les deux à la fois.
+   *
+   * ⚠️ ABSENT ≠ `false`. Un titre sans bloc d'attributs ne porte ni renvoi ni marqueur : « pas
+   * encore cartographié ». Le marqueur dit « cartographié, et il n'y a rien » — c'est cette
+   * distinction qui permettra au gate du lot 9 d'exiger l'un OU l'autre sur chaque `##`/`###`.
+   */
+  horsCours?: true;
   blocs: BlocContenu[];
 }
 

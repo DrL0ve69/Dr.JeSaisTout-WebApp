@@ -196,6 +196,43 @@ jeton au suivant, bornes de plage croissantes. Toute autre forme fait **échouer
 le jeton fautif. La matrice d'attributs est **fermée à trois clefs** — `diapos`, `seance`, `cours` —
 et une clef inconnue est un refus nommé, jamais une valeur ignorée en silence.
 
+### Le marqueur `{hors-cours}` — l'aveu écrit (lot 1c, 2026-09-08)
+
+```markdown
+### Installer WSL {hors-cours}
+```
+
+🔴 **Pourquoi ce marqueur existe, et pourquoi c'est un aveu plutôt qu'un silence.** La cartographie
+**mesurée** du module 11 ([`renvois-diapos-module-11.md`](renvois-diapos-module-11.md)) établit que
+**10 de ses 18 titres `##`/`###` ne sont portés par AUCUNE diapositive des deux cours** —
+`VirtualHost`, `.gitignore`, `composer`, `public/`, `WSL` : **zéro occurrence** dans les 16 extraits.
+Ce n'est pas un trou de recherche, c'est un **résultat** : ce sont précisément les sections qui
+existent parce que le cours ne les couvre pas. Sans marqueur, « pas encore cartographié » et « rien
+à citer » s'écrivent tous les deux **par le silence** — indiscernables. Avec lui, deux choses
+deviennent possibles : le **gate du lot 9 peut devenir TOTAL** (chaque `##`/`###` porte soit des
+diapositives, soit l'aveu qu'il n'y en a pas), et l'étudiant lit **noir sur blanc** ce qui n'est pas
+matière d'examen.
+
+**Les règles, et ce que chacune engage.**
+
+- **C'est un marqueur SANS VALEUR**, exactement comme `defaut` sur un `::: methode`. `{hors-cours}`
+  s'écrit **seul, sans guillemets** ; 🔴 **`{hors-cours="oui"}` est un refus nommé** — et le message
+  cite la **grammaire des marqueurs**, jamais « attribut inconnu », qui enverrait l'auteur corriger
+  une faute de frappe dans un nom parfaitement au contrat.
+- 🔴 **Il est EXCLUSIF de `diapos`, `seance` et `cours`.** « Aucune diapositive ne porte cette
+  section » et « voici les diapositives qui la portent » se contredisent : les accepter ensemble
+  laisserait le rendu choisir en silence lequel des deux l'auteur voulait dire. Le refus **nomme la
+  clef trouvée à côté** — sur un titre qui en porte trois, « les deux se contredisent » sans nom
+  obligerait l'auteur à relire toute la ligne pour savoir laquelle retirer.
+- **Il ne se pose que sur un titre de niveau 2 ou 3**, comme un renvoi.
+- 🔴 **Un bloc d'attributs de titre porte désormais `diapos` OU le marqueur — jamais ni l'un ni
+  l'autre, jamais les deux.** `## Titre {}` reste refusé, et le message nomme maintenant **les deux
+  issues** : citer des diapositives, ou déclarer le marqueur. N'en nommer qu'une enverrait l'auteur
+  **inventer** un renvoi là où le cours n'a rien, ce que le marqueur existe pour éviter.
+- **Les deux copies du juge l'admettent et le refusent à l'identique** — `valider.mjs` et
+  `compiler-markdown.mjs` déclarent chacune leur `MARQUEURS_DE_TITRE`, appariées par
+  `src/pipeline-contenu-validation.spec.ts` et non par ce paragraphe (L-008).
+
 🔴 **L'attribut est retiré du texte du titre AVANT toute autre chose.** Trois conséquences qui ne se
 devinent pas, et dont chacune casserait en silence si elle était ratée :
 
@@ -268,9 +305,24 @@ il est cité :
   niveau: 2 | 3;
   /** Renseigné quand le titre porte `{diapos="…"}`. Plages déjà dépliées, comme sur un encadré. */
   renvoiCours?: { seance: number; diapos: number[]; cours?: string };
+  /** `true` quand le titre porte `{hors-cours}` — aucune diapositive ne porte cette section. */
+  horsCours?: true;
   blocs: BlocContenu[];
 }
 ```
+
+🔴 **`horsCours` est un champ DISTINCT, pas une union avec `renvoiCours`** (lot 1c). Une union
+(`renvoiCours?: {…} | { horsCours: true }`) obligerait **chaque** consommateur du contrat — le
+rendu, le sommaire, le gate du lot 9 — à **discriminer avant de lire `diapos`**, pour une
+information que la plupart n'ont pas à connaître. Deux champs optionnels indépendants laissent un
+lecteur qui ignore celui-ci fonctionner à l'identique ; et la seule combinaison qui n'aurait pas de
+sens — les deux à la fois — est refusée **par les deux copies du juge**, donc n'atteint jamais le
+contrat.
+
+⚠️ **Absent n'est pas `false`.** Un titre sans bloc d'attributs ne porte ni renvoi ni marqueur :
+c'est « pas encore cartographié ». Le marqueur dit « cartographié, et il n'y a rien ». C'est
+exactement cette distinction qui permettra au gate du lot 9 d'exiger **l'un ou l'autre** sur chaque
+`##`/`###`.
 
 ⚠️ **`cours` n'est présent que lorsqu'il désigne un AUTRE cours que celui du module** — le
 validateur refuse la forme superflue (§3bis), si bien qu'un `cours` renseigné dans le contrat

@@ -95,6 +95,12 @@ interface SectionLue {
   niveau: number;
   /** §3bis — présent seulement quand le TITRE de la section porte `{diapos="…"}`. */
   renvoiCours?: { seance: number; diapos: number[]; cours?: string };
+  /**
+   * §3bis, lot 1c — présent seulement quand le titre porte `{hors-cours}`. Lu en forme LARGE
+   * (`true | undefined`) comme le reste de ce fichier : c'est l'exécution qui doit constater la
+   * valeur, pas un type qui la présuppose (L-012).
+   */
+  horsCours?: true;
   blocs: BlocQuelconque[];
 }
 
@@ -2683,4 +2689,122 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
     },
     DELAI,
   );
+});
+
+// =============================================================================
+// §3bis — LE MARQUEUR « {hors-cours} » SUR UN TITRE DE SECTION (lot 1c), côté COMPILATEUR
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC EST LE SEUL À VOIR : le CONTRAT COMPILÉ. Le validateur peut accepter le marqueur
+// sans que rien n'en sorte — c'est ici, et ici seulement, qu'on mesure que `horsCours: true` entre
+// dans la section, que `renvoiCours` reste ABSENT à côté, et que les sections voisines ne gagnent
+// pas le champ (absent ≠ false : « pas encore cartographié » doit rester distinct de « rien à
+// citer », c'est ce que le gate du lot 9 lira).
+//
+// ⚠️ AUCUN DOSSIER DE FIXTURE : mutations d'UNE ligne de titre par la plomberie partagée.
+// =============================================================================
+describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côté COMPILATEUR', () => {
+  let bac = '';
+
+  beforeAll(() => {
+    bac = mkdtempSync(join(tmpdir(), 'drjst-hors-cours-c-'));
+  });
+
+  afterAll(() => {
+    rmSync(bac, { recursive: true, force: true });
+  });
+
+  const TITRE = '### Le VirtualHost, côté cours de PHP';
+
+  it('pose « horsCours: true » au contrat compilé, SANS renvoi à côté', () => {
+    const racine = preparerArbreInterCours(bac, 'c-hors-cours-seul', {
+      titre: `${TITRE} {hors-cours}`,
+    });
+    const { lecons } = compiler(racine, join(bac, 'hors-cours.scss'));
+    const premiere = lecons[0];
+    if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
+    const section = premiere.sections.find((s) => s.titre === 'Le VirtualHost, côté cours de PHP');
+    if (section === undefined) {
+      throw new Error(
+        `section absente — titres compilés : ${premiere.sections.map((s) => s.titre).join(' | ')}`,
+      );
+    }
+    expect(section.horsCours).toBe(true);
+    // LES DEUX CHAMPS SONT INDÉPENDANTS, et le marqueur n'en fabrique pas un second : une union
+    // aurait ici un `renvoiCours` renseigné d'une forme dégénérée, que chaque consommateur
+    // devrait discriminer.
+    expect(section.renvoiCours).toBeUndefined();
+    // ANTI-VACUITÉ : le titre est DÉPOUILLÉ du marqueur comme il l'est d'un renvoi — sans quoi
+    // l'ancre vaudrait « …-hors-cours » et tout `{voir="…"}` pointerait à côté.
+    expect(section.ancre).toBe('le-virtualhost-cote-cours-de-php');
+  }, DELAI);
+
+  it('laisse le champ ABSENT sur les sections qui ne déclarent rien — absent ≠ false', () => {
+    const racine = preparerArbreInterCours(bac, 'c-champ-absent', {
+      titre: `${TITRE} {hors-cours}`,
+    });
+    const { lecons } = compiler(racine, join(bac, 'absent.scss'));
+    const premiere = lecons[0];
+    if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
+    const autres = premiere.sections.filter((s) => s.titre !== 'Le VirtualHost, côté cours de PHP');
+    expect(autres.length).toBeGreaterThan(0);
+    expect(autres.every((s) => s.horsCours === undefined)).toBe(true);
+  }, DELAI);
+
+  /**
+   * LES TROIS REFUS, en table — chacun sur SA cause propre. Un compilateur qui refuserait TOUT
+   * bloc d'attributs passerait un test qui n'épingle que l'échec ; ce qui discrimine est le
+   * fragment, et le chemin passant ci-dessus interdit cette lecture-là.
+   */
+  const REFUS: readonly { nom: string; quoi: string; titre: string; cause: string }[] = [
+    {
+      nom: 'c-marqueur-et-renvoi',
+      quoi: 'le marqueur ET un renvoi — en NOMMANT la clef trouvée à côté',
+      titre: `${TITRE} {hors-cours diapos="30-42"}`,
+      cause: "porte le marqueur « hors-cours » ET l'attribut « diapos »",
+    },
+    {
+      // ⚠️ DISCRIMINANT : « attribut « hors-cours » inconnu » enverrait l'auteur corriger une
+      // faute de frappe dans un nom qui est au contrat — c'est sa FORME qui est fautive.
+      nom: 'c-marqueur-avec-valeur',
+      quoi: 'le marqueur écrit avec une valeur, sous la grammaire des MARQUEURS',
+      titre: `${TITRE} {hors-cours="oui"}`,
+      cause: '« hors-cours » est un marqueur : il s\u2019écrit seul, sans valeur ni guillemets',
+    },
+    {
+      nom: 'c-ni-l-un-ni-l-autre',
+      quoi: 'un bloc vide — en nommant LES DEUX issues',
+      titre: `${TITRE} {}`,
+      cause: 'ne renvoie à rien',
+    },
+  ];
+
+  /**
+   * Bâtit l'arbre muté du cas — plomberie PARTAGÉE, qui porte la vérification L-015 de la
+   * mutation — puis rend la sortie d'échec du COMPILATEUR.
+   */
+  function echecDuTitre(nom: string, titre: string): string {
+    const racine = preparerArbreInterCours(bac, nom, { titre });
+    try {
+      compiler(racine, join(bac, `${nom}.scss`));
+    } catch (erreur) {
+      const echec = erreur as { status?: number; stderr?: string };
+      expect(echec.status).not.toBe(0);
+      return echec.stderr ?? '';
+    }
+    throw new Error(`« ${nom} » a été COMPILÉ — le garde-fou n’a pas mordu`);
+  }
+
+  it.each(REFUS)(
+    'refuse $quoi',
+    ({ nom, titre, cause }) => {
+      expect(echecDuTitre(nom, titre)).toContain(cause);
+    },
+    DELAI,
+  );
+
+  it('nomme LES DEUX issues quand le bloc ne renvoie à rien', () => {
+    const stderr = echecDuTitre('c-deux-issues', `${TITRE} {}`);
+    expect(stderr).toContain('citer des diapositives avec « diapos="12-18" »');
+    expect(stderr).toContain('ou déclarer le marqueur « hors-cours »');
+  }, DELAI);
 });

@@ -211,6 +211,33 @@ const ATTRIBUT_COURS = 'cours';
 const CLEFS_RENVOI_DE_TITRE = [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE, ATTRIBUT_COURS];
 
 /**
+ * LE MARQUEUR SANS VALEUR D'UN TITRE DE SECTION : « aucune diapositive des cours ne porte cette
+ * section » (lot 1c, décision du propriétaire du 2026-09-08).
+ *
+ * 🔴 POURQUOI. La cartographie mesurée du module 11 (`docs/contenu/renvois-diapos-module-11.md`)
+ * établit que **10 de ses 18 titres `##`/`###` ne sont portés par AUCUNE diapositive des deux
+ * cours** (`VirtualHost`, `.gitignore`, `composer`, `public/`, `WSL` : zéro occurrence dans les 16
+ * extraits) — ce sont précisément les sections qui existent parce que le cours ne les couvre pas.
+ * Sans marqueur, « pas encore cartographié » et « rien à citer » s'écrivent tous deux par le
+ * SILENCE, et le gate du lot 9 ne pourrait jamais devenir total.
+ *
+ * Sa mécanique est celle de `MARQUEUR_DEFAUT` (voir son commentaire, plus bas) : un marqueur sans
+ * valeur admis par LISTE BLANCHE de l'appelant. `hors-cours` n'est admis que sur un titre de
+ * section, jamais sur un encadré ni sur un volet ; `{hors-cours="oui"}` est refusé en nommant la
+ * grammaire des marqueurs, jamais avalé.
+ */
+const MARQUEUR_HORS_COURS = 'hors-cours';
+
+/**
+ * La liste blanche des marqueurs d'un titre — jumelle de `MARQUEURS_DE_TITRE` dans `valider.mjs`,
+ * même duplication assumée que `CLEFS_RENVOI_DE_TITRE`, même appariement tenu par
+ * `src/pipeline-contenu-validation.spec.ts` plutôt que par ce commentaire (L-008).
+ *
+ * @type {readonly string[]}
+ */
+const MARQUEURS_DE_TITRE = [MARQUEUR_HORS_COURS];
+
+/**
  * La FORME d'un nom de dossier de sujet — jumelle de `definitions.kebab` dans
  * `schemas/horaire.schema.json` et de la copie de `valider.mjs`.
  *
@@ -1150,6 +1177,20 @@ function lireBlocDAttributs(reste, libelle, clefsAutorisees, nomFichier, marqueu
   const MOTIF_PAIRE = /\b([a-z-]+)="([^"]*)"/g;
   for (const paire of corps.matchAll(MOTIF_PAIRE)) {
     const clef = paire[1] ?? '';
+    // UN MARQUEUR ÉCRIT AVEC UNE VALEUR (`{hors-cours="oui"}`) EST UNE FAUTE DE GRAMMAIRE, PAS UN
+    // ATTRIBUT INCONNU — et le message doit le dire. « attribut inconnu » enverrait l'auteur
+    // chercher une faute de frappe dans un nom qui est, lui, parfaitement au contrat ; c'est sa
+    // FORME qui est fautive. Jugé ICI, avant la liste blanche des clefs, pour que la copie du
+    // validateur puisse rendre le même verdict clef par clef, dans le même ordre (L-089).
+    if (marqueursAutorises.includes(clef)) {
+      echec(
+        `${nomFichier} : attributs illisibles sur « ${libelle} » — « ${clef} » est un marqueur : il s’écrit seul, sans valeur ni guillemets`,
+        [
+          `marqueurs admis : ${marqueursAutorises.join(', ')}`,
+          'un attribut s’écrit clef="valeur" ; un marqueur s’écrit seul, sans valeur ni guillemets',
+        ],
+      );
+    }
     if (!clefsAutorisees.includes(clef)) {
       echec(`${nomFichier} : attribut « ${clef} » inconnu sur « ${libelle} »`, [
         `attendus : ${clefsAutorisees.join(', ') || '(aucun)'}`,
@@ -2559,6 +2600,7 @@ function construireBlocs(jetons, ctx) {
  *   niveau: NiveauTitre,
  *   jetons: JetonMd[],
  *   renvoiCours: { seance: number, diapos: number[] } | null,
+ *   horsCours: boolean,
  * }} SectionEnCours
  */
 
@@ -2633,7 +2675,8 @@ function separerAttributsDuTitre(titreBrut) {
  * @param {string} titreBrut
  * @param {number} niveau niveau ATX lu sur la balise
  * @param {Contexte} ctx
- * @returns {{ titre: string, renvoiCours: { seance: number, diapos: number[] } | null }}
+ * @returns {{ titre: string, renvoiCours: { seance: number, diapos: number[] } | null,
+ *   horsCours: boolean }}
  */
 function lireRenvoiDeTitre(titreBrut, niveau, ctx) {
   const { titre, attributsBruts } = separerAttributsDuTitre(titreBrut);
@@ -2662,7 +2705,7 @@ function lireRenvoiDeTitre(titreBrut, niveau, ctx) {
     );
   }
 
-  if (attributsBruts === '') return { titre: titreBrut, renvoiCours: null };
+  if (attributsBruts === '') return { titre: titreBrut, renvoiCours: null, horsCours: false };
 
   const libelle = `${'#'.repeat(niveau)} ${titre}`;
   // Le contrat pose l'attribut sur une SECTION, et une section est un `##` ou un `###`. Ailleurs,
@@ -2674,14 +2717,37 @@ function lireRenvoiDeTitre(titreBrut, niveau, ctx) {
     ]);
   }
 
-  // AUCUN MARQUEUR SUR UN TITRE DE SECTION : le quatrième argument s'arrête là, donc le défaut
-  // `[]` s'applique et `defaut` y reste un résidu illisible, refusé comme avant le lot 5.
-  const { attributs } = lireBlocDAttributs(
+  // ⚠️ UN SEUL MARQUEUR SUR UN TITRE DE SECTION, DEPUIS LE LOT 1c : `hors-cours`. Le cinquième
+  // argument ne vaut plus `[]` — le commentaire qui vivait ici disait « AUCUN MARQUEUR SUR UN
+  // TITRE DE SECTION » et il est devenu faux ce jour-là. `defaut` y reste un résidu illisible,
+  // refusé comme avant : la liste blanche est nominative, pas ouverte aux marqueurs des voisins.
+  const { attributs, marqueurs } = lireBlocDAttributs(
     attributsBruts,
     libelle,
     CLEFS_RENVOI_DE_TITRE,
     ctx.nomFichier,
+    MARQUEURS_DE_TITRE,
   );
+
+  // 🔴 LE MARQUEUR EST EXCLUSIF DES TROIS CLEFS DE RENVOI — jumelle du garde du validateur.
+  // « aucune diapositive ne porte cette section » et « voici les diapositives qui la portent »
+  // sont contradictoires : les accepter ensemble laisserait le contrat compilé porter les deux,
+  // et le rendu choisir en silence lequel des deux l'auteur voulait dire. Le refus NOMME la clef
+  // trouvée à côté du marqueur — sur un titre qui en porte trois, « les deux se contredisent »
+  // sans nom obligerait l'auteur à relire toute la ligne pour trouver laquelle retirer.
+  if (marqueurs.includes(MARQUEUR_HORS_COURS)) {
+    const voisine = CLEFS_RENVOI_DE_TITRE.find((clef) => attributs[clef] !== undefined);
+    if (voisine !== undefined) {
+      echec(
+        `${ctx.nomFichier} : « ${libelle} » porte le marqueur « ${MARQUEUR_HORS_COURS} » ET l'attribut « ${voisine} »`,
+        [
+          `« ${MARQUEUR_HORS_COURS} » dit qu'AUCUNE diapositive ne porte cette section ; les deux ensemble se contredisent`,
+          'docs/contenu/ancrage-au-cours.md §3bis',
+        ],
+      );
+    }
+    return { titre, renvoiCours: null, horsCours: true };
+  }
 
   // 🔴 SUR UN TITRE, `diapos` EST REQUIS — plus strict que sur un encadré, et délibérément.
   // `{}` passe la grammaire des paires (rien à lire, rien en résidu) ; `{seance="5"}` seul la
@@ -2690,15 +2756,21 @@ function lireRenvoiDeTitre(titreBrut, niveau, ctx) {
   // §3bis ne prévoit `seance` que pour DÉPLACER le renvoi vers une autre séance du même cours :
   // seul, il ne renvoie nulle part. On refuse ici plutôt que de laisser la forme vide traverser
   // jusqu'au contrat compilé, où elle deviendrait une dette silencieuse.
+  // ⚠️ DEPUIS LE LOT 1c, LE MESSAGE NOMME LES DEUX ISSUES — citer, ou déclarer le marqueur. N'en
+  // nommer qu'une enverrait l'auteur inventer un renvoi là où le cours n'a rien, ce que le
+  // marqueur existe précisément pour éviter.
   if (attributs[ATTRIBUT_DIAPOS] === undefined) {
-    echec(`${ctx.nomFichier} : « ${libelle} » porte un renvoi SANS « ${ATTRIBUT_DIAPOS} »`, [
-      `un titre ne renvoie à rien sans « ${ATTRIBUT_DIAPOS} » — retirer les accolades, ou citer les diapositives`,
-      `« ${ATTRIBUT_SEANCE} » seul ne fait que DÉPLACER le renvoi vers une autre séance`,
-      'docs/contenu/ancrage-au-cours.md §3bis',
-    ]);
+    echec(
+      `${ctx.nomFichier} : « ${libelle} » porte un bloc d'attributs qui ne renvoie à rien`,
+      [
+        `citer des diapositives avec « ${ATTRIBUT_DIAPOS}="12-18" », ou déclarer le marqueur « ${MARQUEUR_HORS_COURS} » si aucune diapositive ne porte cette section`,
+        `« ${ATTRIBUT_SEANCE} » seul ne fait que DÉPLACER le renvoi vers une autre séance`,
+        'docs/contenu/ancrage-au-cours.md §3bis',
+      ],
+    );
   }
 
-  return { titre, renvoiCours: lireRenvoiAuCours(libelle, attributs, ctx) };
+  return { titre, renvoiCours: lireRenvoiAuCours(libelle, attributs, ctx), horsCours: false };
 }
 
 /**
@@ -2719,6 +2791,12 @@ function cloturerSection(courante, ancres, ctx) {
     ancre: ancrer(courante.titre, ancres),
     niveau: courante.niveau,
     ...(renvoi === null ? {} : { renvoiCours: renvoi }),
+    // 🔴 UN CHAMP DISTINCT, PAS UNE UNION AVEC `renvoiCours` (§3bis, lot 1c). Une union
+    // obligerait CHAQUE consommateur du contrat à discriminer avant de lire des diapositives ;
+    // ici, un lecteur qui ignore `horsCours` continue de fonctionner à l'identique. Et il reste
+    // ABSENT quand la section n'a rien déclaré — c'est ce qui garde « rien à citer » (le
+    // marqueur) distinct de « pas encore cartographié » (aucun des deux).
+    ...(courante.horsCours ? { horsCours: /** @type {const} */ (true) } : {}),
     blocs: construireBlocs(courante.jetons, ctx),
   };
 }
@@ -2737,7 +2815,7 @@ function cloturerSection(courante, ancres, ctx) {
 function traiterTitre(etat, titreBrut, niveau, ctx) {
   // 🔴 PREMIER GESTE, avant toute autre décision (§3bis) : tout ce qui suit — le message du refus
   // de `h1`, l'ancre, le sommaire, la comparaison au gabarit — travaille sur le titre DÉPOUILLÉ.
-  const { titre, renvoiCours } = lireRenvoiDeTitre(titreBrut, niveau, ctx);
+  const { titre, renvoiCours, horsCours } = lireRenvoiDeTitre(titreBrut, niveau, ctx);
 
   if (niveau === 1) {
     if (etat.titreLuNiveau1) echec(`${ctx.nomFichier} : deux titres de niveau 1`);
@@ -2759,6 +2837,7 @@ function traiterTitre(etat, titreBrut, niveau, ctx) {
     niveau: /** @type {NiveauTitre} */ (niveau),
     jetons: [],
     renvoiCours,
+    horsCours,
   };
   return true;
 }
