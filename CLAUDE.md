@@ -104,9 +104,19 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > d'auteur**, ce qui ferme **S-026**. `content/cours/php/horaire.json` existe (13 séances du 420-4P2-HU,
 > relevées sur le site de l’enseignant). ⚠️ **La clef du registre est le nom de DOSSIER, pas le champ
 > `sujet` déclaré** — mesuré : les racines de fixtures déclarent presque toutes `securite-web`.
-> 🔴 **LES CINQ REFUS INTER-COURS N'ONT AUCUN CONTRÔLE POSITIF — c'est le lot `1b-B`, le geste suivant.**
-> Seul le chemin **passant** est mesuré : population trouée de S-010/L-019, celle même que le lot 7 a
-> payée. ⚠️ **L-094** : le re-mesurer contre le dépôt, un test existant ayant déjà été retargeté.
+> ✅ **LE LOT 1b-B EST LIVRÉ (2026-09-08) — ET IL A RÉFUTÉ SON PROPRE PÉRIMÈTRE, comme le lot 7.**
+> Le plan disait « cinq refus » ; le recomptage en trouve **QUINZE**, sur **trois** juges (6 au
+> validateur, 5 au compilateur, **4 de plus** dans `lireHoraireDUnSujetFrere`), dont **un seul**
+> était exercé. ⚠️ **Les dix manquants ne s’atteignent pas en écrivant un attribut** — il faut abîmer
+> l’`horaire.json` du **frère** : on recense des branches en lisant le JUGE, jamais en énumérant les
+> entrées d’auteur. Les quinze sont tenues une par une, et **trois mutations** mesurent qu’elles
+> discriminent (1, 2 et 1 rouges exactement).
+> 🔴 **CE QUE LE LOT A TROUVÉ AU PASSAGE, ET QUI VAUT AU-DELÀ DE LUI : le garde S-026 que la revue de
+> sécurité du 2026-09-08 avait exigé n’avait AUCUN contrôle positif commité.** La revue l’avait mesuré
+> **une fois, à la main**, en le débranchant — et cette mesure est morte avec son rapport. ⚠️ **Une
+> revue mesure pour DÉCIDER ; si personne ne transforme sa mesure en test, le garde le plus récent du
+> dépôt est le moins protégé contre sa propre disparition** (L-019). Il l’est désormais aux deux
+> étages du couple S-027.
 > 🔴 **« Fermée pour le PIPELINE » n’est pas « fermée pour la FONCTION » (S-027)** : une grammaire
 > qui ne vit que dans le schéma ne protège que le chemin où le validateur tourne avant le compilateur.
 > Et **la duplication compilateur/validateur est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE**

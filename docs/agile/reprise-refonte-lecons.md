@@ -246,7 +246,7 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 **4. L'implémentation, dans l'ORDRE RÉVISÉ par (D).** ~~`0`~~ **✅ livré** (contrats, les trois trous de
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → ~~**`4bis`**~~ **✅**
-(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → ~~**`1b`**~~ **✅ livré** (PR #52, 2026-09-08 — résolution inter-cours) → **`1b-B`** (les contrôles positifs des cinq refus) → `8`
+(spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → ~~**`1b`**~~ **✅ livré** (PR #52, 2026-09-08 — résolution inter-cours) → ~~**`1b-B`**~~ **✅ livré** (2026-09-08 — les contrôles positifs des refus inter-cours ; **cinq annoncés, QUINZE recensés**) → `8`
 (**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
@@ -1067,7 +1067,122 @@ lots 6 et 7, écrite pour la même raison.
 
 ---
 
-**Le geste suivant : le lot `1b-B`** (les contrôles positifs des cinq refus inter-cours), puis le
-**lot 8** — le module 11 repris, en deux demi-lots. ⚠️ Le lot 8 reste porteur de ce que le lot 6 lui
-a légué et qui n'est **pas** clos : le spec e2e des trois états d'un onglet, la passe G-axe sur une
-page portant des onglets, et la capture manuelle en contraste forcé.
+~~**Le geste suivant : le lot `1b-B`**~~ **✅ LIVRÉ le 2026-09-08** — voir la clôture ci-dessous.
+
+---
+
+## CLÔTURE — LOT 1b-B : les contrôles positifs des refus inter-cours (2026-09-08)
+
+🔴 **LE LOT ANNONÇAIT « CINQ REFUS ». LE RECOMPTAGE EN A TROUVÉ QUINZE, DONT UN SEUL ÉTAIT
+EXERCÉ.** C'est L-094 appliquée à la lettre — un lot différé se re-mesure contre l'état du dépôt le
+jour où il s'ouvre — et c'est la deuxième fois d'affilée qu'elle paie : le lot 7 avait déjà trouvé
+sept refus là où le plan en voyait un. La population réelle se répartit sur **trois** juges, pas un :
+
+| Juge | Branches | Exercées avant ce lot |
+|---|---|---|
+| `causeDuRenvoiInterCours` (`valider.mjs`) | **6** | 0 |
+| `resoudreRenvoiInterCours` (`compiler-markdown.mjs`) | **5** | 1 |
+| `lireHoraireDUnSujetFrere` (`compiler-markdown.mjs`) | **4** | 0 |
+
+⚠️ **LA LEÇON DE MÉTHODE, ET ELLE EST PLUS GÉNÉRALE QUE CE LOT : on ne compte pas des branches en
+énumérant les façons d'écrire un attribut.** Les cinq refus du plan étaient exactement les cinq
+qu'un auteur peut déclencher **en tapant dans son `lecon.md`**. Les dix autres ne s'atteignent qu'en
+abîmant un fichier d'une **autre racine** — l'`horaire.json` du frère — et aucune lecture de la
+grammaire d'auteur ne pouvait les faire apparaître. **Le recensement se fait en lisant le JUGE,
+jamais en listant les entrées.**
+
+🔴 **CE QUE LE RECENSEMENT A TROUVÉ ET QUI VAUT LE LOT À LUI SEUL : LE GARDE S-026 QUE LA REVUE DE
+SÉCURITÉ AVAIT EXIGÉ N'AVAIT AUCUN CONTRÔLE POSITIF COMMITÉ.** La clôture du lot 1b écrit que le
+contrôle positif « a été exécuté », le garde débranché, `420-zzz-hu` traversant jusqu'au contrat
+compilé. C'était vrai — et c'était une mesure **à la main, une fois**. Rien dans le dépôt ne la
+rejouait : ni `MOTIF_CODE_DE_COURS`, ni `cours.code`, ni `420-zzz` n'apparaissaient dans un seul
+spec. ⚠️ **Une mesure qui ne laisse aucune trace qu'un gate puisse relancer est une intention, pas
+un contrôle positif** (L-019) — et c'est un mode d'échec propre aux revues : elles mesurent pour
+**décider**, et la mesure meurt avec le rapport. Le garde le plus récemment posé du dépôt était
+donc, à la clôture même du lot qui l'a posé, le moins protégé contre sa propre disparition.
+
+✅ **LE COUPLE S-026 EST DÉSORMAIS TENU AUX DEUX ÉTAGES, ET LES DEUX SONT NÉCESSAIRES.** La moitié
+« fermée pour le PIPELINE » (la grammaire du schéma, atteinte par `valider.mjs`) vit dans le spec de
+validation ; la moitié « fermée pour la FONCTION » (le littéral recopié dans le compilateur) vit
+dans le spec de compilation. Retirer l'une rouvre S-026 **en silence** : `valider.mjs` tourne AVANT
+le compilateur sur le chemin de `build.mjs`, si bien qu'un test passant par le pipeline ne prouve
+rien de la fonction qui, seule, pose `code` au contrat compilé.
+
+⚠️ **AUCUN DOSSIER N'A ÉTÉ AJOUTÉ À `invalides/` — `--fixtures` reste à 52/52, et c'est voulu.**
+Même arbitrage qu'au lot 7, et il pèse plus lourd ici : chaque cas est une mutation d'**une ligne**
+d'une racine valide qui a besoin d'un **sujet frère** à côté d'elle. En dossiers, chacun coûterait
+l'arbre entier (`cours/securite-web/01-temoin/{lecon.md,quiz.json}` + `cours/php/horaire.json`) pour
+une ligne utile — §9 de `.claude/rules/agent-context-budget.md`. Le bac à sable exécute le **même
+binaire** sur une **vraie** racine : la couverture est la même, le coût ne l'est pas.
+
+🔴 **LA DISCRIMINATION EST MESURÉE PAR MUTATION, PAS AFFIRMÉE (L-074).** Un test qui n'épingle que
+« ça a échoué » passerait sur un juge qui refuse TOUT. Trois gardes ont donc été débranchés un par
+un, chaque mutation imprimant d'abord la **preuve qu'elle a mordu** (L-015 — les fins de ligne de ce
+poste sont mixtes) :
+
+| Garde débranché | Rouges | Ce que ça établit |
+|---|---|---|
+| validateur · refus « superflu » | **1** | exactement le test qui le mesure |
+| validateur · 6ᵉ branche « horaire refusé » | **2** | les deux cas qui traversent cette branche unique, chacun par sa cause |
+| **compilateur · grammaire `cours.code` (S-026)** | **1** | exactement le test S-026 — la preuve que la revue demandait, désormais rejouable |
+
+Restauration vérifiée après chaque passe : `git diff` **vide** sur les deux outils.
+
+⚠️ **UN DISCRIMINANT QUE LE TEST EXISTANT NE POUVAIT PAS PORTER.** Le refus « sujet inconnu » avait
+déjà un contrôle positif — mais sur une racine **ad hoc sans frère**, où le message sort en
+énumérant **zéro** sujet. Un registre **toujours vide** aurait passé ce test-là. Le cas neuf vit sur
+une racine qui a un frère et exige que le message le **nomme** : c'est le piège de l'index vide,
+nommé au lot 7 sur `voir-module-inconnu`. ⚠️ **Un contrôle positif posé sur une population vide ne
+mesure pas ce qu'il croit mesurer** — et rien dans son intitulé ne le dit.
+
+⚠️ **DEUX COPIES QUI DISENT LA MÊME CHOSE AUTREMENT, ET QU'IL NE FAUT PAS « HARMONISER ».** Le
+validateur ramène les quatre fautes d'horaire sous **une** branche (« dont l'horaire est refusé —
+<cause Ajv> ») là où le compilateur en **nomme quatre**. Les deux sont concordantes, aucune n'est la
+reformulation de l'autre, et une assertion recopiée d'un fichier à l'autre rougirait sur un produit
+sain (L-035). Un commentaire le dit sur place, pour la même raison qu'au lot 7 : la prochaine
+relecture voudra uniformiser.
+
+**Gates à la clôture — tous verts, tous exécutés localement.** G-lint **0** · G-typage-outils **0**
+· G-content **10 leçon(s), 5/5 poids, 0 dépassement** · `--fixtures` **52/52 cas refusés avec une
+cause nommée** (inchangé, voulu) · G-test **1109 passés / 1 sauté / 45 fichiers** (1091 au lot 1b : **+18**, soit 8 tests côté validateur et 10 côté compilateur) · `npm audit --omit=dev` **0**.
+⚠️ **G-axe, G-e2e et G-build ne sont pas relancés localement, et c'est délibéré** — même réserve
+qu'au lot 7 : ce lot ne change **aucune ligne exécutable**, aucune feuille de style, aucun
+contenu. ⚠️ **La formule du lot 7 — « `git diff` est vide sur les deux outils » — ne s'applique PAS
+telle quelle ici, et la recopier aurait été un mensonge** : `valider.mjs` et `compiler-markdown.mjs
+sont modifiés, de **commentaires seulement** (les deux comptes de refus périmés, ci-dessus).
+Vérifié par mesure plutôt qu'affirmé — le diff des deux outils, privé de ses lignes de
+commentaire, est **vide** ; `content:build` et les deux specs de pipeline sont verts après la
+correction. La CI exécute G-axe, G-e2e et G-build ; les citer comme preuve d'un lot qui ne rend
+aucun pixel leur prêterait une portée qu'ils n'ont pas.
+
+⚠️ **G-TEST COMPLET N'A PAS PU TOURNER D'UN SEUL TENANT SUR CE POSTE — mesuré, pas supposé.** Deux
+tentatives ont été **tuées pour mémoire** (8 Go de RAM, ~2 Go libres, un navigateur en occupant
+~1,5). Le chiffre ci-dessus est donc la **somme de quatre lots** `--include` disjoints couvrant les
+45 fichiers, et non un run unique. ⚠️ **Le plafond CI du job entier est de 25 minutes** : sous
+Linux, la suite tient largement — c'est ce poste-ci qui est la contrainte, pas la suite. Le coût
+propre de ce lot est **mesuré à ~24 s** (les 13 tests du bloc compilateur sous `--filter`, 10
+processus de compilation compris).
+
+🔴 **UNE LENTEUR DIAGNOSTIQUÉE À TORT EN COURS DE ROUTE, corrigée par la mesure — ça vaut d'être
+écrit.** Le spec de compilation avait tourné **35 minutes sans finir** avant d'être tué, et j'en ai
+conclu qu'il était intrinsèquement lent (« chaque `compiler()` recharge Shiki »). **C'est faux** :
+relancé seul, mémoire disponible, le même fichier fait ses **103 tests en 115 s**. Les 35 minutes
+n'étaient pas du calcul, c'était du *thrashing* — la machine paginait. ⚠️ **Une explication
+plausible et cohérente avec le symptôme n'est pas une cause** : celle-ci accusait la conception du
+spec, ce qui aurait pu faire « optimiser » un fichier sain (L-074, même famille que les trois
+règles CSS dont une était inerte). La bonne question devant une lenteur n'est pas « pourquoi ce
+code est-il lent ? » mais « qu'est-ce qui a changé entre le run lent et le run rapide ? ».
+
+⏳ **RÉSIDUS NOMMÉS, à ne pas perdre.**
+**(a)** Le contrôle du **lien symbolique** sur l'`horaire.json` (`lstatSync().isFile()`) reste
+**sans contrôle positif** — en écrire un demande un lien réel, que Windows n'accorde pas sans
+privilège. Déjà nommé à la clôture du lot 1b ; **ce lot ne le lève pas**, et le redire vaut mieux
+que le laisser se dissoudre.
+**(b)** Le recensement a porté sur les **trois juges du renvoi inter-cours**, pas sur le pipeline
+entier. **Ce lot ne prétend donc pas fermer L-019 partout** — il ferme la surface `cours="…"`. Le
+balayage général reste à faire, et il demande de comparer des **assertions** à des **branches**,
+pas des chaînes à des chaînes (même réserve qu'au lot 7).
+
+**Le geste suivant : le lot 8** — le module 11 repris, en deux demi-lots. ⚠️ Il reste porteur de ce
+que le lot 6 lui a légué et qui n'est **pas** clos : le spec e2e des trois états d'un onglet, la
+passe G-axe sur une page portant des onglets, et la capture manuelle en contraste forcé.
