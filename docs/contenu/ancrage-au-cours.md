@@ -166,7 +166,7 @@ L'attribut se pose sur le titre **lui-même**, en fin de ligne :
 ### Le VirtualHost {seance="8" cours="php" diapos="30-42"}
 ```
 
-**Trois règles, et rien d'autre.**
+**Trois règles, et ce que chacune engage.**
 
 - **`diapos` seul** = les diapositives de la séance du module, celle du frontmatter. C'est le cas de
   **9 modules sur 10**.
@@ -175,8 +175,20 @@ L'attribut se pose sur le titre **lui-même**, en fin de ligne :
   renvoi ne désigne rien.
 - **`cours`** ne s'écrit que pour citer un **autre cours**. Aujourd'hui un seul module en a besoin :
   `11-projet-de-session`, qui mêle 420-B10-HU et 420-4P2-HU. 🔴 **Le validateur le REFUSE quand il
-  est superflu** — c'est-à-dire égal au `sujet` du module. Un attribut qu'on peut écrire sans effet
-  est un attribut qu'on finira par écrire au hasard.
+  est superflu** — c'est-à-dire quand il nomme la racine du module lui-même. Un attribut qu'on peut
+  écrire sans effet est un attribut qu'on finira par écrire au hasard.
+- 🔴 **La valeur de `cours` est un NOM DE DOSSIER de sujet frère, jamais un code de cours** —
+  `cours="php"`, pas `cours="420-4P2-HU"`. Le compilateur le **résout** en lisant le `cours.code` de
+  `content/cours/php/horaire.json` ; c'est ce code résolu, et lui seul, qui entre au contrat compilé
+  puis au rendu (§4, §5 (d)). L'auteur écrit donc une **clef**, pas un libellé : le jour où le code du
+  cours change, il change à un seul endroit — et le champ rendu cesse d'être du texte d'auteur.
+- 🔴 **`seance` devient OBLIGATOIRE dès que `cours` est écrit** (décision du 2026-09-08, lot 1b).
+  Sans elle, le renvoi retomberait sur la séance du frontmatter — qui appartient à **l'autre** cours :
+  un renvoi faux, et silencieux. C'est la même raison qui fait dire au §5 (d) qu'un `cours` renseigné
+  **force** l'affichage de la séance ; il ne disait pas encore d'où elle vient.
+- 🔴 **La séance citée doit exister dans l'horaire du cours CITÉ**, exactement comme une séance
+  intra-sujet se confronte à son `horaire.json`. Un dossier frère sans `horaire.json` n'est pas un
+  sujet : le refus le dit, et **énumère les sujets connus**, plutôt que de laisser deviner.
 
 **La grammaire de `diapos` est celle du §3**, sans exception : numéros et plages séparés par des
 virgules (`"13"`, `"13, 17"`, `"45-50"`, `"13, 17, 45-50"`), entiers ≥ 1, strictement croissants d'un
@@ -196,14 +208,38 @@ devinent pas, et dont chacune casserait en silence si elle était ratée :
    égalité de chaîne exacte — si elle voit l'attribut, la leçon est refusée pour « section absente »,
    et le message n'aide personne.
 
-⚠️ **Le renvoi inter-cours (`cours="…"`) n'est pas résoluble en l'état, et c'est mesuré.** Le pipeline
-est **mono-sujet par exécution** — `RACINE_PAR_DEFAUT` est en dur dans `build.mjs`,
-`compiler-markdown.mjs` et `valider.mjs`, et `validerLecon(dossier, horaire, exercices)` ne reçoit
-**qu'un** horaire, au singulier. Un `content/cours/php/horaire.json` déposé aujourd'hui n'est pas
-*accepté* : il n'est **jamais lu** (mesure du 2026-08-31, `4/5 sorties — … 1 horaire(s) de sujet :
-securite-web`). La résolution inter-cours est donc un lot à part, qui doit **d'abord** rendre le
-validateur multi-sujets. Tant qu'il n'est pas livré, `cours="…"` est refusé — un renvoi validé contre
-rien serait pire que pas de renvoi du tout.
+### Comment `cours="…"` se résout — le REGISTRE DES SUJETS FRÈRES (lot 1b, 2026-09-08)
+
+Jusqu'au 2026-09-08, `cours="…"` était **reconnu mais refusé à l'usage** : le pipeline est
+mono-sujet par exécution, et un renvoi validé contre rien aurait été pire que pas de renvoi
+(mesure du 2026-08-31 : un `content/cours/php/horaire.json` déposé n'était pas *accepté*, il n'était
+**jamais lu** — `… 1 horaire(s) de sujet : securite-web`). Ce qui a changé n'est **pas** la
+compilation, qui reste mono-sujet, une racine par exécution — mais l'**ancrage**, qui gagne un
+registre.
+
+**Le registre, en une phrase :** les dossiers **frères de la racine compilée** qui portent un
+`horaire.json`, indexés par leur **nom de dossier**. En production, `content/cours/` en porte deux —
+`securite-web` et `php` — et c'est tout ce que `cours="…"` peut nommer.
+
+🔴 **La clef est le NOM DE DOSSIER, pas le champ `sujet` déclaré, et c'est une mesure qui l'impose.**
+Les racines de fixtures du dépôt (`tools/content-pipeline/__fixtures__/**/horaire.json`, 25 fichiers
+au 2026-09-08) déclarent **toutes** `"sujet": "securite-web"` : une clef prise sur ce champ les
+mettrait toutes en collision, et chaque exécution de fixture rougirait sur une faute qui n'est pas la
+sienne. Le nom de dossier, lui, est unique par construction — c'est le système de fichiers qui le
+garantit, pas une règle qu'on espère tenue.
+
+⚠️ **La stratification du pipeline est conservée telle quelle.** `valider.mjs` porte le schéma : c'est
+lui qui confronte **chaque horaire frère qu'il consulte** à `schemas/horaire.schema.json`, et qui
+refuse en nommant le fichier. `compiler-markdown.mjs` ne fait, comme pour son propre `horaire.json`,
+qu'un `JSON.parse` — dupliquer le schéma donnerait deux autorités sur la même forme, donc une
+occasion de plus qu'elles divergent. Un JSON illisible reste refusé des deux côtés.
+
+⚠️ **Un sujet frère sans aucune leçon est légitime, et `content/cours/php/` en est un aujourd'hui** :
+il ne porte qu'un `horaire.json` jusqu'à ce qu'E7 y dépose ses modules. Mesuré :
+`node tools/content-pipeline/valider.mjs --racine content/cours/php` valide **l'horaire** puis annonce
+`0 leçon(s) valides … (racine vide)`, code 0 — le schéma mord même à zéro leçon (contrôle positif
+exécuté le 2026-09-08 : retirer `nature` d'une évaluation fait sortir
+`/seances/5/evaluation — champ obligatoire absent`).
 
 ## 4 · Ce que le contrat compilé gagne
 
@@ -234,8 +270,11 @@ il est cité :
 }
 ```
 
-⚠️ **`cours` n'est présent que lorsqu'il désigne un AUTRE cours que le sujet du module** — le
-validateur refuse la forme superflue (§3bis), si bien qu'un `cours` renseigné dans le contrat compilé
+⚠️ **`cours` n'est présent que lorsqu'il désigne un AUTRE cours que celui du module** — le
+validateur refuse la forme superflue (§3bis), si bien qu'un `cours` renseigné dans le contrat
+compilé est toujours une information, jamais une redite. 🔴 **Et ce qu'il porte est le CODE DE COURS
+RÉSOLU** (`420-4P2-HU`), lu dans le `horaire.json` du sujet cité — jamais le nom de dossier que
+l'auteur a écrit. Le rendu n'a donc plus aucun texte d'auteur à recopier pour ce membre.
 est toujours une information, jamais une redite.
 
 `LeconCompilee['frontmatter']` gagne `seance?: number`.
