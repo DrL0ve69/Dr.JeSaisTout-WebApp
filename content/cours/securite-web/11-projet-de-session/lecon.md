@@ -4,6 +4,7 @@ slug: projet-de-session
 sujet: securite-web
 section: Projet de session
 ordre: 11
+seance: 11
 niveau: cegep
 duree-estimee: 60
 objectifs:
@@ -26,7 +27,7 @@ statut: publiee
 
 # Amorcer un projet LAMP
 
-## L'idée en une image
+## L'idée en une image {hors-cours}
 
 Une troupe de théâtre monte une pièce. Pendant deux mois, elle répète dans le sous-sol d'un membre :
 plafond bas, moquette, une porte au fond, pas de rideau, une lampe de bureau en guise
@@ -71,22 +72,125 @@ qu'on ne peut pas atteindre.
    configuration que tu as écrite. C'est cette différence qui rend la section « arborescence » de
    cette leçon non négociable.
 
-::: cours
-Ce module accompagne le **projet de session**, la dernière évaluation pratique du cours (pondération
-20 %). Il ne remplace pas l'énoncé du projet : il donne le socle technique — environnement,
-arborescence, contrôle de version — sur lequel le projet se construit.
+::: cours {seance="1" diapos="6"}
+Ce module accompagne le **projet de session**, la dernière évaluation pratique du cours. Il ne
+remplace pas l'énoncé du projet : il donne le socle technique — environnement, arborescence,
+contrôle de version — sur lequel le projet se construit.
+
+**Deux chiffres circulent pour sa pondération, et il vaut mieux le savoir avant de s'en inquiéter.**
+La diapositive de présentation du cours annonce **15 %** ; l'**horaire publié de la session** annonce
+**20 %**, et c'est celui-là que ce site retient, parce que l'horaire fait foi pour les dates comme
+pour les pondérations. Si ta diapositive dit 15 %, tu n'as pas mal lu : demande à l'enseignant lequel
+des deux s'applique à ta session.
 :::
 
-## Deux machines qui doivent se ressembler
+## En bref — la marche à suivre {hors-cours}
 
-### D'où vient la méthode que tu connais déjà
+:::: marche-a-suivre {titre="Amorcer un projet LAMP, du poste vide au premier commit"}
+
+1. {voir="Les commandes, dans l'ordre"} Installer WSL2 et Ubuntu 24.04 depuis PowerShell **en
+   administrateur**.
+
+   ```bash
+   wsl --install -d Ubuntu-24.04     # une seule fois par poste
+   ```
+
+2. Activer `systemd` dans la distribution, sans quoi aucune commande `systemctl` de cette leçon ne
+   répondra.
+
+   ```bash
+   printf '[boot]\nsystemd=true\n' | sudo tee /etc/wsl.conf
+   # puis, depuis PowerShell : wsl --shutdown, et rouvrir Ubuntu
+   ```
+
+3. {voir="Les commandes, dans l'ordre"} Installer la pile LAMP, puis PHP 8.4 depuis le dépôt
+   `ondrej/php` — celui d'Ubuntu 24.04 s'arrête à 8.3.
+
+   ```bash
+   sudo apt update && sudo apt install -y apache2 mysql-server git
+   sudo add-apt-repository -y ppa:ondrej/php && sudo apt update
+   sudo apt install -y php8.4 libapache2-mod-php8.4 php8.4-mysql
+   sudo a2dismod php8.3; sudo a2enmod php8.4; sudo systemctl restart apache2
+   ```
+
+4. {voir="La cible : ce que le serveur livre réellement"} Mesurer les versions réellement installées
+   plutôt que celles qu'on croit avoir installées.
+
+   ```bash
+   php -v                     # la ligne de commande
+   apache2ctl -M | grep php   # ce qu'Apache exécute vraiment
+   mysql --version            # doit afficher MySQL, PAS MariaDB
+   ```
+
+5. {voir="Une arborescence qui ne sert pas ses secrets"} Créer l'arborescence du projet, avec un seul
+   dossier destiné à être servi.
+
+   ```bash
+   mkdir -p monsite/{public/{css,js,img},src,templates,config,var/log,tests}
+   cd monsite && composer init
+   ```
+
+6. {voir="Le VirtualHost : le geste qui remplace `localhost/monSite/`"} Écrire le VirtualHost dont le
+   `DocumentRoot` pointe `public/`, puis l'activer.
+
+   ```bash
+   sudo a2enmod rewrite headers
+   sudo a2ensite monsite
+   sudo systemctl reload apache2
+   ```
+
+7. Ajouter la ligne `127.0.0.1   monsite.test` au fichier `hosts` de Windows
+   (`C:\Windows\System32\drivers\etc\hosts`), édité en administrateur.
+
+8. {voir="Une arborescence qui ne sert pas ses secrets"} Sortir la configuration de la racine web, et
+   ne versionner que son gabarit sans valeurs.
+
+   ```bash
+   cp config/bd.ini.exemple config/bd.ini   # puis y écrire les vraies valeurs
+   ```
+
+9. {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Créer un compte SQL restreint à la
+   base du projet et aux seuls verbes dont l'application a besoin.
+
+   ```sql
+   CREATE USER 'app_boutique'@'localhost' IDENTIFIED BY 'MotDePasseLongEtUnique';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON boutique.* TO 'app_boutique'@'localhost';
+   ```
+
+10. {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Donner le journal à Apache par
+    propriétaire et par groupe, jamais par `chmod 777`.
+
+    ```bash
+    sudo chown www-data:www-data var/log/app.log
+    sudo chmod 640 var/log/app.log
+    ```
+
+11. {voir="Le contrôle de version, exigé et jamais enseigné"} Mettre le projet sous contrôle de
+    version dès le premier jour, une fois le `.gitignore` écrit.
+
+    ```bash
+    git init && git add . && git commit -m "Amorce du projet : arborescence, autoload, configuration"
+    ```
+
+::::
+
+## Deux machines qui doivent se ressembler {hors-cours}
+
+### D'où vient la méthode que tu connais déjà {cours="php" seance="1" diapos="25-26, 35, 45-49, 52-55, 107"}
 
 Commençons par ce que tu as appris ailleurs, sans le déformer — et en disant d'où ça vient, parce
 que la provenance décide de ce qui est évalué.
 
+::: cours {seance="1" diapos="63"}
+**XAMPP n'est pas une affaire propre à l'autre cours.** La liste du matériel exigé par ce cours-ci le
+réclame aussi, en toutes lettres : « XAMPP ou WAMP ». Un serveur local sous Windows fait donc partie
+des attendus des **deux** cours, et le terme peut tomber à l'examen ici comme là-bas.
+:::
+
 ::: complement
-La méthode d'installation que la plupart d'entre vous ont pratiquée vient du cours
-**420-4P2-HU « Développement d'application en PHP »**, pas de celui-ci. Elle prescrit **XAMPP** (ou
+Ce qui appartient en propre au cours **420-4P2-HU « Développement d'application en PHP »**, c'est la
+**procédure d'installation détaillée** — celle que la plupart d'entre vous ont réellement pratiquée,
+et que ce cours-ci ne montre nulle part. Elle prescrit **XAMPP** (ou
 WAMP, présenté comme équivalent) : un installateur Windows unique qui pose Apache, PHP et MariaDB
 d'un bloc, avec un panneau de contrôle pour les démarrer et les arrêter. La marche à suivre tient en
 trois gestes : installer XAMPP et démarrer Apache ; déposer le code dans `C:\xampp\htdocs\monSite` ;
@@ -103,12 +207,21 @@ toute cette leçon : **à l'examen, donne la réponse du cours qui pose la quest
 sur le serveur du projet, applique la correction.** Les deux vivent côte à côte, jamais l'une contre
 l'autre.
 
-### La cible : ce que le serveur livre réellement
+### La cible : ce que le serveur livre réellement {seance="2" diapos="22-25"}
 
 Le projet, lui, ne se remet pas dans `C:\xampp`. Il se déploie sur un **droplet** — le nom que
 DigitalOcean donne à ses serveurs virtuels loués à l'heure — créé depuis l'image toute faite
 « LAMP on 24.04 ». **LAMP** est l'acronyme des quatre briques de cette pile : **L**inux,
 **A**pache, **M**ySQL, **P**HP.
+
+::: cours {seance="2" diapos="24"}
+**Le numéro de version de l'image n'est pas le même selon le support que tu relis, et ce n'est pas
+une faute de frappe.** La capture de la séance 2 de ce cours-ci montre l'image « LAMP on **18.04** » ;
+celle du cours de PHP montre « LAMP on **24.04** ». Cette leçon retient **24.04**, parce que c'est ce
+que le catalogue de l'hébergeur propose aujourd'hui et ce que mesure le tableau ci-dessous. Si ta
+diapositive dit 18.04, la leçon n'est pas fautive : c'est la capture d'écran qui a vieilli — le
+catalogue d'un hébergeur suit les versions LTS d'Ubuntu, il ne les fige pas.
+:::
 
 | Brique de la pile | Version livrée par l'image |
 |---|---|
@@ -143,10 +256,14 @@ erreur fatale. Le piège est parfait parce qu'il est **silencieux du bon côté*
 signale jamais l'incohérence, elle te la cache. Tu la découvres après le transfert, la veille de la
 remise, sur un site qui affichait tout à l'heure.
 
-::: correction-du-cours {source="Image marketplace DigitalOcean LAMP on 24.04 — Ubuntu 24.04, Apache 2.4.58, PHP 8.4.11 et MySQL 8.0.43 relevés le 2026-08-31 ; fiche KB web/php/php-environnement-developpement-moderne.md"}
-Le matériel d'installation du 420-4P2-HU parle de **MariaDB**, parce que c'est ce que XAMPP embarque
-depuis des années. L'image de
-production, elle, installe **MySQL 8.0**. Garde le terme du cours pour l'examen — mais sache que ce
+::: correction-du-cours {source="Image marketplace DigitalOcean LAMP on 24.04 — Ubuntu 24.04, Apache 2.4.58, PHP 8.4.11 et MySQL 8.0.43 relevés le 2026-08-31 ; fiche KB web/php/php-environnement-developpement-moderne.md ; chapitre « déploiement d'une base de données MariaDB » de la séance 9 du 420-B10-HU" seance="9" diapos="3, 7"}
+**MariaDB n'est pas une bizarrerie de l'autre cours : ce cours-ci l'installe aussi.** Sa séance 9
+consacre un chapitre entier au déploiement d'une base de données **MariaDB** et fait installer le
+paquet `mariadb-server`. Le matériel d'installation du 420-4P2-HU parle lui aussi de MariaDB, parce
+que c'est ce que XAMPP embarque depuis des années. L'image de production, elle, sert **MySQL 8.0** :
+l'écart n'est donc pas entre les deux cours, il est **entre les deux cours et le serveur cible**.
+
+Garde le terme du cours pour l'examen — mais sache que ce
 ne sont plus le même produit depuis 2012 : les deux moteurs divergent sur les rôles et
 l'authentification, sur le type `JSON`, sur les index fonctionnels et sur certaines fonctions de
 fenêtrage. Un script de création de base écrit contre MariaDB peut donc échouer à la remise. La
