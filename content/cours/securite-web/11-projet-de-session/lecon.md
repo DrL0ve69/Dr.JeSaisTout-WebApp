@@ -130,7 +130,7 @@ des deux s'applique à ta session.
    cd monsite && composer init
    ```
 
-6. {voir="Le VirtualHost : le geste qui remplace `localhost/monSite/`"} Écrire le VirtualHost dont le
+6. {voir="Le VirtualHost : le geste qui remplace localhost/monSite/"} Écrire le VirtualHost dont le
    `DocumentRoot` pointe `public/`, puis l'activer.
 
    ```bash
@@ -285,7 +285,7 @@ suppression. Après la remise : détruis le droplet, puis va vérifier qu'il ne 
 volume orphelin.
 :::
 
-### Pourquoi ce module existe dans un cours de sécurité
+### Pourquoi ce module existe dans un cours de sécurité {hors-cours}
 
 L'écart n'est pas un caprice de puriste. Le **plan de cours du 420-4P2-HU** — le cours de PHP, dans
 le même programme, dont le projet prolonge directement celui-ci — exige en toutes lettres un « outil
@@ -303,7 +303,7 @@ qui suit dans ce module est un complément non exigible à un examen écrit ; c'
 exactement ce que le projet de session, lui, est censé démontrer.
 :::
 
-## Monter la salle de répétition
+## Monter la salle de répétition {hors-cours}
 
 Cinq options existent pour se donner un serveur local. Elles ne se valent pas du tout du point de
 vue de la parité.
@@ -330,7 +330,7 @@ chez lui ne prouve rien sur ce qui marchera sur le serveur. Et ne monte pas WSL2
 remise : changer d'environnement est un chantier, il se fait entre deux travaux.
 :::
 
-### Les commandes, dans l'ordre
+### Les commandes, dans l'ordre {seance="9" diapos="7, 41-42"}
 
 Depuis PowerShell **en administrateur**, une seule commande installe WSL2 et Ubuntu — elle s'écrit
 `wsl --install -d Ubuntu-24.04`, et c'est la seule de toute cette leçon qui se tape côté Windows.
@@ -371,6 +371,21 @@ qu'un seul module PHP : `a2dismod` retire celui de la 8.3, `a2enmod` met celui d
 redémarrage rend le changement effectif. Si la 8.3 n'a jamais été installée sur ta machine,
 `a2dismod php8.3` répondra que le module n'existe pas : c'est bon signe, continue.
 
+::: cours {seance="9" diapos="41-42"}
+**Cette séquence-là est bien celle du cours** — et c'est la seule installation de la pile par
+`apt` que portent les deux cours réunis. La séance 9 déroule `apt-get update`, puis
+`apt-get install apache2`, puis `apt-get install php`, puis `systemctl restart Apache2`, et elle te
+fait relever la version obtenue par `php --version`.
+
+Ce que la marche à suivre ci-dessus **ajoute** tient en une ligne : le dépôt `ondrej/php`. Sans lui,
+ce relevé affiche 8.3 — c'est-à-dire exactement l'écart que la diapositive te fait mesurer sans le
+nommer.
+
+Le cours de PHP donne le même rappel, en plus court, à sa séance 8 : `apt-get`, `sudo` et `chmod` y
+sont posés comme les trois commandes d'administration à connaître. **Les deux cours enseignent donc
+ces gestes** ; ni l'un ni l'autre ne montre `a2dismod`, `a2enmod` ou `apache2ctl`.
+:::
+
 ::: complement
 `sudo apt install composer` installe la version de Composer empaquetée par la distribution — une
 **2.7.x** contre une **2.8.x** en amont au moment d'écrire ces lignes. C'est un retard de version
@@ -408,7 +423,7 @@ l'adresse — c'est exactement le genre de fichier que cette leçon passe son te
 Si l'une de ces quatre commandes ne rend pas la version attendue, tu viens de gagner une demi-heure :
 tu as trouvé un écart de parité aujourd'hui plutôt que le jour de la remise.
 
-### Le VirtualHost : le geste qui remplace `localhost/monSite/`
+### Le VirtualHost : le geste qui remplace localhost/monSite/ {hors-cours}
 
 Un **VirtualHost** est un bloc de configuration par lequel Apache dit : « quand une requête arrive
 pour ce nom d'hôte, sers ce dossier-là, avec ces règles-là ». C'est le seul travail de configuration
@@ -430,6 +445,17 @@ Voici ce que ce fichier contient, directive par directive.
 | `Header always set` | `Referrer-Policy: strict-origin-when-cross-origin` | Limite ce que le site fuit dans l'en-tête `Referer` |
 | `ErrorLog` | `${APACHE_LOG_DIR}/monsite-erreur.log` | Où partent les erreurs du serveur |
 | `CustomLog` | `${APACHE_LOG_DIR}/monsite-acces.log combined` | Où partent les accès, au format complet |
+
+::: cours {seance="9" diapos="42"}
+**De tout ce tableau, le cours ne porte qu'une case : la dernière commande.** La séance 9 montre
+`systemctl restart Apache2` — le geste qui rend une configuration effective — et s'arrête là. Ni
+`VirtualHost`, ni `DocumentRoot`, ni `ServerName`, ni `AllowOverride`, ni `.htaccess`, ni
+`RewriteRule`, ni `a2ensite` n'apparaissent dans les diapositives des **deux** cours.
+
+Ce n'est pas un reproche, c'est un repère : rien de ce qui suit ne peut tomber à un examen écrit,
+et tout y est exigible du **projet**, qui se remet sur un serveur où ces directives existent de
+toute façon — l'image du droplet en pose déjà un.
+:::
 
 ::: complement
 **Pourquoi `AllowOverride None` plutôt que `All`.** Un `.htaccess` est un fichier de configuration
@@ -478,7 +504,7 @@ d'ouvrir `monsite.dev` en HTTP clair, et ton site local ne s'affichera pas. `.lo
 conflit avec la découverte de services mDNS. Le choix n'est pas cosmétique.
 :::
 
-### Le chemin d'une requête, du navigateur au code
+### Le chemin d'une requête, du navigateur au code {cours="php" seance="1" diapos="21-22, 56, 59-60"}
 
 ```mermaid
 flowchart TD
@@ -509,7 +535,7 @@ qui les écrit — et qui cassent tous le jour où le site est déployé **à la
 VirtualHost supprime la classe entière de problèmes, parce qu'il fait de la racine du projet la
 racine de l'URL, en local comme en production.
 
-## Une arborescence qui ne sert pas ses secrets
+## Une arborescence qui ne sert pas ses secrets {hors-cours}
 
 Voici la deuxième idée structurante de la leçon, et elle tient en une phrase : **le `DocumentRoot`
 est une frontière de sécurité, pas un choix de rangement.** Tout ce qui est dedans est atteignable
@@ -560,6 +586,19 @@ premier geste sur une machine neuve devient alors :
 Un fichier de configuration sans gabarit versionné est un projet qu'on ne peut pas réinstaller ; un
 gabarit qui contient les vraies valeurs est un mot de passe publié. Il faut les deux fichiers, et
 l'exclusion qui les sépare — on l'écrit dans le `.gitignore`, plus bas.
+
+::: cours {seance="9" diapos="46"}
+**Ce que le cours prescrit à la place, il faut le savoir avant de choisir.** La séance 9 demande de
+« copier ce répertoire sur votre serveur » et de « le mettre sous `/var/www/html` » ; le cours de PHP
+dit la même chose à sa séance 8 — « déployer une application est très simple, il faut simplement
+copier tout son contenu sous le répertoire `/var/www/html` ». C'est l'arborescence **plate**, celle
+où tout est servi, exactement l'inverse de celle ci-dessus.
+
+Les deux méthodes cohabitent sans se contredire, parce qu'elles ne répondent pas à la même question.
+Le cours te montre **comment mettre un site en ligne** ; cette section te montre **ce que le serveur
+ne doit pas pouvoir servir**. À l'examen, la réponse attendue est celle du cours. Sur le serveur du
+projet, c'est le `DocumentRoot` qui décide, et lui seul.
+:::
 
 Quand tu hésites sur l'endroit où poser un fichier neuf, une seule question suffit :
 
