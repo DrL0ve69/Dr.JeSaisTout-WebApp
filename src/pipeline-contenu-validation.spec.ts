@@ -47,9 +47,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  bacASableInterCours,
   FIXTURE_INTER_COURS,
   horaireDuFrereMute,
+  ISSUES_DU_BLOC_VIDE,
   preparerArbreInterCours,
+  REFUS_DU_MARQUEUR_HORS_COURS,
+  TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
 
@@ -755,11 +759,17 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
   // de constantes, c'est-à-dire deux orthographes plutôt que deux contrats.
   const TROIS_CLEFS_DE_TITRE = ['diapos', 'seance', 'cours'] as const;
 
-  function clefsDeTitreDeclarees(fichier: string): string[] {
+  // LA TROISIÈME LISTE DUPLIQUÉE : le MARQUEUR admis sur un titre (§3bis, lot 1c). Même
+  // duplication assumée, même mode d'échec asymétrique — un validateur qui ignorerait
+  // `hors-cours` refuserait un titre que le compilateur sait compiler, et l'auteur recevrait un
+  // refus pour un marqueur qui est au contrat.
+  const UN_MARQUEUR_DE_TITRE = ['hors-cours'] as const;
+
+  function listeDIdentifiantsDeclaree(fichier: string, nomDeLaListe: string): string[] {
     const source = readFileSync(fichier, 'utf8');
-    const bloc = /const CLEFS_RENVOI_DE_TITRE = \[([^\]]*)\];/.exec(source)?.[1];
+    const bloc = new RegExp(`const ${nomDeLaListe} = \\[([^\\]]*)\\];`).exec(source)?.[1];
     if (bloc === undefined) {
-      throw new Error(`CLEFS_RENVOI_DE_TITRE introuvable dans ${fichier} — extraction en échec`);
+      throw new Error(`${nomDeLaListe} introuvable dans ${fichier} — extraction en échec`);
     }
     const identifiants = bloc
       .split(',')
@@ -778,8 +788,21 @@ describe('les deux copies de la liste fermée de conteneurs', () => {
   }
 
   it('les deux copies admettent EXACTEMENT les trois clefs du §3bis sur un titre', () => {
-    expect(clefsDeTitreDeclarees(COMPILATEUR)).toEqual([...TROIS_CLEFS_DE_TITRE]);
-    expect(clefsDeTitreDeclarees(VALIDATEUR)).toEqual([...TROIS_CLEFS_DE_TITRE]);
+    expect(listeDIdentifiantsDeclaree(COMPILATEUR, 'CLEFS_RENVOI_DE_TITRE')).toEqual([
+      ...TROIS_CLEFS_DE_TITRE,
+    ]);
+    expect(listeDIdentifiantsDeclaree(VALIDATEUR, 'CLEFS_RENVOI_DE_TITRE')).toEqual([
+      ...TROIS_CLEFS_DE_TITRE,
+    ]);
+  });
+
+  it('les deux copies admettent EXACTEMENT le même marqueur sur un titre (lot 1c)', () => {
+    expect(listeDIdentifiantsDeclaree(COMPILATEUR, 'MARQUEURS_DE_TITRE')).toEqual([
+      ...UN_MARQUEUR_DE_TITRE,
+    ]);
+    expect(listeDIdentifiantsDeclaree(VALIDATEUR, 'MARQUEURS_DE_TITRE')).toEqual([
+      ...UN_MARQUEUR_DE_TITRE,
+    ]);
   });
 
   it('aucune des deux copies ne connaît un encadré que l’autre ignore', () => {
@@ -1387,4 +1410,56 @@ describe('le renvoi « {cours="…"} » vers un autre cours, côté VALIDATEUR',
     },
     DELAI,
   );
+});
+
+// =============================================================================
+// §3bis — LE MARQUEUR « {hors-cours} » SUR UN TITRE DE SECTION (lot 1c), côté VALIDATEUR
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC CONSTATE. Le marqueur dit « aucune diapositive des deux cours ne porte cette
+// section » — un AVEU écrit, là où l'absence de bloc d'attributs reste ambiguë (« pas encore
+// cartographié » s'écrit pareil). Mesure qui l'a fait naître : 10 des 18 titres du module 11 ne
+// sont portés par AUCUNE diapositive (`docs/contenu/renvois-diapos-module-11.md`).
+//
+// 🔴 LE CHEMIN PASSANT EST DANS LA MÊME TABLE QUE LES REFUS, ET C'EST L'ANTI-VACUITÉ. Un juge qui
+// refuserait TOUT bloc d'attributs passerait trois tests qui n'épinglent que le refus. C'est le
+// cas `accepte` qui interdit cette lecture, et le FRAGMENT de chaque cause qui distingue les
+// trois autres les uns des autres (leçon du lot 1a, fixture `corps-titre-atx-ferme`).
+//
+// ⚠️ AUCUN DOSSIER DE FIXTURE : les quatre cas sont des mutations d'UNE ligne de titre, et le
+// dépôt a déjà la plomberie (`aides-de-test/bac-a-sable-inter-cours.ts`, qui porte la
+// vérification L-015 de la mutation). Le compte en dur de `--fixtures` reste 52.
+// =============================================================================
+describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côté VALIDATEUR', () => {
+  const bac = bacASableInterCours('hors-cours-v');
+  beforeAll(bac.ouvrir);
+  afterAll(bac.fermer);
+
+  it('ACCEPTE un titre qui ne porte que le marqueur — sans lui, les trois refus ne prouveraient rien', () => {
+    const racine = preparerArbreInterCours(bac.chemin(), 'v-hors-cours-seul', {
+      titre: `${TITRE_NU_INTER_COURS} {hors-cours}`,
+    });
+    const { sortie, code } = lancer(['--racine', racine]);
+    expect(code, sortie).toBe(0);
+    expect(sortie).toMatch(/1 leçon\(s\) valides/);
+  }, DELAI);
+
+  // LES TROIS REFUS VIENNENT DE LA PLOMBERIE PARTAGÉE — la MÊME table que le spec du compilateur.
+  // Le contrat veut la même phrase des deux côtés (l’auteur ne sait pas lequel des deux outils
+  // l’a repoussé) ; ce qui reste écrit deux fois, ce sont les branches des deux juges.
+
+  it.each(REFUS_DU_MARQUEUR_HORS_COURS)('refuse $quoi', ({ nom, titre, cause }) => {
+    const racine = preparerArbreInterCours(bac.chemin(), nom, { titre });
+    const { sortie, code } = lancer(['--racine', racine]);
+    if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n’a pas mordu`);
+    expect(sortie).toContain(cause);
+  });
+
+  // LA MOITIÉ QUE LE FRAGMENT « ne renvoie à rien » NE FAIT PAS : le message doit nommer LES DEUX
+  // issues. N'en nommer qu'une enverrait l'auteur inventer un renvoi là où le cours n'a rien —
+  // exactement ce que le marqueur existe pour éviter.
+  it('nomme LES DEUX issues quand le bloc ne renvoie à rien', () => {
+    const racine = preparerArbreInterCours(bac.chemin(), 'v-deux-issues', { titre: `${TITRE_NU_INTER_COURS} {}` });
+    const { sortie } = lancer(['--racine', racine]);
+    for (const issue of ISSUES_DU_BLOC_VIDE) expect(sortie).toContain(issue);
+  }, DELAI);
 });

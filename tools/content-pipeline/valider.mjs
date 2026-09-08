@@ -201,6 +201,34 @@ const ATTRIBUT_COURS = 'cours';
 const CLEFS_RENVOI_DE_TITRE = [ATTRIBUT_DIAPOS, ATTRIBUT_SEANCE, ATTRIBUT_COURS];
 
 /**
+ * LE MARQUEUR SANS VALEUR D'UN TITRE DE SECTION : « aucune diapositive des cours ne porte cette
+ * section » (lot 1c, décision du propriétaire du 2026-09-08).
+ *
+ * 🔴 POURQUOI IL EXISTE, ET POURQUOI C'EST UN AVEU ÉCRIT PLUTÔT QU'UN SILENCE. La cartographie
+ * mesurée du module 11 (`docs/contenu/renvois-diapos-module-11.md`) établit que **10 de ses 18
+ * titres `##`/`###` ne sont portés par AUCUNE diapositive des deux cours** — `VirtualHost`,
+ * `.gitignore`, `composer`, `public/`, `WSL` : zéro occurrence dans les 16 extraits. Ce n'est pas
+ * un trou de recherche, c'est le résultat : ce sont précisément les sections qui existent parce
+ * que le cours ne les couvre pas. Sans marqueur, un titre sans renvoi est AMBIGU — « pas encore
+ * cartographié » et « rien à citer » s'écrivent pareil, c'est-à-dire ne s'écrivent pas. Avec lui,
+ * le gate du lot 9 peut devenir TOTAL (chaque `##`/`###` porte soit des diapositives, soit
+ * l'aveu qu'il n'y en a pas), et l'étudiant lit noir sur blanc ce qui n'est pas matière d'examen.
+ *
+ * C'est un marqueur SANS VALEUR, comme `defaut` sur un `::: methode` : `{hors-cours="oui"}` est
+ * refusé en nommant la grammaire, jamais avalé.
+ */
+const MARQUEUR_HORS_COURS = 'hors-cours';
+
+/**
+ * LA LISTE BLANCHE DES MARQUEURS D'UN TITRE — jumelle de `MARQUEURS_DE_TITRE` dans
+ * `compiler-markdown.mjs`, même duplication assumée que `CLEFS_RENVOI_DE_TITRE` ci-dessus, même
+ * appariement tenu par `src/pipeline-contenu-validation.spec.ts` et non par ce commentaire (L-008).
+ *
+ * @type {readonly string[]}
+ */
+const MARQUEURS_DE_TITRE = [MARQUEUR_HORS_COURS];
+
+/**
  * La variante qui EXIGE un `ref`, et le nom de cet attribut (E3-ST21, §6.2).
  *
  * `ref` est à `exercice-du-cours` ce que `source` est à `correction-du-cours` : sans lui, l'encadré
@@ -1337,9 +1365,26 @@ function lireBlocDAttributs(corpsAttributs, admis, marqueursAdmis = []) {
   // même ligne pour deux causes différentes envoient l'auteur corriger deux fautes distinctes
   // selon le gate qui a rougi — le commentaire ci-dessus promet les MÊMES MOTS, il faut donc aussi
   // le même ORDRE de jugement.
-  const clefsInconnues = Object.keys(attributs).filter((clef) => !admis.includes(clef));
-  if (clefsInconnues.length > 0) {
-    return { attributs, marqueurs: [], detail: `attribut « ${clefsInconnues[0]} » inconnu` };
+  // 🔴 ET CLEF PAR CLEF, DANS L'ORDRE DU DOCUMENT — pas par un `filter` qui rendrait la première
+  // clef INCONNUE. Le compilateur juge chaque clef DANS sa boucle de paires : sur
+  // `{titre="x" hors-cours="oui"}` il sort sur `titre`, et une copie qui chercherait d'abord un
+  // marqueur mal écrit sortirait sur `hors-cours`. Deux verdicts pour la même ligne, à nouveau.
+  // `Object.keys` conserve l'ordre d'insertion des clefs de chaîne, donc l'ordre du document.
+  for (const clef of Object.keys(attributs)) {
+    // UN MARQUEUR ÉCRIT AVEC UNE VALEUR (`{hors-cours="oui"}`) EST UNE FAUTE DE GRAMMAIRE, PAS UN
+    // ATTRIBUT INCONNU. Le message générique enverrait l'auteur chercher une faute de frappe dans
+    // un nom qui est, lui, parfaitement au contrat : c'est sa FORME qui est fautive.
+    if (marqueursAdmis.includes(clef)) {
+      return {
+        attributs,
+        marqueurs: [],
+        // ⚠️ MÊMES MOTS QUE LA COPIE DU COMPILATEUR (L-089) — apostrophe typographique comprise.
+        detail: `« ${clef} » est un marqueur : il s’écrit seul, sans valeur ni guillemets`,
+      };
+    }
+    if (!admis.includes(clef)) {
+      return { attributs, marqueurs: [], detail: `attribut « ${clef} » inconnu` };
+    }
   }
   const marqueurs = residu === '' ? [] : residu.split(/\s+/);
   const inconnu = marqueurs.find((jeton) => !marqueursAdmis.includes(jeton));
@@ -1656,21 +1701,49 @@ function causeDuRenvoiDeTitre(titre, ancrage) {
   if (accolade === null) {
     return `« ${libelle} » porte un bloc d'attributs illisible « ${titre.attributsBruts} »`;
   }
-  const { attributs, detail } = lireBlocDAttributs(accolade[1] ?? '', CLEFS_RENVOI_DE_TITRE);
+  const { attributs, marqueurs, detail } = lireBlocDAttributs(
+    accolade[1] ?? '',
+    CLEFS_RENVOI_DE_TITRE,
+    MARQUEURS_DE_TITRE,
+  );
   if (detail !== null) {
     const cites = CLEFS_RENVOI_DE_TITRE.map((clef) => `« ${clef} »`).join(', ');
     return (
       `attributs illisibles sur « ${libelle} » — ${detail} ; attributs admis sur un titre de ` +
-      `section : ${cites}, forme attendue : ## Titre {${ATTRIBUT_DIAPOS}="12-18"}`
+      `section : ${cites}, marqueur admis : « ${MARQUEUR_HORS_COURS} », forme attendue : ` +
+      `## Titre {${ATTRIBUT_DIAPOS}="12-18"}`
     );
   }
+
+  // 🔴 LE MARQUEUR EST EXCLUSIF DES TROIS CLEFS DE RENVOI — jumelle du garde du compilateur.
+  // « aucune diapositive ne porte cette section » et « voici les diapositives qui la portent » se
+  // contredisent : les avaler ensemble laisserait le rendu choisir en silence lequel des deux
+  // l'auteur voulait dire. Le refus NOMME la clef trouvée à côté, sans quoi l'auteur d'un titre
+  // qui en porte trois relirait la ligne entière pour trouver laquelle enlever.
+  if (marqueurs.includes(MARQUEUR_HORS_COURS)) {
+    const voisine = CLEFS_RENVOI_DE_TITRE.find((clef) => attributs[clef] !== undefined);
+    if (voisine !== undefined) {
+      return (
+        `« ${libelle} » porte le marqueur « ${MARQUEUR_HORS_COURS} » ET l'attribut ` +
+        `« ${voisine} » — le marqueur dit qu'AUCUNE diapositive ne porte cette section ; les ` +
+        'deux ensemble se contredisent (docs/contenu/ancrage-au-cours.md §3bis)'
+      );
+    }
+    return null;
+  }
+
   // 🔴 SUR UN TITRE, `diapos` EST REQUIS — jumelle du garde du compilateur, même motif :
   // `{}` comme `{seance="5"}` passent la grammaire des paires et ne renvoient nulle part.
+  // ⚠️ DEPUIS LE LOT 1c, LE MESSAGE NOMME LES DEUX ISSUES. Un bloc d'attributs qui ne cite aucune
+  // diapositive n'a plus une seule sortie : citer, ou déclarer le marqueur. N'en nommer qu'une
+  // enverrait l'auteur inventer un renvoi là où le cours n'a rien — exactement ce que le marqueur
+  // existe pour éviter.
   if (attributs[ATTRIBUT_DIAPOS] === undefined) {
     return (
-      `« ${libelle} » porte un renvoi SANS « ${ATTRIBUT_DIAPOS} » — un titre ne renvoie à rien ` +
-      `sans lui ; « ${ATTRIBUT_SEANCE} » seul ne fait que déplacer le renvoi vers une autre ` +
-      'séance (docs/contenu/ancrage-au-cours.md §3bis)'
+      `« ${libelle} » porte un bloc d'attributs qui ne renvoie à rien — citer des diapositives ` +
+      `avec « ${ATTRIBUT_DIAPOS}="12-18" », ou déclarer le marqueur « ${MARQUEUR_HORS_COURS} » ` +
+      `si aucune diapositive ne porte cette section ; « ${ATTRIBUT_SEANCE} » seul ne fait que ` +
+      'déplacer le renvoi vers une autre séance (docs/contenu/ancrage-au-cours.md §3bis)'
     );
   }
   return causeDuRenvoiAuCours(libelle, attributs, ancrage);

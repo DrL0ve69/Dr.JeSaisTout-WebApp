@@ -44,9 +44,13 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  bacASableInterCours,
   FIXTURE_INTER_COURS,
   horaireDuFrereMute,
+  ISSUES_DU_BLOC_VIDE,
   preparerArbreInterCours,
+  REFUS_DU_MARQUEUR_HORS_COURS,
+  TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
 
@@ -95,6 +99,12 @@ interface SectionLue {
   niveau: number;
   /** §3bis — présent seulement quand le TITRE de la section porte `{diapos="…"}`. */
   renvoiCours?: { seance: number; diapos: number[]; cours?: string };
+  /**
+   * §3bis, lot 1c — présent seulement quand le titre porte `{hors-cours}`. Lu en forme LARGE
+   * (`true | undefined`) comme le reste de ce fichier : c'est l'exécution qui doit constater la
+   * valeur, pas un type qui la présuppose (L-012).
+   */
+  horsCours?: true;
   blocs: BlocQuelconque[];
 }
 
@@ -2683,4 +2693,95 @@ describe('les refus d’un renvoi « {cours="…"} », côté COMPILATEUR', () =
     },
     DELAI,
   );
+});
+
+// =============================================================================
+// §3bis — LE MARQUEUR « {hors-cours} » SUR UN TITRE DE SECTION (lot 1c), côté COMPILATEUR
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC EST LE SEUL À VOIR : le CONTRAT COMPILÉ. Le validateur peut accepter le marqueur
+// sans que rien n'en sorte — c'est ici, et ici seulement, qu'on mesure que `horsCours: true` entre
+// dans la section, que `renvoiCours` reste ABSENT à côté, et que les sections voisines ne gagnent
+// pas le champ (absent ≠ false : « pas encore cartographié » doit rester distinct de « rien à
+// citer », c'est ce que le gate du lot 9 lira).
+//
+// ⚠️ AUCUN DOSSIER DE FIXTURE : mutations d'UNE ligne de titre par la plomberie partagée.
+// =============================================================================
+describe('le marqueur « {hors-cours} » d’un titre de section (§3bis), côté COMPILATEUR', () => {
+  const bac = bacASableInterCours('hors-cours-c');
+  beforeAll(bac.ouvrir);
+  afterAll(bac.fermer);
+
+  it('pose « horsCours: true » au contrat compilé, SANS renvoi à côté', () => {
+    const racine = preparerArbreInterCours(bac.chemin(), 'c-hors-cours-seul', {
+      titre: `${TITRE_NU_INTER_COURS} {hors-cours}`,
+    });
+    const { lecons } = compiler(racine, join(bac.chemin(), 'hors-cours.scss'));
+    const premiere = lecons[0];
+    if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
+    const section = premiere.sections.find((s) => s.titre === 'Le VirtualHost, côté cours de PHP');
+    if (section === undefined) {
+      throw new Error(
+        `section absente — titres compilés : ${premiere.sections.map((s) => s.titre).join(' | ')}`,
+      );
+    }
+    expect(section.horsCours).toBe(true);
+    // LES DEUX CHAMPS SONT INDÉPENDANTS, et le marqueur n'en fabrique pas un second : une union
+    // aurait ici un `renvoiCours` renseigné d'une forme dégénérée, que chaque consommateur
+    // devrait discriminer.
+    expect(section.renvoiCours).toBeUndefined();
+    // ANTI-VACUITÉ : le titre est DÉPOUILLÉ du marqueur comme il l'est d'un renvoi — sans quoi
+    // l'ancre vaudrait « …-hors-cours » et tout `{voir="…"}` pointerait à côté.
+    expect(section.ancre).toBe('le-virtualhost-cote-cours-de-php');
+  }, DELAI);
+
+  it('laisse le champ ABSENT sur les sections qui ne déclarent rien — absent ≠ false', () => {
+    const racine = preparerArbreInterCours(bac.chemin(), 'c-champ-absent', {
+      titre: `${TITRE_NU_INTER_COURS} {hors-cours}`,
+    });
+    const { lecons } = compiler(racine, join(bac.chemin(), 'absent.scss'));
+    const premiere = lecons[0];
+    if (premiere === undefined) throw new Error('aucune leçon compilée depuis la fixture');
+    const autres = premiere.sections.filter((s) => s.titre !== 'Le VirtualHost, côté cours de PHP');
+    expect(autres.length).toBeGreaterThan(0);
+    expect(autres.every((s) => s.horsCours === undefined)).toBe(true);
+  }, DELAI);
+
+  /**
+   * LES TROIS REFUS VIENNENT DE LA PLOMBERIE PARTAGÉE — la MÊME table que le spec du validateur.
+   * Ce qui doit rester écrit deux fois, ce sont les branches des deux juges, pas l’attente : le
+   * contrat veut la même phrase des deux côtés, puisque l’auteur ne sait pas lequel des deux
+   * outils l’a repoussé. Chaque moitié lance TOUJOURS son propre juge sur cette table.
+   *
+   * ANTI-VACUITÉ : un compilateur qui refuserait TOUT bloc d’attributs passerait une table qui
+   * n’épingle que l’échec. C’est le chemin passant ci-dessus qui interdit cette lecture, et le
+   * FRAGMENT propre à chaque cause qui distingue les trois refus les uns des autres.
+   */
+  /**
+   * Bâtit l'arbre muté du cas — plomberie PARTAGÉE, qui porte la vérification L-015 de la
+   * mutation — puis rend la sortie d'échec du COMPILATEUR.
+   */
+  function echecDuTitre(nom: string, titre: string): string {
+    const racine = preparerArbreInterCours(bac.chemin(), nom, { titre });
+    try {
+      compiler(racine, join(bac.chemin(), `${nom}.scss`));
+    } catch (erreur) {
+      const echec = erreur as { status?: number; stderr?: string };
+      expect(echec.status).not.toBe(0);
+      return echec.stderr ?? '';
+    }
+    throw new Error(`« ${nom} » a été COMPILÉ — le garde-fou n’a pas mordu`);
+  }
+
+  it.each(REFUS_DU_MARQUEUR_HORS_COURS)(
+    'refuse $quoi',
+    ({ nom, titre, cause }) => {
+      expect(echecDuTitre(nom, titre)).toContain(cause);
+    },
+    DELAI,
+  );
+
+  it('nomme LES DEUX issues quand le bloc ne renvoie à rien', () => {
+    const stderr = echecDuTitre('c-deux-issues', `${TITRE_NU_INTER_COURS} {}`);
+    for (const issue of ISSUES_DU_BLOC_VIDE) expect(stderr).toContain(issue);
+  }, DELAI);
 });
