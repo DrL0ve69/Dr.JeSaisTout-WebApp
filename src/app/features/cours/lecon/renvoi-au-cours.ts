@@ -27,12 +27,18 @@
 export const INSECABLE = '\u00A0';
 
 /**
- * Le renvoi tel que le COMPILATEUR le dépose — plages déjà dépliées (lot 1a).
+ * CE QUE LA FABRIQUE LIT D'UNE SECTION — son renvoi, et son marqueur `{hors-cours}`.
  *
- * Il est dérivé du type ambiant plutôt que réécrit : le jour où le contrat gagne un
- * champ, ce fichier le voit au lieu de continuer à décrire l'ancien (L-016).
+ * 🔴 ELLE PREND LA SECTION, PAS LE SEUL `renvoiCours` (lot 1c-B). Depuis §3bis, deux champs
+ * INDÉPENDANTS du contrat décident de ce qui s'écrit sous un titre, et ils sont exclusifs
+ * (`types.d.ts` : les deux à la fois sont refusés par les deux copies du juge). Passer le seul
+ * renvoi obligerait chaque appelant à lire l'autre champ lui-même, donc à recomposer un bout de
+ * libellé de son côté — exactement la seconde fabrique que §5 interdit.
+ *
+ * Le type est DÉRIVÉ du contrat ambiant plutôt que réécrit : le jour où un troisième champ
+ * d'ancrage apparaît, ce fichier le voit au lieu de continuer à décrire l'ancien (L-016).
  */
-export type RenvoiCoursDeTitre = NonNullable<SectionCompilee['renvoiCours']>;
+export type AncrageDeTitre = Pick<SectionCompilee, 'renvoiCours' | 'horsCours'>;
 
 /**
  * À partir de COMBIEN de numéros consécutifs une suite se replie en « a à b ».
@@ -107,13 +113,35 @@ export function libelleDiapositives(diapos: readonly number[]): string | null {
 }
 
 /**
- * LE RENVOI D'UN TITRE DE SECTION, entre parenthèses — ou `null` s'il n'y en a pas.
+ * Ce que le lecteur voit quand une section EST cartographiée mais qu'aucune diapositive ne la
+ * porte (`{hors-cours}`, §3bis). Même emballage entre parenthèses que les trois autres formes,
+ * parce que c'est la même incise, au même endroit, lue par le même œil.
  *
- * Décision du propriétaire (2026-09-01), trois formes et rien d'autre :
+ * ⚠️ SES ESPACES SONT ORDINAIRES, ET C'EST DÉLIBÉRÉ. Les insécables de ce fichier protègent une
+ * NUMÉROTATION — « diapos 12 à 18 » coupé en deux ferait lire « 12 » et « 18 » comme deux numéros
+ * isolés (L-024). Ici il n'y a aucun nombre à tenir : un repli entre deux mots d'une phrase ne
+ * change rien à ce qui est lu. L'insécable qui compte est celle qui COLLE la mention au titre au
+ * sommaire, et elle est posée par `construireSommaire`, comme pour un renvoi.
+ */
+const MENTION_HORS_COURS = '(hors du cours)';
+
+/**
+ * LA MENTION D'UN TITRE DE SECTION, entre parenthèses — ou `null` quand il n'y en a pas.
+ *
+ * Décision du propriétaire (2026-09-01, élargie le 2026-09-08), quatre formes et rien d'autre :
  *
  *   (diapos 12 à 18)
  *   (séance 4 · diapos 45 à 50)
  *   (420-4P2-HU · séance 8 · diapos 30 à 42)
+ *   (hors du cours)
+ *
+ * 🔴 LA QUATRIÈME SORT DE CETTE FONCTION-CI, ET PAS D'UNE VOISINE (§5). Elle occupe la même
+ * ligne, sous le même titre, dans le même `<p class="renvoi-titre">` et le même
+ * `<span class="renvoi">` de sommaire : deux fabriques finiraient par emballer différemment la
+ * même incise, et rien ne le signalerait.
+ *
+ * ⚠️ ABSENT N'EST PAS `false` (`types.d.ts`). Une section sans renvoi NI marqueur rend `null` —
+ * « pas encore cartographié » ne s'écrit pas, c'est un trou, pas une information.
  *
  * 🔴 « SÉANCE N » N'EST ÉCRITE QUE SI ELLE APPREND QUELQUE CHOSE. Quand elle est
  * celle du module — le cas normal — la répéter sous chaque titre de la page ferait
@@ -132,9 +160,12 @@ export function libelleDiapositives(diapos: readonly number[]): string | null {
  * livrer non écrite obligerait le lot 1b à deviner la forme décidée aujourd'hui.
  */
 export function renvoiDeTitre(
-  renvoi: RenvoiCoursDeTitre | undefined,
+  section: AncrageDeTitre,
   seanceDuModule: number | undefined,
 ): string | null {
+  if (section.horsCours === true) return MENTION_HORS_COURS;
+
+  const renvoi = section.renvoiCours;
   if (renvoi === undefined) return null;
 
   const morceaux: string[] = [];

@@ -382,6 +382,7 @@ TUE quand elle est celle du module.** Pour un module dont le frontmatter porte `
 | `{diapos="12-18"}` | `(diapos 12 à 18)` |
 | `{seance="4" diapos="45-50"}` | `(séance 4 · diapos 45 à 50)` |
 | `{cours="php" seance="8" diapos="30-42"}` | `(420-4P2-HU · séance 8 · diapos 30 à 42)` |
+| `{hors-cours}` | `(hors du cours)` |
 
 - **La séance ne s'écrit que si elle DIFFÈRE** de celle du module. Répéter « séance 2 » sur les 17
   titres d'un module de la séance 2 est du bruit, et c'est déjà le principe appliqué aux exercices
@@ -391,6 +392,13 @@ TUE quand elle est celle du module.** Pour un module dont le frontmatter porte `
   croire que la séance est celle du module courant, alors qu'elle appartient à l'autre cours.
 - **Minuscule à « séance »** dans cette forme entre parenthèses ; l'encadré, lui, garde sa majuscule
   (§5 (a)) — il ouvre une étiquette, pas une incise.
+- 🔴 **`{hors-cours}` rend « (hors du cours) », et le SILENCE reste réservé au non-cartographié**
+  (lot 1c, 2026-09-08). La quatrième forme sort de la **même** fabrique que les trois autres, dans
+  le même `<p class="renvoi-titre">` et le même `<span class="renvoi">` de sommaire : aucun jeton
+  de couleur ni règle CSS ne lui est propre — c'est du texte, donc lisible en `forced-colors:
+  active` sans canal supplémentaire (WCAG 1.4.1). Elle **ne consulte aucune séance** : c'est un
+  aveu sur la couverture des **deux** cours, pas un renvoi vers l'un d'eux. Et une section qui ne
+  porte **ni** renvoi **ni** marqueur n'écrit **rien** — absent n'est pas `false` (§4).
 
 🔴 **Pourquoi sous le titre, et pas dedans — c'est la partie accessibilité, et elle est décidée.** Un
 lecteur d'écran offre une **liste des titres** pour naviguer dans la page. Y injecter « diapos 12 à

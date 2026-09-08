@@ -275,12 +275,12 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
           -->
             @for (entree of sommaire(); track entree.ancre) {
               <li>
-                <a [routerLink]="[]" [fragment]="entree.ancre"><span class="texte-lien">{{ entree.titre }}@if (entree.renvoiCours; as renvoi) {<span class="renvoi">{{ renvoi }}</span>}</span></a>
+                <a [routerLink]="[]" [fragment]="entree.ancre"><span class="texte-lien">{{ entree.titre }}@if (entree.mention; as mention) {<span class="renvoi">{{ mention }}</span>}</span></a>
                 @if (entree.sousEntrees.length > 0) {
                   <ol>
                     @for (sousEntree of entree.sousEntrees; track sousEntree.ancre) {
                       <li>
-                        <a [routerLink]="[]" [fragment]="sousEntree.ancre"><span class="texte-lien">{{ sousEntree.titre }}@if (sousEntree.renvoiCours; as renvoi) {<span class="renvoi">{{ renvoi }}</span>}</span></a>
+                        <a [routerLink]="[]" [fragment]="sousEntree.ancre"><span class="texte-lien">{{ sousEntree.titre }}@if (sousEntree.mention; as mention) {<span class="renvoi">{{ mention }}</span>}</span></a>
                       </li>
                     }
                   </ol>
@@ -485,7 +485,12 @@ export class Lecon {
   );
 
   /**
-   * LE RENVOI AU COURS D'UNE SECTION — « (diapos 12 à 18) », « (séance 4 · diapos 45 à 50) ».
+   * LA MENTION D'ANCRAGE D'UNE SECTION — « (diapos 12 à 18) », « (séance 4 · diapos 45 à 50) »,
+   * ou « (hors du cours) » quand le titre porte `{hors-cours}` (§3bis, lot 1c).
+   *
+   * ⚠️ ON PASSE LA SECTION ENTIÈRE, PAS SON SEUL `renvoiCours` : deux champs indépendants du
+   * contrat décident de ce qui s'écrit, et les arbitrer ici ferait de ce composant une seconde
+   * fabrique de libellé — précisément ce que §5 interdit.
    *
    * La MÊME fabrique alimente le sommaire (`construireSommaire`) et l'étiquette d'un encadré
    * (`RenduBlocs.renvoiEncadre`) : le contrat l'exige nommément (§5), parce que deux fabriques
@@ -496,7 +501,7 @@ export class Lecon {
    * Elle sert à TAIRE « séance N » quand le renvoi pointe la séance du module lui-même.
    */
   renvoiDeSection(section: SectionCompilee): string | null {
-    return renvoiDeTitre(section.renvoiCours, this.frontmatter().seance);
+    return renvoiDeTitre(section, this.frontmatter().seance);
   }
 
   /**

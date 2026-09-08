@@ -269,8 +269,14 @@ export interface SousEntreeSommaire {
   readonly ancre: string;
   readonly titre: string;
   /**
-   * LE RENVOI AU COURS, DÉJÀ COMPOSÉ ET PRÊT À ÊTRE COLLÉ AU TITRE — « (diapos 12 à 18) »,
-   * précédé de son insécable d'ouverture. Absent quand la section n'en porte aucun.
+   * LA MENTION D'ANCRAGE, DÉJÀ COMPOSÉE ET PRÊTE À ÊTRE COLLÉE AU TITRE — « (diapos 12 à 18) »
+   * ou « (hors du cours) », précédée de son insécable d'ouverture. Absente quand la section
+   * n'est **pas encore cartographiée** : ni renvoi, ni marqueur `{hors-cours}`.
+   *
+   * 🔴 ELLE NE S'APPELLE PLUS `renvoiCours`, ET LE RENOMMAGE N'EST PAS COSMÉTIQUE (lot 1c-B,
+   * famille S-010). Depuis §3bis ce champ peut porter « (hors du cours) » — l'exact contraire
+   * d'un renvoi au cours. Un littéral dont le nom promet autre chose que ce qu'il porte se
+   * relit faux par le prochain lecteur, et ce dépôt l'a déjà payé.
    *
    * 🔴 IL ENTRE DANS LE TEXTE DU LIEN, contrairement au renvoi posé sous un titre de section
    * (`docs/contenu/ancrage-au-cours.md` §5 (d) et (e)). Un lecteur d'écran offre une « liste des
@@ -283,7 +289,7 @@ export interface SousEntreeSommaire {
    * et le nom accessible du lien se recollerait en « …l'ordre(diapos 12 à 18) ». Le `gap` CSS,
    * lui, ne se lit pas.
    */
-  readonly renvoiCours?: string;
+  readonly mention?: string;
 }
 
 /** Une entrée de sommaire de premier niveau (un `<h2>`), et ses sous-titres. */
@@ -313,7 +319,7 @@ export function construireSommaire(
   const sommaire: {
     ancre: string;
     titre: string;
-    renvoiCours?: string;
+    mention?: string;
     sousEntrees: SousEntreeSommaire[];
   }[] = [];
 
@@ -322,11 +328,13 @@ export function construireSommaire(
   // répéterait la séance du module sous chacune de ses entrées, là où la page, elle, ne
   // l'écrit que quand le renvoi pointe ailleurs — deux libellés différents pour le même
   // renvoi, dans la même page, à trois centimètres l'un de l'autre.
+  // ⚠️ LA SECTION ENTIÈRE DESCEND DANS LA FABRIQUE, ET PAS LE SEUL `renvoiCours` : depuis le
+  // lot 1c, c'est elle qui décide entre le renvoi, la mention « (hors du cours) » et le silence.
   const entreeDe = (section: SectionCompilee): SousEntreeSommaire => {
-    const renvoi = renvoiDeTitre(section.renvoiCours, seanceDuModule);
-    return renvoi === null
+    const mention = renvoiDeTitre(section, seanceDuModule);
+    return mention === null
       ? { ancre: section.ancre, titre: section.titre }
-      : { ancre: section.ancre, titre: section.titre, renvoiCours: `${INSECABLE}${renvoi}` };
+      : { ancre: section.ancre, titre: section.titre, mention: `${INSECABLE}${mention}` };
   };
 
   for (const section of sections) {

@@ -1088,15 +1088,44 @@ describe('sommaire ancré', () => {
     const sommaire = construireSommaire(sections, 2);
     const sous = sommaire.flatMap((entree) => entree.sousEntrees);
 
-    expect(sommaire[0]?.renvoiCours).toBe(
+    expect(sommaire[0]?.mention).toBe(
       `${INSECABLE}(diapos${INSECABLE}12${INSECABLE}à${INSECABLE}18)`,
     );
     // La séance du sous-titre DIFFÈRE de celle du module : elle s'écrit.
-    expect(sous.find((entree) => entree.ancre === sousTitre.ancre)?.renvoiCours).toBe(
+    expect(sous.find((entree) => entree.ancre === sousTitre.ancre)?.mention).toBe(
       `${INSECABLE}(séance${INSECABLE}4 · diapos${INSECABLE}45${INSECABLE}à${INSECABLE}50)`,
     );
     // ANTI-VACUITÉ : les sections que la fixture ne marque pas n'inventent aucun renvoi.
-    expect(sommaire.filter((entree) => entree.renvoiCours !== undefined).length).toBe(1);
+    expect(sommaire.filter((entree) => entree.mention !== undefined).length).toBe(1);
+  });
+
+  it('colle « (hors du cours) » au titre par la MÊME insécable qu’un renvoi', () => {
+    // 🔴 L'INSÉCABLE D'OUVERTURE VAUT POUR LA MENTION AUTANT QUE POUR LE RENVOI (L-024) : le
+    // nom accessible du lien se calcule sur un seul nœud texte, et sans elle il se lirait
+    // « …l'ordre(hors du cours) » en un seul mot. C'est le seul endroit du lot où une
+    // insécable est structurelle — celles de la phrase elle-même ne le sont pas.
+    const sections = copie(lecon()).sections;
+    const [premiere, seconde] = sections;
+    if (premiere === undefined || seconde === undefined) {
+      throw new Error('la fixture n’a pas deux sections');
+    }
+    premiere.horsCours = true;
+    // CONTRÔLE POSITIF : les deux formes cohabitent et NE SE CONFONDENT PAS. Sans cette
+    // seconde entrée, tout ce test serait vrai d'un sommaire qui écrirait « (hors du cours) »
+    // sous chaque titre.
+    seconde.renvoiCours = { seance: 1, diapos: [12] };
+
+    const entrees = [
+      ...construireSommaire(sections, 4),
+      ...construireSommaire(sections, 4).flatMap((entree) => entree.sousEntrees),
+    ];
+    const mentionDe = (ancre: string): string | undefined =>
+      entrees.find((entree) => entree.ancre === ancre)?.mention;
+
+    expect(mentionDe(premiere.ancre)).toBe(`${INSECABLE}(hors du cours)`);
+    expect(mentionDe(seconde.ancre)).toBe(`${INSECABLE}(séance${INSECABLE}1 · diapo${INSECABLE}12)`);
+    // ANTI-VACUITÉ : les sections ni marquées ni renvoyées restent muettes.
+    expect(entrees.filter((entree) => entree.mention !== undefined).length).toBe(2);
   });
 });
 
@@ -1142,25 +1171,27 @@ describe('renvoi au cours — le renvoi d’un TITRE de section', () => {
     valeur === null ? null : valeur.replaceAll(INSECABLE, ' ');
 
   it('TAIT la séance quand elle est celle du module', () => {
-    expect(lisible(renvoiDeTitre({ seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] }, 2))).toBe(
-      '(diapos 12 à 18)',
-    );
+    expect(
+      lisible(renvoiDeTitre({ renvoiCours: { seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] } }, 2)),
+    ).toBe('(diapos 12 à 18)');
   });
 
   it('ÉCRIT la séance quand elle diffère de celle du module', () => {
     // Le contraire du test ci-dessus, sur la même entrée : c'est la séance du MODULE qui
     // change, pas le renvoi. Sans ce couple, une implémentation qui n'écrirait jamais la
     // séance — ou qui l'écrirait toujours — passerait l'un des deux.
-    expect(lisible(renvoiDeTitre({ seance: 4, diapos: [45, 46, 47, 48, 49, 50] }, 2))).toBe(
-      '(séance 4 · diapos 45 à 50)',
-    );
+    expect(
+      lisible(renvoiDeTitre({ renvoiCours: { seance: 4, diapos: [45, 46, 47, 48, 49, 50] } }, 2)),
+    ).toBe('(séance 4 · diapos 45 à 50)');
   });
 
   it('ÉCRIT la séance quand le module n’en déclare AUCUNE', () => {
     // Le champ `seance` est optionnel au frontmatter : la taire laisserait le lecteur sans
     // point d'entrée dans le support du cours.
     expect(
-      lisible(renvoiDeTitre({ seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] }, undefined)),
+      lisible(
+        renvoiDeTitre({ renvoiCours: { seance: 2, diapos: [12, 13, 14, 15, 16, 17, 18] } }, undefined),
+      ),
     ).toBe('(séance 2 · diapos 12 à 18)');
   });
 
@@ -1175,11 +1206,25 @@ describe('renvoi au cours — le renvoi d’un TITRE de section', () => {
       seance: 2,
       diapos: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42],
     };
-    expect(lisible(renvoiDeTitre(renvoi, 2))).toBe('(420-4P2-HU · séance 2 · diapos 30 à 42)');
+    expect(lisible(renvoiDeTitre({ renvoiCours: renvoi }, 2))).toBe(
+      '(420-4P2-HU · séance 2 · diapos 30 à 42)',
+    );
   });
 
-  it('rend nul quand la section ne porte aucun renvoi', () => {
-    expect(renvoiDeTitre(undefined, 2)).toBeNull();
+  it('rend nul quand la section ne porte NI renvoi NI marqueur', () => {
+    // ⚠️ ABSENT N'EST PAS `false` (`types.d.ts`, §4 du contrat) : une section sans bloc
+    // d'attributs n'est PAS « hors du cours », elle est « pas encore cartographiée ». Le
+    // silence est la seule sortie juste — écrire quoi que ce soit ici affirmerait un travail
+    // de cartographie que personne n'a fait.
+    expect(renvoiDeTitre({}, 2)).toBeNull();
+  });
+
+  it('🔴 rend « (hors du cours) » sur `{hors-cours}`, quelle que soit la séance du module', () => {
+    // La quatrième forme (§5 (d), lot 1c). Elle ne dépend d'aucune séance : c'est un AVEU sur
+    // la couverture des DEUX cours, pas un renvoi vers l'un d'eux. Les deux hypothèses de
+    // séance sont donc mesurées — sans quoi une implémentation qui la consulterait passerait.
+    expect(renvoiDeTitre({ horsCours: true }, 4)).toBe('(hors du cours)');
+    expect(renvoiDeTitre({ horsCours: true }, undefined)).toBe('(hors du cours)');
   });
 });
 
@@ -1604,6 +1649,75 @@ describe('rendu de la page', () => {
     // CONTRÔLE POSITIF, et il porte double : la seconde section est une SOUS-entrée du
     // sommaire, donc c'est l'autre branche de `construireSommaire` qui est mesurée ici.
     expect(texteDuLien(autreSeance.ancre)).toBe(`${autreSeance.titre}${INSECABLE}${RENVOI_ECRIT}`);
+  });
+
+  /**
+   * LA LEÇON-TÉMOIN MARQUÉE `{hors-cours}`, ET UN RENVOI ORDINAIRE À CÔTÉ.
+   *
+   * Les deux champs du contrat sont EXCLUSIFS (`types.d.ts`) : une même section ne peut pas
+   * porter les deux, donc le contrôle positif doit vivre sur une AUTRE section. La seconde est
+   * une sous-entrée du sommaire, ce qui fait au passage mesurer l'autre branche de
+   * `construireSommaire`.
+   */
+  function leconHorsCours(): {
+    leconMarquee: LeconCompilee;
+    horsCours: SectionCompilee;
+    avecRenvoi: SectionCompilee;
+  } {
+    const leconMarquee = copie(lecon());
+    leconMarquee.frontmatter.seance = 4;
+    const [horsCours, avecRenvoi] = leconMarquee.sections;
+    if (horsCours === undefined || avecRenvoi === undefined) {
+      throw new Error('la fixture n’a pas deux sections');
+    }
+    horsCours.horsCours = true;
+    avecRenvoi.renvoiCours = { seance: 1, diapos: [12] };
+    return { leconMarquee, horsCours, avecRenvoi };
+  }
+
+  /** La quatrième forme rendue (§5 (d)), à la lettre — espaces ORDINAIRES, aucun nombre à tenir. */
+  const MENTION_HORS_COURS = '(hors du cours)';
+
+  it('🔴 SOUS LE TITRE : `{hors-cours}` rend « (hors du cours) », un renvoi rend ses diapos', async () => {
+    const { leconMarquee, horsCours, avecRenvoi } = leconHorsCours();
+    const rendu = await monter(manifesteReel, `/cours/securite-web/${slugTemoin}`, leconMarquee);
+
+    const renvoiSous = (ancre: string): string | null =>
+      rendu.querySelector(`[id="${ancre}"]`)?.nextElementSibling?.textContent ?? null;
+
+    expect(renvoiSous(horsCours.ancre)).toBe(MENTION_HORS_COURS);
+    // CONTRÔLE POSITIF (L-019) : la mention n'est pas posée PARTOUT — sans cette seconde
+    // assertion, l'égalité ci-dessus serait vraie d'un rendu qui aurait perdu les renvois.
+    expect(renvoiSous(avecRenvoi.ancre)).toBe(RENVOI_ECRIT);
+
+    // Le marqueur emprunte l'ÉLÉMENT ET LA CLASSE du renvoi — aucun jeton ni style neuf : c'est
+    // du texte, donc lisible en `forced-colors: active` sans canal supplémentaire.
+    const titre = rendu.querySelector(`[id="${horsCours.ancre}"]`);
+    expect(titre?.textContent).toBe(horsCours.titre);
+    expect(titre?.nextElementSibling?.tagName).toBe('P');
+    expect(titre?.nextElementSibling?.classList.contains('renvoi-titre')).toBe(true);
+    // ANTI-VACUITÉ : les sections ni marquées ni renvoyées ne rendent pas un `<p>` vide.
+    expect(rendu.querySelectorAll('p.renvoi-titre').length).toBe(2);
+  });
+
+  it('🔴 AU SOMMAIRE : la même mention, par l’AUTRE point d’appel de la fabrique', async () => {
+    // SÉPARÉ du test ci-dessus, et ce n'est pas du confort de lecture (L-086) : `lecon.ts`
+    // appelle la fabrique à DEUX endroits — `renvoiDeSection` pour la ligne sous le titre,
+    // `construireSommaire` pour le lien. Réunies, la mutation d'un seul des deux points
+    // d'appel rougirait au même endroit que l'autre et ne dirait pas lequel a lâché.
+    const { leconMarquee, horsCours, avecRenvoi } = leconHorsCours();
+    const rendu = await monter(manifesteReel, `/cours/securite-web/${slugTemoin}`, leconMarquee);
+
+    const texteDuLien = (ancre: string): string | null =>
+      rendu.querySelector(`nav.sommaire a[href$="#${ancre}"]`)?.textContent ?? null;
+
+    // ⚠️ L'INSÉCABLE D'OUVERTURE EST MESURÉE, PAS NORMALISÉE (L-024/L-066) : sans elle, le nom
+    // accessible du lien vaudrait « …titre(hors du cours) » en un seul mot.
+    expect(texteDuLien(horsCours.ancre)).toBe(
+      `${horsCours.titre}${INSECABLE}${MENTION_HORS_COURS}`,
+    );
+    // CONTRÔLE POSITIF, et il porte double : la seconde section est une SOUS-entrée.
+    expect(texteDuLien(avecRenvoi.ancre)).toBe(`${avecRenvoi.titre}${INSECABLE}${RENVOI_ECRIT}`);
   });
 
   it('🔴 S-011 (e) — le `cours` d’un renvoi s’AFFICHE ENTIER sans faire naître un seul nœud', async () => {
