@@ -3782,11 +3782,19 @@ mesurer contre `--couleur-code-surface`, et `_coloration-syntaxique-generee.scss
 geste suivant du plan, mais il n'est plus sur le chemin critique de l'examen : **le propriétaire peut
 choisir** de le garder, ou d'insérer d'abord un lot de dette (voir N-3).
 
-**N-2 · La séance 1 ne porte AUCUN exercice au registre.** `content/cours/securite-web/exercices.json`
-ne décrit que les séances **2 (13 exercices), 3 (5) et 4 (7)** — 25 au total. Est-ce fidèle au cours
-(une séance d'introduction sans exercice) ou un trou de la passe de collecte ? À vérifier sur le site
-de l'enseignant, qui fait foi. Tant que ce n'est pas tranché, le registre affirme par son silence
-quelque chose que personne n'a mesuré.
+**N-2 · TRANCHÉ PAR MESURE LE 2026-09-09 — c'était un TROU DE COLLECTE, pas une fidélité.**
+`content/cours/securite-web/exercices.json` ne décrit que les séances **2 (13 exercices), 3 (5) et
+4 (7)** — 25 au total. Or le site de l’enseignant, qui fait foi, porte bien
+<https://www.alexandrepetrin.ca/exercice-securisation-app-web-cours-1-2026/> : **trois exercices**,
+numérotés 1, 2 et 4 par l’enseignant (il n’y a pas de n° 3) — installer WAMP/XAMPP, un éditeur,
+PuTTY et WinSCP · ouvrir un compte DigitalOcean fonctionnel · acheter un nom de domaine sur GoDaddy,
+un autre fournisseur étant permis sans garantie d’aide. Le dossier local `securite-app-web-2026/` n’a
+pas de `exercices-cours-01.txt`, ce qui explique l’omission. ⚠️ **La matière est DÉJÀ enseignée** —
+l’étape 1 de la marche à suivre du module 01 (lot 10) la couvre point par point ; ce qui manque est
+le **registre** et les encadrés `exercice-du-cours` qui les citent. **Les ajouter au registre
+déclenche le gate de complétude sur la séance 1** : c’est donc un lot à part, pas une ligne. Reste à
+vérifier de la même façon les séances **8 et 12**, qui ont elles aussi une page d’exercice en ligne
+et aucune entrée au registre.
 
 **N-3 · Le banc du contrat n'exerce aucune propriété de STYLE.**
 `src/coloration-encres-contraste.spec.ts` et son banc `tools/content-pipeline/__fixtures__/langages-web/`

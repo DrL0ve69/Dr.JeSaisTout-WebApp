@@ -2890,4 +2890,42 @@ différé se re-mesure contre l'état du jour), [[S-010]] (couvrir exactement le
 
 ---
 
+## L-098 · Une section neuve écrite APRÈS des correctifs les recopie de mémoire — et ressuscite la version corrigée
+
+**Symptôme.** Lot 10 « leçons actionnables » (module `01-fondamentaux`, 2026-09-09), trois commits
+successifs sur le même fichier : (1) sept réserves de contenu fermées, (2) cinq autres, (3) ajout de
+la structure du format actionnable, dont une section neuve `## En bref — la marche à suivre` qui
+**résume** la leçon. Cette section a réintroduit deux affirmations que les commits précédents
+venaient de retirer : son étape 2 disait que « quel principe CIA cette attaque vise-t-elle » est la
+question posée « à chaque famille d'attaques », alors que R-7 (fermée deux commits plus tôt) avait
+établi qu'**aucune** diapositive n'appariait une famille à un principe ; son étape 6 énumérait trois
+blocs pour « ce que la séance 1 porte réellement », alors que R-1 (fermée trois commits plus tôt) en
+comptait **quatre**. La première a été vue en relecture par le fil principal, **la seconde
+seulement** par la revue à regard neuf, gates déjà verts. Rien ne pouvait l'attraper par le diff :
+la section apparaît **entière** en `+`, la ligne qu'elle contredit est **intacte** cinquante lignes
+plus haut, donc absente du diff — un relecteur qui lit le diff voit un texte neuf plausible, pas une
+contradiction avec une ligne qu'il n'a aucune raison de rouvrir.
+
+La même passe montre une variante : R-3 interdisait une **classe** d'affirmation (les promesses
+d'exclusion d'examen, « aucune question ne s'appuie dessus »). Le correctif a réécrit trois
+occurrences et en a laissé une intacte (un encadré OWASP) — plus une cinquième dans un **fichier
+frère**, `quiz.json`. Ici ce n'est pas la section neuve qui fautait : c'est le correctif qui a
+interdit une classe sans **recenser** toutes ses occurrences.
+
+**Règle.** Quand un lot ferme des réserves de contenu **puis** ajoute une section qui résume ou
+reformule la leçon, cette section se relit **contre la liste des réserves fermées** (la
+cartographie du module), jamais seulement contre son propre diff — une section ajoutée en `+` peut
+contredire une ligne intacte que le diff ne montre pas. Et quand un correctif interdit une **classe**
+d'affirmation plutôt qu'une phrase précise, grep la classe dans **toute** la leçon et dans ses
+fichiers frères (`quiz.json`, `simulation.json`) avant de déclarer la réserve close — pas seulement
+les occurrences déjà repérées de mémoire.
+
+**Réfs.** `content/cours/securite-web/01-fondamentaux/lecon.md` (section « En bref — la marche à
+suivre », réserves R-1/R-3/R-7) ; `quiz.json` q6 ; lot 10, 2026-09-09. Famille : [[L-077]] (une
+correction laisse la prose en aval décrire l'ancien état, sans qu'aucun diff ne la signale),
+[[L-081]] (une leçon peut être fausse sans qu'aucune phrase le soit — la faute se répartit),
+[[L-095]] (une divergence de recensement est invisible à tout appariement local).
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
