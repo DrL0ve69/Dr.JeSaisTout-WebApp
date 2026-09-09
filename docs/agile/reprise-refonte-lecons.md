@@ -1230,3 +1230,115 @@ pas des chaînes à des chaînes (même réserve qu'au lot 7).
 **Le geste suivant : le lot 8** — le module 11 repris, en deux demi-lots. ⚠️ Il reste porteur de ce
 que le lot 6 lui a légué et qui n'est **pas** clos : le spec e2e des trois états d'un onglet, la
 passe G-axe sur une page portant des onglets, et la capture manuelle en contraste forcé.
+
+---
+
+## ✅ CLÔTURE — LOT 1c « le marqueur `{hors-cours}` » (PR #55, 2026-09-08)
+
+Le marqueur est **compilé, validé et rendu**. Il dit qu’une section EST cartographiée et qu’aucune
+diapositive ne la porte — ce qui la distingue du **silence**, réservé au non-cartographié. Deux
+demi-lots : 1c-A au pipeline, 1c-B au rendu, plus un correctif SonarCloud.
+
+🔴 **DEUX ÉCARTS QUE LA MESURE A IMPOSÉS, tous deux hors du périmètre écrit.**
+**(a)** `{hors-cours="oui"}` n’était atteignable par **aucun** garde : il sortait en « attribut
+inconnu », ce qui envoie l’auteur chercher une faute de frappe dans un nom parfaitement au contrat.
+Les deux copies du juge gagnent une branche « cette clef est un marqueur déclaré ». Effet de bord
+assumé : `{defaut="oui"}` sort désormais sous la même grammaire.
+**(b)** Les deux copies **auraient divergé** sur `{titre="x" hors-cours="oui"}` — le validateur
+jugeait les clefs par un `filter` rendant la première inconnue, le compilateur clef par clef dans sa
+boucle. C’est le défaut (b) du lot 1a, à l’identique. Le filtre est devenu une boucle ordonnée.
+
+🔴 **`SousEntreeSommaire.renvoiCours` S’APPELLE MAINTENANT `mention` — famille S-010.** Depuis
+§3bis, ce champ peut porter « (hors du cours) », l’exact **contraire** d’un renvoi au cours. Un
+littéral dont le nom promet autre chose que ce qu’il porte se relit faux par le prochain lecteur, et
+ce dépôt l’a déjà payé sur `…_PAGE_LECON`. **Une promesse au singulier a une date de péremption
+implicite** ; celle-ci était atteinte.
+
+🔴 **CE QUE SONARCLOUD A ATTRAPÉ, ET POURQUOI IL AVAIT RAISON.** La porte a rougi à 10,8 % de
+duplication sur le code neuf (seuil 3 %). Mesuré plutôt que supposé, par l’API : **un seul** foyer
+était réellement neuf — les deux autres du rapport portaient sur des lignes **anciennes**, qui ne
+comptent pas dans la métrique de code neuf. Ce foyer contenait dix lignes de `mkdtempSync`/`rmSync`,
+le titre témoin recopié, et les trois cas de refus écrits deux fois à l’identique.
+Correctif : `bacASableInterCours`, `TITRE_NU_INTER_COURS` (dont `TITRE_TEMOIN_INTER_COURS` est
+désormais **dérivé**), `REFUS_DU_MARQUEUR_HORS_COURS` et `ISSUES_DU_BLOC_VIDE` montent dans
+`src/aides-de-test/bac-a-sable-inter-cours.ts`. **10,8 % → 0,0 %**, comptes de tests **identiques**
+(93/93 et 109/109) — le seul résultat acceptable pour un lot qui ne devait rien changer d’observable.
+⚠️ **CE N’EST PAS UN RELÂCHEMENT DE « CE QUI JUGE SE DUPLIQUE » (L-095), C’EST SON APPLICATION.** Ce
+qui reste écrit deux fois, ce sont les **branches** de `valider.mjs` et de `compiler-markdown.mjs` —
+mesuré au lot 1c-A, **1 rouge exactement** sous mutation d’une seule copie. Une table d’ATTENTE
+partagée ne partage pas la mesure : chaque spec lance toujours son propre juge, et si un seul des
+deux outils changeait de message, sa moitié rougirait seule. Le contrat veut d’ailleurs la **même
+phrase** des deux côtés, puisque l’auteur ne sait pas lequel des deux outils l’a repoussé.
+
+**Gates à la clôture.** G-lint **0** · G-typage-outils **0** · G-content **10 leçons**, `--fixtures`
+**52/52** inchangé · G-test `lecon` **103**, `rendu-blocs` **102**, compilation **109**, validation
+**93** · G-build **13 routes · 14 hachages de style / 0 de script**, inchangés. Mutation 1c-B :
+branche `horsCours` débranchée → **4 rouges exactement**, un par point d’appel, 99 verts intacts ;
+restauration prouvée par `sha256` identique avant/après.
+
+⚠️ **RÉSERVE ÉCRITE À LA CLÔTURE, et elle a été levée dès le lot suivant :** au moment de fusionner,
+aucune leçon n’écrivait `{hors-cours}`, donc G-axe et G-e2e ne voyaient **aucune** mention. Leur vert
+prouvait la non-régression, jamais le rendu.
+
+---
+
+## ✅ CLÔTURE — LOT 8-A « la moitié haute du module 11 » (PR #56, 2026-09-08)
+
+Les onze titres de la moitié haute portent ce que
+[`../contenu/renvois-diapos-module-11.md`](../contenu/renvois-diapos-module-11.md) **mesure** :
+sept `{hors-cours}`, deux renvois inter-cours `{cours="php" …}`, deux renvois internes.
+
+⚠️ **`{hors-cours}` N’EST PAS « JE N’AI PAS CHERCHÉ », et c’est ce qui rend le marqueur utile.** Les
+sept sont adossés à une mesure d’absence sur les **16 extraits** (748 diapositives) : `VirtualHost`,
+`DocumentRoot`, `AllowOverride`, `a2ensite`, `RewriteRule`, `public/`, `src/`, `composer`, `PSR-4`,
+`WSL`, `Docker`, `php -S` — **zéro occurrence**. Un `aucun` de cette table est un **résultat**.
+
+🔴 **LA RÉSERVE DU LOT 5 EST LEVÉE — PAR MESURE, PAS PAR UN VERT.** Le lot 5 avait écrit que « zéro
+titre du corpus ne porte `{diapos=…}`, donc les 1118 vérifications d’axe portent sur des pages où le
+`<p class="renvoi-titre">` n’existe pas ». Relevé sur `dist/…/projet-de-session/index.html` :
+**11** `<p class="renvoi-titre">` sous les titres, et au sommaire **18 entrées dont 11 portent une
+mention et 7 restent MUETTES**. Les sept muettes sont les sections de la moitié basse. **Le silence
+d’« absent ≠ `false` » est donc visible en production**, et pas seulement en test unitaire.
+
+🔴 **SIX DÉSACCORDS ENTRE LA LEÇON ET LES SUPPORTS, NOMMÉS AU LIEU D’ÊTRE TRANCHÉS EN SILENCE.**
+Pondération du projet (15 % en diapositive, 20 % à l’horaire — R-10) · version de l’image
+DigitalOcean (18.04 en capture, 24.04 au catalogue — R-1) · **XAMPP n’est pas propre au cours de
+PHP** : la liste du matériel du cours de sécurité le réclame aussi, et ce qui appartient en propre au
+4P2 est la *procédure détaillée* (R-3) · **MariaDB non plus** : la séance 9 l’installe
+explicitement, donc l’écart est entre les deux cours et le **serveur cible**, pas entre les deux
+cours (R-6) · la séquence `apt` **est** celle du cours, le seul ajout de la leçon étant le dépôt
+`ondrej/php` · les deux cours prescrivent l’arborescence **plate** sous `/var/www/html`, l’exact
+inverse de la section.
+
+⚠️ **UN DÉFAUT PRÉEXISTANT DEVENU VISIBLE : LE PIPELINE NE REND PAS LE CODE EN LIGNE DANS UN TITRE.**
+Le titre du VirtualHost portait des rétronotations ; le lecteur voyait les accents graves **dans le
+`<h3>` comme au sommaire**. Corrigé côté contenu (les deux écritures, le titre et son `{voir="…"}`),
+et le renvoi résout toujours — ce qui **prouve que l’ancre n’a pas bougé**. La limite du pipeline,
+elle, appartient au rendu et reste ouverte : elle n’a pas été corrigée ici.
+
+**Gates.** G-content **10 leçons / 0 dépassement** · G-build **13 routes · 14 hachages de style / 0
+de script**, inchangés · G-axe **13 fichiers · 1118 vérifications · 0 violation**, cette fois **sur**
+des pages qui portent le balisage · G-e2e **50 passés / 1 sauté** · G-test **159** sur les trois specs
+qui lisent le manifeste réel.
+
+🔴 **UN DÉFAUT DE BRIEF, PORTÉ AU COMPTE DU LOT 1c-A : l’agent a fini à 197k**, au-dessus du maximum
+de 150k. Le brief tenait en un livrable déclarable seul, mais il portait deux juges + le type + le
+contrat + deux specs + une mesure par mutation. ⚠️ **Le test du « + » ne se lit pas dans la phrase
+d’objectif, il se lit dans la LISTE DES GESTES** — troisième fois que ce dépôt le paie. La découpe
+juste était « les deux juges + le type » d’un côté, « les contrôles positifs et la mutation » de
+l’autre.
+
+**Le geste suivant : le lot 8-B** — la moitié basse du module 11, de « Cinq gestes de la mise en
+ligne » à « Aller plus loin ». Ses réserves sont déjà écrites et **mesurées**
+(`renvois-diapos-module-11.md` §2) : **R-2** (le prix du serveur existe en trois chiffres) · **R-4**
+(WinSCP n’est **pas** de la séance 2 — 0 occurrence sur 82 diapositives ; l’encadré fautif promet
+pourtant « ce sont eux qui seront nommés à l’examen ») · **R-5** (phpMyAdmin et `GRANT ALL` sur
+toutes les bases sont enseignés par les **deux** cours) · **R-7** (le moindre privilège SQL est déjà
+dans le cours de sécurité : la critique juste est plus étroite — le cours ne revient jamais
+restreindre le compte qu’il vient de créer, et c’est celui-là que l’application emploie) · **R-8**
+(le HTTPS est annoncé et jamais couvert **des deux côtés** — le seul recoupement où la leçon a raison
+sans le revendiquer).
+
+⚠️ **CE QUE NI 8-A NI 8-B NE FERMENT :** aucune leçon n’écrit encore `:::: methodes`. Le spec e2e des
+trois états d’un onglet, la passe G-axe sur une page à onglets et la capture en contraste forcé
+restent le legs **ouvert** du lot 6 — et ils demandent un lot à eux, pas une ligne de plus dans 8-B.

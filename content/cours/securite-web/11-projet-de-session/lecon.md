@@ -4,6 +4,7 @@ slug: projet-de-session
 sujet: securite-web
 section: Projet de session
 ordre: 11
+seance: 11
 niveau: cegep
 duree-estimee: 60
 objectifs:
@@ -26,7 +27,7 @@ statut: publiee
 
 # Amorcer un projet LAMP
 
-## L'idée en une image
+## L'idée en une image {hors-cours}
 
 Une troupe de théâtre monte une pièce. Pendant deux mois, elle répète dans le sous-sol d'un membre :
 plafond bas, moquette, une porte au fond, pas de rideau, une lampe de bureau en guise
@@ -71,22 +72,125 @@ qu'on ne peut pas atteindre.
    configuration que tu as écrite. C'est cette différence qui rend la section « arborescence » de
    cette leçon non négociable.
 
-::: cours
-Ce module accompagne le **projet de session**, la dernière évaluation pratique du cours (pondération
-20 %). Il ne remplace pas l'énoncé du projet : il donne le socle technique — environnement,
-arborescence, contrôle de version — sur lequel le projet se construit.
+::: cours {seance="1" diapos="6"}
+Ce module accompagne le **projet de session**, la dernière évaluation pratique du cours. Il ne
+remplace pas l'énoncé du projet : il donne le socle technique — environnement, arborescence,
+contrôle de version — sur lequel le projet se construit.
+
+**Deux chiffres circulent pour sa pondération, et il vaut mieux le savoir avant de s'en inquiéter.**
+La diapositive de présentation du cours annonce **15 %** ; l'**horaire publié de la session** annonce
+**20 %**, et c'est celui-là que ce site retient, parce que l'horaire fait foi pour les dates comme
+pour les pondérations. Si ta diapositive dit 15 %, tu n'as pas mal lu : demande à l'enseignant lequel
+des deux s'applique à ta session.
 :::
 
-## Deux machines qui doivent se ressembler
+## En bref — la marche à suivre {hors-cours}
 
-### D'où vient la méthode que tu connais déjà
+:::: marche-a-suivre {titre="Amorcer un projet LAMP, du poste vide au premier commit"}
+
+1. {voir="Les commandes, dans l'ordre"} Installer WSL2 et Ubuntu 24.04 depuis PowerShell **en
+   administrateur**.
+
+   ```bash
+   wsl --install -d Ubuntu-24.04     # une seule fois par poste
+   ```
+
+2. Activer `systemd` dans la distribution, sans quoi aucune commande `systemctl` de cette leçon ne
+   répondra.
+
+   ```bash
+   printf '[boot]\nsystemd=true\n' | sudo tee /etc/wsl.conf
+   # puis, depuis PowerShell : wsl --shutdown, et rouvrir Ubuntu
+   ```
+
+3. {voir="Les commandes, dans l'ordre"} Installer la pile LAMP, puis PHP 8.4 depuis le dépôt
+   `ondrej/php` — celui d'Ubuntu 24.04 s'arrête à 8.3.
+
+   ```bash
+   sudo apt update && sudo apt install -y apache2 mysql-server git
+   sudo add-apt-repository -y ppa:ondrej/php && sudo apt update
+   sudo apt install -y php8.4 libapache2-mod-php8.4 php8.4-mysql
+   sudo a2dismod php8.3; sudo a2enmod php8.4; sudo systemctl restart apache2
+   ```
+
+4. {voir="La cible : ce que le serveur livre réellement"} Mesurer les versions réellement installées
+   plutôt que celles qu'on croit avoir installées.
+
+   ```bash
+   php -v                     # la ligne de commande
+   apache2ctl -M | grep php   # ce qu'Apache exécute vraiment
+   mysql --version            # doit afficher MySQL, PAS MariaDB
+   ```
+
+5. {voir="Une arborescence qui ne sert pas ses secrets"} Créer l'arborescence du projet, avec un seul
+   dossier destiné à être servi.
+
+   ```bash
+   mkdir -p monsite/{public/{css,js,img},src,templates,config,var/log,tests}
+   cd monsite && composer init
+   ```
+
+6. {voir="Le VirtualHost : le geste qui remplace localhost/monSite/"} Écrire le VirtualHost dont le
+   `DocumentRoot` pointe `public/`, puis l'activer.
+
+   ```bash
+   sudo a2enmod rewrite headers
+   sudo a2ensite monsite
+   sudo systemctl reload apache2
+   ```
+
+7. Ajouter la ligne `127.0.0.1   monsite.test` au fichier `hosts` de Windows
+   (`C:\Windows\System32\drivers\etc\hosts`), édité en administrateur.
+
+8. {voir="Une arborescence qui ne sert pas ses secrets"} Sortir la configuration de la racine web, et
+   ne versionner que son gabarit sans valeurs.
+
+   ```bash
+   cp config/bd.ini.exemple config/bd.ini   # puis y écrire les vraies valeurs
+   ```
+
+9. {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Créer un compte SQL restreint à la
+   base du projet et aux seuls verbes dont l'application a besoin.
+
+   ```sql
+   CREATE USER 'app_boutique'@'localhost' IDENTIFIED BY 'MotDePasseLongEtUnique';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON boutique.* TO 'app_boutique'@'localhost';
+   ```
+
+10. {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Donner le journal à Apache par
+    propriétaire et par groupe, jamais par `chmod 777`.
+
+    ```bash
+    sudo chown www-data:www-data var/log/app.log
+    sudo chmod 640 var/log/app.log
+    ```
+
+11. {voir="Le contrôle de version, exigé et jamais enseigné"} Mettre le projet sous contrôle de
+    version dès le premier jour, une fois le `.gitignore` écrit.
+
+    ```bash
+    git init && git add . && git commit -m "Amorce du projet : arborescence, autoload, configuration"
+    ```
+
+::::
+
+## Deux machines qui doivent se ressembler {hors-cours}
+
+### D'où vient la méthode que tu connais déjà {cours="php" seance="1" diapos="25-26, 35, 45-49, 52-55, 107"}
 
 Commençons par ce que tu as appris ailleurs, sans le déformer — et en disant d'où ça vient, parce
 que la provenance décide de ce qui est évalué.
 
+::: cours {seance="1" diapos="63"}
+**XAMPP n'est pas une affaire propre à l'autre cours.** La liste du matériel exigé par ce cours-ci le
+réclame aussi, en toutes lettres : « XAMPP ou WAMP ». Un serveur local sous Windows fait donc partie
+des attendus des **deux** cours, et le terme peut tomber à l'examen ici comme là-bas.
+:::
+
 ::: complement
-La méthode d'installation que la plupart d'entre vous ont pratiquée vient du cours
-**420-4P2-HU « Développement d'application en PHP »**, pas de celui-ci. Elle prescrit **XAMPP** (ou
+Ce qui appartient en propre au cours **420-4P2-HU « Développement d'application en PHP »**, c'est la
+**procédure d'installation détaillée** — celle que la plupart d'entre vous ont réellement pratiquée,
+et que ce cours-ci ne montre nulle part. Elle prescrit **XAMPP** (ou
 WAMP, présenté comme équivalent) : un installateur Windows unique qui pose Apache, PHP et MariaDB
 d'un bloc, avec un panneau de contrôle pour les démarrer et les arrêter. La marche à suivre tient en
 trois gestes : installer XAMPP et démarrer Apache ; déposer le code dans `C:\xampp\htdocs\monSite` ;
@@ -103,12 +207,21 @@ toute cette leçon : **à l'examen, donne la réponse du cours qui pose la quest
 sur le serveur du projet, applique la correction.** Les deux vivent côte à côte, jamais l'une contre
 l'autre.
 
-### La cible : ce que le serveur livre réellement
+### La cible : ce que le serveur livre réellement {seance="2" diapos="22-25"}
 
 Le projet, lui, ne se remet pas dans `C:\xampp`. Il se déploie sur un **droplet** — le nom que
 DigitalOcean donne à ses serveurs virtuels loués à l'heure — créé depuis l'image toute faite
 « LAMP on 24.04 ». **LAMP** est l'acronyme des quatre briques de cette pile : **L**inux,
 **A**pache, **M**ySQL, **P**HP.
+
+::: cours {seance="2" diapos="24"}
+**Le numéro de version de l'image n'est pas le même selon le support que tu relis, et ce n'est pas
+une faute de frappe.** La capture de la séance 2 de ce cours-ci montre l'image « LAMP on **18.04** » ;
+celle du cours de PHP montre « LAMP on **24.04** ». Cette leçon retient **24.04**, parce que c'est ce
+que le catalogue de l'hébergeur propose aujourd'hui et ce que mesure le tableau ci-dessous. Si ta
+diapositive dit 18.04, la leçon n'est pas fautive : c'est la capture d'écran qui a vieilli — le
+catalogue d'un hébergeur suit les versions LTS d'Ubuntu, il ne les fige pas.
+:::
 
 | Brique de la pile | Version livrée par l'image |
 |---|---|
@@ -143,10 +256,14 @@ erreur fatale. Le piège est parfait parce qu'il est **silencieux du bon côté*
 signale jamais l'incohérence, elle te la cache. Tu la découvres après le transfert, la veille de la
 remise, sur un site qui affichait tout à l'heure.
 
-::: correction-du-cours {source="Image marketplace DigitalOcean LAMP on 24.04 — Ubuntu 24.04, Apache 2.4.58, PHP 8.4.11 et MySQL 8.0.43 relevés le 2026-08-31 ; fiche KB web/php/php-environnement-developpement-moderne.md"}
-Le matériel d'installation du 420-4P2-HU parle de **MariaDB**, parce que c'est ce que XAMPP embarque
-depuis des années. L'image de
-production, elle, installe **MySQL 8.0**. Garde le terme du cours pour l'examen — mais sache que ce
+::: correction-du-cours {source="Image marketplace DigitalOcean LAMP on 24.04 — Ubuntu 24.04, Apache 2.4.58, PHP 8.4.11 et MySQL 8.0.43 relevés le 2026-08-31 ; fiche KB web/php/php-environnement-developpement-moderne.md ; chapitre « déploiement d'une base de données MariaDB » de la séance 9 du 420-B10-HU" seance="9" diapos="3, 7"}
+**MariaDB n'est pas une bizarrerie de l'autre cours : ce cours-ci l'installe aussi.** Sa séance 9
+consacre un chapitre entier au déploiement d'une base de données **MariaDB** et fait installer le
+paquet `mariadb-server`. Le matériel d'installation du 420-4P2-HU parle lui aussi de MariaDB, parce
+que c'est ce que XAMPP embarque depuis des années. L'image de production, elle, sert **MySQL 8.0** :
+l'écart n'est donc pas entre les deux cours, il est **entre les deux cours et le serveur cible**.
+
+Garde le terme du cours pour l'examen — mais sache que ce
 ne sont plus le même produit depuis 2012 : les deux moteurs divergent sur les rôles et
 l'authentification, sur le type `JSON`, sur les index fonctionnels et sur certaines fonctions de
 fenêtrage. Un script de création de base écrit contre MariaDB peut donc échouer à la remise. La
@@ -168,7 +285,7 @@ suppression. Après la remise : détruis le droplet, puis va vérifier qu'il ne 
 volume orphelin.
 :::
 
-### Pourquoi ce module existe dans un cours de sécurité
+### Pourquoi ce module existe dans un cours de sécurité {hors-cours}
 
 L'écart n'est pas un caprice de puriste. Le **plan de cours du 420-4P2-HU** — le cours de PHP, dans
 le même programme, dont le projet prolonge directement celui-ci — exige en toutes lettres un « outil
@@ -186,7 +303,7 @@ qui suit dans ce module est un complément non exigible à un examen écrit ; c'
 exactement ce que le projet de session, lui, est censé démontrer.
 :::
 
-## Monter la salle de répétition
+## Monter la salle de répétition {hors-cours}
 
 Cinq options existent pour se donner un serveur local. Elles ne se valent pas du tout du point de
 vue de la parité.
@@ -213,7 +330,7 @@ chez lui ne prouve rien sur ce qui marchera sur le serveur. Et ne monte pas WSL2
 remise : changer d'environnement est un chantier, il se fait entre deux travaux.
 :::
 
-### Les commandes, dans l'ordre
+### Les commandes, dans l'ordre {seance="9" diapos="7, 41-42"}
 
 Depuis PowerShell **en administrateur**, une seule commande installe WSL2 et Ubuntu — elle s'écrit
 `wsl --install -d Ubuntu-24.04`, et c'est la seule de toute cette leçon qui se tape côté Windows.
@@ -254,6 +371,21 @@ qu'un seul module PHP : `a2dismod` retire celui de la 8.3, `a2enmod` met celui d
 redémarrage rend le changement effectif. Si la 8.3 n'a jamais été installée sur ta machine,
 `a2dismod php8.3` répondra que le module n'existe pas : c'est bon signe, continue.
 
+::: cours {seance="9" diapos="41-42"}
+**Cette séquence-là est bien celle du cours** — et c'est la seule installation de la pile par
+`apt` que portent les deux cours réunis. La séance 9 déroule `apt-get update`, puis
+`apt-get install apache2`, puis `apt-get install php`, puis `systemctl restart Apache2`, et elle te
+fait relever la version obtenue par `php --version`.
+
+Ce que la marche à suivre ci-dessus **ajoute** tient en une ligne : le dépôt `ondrej/php`. Sans lui,
+ce relevé affiche 8.3 — c'est-à-dire exactement l'écart que la diapositive te fait mesurer sans le
+nommer.
+
+Le cours de PHP donne le même rappel, en plus court, à sa séance 8 : `apt-get`, `sudo` et `chmod` y
+sont posés comme les trois commandes d'administration à connaître. **Les deux cours enseignent donc
+ces gestes** ; ni l'un ni l'autre ne montre `a2dismod`, `a2enmod` ou `apache2ctl`.
+:::
+
 ::: complement
 `sudo apt install composer` installe la version de Composer empaquetée par la distribution — une
 **2.7.x** contre une **2.8.x** en amont au moment d'écrire ces lignes. C'est un retard de version
@@ -291,7 +423,7 @@ l'adresse — c'est exactement le genre de fichier que cette leçon passe son te
 Si l'une de ces quatre commandes ne rend pas la version attendue, tu viens de gagner une demi-heure :
 tu as trouvé un écart de parité aujourd'hui plutôt que le jour de la remise.
 
-### Le VirtualHost : le geste qui remplace `localhost/monSite/`
+### Le VirtualHost : le geste qui remplace localhost/monSite/ {hors-cours}
 
 Un **VirtualHost** est un bloc de configuration par lequel Apache dit : « quand une requête arrive
 pour ce nom d'hôte, sers ce dossier-là, avec ces règles-là ». C'est le seul travail de configuration
@@ -313,6 +445,17 @@ Voici ce que ce fichier contient, directive par directive.
 | `Header always set` | `Referrer-Policy: strict-origin-when-cross-origin` | Limite ce que le site fuit dans l'en-tête `Referer` |
 | `ErrorLog` | `${APACHE_LOG_DIR}/monsite-erreur.log` | Où partent les erreurs du serveur |
 | `CustomLog` | `${APACHE_LOG_DIR}/monsite-acces.log combined` | Où partent les accès, au format complet |
+
+::: cours {seance="9" diapos="42"}
+**De tout ce tableau, le cours ne porte qu'une case : la dernière commande.** La séance 9 montre
+`systemctl restart Apache2` — le geste qui rend une configuration effective — et s'arrête là. Ni
+`VirtualHost`, ni `DocumentRoot`, ni `ServerName`, ni `AllowOverride`, ni `.htaccess`, ni
+`RewriteRule`, ni `a2ensite` n'apparaissent dans les diapositives des **deux** cours.
+
+Ce n'est pas un reproche, c'est un repère : rien de ce qui suit ne peut tomber à un examen écrit,
+et tout y est exigible du **projet**, qui se remet sur un serveur où ces directives existent de
+toute façon — l'image du droplet en pose déjà un.
+:::
 
 ::: complement
 **Pourquoi `AllowOverride None` plutôt que `All`.** Un `.htaccess` est un fichier de configuration
@@ -361,7 +504,7 @@ d'ouvrir `monsite.dev` en HTTP clair, et ton site local ne s'affichera pas. `.lo
 conflit avec la découverte de services mDNS. Le choix n'est pas cosmétique.
 :::
 
-### Le chemin d'une requête, du navigateur au code
+### Le chemin d'une requête, du navigateur au code {cours="php" seance="1" diapos="21-22, 56, 59-60"}
 
 ```mermaid
 flowchart TD
@@ -392,7 +535,7 @@ qui les écrit — et qui cassent tous le jour où le site est déployé **à la
 VirtualHost supprime la classe entière de problèmes, parce qu'il fait de la racine du projet la
 racine de l'URL, en local comme en production.
 
-## Une arborescence qui ne sert pas ses secrets
+## Une arborescence qui ne sert pas ses secrets {hors-cours}
 
 Voici la deuxième idée structurante de la leçon, et elle tient en une phrase : **le `DocumentRoot`
 est une frontière de sécurité, pas un choix de rangement.** Tout ce qui est dedans est atteignable
@@ -443,6 +586,19 @@ premier geste sur une machine neuve devient alors :
 Un fichier de configuration sans gabarit versionné est un projet qu'on ne peut pas réinstaller ; un
 gabarit qui contient les vraies valeurs est un mot de passe publié. Il faut les deux fichiers, et
 l'exclusion qui les sépare — on l'écrit dans le `.gitignore`, plus bas.
+
+::: cours {seance="9" diapos="46"}
+**Ce que le cours prescrit à la place, il faut le savoir avant de choisir.** La séance 9 demande de
+« copier ce répertoire sur votre serveur » et de « le mettre sous `/var/www/html` » ; le cours de PHP
+dit la même chose à sa séance 8 — « déployer une application est très simple, il faut simplement
+copier tout son contenu sous le répertoire `/var/www/html` ». C'est l'arborescence **plate**, celle
+où tout est servi, exactement l'inverse de celle ci-dessus.
+
+Les deux méthodes cohabitent sans se contredire, parce qu'elles ne répondent pas à la même question.
+Le cours te montre **comment mettre un site en ligne** ; cette section te montre **ce que le serveur
+ne doit pas pouvoir servir**. À l'examen, la réponse attendue est celle du cours. Sur le serveur du
+projet, c'est le `DocumentRoot` qui décide, et lui seul.
+:::
 
 Quand tu hésites sur l'endroit où poser un fichier neuf, une seule question suffit :
 
