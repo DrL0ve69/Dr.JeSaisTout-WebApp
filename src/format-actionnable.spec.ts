@@ -91,12 +91,25 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
     const racine = join(bac, nom);
     cpSync(FIXTURE, racine, { recursive: true });
     const fichier = join(racine, MODULE, 'lecon.md');
-    let source = readFileSync(fichier, 'utf8');
+    // 🔴 TOUT SE COMPARE EN LF, ET C'EST UN CORRECTIF, PAS UNE COMMODITÉ (L-015, mesuré
+    // le 2026-09-09). Les cibles de mutation arrivent sous DEUX formes qui ne portent pas
+    // les mêmes fins de ligne : `SECTION_TEMOIN` est un littéral GABARIT, donc il hérite
+    // de celles du fichier .ts lui-même, tandis que les autres sont écrites avec des
+    // échappements `\n`, donc toujours en LF. Avec `core.autocrlf=true`, une extraction
+    // fraîche rend le spec ET la fixture en CRLF sur Windows : les cibles en `\n` ne
+    // mordaient plus, et CINQ cas levaient « la fixture a changé » alors que la fixture
+    // était intacte. Sur le runner Linux, tout est en LF et les cinq passaient — le spec
+    // rendait donc DEUX verdicts selon l'hôte, vert là où il comptait, rouge ici. C'est
+    // le miroir exact du piège déjà payé sur `extraire-diapositives.mjs` : une garde dont
+    // le verdict dépend de la plateforme est deux gardes. On normalise donc les deux
+    // côtés de la comparaison, et la fixture peut être extraite dans l'une ou l'autre forme.
+    const enLf = (t: string): string => t.replace(/\r\n/g, '\n');
+    let source = enLf(readFileSync(fichier, 'utf8'));
     for (const [avant, apres] of mutations) {
-      if (!source.includes(avant)) {
+      if (!source.includes(enLf(avant))) {
         throw new Error(`« ${nom} » : « ${avant.slice(0, 50)}… » introuvable — la fixture a changé`);
       }
-      source = source.replace(avant, apres);
+      source = source.replace(enLf(avant), enLf(apres));
     }
     writeFileSync(fichier, source, 'utf8');
     return racine;
