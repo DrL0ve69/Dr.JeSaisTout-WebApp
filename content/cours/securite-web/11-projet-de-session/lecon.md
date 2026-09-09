@@ -77,11 +77,32 @@ Ce module accompagne le **projet de session**, la dernière évaluation pratique
 remplace pas l'énoncé du projet : il donne le socle technique — environnement, arborescence,
 contrôle de version — sur lequel le projet se construit.
 
-**Deux chiffres circulent pour sa pondération, et il vaut mieux le savoir avant de s'en inquiéter.**
-La diapositive de présentation du cours annonce **15 %** ; l'**horaire publié de la session** annonce
-**20 %**, et c'est celui-là que ce site retient, parce que l'horaire fait foi pour les dates comme
-pour les pondérations. Si ta diapositive dit 15 %, tu n'as pas mal lu : demande à l'enseignant lequel
-des deux s'applique à ta session.
+**Deux chiffres circulent pour sa pondération, et la question est tranchée.** La diapositive de
+présentation du cours annonce **15 %** ; l'**horaire publié de la session** annonce **20 %**, et
+c'est **20 %** qui s'applique — l'énoncé officiel du projet l'écrit en toutes lettres. Si ta
+diapositive dit 15 %, tu n'as pas mal lu : c'est le chiffre qui est périmé.
+:::
+
+::: note
+**Ce que l'énoncé du projet évalue, et dans quelles proportions.** Le projet demande de créer et
+déployer une application PHP en y appliquant les mesures de sécurité vues en classe. La note se
+répartit sur six familles de mesures :
+
+| Famille de mesures | Part de la note du projet |
+|---|---|
+| Sécurisation des communications réseau | 15 % |
+| Sécurisation des comptes utilisateurs | 15 % |
+| Tâche automatisée de surveillance et/ou nettoyage des données | 20 % |
+| Sécurisation du code | 20 % |
+| Sécurisation des applications (serveur web, bases de données…) | 10 % |
+| Mécanismes d'authentification de l'application | 20 % |
+
+Et il attend **trois livrables** : l'application déployée en ligne sur un serveur, le code
+accompagné d'une exportation de la base de données, et un document explicatif avec captures d'écran
+**séparé par section**, une par famille ci-dessus.
+
+Lis bien la colonne de droite : ces pourcentages se répartissent **à l'intérieur** du projet. C'est
+le projet **entier** qui vaut 20 % de la session.
 :::
 
 ## En bref — la marche à suivre {hors-cours}
@@ -308,8 +329,14 @@ La conséquence pratique est contre-intuitive et vaut d'être dite clairement : 
 environnement moderne n'est **pas** aller au-delà de ce qu'on te demande, c'est satisfaire le
 référentiel déjà écrit. L'écart est **interne** au programme — entre ce que les plans de cours
 réclament et ce que les diapositives montrent — et non entre le programme et cette leçon. Tout ce
-qui suit dans ce module est un complément non exigible à un examen écrit ; c'est en revanche
-exactement ce que le projet de session, lui, est censé démontrer.
+qui suit dans ce module est un complément non exigible à un examen écrit.
+
+Une précision qui t'évitera de mal répartir ton effort : l'énoncé du projet de session **ne note pas
+le contrôle de version**, ni le gestionnaire de dépendances, ni l'outillage d'analyse. Sa grille
+porte sur les six familles de mesures de sécurité listées plus haut. Ces outils restent le **moyen**
+le plus sûr de livrer les trois livrables demandés — un dépôt propre est ce qui rend le code
+exportable et le document explicatif crédible — mais ils ne sont pas une **famille notée**. Monte-les
+parce qu'ils te font gagner du temps, pas en espérant des points.
 :::
 
 ## Monter la salle de répétition {hors-cours}
