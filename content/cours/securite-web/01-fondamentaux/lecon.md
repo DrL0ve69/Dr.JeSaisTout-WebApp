@@ -25,7 +25,7 @@ statut: publiee
 
 # Fondamentaux de la sécurité des applications web
 
-## L'idée en une image
+## L'idée en une image {diapos="26, 29"}
 
 Imagine le coffre-fort d'une bijouterie. Il tient trois promesses, et il faut les trois pour
 qu'il serve à quelque chose :
@@ -54,7 +54,38 @@ ce qu'un cambrioleur lui écrit sur un bout de papier ; une base de données, si
 l'objet des modules sur l'injection et le XSS, et ça n'a aucun équivalent dans une porte
 blindée.
 
-## Ce que la séance 1 enseigne, et ce que cette leçon ajoute
+## En bref — la marche à suivre {hors-cours}
+
+:::: marche-a-suivre {titre="Monter le poste de la session, puis évaluer une menace"}
+
+1. {voir="La chaîne d'outils de la session"} Monte le poste du laboratoire avant tout le reste :
+   **XAMPP ou WAMP** en local, un éditeur de texte, **PuTTY** et **WinSCP** pour piloter la
+   machine distante, un compte **DigitalOcean**, un **nom de domaine** chez GoDaddy. Sans domaine,
+   pas de certificat TLS — donc pas de HSTS ni de cookie `Secure` à la fin de la session.
+
+2. {voir="La triade CIA — le cadre qui classe toutes les attaques"} Devant une menace, demande
+   **laquelle des trois promesses elle brise** : confidentialité, intégrité, disponibilité. C'est
+   le cadre que le cours pose d'entrée de jeu, et c'est lui qui rend le reste classable.
+
+3. {voir="Ne jamais faire confiance au client"} Devant un contrôle de sécurité, demande **de quel
+   côté il vit**. Tout ce qui s'exécute chez le visiteur est une suggestion : le contrôle qui
+   compte est celui que le serveur refait lui-même.
+
+4. {voir="0-day, CVE et CWE — nommer une faille"} Devant une faille, **nomme-la** avant de la
+   corriger : un **CWE** dit de quelle catégorie de défaut il s'agit, un **CVE** identifie une
+   occurrence précise dans un produit précis.
+
+5. {voir="Comment on cherche les failles"} Devant une application à tester, **choisis le type de
+   test avant l'outil** : boîte noire, blanche ou grise ; analyse statique du code (SAST) ou
+   analyse de l'application qui tourne (DAST).
+
+6. {voir="Le panorama des menaces de la séance 1"} Révise en priorité ce que la séance 1 porte
+   réellement — la triade, les huit familles d'attaques, la chaîne d'outils — et traite le reste
+   de cette leçon comme un complément utile mais non prioritaire.
+
+::::
+
+## Ce que la séance 1 enseigne, et ce que cette leçon ajoute {diapos="6, 7, 17, 18"}
 
 Ce module est le plus déséquilibré du cours, et le savoir te fait gagner du temps de révision.
 L'ordre du jour de la séance 1 (diapositive 18) annonce **quatre** blocs de contenu, plus une
@@ -100,7 +131,7 @@ comme non prioritaire pour réviser la séance 1 — jamais comme exclu de l'év
 cours ; en production, applique la correction.* Quand les deux divergent, cette leçon te montre
 les deux et te dit laquelle sert où — elle n'efface jamais la version du cours.
 
-## La triade CIA — le cadre qui classe toutes les attaques
+## La triade CIA — le cadre qui classe toutes les attaques {diapos="25-30"}
 
 ::: cours
 Une application n'est réputée sécuritaire que si elle garantit **les trois principes à la
@@ -142,7 +173,7 @@ dans CIA. Et c'est pourtant lui qu'on réclame en premier après un incident. D'
 qui n'a aucun équivalent dans CIA.
 :::
 
-## Le vocabulaire : faille, exploit, intrusion
+## Le vocabulaire : faille, exploit, intrusion {hors-cours}
 
 ::: complement
 Cette section entière est un ajout de la base de connaissances : aucune diapositive de la
@@ -194,7 +225,7 @@ coordonnée) : signalement privé au fabricant, puis publication après un déla
 immédiatement, ce qui force une réaction rapide mais expose les utilisateurs pendant toute la
 fenêtre sans correctif. Ne rien signaler, ou revendre la faille, est hors du cadre éthique.
 
-## 0-day, CVE et CWE — nommer une faille
+## 0-day, CVE et CWE — nommer une faille {hors-cours}
 
 ::: complement
 Ces trois notions ne sont ni dans les diapositives 2026 ni dans le plan de cours. Elles sont
@@ -230,7 +261,7 @@ poste, alors qu'un CVE n'atteint que ceux qui **surveillent** le catalogue. Pers
 téléphone à ton équipe pour l'avertir : c'est l'outillage d'analyse de dépendances qui joue ce
 rôle, et seulement si quelqu'un l'a branché.
 
-## Ne jamais faire confiance au client
+## Ne jamais faire confiance au client {seance="7" diapos="22"}
 
 ::: complement
 La séance 1 ne consacre aucune diapositive à l'architecture client/serveur : ce rappel-ci vient
@@ -287,7 +318,7 @@ open-source depuis 2019) moyennant plus d'effort. **Un secret placé dans du cod
 l'utilisateur — clé d'API en dur, logique de licence — n'est pas protégé, seulement obscurci.**
 La seule protection réelle est de ne jamais transmettre le secret au client.
 
-## Le panorama des menaces de la séance 1
+## Le panorama des menaces de la séance 1 {diapos="23, 31-60, 79"}
 
 ::: cours
 Le cours consacre les diapositives 31 à 60 à un tour d'horizon de **huit familles d'attaques**,
@@ -346,7 +377,7 @@ d'héberger ses dépendances soi-même, de les figer par version (`package-lock.
 imposé, et de les analyser en continu (`npm audit`, `composer audit`, Dependabot).
 :::
 
-## Le déroulé d'une intrusion : la kill chain
+## Le déroulé d'une intrusion : la kill chain {hors-cours}
 
 ::: complement
 Ni la kill chain ni MITRE ATT&CK n'apparaissent dans le millésime 2026 du cours — ni dans les
@@ -393,7 +424,7 @@ d'erreur bavard, faille exploitable). Les phases suivantes se détectent par la 
 et la surveillance**, pas par du code défensif — ce qui explique qu'une application sans traces
 exploitables ne saura jamais qu'elle a été compromise.
 
-## L'OWASP Top 10 — deux millésimes actifs
+## L'OWASP Top 10 — deux millésimes actifs {diapos="32, 83"}
 
 ::: complement
 Le deck 2026 **nomme l'organisme OWASP** (diapositive 32) et **ne liste aucune de ses dix
@@ -433,7 +464,7 @@ Ce qu'il faut retenir en une phrase : **le contrôle d'accès défaillant est pr
 millésimes** — c'est-à-dire que la faille la plus répandue au monde n'est pas une technique
 exotique, c'est l'oubli de vérifier « as-tu le droit ? » à chaque requête.
 
-## Comment on cherche les failles
+## Comment on cherche les failles {hors-cours}
 
 ::: complement
 Les types de tests ne sont ni dans le deck 2026 ni dans le plan de cours. C'est du vocabulaire
@@ -465,7 +496,7 @@ les chemins que le scanner a effectivement parcourus. Et seul le **pentest manue
 failles de **logique métier** — contourner un tunnel d'achat, par exemple — qu'aucun scanner ne
 devine ; il est en revanche ponctuel et coûteux, donc jamais une ligne de défense continue.
 
-## La chaîne d'outils de la session
+## La chaîne d'outils de la session {diapos="13, 61-77"}
 
 ::: cours
 La séance 1 dresse la liste du matériel du laboratoire (diapositive 63) : **XAMPP ou WAMP** en
@@ -498,6 +529,31 @@ suivantes de la session (2, 3, 9 et 10) ; « SFTP » n'apparaît dans aucune dia
 ni en sécurité ni en PHP. Retiens-les pour comprendre ce que tu installes, ne les attribue pas
 à la séance 1.
 :::
+
+**Piloter la machine distante et y déposer des fichiers se fait par deux chemins, pour le même
+résultat.** Le cours impose les deux clients graphiques ; Windows sait faire la même chose sans
+rien installer. Choisis l'onglet que tu veux — mais c'est la méthode du cours qui est évaluable.
+
+:::: methodes
+::: methode {libelle="La méthode du cours — PuTTY et WinSCP" defaut}
+Ouvre **PuTTY**, saisis l'adresse IP de ton serveur DigitalOcean, laisse le port à 22, puis
+*Open*. À la première connexion, PuTTY affiche l'empreinte de la clé du serveur et demande de la
+confirmer ; ensuite, tu t'identifies et tu obtiens l'invite de commande de la machine.
+
+Pour les fichiers, ouvre **WinSCP** avec le même hôte et le même compte : il affiche ton poste à
+gauche, le serveur à droite, et tu déposes ton fichier dans le dossier du site par glisser-déposer.
+:::
+::: methode {libelle="L'équivalent moderne — le client OpenSSH de Windows"}
+Windows 10 et Windows 11 embarquent le client **OpenSSH** comme fonctionnalité installée par
+défaut : `ssh` et `scp` sont disponibles dans PowerShell ou l'invite de commandes, sans rien
+télécharger. La première connexion affiche la même empreinte de clé à confirmer.
+
+```bash
+ssh utilisateur@203.0.113.10
+scp index.php utilisateur@203.0.113.10:/var/www/html/
+```
+:::
+::::
 
 ::: complement
 Précision datée : un certificat de confiance publique n'exige plus strictement un nom de
@@ -542,7 +598,7 @@ dépendance de production (éditeur, modèle d'affaires, permissions demandées)
 gadget.
 :::
 
-## Exemple simple
+## Exemple simple {diapos="39"}
 
 Le mécanisme isolé, sans rien autour : un panier d'achat qui croit son formulaire. C'est la
 faute la plus banale de tout ce cours, et celle qui coûte le plus cher à une boutique.
@@ -588,7 +644,7 @@ transiter par lui, même en lecture seule à l'écran.
 :::
 ::::
 
-## Exemple complet
+## Exemple complet {seance="10" diapos="92"}
 
 La même faute, en situation réaliste et avec des conséquences bien plus lourdes : c'est
 l'**autorisation** elle-même qui est confiée au client. On la voit ici sur deux piles
@@ -672,14 +728,14 @@ pas être écrit de travers.
 :::
 ::::
 
-## À toi de jouer
+## À toi de jouer {hors-cours}
 
 Huit questions pour vérifier que le cadre est en place : le vocabulaire, la triade, la frontière
 de confiance, et la distinction entre ce que la séance 1 porte et ce qui relève du complément.
 
 [[quiz]]
 
-## À retenir
+## À retenir {diapos="26, 29, 30, 79"}
 
 ::: a-retenir
 - **La triade CIA classe tout.** Confidentialité, intégrité, disponibilité : devant n'importe
@@ -702,7 +758,7 @@ de confiance, et la distinction entre ce que la séance 1 porte et ce qui relèv
   exercices de la session entière.
 :::
 
-## Aller plus loin
+## Aller plus loin {diapos="12, 83"}
 
 - **Fiche source principale** — `web/securite/fondamentaux-securite-web.md` (KnowledgeBase) :
   vocabulaire complet, disclosure, STRIDE, processus d'évaluation de la sécurité, DVWA et Burp
