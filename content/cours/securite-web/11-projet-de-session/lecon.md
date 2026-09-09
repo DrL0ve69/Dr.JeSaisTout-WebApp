@@ -271,13 +271,22 @@ vérification tient en une requête, et elle ne coûte rien : `SELECT VERSION();
 version suivie de `-MariaDB`, soit une version MySQL nue.
 :::
 
-::: attention
-Le droplet est un serveur **loué**, facturé à l'heure jusqu'à un plafond mensuel — de l'ordre de
-6 $ par mois pour la taille employée ici. Le plan de cours annonce **5 $ de serveur et 15 $ de nom
-de domaine à la charge de l'étudiant** : vérifie tout de même avec l'enseignant ce que ton
-inscription couvre avant de créer quoi que ce soit.
+::: cours {seance="1" diapos="13"}
+**Le prix du serveur n'a pas le même chiffre selon le support que tu relis — et aucun des quatre
+n'est faux.** Le plan de cours de ce cours-ci annonce « plateforme infonuagique **5 $ (maximum)** »
+et « nom de domaine **15 $ (environ)** », et la capture de sa séance 2 montre la taille facturée
+**5 $ par mois** ; le plan de cours de PHP annonce **3 $ (environ)**, et sa capture montre **6 $ par
+mois**. Ce n'est pas une contradiction entre les deux cours : c'est le catalogue d'un hébergeur,
+relevé à des dates différentes, sur des tailles de machine qui ont changé de prix entre-temps.
 
-Et retiens le seul fait qui coûte réellement de l'argent, parce qu'il surprend tout le monde :
+Retiens l'**ordre de grandeur** plutôt qu'un chiffre — cinq à six dollars par mois pour la plus
+petite taille, plus le nom de domaine si tu en prends un — et vérifie avec l'enseignant ce que ton
+inscription couvre avant de créer quoi que ce soit.
+:::
+
+::: attention
+Le droplet est un serveur **loué**, facturé à l'heure jusqu'à un plafond mensuel. Retiens le seul
+fait qui coûte réellement de l'argent, parce qu'il surprend tout le monde :
 **éteindre un droplet ne cesse pas de le facturer.** Un serveur arrêté réserve toujours son disque
 et son adresse, donc il continue de coûter. Seule sa **destruction** arrête la facture — et les
 **instantanés** (*snapshots*) que tu aurais pris se facturent séparément, eux aussi jusqu'à leur
@@ -623,26 +632,39 @@ même fichier. C'est la même idée qu'une entrée unique dans un bâtiment : un
 plutôt que trente.
 :::
 
-## Cinq gestes de la mise en ligne qui ouvrent une porte
+## Cinq gestes de la mise en ligne qui ouvrent une porte {seance="9" diapos="28-30, 38, 46-47, 49"}
 
 Passons à la partie qui appartient vraiment à un cours de sécurité. La méthode de mise en ligne
 enseignée est efficace et elle fonctionne — c'est d'ailleurs pour ça qu'elle est dangereuse : rien
 n'échoue, rien n'avertit, et le site est en ligne.
 
-Cette méthode ne vient pas d'un seul endroit, et la distinction compte pour tes révisions : trois de
-ses gestes appartiennent à **ce cours-ci**, les trois autres viennent du cours de PHP. Chaque bloc
-ci-dessous dit d'où il sort.
+Cette méthode ne vient pas d'un seul endroit, et la distinction compte pour tes révisions. Une
+partie appartient à **ce cours-ci**, une autre au cours de PHP — et deux gestes, les plus lourds de
+conséquences, sont enseignés **par les deux**. Chaque bloc ci-dessous dit d'où il sort, sans
+raccourci : « ce n'est pas de la matière d'ici » est une phrase qui se vérifie avant de s'écrire.
 
-::: cours {seance="2"}
-Le transfert du code vers le serveur se fait par **WinSCP** en glisser-déposer, et l'administration
-de la machine par **PuTTY** en SSH. Ce sont les deux outils posés dès la mise en place de
-l'environnement infonuagique, et ce sont eux qui seront nommés à l'examen.
+::: cours {seance="2" diapos="23, 26-31"}
+L'administration de la machine se fait par **PuTTY**, en SSH sur le port 22 : c'est la matière de
+cette séance-ci, et c'est sous ce nom-là que l'outil peut être nommé à l'examen.
 :::
 
-::: cours {seance="9"}
+::: cours {seance="1" diapos="63"}
+**WinSCP, le second outil, n'appartient pas à la séance 2 — et la nuance vaut pour tes révisions.**
+Il est exigé dès la liste du matériel du cours, à la toute première séance, aux côtés de PuTTY ; sa
+configuration par clé est reprise à la séance 3, et c'est à la séance 9 qu'on s'en sert réellement,
+pour téléverser le code sur le serveur. La séance 2, elle, ne le mentionne nulle part. Le
+glisser-déposer reste bien la méthode de transfert enseignée par ce cours ; seule son adresse dans
+le plan de séances change.
+:::
+
+::: cours {seance="9" diapos="28-30, 38, 46-47"}
 Côté base de données, la marche à suivre consiste à **téléverser phpMyAdmin dans la racine web**
 pour administrer MySQL depuis le navigateur, puis à créer le compte SQL de l'application avec
 `GRANT ALL PRIVILEGES ON *.*`.
+
+**Le cours de PHP enseigne exactement la même séquence**, dans les mêmes mots et le même ordre : les
+deux ne diffèrent que par le nom du compte créé et par l'adresse à laquelle on rejoint phpMyAdmin.
+Ce n'est donc pas une matière propre à ce cours-ci, et tu la retrouveras des deux côtés.
 :::
 
 ::: complement
@@ -652,8 +674,20 @@ rendre le journal inscriptible par `chmod 777`. On l'examine ici parce que c'est
 des projets contiennent réellement, mais ce n'est pas de la matière d'examen pour ce cours-ci.
 
 Un constat vaut pour les deux ensembles : aucun de ces matériels ne contient de VirtualHost, ni de
-contrôle de version, ni de gestionnaire de dépendances ; le HTTPS y est annoncé puis n'est jamais
-couvert.
+contrôle de version, ni de gestionnaire de dépendances.
+:::
+
+::: cours {seance="9" diapos="49"}
+**Le HTTPS est annoncé, puis jamais couvert — et c'est vrai des DEUX cours, pas seulement de
+l'autre.** La séance qui installe phpMyAdmin le dit elle-même en toutes lettres : la communication
+avec le serveur n'est pas chiffrée, le mot de passe peut être intercepté, et « cette situation sera
+corrigée lorsque nous installerons un certificat SSL ». Le cours de PHP fait exactement la même
+promesse à la même étape de son déploiement. Dans les deux cas, la diapositive suivante change de
+sujet.
+
+Ce n'est donc **pas** un angle mort : le risque est nommé par le cours, correctement. Ce qui manque
+est la suite. Retiens-le tel quel — tu connais le danger *et* tu sais qu'aucun des deux supports ne
+te donnera la parade ; c'est à ton projet de la porter.
 :::
 
 Chacun de ces gestes a une parade qui coûte moins de cinq minutes **le premier jour**, et une
@@ -666,6 +700,20 @@ réécriture complète si elle est ajoutée à la fin.
 | `chmod 777` sur le journal | Tout compte du serveur — y compris celui d'un service compromis — peut lire, réécrire et effacer le journal ; les traces d'une intrusion deviennent modifiables par l'intrus | `chown www-data:www-data` puis `640`, dans `var/log/` hors racine web, quand **seul** Apache écrit ; le droit d'écriture se donne par **propriétaire et groupe**, pas par « tout le monde » |
 | `GRANT ALL PRIVILEGES ON *.*` | Le compte de l'application peut lire et détruire **toutes** les bases du serveur, créer des comptes, et lire des fichiers de la machine dans les limites dites plus bas. Une injection SQL cesse d'être un incident local | Un compte par application, restreint à **sa** base et aux verbes dont elle a besoin : `SELECT, INSERT, UPDATE, DELETE ON boutique.*` |
 | phpMyAdmin téléversé, servi en HTTP clair | Une interface d'administration complète, publique, dont le mot de passe circule en clair sur le réseau ; les robots la cherchent à l'adresse `/phpmyadmin` en permanence | Ne pas l'exposer : administrer la base par un **tunnel SSH**, ou servir un outil d'un seul fichier restreint à l'adresse de bouclage, et n'ouvrir aucune interface d'administration sans HTTPS |
+
+::: cours {seance="9" diapos="32-35"}
+**La quatrième parade, tu l'as déjà vue en classe — et il faut le dire, parce que la nuance est
+ailleurs.** Ce cours-ci enseigne bel et bien le privilège restreint : après avoir créé le compte avec
+`ALL PRIVILEGES`, il montre qu'on peut remplacer cet accès par des verbes nommés — `SELECT`,
+`UPDATE`, `DELETE`, `INSERT` — et que toute opération hors de cette liste sera refusée. La séquence
+du cours est donc un **ordre pédagogique** (large d'abord, pour que phpMyAdmin fonctionne ; restreint
+ensuite), pas une omission.
+
+La critique juste est plus étroite, et c'est elle qu'il faut retenir : le cours ne **revient jamais**
+restreindre le compte qu'il vient de créer, et c'est précisément ce compte-là que l'application
+emploie ensuite. Le geste manquant n'est pas de connaître `GRANT SELECT` — tu le connais — c'est de
+l'appliquer au compte qui tourne réellement en production.
+:::
 
 ::: attention
 Le fil conducteur des cinq parades n'est pas « en faire plus ». C'est de remplacer un **défaut
@@ -704,7 +752,7 @@ interdise l'accès. Cela se mesure sur ton droplet, en demandant l'adresse d'un 
 que cela ne se suppose.
 :::
 
-## Le contrôle de version, exigé et jamais enseigné
+## Le contrôle de version, exigé et jamais enseigné {hors-cours}
 
 Le dernier morceau du socle est celui que le plan de cours du **420-4P2-HU** réclame nommément — une
 « configuration appropriée du système de gestion de versions » — et qu'aucune diapositive ne montre.
@@ -787,7 +835,7 @@ qu'on croyait supprimés — se substitue un `git pull` exécuté **sur le serve
 le même résultat, à chaque fois, et un historique qui dit quelle version tourne réellement en ligne.
 :::
 
-## Exemple simple
+## Exemple simple {cours="php" seance="3" diapos="37, 39, 41"}
 
 Le mécanisme isolé, dans sa plus petite forme : **où vit le fichier de configuration**. Rien d'autre
 ne change entre les deux volets.
@@ -840,7 +888,7 @@ discret — c'est le même principe que la ligne 3, appliqué au comportement pl
 :::
 ::::
 
-## Exemple complet
+## Exemple complet {cours="php" seance="8" diapos="74, 93, 95"}
 
 Le même projet, cette fois en situation : le point d'entrée d'une petite application, tel que la
 méthode enseignée le produit, puis tel que la parité et l'arborescence le corrigent. Le second
@@ -989,7 +1037,7 @@ non par la qualité du code — c'est ce qu'on appelle le principe du **moindre 
 :::
 ::::
 
-## À toi de jouer
+## À toi de jouer {seance="9" diapos="41"}
 
 Ce module n'a pas de feuille d'exercices : son évaluation, c'est le projet lui-même. Le meilleur
 usage que tu puisses en faire est donc une **liste de vérification**, à dérouler dans cet ordre le
@@ -1014,7 +1062,7 @@ d'examen de ce qui est apport de production.
 
 [[quiz]]
 
-## À retenir
+## À retenir {hors-cours}
 
 - **La parité se mesure, elle ne se suppose pas — et `php -v` ne suffit pas.** Quatre commandes des
   deux côtés : `php -v` (la ligne de commande), `apache2ctl -M | grep php` (ce que ton **site**
@@ -1031,13 +1079,16 @@ d'examen de ce qui est apport de production.
   *.*` transforme n'importe quelle faille locale en compromission du serveur ; quatre verbes sur une
   seule base bornent le dommage maximal quoi qu'il arrive au code.
 - **À l'examen, la réponse du cours qui pose la question ; sur ton projet, la version moderne.** Les
-  deux tiennent ensemble, à condition de savoir d'où vient quoi : WinSCP et PuTTY (séance 2),
-  phpMyAdmin et le compte SQL (séance 9) sont la matière **de ce cours-ci** ; XAMPP, `htdocs`, les
-  `.inc` et le `config.ini` en racine web viennent du 420-4P2-HU. WSL2, le VirtualHost, `public/`,
-  le couple `bd.ini` / `bd.ini.exemple` et le contrôle de version sont ce que le projet, lui, doit
-  démontrer.
+  deux tiennent ensemble, à condition de savoir d'où vient quoi — et la provenance se vérifie, elle
+  ne se devine pas. **De ce cours-ci** : PuTTY (séance 2), WinSCP (posé à la séance 1, employé à la
+  séance 9), phpMyAdmin et le compte SQL (séance 9). **Des deux cours à la fois** : XAMPP comme
+  environnement local, phpMyAdmin dans la racine web, `GRANT ALL PRIVILEGES` et le HTTPS annoncé sans
+  être couvert. **Propres au 420-4P2-HU** : la procédure XAMPP détaillée avec `htdocs`, les fichiers
+  `.inc` et le `config.ini` en racine web. Et ce que le projet, lui, doit démontrer sans qu'aucune
+  diapositive ne le montre : WSL2, le VirtualHost, `public/`, le couple `bd.ini` /
+  `bd.ini.exemple` et le contrôle de version.
 
-## Aller plus loin
+## Aller plus loin {hors-cours}
 
 **Fiches de la base de connaissances**
 
