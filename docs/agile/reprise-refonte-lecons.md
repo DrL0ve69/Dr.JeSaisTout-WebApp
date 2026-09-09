@@ -247,7 +247,8 @@ Ne pas rendre une déduction à la place d'une mesure (L-074).
 D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis** + fixture invalide — **bloquant pour le lot
 8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → ~~**`4bis`**~~ **✅**
 (spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → ~~**`1b`**~~ **✅ livré** (PR #52, 2026-09-08 — résolution inter-cours) → ~~**`1b-B`**~~ **✅ livré** (2026-09-08 — les contrôles positifs des refus inter-cours ; **cinq annoncés, QUINZE recensés**) → `8`
-(**scindé en deux demi-lots**, la leçon fait 942 lignes) → `9`.
+~~**`8-A`**~~ **✅ livré** (PR #56, 2026-09-08 — moitié haute) → ~~**`8-B`**~~ **✅ livré** (PR #57,
+2026-09-08 — moitié basse ; **le module 11 est totalement cartographié, 0 titre muet**) → `9`.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
 et son critère d'acceptation inclut un canal **non chromatique** pour `forced-colors: active` (R-8).
@@ -1342,3 +1343,72 @@ sans le revendiquer).
 ⚠️ **CE QUE NI 8-A NI 8-B NE FERMENT :** aucune leçon n’écrit encore `:::: methodes`. Le spec e2e des
 trois états d’un onglet, la passe G-axe sur une page à onglets et la capture en contraste forcé
 restent le legs **ouvert** du lot 6 — et ils demandent un lot à eux, pas une ligne de plus dans 8-B.
+
+## ✅ CLÔTURE — LOT 8-B « la moitié basse du module 11 » (PR #57, 2026-09-08)
+
+Les sept titres restants portent ce que
+[`../contenu/renvois-diapos-module-11.md`](../contenu/renvois-diapos-module-11.md) mesure : quatre
+renvois — dont **trois inter-cours** `{cours="php"}`, aux séances 3 et 8 — et trois `{hors-cours}`.
+
+🔴 **LE MODULE 11 EST DÉSORMAIS TOTALEMENT CARTOGRAPHIÉ, ET C'EST MESURÉ SUR L'ARTÉFACT, PAS DÉDUIT
+DU CONTRAT COMPILÉ.** Relevé sur `dist/…/projet-de-session/index.html` :
+
+| | lot 8-A | lot 8-B |
+|---|---|---|
+| `<p class="renvoi-titre">` sous les titres | 11 | **18** |
+| entrées de sommaire portant une mention | 11 / 18 | **18 / 18** |
+| entrées **muettes** | 7 | **0** |
+
+C'est exactement la condition que le gate total du lot 9 attend : chaque `##`/`###` porte soit des
+diapositives, soit l'aveu qu'il n'y en a pas. ⚠️ **Le lot 9 hérite donc d'un corpus déjà conforme sur
+son seul module de la liste** — son cliquet ne pourra pas se prouver sur le module 11 par un simple
+vert. Il lui faudra une **fixture** qui viole la règle, comme au lot 1a.
+
+**LES CINQ RÉSERVES SONT TRAITÉES, NOMMÉES DANS LA LEÇON PLUTÔT QUE TRANCHÉES EN SILENCE.**
+
+- **R-2** — le prix du serveur existe en **quatre** chiffres, deux par cours et deux dates de
+  catalogue (5 $ et 5 $/mois côté B10 ; 3 $ et 6 $/mois côté 4P2). La leçon donne l'**ordre de
+  grandeur** et dit pourquoi les quatre sont exacts, au lieu d'en recopier un.
+- **R-4** — 🔴 **WinSCP n'appartient PAS à la séance 2** (0 occurrence sur 82 diapositives) : posé à
+  la séance 1, reconfiguré à la 3, employé à la 9. L'encadré fautif promettait pourtant « ce sont eux
+  qui seront nommés à l'examen » — une promesse d'examen bâtie sur une attribution fausse est le pire
+  des deux échecs symétriques de `contenu-pedagogique.md` §6. Scindé en **deux** encadrés, un par
+  séance réelle : un encadré ne porte qu'une séance, la découpe n'était donc pas cosmétique.
+- **R-5** — phpMyAdmin en racine web et `GRANT ALL ON *.*` sont enseignés par les **deux** cours.
+- **R-7** — le moindre privilège SQL est **déjà** enseigné (séance 9, diapos 32-35). La critique
+  juste est plus étroite : le cours ne revient jamais restreindre le compte qu'il vient de créer, et
+  c'est celui-là que l'application emploie.
+- **R-8** — le HTTPS est annoncé puis jamais couvert **des deux côtés** : ce n'est donc pas un angle
+  mort du cours, c'est une promesse non tenue — et le dire ainsi rend le danger crédible au lieu de
+  l'exagérer (mode d'échec des séances 3 et 4).
+
+⚠️ **UNE CORRECTION D'ENCADRÉ SE PROPAGE AU RÉSUMÉ, ET LE RÉSUMÉ N'EST DANS AUCUN DIFF D'ENCADRÉ.**
+Le paragraphe d'ouverture de la section (« trois gestes d'ici, trois de là-bas ») **et** le point
+d'`À retenir` qui le reprenait portaient tous deux l'attribution corrigée par R-4 et R-5. Un lot qui
+n'aurait édité que les encadrés aurait laissé la leçon se contredire **à deux endroits**, dont celui
+que l'étudiant relit la veille de l'examen.
+
+🔴 **LA QUATRIÈME RÉSERVE DU LOT 0ter EST FERMÉE, ET ELLE VALAIT D'ÊTRE ÉCRITE.**
+`sommaire.ts:positionDuJalon` n'**applique** aucune règle de nature d'évaluation : il **présuppose**
+qu'un jalon ne partage jamais sa séance avec un module. Le lot 0bis (`evaluation-pratique`) a rendu
+cette présupposition fausse **en production** — le module 11 est publié sur la séance 11, celle du
+projet — sans qu'aucun grep de la règle puisse le montrer. Un cas de `sommaire.spec.ts` le tient
+désormais : le groupe {11} ne déclenche pas le fail-closed (il faut `min < seance && max > seance`,
+or 11 n'est ni avant ni après lui-même) et ne réclame pas la position du jalon, donc le jalon se pose
+**avant** le module qu'il évalue.
+**Contrôle positif par mutation, imprimé** : `maximum <` → `maximum <=` dans `positionDuJalon` →
+**1 rouge exactement**, et c'est le neuf ; les 41 autres tests du fichier restent **verts**, ce qui
+prouve que le cas couvre une branche que rien n'exerçait. Mutation vérifiée **sur disque** avant
+exécution (L-015), puis restaurée et re-mesurée à 42/42.
+
+**Gates.** G-lint **0** · G-content **10 leçons / 0 dépassement** · G-build **13 routes · 14 hachages
+de style / 0 de script**, inchangés · G-axe **13 fichiers · 1118 vérifications · 0 violation** ·
+G-e2e **50 passés / 1 sauté** · G-test **1127 passés / 1 sauté · 45 fichiers** (+1, le cas neuf).
+
+**Le geste suivant : le lot 9** — le gate du format actionnable (`MODULES_AU_FORMAT_ACTIONNABLE`,
+D-D), qui n'existe pas encore. Il trouve le module 11 déjà conforme ; sa **sensibilité** se prouve
+donc en fixture, jamais sur le corpus.
+
+⚠️ **CE QUE LE LOT 9 NE FERME PAS DAVANTAGE :** aucune leçon n'écrit encore `:::: methodes`. Le spec
+e2e des trois états d'un onglet, la passe G-axe sur une page à onglets et la capture en contraste
+forcé restent le legs **ouvert** du lot 6, et demandent un lot à eux.
