@@ -73,8 +73,11 @@ qui FERME une leçon reçoit cette liste :**
 - **Au plus 5 objectifs** au frontmatter — un brief qui en demande « 5 à 6 » fait rougir G-content au
   premier essai.
 - **Format actionnable** (refonte du 2026-08-31) : si le module en fait partie, le brief **exige**
-  la section `## En bref — la marche à suivre` portant un conteneur `:::: marche-a-suivre`, et un
-  renvoi `{diapos="…"}` sur **chacun** de ses titres `##` et `###`. Le contrat complet — bornes du
+  la section `## En bref — la marche à suivre` portant un conteneur `:::: marche-a-suivre`, et — sur
+  **chacun** de ses titres `##` et `###` — soit un renvoi `{diapos="…"}`, soit le marqueur
+  `{hors-cours}`. ⚠️ **Nomme les DEUX issues dans le brief** : un rédacteur à qui l'on ne cite que
+  `{diapos="…"}` inventera un renvoi là où le cours ne dit rien, ce que le marqueur existe
+  précisément pour éviter (lot 1c). Le contrat complet — bornes du
   conteneur, résolution de `{voir="…"}`, conteneur `methodes` à onglets, et la liste
   `MODULES_AU_FORMAT_ACTIONNABLE` qui décide qui y est soumis — vit dans
   `docs/contenu/pipeline-contenu.md` et `docs/contenu/ancrage-au-cours.md` §3bis. **Nomme ces deux
@@ -120,8 +123,10 @@ Une fois le verdict PUBLIABLE :
 2. **Si le lot est une reprise au format actionnable, ajoute le slug du module à
    `MODULES_AU_FORMAT_ACTIONNABLE`** (`tools/content-pipeline/valider.mjs`) — c'est le **dernier**
    geste du lot, après le verdict, et il vaut déclaration que le module est **entièrement** conforme.
-   La liste est nominative et écrite à la main, jamais dérivée du corpus (S-005) ; un spec imprime
-   combien de modules restent à reprendre, et ce compteur ne redescend jamais.
+   La liste est nominative et écrite à la main, jamais dérivée du corpus (S-005).
+   ⚠️ **Le geste se vérifie tout seul, dans les deux sens** : `src/format-actionnable.spec.ts` rougit
+   si un slug listé n'a **pas** de leçon publiée, et il imprime à chaque exécution de G-test combien
+   de modules restent à reprendre. Ce compteur ne redescend jamais.
 3. Mets à jour l'item de la leçon dans `docs/agile/backlog-phase-1.md` : statut (ex.
    `à faire → rédigée-vérifiée`), date, chemin du livrable. Respecte le format existant du
    backlog — ne le restructure pas.

@@ -151,6 +151,31 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ⚠️ **DÉFAUT NEUF, NOMMÉ ET NON CORRIGÉ : le pipeline ne rend pas le code en ligne dans un TITRE** — ni
 > dans le `<h3>`, ni au sommaire ; le lecteur voit les accents graves. Contourné côté contenu au module
 > 11 ; toute leçon qui met des rétronotations dans un titre reproduira le défaut.
+> ✅ **LE LOT 9 EST LIVRÉ (2026-09-08) — LE GATE DU FORMAT ACTIONNABLE EXISTE, ET SON COMPTEUR DIT
+> `1/9`.** `MODULES_AU_FORMAT_ACTIONNABLE` est lue par la règle 13 de `valider.mjs` : pour un module
+> de la liste, la marche à suivre est imposée à sa place et **chaque** titre `##` **ou** `###` doit
+> porter un bloc d'attributs ; pour tous les autres, **rien ne change**. ⚠️ **L'exigence des renvois ne
+> rejuge pas leur grammaire** — la règle 4d refuse déjà tout bloc ne citant ni `diapos` ni
+> `{hors-cours}` ; les composer donne un gate total sans produire deux causes pour une faute.
+> 🔴 **LA PERMISSION MORTE NE POUVAIT PAS VIVRE DANS LE VALIDATEUR, et c'est mesuré contre le contrat
+> du lot 0** : « le corpus » n'y existe pas — la racine est **paramétrable**, et toutes celles de
+> `__fixtures__/` en sont. Elle vit donc dans `src/format-actionnable.spec.ts` (G-test rouge tant que
+> la liste ment). 🔴 **Et ce qui prouve le gate n'est aucun de ses refus : c'est le cas de plus,
+> qui ACCEPTE la même faute sur un module hors de la liste.** Le module 11 étant déjà conforme, le
+> corpus ne pouvait rien démontrer.
+> 🔴 **CE QUE LA REVUE A ATTRAPÉ, ET QUI VAUT AU-DELÀ DU LOT — un cas de test peut être COMPOSÉ pour
+> cacher une seconde cause.** La règle 13 juge la place du **titre**, la règle 11 celle du
+> **conteneur** : déplacer la section « En bref » **entière** — la seule façon dont un auteur se
+> trompe — rendait **deux** anomalies, dont la première mentait à l'œil. Le cas de contrôle positif
+> esquivait la question en renommant deux titres et en laissant le conteneur en place. ⚠️ **Quand une
+> règle neuve recoupe une règle existante sur la même donnée, le cas à écrire est la forme NATURELLE
+> de la faute, pas celle qui isole proprement la branche visée** — et « une seule cause par faute »
+> n'a **aucun garde-fou exécutable** hors du mode `--fixtures`.
+> ⚠️ **Un contrat qui annonce un ÉTAT FINAL doit nommer l'ensemble qu'il épuise.** Le compteur
+> comptait `20-evaluation-cvss`, publiée mais **sans `seance`** donc structurellement inéligible :
+> « le jour où les deux ensembles coïncident » était **inatteignable**. Dénominateur = les publiées
+> **ancrées au cours**. Détail :
+> [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 9 ».
 > 🔴 **CE QUI RESTE OUVERT, ET QUI DEMANDE UN LOT À LUI :** aucune leçon n'écrit encore `:::: methodes`,
 > donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
 > **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la

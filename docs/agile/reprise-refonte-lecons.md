@@ -70,12 +70,25 @@ citer quoi que ce soit.**
 
 ### 2.3 · Deux questions ouvertes du backlog, refermées au passage
 
-- 🔴 **N-6 tranché : l'énoncé du projet de session de 420-B10-HU N'EST PAS PUBLIÉ.** Vérifié le
-  2026-08-31 sur <https://www.alexandrepetrin.ca/securisation-des-applications-web/> — la ligne
-  « Cours 11 · 16 octobre · Projet de session (20 %) » ne porte **aucun** lien de document. Ce n'est
-  pas un fichier introuvable, c'est un document que l'enseignant n'a pas encore mis en ligne.
-  L'enseignant publiant en cours de session, **rouvrir cette page et réécrire la date** avant toute
-  affirmation sur la portée du projet de B10.
+- 🔴 **N-6 EST ROUVERT — L'ÉNONCÉ DU PROJET DE 420-B10-HU EST EN LIGNE DEPUIS (signalé par le
+  propriétaire, vérifié le 2026-09-08).** La page
+  <https://www.alexandrepetrin.ca/securisation-des-applications-web/> porte désormais
+  `telechargement/web/securisation/2026/projet/projet_session_securisation_2026.pdf` — un énoncé
+  propre au cours de **sécurité**, là où il n'y en avait aucun le 2026-08-31. La consigne écrite
+  alors (« rouvrir cette page et réécrire la date ») a donc fonctionné, et c'est le seul mérite de
+  ce paragraphe.
+  🔴 **CE QUE ÇA REND DETTE, ET IL FAUT LE DIRE MAINTENANT :** le module 11 `projet-de-session` a
+  été écrit **sans cet énoncé** — sa matière vient du projet de **PHP** et des diapositives des deux
+  cours. Il n'est pas faux pour autant (il enseigne l'amorçage LAMP, pas la portée d'une
+  évaluation), mais **rien n'a encore confronté ce qu'il promet à ce que l'enseignant demande**.
+  C'est un lot à part : télécharger le PDF, l'extraire, puis relire le module 11 contre lui.
+  ⚠️ **Ne pas faire lire ce PDF par `WebFetch`** — il invente plutôt que d'échouer, et le dépôt l'a
+  déjà payé quatre fois.
+  ⚠️ **Le support du cours 5 est lui aussi susceptible d'avoir changé** (même signalement) : la copie
+  locale `securite-app-web-2026/Cours05_Securite_utilisateurs.pptx` date du **2026-08-25**, et c'est
+  celle-là que E3-ST17 décrivait comme un « squelette » (23 diapositives, dix titres nus, deux
+  `(TODO)` de l'enseignant). **Retélécharger avant d'écrire la séance 5** : le diagnostic
+  « squelette » est daté, pas permanent.
 - ⚠️ **Le projet de session de PHP, lui, existe** (`Projet_de_Session_PHP.pdf`) mais **ne se lit
   qu'en partie** : le PDF n'a livré qu'un flux de contenu, et le corps de la section « Évaluation »
   ainsi que sa grille manquent. Lisible : application web appliquant les concepts du cours (syntaxe
@@ -248,7 +261,11 @@ D.5) → ~~**`0bis`**~~ **✅ + `0ter`** (schéma `evaluation.nature` **requis**
 8**) → ~~**`1a`**~~ **✅ livré** (`diapos` intra-sujet) → ~~**`2`**~~ **✅** → ~~**`3`**~~ **✅** → ~~**`4`**~~ **✅** → ~~**`4bis`**~~ **✅**
 (spike R-1, jetable — **R-1 levé**) → ~~**`5`**~~ **✅ livré** (PR #48) → ~~**`6`**~~ **✅ livré** (PR #50, 2026-09-07) → ~~**`7`**~~ **✅ livré** (2026-09-07, périmètre RÉFUTÉ par la mesure) → ~~**`1b`**~~ **✅ livré** (PR #52, 2026-09-08 — résolution inter-cours) → ~~**`1b-B`**~~ **✅ livré** (2026-09-08 — les contrôles positifs des refus inter-cours ; **cinq annoncés, QUINZE recensés**) → `8`
 ~~**`8-A`**~~ **✅ livré** (PR #56, 2026-09-08 — moitié haute) → ~~**`8-B`**~~ **✅ livré** (PR #57,
-2026-09-08 — moitié basse ; **le module 11 est totalement cartographié, 0 titre muet**) → `9`.
+2026-09-08 — moitié basse ; **le module 11 est totalement cartographié, 0 titre muet**) →
+~~**`9`**~~ **✅ livré** (2026-09-08 — le gate `MODULES_AU_FORMAT_ACTIONNABLE`, son compteur **1/9**,
+et la permission morte jugée en G-test parce qu'elle ne pouvait pas l'être dans le validateur).
+**Le plan est épuisé** : la suite est le legs ouvert du lot 6 (aucun onglet mesuré) puis la reprise
+du module suivant, module par module.
 ⚠️ **Les lots 2, 4 et 6 lancent aussi `npm run design:contrastes:check`** et déclarent **quelles paires
 ils ajoutent** avant d'écrire une couleur. ⚠️ **Le lot 6 porte sa preuve en e2e, pas dans `a11y:axe`**,
 et son critère d'acceptation inclut un canal **non chromatique** pour `forced-colors: active` (R-8).
@@ -1412,3 +1429,114 @@ donc en fixture, jamais sur le corpus.
 ⚠️ **CE QUE LE LOT 9 NE FERME PAS DAVANTAGE :** aucune leçon n'écrit encore `:::: methodes`. Le spec
 e2e des trois états d'un onglet, la passe G-axe sur une page à onglets et la capture en contraste
 forcé restent le legs **ouvert** du lot 6, et demandent un lot à eux.
+## ✅ CLÔTURE — LOT 9 « le gate du format actionnable » (2026-09-08)
+
+`MODULES_AU_FORMAT_ACTIONNABLE` **existe**, la règle 13 de `valider.mjs` la lit, et le durcissement
+porte son compteur : **`FORMAT ACTIONNABLE — 1/9 module(s) ancré(s) au cours repris ; 8 restant(s)`**, imprimé à
+chaque exécution de G-test.
+
+**Ce que la règle 13 exige d'un module de la liste, et rien d'autre :** (1) la section
+`## En bref — la marche à suivre` présente, immédiatement après `## L'idée en une image`, et portant
+son conteneur ; (2) chaque titre `##` **ou** `###` porte un bloc d'attributs ; (3) le module déclare
+une `seance`. Pour tout autre module, **rien ne change** — c'est ce que D-D existe pour permettre.
+
+🔴 **L'EXIGENCE (2) NE REJUGE PAS LA GRAMMAIRE D'UN RENVOI, ET C'EST CE QUI LA REND TOTALE.** Elle ne
+teste que la **présence** d'un bloc ; ce que ce bloc contient est déjà jugé par la règle 4d, qui
+refuse tout bloc ne citant ni `diapos` ni le marqueur `hors-cours`. La composition des deux donne
+exactement « soit des diapositives, soit l'aveu qu'il n'y en a pas » — et rejuger ici aurait produit
+**deux causes pour une seule faute**, ce que le mode `--fixtures` interdit. ⚠️ C'est le lot 1c qui a
+rendu ce gate possible : sans `{hors-cours}`, « pas encore cartographié » et « rien à citer »
+s'écrivent pareil, c'est-à-dire ne s'écrivent pas.
+
+🔴 **LA PERMISSION MORTE NE POUVAIT PAS VIVRE DANS LE VALIDATEUR, ET LA MESURE L'A ÉTABLI CONTRE LE
+CONTRAT DU LOT 0.** Celui-ci écrivait qu'un slug listé sans leçon correspondante « fait échouer le
+build » — ce qui se lit naturellement comme « dans `valider.mjs` ». Porté là, le contrôle mordrait
+sur **chaque racine** que le validateur examine, or **toutes** les racines de `__fixtures__/`
+en sont — dont la cinquantaine de `invalides/` —, et aucune ne porte de `projet-de-session`. Les verdir
+aurait demandé de leur écrire un module sans objet. Le contrôle vit donc dans
+`src/format-actionnable.spec.ts`, seul à voir `content/cours/…` — **G-test rouge tant que la liste
+ment**, ce qui bloque la PR au même titre. ⚠️ **La leçon est plus large que le cas : une règle dont
+l'énoncé dit « le corpus » ne peut pas s'appliquer là où « la racine » est paramétrable.** Le contrat
+(`docs/contenu/pipeline-contenu.md`) porte désormais la mesure, pas la formulation d'origine.
+
+🔴 **CE QUI PROUVE LE GATE N'EST AUCUN DE SES REFUS — C'EST LE CAS DE PLUS, QUI ACCEPTE.** Le
+module 11 est **déjà conforme** depuis le lot 8-B : un `content:build` vert ne dit donc rien de la
+sensibilité de la règle, et le corpus ne peut pas la démontrer (le lot 8-B l'avait annoncé). D'où
+`tools/content-pipeline/__fixtures__/format-actionnable/` — un module conforme au slug
+`projet-de-session`, copié dans un bac à sable jetable et abîmé d'**une** mutation par cas. Le cas
+**`hors-liste`** applique la *même* faute en changeant le seul `slug` : il doit sortir en **code 0**.
+Sans lui, « refuse un titre sans renvoi » serait indistinguable de « refuse **tout** titre sans
+renvoi » — soit un gate qui ferait rougir les neuf autres leçons publiées, dont aucune n'annote ses
+titres. **C'est la moitié positive de la pince, et c'est elle qui coûte le plus cher à omettre.**
+
+**Les huit cas, un par branche.** `sans-seance` · `titre-de-niveau-3-sans-renvoi` (⚠️ le **niveau 3** :
+le relevé qui a dimensionné ce chantier compte 247 titres `##` **et** `###` ensemble ; n'exiger que
+les `##` laisserait la moitié du corpus dehors sans un mot) · `section-absente` ·
+`section-sans-conteneur` (un titre n'est pas une marche à suivre) · `section-mal-placee` ·
+`section-entiere-deplacee` · `section-en-double` · `hors-liste`. Chacun sort **exactement une**
+anomalie, et l'assertion épingle le fragment le plus spécifique du message, jamais le seul échec.
+
+⚠️ **UN DÉTAIL DE FIXTURE QUI A COÛTÉ UNE MESURE, ET QUI SE REPRODUIRA.** L'étape 1 de la marche à
+suivre témoin renvoyait d'abord à `## Ce que le gate exige` — la section que `section-mal-placee`
+**renomme**. Le cas sortait donc **deux** causes, dont une (« titre introuvable ») qui n'avait rien à
+voir avec ce qu'on mesurait. Le renvoi vise désormais le titre de niveau 3, que aucune mutation ne
+renomme. **Dans une racine témoin, ce qu'une mutation touche et ce qu'un renvoi cite doivent être
+disjoints** — sinon le harnais fabrique lui-même la seconde cause.
+
+### La revue à regard neuf, et les trois défauts qu'elle a mesurés
+
+Verdict initial **APPROUVÉ AVEC RÉSERVES**. Aucune réserve n'était une question de style ; les trois
+premières ont été **reproduites par mesure** avant d'être corrigées, et deux d'entre elles ne se
+voyaient dans aucun test.
+
+1. 🔴 **Le compteur ne pouvait pas atteindre son état final.** `20-evaluation-cvss` est publiée,
+   `section: Compléments hors cours`, **sans `seance`** — donc structurellement inéligible, puisque
+   l'exigence (3) refuse un module listé sans séance. Elle était pourtant au dénominateur. La
+   promesse du contrat (« le jour où les deux ensembles coïncident, la constante est supprimée »)
+   était **inatteignable**, et l'exécuter aurait rendu cette leçon rouge à jamais. ⚠️ **S-005 pris à
+   l'envers : une promesse écrite plus forte que ce que le gate peut tenir.** Dénominateur restreint
+   aux publiées **ancrées** ; le compteur dit **1/9**, et nomme à part ce qu'il exclut.
+2. 🔴 **Double cause sur la faute la plus naturelle.** Déplacer la section « En bref » **entière**
+   donnait **deux** anomalies, dont la première mentait à l'œil (« est dans « ## En bref — la marche
+   à suivre » » se lit comme une confirmation). Le cas `section-mal-placee` esquivait la question :
+   il renommait deux titres en laissant le conteneur en place, un montage qu'aucun auteur ne
+   produit. ⚠️ **Quand une règle neuve recoupe une règle existante sur la même donnée, le cas à
+   écrire est la forme NATURELLE de la faute, pas celle qui isole proprement la branche visée** — et
+   « une seule cause par faute » n'a **aucun garde-fou exécutable** hors du mode `--fixtures`.
+3. 🔴 **Un doublon de la section passait VERT.** `findIndex` prenait la première occurrence et se
+   taisait ; deux sections au même titre fabriquent deux ancres identiques — ce dont le lot 6 avait
+   fait son critère d'acceptation.
+4. ⚠️ **`--modules-actionnables` était un chemin PROPRE vers « code 0 sans rien valider »** :
+   combiné à `--racine` ou `--fixtures`, il imprimait sa liste et sortait 0. Ce n'est pas une
+   permission élargie, mais c'est la forme exacte qu'un contournement d'ordonnancement prend
+   (famille S-018). Les modes de test sont désormais **exclusifs**, `--clefs` compris.
+5. ⚠️ **Trois chiffres périmés dans trois écritures** (« onze racines », « une douzaine », « quatre
+   refus » pour cinq). Réécrits **sans nombre** : un ordre de grandeur recopié nu devient un
+   mensonge à la vitesse où le corpus grossit.
+
+**Gates, après correctifs.** G-lint **0** (⚠️ deux dépassements de complexité cognitive apparus au
+correctif, fermés par extraction : `causeDeLaSectionActionnable` et `exigerDesModesDeTestExclusifs`)
+· G-typage-outils **0** · G-content **10 leçons / 5/5 poids / 0 dépassement** · `--fixtures`
+**52/52** (compte en dur **inchangé** : les huit cas vivent en bac à sable, pas dans `invalides/`) ·
+G-test **1140 passés / 1 sauté · 46 fichiers** — la référence a été **remesurée sur `main` en
+retirant les fichiers du lot** : **1128 / 1 sauté · 45 fichiers**, donc **+12 exactement, les douze
+tests neufs** (⚠️ la clôture du lot 8-B annonçait 1127 : l'écart d'un test est **antérieur à ce lot**
+et non expliqué par lui) · G-build **13 routes · 14 hachages de style / 0 de script**, inchangés ·
+G-axe **13 fichiers · 1118 vérifications · 0 violation**, inchangés.
+
+**Cinq contrôles positifs par mutation, exécutés, mutation vérifiée sur disque avant mesure (L-015) :**
+
+| Mutation de `valider.mjs` | Résultat |
+|---|---|
+| exigence (2) débranchée | **1 rouge exactement** — `titre-de-niveau-3-sans-renvoi` |
+| branche « sans conteneur » débranchée | **1 rouge exactement** — `section-sans-conteneur` |
+| gate rendu inconditionnel (`if (formatActionnable \|\| true)`) | **1 rouge exactement** — `hors-liste`, la moitié qui discrimine |
+| slug **fantôme** ajouté à la liste | **1 rouge exactement** — la permission morte, qui **nomme** le slug |
+| `evaluation-cvss` (publiée, **sans `seance`**) ajoutée à la liste | **1 rouge exactement** — c'est la garantie NEUVE du constat n°1 : la liste ne peut pas accueillir un module qu'elle ferait échouer |
+
+**Le geste suivant : le legs OUVERT du lot 6.** Aucune leçon n'écrit encore `:::: methodes`, donc
+G-axe et G-e2e n'ont **vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
+**rien ne mesure aujourd'hui que cocher un onglet montre son panneau**. Le spec e2e des trois états,
+la passe axe sur une page portant des onglets et la capture en contraste forcé se font à la première
+leçon qui emploie le conteneur. Puis la reprise du module suivant (R-7 : les dix modules publiés
+passent devant le contenu neuf), qui fera descendre le compteur de 1/9 à 2/9.
