@@ -70,12 +70,25 @@ citer quoi que ce soit.**
 
 ### 2.3 · Deux questions ouvertes du backlog, refermées au passage
 
-- 🔴 **N-6 tranché : l'énoncé du projet de session de 420-B10-HU N'EST PAS PUBLIÉ.** Vérifié le
-  2026-08-31 sur <https://www.alexandrepetrin.ca/securisation-des-applications-web/> — la ligne
-  « Cours 11 · 16 octobre · Projet de session (20 %) » ne porte **aucun** lien de document. Ce n'est
-  pas un fichier introuvable, c'est un document que l'enseignant n'a pas encore mis en ligne.
-  L'enseignant publiant en cours de session, **rouvrir cette page et réécrire la date** avant toute
-  affirmation sur la portée du projet de B10.
+- 🔴 **N-6 EST ROUVERT — L'ÉNONCÉ DU PROJET DE 420-B10-HU EST EN LIGNE DEPUIS (signalé par le
+  propriétaire, vérifié le 2026-09-08).** La page
+  <https://www.alexandrepetrin.ca/securisation-des-applications-web/> porte désormais
+  `telechargement/web/securisation/2026/projet/projet_session_securisation_2026.pdf` — un énoncé
+  propre au cours de **sécurité**, là où il n'y en avait aucun le 2026-08-31. La consigne écrite
+  alors (« rouvrir cette page et réécrire la date ») a donc fonctionné, et c'est le seul mérite de
+  ce paragraphe.
+  🔴 **CE QUE ÇA REND DETTE, ET IL FAUT LE DIRE MAINTENANT :** le module 11 `projet-de-session` a
+  été écrit **sans cet énoncé** — sa matière vient du projet de **PHP** et des diapositives des deux
+  cours. Il n'est pas faux pour autant (il enseigne l'amorçage LAMP, pas la portée d'une
+  évaluation), mais **rien n'a encore confronté ce qu'il promet à ce que l'enseignant demande**.
+  C'est un lot à part : télécharger le PDF, l'extraire, puis relire le module 11 contre lui.
+  ⚠️ **Ne pas faire lire ce PDF par `WebFetch`** — il invente plutôt que d'échouer, et le dépôt l'a
+  déjà payé quatre fois.
+  ⚠️ **Le support du cours 5 est lui aussi susceptible d'avoir changé** (même signalement) : la copie
+  locale `securite-app-web-2026/Cours05_Securite_utilisateurs.pptx` date du **2026-08-25**, et c'est
+  celle-là que E3-ST17 décrivait comme un « squelette » (23 diapositives, dix titres nus, deux
+  `(TODO)` de l'enseignant). **Retélécharger avant d'écrire la séance 5** : le diagnostic
+  « squelette » est daté, pas permanent.
 - ⚠️ **Le projet de session de PHP, lui, existe** (`Projet_de_Session_PHP.pdf`) mais **ne se lit
   qu'en partie** : le PDF n'a livré qu'un flux de contenu, et le corps de la section « Évaluation »
   ainsi que sa grille manquent. Lisible : application web appliquant les concepts du cours (syntaxe
