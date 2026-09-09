@@ -79,7 +79,7 @@ précède tout ce que la leçon dit plus bas du cadre éthique.
 :::
 
 ::: complement
-Ce que ce module ajoute, et qu'aucun des quatre blocs de la séance 1 ne traite : le vocabulaire
+Ce que ce module ajoute, et que la séance 1 ne traite pas : le vocabulaire
 (faille, exploit, intrusion, chapeaux), CVE et CWE, l'OWASP Top 10, la kill chain, les types de
 tests, DVWA et Burp Suite. C'est de la matière juste et professionnellement utile — elle n'est
 simplement pas au programme de **cette séance-là**. L'architecture client/serveur, elle, ne
@@ -145,9 +145,10 @@ qui n'a aucun équivalent dans CIA.
 ## Le vocabulaire : faille, exploit, intrusion
 
 ::: complement
-Cette section entière est un ajout de la base de connaissances. La diapositive d'introduction
-du cours **liste** ces mots — chapeau blanc, chapeau noir, pirate, éthique, faille, intrusion —
-sans les définir. Une définition répandue oppose « faille », trou de sécurité souvent
+Cette section entière est un ajout de la base de connaissances : aucune diapositive de la
+séance 1 ne définit ce vocabulaire. Les mots « chapeau », « éthique », « faille » et
+« intrusion » n'y figurent nulle part ; seul « pirate » y revient, employé sans être expliqué.
+Une définition répandue oppose « faille », trou de sécurité souvent
 accidentel, à « intrusion », le même trou utilisé par un acteur malicieux — un raccourci qui
 confond en réalité deux étapes distinctes.
 :::
@@ -467,14 +468,35 @@ devine ; il est en revanche ponctuel et coûteux, donc jamais une ligne de défe
 ## La chaîne d'outils de la session
 
 ::: cours
-Le millésime 2026 abandonne le laboratoire volontairement vulnérable au profit d'un
-environnement de déploiement **réel** : **XAMPP ou WAMP** en local, **PuTTY** (SSH) et
-**WinSCP** (SFTP) pour piloter un serveur Ubuntu chez **DigitalOcean**, et un **nom de domaine**
-loué chez un registraire. Le domaine n'est pas un luxe : il est nécessaire pour obtenir des
-certificats TLS et donc pour activer les protections qui l'exigent (HSTS, cookies `Secure`,
-préfixe `__Host-`). Budget annoncé par le cours : environ 20 $ pour l'infonuagique **et** le domaine. Choisis un registraire
-permettant au moins de modifier l'enregistrement **A** et les serveurs de noms, sans quoi tu ne
-pourras pas pointer le domaine vers ton serveur.
+La séance 1 dresse la liste du matériel du laboratoire (diapositive 63) : **XAMPP ou WAMP** en
+local, **PuTTY** et **WinSCP** pour piloter la machine distante, un compte **DigitalOcean** et
+un **nom de domaine sur GoDaddy**. C'est un environnement de déploiement **réel**. Le cours
+consacre ensuite quatorze diapositives (64-77) à une marche à suivre d'achat sur GoDaddy,
+captures d'écran comprises : c'est la moitié du bloc « chaîne d'outils », et c'est sous ce
+nom-là qu'il faut le chercher pour réviser. La diapositive 66 autorise explicitement un autre
+registraire, à condition qu'il permette de modifier l'enregistrement **A** et les serveurs de
+noms — sans quoi tu ne pourras pas pointer le domaine vers ton serveur. Le domaine n'est pas un
+luxe : il est nécessaire pour obtenir des certificats TLS et donc pour activer les protections
+qui l'exigent (HSTS, cookies `Secure`, préfixe `__Host-`).
+:::
+
+::: cours
+**Le budget est annoncé en deux chiffres, jamais en un seul**, et hors des quatre blocs de
+contenu — dans la partie administrative de la séance (diapositive 13) : « Plateforme
+infonuagique 5 $ (maximum) » et « Nom de domaine 15 $ (environ) ». Les deux lignes ne sont pas
+de même nature — l'une est un plafond, l'autre une estimation — et aucune devise n'est
+précisée. Retiens-les telles quelles plutôt qu'un total : additionner un maximum et une
+estimation produit un montant que le cours n'écrit nulle part.
+:::
+
+::: complement
+La diapositive 63 ne nomme que les outils ; elle ne dit ni les protocoles, ni le système du
+serveur. Les précisions qui suivent sont justes, mais elles ne viennent pas de cette séance-là :
+**PuTTY** est un client **SSH**, **WinSCP** transfère par **SFTP**, et la machine louée chez
+DigitalOcean tourne sous **Ubuntu**. « Ubuntu » et « SSH » n'apparaissent qu'aux séances
+suivantes de la session (2, 3, 9 et 10) ; « SFTP » n'apparaît dans aucune diapositive relevée,
+ni en sécurité ni en PHP. Retiens-les pour comprendre ce que tu installes, ne les attribue pas
+à la séance 1.
 :::
 
 ::: complement
