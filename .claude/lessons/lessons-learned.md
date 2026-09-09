@@ -2855,4 +2855,39 @@ nouveau été sous-estimée (§9 du budget de contexte, [[L-047]]).
 
 
 
+## L-097 · Un contrôle positif écrit pour ISOLER la branche visée peut esquiver la forme NATURELLE de la faute — et taire qu'une règle neuve recoupe une règle existante
+
+**Symptôme.** Lot 9 « leçons actionnables » (PR #58, 2026-09-09). La règle 13 de `valider.mjs`
+juge la place du **titre** `## En bref — la marche à suivre` ; la règle 11
+(`causeDeLaPlaceDeLaMarche`) jugeait déjà, pour toute leçon, la place du **conteneur**
+`:::: marche-a-suivre`. Les deux portent sur la même faute dès qu'un auteur déplace la section
+**entière** — la seule façon dont on se trompe réellement. Le contrôle positif écrit pour la
+règle 13 (`section-mal-placee`) renommait **deux** titres pour déplacer le titre seul, en laissant
+le conteneur en place : montage qui n'arrive jamais à un auteur, mais qui isole proprement la
+branche visée et rend **une** cause. Vert. Sur la forme naturelle (section entière déplacée), le
+validateur rendait **deux** anomalies, dont la première mentait à l'œil (« le conteneur est bien
+dans la section attendue ») — alors que le commentaire de la règle 13 promettait « une seule
+cause pour une seule faute ». Et cette promesse **n'avait aucun garde-fou exécutable** hors du
+mode `--fixtures`, qui ne compare que la première anomalie de chaque cas — un cas écrit en bac à
+sable jetable (patron désormais standard, [[L-094]]) peut être composé sans mauvaise foi pour ne
+révéler qu'une seule branche.
+
+**Règle.** Quand une règle neuve juge une donnée déjà jugée par une règle existante, le contrôle
+positif à écrire est la **forme naturelle** de la faute — celle qu'un auteur produit réellement en
+se trompant — jamais la forme qui isole proprement la branche visée : cette dernière peut être
+composée pour ne rien révéler du recoupement. Un contrôle positif en bac à sable n'hérite pas de la
+discipline « une cause par faute » qu'impose `--fixtures` ; s'il faut la préserver, **épingler le
+compte d'anomalies dans l'assertion** (`toContain('1 anomalie(s)')`), en plus de la cause. Et un
+message d'anomalie qui affirme un fait positif (« X est bien à sa place ») doit nommer **ce qui
+occupe** la place attendue, pas seulement confirmer une absence de faute locale — sinon il ment à
+l'œil pendant qu'une autre règle rougit juste en dessous.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` (règles 11 et 13,
+`causeDeLaPlaceDeLaMarche`) ; le cas de fixture `section-entiere-deplacee`, ajouté à côté de
+`section-mal-placee` ; cinq contrôles positifs par mutation, 1 rouge chacun ; PR #58, 2026-09-09.
+Famille : [[L-019]] (un garde-fou sans exécution réelle n'en est pas un), [[L-094]] (un lot
+différé se re-mesure contre l'état du jour), [[S-010]] (couvrir exactement le périmètre promis).
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
