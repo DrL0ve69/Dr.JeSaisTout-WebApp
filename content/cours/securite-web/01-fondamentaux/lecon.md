@@ -19,7 +19,7 @@ fiches-sources:
   - web/securite/carte.md
   - web/securite/panorama-menaces.md
 cree: 2026-08-20
-maj: 2026-08-20
+maj: 2026-09-09
 statut: publiee
 ---
 
@@ -57,23 +57,44 @@ blindée.
 ## Ce que la séance 1 enseigne, et ce que cette leçon ajoute
 
 Ce module est le plus déséquilibré du cours, et le savoir te fait gagner du temps de révision.
-Les diapositives de la séance 1 ne portent que **trois** blocs ; tout le reste de ce que tu vas
-lire ici est un **complément** de la base de connaissances : juste, utile en entreprise, mais
-**pas exigible à l'examen 2026**.
+L'ordre du jour de la séance 1 (diapositive 18) annonce **quatre** blocs de contenu, plus une
+conclusion ; une bonne partie de ce que tu vas lire ici est un **complément** de la base de
+connaissances : juste, utile en entreprise, mais **absent des diapositives de cette séance-là**.
 
 ::: cours
-La séance 1 du cours 420-B10-HU (millésime 2026) enseigne trois choses, et ce sont celles-là
-qui sont matière d'examen : **la triade CIA** (diapositives 25-30), **le panorama des huit
-familles d'attaques courantes** et leur rattachement à la triade (diapositives 31-59), et la
-**chaîne d'outils du laboratoire** de la session (diapositives 61-76).
+La séance 1 du cours 420-B10-HU (millésime 2026) déroule **quatre** blocs de contenu, dans
+l'ordre du jour annoncé à la diapositive 18 : **« Pourquoi la sécurité »** (diapositives 19-24),
+**la triade CIA** (25-30), **le panorama des huit familles d'attaques courantes** (31-60) et la
+**chaîne d'outils du laboratoire** de la session (61-77). Une **Conclusion** (78-79) les ferme,
+et c'est elle qui porte la morale de la séance.
+:::
+
+::: cours
+**L'avertissement de la diapositive 17 est normatif, pas décoratif.** « Le piratage est une
+activité illégale sauf dans certains contextes spécifiques. Vous seul serez responsable si vous
+utilisez les techniques vues en classe ailleurs que dans le cadre du cours. » Autrement dit : ce
+que tu apprends ici s'exerce dans le laboratoire de la session, ou sur une cible dont le
+propriétaire t'a donné son accord — la portée est disciplinaire autant que légale, et elle
+précède tout ce que la leçon dit plus bas du cadre éthique.
 :::
 
 ::: complement
-Tout le reste de ce module — le vocabulaire (faille, exploit, intrusion, chapeaux), CVE et CWE,
-l'architecture client/serveur, l'OWASP Top 10, la kill chain, les types de tests, DVWA et Burp
-Suite — vient de la base de connaissances. C'est de la matière juste et professionnellement
-utile, mais aucune question d'examen 2026 ne s'appuie dessus.
+Ce que ce module ajoute, et qu'aucun des quatre blocs de la séance 1 ne traite : le vocabulaire
+(faille, exploit, intrusion, chapeaux), CVE et CWE, l'OWASP Top 10, la kill chain, les types de
+tests, DVWA et Burp Suite. C'est de la matière juste et professionnellement utile — elle n'est
+simplement pas au programme de **cette séance-là**. L'architecture client/serveur, elle, ne
+figure pas dans cette liste : la séance 1 ne lui consacre pas de diapositive, mais elle
+**redevient matière plus tard**, dans les deux cours — voir « Ne jamais faire confiance au
+client ».
 :::
+
+**Ce que « hors séance 1 » ne dit pas, et c'est important pour choisir ce que tu révises.** La
+diapositive 6 annonce que « tout le contenu de l'examen se trouve dans **les notes et les
+exercices** », et la 7 autorise notes de cours et corrigés d'exercices pendant l'épreuve. Les
+notes sont celles des **treize** séances, et les exercices n'ont pas d'équivalent écrit dans
+cette leçon. Ce module peut donc te dire ce que la séance 1 porte et ce que le plan de cours
+annonce ; il ne peut **pas** te garantir qu'un point est *hors* examen. Traite le complément
+comme non prioritaire pour réviser la séance 1 — jamais comme exclu de l'évaluation.
 
 **La règle d'arbitrage, valable pour toute la session :** *à l'examen, donne la réponse du
 cours ; en production, applique la correction.* Quand les deux divergent, cette leçon te montre
@@ -83,8 +104,10 @@ les deux et te dit laquelle sert où — elle n'efface jamais la version du cour
 
 ::: cours
 Une application n'est réputée sécuritaire que si elle garantit **les trois principes à la
-fois** ; toute attaque vise à en compromettre au moins un. C'est le cadre qui permet de
-répondre à la question d'examen « quel ou quels principes cette attaque viole-t-elle ? ».
+fois** ; toute attaque vise à en compromettre au moins un — la diapositive 26 l'écrit ainsi :
+« toute forme d'attaque tentera de compromettre un ou plusieurs de ces principes ». C'est le
+cadre qui permet de répondre à la question « quel ou quels principes cette attaque
+viole-t-elle ? ».
 :::
 
 | Principe | La garantie | Ce qui la brise (exemples du cours) |
@@ -209,9 +232,13 @@ rôle, et seulement si quelqu'un l'a branché.
 ## Ne jamais faire confiance au client
 
 ::: complement
-L'architecture client/serveur est un rappel de la base de connaissances ; le cours l'utilise
-partout sans la traiter pour elle-même. C'est pourtant le principe qui structure tout le reste
-de la session.
+La séance 1 ne consacre aucune diapositive à l'architecture client/serveur : ce rappel-ci vient
+de la base de connaissances. Le principe, lui, **redevient matière plus tard, et dans les deux
+cours** — la séance 7 de ce cours-ci liste la « validation des entrées utilisateur » parmi les
+protections contre le XSS (diapositive 22), et la séance 1 du cours 420-4P2-HU (PHP) énonce la
+frontière d'exécution : « le code PHP n'est pas visible dans le fureteur du client puisqu'il a
+été exécuté sur le serveur » (diapositive 60). Ne le range donc pas au rayon « jamais évalué » :
+c'est le principe qui structure tout le reste de la session.
 :::
 
 ```mermaid
@@ -262,11 +289,20 @@ La seule protection réelle est de ne jamais transmettre le secret au client.
 ## Le panorama des menaces de la séance 1
 
 ::: cours
-Le cours ouvre la session par un tour d'horizon de **huit familles d'attaques**. Savoir les
-nommer et dire **quel principe CIA chacune vise** est de la matière d'examen. Le message du
-tableau est explicite : **un système n'est pas plus sécuritaire que sa composante la plus
-faible**.
+Le cours consacre les diapositives 31 à 60 à un tour d'horizon de **huit familles d'attaques**,
+et savoir les nommer fait partie de la matière. Il pose le lien avec la triade **en général**,
+pas famille par famille : « voir le genre d'attaques qui peuvent compromettre les principes
+CIA » (diapositive 30). Quant à la phrase que tout le monde retient — « **un système n'est pas
+plus sécuritaire que sa composante la plus faible** » — elle n'est pas dans ce bloc : elle est à
+la **Conclusion** de la séance (diapositive 79). C'est la morale de la séance entière, pas le
+titre du panorama.
 :::
+
+**La colonne « Principe CIA visé » du tableau ci-dessous est un travail de cette leçon, pas une
+diapositive.** Aucune des diapositives 33 à 59 n'apparie une famille d'attaques à un principe :
+le cours rend l'exercice possible, il ne le fait pas à ta place. Couvre la colonne, fais
+l'appariement toi-même, puis compare — c'est exactement le geste que la triade sert à outiller,
+et il vaut mieux qu'une colonne apprise par cœur.
 
 Ce que le tableau **montre**, sans que le cours l'énonce ainsi : sur les huit familles, deux
 seulement sont purement applicatives — la sécurité d'une application se joue largement en
@@ -283,9 +319,11 @@ dehors de son code.
 | **Hameçonnage** — exploite « la vulnérabilité éternelle », l'erreur humaine | Confidentialité | Humaine | Hors périmètre applicatif |
 | **Rançongiciel** — chiffre les données et réclame une rançon ; le vrai danger est sa vitesse de propagation | Disponibilité (+ confidentialité si exfiltration) | Poste, serveur | Sauvegardes hors ligne |
 
-**Une question posée telle quelle en cours : un site « sans données sensibles » mérite-t-il
-d'être protégé ?** Réponse attendue : **oui**. Un forum banal sert de **tremplin** — hébergement
-de charges malveillantes, relais de pourriel — et surtout, ses utilisateurs **réutilisent leurs
+**Une question posée telle quelle en cours, à la diapositive 23 — donc dans le bloc « Pourquoi
+la sécurité », pas dans le panorama : un site « sans données sensibles » mérite-t-il d'être
+protégé ?** Réponse attendue, et le cours l'écrit ainsi : **oui**, il « peut servir de
+tremplin ». Un forum banal héberge des charges malveillantes, relaie du pourriel — et surtout,
+ses utilisateurs **réutilisent leurs
 mots de passe** ailleurs. La valeur volée n'est pas dans tes données, elle est dans le fait que
 tes visiteurs se répètent. Corollaire : raison de plus pour ne jamais stocker un mot de passe en
 clair, même sur un site sans enjeu apparent.
@@ -398,7 +436,9 @@ exotique, c'est l'oubli de vérifier « as-tu le droit ? » à chaque requête.
 
 ::: complement
 Les types de tests ne sont ni dans le deck 2026 ni dans le plan de cours. C'est du vocabulaire
-d'entreprise : il te servira en stage et en entrevue, pas à l'examen 1.
+d'entreprise : il te servira en stage et en entrevue, et aucune diapositive de la séance 1 ne le
+porte — ce qui n'est pas la même chose qu'une garantie d'exclusion de l'examen (voir « Ce que
+la séance 1 enseigne, et ce que cette leçon ajoute »).
 :::
 
 On distingue d'abord ce que le testeur **sait** de la cible :
@@ -613,7 +653,7 @@ pas être écrit de travers.
 ## À toi de jouer
 
 Huit questions pour vérifier que le cadre est en place : le vocabulaire, la triade, la frontière
-de confiance, et la distinction entre ce que le cours évalue et ce qui relève du complément.
+de confiance, et la distinction entre ce que la séance 1 porte et ce qui relève du complément.
 
 [[quiz]]
 
@@ -632,8 +672,12 @@ de confiance, et la distinction entre ce que le cours évalue et ce qui relève 
 - **Ne jamais faire confiance au client.** Tout ce qui s'exécute dans le navigateur ou vit dans
   un binaire livré est lisible, modifiable et contournable. Une validation côté client est une
   aide à la saisie ; la sécurité se décide côté serveur, à chaque requête.
-- **Dans ce module, seuls la triade CIA, le panorama des huit attaques et la chaîne d'outils
-  viennent du cours.** Le reste est un complément : utile en production, hors examen 2026.
+- **La séance 1 porte quatre blocs de contenu** — « Pourquoi la sécurité », la triade CIA, le
+  panorama des huit attaques, la chaîne d'outils — et une conclusion, celle qui pose « pas plus
+  sécuritaire que sa composante la plus faible ». Le reste de ce module est un complément de la
+  base de connaissances : absent de **cette séance**, ce qui n'est pas la même chose qu'absent
+  de l'examen — le cours annonce (diapositive 6) que l'épreuve porte sur les notes et les
+  exercices de la session entière.
 :::
 
 ## Aller plus loin
