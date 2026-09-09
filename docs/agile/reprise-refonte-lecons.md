@@ -1534,6 +1534,42 @@ G-axe **13 fichiers · 1118 vérifications · 0 violation**, inchangés.
 | slug **fantôme** ajouté à la liste | **1 rouge exactement** — la permission morte, qui **nomme** le slug |
 | `evaluation-cvss` (publiée, **sans `seance`**) ajoutée à la liste | **1 rouge exactement** — c'est la garantie NEUVE du constat n°1 : la liste ne peut pas accueillir un module qu'elle ferait échouer |
 
+### 🔴 CORRECTIF POSTÉRIEUR — le spec du lot 9 rendait DEUX verdicts selon l'hôte (2026-09-09)
+
+**Le symptôme.** Sur ce poste Windows, `npm test` sur un `main` **propre** rendait **1135 passés /
+5 échecs**, tous dans `src/format-actionnable.spec.ts`, tous sur le même message : « … introuvable —
+la fixture a changé ». La fixture était pourtant intacte (`git diff` vide). La CI, elle, était
+**verte** — les cinq PR fusionnées depuis le lot 9 le confirment.
+
+**La cause, mesurée.** Les cibles de mutation arrivent sous **deux formes typographiques** qui ne
+portent pas les mêmes fins de ligne : `SECTION_TEMOIN` est un littéral **gabarit** qui s'étend sur de
+vraies lignes, donc il hérite des fins de ligne **du fichier `.ts` lui-même** ; les autres cibles sont
+écrites avec des échappements `\n`, donc toujours en **LF**. Avec `core.autocrlf=true`, une extraction
+fraîche rend le spec **et** la fixture en **CRLF** sous Windows : les cibles en `\n` ne mordent plus.
+Sur le runner Linux tout est en LF, et les cinq cas passent.
+
+🔴 **CE QUI REND LE DÉFAUT SÉRIEUX N'EST PAS LE ROUGE, C'EST SON SENS.** Le spec ne se contentait pas
+d'échouer : il **cessait de mesurer** le gate le plus récent du dépôt sur toute machine Windows,
+c'est-à-dire celle où les leçons s'écrivent. C'est le **miroir exact** du piège déjà payé sur
+`extraire-diapositives.mjs` — « une garde dont le verdict change avec l'hôte est DEUX gardes » — à
+ceci près qu'ici le verdict trompeur était le **vert** de la CI. ⚠️ Et le harnais a fait exactement ce
+qu'il devait : `muter` **lève** sur une cible introuvable au lieu de mesurer une racine non mutée. Sans
+ce garde, les cinq cas auraient été **verts en ne prouvant rien** — la racine serait restée valide et
+le validateur l'aurait acceptée, ce que le test attendait… pour la mauvaise raison.
+
+**Le correctif.** `muter` normalise les **deux** côtés de la comparaison en LF. Le spec devient
+indifférent à la forme d'extraction, et la fixture peut arriver dans l'une ou l'autre.
+**Mesure après correctif, sur ce poste : `npm test` → 1140 passés / 1 sauté / 46 fichiers**, soit
+exactement le chiffre que la clôture du lot 9 annonçait. Les cinq cas appliquent de nouveau leur
+mutation et le validateur les refuse — c'est le contrôle positif : une mutation qui ne mordrait pas
+laisserait la racine valide et le cas échouerait.
+
+⚠️ **La règle qui en sort, plus large que ce spec.** Dans ce dépôt, **une cible de comparaison
+textuelle ne se compare jamais telle quelle** : soit on normalise, soit on écrit la cible dans la
+même forme que la source — et la forme d'un littéral gabarit **n'est pas choisie par son auteur**,
+elle est celle du fichier. Cousine de L-015, avec l'aggravation que le désaccord ne se voit que sur
+la moitié des plateformes.
+
 **Le geste suivant : le legs OUVERT du lot 6.** Aucune leçon n'écrit encore `:::: methodes`, donc
 G-axe et G-e2e n'ont **vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
 **rien ne mesure aujourd'hui que cocher un onglet montre son panneau**. Le spec e2e des trois états,

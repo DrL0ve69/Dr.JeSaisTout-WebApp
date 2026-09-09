@@ -3529,10 +3529,16 @@ gate**, comme pour `npm run lecons:index` avec les `mentor`.
 
 
 > ⚠️ **Deux avertissements hérités de la passe E3-ST0, à lire avant d'écrire ces modules.**
-> **(1) La séance 5 est un SQUELETTE à la source** — 23 diapositives dont dix ne portent qu'un
-> titre, aucune image, et deux marqueurs `(TODO)` laissés par l'enseignant. Son plan annoncé
-> (diapositive 6) fait foi comme matière d'examen ; tout le reste de `05-utilisateurs-permissions`
-> est du **complément**, et doit se signaler comme tel.
+> **(1) ~~La séance 5 est un SQUELETTE à la source~~ — ✅ PÉRIMÉ, REMESURÉ LE 2026-09-09.**
+> L'avertissement décrivait 23 diapositives dont dix muettes et deux `(TODO)`. Le propriétaire a
+> déposé un support neuf le 2026-09-09 ; réextrait par
+> `tools/supports-cours/extraire-diapositives.mjs`, il rend **119 diapositives et zéro `(TODO)`**.
+> `05-utilisateurs-permissions` a donc une **vraie matière d'examen**, et la consigne « tout le reste
+> est du complément » **tombe avec sa prémisse** — elle inverserait maintenant la provenance.
+> ⚠️ **Ce qui a permis à l'avertissement de survivre à sa péremption : `extraits/` est gitignoré et
+> aucun gate ne le confronte à son `.pptx`.** L'extrait lu jusqu'ici datait du 2026-08-25, le support
+> du 2026-09-09, et rien ne pouvait rougir. **Réextraire avant de citer une diapositive** — sinon les
+> renvois `diapos` d'une leçon neuve pointent la numérotation d'un support qui n'existe plus.
 > **(2) 🔴 La séance 8 n'a AUCUNE source publiée — mesuré le 2026-08-19, pas supposé.** Ni
 > diaporama (cellule « Non disponible »), **ni énoncé d'exercice** : la page existe mais son contenu
 > est **vide** (longueur 0 via l'API WordPress du site). `19-services-web-https` est donc un module
@@ -3686,6 +3692,38 @@ d'aucun examen. **C'est exact pour un projet, mais c'est une décision produit, 
 confirmer, ou à traiter en donnant à `horaire.json` la notion d'une séance qui est à la fois une
 évaluation et une séance enseignée.
 
+**✅ N-6 EST FERMÉ — L'ÉNONCÉ EXISTE, IL A ÉTÉ LU, ET IL TRANCHE DANS LES DEUX SENS (2026-09-09).**
+Le propriétaire a déposé `securite-app-web-2026/projet_session_securisation_2026.pdf` (dossier
+gitignoré). Ce qu'il dit, mesuré et non résumé de mémoire : créer et **déployer une application
+PHP** en y appliquant les mesures vues en classe ; **trois livrables** (l'application en ligne, le
+code plus une exportation de la base, un document explicatif avec captures **séparé par section**) ;
+et une grille en **six familles** — communications réseau 15 %, comptes utilisateurs 15 %, tâche
+automatisée de surveillance/nettoyage 20 %, sécurisation du code 20 %, applications (serveur web,
+bases de données) 10 %, mécanismes d'authentification 20 %. **Le projet entier vaut 20 % de la
+session**, écrit en toutes lettres.
+
+**Les deux conséquences pour la leçon 11, appliquées dans ce lot.**
+1. ✅ **La pondération est tranchée par la source officielle, plus par un arbitrage.** La leçon
+   disait « l'horaire fait foi » et renvoyait l'étudiant demander à l'enseignant lequel des deux
+   chiffres s'applique. L'énoncé confirme **20 %** : le hedge est remplacé par le fait, et le 15 %
+   de la diapositive est nommé comme **périmé**.
+2. 🔴 **UNE PHRASE DE LA LEÇON ÉTAIT FAUSSE, ET C'EST L'ÉNONCÉ QUI L'ÉTABLIT.** Elle affirmait que
+   l'environnement moderne — contrôle de version, gestionnaire de dépendances, outillage d'analyse —
+   est « exactement ce que le projet de session est censé démontrer ». **La grille ne note rien de
+   tout ça** : ses six familles sont des mesures de sécurité. L'exigence de « configuration
+   appropriée du système de gestion de versions » vient du plan de cours du **420-4P2-HU**, pas de
+   l'énoncé du B10 — la leçon citait la bonne source puis lui faisait dire une chose de plus.
+   ⚠️ **Famille connue : une affirmation sourcée qui déborde de sa source.** Le correctif garde le
+   fait (l'outillage reste le moyen le plus sûr de livrer les trois livrables) et retire la
+   promesse de points.
+
+⚠️ **CE QUI RESTE OUVERT, ET QUI N'EST PAS UN DÉFAUT DE LA LEÇON.** L'énoncé ne dit **pas** si
+l'application du projet de B10 doit être *celle* du projet de 420-4P2-HU ou une application neuve ;
+il dit seulement « une application PHP ». La leçon ne tranche pas non plus — elle se déclare « socle
+technique » — donc rien n'est à corriger, mais un étudiant posera la question. **À demander à
+l'enseignant.**
+
+<!-- Énoncé du nœud, tel qu'il était avant sa fermeture — conservé pour la trace.
 **N-6 · La provenance du projet de session de B10 est établie, mais pas son énoncé.** Le cadrage
 tient : `web/securite/securisation-acces-distant-ssh.md:703-710` décrit bien l'« amorce du projet de
 session » à 20 %, et dit que la création du serveur verrouillé est « directement réutilisable comme
@@ -3693,6 +3731,29 @@ socle d'infrastructure de ce projet ». La pondération est confirmée par `hora
 manque est l'énoncé officiel du projet de 420-B10-HU** — les deux fiches sources décrivent le projet
 du cours de PHP (420-4P2-HU). Si les deux énoncés diffèrent, c'est la section « Ce que le cours
 enseigne » qui change de portée, pas la théorie.
+-->
+
+**⚠️ CE QUE LA LECTURE DE L'ÉNONCÉ A COÛTÉ, ET QUI VAUT POUR TOUT PDF DÉPOSÉ ENSUITE.** Aucun outil
+de ce poste ne lit un PDF : `pdftoppm` est absent, il n'y a ni Python ni bibliothèque PDF dans
+`node_modules`, et l'automatisation Word par COM se **bloque** sur sa boîte de conversion. Le texte a
+donc été extrait par un script jetable — `zlib` seul, aucune dépendance — qui inflate les flux et
+décode les opérateurs de texte à travers les **CMaps `ToUnicode` du fichier**. Trois points valent
+d'être retenus par qui écrira l'outil permanent :
+- **Les CMaps de ce PDF-ci sont en clair** (flux non compressés) : un scanneur qui ne regarde que
+  les flux **inflatés** les rate, et l'on retombe alors sur du texte sous encodage de police, lisible
+  mais faux.
+- 🔴 **Un flux de police ressemble à un flux de contenu si on le teste par « contient `Tj` ».** Sur
+  l'énoncé de PHP, ce test a fait décoder du **binaire de police** comme du texte et rendu une page
+  de charabia crédible. Le tri qui marche : exiger `BT` **et** `ET`, et plus de 90 % d'octets
+  imprimables. Après ce tri, les deux PDF rendent **exactement un** flux de contenu.
+- 🔴 **LE VRAI OBSTACLE À UN OUTIL GÉNÉRAL, MESURÉ : les polices simples et les polices Type0 ne se
+  décodent pas pareil** — 1 octet par glyphe contre 2. L'énoncé du B10 n'emploie que du Type0, donc
+  il sort intact (55 entrées de table, **0 contradiction**, un seul code inconnu : la ligature
+  `ﬀ`). Celui de PHP mélange les deux, et lire ses codes deux octets à la fois produit 118 « codes
+  inconnus » qui sont en réalité `De`, `ri`, `ti`, `on`… — du texte parfaitement lisible, mal
+  découpé. **Un outil permanent doit donc suivre l'opérateur `Tf` et connaître le sous-type de
+  chaque police** ; sans ça il rendra du faux sur un PDF sur deux, ce qui est le mode d'échec exact
+  que `extraire-diapositives.mjs` existe pour empêcher. **Lot à part, non entrepris ici.**
 
 **N-7 · Le coût réel est à la charge de l'étudiant, et la leçon le dit maintenant.**
 `web/securite/administration-serveur-linux.md:922-947` : **5 $ de serveur + 15 $ de nom de domaine**,

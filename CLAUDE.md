@@ -223,11 +223,21 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > **Le geste suivant : E3-ST17 `05-utilisateurs-permissions` (séance 5)** — comptes, groupes, `sudo`,
 > politique de mots de passe, propriétaires et bits d'accès. Fiches KB `web/securite/administration-serveur-linux.md`
-> **+** `web/securite/stockage-mots-de-passe.md`, **sans simulation**. ⚠️ **La séance 5 est un
-> SQUELETTE à la source** (23 diapositives dont dix ne portent qu'un titre, deux `(TODO)` de
-> l'enseignant) : son plan annoncé fait foi comme matière d'examen, **tout le reste est du complément
-> et doit se signaler comme tel**. Matériel de modernisation dans `README.txt` (Cours 5 : l. 290-334),
-> **NON sourcé** — conversation avec un assistant IA, il entre comme piste sous marqueur `à-vérifier:`.
+> **+** `web/securite/stockage-mots-de-passe.md`, **sans simulation**. Matériel de modernisation dans
+> `README.txt` (Cours 5 : l. 290-334), **NON sourcé** — conversation avec un assistant IA, il entre
+> comme piste sous marqueur `à-vérifier:`.
+> ✅ **« LA SÉANCE 5 EST UN SQUELETTE » EST PÉRIMÉ — REMESURÉ LE 2026-09-09.** Le propriétaire a
+> déposé un support neuf ; réextrait, il rend **119 diapositives, zéro `(TODO)`**, contre 23 dont dix
+> muettes. Le cours couvre `adduser`/`usermod`/`userdel`/`passwd`/`su`/`whoami`/`useradd`, les
+> comptes administrateurs et la syntaxe complète de `sudoers`, les groupes, `ls -l`/`chmod`
+> (numérique **et** symbolique)/`chown`/`chgrp`, puis la politique de mots de passe (complexité,
+> expiration, uniformisation). **La consigne « tout le reste est du complément » tombe avec sa
+> prémisse** : il y a désormais une vraie matière d'examen à couvrir, et c'est le volume de source
+> qui dimensionne le rédacteur (~26 Ko d'extrait → scinder, cf. L-047).
+> ⚠️ **UN EXTRAIT DE `extraits/` PEUT ÊTRE PÉRIMÉ SANS QUE RIEN NE ROUGISSE** : le dossier est
+> gitignoré, aucun gate ne le confronte à son `.pptx`. Ici l'extrait datait du 2026-08-25 et le
+> support du 2026-09-09. **Réextraire avant de citer une diapositive**, sinon les renvois `diapos`
+> d'une leçon neuve pointent la numérotation de l'ancien support.
 >
 > 🔴 **LE BRIEF DE RÉDACTION DOIT NOMMER LES SIX SECTIONS DU GABARIT — défaut neuf, payé un agent
 > entier.** Ni le rédacteur de la moitié A ni celui de la moitié B n'ont écrit « Exemple simple »,
