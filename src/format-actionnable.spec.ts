@@ -12,11 +12,11 @@
 // SA MESURE. Le contrat du lot 0 écrivait qu'un slug de
 // `MODULES_AU_FORMAT_ACTIONNABLE` SANS leçon correspondante fait échouer le
 // build. Porté dans `valider.mjs`, ce contrôle mordrait sur CHAQUE racine que le
-// validateur examine — or il en examine une douzaine qui ne sont pas le corpus :
-// les racines de `tools/content-pipeline/__fixtures__/`, qui n'ont aucune raison
-// de porter un `projet-de-session`. La permission morte se juge donc là où LE
-// corpus est visible, et nulle part ailleurs. Le gate reste bloquant : G-test
-// est rouge tant que la liste ment.
+// validateur examine — or TOUTES les racines de
+// `tools/content-pipeline/__fixtures__/` en sont, dont les quelque cinquante de
+// `invalides/`, et aucune n'a de raison de porter un `projet-de-session`.
+// La permission morte se juge donc là où LE corpus est visible, et nulle part
+// ailleurs. Le gate reste bloquant : G-test est rouge tant que la liste ment.
 // =============================================================================
 
 import { execFileSync } from 'node:child_process';
@@ -31,6 +31,29 @@ const MODULE = '11-projet-de-session';
 
 /** Ajv compile ses schémas et une racine par cas : lent une fois, pas une fois par cas. */
 const DELAI = 60_000;
+
+/**
+ * La section « En bref » de la racine témoin, telle quelle — titre ET conteneur. C'est ce bloc
+ * ENTIER que `section-entiere-deplacee` déménage, parce que c'est ainsi qu'un auteur se trompe :
+ * il ne dissocie pas le titre de ce qu'il annonce.
+ *
+ * ⚠️ Écrit ici plutôt que dans le tableau `REFUS` : `muter` lève si le bloc a disparu de la
+ * fixture, donc une retouche du témoin se voit sur cette constante et non sur un cas isolé.
+ */
+const SECTION_TEMOIN = `## En bref — la marche à suivre {hors-cours}
+
+:::: marche-a-suivre {titre="Déclarer un module au format actionnable"}
+
+1. {voir="Le titre de niveau 3 compte AUSSI"} Poser la marche à suivre juste après
+   « L'idée en une image ».
+
+2. Annoter chaque titre de section, aux DEUX niveaux, d'un renvoi ou du marqueur \`{hors-cours}\`.
+
+3. Ajouter le slug à \`MODULES_AU_FORMAT_ACTIONNABLE\`, en dernier geste du lot.
+
+::::
+
+`;
 
 function lancer(args: readonly string[]): { sortie: string; code: number } {
   try {
@@ -80,7 +103,7 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
   }
 
   it(
-    'ACCEPTE la racine témoin — sans quoi les cinq refus ne prouveraient rien',
+    'ACCEPTE la racine témoin — sans quoi aucun des refus ci-dessous ne prouverait rien',
     () => {
       const { sortie, code } = lancer(['--racine', FIXTURE]);
       expect(code).toBe(0);
@@ -119,7 +142,7 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
   );
 
   /**
-   * LES CINQ REFUS, EN TABLE — chacun sur SA cause propre.
+   * LES REFUS, EN TABLE — chacun sur SA cause propre.
    *
    * ⚠️ Le fragment attendu est le morceau le plus SPÉCIFIQUE du message : un gate qui refuserait
    * tout passerait un test qui n'épingle que l'échec. Et chaque cas est écrit pour ne produire
@@ -166,10 +189,13 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
       cause: 'sans conteneur « :::: marche-a-suivre »',
     },
     {
-      // ⚠️ DEUX remplacements, et c'est le seul cas qui en demande deux : « mal placée » n'existe
-      // que si la section est AILLEURS, donc si une autre occupe sa place.
+      // ⚠️ CE CAS EST UN MONTAGE, ET IL FAUT LE DIRE : le TITRE est déplacé pendant que le
+      // conteneur reste dans la section qui suit « L'idée en une image ». Aucun auteur ne produit
+      // ça — la forme naturelle de la faute est `section-entiere-deplacee`, juste en dessous.
+      // Celui-ci reste parce qu'il est le seul à exercer la branche « mal placée » de la règle 13 ;
+      // celui-là parce qu'il est le seul à mesurer qu'elle ne parle PAS par-dessus la règle 11.
       nom: 'section-mal-placee',
-      quoi: 'la section présente mais PAS immédiatement après « L’idée en une image »',
+      quoi: 'le TITRE déplacé, conteneur resté en place — la branche « mal placée » de la règle 13',
       mutations: [
         ['## En bref — la marche à suivre {hors-cours}', '## Ce qu’il faut faire {hors-cours}'],
         [
@@ -179,6 +205,39 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
       ],
       cause:
         'mal placée — le contrat la veut immédiatement après « ## L\'idée en une image », où se trouve « ## Ce qu\'il faut faire »',
+    },
+    {
+      // 🔴 LA FORME NATURELLE DE LA FAUTE, et elle produisait DEUX causes avant le constat de revue
+      // du 2026-09-08 : celle du conteneur (règle 11) et celle du titre (règle 13). La première
+      // MENTAIT à l'œil — « est dans « ## En bref — la marche à suivre » » se lit comme une
+      // confirmation. La règle 13 se tait désormais quand le conteneur a suivi son titre, et le
+      // message de la règle 11 nomme en plus la section qui occupe la place attendue.
+      // ⚠️ La leçon est plus large que le cas : quand une règle neuve recoupe une règle existante
+      // sur la même donnée, le cas à écrire est la forme NATURELLE de la faute, pas celle qui
+      // isole proprement la branche visée — celle-là peut être composée pour ne rien révéler.
+      nom: 'section-entiere-deplacee',
+      quoi: 'la section DÉPLACÉE EN ENTIER — une seule cause, et elle nomme la place attendue',
+      mutations: [
+        [SECTION_TEMOIN, ''],
+        ['## Exemple simple {hors-cours}', `${SECTION_TEMOIN}## Exemple simple {hors-cours}`],
+      ],
+      cause:
+        'avant la première section de théorie ; on y trouve « ## Ce que le gate exige »',
+    },
+    {
+      // 🔴 `findIndex` PRENAIT LA PREMIÈRE ET SE TAISAIT : un doublon posé ailleurs, sans
+      // conteneur, sortait VERT (mesuré, constat de revue du 2026-09-08). Deux sections au même
+      // titre fabriquent deux ancres identiques — ce dont le lot 6 avait fait son critère
+      // d'acceptation, et ce que `jugerRenvoiDEtape` refuse déjà pour un `{voir="…"}` ambigu.
+      nom: 'section-en-double',
+      quoi: 'la section écrite DEUX fois — deux ancres identiques',
+      mutations: [
+        [
+          '## Exemple simple {hors-cours}',
+          '## En bref — la marche à suivre {hors-cours}\n\nUn doublon.\n\n## Exemple simple {hors-cours}',
+        ],
+      ],
+      cause: 'écrite 2 fois (lignes 11, 35)',
     },
   ];
 
@@ -209,7 +268,12 @@ describe('le durcissement module par module — la liste, le corpus, le compteur
   }
 
   /** Les modules du corpus, avec leur statut — lus au frontmatter, comme le validateur les lit. */
-  function corpus(): readonly { dossier: string; slug: string; statut: string }[] {
+  function corpus(): readonly {
+    dossier: string;
+    slug: string;
+    statut: string;
+    ancre: boolean;
+  }[] {
     return readdirSync(CORPUS, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => {
@@ -218,24 +282,44 @@ describe('le durcissement module par module — la liste, le corpus, le compteur
           dossier: e.name,
           slug: /^slug:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '',
           statut: /^statut:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '',
+          // 🔴 « ANCRÉ AU COURS », c'est-à-dire portant une `seance`. C'est la condition D'ÉLIGIBILITÉ
+          // au format actionnable, et pas un détail : l'exigence (3) de la règle 13 REFUSE un module
+          // listé sans séance. Un module publié hors cours ne peut donc jamais entrer dans la liste.
+          ancre: /^seance:[ \t]*\d+[ \t]*$/m.test(source),
         };
       });
+  }
+
+  /**
+   * L'ensemble que le durcissement doit finir par épuiser — et il n'est pas « toutes les leçons
+   * publiées » (constat de revue du 2026-09-08, mesuré).
+   *
+   * 🔴 `20-evaluation-cvss` est `publiee`, porte `section: Compléments hors cours` et **aucune**
+   * `seance` : elle est hors du cours par construction. La compter au dénominateur rendait la
+   * promesse du contrat — « le jour où les deux ensembles coïncident, la constante est supprimée »
+   * — **inatteignable**, et l'exécuter quand même aurait rendu cette leçon rouge à jamais. C'est le
+   * patron S-005 pris à l'envers : une promesse écrite plus forte que ce que le gate peut tenir.
+   */
+  function eligibles(): readonly { dossier: string; slug: string }[] {
+    return corpus().filter((m) => m.statut === 'publiee' && m.ancre);
   }
 
   it('la liste n’est pas VIDE — un gate qui ne vise personne ne garde rien', () => {
     expect(listeDuValidateur().length).toBeGreaterThan(0);
   });
 
-  it('ne porte AUCUNE permission morte : chaque slug listé a une leçon PUBLIÉE dans le corpus', () => {
+  it('ne porte AUCUNE permission morte : chaque slug listé est une leçon publiée ET ancrée', () => {
     // 🔴 FAMILLE S-005 — une permission qui ne correspond à rien est une permission qu'on CROIT
     // appliquée. Un module renommé ou retiré laisserait derrière lui une entrée qui n'exige plus
     // rien de personne, et que personne ne relirait. `publiee` et pas seulement « existe » :
     // entrer dans la liste, c'est déclarer le module entièrement conforme, après revue humaine.
-    const publies = new Set(corpus().filter((m) => m.statut === 'publiee').map((m) => m.slug));
-    const mortes = listeDuValidateur().filter((slug) => !publies.has(slug));
+    // Et ANCRÉE : un slug sans `seance` ferait échouer le build par l'exigence (3) — la liste
+    // porterait alors une entrée qui casse le module qu'elle prétend certifier.
+    const admissibles = new Set(eligibles().map((m) => m.slug));
+    const mortes = listeDuValidateur().filter((slug) => !admissibles.has(slug));
     expect(
       mortes,
-      `slugs de MODULES_AU_FORMAT_ACTIONNABLE sans leçon publiée : ${mortes.join(', ')}`,
+      `slugs de MODULES_AU_FORMAT_ACTIONNABLE sans leçon publiée et ancrée : ${mortes.join(', ')}`,
     ).toEqual([]);
   });
 
@@ -245,12 +329,19 @@ describe('le durcissement module par module — la liste, le corpus, le compteur
     // faire est ÉCRIT au journal de chaque exécution de G-test — le jour où il tombe à zéro,
     // `MODULES_AU_FORMAT_ACTIONNABLE` se supprime et la règle 13 devient inconditionnelle.
     const liste = new Set(listeDuValidateur());
-    const publies = corpus().filter((m) => m.statut === 'publiee');
-    const restants = publies.filter((m) => !liste.has(m.slug));
+    const admissibles = eligibles();
+    const restants = admissibles.filter((m) => !liste.has(m.slug));
+    const horsCours = corpus().filter((m) => m.statut === 'publiee' && !m.ancre);
     console.log(
-      `\nFORMAT ACTIONNABLE — ${publies.length - restants.length}/${publies.length} module(s) ` +
-        `repris ; ${restants.length} restant(s) : ${restants.map((m) => m.dossier).join(', ')}\n`,
+      `\nFORMAT ACTIONNABLE — ${admissibles.length - restants.length}/${admissibles.length} ` +
+        `module(s) ancré(s) au cours repris ; ${restants.length} restant(s) : ` +
+        `${restants.map((m) => m.dossier).join(', ')}` +
+        (horsCours.length === 0
+          ? ''
+          : `\n  (hors décompte, publiés sans « seance » donc inéligibles : ` +
+            `${horsCours.map((m) => m.dossier).join(', ')})`) +
+        '\n',
     );
-    expect(restants.length).toBeLessThan(publies.length);
+    expect(restants.length).toBeLessThan(admissibles.length);
   });
 });

@@ -1171,7 +1171,7 @@ const SECTION_MARCHE = 'En bref — la marche à suivre';
  * 🔴 CE QUE LA LISTE EXIGE SE JUGE ICI ; CE QU'ELLE NE PEUT PAS CONTENIR SE JUGE AILLEURS, ET LA
  * RAISON EST MESURÉE. Le contrat du lot 0 écrivait qu'un slug SANS leçon correspondante fait
  * échouer le build. Porté ici, ce contrôle mordrait sur CHAQUE racine que le validateur examine —
- * or il en examine onze qui ne sont pas le corpus : les racines de `__fixtures__/`, qui ne portent
+ * or TOUTES les racines de `__fixtures__/` en sont — dont les quelque cinquante de `invalides/` —, et aucune ne porte
  * évidemment aucun `projet-de-session`. Les onze deviendraient rouges, et la seule façon de les
  * verdir serait de leur écrire un module qu'elles n'ont aucune raison d'avoir. La permission morte
  * est donc jugée par `src/format-actionnable.spec.ts`, qui voit LE corpus (`content/cours/…`) et
@@ -2074,9 +2074,18 @@ function causeDeLaPlaceDeLaMarche(ligne, sectionsDeNiveau2) {
   if (contenante === ancre + 1) return null;
   const nom =
     contenante === -1 ? 'aucune section' : `« ## ${sectionsDeNiveau2[contenante]?.texte ?? ''} »`;
+  // 🔴 LE MESSAGE NOMME AUSSI LA SECTION QUI OCCUPE LA PLACE ATTENDUE (constat de revue du
+  // 2026-09-08). Sans elle, une section « En bref — la marche à suivre » DÉPLACÉE EN ENTIER —
+  // titre et conteneur ensemble, la forme la plus naturelle de la faute — produisait « est dans
+  // « ## En bref — la marche à suivre » », que l'auteur lit comme une confirmation que tout va
+  // bien. Nommer les DEUX bouts, celle qui contient et celle qui devrait, rend la phrase
+  // actionnable.
+  const attendue = sectionsDeNiveau2[ancre + 1];
+  const occupee =
+    attendue === undefined ? 'aucune section ne la suit' : `on y trouve « ## ${attendue.texte} »`;
   return (
     `« :::: ${CONTENEUR_MARCHE} » est dans ${nom} — le contrat le place dans la section qui suit ` +
-    `IMMÉDIATEMENT « ## ${SECTIONS_REQUISES[0]} », avant la première section de théorie`
+    `IMMÉDIATEMENT « ## ${SECTIONS_REQUISES[0]} », avant la première section de théorie ; ${occupee}`
   );
 }
 
@@ -2180,6 +2189,78 @@ function jugerRenvoiDEtape(texte, ligne, sections, signaler, modulesCites) {
 }
 
 /**
+ * L'exigence (1) du format actionnable, extraite parce qu'elle porte QUATRE refus indépendants sur
+ * la même donnée — et que les lire hors du balayage vaut mieux que les empiler dans une chaîne de
+ * `else if` (même geste, même raison que `jugerOuvertureDeMarche`). Le comportement est inchangé.
+ *
+ * @param {ReadonlyArray<{ niveau: number, texte: string, numero: number, attributsBruts: string }>} titres
+ * @param {readonly number[]} ouverturesDeMarche
+ * @returns {string | null} la cause du refus, prête à signaler ; `null` si conforme
+ */
+function causeDeLaSectionActionnable(titres, ouverturesDeMarche) {
+  const sectionsDeNiveau2 = titres.filter((t) => t.niveau === 2);
+  const ancre = sectionsDeNiveau2.findIndex((t) => t.texte === SECTIONS_REQUISES[0]);
+  const homonymes = sectionsDeNiveau2.filter((t) => t.texte === SECTION_MARCHE);
+  const marche = sectionsDeNiveau2.findIndex((t) => t.texte === SECTION_MARCHE);
+  const ligneDeLaMarche = sectionsDeNiveau2[marche]?.numero ?? 0;
+
+  if (marche === -1) {
+    return (
+      `corps : section « ## ${SECTION_MARCHE} » absente — elle est imposée aux modules du FORMAT ` +
+      `ACTIONNABLE, immédiatement après « ## ${SECTIONS_REQUISES[0]} » (décision D-A)`
+    );
+  }
+
+  // 🔴 DEUX SECTIONS AU MÊME TITRE SONT DEUX ANCRES IDENTIQUES — le lot 6 en avait fait son critère
+  // d'acceptation, et `jugerRenvoiDEtape` refuse déjà un `{voir="…"}` ambigu pour cette raison. Ici,
+  // `findIndex` prenait la PREMIÈRE et se taisait : un doublon posé ailleurs, sans conteneur,
+  // sortait VERT (mesuré, constat de revue du 2026-09-08). Le refus nomme les deux lignes, et
+  // l'auteur tranche en renommant l'une — même geste que le renvoi ambigu.
+  if (homonymes.length > 1) {
+    return (
+      `corps : section « ## ${SECTION_MARCHE} » écrite ${homonymes.length} fois (lignes ` +
+      `${homonymes.map((t) => t.numero).join(', ')}) — un module n'a qu'un résumé actionnable, ` +
+      'et deux sections au même titre fabriquent deux ancres identiques'
+    );
+  }
+
+  // 🔴 LA SECTION QUI CONTIENT LE CONTENEUR — c'est elle qui dit si la règle 11 a DÉJÀ signalé la
+  // même faute (constat de revue du 2026-09-08). Déplacer la section « En bref » EN ENTIER est la
+  // forme naturelle de la faute, et elle produisait DEUX causes : celle du conteneur (règle 11) et
+  // celle du titre (ici). ⚠️ Un cas de contrôle positif peut être COMPOSÉ pour n'en produire
+  // qu'une — c'est ce que faisait le premier `section-mal-placee`, qui renommait deux titres en
+  // laissant le conteneur en place : un montage qu'aucun auteur ne produit.
+  const premiereOuverture = ouverturesDeMarche[0];
+  const laMarchePorteLeConteneur =
+    premiereOuverture !== undefined &&
+    sectionsDeNiveau2.filter((t) => t.numero < premiereOuverture).at(-1)?.numero ===
+      ligneDeLaMarche;
+
+  // Silencieuse quand l'ancre manque : son absence est déjà refusée par les sections requises, et
+  // une seconde cause pour une seule faute est interdite en `--fixtures`. Silencieuse aussi quand
+  // le conteneur a suivi le titre : `causeDeLaPlaceDeLaMarche` a déjà parlé, sur la même faute.
+  if (ancre !== -1 && marche !== ancre + 1 && !laMarchePorteLeConteneur) {
+    const voisine = sectionsDeNiveau2[ancre + 1];
+    const trouvee = voisine === undefined ? 'aucune section' : `« ## ${voisine.texte} »`;
+    return (
+      `corps ligne ${ligneDeLaMarche} : section « ## ${SECTION_MARCHE} » mal placée — le contrat ` +
+      `la veut immédiatement après « ## ${SECTIONS_REQUISES[0]} », où se trouve ${trouvee}`
+    );
+  }
+
+  // La section EXISTE et elle est bien placée : ce qui manque est le conteneur. Sans ce dernier
+  // cas, une section VIDE passerait le gate — un titre n'est pas une marche à suivre.
+  if (ouverturesDeMarche.length === 0) {
+    return (
+      `corps ligne ${ligneDeLaMarche} : section « ## ${SECTION_MARCHE} » sans conteneur ` +
+      `« :::: ${CONTENEUR_MARCHE} » — le format actionnable exige le résumé lui-même, pas ` +
+      'seulement son titre'
+    );
+  }
+  return null;
+}
+
+/**
  * --- 13. LE GATE DU FORMAT ACTIONNABLE (décision D-D) ---
  *
  * Ne mord QUE sur les modules de `MODULES_AU_FORMAT_ACTIONNABLE`. Pour tous les autres, les
@@ -2216,35 +2297,9 @@ function verifierFormatActionnable(titres, ouverturesDeMarche, seance, signaler)
     );
   }
 
-  // (1) LA MARCHE À SUIVRE : présente, à sa place, et portant son conteneur.
-  const sectionsDeNiveau2 = titres.filter((t) => t.niveau === 2);
-  const ancre = sectionsDeNiveau2.findIndex((t) => t.texte === SECTIONS_REQUISES[0]);
-  const marche = sectionsDeNiveau2.findIndex((t) => t.texte === SECTION_MARCHE);
-  const ligneDeLaMarche = sectionsDeNiveau2[marche]?.numero ?? 0;
-  if (marche === -1) {
-    signaler(
-      `corps : section « ## ${SECTION_MARCHE} » absente — elle est imposée aux modules du FORMAT ` +
-        `ACTIONNABLE, immédiatement après « ## ${SECTIONS_REQUISES[0]} » (décision D-A)`,
-    );
-  } else if (ancre !== -1 && marche !== ancre + 1) {
-    // Silencieuse quand l'ancre manque : son absence est déjà refusée par les sections requises, et
-    // une seconde cause pour une seule faute est interdite en `--fixtures`. Même geste, même raison
-    // que `causeDeLaPlaceDeLaMarche`.
-    const voisine = sectionsDeNiveau2[ancre + 1];
-    const trouvee = voisine === undefined ? 'aucune section' : `« ## ${voisine.texte} »`;
-    signaler(
-      `corps ligne ${ligneDeLaMarche} : section « ## ${SECTION_MARCHE} » mal placée — le contrat ` +
-        `la veut immédiatement après « ## ${SECTIONS_REQUISES[0]} », où se trouve ${trouvee}`,
-    );
-  } else if (ouverturesDeMarche.length === 0) {
-    // La section EXISTE et elle est bien placée : ce qui manque est le conteneur. Sans ce troisième
-    // cas, une section VIDE passerait le gate — un titre n'est pas une marche à suivre.
-    signaler(
-      `corps ligne ${ligneDeLaMarche} : section « ## ${SECTION_MARCHE} » sans conteneur ` +
-        `« :::: ${CONTENEUR_MARCHE} » — le format actionnable exige le résumé lui-même, pas ` +
-        'seulement son titre',
-    );
-  }
+  // (1) LA MARCHE À SUIVRE : présente, UNIQUE, à sa place, et portant son conteneur.
+  const cause = causeDeLaSectionActionnable(titres, ouverturesDeMarche);
+  if (cause !== null) signaler(cause);
 
   // (2) CHAQUE TITRE DE SECTION PORTE UN RENVOI. ⚠️ LES DEUX NIVEAUX COMPTENT : le relevé qui a
   // dimensionné ce chantier compte 247 titres de niveau 2 ET 3 ensemble ; n'exiger que le niveau 2
@@ -3856,6 +3911,8 @@ function lireArguments() {
   let fixtures = null;
   let clefs = false;
   let modulesActionnables = false;
+  /** Ce qui a été demandé À CÔTÉ d'un mode de test — voir le refus, plus bas. */
+  let autreChose = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -3875,6 +3932,7 @@ function lireArguments() {
       if (valeur === undefined || valeur.startsWith('--')) {
         echec(`l'option ${arg} attend un chemin`);
       }
+      autreChose = true;
       if (arg === '--racine') {
         racine = valeur;
         racineExplicite = true;
@@ -3890,7 +3948,30 @@ function lireArguments() {
       '        node tools/content-pipeline/valider.mjs --modules-actionnables',
     ]);
   }
+  exigerDesModesDeTestExclusifs({ clefs, modulesActionnables, autreChose });
   return { racine, racineExplicite, fixtures, clefs, modulesActionnables };
+}
+
+/**
+ * 🔴 LES MODES DE TEST SONT EXCLUSIFS DE TOUT LE RESTE (constat de revue du 2026-09-08).
+ *
+ * `--modules-actionnables` imprime une liste et sort en **0** : combiné à `--racine` ou
+ * `--fixtures`, il offrait un chemin PROPRE vers « code 0 sans avoir rien validé ». Ce n'est pas
+ * une permission élargie, mais c'est exactement la forme qu'un contournement d'ordonnancement prend
+ * (famille **S-018**) : un appelant ajoute un drapeau, lit un vert, et croit avoir validé.
+ *
+ * @param {{ clefs: boolean, modulesActionnables: boolean, autreChose: boolean }} lu
+ */
+function exigerDesModesDeTestExclusifs({ clefs, modulesActionnables, autreChose }) {
+  if (modulesActionnables && (autreChose || clefs)) {
+    echec('--modules-actionnables ne se combine à aucune autre option — il imprime une liste', [
+      'Ce drapeau sort en code 0 sans rien valider : le combiner à --racine ou --fixtures',
+      "donnerait un gate vert qui n'a examiné aucun contenu.",
+    ]);
+  }
+  if (clefs && autreChose) {
+    echec("--clefs ne se combine à aucune autre option — il ne lit que l'entrée standard");
+  }
 }
 
 /**

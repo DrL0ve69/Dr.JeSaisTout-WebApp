@@ -496,31 +496,59 @@ est une permission qu'on croit appliquée).
 ⚠️ **CE CONTRÔLE-LÀ NE VIT PAS DANS `valider.mjs`, ET LA RAISON EST MESURÉE (lot 9, 2026-09-08).**
 Le contrat écrivait « fait échouer le build », ce qui se lisait naturellement comme « dans le
 validateur ». Porté là, il mordrait sur **chaque racine** que le validateur examine — or il en
-examine une douzaine qui ne sont **pas** le corpus : les racines de
+examine **toutes celles** de
 `tools/content-pipeline/__fixtures__/`, qui n'ont aucune raison de porter un `projet-de-session`.
 Les verdir demanderait de leur écrire un module qu'elles n'ont pas lieu d'avoir. Le contrôle vit
 donc dans **`src/format-actionnable.spec.ts`**, seul à voir `content/cours/…` et lui seul — et
 **G-test est rouge tant que la liste ment**, ce qui bloque la PR au même titre. 🔴 **La leçon plus
 générale : une règle dont l'énoncé dit « le corpus » ne peut pas s'appliquer là où « la racine » est
-paramétrable.** Les onze racines de fixtures sont, pour ce validateur, des corpus à part entière.
+paramétrable.** Chaque racine de fixtures est, pour ce validateur, un corpus à part entière.
 
 **Le compteur, c'est ce qui interdit d'oublier le durcissement.** Le même spec compare la liste aux
-leçons publiées et **imprime combien il en reste** (`FORMAT ACTIONNABLE — 1/10 module(s) repris`).
-Le compte n'est **pas épinglé** : l'épingler obligerait à le corriger à chaque module repris sans
-rien prouver de plus que le contrôle de permission morte. Le jour où les deux ensembles coïncident,
-la constante est **supprimée** et la règle devient inconditionnelle. Un compteur qui descend vaut
-mieux qu'une promesse dans un backlog — et il **ne redescend jamais** : un slug n'en sort que si le
-module disparaît.
+modules **éligibles** et **imprime combien il en reste** (`FORMAT ACTIONNABLE — 1/9 module(s)
+ancré(s) au cours repris`). Le compte n'est **pas épinglé** : l'épingler obligerait à le corriger à
+chaque module repris sans rien prouver de plus que le contrôle de permission morte. Le jour où les
+deux ensembles coïncident, la constante est **supprimée** et la règle devient inconditionnelle. Un
+compteur qui descend vaut mieux qu'une promesse dans un backlog — et il **ne redescend jamais** : un
+slug n'en sort que si le module disparaît.
+
+🔴 **« ÉLIGIBLE » N'EST PAS « PUBLIÉ », ET LA DIFFÉRENCE DÉCIDE SI CETTE PROMESSE EST TENABLE**
+(constat de revue du 2026-09-08, mesuré). `20-evaluation-cvss` est **publiée**, porte
+`section: Compléments hors cours` et **aucune** `seance` : elle est hors du cours par construction,
+et l'exigence (3) refuse tout module listé sans séance. La compter au dénominateur rendait
+« supprimer la constante » **inatteignable**, et l'exécuter quand même aurait rendu cette leçon
+rouge à jamais. Le dénominateur est donc **les leçons publiées qui déclarent une `seance`** ; les
+autres sont nommées à part au journal, hors décompte. ⚠️ **Patron S-005 pris à l'envers : une
+promesse écrite plus forte que ce que le gate peut tenir.** Un contrat qui annonce un état final doit
+nommer l'ensemble qu'il épuise, pas « tout ce qui est publié ».
 
 🔴 **CE QUI PROUVE QUE LE GATE DISCRIMINE, ET QUI N'EST PAS UN REFUS.** Le module 11 est **déjà
 conforme** depuis le lot 8-B : `content:build` vert ne dit donc rien de la sensibilité de la règle,
 et le corpus ne peut pas la démontrer. La preuve vit dans la racine témoin
 `tools/content-pipeline/__fixtures__/format-actionnable/` — un module au slug `projet-de-session`,
 conforme, que le spec copie dans un bac à sable jetable et abîme d'**une** mutation par cas. La
-moitié qui compte le plus n'est aucun des cinq refus : c'est le cas **`hors-liste`**, où la *même*
+moitié qui compte le plus n'est aucun de ses refus : c'est le cas **`hors-liste`**, où la *même*
 faute est **acceptée** parce que le seul `slug` a changé. Sans lui, « refuse un titre sans renvoi »
 serait indistinguable de « refuse **tout** titre sans renvoi » — c'est-à-dire du gate que D-D existe
 pour ne pas construire.
+
+⚠️ **UNE SECONDE CAUSE SE CACHE DERRIÈRE UN CAS DE TEST BIEN COMPOSÉ** (constat de revue du
+2026-09-08). La règle 13 juge la place du **titre** ; la règle 11 (`causeDeLaPlaceDeLaMarche`) juge
+celle du **conteneur** — deux copies qui portent sur la même faute quand l'auteur déplace la section
+**entière**, ce qui est la façon dont on se trompe réellement. Le premier cas de contrôle positif
+esquivait la question en renommant deux titres et en laissant le conteneur en place : un montage
+qu'aucun auteur ne produit, qui rendait bien une cause unique, et qui ne prouvait donc rien.
+**Quand une règle neuve recoupe une règle existante sur la même donnée, le cas à écrire est la forme
+NATURELLE de la faute** — pas celle qui isole proprement la branche visée. Fermé aux deux bouts : la
+règle 13 se tait quand le conteneur a suivi son titre, et le message de la règle 11 nomme désormais
+**aussi** la section qui occupe la place attendue (sans quoi « est dans « ## En bref — la marche à
+suivre » » se lit comme une confirmation que tout va bien).
+
+⚠️ **LA SECTION EST UNIQUE, et `findIndex` ne le disait pas.** Une seconde
+`## En bref — la marche à suivre` posée ailleurs, sans conteneur, sortait **verte** : la recherche
+prenait la première et se taisait. Deux sections au même titre fabriquent deux ancres identiques —
+ce dont le lot 6 avait fait son critère d'acceptation, et ce que `jugerRenvoiDEtape` refuse déjà pour
+un `{voir="…"}` ambigu. Le refus nomme les deux lignes.
 
 ## Schéma `quiz.json`
 

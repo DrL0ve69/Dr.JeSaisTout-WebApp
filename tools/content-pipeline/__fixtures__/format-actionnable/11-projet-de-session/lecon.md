@@ -8,7 +8,7 @@ niveau: cegep                 # maternelle | primaire | secondaire | cegep | uni
 duree-estimee: 5
 objectifs:
   - "Prouver que le gate du format actionnable ACCEPTE un module conforme"
-  - "Servir de racine témoin aux quatre refus de la règle 13"
+  - "Servir de racine témoin aux refus de la règle 13"
   - "Exercer les DEUX niveaux de titre que l'exigence (2) couvre"
 prerequis: []
 fiches-sources:
