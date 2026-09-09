@@ -151,6 +151,19 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > ⚠️ **DÉFAUT NEUF, NOMMÉ ET NON CORRIGÉ : le pipeline ne rend pas le code en ligne dans un TITRE** — ni
 > dans le `<h3>`, ni au sommaire ; le lecteur voit les accents graves. Contourné côté contenu au module
 > 11 ; toute leçon qui met des rétronotations dans un titre reproduira le défaut.
+> ✅ **LE LOT 9 EST LIVRÉ (2026-09-08) — LE GATE DU FORMAT ACTIONNABLE EXISTE, ET SON COMPTEUR DIT
+> `1/10`.** `MODULES_AU_FORMAT_ACTIONNABLE` est lue par la règle 13 de `valider.mjs` : pour un module
+> de la liste, la marche à suivre est imposée à sa place et **chaque** titre `##` **ou** `###` doit
+> porter un bloc d'attributs ; pour tous les autres, **rien ne change**. ⚠️ **L'exigence des renvois ne
+> rejuge pas leur grammaire** — la règle 4d refuse déjà tout bloc ne citant ni `diapos` ni
+> `{hors-cours}` ; les composer donne un gate total sans produire deux causes pour une faute.
+> 🔴 **LA PERMISSION MORTE NE POUVAIT PAS VIVRE DANS LE VALIDATEUR, et c'est mesuré contre le contrat
+> du lot 0** : « le corpus » n'y existe pas — la racine est **paramétrable**, et onze racines de
+> `__fixtures__/` en sont. Elle vit donc dans `src/format-actionnable.spec.ts` (G-test rouge tant que
+> la liste ment). 🔴 **Et ce qui prouve le gate n'est aucun de ses cinq refus : c'est le sixième cas,
+> qui ACCEPTE la même faute sur un module hors de la liste.** Le module 11 étant déjà conforme, le
+> corpus ne pouvait rien démontrer. Détail :
+> [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 9 ».
 > 🔴 **CE QUI RESTE OUVERT, ET QUI DEMANDE UN LOT À LUI :** aucune leçon n'écrit encore `:::: methodes`,
 > donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
 > **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la

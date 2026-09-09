@@ -56,6 +56,7 @@
  *   node tools/content-pipeline/valider.mjs --racine <chemin>
  *   node tools/content-pipeline/valider.mjs --fixtures <dossier>
  *   node tools/content-pipeline/valider.mjs --clefs   (< tableau JSON sur l'entrée standard)
+ *   node tools/content-pipeline/valider.mjs --modules-actionnables
  *
  * `--fixtures` est le CONTRÔLE POSITIF du garde-fou (leçon L-019) : chaque sous-dossier y est une
  * racine dont on ATTEND qu'elle soit refusée. Le code de sortie y vaut 1 par construction — c'est
@@ -74,6 +75,15 @@
  * Le mode d'échec qu'il ferme n'est vicieux que dans un sens : si la copie du validateur devient
  * plus PERMISSIVE que celle du composant, une leçon sort G-content verte puis casse au prerender
  * d'`ng build`, sur un message qui ne nomme pas le fichier, au milieu d'une pile Angular.
+ *
+ * `--modules-actionnables` est le TROISIÈME mode de test, et il existe pour la même raison que
+ * `--clefs` : exposer une décision de ce fichier à un runner sans l'ouvrir à l'importation. Il
+ * imprime `MODULES_AU_FORMAT_ACTIONNABLE` en JSON trié, et c'est ce que lit
+ * `src/format-actionnable.spec.ts` pour juger la permission morte et imprimer le compteur du
+ * durcissement (décision D-D). ⚠️ Le spec ne RECOPIE donc pas la liste : deux copies d'une liste
+ * qui n'a rien à apparier finiraient par diverger, et le compteur mentirait sans rougir — c'est
+ * l'arbitrage du lot 1b, « la duplication est le contrat pour ce qui JUGE, jamais pour ce qui
+ * RECENSE » (L-095).
  *
  * Entrée : un tableau JSON de chaînes, sur l'entrée standard. Sortie : le tableau JSON des clefs,
  * dans le même ordre. Les deux passent par JSON, et la sortie est ÉCHAPPÉE EN ASCII PUR, parce
@@ -1144,6 +1154,33 @@ const MOTIF_PAIRE_ATTRIBUT = /\b([a-z-]+)="([^"]*)"/g;
 /** Le conteneur du résumé actionnable, et son unique attribut (obligatoire, non vide). */
 const CONTENEUR_MARCHE = 'marche-a-suivre';
 const ATTRIBUT_TITRE = 'titre';
+
+/**
+ * Le titre EXACT de la section que le format actionnable impose (décision D-A). Il n'entre PAS
+ * dans `SECTIONS_REQUISES` : l'y mettre ferait rougir le build sur les dix leçons publiées le jour
+ * de sa livraison, ce que D-D existe précisément pour éviter.
+ */
+const SECTION_MARCHE = 'En bref — la marche à suivre';
+
+/**
+ * LES MODULES AU FORMAT ACTIONNABLE — liste NOMINATIVE, écrite à la main, jamais dérivée du corpus
+ * (S-005, même patron que les hachages de la CSP). Un slug n'entre ici qu'au DERNIER geste de son
+ * lot de reprise, après revue humaine : entrer dans la liste, c'est déclarer le module ENTIÈREMENT
+ * conforme (décision D-D, `docs/contenu/pipeline-contenu.md`).
+ *
+ * 🔴 CE QUE LA LISTE EXIGE SE JUGE ICI ; CE QU'ELLE NE PEUT PAS CONTENIR SE JUGE AILLEURS, ET LA
+ * RAISON EST MESURÉE. Le contrat du lot 0 écrivait qu'un slug SANS leçon correspondante fait
+ * échouer le build. Porté ici, ce contrôle mordrait sur CHAQUE racine que le validateur examine —
+ * or il en examine onze qui ne sont pas le corpus : les racines de `__fixtures__/`, qui ne portent
+ * évidemment aucun `projet-de-session`. Les onze deviendraient rouges, et la seule façon de les
+ * verdir serait de leur écrire un module qu'elles n'ont aucune raison d'avoir. La permission morte
+ * est donc jugée par `src/format-actionnable.spec.ts`, qui voit LE corpus (`content/cours/…`) et
+ * lui seul — et c'est le même spec qui imprime le compteur du durcissement, comme D-D le demande.
+ * Le gate reste bloquant : G-test est rouge tant que la liste ment.
+ *
+ * @type {ReadonlySet<string>}
+ */
+const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['projet-de-session']);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
 const PREFIXE_MODULE = 'module:';
@@ -1935,8 +1972,10 @@ function causeDuVoletDeMethode(reste) {
  * @param {Array<{ numero: number, texte: string, code: boolean }>} lignes
  * @param {ReadonlyArray<{ niveau: number, texte: string, numero: number }>} titres titres DÉPOUILLÉS
  * @param {(cause: string) => void} signaler
- * @returns {{ ligne: number, slug: string }[]} les modules CITÉS — jugés par `validerRacine`, seule
- *   à voir les autres leçons du sujet et leurs statuts
+ * @returns {{ modulesCites: { ligne: number, slug: string }[], ouverturesDeMarche: number[] }}
+ *   les modules CITÉS — jugés par `validerRacine`, seule à voir les autres leçons du sujet et
+ *   leurs statuts — et les LIGNES des ouvertures rencontrées, dont la règle 13 a besoin pour dire
+ *   « la section est là, le conteneur n'y est pas »
  */
 function verifierMarchesASuivre(lignes, titres, signaler) {
   /** @type {{ ligne: number, slug: string }[]} */
@@ -1944,7 +1983,11 @@ function verifierMarchesASuivre(lignes, titres, signaler) {
   const sections = titres.filter((t) => t.niveau === 2 || t.niveau === 3);
   const sectionsDeNiveau2 = titres.filter((t) => t.niveau === 2);
   let dansLaMarche = false;
-  let ouvertures = 0;
+  /**
+   * Les LIGNES des ouvertures, dans l'ordre du document — leur nombre est l'ancien compteur.
+   * @type {number[]}
+   */
+  const ouverturesDeMarche = [];
 
   for (const l of lignes) {
     if (l.code) continue;
@@ -1955,8 +1998,14 @@ function verifierMarchesASuivre(lignes, titres, signaler) {
       if (marqueur.suite === '') dansLaMarche = false;
       else if (nomDeConteneur(marqueur.suite) === CONTENEUR_MARCHE) {
         dansLaMarche = true;
-        ouvertures += 1;
-        jugerOuvertureDeMarche(marqueur.suite, l.numero, ouvertures, sectionsDeNiveau2, signaler);
+        ouverturesDeMarche.push(l.numero);
+        jugerOuvertureDeMarche(
+          marqueur.suite,
+          l.numero,
+          ouverturesDeMarche.length,
+          sectionsDeNiveau2,
+          signaler,
+        );
       }
       continue;
     }
@@ -1965,7 +2014,7 @@ function verifierMarchesASuivre(lignes, titres, signaler) {
     if (item === null) continue;
     jugerRenvoiDEtape(l.texte.slice(item[0].length), l.numero, sections, signaler, modulesCites);
   }
-  return modulesCites;
+  return { modulesCites, ouverturesDeMarche };
 }
 
 /**
@@ -2131,6 +2180,89 @@ function jugerRenvoiDEtape(texte, ligne, sections, signaler, modulesCites) {
 }
 
 /**
+ * --- 13. LE GATE DU FORMAT ACTIONNABLE (décision D-D) ---
+ *
+ * Ne mord QUE sur les modules de `MODULES_AU_FORMAT_ACTIONNABLE`. Pour tous les autres, les
+ * constructions neuves restent optionnelles : on reprend un module à la fois, exactement comme le
+ * gate de complétude des exercices (`docs/contenu/ancrage-au-cours.md` §6.4).
+ *
+ * 🔴 L'EXIGENCE (2) NE REJUGE PAS LA GRAMMAIRE D'UN RENVOI, ET C'EST DÉLIBÉRÉ. Ce qu'elle teste est
+ * la PRÉSENCE d'un bloc d'attributs sur le titre ; ce que ce bloc CONTIENT est déjà jugé par la
+ * règle 4d, qui refuse tout bloc ne citant ni `diapos` ni le marqueur `hors-cours`. Les deux
+ * ensemble donnent bien « chaque titre porte soit des diapositives, soit l'aveu qu'il n'y en a
+ * pas » — et rejuger ici produirait DEUX causes pour une seule faute, ce que le mode `--fixtures`
+ * interdit.
+ *
+ * ⚠️ (2) SE TAIT QUAND `seance` MANQUE. Sans elle, (3) a déjà nommé la cause RACINE, et un module
+ * qui perd sa séance verrait sinon TOUS ses titres se plaindre à la suite — un mur de bruit sous
+ * lequel la vraie cause disparaît.
+ *
+ * @param {ReadonlyArray<{ niveau: number, texte: string, numero: number, attributsBruts: string }>} titres
+ *   titres DÉPOUILLÉS de leur bloc d'attributs, celui-ci rendu à part
+ * @param {readonly number[]} ouverturesDeMarche lignes des ouvertures de marche à suivre du corps
+ * @param {number | null} seance la séance déclarée au frontmatter
+ * @param {(cause: string) => void} signaler
+ */
+function verifierFormatActionnable(titres, ouverturesDeMarche, seance, signaler) {
+  // (3) EN PREMIER, parce que c'est elle qui rend (2) applicable. Un module de la liste qui perdrait
+  // son `seance` perdrait l'exigence des renvois EN SILENCE : le format actionnable suppose un
+  // ancrage au cours, et sortir du cours se fait en sortant de la LISTE, à la main, visiblement.
+  if (seance === null) {
+    signaler(
+      'frontmatter : module déclaré au FORMAT ACTIONNABLE et sans « seance » — le format suppose ' +
+        'un ancrage au cours ; sortir du cours se fait en retirant le slug de ' +
+        'MODULES_AU_FORMAT_ACTIONNABLE (tools/content-pipeline/valider.mjs), jamais en retirant ' +
+        'la séance',
+    );
+  }
+
+  // (1) LA MARCHE À SUIVRE : présente, à sa place, et portant son conteneur.
+  const sectionsDeNiveau2 = titres.filter((t) => t.niveau === 2);
+  const ancre = sectionsDeNiveau2.findIndex((t) => t.texte === SECTIONS_REQUISES[0]);
+  const marche = sectionsDeNiveau2.findIndex((t) => t.texte === SECTION_MARCHE);
+  const ligneDeLaMarche = sectionsDeNiveau2[marche]?.numero ?? 0;
+  if (marche === -1) {
+    signaler(
+      `corps : section « ## ${SECTION_MARCHE} » absente — elle est imposée aux modules du FORMAT ` +
+        `ACTIONNABLE, immédiatement après « ## ${SECTIONS_REQUISES[0]} » (décision D-A)`,
+    );
+  } else if (ancre !== -1 && marche !== ancre + 1) {
+    // Silencieuse quand l'ancre manque : son absence est déjà refusée par les sections requises, et
+    // une seconde cause pour une seule faute est interdite en `--fixtures`. Même geste, même raison
+    // que `causeDeLaPlaceDeLaMarche`.
+    const voisine = sectionsDeNiveau2[ancre + 1];
+    const trouvee = voisine === undefined ? 'aucune section' : `« ## ${voisine.texte} »`;
+    signaler(
+      `corps ligne ${ligneDeLaMarche} : section « ## ${SECTION_MARCHE} » mal placée — le contrat ` +
+        `la veut immédiatement après « ## ${SECTIONS_REQUISES[0]} », où se trouve ${trouvee}`,
+    );
+  } else if (ouverturesDeMarche.length === 0) {
+    // La section EXISTE et elle est bien placée : ce qui manque est le conteneur. Sans ce troisième
+    // cas, une section VIDE passerait le gate — un titre n'est pas une marche à suivre.
+    signaler(
+      `corps ligne ${ligneDeLaMarche} : section « ## ${SECTION_MARCHE} » sans conteneur ` +
+        `« :::: ${CONTENEUR_MARCHE} » — le format actionnable exige le résumé lui-même, pas ` +
+        'seulement son titre',
+    );
+  }
+
+  // (2) CHAQUE TITRE DE SECTION PORTE UN RENVOI. ⚠️ LES DEUX NIVEAUX COMPTENT : le relevé qui a
+  // dimensionné ce chantier compte 247 titres de niveau 2 ET 3 ensemble ; n'exiger que le niveau 2
+  // laisserait la moitié du corpus hors du gate sans que rien ne le dise.
+  if (seance === null) return;
+  for (const titre of titres) {
+    if (titre.niveau !== 2 && titre.niveau !== 3) continue;
+    if (titre.attributsBruts !== '') continue;
+    const libelle = `${'#'.repeat(titre.niveau)} ${titre.texte}`;
+    signaler(
+      `corps ligne ${titre.numero} : « ${libelle} » sans renvoi au cours — un module au FORMAT ` +
+        `ACTIONNABLE cite ses diapositives ({${ATTRIBUT_DIAPOS}="12-18"}), ou déclare le marqueur ` +
+        `{${MARQUEUR_HORS_COURS}} si aucune ne porte cette section`,
+    );
+  }
+}
+
+/**
  * --- Support de G2 : compte des encadrés de provenance du corps ---
  *
  * 🔴 UN COMPTE PLAT DES LIGNES D'OUVERTURE, ET C'EST DÉLIBÉRÉ (2026-08-20, constat de revue). Ce
@@ -2244,11 +2376,12 @@ function verifierProvenanceVsStatut(lignes, statut, signaler) {
  * @param {string} corps
  * @param {string} statut
  * @param {Ancrage} ancrage
+ * @param {boolean} formatActionnable le slug du module est-il dans `MODULES_AU_FORMAT_ACTIONNABLE`
  * @param {(cause: string) => void} signaler
  * @returns {{ exercicesCites: { ligne: number, seance: number, reference: string }[], modulesCites: { ligne: number, slug: string }[] }} ce que le
  *   corps a CITÉ et que seule la racine entière peut juger (unicité et complétude, règles 16)
  */
-function verifierCorps(corps, statut, ancrage, signaler) {
+function verifierCorps(corps, statut, ancrage, formatActionnable, signaler) {
   const lignes = lignesDuCorps(corps);
   const { titres, vides, residus } = titresDuCorps(lignes);
 
@@ -2306,10 +2439,18 @@ function verifierCorps(corps, statut, ancrage, signaler) {
   // ⚠️ APRÈS le contrôle du gabarit, comme la règle 4d, et pour la même raison : les titres qu'elle
   // confronte sont ceux que `titresDuCorps` a DÉPOUILLÉS. Elle recense en passant les modules cités,
   // qu'elle ne peut pas juger seule.
-  const modulesCites = verifierMarchesASuivre(lignes, titres, signaler);
+  const { modulesCites, ouverturesDeMarche } = verifierMarchesASuivre(lignes, titres, signaler);
 
   // --- 12. Les volets d'un `:::: methodes` : ce qui se juge sur UNE ligne (D-C) -----
   verifierVoletsDeMethode(lignes, signaler);
+
+  // --- 13. Le format actionnable, pour les seuls modules de la liste (D-D) ----------
+  // ⚠️ EN DERNIER DES RÈGLES QUI SIGNALENT, et ce n'est pas cosmétique : ce gate ne juge que ce que
+  // les règles 4, 4d et 11 ont déjà déclaré conforme. Placé avant elles, il accuserait un module de
+  // ne pas porter de renvoi là où la vraie cause est un renvoi ILLISIBLE — la mauvaise ligne.
+  if (formatActionnable) {
+    verifierFormatActionnable(titres, ouverturesDeMarche, ancrage.seanceFrontmatter, signaler);
+  }
 
   // Le RECENSEMENT vient en dernier, et il ne signale rien : ce qu'il rend est jugé par
   // `validerRacine`, seule à voir toutes les leçons du sujet.
@@ -2888,7 +3029,13 @@ function validerLecon(dossier, horaire, exercices, sujetsFreres) {
     sujetsFreres,
   };
   const corps = texte.slice(separation[0].length);
-  const { exercicesCites, modulesCites } = verifierCorps(corps, statut, ancrage, signalerLecon);
+  const { exercicesCites, modulesCites } = verifierCorps(
+    corps,
+    statut,
+    ancrage,
+    MODULES_AU_FORMAT_ACTIONNABLE.has(slug),
+    signalerLecon,
+  );
   verifierTitreContreFrontmatter(corps, frontmatter, signalerLecon);
 
   // --- 8. quiz.json (obligatoire) -----------------------------------------
@@ -3698,7 +3845,8 @@ function validerRacine(racine) {
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {{ racine: string, racineExplicite: boolean, fixtures: string | null, clefs: boolean }}
+ * @returns {{ racine: string, racineExplicite: boolean, fixtures: string | null, clefs: boolean,
+ *   modulesActionnables: boolean }}
  */
 function lireArguments() {
   const args = process.argv.slice(2);
@@ -3707,6 +3855,7 @@ function lireArguments() {
   /** @type {string | null} */
   let fixtures = null;
   let clefs = false;
+  let modulesActionnables = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -3714,6 +3863,11 @@ function lireArguments() {
     // l'entrée standard, jamais par argv (voir l'en-tête du fichier).
     if (arg === '--clefs') {
       clefs = true;
+      continue;
+    }
+    // `--modules-actionnables` est un DRAPEAU aussi : il n'imprime qu'une décision de ce fichier.
+    if (arg === '--modules-actionnables') {
+      modulesActionnables = true;
       continue;
     }
     if (arg === '--racine' || arg === '--fixtures') {
@@ -3733,9 +3887,10 @@ function lireArguments() {
     echec(`argument inconnu : « ${String(arg)} »`, [
       'Usage : node tools/content-pipeline/valider.mjs [--racine <chemin>] [--fixtures <dossier>]',
       '        node tools/content-pipeline/valider.mjs --clefs   (tableau JSON sur stdin)',
+      '        node tools/content-pipeline/valider.mjs --modules-actionnables',
     ]);
   }
-  return { racine, racineExplicite, fixtures, clefs };
+  return { racine, racineExplicite, fixtures, clefs, modulesActionnables };
 }
 
 /**
@@ -3773,6 +3928,15 @@ function enJsonAscii(valeurs) {
 }
 
 const options = lireArguments();
+
+if (options.modulesActionnables) {
+  // --- Mode LISTE DU FORMAT ACTIONNABLE -------------------------------------
+  // Trié, pour que la sortie soit la même sur ce poste et sur le runner (même raison que
+  // `comparerOctets`). ASCII pur, comme `--clefs` : ces slugs sont en kebab-case aujourd'hui, mais
+  // c'est le format de sortie qui doit traverser n'importe quelle page de code, pas les valeurs.
+  process.stdout.write(`${enJsonAscii([...MODULES_AU_FORMAT_ACTIONNABLE].sort(comparerOctets))}\n`);
+  process.exit(0);
+}
 
 if (options.clefs) {
   // --- Mode PARITÉ DES DEUX COPIES DE LA CLEF -------------------------------

@@ -488,16 +488,39 @@ rougir le build sur les dix leçons publiées le jour de sa livraison, ce que D-
 Quand elle est présente, sa **place** est vérifiée pour tout le monde.
 
 🔴 **La liste ne peut pas contenir de permission morte.** Un slug présent dans
-`MODULES_AU_FORMAT_ACTIONNABLE` **sans leçon correspondante** dans le corpus fait **échouer** le
-build : sans cette règle, un module renommé ou retiré laisserait derrière lui une entrée qui n'exige
-plus rien de personne, et que personne ne relirait (famille **S-005** — une permission qui ne
-correspond à rien est une permission qu'on croit appliquée).
+`MODULES_AU_FORMAT_ACTIONNABLE` **sans leçon publiée correspondante** fait rougir un gate : sans
+cette règle, un module renommé ou retiré laisserait derrière lui une entrée qui n'exige plus rien de
+personne, et que personne ne relirait (famille **S-005** — une permission qui ne correspond à rien
+est une permission qu'on croit appliquée).
 
-**Le compteur, c'est ce qui interdit d'oublier le durcissement.** Un spec compare la liste aux leçons
-publiées et **imprime combien il en reste**. Le jour où les deux ensembles coïncident, la constante
-est **supprimée** et la règle devient inconditionnelle. Un compteur qui descend vaut mieux qu'une
-promesse dans un backlog — et il **ne redescend jamais** : un slug n'en sort que si le module
-disparaît.
+⚠️ **CE CONTRÔLE-LÀ NE VIT PAS DANS `valider.mjs`, ET LA RAISON EST MESURÉE (lot 9, 2026-09-08).**
+Le contrat écrivait « fait échouer le build », ce qui se lisait naturellement comme « dans le
+validateur ». Porté là, il mordrait sur **chaque racine** que le validateur examine — or il en
+examine une douzaine qui ne sont **pas** le corpus : les racines de
+`tools/content-pipeline/__fixtures__/`, qui n'ont aucune raison de porter un `projet-de-session`.
+Les verdir demanderait de leur écrire un module qu'elles n'ont pas lieu d'avoir. Le contrôle vit
+donc dans **`src/format-actionnable.spec.ts`**, seul à voir `content/cours/…` et lui seul — et
+**G-test est rouge tant que la liste ment**, ce qui bloque la PR au même titre. 🔴 **La leçon plus
+générale : une règle dont l'énoncé dit « le corpus » ne peut pas s'appliquer là où « la racine » est
+paramétrable.** Les onze racines de fixtures sont, pour ce validateur, des corpus à part entière.
+
+**Le compteur, c'est ce qui interdit d'oublier le durcissement.** Le même spec compare la liste aux
+leçons publiées et **imprime combien il en reste** (`FORMAT ACTIONNABLE — 1/10 module(s) repris`).
+Le compte n'est **pas épinglé** : l'épingler obligerait à le corriger à chaque module repris sans
+rien prouver de plus que le contrôle de permission morte. Le jour où les deux ensembles coïncident,
+la constante est **supprimée** et la règle devient inconditionnelle. Un compteur qui descend vaut
+mieux qu'une promesse dans un backlog — et il **ne redescend jamais** : un slug n'en sort que si le
+module disparaît.
+
+🔴 **CE QUI PROUVE QUE LE GATE DISCRIMINE, ET QUI N'EST PAS UN REFUS.** Le module 11 est **déjà
+conforme** depuis le lot 8-B : `content:build` vert ne dit donc rien de la sensibilité de la règle,
+et le corpus ne peut pas la démontrer. La preuve vit dans la racine témoin
+`tools/content-pipeline/__fixtures__/format-actionnable/` — un module au slug `projet-de-session`,
+conforme, que le spec copie dans un bac à sable jetable et abîme d'**une** mutation par cas. La
+moitié qui compte le plus n'est aucun des cinq refus : c'est le cas **`hors-liste`**, où la *même*
+faute est **acceptée** parce que le seul `slug` a changé. Sans lui, « refuse un titre sans renvoi »
+serait indistinguable de « refuse **tout** titre sans renvoi » — c'est-à-dire du gate que D-D existe
+pour ne pas construire.
 
 ## Schéma `quiz.json`
 
