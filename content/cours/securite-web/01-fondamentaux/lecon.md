@@ -80,8 +80,9 @@ blindée.
    analyse de l'application qui tourne (DAST).
 
 6. {voir="Le panorama des menaces de la séance 1"} Révise en priorité ce que la séance 1 porte
-   réellement — la triade, les huit familles d'attaques, la chaîne d'outils — et traite le reste
-   de cette leçon comme un complément utile mais non prioritaire.
+   réellement — ses **quatre** blocs : « Pourquoi la sécurité », la triade, les huit familles
+   d'attaques, la chaîne d'outils — et traite le reste de cette leçon comme un complément utile
+   mais non prioritaire.
 
 ::::
 
@@ -318,7 +319,7 @@ open-source depuis 2019) moyennant plus d'effort. **Un secret placé dans du cod
 l'utilisateur — clé d'API en dur, logique de licence — n'est pas protégé, seulement obscurci.**
 La seule protection réelle est de ne jamais transmettre le secret au client.
 
-## Le panorama des menaces de la séance 1 {diapos="23, 31-60, 79"}
+## Le panorama des menaces de la séance 1 {diapos="23, 30, 31-60, 79"}
 
 ::: cours
 Le cours consacre les diapositives 31 à 60 à un tour d'horizon de **huit familles d'attaques**,
@@ -360,7 +361,7 @@ mots de passe** ailleurs. La valeur volée n'est pas dans tes données, elle est
 tes visiteurs se répètent. Corollaire : raison de plus pour ne jamais stocker un mot de passe en
 clair, même sur un site sans enjeu apparent.
 
-::: correction-du-cours {source="Diapositives 46 et 52 du cours 01 (millésime 2026) ; compromission de polyfill.io, juin 2024 ; fiche KB web/securite/panorama-menaces.md, vérifiée le 2026-08-19"}
+::: correction-du-cours {source="Compromission de polyfill.io, juin 2024 ; fiche KB web/securite/panorama-menaces.md, vérifiée le 2026-08-19" diapos="46, 52"}
 Deux affirmations de ce panorama demandent une correction.
 **1. « Chiffrer la communication ne protège pas d'une attaque MITM » (diapositive 46).** Le
 chiffrement *seul*, en effet, ne suffit pas — mais TLS n'est pas que du chiffrement : c'est
@@ -429,10 +430,11 @@ exploitables ne saura jamais qu'elle a été compromise.
 ::: complement
 Le deck 2026 **nomme l'organisme OWASP** (diapositive 32) et **ne liste aucune de ses dix
 catégories** ; le plan de cours officiel ne mentionne jamais OWASP et énonce son contenu en
-clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce qui est attendu à l'examen, c'est
-donc de savoir **ce qu'est l'OWASP et à quoi sert un tel classement** — pas de réciter dix
-intitulés. Le tableau ci-dessous reste un excellent index vers la suite du cours. Relevé sur le
-deck 2026 et le plan de cours le 2026-08-19.
+clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce que la séance 1 porte, c'est donc
+**le nom de l'organisme et l'idée d'un tel classement** — aucune de ses dix catégories n'y est
+écrite. Comme partout ailleurs dans ce module, c'est une mesure de ce que la séance **contient**,
+et non une garantie sur ce que l'épreuve **exclut**. Le tableau ci-dessous reste un excellent
+index vers la suite du cours. Relevé sur le deck 2026 et le plan de cours le 2026-08-19.
 :::
 
 L'**OWASP** (*Open Worldwide Application Security Project*, organisme à but non lucratif) publie
@@ -541,12 +543,14 @@ Ouvre **PuTTY**, saisis l'adresse IP de ton serveur DigitalOcean, laisse le port
 confirmer ; ensuite, tu t'identifies et tu obtiens l'invite de commande de la machine.
 
 Pour les fichiers, ouvre **WinSCP** avec le même hôte et le même compte : il affiche ton poste à
-gauche, le serveur à droite, et tu déposes ton fichier dans le dossier du site par glisser-déposer.
+gauche, le serveur à droite, et tu déposes ton fichier dans le dossier servi par Apache —
+`/var/www/html/` sur une image LAMP — par glisser-déposer.
 :::
 ::: methode {libelle="L'équivalent moderne — le client OpenSSH de Windows"}
-Windows 10 et Windows 11 embarquent le client **OpenSSH** comme fonctionnalité installée par
-défaut : `ssh` et `scp` sont disponibles dans PowerShell ou l'invite de commandes, sans rien
-télécharger. La première connexion affiche la même empreinte de clé à confirmer.
+Windows embarque le client **OpenSSH** comme fonctionnalité installée par défaut depuis
+Windows 10 version 1809, et sur Windows 11 : `ssh` et `scp` répondent en ligne de commande sans
+rien télécharger (c'est une *fonctionnalité à la demande*, donc désinstallable — état vérifié le
+2026-09-09). La première connexion affiche la même empreinte de clé à confirmer.
 
 ```bash
 ssh utilisateur@203.0.113.10

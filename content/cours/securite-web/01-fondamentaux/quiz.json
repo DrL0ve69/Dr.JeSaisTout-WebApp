@@ -88,9 +88,9 @@
     {
       "id": "q6",
       "type": "vrai-faux",
-      "affirmation": "Pour l'examen 1 du cours 420-B10-HU (millésime 2026), il faut savoir réciter les dix catégories de l'OWASP Top 10.",
+      "affirmation": "La séance 1 du cours 420-B10-HU (millésime 2026) enseigne les dix catégories de l'OWASP Top 10.",
       "bonneReponse": false,
-      "justification": "Faux, et c'est vérifié sur les sources du cours : le deck de la séance 1 NOMME l'organisme OWASP (diapositive 32) mais ne liste AUCUNE de ses dix catégories, et le plan de cours officiel ne mentionne jamais OWASP — il énonce son contenu en clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce qui est attendu est de savoir ce qu'est l'OWASP et à quoi sert un tel classement. Connaître le Top 10 reste professionnellement utile — le contrôle d'accès défaillant y est premier en 2021 comme en 2025 — mais c'est un complément de la base de connaissances, pas une consigne d'examen.",
+      "justification": "Faux, et c'est mesuré sur les sources du cours : le deck de la séance 1 NOMME l'organisme OWASP (diapositive 32) mais ne liste AUCUNE de ses dix catégories, et le plan de cours officiel ne mentionne jamais OWASP — il énonce son contenu en clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce que la séance porte, c'est le nom de l'organisme et l'idée d'un tel classement. Attention à la portée exacte de cette réponse : elle dit ce que la séance 1 CONTIENT, jamais ce que l'épreuve exclut — la diapositive 6 annonce que l'examen porte sur les notes et les exercices de la session entière. Connaître le Top 10 reste professionnellement utile : le contrôle d'accès défaillant y est premier en 2021 comme en 2025.",
       "ficheSource": "web/securite/fondamentaux-securite-web.md"
     },
     {
