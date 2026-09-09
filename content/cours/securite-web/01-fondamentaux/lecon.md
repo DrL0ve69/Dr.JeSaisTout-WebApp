@@ -19,13 +19,13 @@ fiches-sources:
   - web/securite/carte.md
   - web/securite/panorama-menaces.md
 cree: 2026-08-20
-maj: 2026-08-20
+maj: 2026-09-09
 statut: publiee
 ---
 
 # Fondamentaux de la sécurité des applications web
 
-## L'idée en une image
+## L'idée en une image {diapos="26, 29"}
 
 Imagine le coffre-fort d'une bijouterie. Il tient trois promesses, et il faut les trois pour
 qu'il serve à quelque chose :
@@ -54,37 +54,92 @@ ce qu'un cambrioleur lui écrit sur un bout de papier ; une base de données, si
 l'objet des modules sur l'injection et le XSS, et ça n'a aucun équivalent dans une porte
 blindée.
 
-## Ce que la séance 1 enseigne, et ce que cette leçon ajoute
+## En bref — la marche à suivre {hors-cours}
+
+:::: marche-a-suivre {titre="Monter le poste de la session, puis évaluer une menace"}
+
+1. {voir="La chaîne d'outils de la session"} Monte le poste du laboratoire avant tout le reste :
+   **XAMPP ou WAMP** en local, un éditeur de texte, **PuTTY** et **WinSCP** pour piloter la
+   machine distante, un compte **DigitalOcean**, un **nom de domaine** chez GoDaddy. Sans domaine,
+   pas de certificat TLS — donc pas de HSTS ni de cookie `Secure` à la fin de la session.
+
+2. {voir="La triade CIA — le cadre qui classe toutes les attaques"} Devant une menace, demande
+   **laquelle des trois promesses elle brise** : confidentialité, intégrité, disponibilité. C'est
+   le cadre que le cours pose d'entrée de jeu, et c'est lui qui rend le reste classable.
+
+3. {voir="Ne jamais faire confiance au client"} Devant un contrôle de sécurité, demande **de quel
+   côté il vit**. Tout ce qui s'exécute chez le visiteur est une suggestion : le contrôle qui
+   compte est celui que le serveur refait lui-même.
+
+4. {voir="0-day, CVE et CWE — nommer une faille"} Devant une faille, **nomme-la** avant de la
+   corriger : un **CWE** dit de quelle catégorie de défaut il s'agit, un **CVE** identifie une
+   occurrence précise dans un produit précis.
+
+5. {voir="Comment on cherche les failles"} Devant une application à tester, **choisis le type de
+   test avant l'outil** : boîte noire, blanche ou grise ; analyse statique du code (SAST) ou
+   analyse de l'application qui tourne (DAST).
+
+6. {voir="Le panorama des menaces de la séance 1"} Révise en priorité ce que la séance 1 porte
+   réellement — ses **quatre** blocs : « Pourquoi la sécurité », la triade, les huit familles
+   d'attaques, la chaîne d'outils — et traite le reste de cette leçon comme un complément utile
+   mais non prioritaire.
+
+::::
+
+## Ce que la séance 1 enseigne, et ce que cette leçon ajoute {diapos="6, 7, 17, 18"}
 
 Ce module est le plus déséquilibré du cours, et le savoir te fait gagner du temps de révision.
-Les diapositives de la séance 1 ne portent que **trois** blocs ; tout le reste de ce que tu vas
-lire ici est un **complément** de la base de connaissances : juste, utile en entreprise, mais
-**pas exigible à l'examen 2026**.
+L'ordre du jour de la séance 1 (diapositive 18) annonce **quatre** blocs de contenu, plus une
+conclusion ; une bonne partie de ce que tu vas lire ici est un **complément** de la base de
+connaissances : juste, utile en entreprise, mais **absent des diapositives de cette séance-là**.
 
 ::: cours
-La séance 1 du cours 420-B10-HU (millésime 2026) enseigne trois choses, et ce sont celles-là
-qui sont matière d'examen : **la triade CIA** (diapositives 25-30), **le panorama des huit
-familles d'attaques courantes** et leur rattachement à la triade (diapositives 31-59), et la
-**chaîne d'outils du laboratoire** de la session (diapositives 61-76).
+La séance 1 du cours 420-B10-HU (millésime 2026) déroule **quatre** blocs de contenu, dans
+l'ordre du jour annoncé à la diapositive 18 : **« Pourquoi la sécurité »** (diapositives 19-24),
+**la triade CIA** (25-30), **le panorama des huit familles d'attaques courantes** (31-60) et la
+**chaîne d'outils du laboratoire** de la session (61-77). Une **Conclusion** (78-79) les ferme,
+et c'est elle qui porte la morale de la séance.
+:::
+
+::: cours
+**L'avertissement de la diapositive 17 est normatif, pas décoratif.** « Le piratage est une
+activité illégale sauf dans certains contextes spécifiques. Vous seul serez responsable si vous
+utilisez les techniques vues en classe ailleurs que dans le cadre du cours. » Autrement dit : ce
+que tu apprends ici s'exerce dans le laboratoire de la session, ou sur une cible dont le
+propriétaire t'a donné son accord — la portée est disciplinaire autant que légale, et elle
+précède tout ce que la leçon dit plus bas du cadre éthique.
 :::
 
 ::: complement
-Tout le reste de ce module — le vocabulaire (faille, exploit, intrusion, chapeaux), CVE et CWE,
-l'architecture client/serveur, l'OWASP Top 10, la kill chain, les types de tests, DVWA et Burp
-Suite — vient de la base de connaissances. C'est de la matière juste et professionnellement
-utile, mais aucune question d'examen 2026 ne s'appuie dessus.
+Ce que ce module ajoute, et que la séance 1 ne traite pas : le vocabulaire
+(faille, exploit, intrusion, chapeaux), CVE et CWE, l'OWASP Top 10, la kill chain, les types de
+tests, DVWA et Burp Suite. C'est de la matière juste et professionnellement utile — elle n'est
+simplement pas au programme de **cette séance-là**. L'architecture client/serveur, elle, ne
+figure pas dans cette liste : la séance 1 ne lui consacre pas de diapositive, mais elle
+**redevient matière plus tard**, dans les deux cours — voir « Ne jamais faire confiance au
+client ».
 :::
+
+**Ce que « hors séance 1 » ne dit pas, et c'est important pour choisir ce que tu révises.** La
+diapositive 6 annonce que « tout le contenu de l'examen se trouve dans **les notes et les
+exercices** », et la 7 autorise notes de cours et corrigés d'exercices pendant l'épreuve. Les
+notes sont celles des **treize** séances, et les exercices n'ont pas d'équivalent écrit dans
+cette leçon. Ce module peut donc te dire ce que la séance 1 porte et ce que le plan de cours
+annonce ; il ne peut **pas** te garantir qu'un point est *hors* examen. Traite le complément
+comme non prioritaire pour réviser la séance 1 — jamais comme exclu de l'évaluation.
 
 **La règle d'arbitrage, valable pour toute la session :** *à l'examen, donne la réponse du
 cours ; en production, applique la correction.* Quand les deux divergent, cette leçon te montre
 les deux et te dit laquelle sert où — elle n'efface jamais la version du cours.
 
-## La triade CIA — le cadre qui classe toutes les attaques
+## La triade CIA — le cadre qui classe toutes les attaques {diapos="25-30"}
 
 ::: cours
 Une application n'est réputée sécuritaire que si elle garantit **les trois principes à la
-fois** ; toute attaque vise à en compromettre au moins un. C'est le cadre qui permet de
-répondre à la question d'examen « quel ou quels principes cette attaque viole-t-elle ? ».
+fois** ; toute attaque vise à en compromettre au moins un — la diapositive 26 l'écrit ainsi :
+« toute forme d'attaque tentera de compromettre un ou plusieurs de ces principes ». C'est le
+cadre qui permet de répondre à la question « quel ou quels principes cette attaque
+viole-t-elle ? ».
 :::
 
 | Principe | La garantie | Ce qui la brise (exemples du cours) |
@@ -119,12 +174,13 @@ dans CIA. Et c'est pourtant lui qu'on réclame en premier après un incident. D'
 qui n'a aucun équivalent dans CIA.
 :::
 
-## Le vocabulaire : faille, exploit, intrusion
+## Le vocabulaire : faille, exploit, intrusion {hors-cours}
 
 ::: complement
-Cette section entière est un ajout de la base de connaissances. La diapositive d'introduction
-du cours **liste** ces mots — chapeau blanc, chapeau noir, pirate, éthique, faille, intrusion —
-sans les définir. Une définition répandue oppose « faille », trou de sécurité souvent
+Cette section entière est un ajout de la base de connaissances : aucune diapositive de la
+séance 1 ne définit ce vocabulaire. Les mots « chapeau », « éthique », « faille » et
+« intrusion » n'y figurent nulle part ; seul « pirate » y revient, employé sans être expliqué.
+Une définition répandue oppose « faille », trou de sécurité souvent
 accidentel, à « intrusion », le même trou utilisé par un acteur malicieux — un raccourci qui
 confond en réalité deux étapes distinctes.
 :::
@@ -170,7 +226,7 @@ coordonnée) : signalement privé au fabricant, puis publication après un déla
 immédiatement, ce qui force une réaction rapide mais expose les utilisateurs pendant toute la
 fenêtre sans correctif. Ne rien signaler, ou revendre la faille, est hors du cadre éthique.
 
-## 0-day, CVE et CWE — nommer une faille
+## 0-day, CVE et CWE — nommer une faille {hors-cours}
 
 ::: complement
 Ces trois notions ne sont ni dans les diapositives 2026 ni dans le plan de cours. Elles sont
@@ -206,12 +262,16 @@ poste, alors qu'un CVE n'atteint que ceux qui **surveillent** le catalogue. Pers
 téléphone à ton équipe pour l'avertir : c'est l'outillage d'analyse de dépendances qui joue ce
 rôle, et seulement si quelqu'un l'a branché.
 
-## Ne jamais faire confiance au client
+## Ne jamais faire confiance au client {seance="7" diapos="22"}
 
 ::: complement
-L'architecture client/serveur est un rappel de la base de connaissances ; le cours l'utilise
-partout sans la traiter pour elle-même. C'est pourtant le principe qui structure tout le reste
-de la session.
+La séance 1 ne consacre aucune diapositive à l'architecture client/serveur : ce rappel-ci vient
+de la base de connaissances. Le principe, lui, **redevient matière plus tard, et dans les deux
+cours** — la séance 7 de ce cours-ci liste la « validation des entrées utilisateur » parmi les
+protections contre le XSS (diapositive 22), et la séance 1 du cours 420-4P2-HU (PHP) énonce la
+frontière d'exécution : « le code PHP n'est pas visible dans le fureteur du client puisqu'il a
+été exécuté sur le serveur » (diapositive 60). Ne le range donc pas au rayon « jamais évalué » :
+c'est le principe qui structure tout le reste de la session.
 :::
 
 ```mermaid
@@ -259,14 +319,23 @@ open-source depuis 2019) moyennant plus d'effort. **Un secret placé dans du cod
 l'utilisateur — clé d'API en dur, logique de licence — n'est pas protégé, seulement obscurci.**
 La seule protection réelle est de ne jamais transmettre le secret au client.
 
-## Le panorama des menaces de la séance 1
+## Le panorama des menaces de la séance 1 {diapos="23, 30, 31-60, 79"}
 
 ::: cours
-Le cours ouvre la session par un tour d'horizon de **huit familles d'attaques**. Savoir les
-nommer et dire **quel principe CIA chacune vise** est de la matière d'examen. Le message du
-tableau est explicite : **un système n'est pas plus sécuritaire que sa composante la plus
-faible**.
+Le cours consacre les diapositives 31 à 60 à un tour d'horizon de **huit familles d'attaques**,
+et savoir les nommer fait partie de la matière. Il pose le lien avec la triade **en général**,
+pas famille par famille : « voir le genre d'attaques qui peuvent compromettre les principes
+CIA » (diapositive 30). Quant à la phrase que tout le monde retient — « **un système n'est pas
+plus sécuritaire que sa composante la plus faible** » — elle n'est pas dans ce bloc : elle est à
+la **Conclusion** de la séance (diapositive 79). C'est la morale de la séance entière, pas le
+titre du panorama.
 :::
+
+**La colonne « Principe CIA visé » du tableau ci-dessous est un travail de cette leçon, pas une
+diapositive.** Aucune des diapositives 33 à 59 n'apparie une famille d'attaques à un principe :
+le cours rend l'exercice possible, il ne le fait pas à ta place. Couvre la colonne, fais
+l'appariement toi-même, puis compare — c'est exactement le geste que la triade sert à outiller,
+et il vaut mieux qu'une colonne apprise par cœur.
 
 Ce que le tableau **montre**, sans que le cours l'énonce ainsi : sur les huit familles, deux
 seulement sont purement applicatives — la sécurité d'une application se joue largement en
@@ -283,14 +352,16 @@ dehors de son code.
 | **Hameçonnage** — exploite « la vulnérabilité éternelle », l'erreur humaine | Confidentialité | Humaine | Hors périmètre applicatif |
 | **Rançongiciel** — chiffre les données et réclame une rançon ; le vrai danger est sa vitesse de propagation | Disponibilité (+ confidentialité si exfiltration) | Poste, serveur | Sauvegardes hors ligne |
 
-**Une question posée telle quelle en cours : un site « sans données sensibles » mérite-t-il
-d'être protégé ?** Réponse attendue : **oui**. Un forum banal sert de **tremplin** — hébergement
-de charges malveillantes, relais de pourriel — et surtout, ses utilisateurs **réutilisent leurs
+**Une question posée telle quelle en cours, à la diapositive 23 — donc dans le bloc « Pourquoi
+la sécurité », pas dans le panorama : un site « sans données sensibles » mérite-t-il d'être
+protégé ?** Réponse attendue, et le cours l'écrit ainsi : **oui**, il « peut servir de
+tremplin ». Un forum banal héberge des charges malveillantes, relaie du pourriel — et surtout,
+ses utilisateurs **réutilisent leurs
 mots de passe** ailleurs. La valeur volée n'est pas dans tes données, elle est dans le fait que
 tes visiteurs se répètent. Corollaire : raison de plus pour ne jamais stocker un mot de passe en
 clair, même sur un site sans enjeu apparent.
 
-::: correction-du-cours {source="Diapositives 46 et 52 du cours 01 (millésime 2026) ; compromission de polyfill.io, juin 2024 ; fiche KB web/securite/panorama-menaces.md, vérifiée le 2026-08-19"}
+::: correction-du-cours {source="Compromission de polyfill.io, juin 2024 ; fiche KB web/securite/panorama-menaces.md, vérifiée le 2026-08-19" diapos="46, 52"}
 Deux affirmations de ce panorama demandent une correction.
 **1. « Chiffrer la communication ne protège pas d'une attaque MITM » (diapositive 46).** Le
 chiffrement *seul*, en effet, ne suffit pas — mais TLS n'est pas que du chiffrement : c'est
@@ -307,7 +378,7 @@ d'héberger ses dépendances soi-même, de les figer par version (`package-lock.
 imposé, et de les analyser en continu (`npm audit`, `composer audit`, Dependabot).
 :::
 
-## Le déroulé d'une intrusion : la kill chain
+## Le déroulé d'une intrusion : la kill chain {hors-cours}
 
 ::: complement
 Ni la kill chain ni MITRE ATT&CK n'apparaissent dans le millésime 2026 du cours — ni dans les
@@ -354,15 +425,16 @@ d'erreur bavard, faille exploitable). Les phases suivantes se détectent par la 
 et la surveillance**, pas par du code défensif — ce qui explique qu'une application sans traces
 exploitables ne saura jamais qu'elle a été compromise.
 
-## L'OWASP Top 10 — deux millésimes actifs
+## L'OWASP Top 10 — deux millésimes actifs {diapos="32, 83"}
 
 ::: complement
 Le deck 2026 **nomme l'organisme OWASP** (diapositive 32) et **ne liste aucune de ses dix
 catégories** ; le plan de cours officiel ne mentionne jamais OWASP et énonce son contenu en
-clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce qui est attendu à l'examen, c'est
-donc de savoir **ce qu'est l'OWASP et à quoi sert un tel classement** — pas de réciter dix
-intitulés. Le tableau ci-dessous reste un excellent index vers la suite du cours. Relevé sur le
-deck 2026 et le plan de cours le 2026-08-19.
+clair (« SQL, XSS, CSRF, Session… »), pas en codes A0x. Ce que la séance 1 porte, c'est donc
+**le nom de l'organisme et l'idée d'un tel classement** — aucune de ses dix catégories n'y est
+écrite. Comme partout ailleurs dans ce module, c'est une mesure de ce que la séance **contient**,
+et non une garantie sur ce que l'épreuve **exclut**. Le tableau ci-dessous reste un excellent
+index vers la suite du cours. Relevé sur le deck 2026 et le plan de cours le 2026-08-19.
 :::
 
 L'**OWASP** (*Open Worldwide Application Security Project*, organisme à but non lucratif) publie
@@ -394,11 +466,13 @@ Ce qu'il faut retenir en une phrase : **le contrôle d'accès défaillant est pr
 millésimes** — c'est-à-dire que la faille la plus répandue au monde n'est pas une technique
 exotique, c'est l'oubli de vérifier « as-tu le droit ? » à chaque requête.
 
-## Comment on cherche les failles
+## Comment on cherche les failles {hors-cours}
 
 ::: complement
 Les types de tests ne sont ni dans le deck 2026 ni dans le plan de cours. C'est du vocabulaire
-d'entreprise : il te servira en stage et en entrevue, pas à l'examen 1.
+d'entreprise : il te servira en stage et en entrevue, et aucune diapositive de la séance 1 ne le
+porte — ce qui n'est pas la même chose qu'une garantie d'exclusion de l'examen (voir « Ce que
+la séance 1 enseigne, et ce que cette leçon ajoute »).
 :::
 
 On distingue d'abord ce que le testeur **sait** de la cible :
@@ -424,18 +498,66 @@ les chemins que le scanner a effectivement parcourus. Et seul le **pentest manue
 failles de **logique métier** — contourner un tunnel d'achat, par exemple — qu'aucun scanner ne
 devine ; il est en revanche ponctuel et coûteux, donc jamais une ligne de défense continue.
 
-## La chaîne d'outils de la session
+## La chaîne d'outils de la session {diapos="13, 61-77"}
 
 ::: cours
-Le millésime 2026 abandonne le laboratoire volontairement vulnérable au profit d'un
-environnement de déploiement **réel** : **XAMPP ou WAMP** en local, **PuTTY** (SSH) et
-**WinSCP** (SFTP) pour piloter un serveur Ubuntu chez **DigitalOcean**, et un **nom de domaine**
-loué chez un registraire. Le domaine n'est pas un luxe : il est nécessaire pour obtenir des
-certificats TLS et donc pour activer les protections qui l'exigent (HSTS, cookies `Secure`,
-préfixe `__Host-`). Budget annoncé par le cours : environ 20 $ pour l'infonuagique **et** le domaine. Choisis un registraire
-permettant au moins de modifier l'enregistrement **A** et les serveurs de noms, sans quoi tu ne
-pourras pas pointer le domaine vers ton serveur.
+La séance 1 dresse la liste du matériel du laboratoire (diapositive 63) : **XAMPP ou WAMP** en
+local, **PuTTY** et **WinSCP** pour piloter la machine distante, un compte **DigitalOcean** et
+un **nom de domaine sur GoDaddy**. C'est un environnement de déploiement **réel**. Le cours
+consacre ensuite quatorze diapositives (64-77) à une marche à suivre d'achat sur GoDaddy,
+captures d'écran comprises : c'est la moitié du bloc « chaîne d'outils », et c'est sous ce
+nom-là qu'il faut le chercher pour réviser. La diapositive 66 autorise explicitement un autre
+registraire, à condition qu'il permette de modifier l'enregistrement **A** et les serveurs de
+noms — sans quoi tu ne pourras pas pointer le domaine vers ton serveur. Le domaine n'est pas un
+luxe : il est nécessaire pour obtenir des certificats TLS et donc pour activer les protections
+qui l'exigent (HSTS, cookies `Secure`, préfixe `__Host-`).
 :::
+
+::: cours
+**Le budget est annoncé en deux chiffres, jamais en un seul**, et hors des quatre blocs de
+contenu — dans la partie administrative de la séance (diapositive 13) : « Plateforme
+infonuagique 5 $ (maximum) » et « Nom de domaine 15 $ (environ) ». Les deux lignes ne sont pas
+de même nature — l'une est un plafond, l'autre une estimation — et aucune devise n'est
+précisée. Retiens-les telles quelles plutôt qu'un total : additionner un maximum et une
+estimation produit un montant que le cours n'écrit nulle part.
+:::
+
+::: complement
+La diapositive 63 ne nomme que les outils ; elle ne dit ni les protocoles, ni le système du
+serveur. Les précisions qui suivent sont justes, mais elles ne viennent pas de cette séance-là :
+**PuTTY** est un client **SSH**, **WinSCP** transfère par **SFTP**, et la machine louée chez
+DigitalOcean tourne sous **Ubuntu**. « Ubuntu » et « SSH » n'apparaissent qu'aux séances
+suivantes de la session (2, 3, 9 et 10) ; « SFTP » n'apparaît dans aucune diapositive relevée,
+ni en sécurité ni en PHP. Retiens-les pour comprendre ce que tu installes, ne les attribue pas
+à la séance 1.
+:::
+
+**Piloter la machine distante et y déposer des fichiers se fait par deux chemins, pour le même
+résultat.** Le cours impose les deux clients graphiques ; Windows sait faire la même chose sans
+rien installer. Choisis l'onglet que tu veux — mais c'est la méthode du cours qui est évaluable.
+
+:::: methodes
+::: methode {libelle="La méthode du cours — PuTTY et WinSCP" defaut}
+Ouvre **PuTTY**, saisis l'adresse IP de ton serveur DigitalOcean, laisse le port à 22, puis
+*Open*. À la première connexion, PuTTY affiche l'empreinte de la clé du serveur et demande de la
+confirmer ; ensuite, tu t'identifies et tu obtiens l'invite de commande de la machine.
+
+Pour les fichiers, ouvre **WinSCP** avec le même hôte et le même compte : il affiche ton poste à
+gauche, le serveur à droite, et tu déposes ton fichier dans le dossier servi par Apache —
+`/var/www/html/` sur une image LAMP — par glisser-déposer.
+:::
+::: methode {libelle="L'équivalent moderne — le client OpenSSH de Windows"}
+Windows embarque le client **OpenSSH** comme fonctionnalité installée par défaut depuis
+Windows 10 version 1809, et sur Windows 11 : `ssh` et `scp` répondent en ligne de commande sans
+rien télécharger (c'est une *fonctionnalité à la demande*, donc désinstallable — état vérifié le
+2026-09-09). La première connexion affiche la même empreinte de clé à confirmer.
+
+```bash
+ssh utilisateur@203.0.113.10
+scp index.php utilisateur@203.0.113.10:/var/www/html/
+```
+:::
+::::
 
 ::: complement
 Précision datée : un certificat de confiance publique n'exige plus strictement un nom de
@@ -480,7 +602,7 @@ dépendance de production (éditeur, modèle d'affaires, permissions demandées)
 gadget.
 :::
 
-## Exemple simple
+## Exemple simple {diapos="39"}
 
 Le mécanisme isolé, sans rien autour : un panier d'achat qui croit son formulaire. C'est la
 faute la plus banale de tout ce cours, et celle qui coûte le plus cher à une boutique.
@@ -526,7 +648,7 @@ transiter par lui, même en lecture seule à l'écran.
 :::
 ::::
 
-## Exemple complet
+## Exemple complet {seance="10" diapos="92"}
 
 La même faute, en situation réaliste et avec des conséquences bien plus lourdes : c'est
 l'**autorisation** elle-même qui est confiée au client. On la voit ici sur deux piles
@@ -610,14 +732,14 @@ pas être écrit de travers.
 :::
 ::::
 
-## À toi de jouer
+## À toi de jouer {hors-cours}
 
 Huit questions pour vérifier que le cadre est en place : le vocabulaire, la triade, la frontière
-de confiance, et la distinction entre ce que le cours évalue et ce qui relève du complément.
+de confiance, et la distinction entre ce que la séance 1 porte et ce qui relève du complément.
 
 [[quiz]]
 
-## À retenir
+## À retenir {diapos="26, 29, 30, 79"}
 
 ::: a-retenir
 - **La triade CIA classe tout.** Confidentialité, intégrité, disponibilité : devant n'importe
@@ -632,11 +754,15 @@ de confiance, et la distinction entre ce que le cours évalue et ce qui relève 
 - **Ne jamais faire confiance au client.** Tout ce qui s'exécute dans le navigateur ou vit dans
   un binaire livré est lisible, modifiable et contournable. Une validation côté client est une
   aide à la saisie ; la sécurité se décide côté serveur, à chaque requête.
-- **Dans ce module, seuls la triade CIA, le panorama des huit attaques et la chaîne d'outils
-  viennent du cours.** Le reste est un complément : utile en production, hors examen 2026.
+- **La séance 1 porte quatre blocs de contenu** — « Pourquoi la sécurité », la triade CIA, le
+  panorama des huit attaques, la chaîne d'outils — et une conclusion, celle qui pose « pas plus
+  sécuritaire que sa composante la plus faible ». Le reste de ce module est un complément de la
+  base de connaissances : absent de **cette séance**, ce qui n'est pas la même chose qu'absent
+  de l'examen — le cours annonce (diapositive 6) que l'épreuve porte sur les notes et les
+  exercices de la session entière.
 :::
 
-## Aller plus loin
+## Aller plus loin {diapos="12, 83"}
 
 - **Fiche source principale** — `web/securite/fondamentaux-securite-web.md` (KnowledgeBase) :
   vocabulaire complet, disclosure, STRIDE, processus d'évaluation de la sécurité, DVWA et Burp

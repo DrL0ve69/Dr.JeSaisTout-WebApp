@@ -176,11 +176,26 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > « le jour où les deux ensembles coïncident » était **inatteignable**. Dénominateur = les publiées
 > **ancrées au cours**. Détail :
 > [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 9 ».
-> 🔴 **CE QUI RESTE OUVERT, ET QUI DEMANDE UN LOT À LUI :** aucune leçon n'écrit encore `:::: methodes`,
-> donc **G-axe et G-e2e n'ont vu aucun onglet** — leur vert prouve la non-régression, jamais le rendu, et
-> **rien ne mesure aujourd’hui que cocher un onglet montre son panneau**. Le spec e2e des trois états, la
-> passe axe sur une page portant des onglets et la capture en contraste forcé se font à la première leçon
-> qui emploie le conteneur — et ils ne tiennent pas dans une ligne de plus du lot 8-B.
+> ✅ **LE LOT 10 EST LIVRÉ (PR #61, 2026-09-09) — `01-fondamentaux` EST REPRIS, LE COMPTEUR DIT `2/9`.**
+> Dix-sept titres `##` (aucun `###`) : onze `{diapos="…"}`, six `{hors-cours}`, une marche à suivre à six
+> étapes **sans aucun bloc de code** — le module ne porte aucune commande à taper, et l'exigence admet la
+> phrase par étape. Il porte **le premier `:::: methodes` du dépôt**, et il est **rendu** : un
+> `<fieldset class="methodes">`, deux radios de même `name`, **un seul `checked`**. G-axe a donc enfin
+> tourné **sur une page à onglets** (1118 vérifications, 0 violation).
+> 🔴 **CE QUI RESTE OUVERT, ET QUI DEMANDE UN LOT À LUI :** le **spec e2e des trois états** (sans JS,
+> pré-hydratation, impression) et la **capture en contraste forcé** n'existent toujours pas — **rien ne
+> mesure que cocher un onglet montre son panneau**. Le lot 10 les **débloque** (la page existe), il ne les
+> écrit pas. ⚠️ **Et aucun gate ne peut mesurer la clause de rédaction de D-C** — le contenu masqué doit
+> être l'**équivalent** du visible : elle s'est fait enfreindre **dès le premier conteneur écrit**
+> (`/var/www/html/` n'existait que dans le volet masqué, introuvable au `Ctrl+F`).
+> 🔴 **LA LEÇON DU LOT 10, PAYÉE DEUX FOIS DANS LE MÊME LOT : une section neuve écrite APRÈS des
+> correctifs les recopie de mémoire et RESSUSCITE la version corrigée.** Deux étapes de la marche à
+> suivre ont réintroduit des réserves fermées deux commits plus tôt ; la seconde n'a été vue que par la
+> revue. ⚠️ **Aucun diff ne montre ça** — la section est *ajoutée*, la correction qu'elle défait est
+> ailleurs et intacte. **Une section neuve se relit contre chaque réserve FERMÉE, jamais contre le diff.**
+> Même famille : interdire une **classe** d'affirmation (« hors examen ») oblige à recenser **toutes**
+> ses occurrences, pas seulement celle qu'on corrigeait — l'encadré OWASP et le `quiz.json` q6 la
+> portaient encore, et c'est le correctif lui-même qui a créé l'incohérence.
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de

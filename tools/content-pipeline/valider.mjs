@@ -1180,7 +1180,7 @@ const SECTION_MARCHE = 'En bref — la marche à suivre';
  *
  * @type {ReadonlySet<string>}
  */
-const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['projet-de-session']);
+const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['projet-de-session', 'fondamentaux']);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
 const PREFIXE_MODULE = 'module:';

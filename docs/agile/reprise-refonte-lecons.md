@@ -1576,3 +1576,95 @@ G-axe et G-e2e n'ont **vu aucun onglet** — leur vert prouve la non-régression
 la passe axe sur une page portant des onglets et la capture en contraste forcé se font à la première
 leçon qui emploie le conteneur. Puis la reprise du module suivant (R-7 : les dix modules publiés
 passent devant le contenu neuf), qui fera descendre le compteur de 1/9 à 2/9.
+
+## ✅ CLÔTURE — LOT 10 « la reprise du module 01 » (PR #61, 2026-09-09)
+
+`MODULES_AU_FORMAT_ACTIONNABLE` porte désormais **deux** slugs, et le compteur imprimé par G-test
+dit **`FORMAT ACTIONNABLE — 2/9 module(s) ancré(s) au cours repris ; 7 restant(s)`**. Le module
+`01-fondamentaux` — dix-sept titres `##`, aucun `###` — porte onze renvois `{diapos="…"}` et six
+`{hors-cours}`, une section `## En bref — la marche à suivre` à six étapes, et **le premier
+`:::: methodes` du dépôt**.
+
+### 🔴 LE LEGS DU LOT 6 EST LEVÉ SUR SA MOITIÉ « RENDU », ET SEULEMENT SUR CELLE-LÀ
+
+Depuis le lot 6, aucune leçon n'écrivait le conteneur : G-axe et G-e2e n'avaient **vu aucun
+onglet**. Relevé sur `dist/…/fondamentaux/index.html` : **un** `<fieldset class="methodes">`, **deux**
+radios `.onglet` de même `name` (`la-chaine-d-outils-de-la-session_m4`), **un seul** `checked`, deux
+`<label class="onglet-nom">`, et **24 renvois d'encadré** rendus dont celui d'un
+`correction-du-cours` (« Séance 1 · diapos 46, 52 »). G-axe a donc tourné **sur une page portant des
+onglets** — 13 fichiers, 1118 vérifications, 0 violation.
+
+⚠️ **Ce que ce vert ne prouve toujours pas.** Le **spec e2e des trois états** (sans JS,
+pré-hydratation, impression) et la **capture en contraste forcé** n'existent pas : **rien ne mesure
+que cocher un onglet montre son panneau**. Le lot 10 les **débloque** — il ne les écrit pas. C'est le
+geste suivant, et il demande un lot à lui.
+
+### La cartographie d'abord, et `aucun` comme résultat
+
+`docs/contenu/renvois-diapos-module-01.md` — 45 lignes de table, **27 renvoyant à des diapositives,
+17 `aucun` en confiance certaine**. 44 termes cherchés dans les **21 extraits**, sans distinction de
+casse, et **la cellule les nomme**. ⚠️ Sa propre limite y est écrite : les **exercices de B10 n'ont
+pas d'extrait**, donc `aucun` veut dire « absent des 21 extraits de diapositives », jamais « absent
+du cours ». C'est cette phrase-là qui a permis de trancher R-3.
+
+### 🔴 LES TROIS RÉSERVES QUI ONT COÛTÉ LE PLUS, ET POURQUOI
+
+- **R-4** — la leçon affirmait que « la diapositive d'introduction du cours **liste** ces mots :
+  chapeau blanc, chapeau noir, pirate, éthique, faille, intrusion ». Mesuré : `chapeau` **0**,
+  `éthique` **0**, `intrusion` **0**, `faille` **1** — et dans l'autre cours. **Cette diapositive
+  n'existe pas.** Parade appliquée : **retirer l'attribution, garder le fait**.
+- **R-3** — « aucune question d'examen 2026 ne s'appuie dessus » est une **promesse que ce dépôt ne
+  peut pas tenir** : la diapositive 6 écrit que l'examen porte sur « les notes **et les exercices** »,
+  les notes sont celles des treize séances. ⚠️ **Une promesse d'exclusion fait choisir à l'étudiant ce
+  qu'il ne révise pas** — c'est le pire des deux échecs symétriques, pire qu'un fait manquant.
+- **R-1** — le déck porte **quatre** blocs de contenu, pas trois ; la leçon **enseignait** le
+  quatrième (diapositive 23) tout en le déclarant inexistant.
+
+### 🔴 LA LEÇON DE MÉTHODE DU LOT, PAYÉE DEUX FOIS DANS LE MÊME LOT
+
+**Une marche à suivre écrite APRÈS les correctifs les recopie de mémoire et ressuscite la version
+corrigée.** L'étape 2 réintroduisait l'appariement attaque→CIA « que le cours repose à chaque
+famille » (R-7, fermée deux commits plus tôt) ; l'étape 6 réintroduisait « trois blocs » (R-1). La
+première a été attrapée par relecture, **la seconde seulement par la revue à regard neuf**.
+⚠️ **Aucun diff ne peut montrer ça** : la section neuve est *ajoutée*, la correction qu'elle défait
+est ailleurs et non touchée. **Une section neuve se relit contre chaque réserve FERMÉE, jamais contre
+le diff.**
+
+Même famille, autre forme : l'encadré OWASP affirmait encore « ce qui est **attendu à l'examen** …
+pas de réciter dix intitulés », et `quiz.json` q6 le durcissait en « Faux » catégorique. **C'est la
+correction R-3 qui a créé l'incohérence** — le passage était juste avant elle. ⚠️ **Quand on
+interdit une CLASSE d'affirmation, il faut recenser toutes ses occurrences, pas seulement celle qu'on
+corrigeait.**
+
+### Ce que la revue a mesuré d'autre
+
+⚠️ **Un volet d'onglet masqué avait capté une matière UNIQUE** : `/var/www/html/` n'existait nulle
+part ailleurs dans la leçon. C'est exactement ce que la clause de rédaction de **D-C** interdit — le
+contenu masqué est l'**équivalent** du visible, jamais une information qu'on ne trouve pas ailleurs —
+et le `Ctrl+F` ne l'atteint pas (R-4 du verdict, coût assumé). Le chemin est nommé dans le volet
+visible. 🔴 **Aucun gate ne peut mesurer cette clause** : c'est une règle de rédaction, et elle s'est
+fait enfreindre **dès le premier conteneur écrit**.
+⚠️ Un `correction-du-cours` mettait « Diapositives 46 et 52 » **en texte libre dans `source=`** alors
+que la variante **admet `diapos`** : le renvoi n'était ni mesuré ni rendu. La table des variantes du
+§3 se relit avant d'écrire un encadré, pas après.
+
+### Les défauts de BRIEF de ce lot, comptés
+
+Quatre agents, dont **deux au-dessus du maximum** : cartographie **186k**, réserves du périmètre
+**146k**, réserves de l'outillage **143k**, format actionnable **157k**, revue **148k**.
+🔴 **Le débordement de la cartographie a une cause nommable : la MESURE D'ABSENCE est un lot en
+soi.** Le brief la mentionnait en une ligne (« cherche les termes dans les 21 extraits ») ; c'est en
+réalité **44 termes × 21 fichiers**, dont chaque résultat entre au contexte. **Même patron que les
+fixtures (§9 du budget de contexte) : ce que l'agent doit PRODUIRE se compte avant d'écrire le
+brief — et une campagne de `grep` produit du volume exactement comme un corpus de fixtures.**
+
+**Gates.** G-lint **0** · G-typage-outils **0** · G-content **10 leçons · 939/939 identifiants
+uniques · 0 dépassement** (`fondamentaux` 123,0 → 124 Ko brut / 33,4 Ko servi) · `--fixtures`
+**52/52**, compte en dur **inchangé** · G-test **1140 passés / 1 sauté · 46 fichiers**, **inchangés**
+· G-build **13 routes · 14 hachages de style / 0 de script**, **inchangés** · G-axe **13 fichiers ·
+1118 vérifications · 0 violation** · G-e2e **50 passés / 1 sauté**.
+
+**Le geste suivant : le legs du lot 6, dans sa moitié qui reste.** Écrire le spec e2e des trois états
+d'un onglet sur `cours/securite-web/fondamentaux/` — la page porte enfin le conteneur — et la capture
+en contraste forcé (R-8 : l'onglet actif se signale par un canal **non chromatique**). Puis la reprise
+du module suivant, qui fera descendre le compteur de 2/9 à 3/9.
