@@ -111,6 +111,14 @@ pour que la colonne `Diapos` ne mélange jamais deux numérotations.
 C'est le cœur du problème : dix endroits où les deux cours se croisent, dont **six** où la leçon
 attribue à un seul cours une matière qui appartient aux deux, ou au mauvais.
 
+> ✅ **LES DIX SONT TRAITÉS DANS LA LEÇON — R-1, R-3, R-6 et R-10 au lot 8-A (PR #56), R-2, R-4,
+> R-5, R-7 et R-8 au lot 8-B (PR #57).** R-9 n'appelait aucune correction : il constate seulement que
+> le module suppose les commandes Linux acquises par son `prerequis`. **Ce qui suit reste la mesure,
+> pas une liste de tâches** — il ne se relit pas comme un reste à faire, mais comme la preuve
+> sur laquelle chaque correction s'appuie. Le mode de traitement est le même partout : la leçon
+> **nomme** le désaccord au lieu de le trancher en silence, parce que l'étudiant a la diapositive
+> sous les yeux.
+
 **R-1 · L'image du droplet n'a pas la même version selon le cours.** B10 s2 d24 dit
 « LAMP on **18.04** » ; 4P2 s8 d37 dit « LAMP on **24.04** ». La leçon retient 24.04 (relevé daté du
 marketplace) : elle suit donc le 4P2 sans le dire. Un étudiant de B10 qui relit sa diapositive lira

@@ -133,13 +133,21 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > `src/aides-de-test/bac-a-sable-inter-cours.ts` (**→ 0,0 %**, comptes de tests identiques). ⚠️ **Partager
 > une table d’ATTENTE n’affaiblit pas L-095** : chaque spec lance toujours son propre juge, et le contrat
 > veut la même phrase des deux côtés puisque l’auteur ne sait pas lequel des deux outils l’a repoussé.
-> ✅ **LE LOT 8-A EST LIVRÉ (PR #56, 2026-09-08), ET IL LÈVE LA RÉSERVE DU LOT 5 PAR MESURE.** Les onze
-> titres de la moitié haute du module 11 sont ancrés. Relevé sur l’artéfact prerendu : **11**
-> `<p class="renvoi-titre">`, et au sommaire **18 entrées dont 11 portent une mention et 7 restent
-> MUETTES** — le silence d’« absent ≠ false » est donc visible **en production**. ⚠️ **`{hors-cours}`
-> n’est pas « je n’ai pas cherché »** : les sept sont adossés à une mesure d’absence sur les 16 extraits
-> (748 diapositives). La matière est dans `docs/contenu/renvois-diapos-module-11.md` ; **le lot 8-B**
-> (moitié basse) y trouve ses cinq réserves déjà mesurées, R-2, R-4, R-5, R-7 et R-8.
+> ✅ **LE LOT 8 EST LIVRÉ EN ENTIER — 8-A (PR #56) ET 8-B (PR #57), 2026-09-08. LE MODULE 11 EST
+> TOTALEMENT CARTOGRAPHIÉ.** Relevé sur l’artéfact prerendu : **18** `<p class="renvoi-titre">`, et au
+> sommaire **18 entrées sur 18 portant une mention, ZÉRO muette** (8-A en laissait 7). C’est la
+> condition que le gate total du **lot 9** attend — et c’est aussi pourquoi ce gate **ne pourra pas se
+> prouver sur le corpus** : il faudra une fixture qui viole la règle. ⚠️ **`{hors-cours}` n’est pas
+> « je n’ai pas cherché »** : les dix sont adossés à une mesure d’absence sur les 16 extraits (748
+> diapositives). Les **dix** recoupements de `docs/contenu/renvois-diapos-module-11.md` §2 sont
+> traités ; le mode est toujours le même — **nommer le désaccord dans la leçon**, jamais le trancher en
+> silence, parce que l’étudiant a la diapositive sous les yeux. ⚠️ **Une correction d’encadré se
+> propage au RÉSUMÉ, qui n’est dans aucun diff d’encadré** : R-4 et R-5 vivaient aussi dans le
+> paragraphe d’ouverture de la section et dans `À retenir`.
+> ✅ **La 4ᵉ réserve du lot 0ter est fermée** : `sommaire.ts:positionDuJalon` ne *teste* aucune nature
+> d’évaluation, il **présuppose** qu’un jalon ne partage jamais sa séance avec un module — faux en
+> production depuis `evaluation-pratique`. 🔴 **Un CONSOMMATEUR d’invariant ne rougit dans aucun grep de
+> la règle qu’il suppose ; seul un test le tient** (mutation `<` → `<=` : 1 rouge exactement).
 > ⚠️ **DÉFAUT NEUF, NOMMÉ ET NON CORRIGÉ : le pipeline ne rend pas le code en ligne dans un TITRE** — ni
 > dans le `<h3>`, ni au sommaire ; le lecteur voit les accents graves. Contourné côté contenu au module
 > 11 ; toute leçon qui met des rétronotations dans un titre reproduira le défaut.

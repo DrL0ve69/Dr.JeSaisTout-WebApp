@@ -882,6 +882,48 @@ describe('Sommaire', () => {
       expect(hote(fixture).querySelectorAll('.jalon').length).toBe(0);
     });
 
+    it('🔴 rend le jalon PUIS le module quand un module PORTE la séance d’évaluation', async () => {
+      // Réserve laissée ouverte par le lot 0ter, fermée ici (lot 8-B). `positionDuJalon`
+      // n'applique aucune règle de nature d'évaluation : il PRÉSUPPOSE qu'un jalon ne
+      // partage jamais sa séance avec un module. Depuis que `evaluation-pratique` rend
+      // une séance d'évaluation déclarable (lot 0bis), la présupposition est fausse en
+      // production — le module 11 est PUBLIÉ sur la séance 11, celle du projet.
+      //
+      // Ce que le cas mesure : le groupe {11} ne DÉCLENCHE PAS le fail-closed (il faut
+      // `min < seance && max > seance`, or 11 n'est ni avant ni après lui-même), et il
+      // ne réclame pas non plus la position du jalon (`max < seance` est faux). Le
+      // jalon se pose donc après le DERNIER groupe qui précède vraiment la séance 11,
+      // et le module qu'il évalue le suit. Un consommateur d'invariant ne rougit dans
+      // aucun grep de la règle qu'il suppose : seul un test le tient.
+      preparer(SEANCES, [
+        ...MANIFESTE_ANCRE.slice(0, 2),
+        {
+          sujet: 'securite-web',
+          slug: 'projet-de-session',
+          section: 'Projet de session',
+          ordre: 3,
+          titre: 'Amorcer un projet LAMP',
+          dureeEstimee: 60,
+          niveau: 'cegep',
+          statut: 'publiee',
+          seance: 11,
+        },
+        { ...MANIFESTE_ANCRE[2]!, ordre: 4 },
+      ]);
+
+      const fixture = await rendre('securite-web');
+
+      expect(sequence(fixture)).toEqual([
+        'groupe: Fondements',
+        `jalon: ${EXAMEN_1}`,
+        'groupe: Sécurité du code',
+        `jalon: ${PROJET}`,
+        'groupe: Projet de session',
+        `jalon: ${EXAMEN_FINAL}`,
+        'groupe: Compléments',
+      ]);
+    });
+
     it('🔴 LÈVE en nommant la section quand un jalon tomberait DANS un groupe', async () => {
       // Contrôle positif du fail-closed. Le groupe « Mêlée » couvre les séances 5 ET
       // 7 : l'examen de la séance 6 n'a aucune frontière où se poser. Repousser le
