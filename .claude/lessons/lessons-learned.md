@@ -608,6 +608,23 @@ que s'il est **rejoué par un runner**, pas relaté dans un compte rendu.
 
 **Réfs (addendum lot 1b-B).** S-026, S-027 ; lot 1b-B « leçons actionnables », PR #53, 2026-09-08.
 
+**Addendum (lot 11 « leçons actionnables », 2026-09-09) — un contrôle positif peut être PROTÉGÉ PAR
+ACCIDENT, par un mécanisme que le dépôt ne contrôle pas.** `e2e/onglets-methodes.spec.ts` émule
+`forced-colors: active` pour prouver R-8 (une radio d'onglet non cochée reste visuellement vide) et
+n'avait, sur ce test précis, aucun contrôle positif — contrairement à ses deux voisins qui émulent
+`javaScriptEnabled: false` et `media: 'print'`. La revue l'a d'abord cru vert **même sans émulation**,
+ce qui était **faux, mais pour une raison qu'aucun des deux ne cherchait au bon endroit** : en thème
+sombre, l'agent utilisateur du navigateur peint l'intérieur d'une radio **non cochée** avec un noyau
+d'encre à 1,00 (pas 0,00) — l'assertion « noyau à 0,00 » aurait donc échoué même sans forced-colors,
+protégeant le test **par un artefact de rendu par défaut**, pas par l'émulation qu'il prétend exercer.
+**Règle élargie : « protégé par accident » se corrige comme « non protégé ».** Le fait qu'un test
+survive à l'absence du mécanisme qu'il cite ne dit rien sur ce mécanisme — il faut le contrôle positif
+explicite (émulation coupée ⇒ assertion doit échouer pour LA raison nommée), jamais raisonner sur ce
+qu'un moteur de rendu ferait « probablement » par défaut.
+
+**Réfs (addendum lot 11).** `e2e/onglets-methodes.spec.ts` (test R-8, `forced-colors: active`) ;
+`docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09.
+
 ---
 
 ## L-020 · L-014 s'applique à **chaque nouveau programme TypeScript**, pas qu'à celui qui l'a fait naître
@@ -816,6 +833,22 @@ frappé sa cible) et de [[L-013]] (seule une sonde bidirectionnelle fait foi) : 
 [[L-041]] (CSP `style-src`) et `.claude/lessons/security-lessons.md` **S-016**.
 
 **Réfs addendum.** `e2e/aides/sonde-csp.ts` ; branche E2-ST5 lot c2.
+
+**Addendum (lot 11 « leçons actionnables », 2026-09-09) — `toHaveText` lit `textContent`, rendu
+même en `display: none`.** Un test asserte « les volets imprimés portent les libellés de l'auteur »
+via `toHaveText` sur un sélecteur masqué par défaut — l'assertion était **déjà vraie à l'écran**,
+avant toute émulation `media: 'print'` : elle vérifiait l'ordre et l'orthographe du texte, jamais sa
+**révélation**. Mesuré en retirant la seule ligne CSS qui rend un panneau visible à l'impression
+(`.panneau-nom { display: block }` dans `@media print`) : le test restait **vert**. Le « 1 rouge »
+initialement observé au retrait du bloc `@media print` entier venait de l'**autre** règle du même
+bloc (`.panneau`), pas de celle visée. **Règle** : pour prouver qu'un élément **devient visible**
+sous une condition, utiliser un matcher qui touche la propriété qui change (`toBeVisible()`), jamais
+un matcher de contenu textuel qui ne distingue pas caché/affiché — et garder un témoin d'écran
+(état par défaut) pour prouver que le volet n'était PAS déjà visible avant l'émulation.
+
+**Réfs addendum (lot 11).** `e2e/onglets-methodes.spec.ts` ; `src/app/.../rendu-blocs.scss`
+(`@media print`, règle `.panneau-nom`) ; `docs/agile/reprise-refonte-lecons.md`,
+bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09.
 
 ---
 
@@ -1927,6 +1960,24 @@ produit, jamais lui-même.
 **Réfs.** mesure `forced-colors: active` (E6, dette de contraste) ; harnais de mutation du lot
 d'intermittence ; [[L-010]], [[L-015]], [[L-019]], [[L-025]], [[L-035]].
 
+**Symptôme (c), lot 11 « leçons actionnables », 2026-09-09 — un instrument CALIBRÉ sur ce qu'il
+mesure mesure zéro.** L'aide de capture `e2e/aides/pre-hydratation.ts` définissait le « fond » d'une
+image comme sa **teinte majoritaire** — juste sur un `<label>` de 358 × 44 où le fond domine
+largement. Sur une radio **cochée** (boîte de 13 × 13 occupée par un anneau plein et son point),
+c'est l'**encre** qui devient majoritaire : le point peint se comparait alors à lui-même et sortait
+à un noyau de 0,00, comme s'il n'y avait rien peint. Le test accusait le produit ; c'était l'instrument
+qui avait choisi sa référence **dans** la zone qu'il jugeait — cousin explicite de S-014 (un
+garde-fou dont l'ENTRÉE peut fabriquer la preuve qu'il exige). **Règle** : un instrument de mesure ne
+calibre jamais son « fond »/sa référence sur la zone mesurée elle-même — sur un échantillon
+**extérieur** garanti stable (ici le pixel du coin de l'image). Et le garde-fou qui détecte un
+échantillon de référence retombé sur de l'encre par malchance doit être **à sens unique** (lever
+seulement si le coin est saturé, > 0,98) : refuser aussi la capture presque vide dans l'autre sens
+volerait à l'appelant l'échec qu'il cherche à nommer — un garde-fou mutualisé ne doit jamais
+intercepter le signal que ses appelants existent pour observer ([[L-034]]).
+
+**Réfs (c).** `e2e/aides/pre-hydratation.ts` ; `e2e/onglets-methodes.spec.ts` ; S-014 ;
+`docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09.
+
 ---
 
 ## L-063 · Un invariant que rien n'observe n'est pas vrai — il est INDÉTERMINÉ
@@ -2925,6 +2976,67 @@ suivre », réserves R-1/R-3/R-7) ; `quiz.json` q6 ; lot 10, 2026-09-09. Famille
 correction laisse la prose en aval décrire l'ancien état, sans qu'aucun diff ne la signale),
 [[L-081]] (une leçon peut être fausse sans qu'aucune phrase le soit — la faute se répartit),
 [[L-095]] (une divergence de recensement est invisible à tout appariement local).
+
+---
+
+## L-099 · Une capacité e2e neuve n'est livrée que si son filet HORS SUITE la connaît — c'est le fichier qui PROMET le filet qui l'avait oublié
+
+**Symptôme.** Le lot 11 (« leçons actionnables ») a livré `e2e/onglets-methodes.spec.ts` avec son
+propre garde `exigerUneLeconAvecOnglets` — donc le pouvoir de se **sauter en entier** (sept tests) si
+`content/` perd son conteneur `:::: methodes`. Mais `CAPACITES_MESUREES_EN_E2E`, dans
+`src/workflows-github.spec.ts`, ne portait que `quiz` et `simulation` : le jour où `01-fondamentaux`
+perdrait son conteneur d'onglets, G-e2e passerait de 57 passés à 50 passés **+ 7 sautés, VERT**, et
+G-test aussi — aucun des deux gates structurants ne pouvait voir la perte.
+
+**Ce qui rendait le trou invisible.** L'en-tête de `e2e/aides/artefact-mesure.ts` affirme depuis
+E3-ST1 que « ce fichier SAUTE bruyamment, jamais en silence » — une promesse **plus forte que ce que
+le fichier applique lui-même** : un saut n'est « bruyant » que parce qu'un **autre** fichier
+(`src/workflows-github.spec.ts`) le confronte à `content/` et refuse qu'il reste silencieux. Le
+fichier qui porte l'affirmation n'est pas celui qui la tient — cousin de [[L-008]] (une contrepartie
+qui n'existe que dans un commentaire ne protège rien) sur un axe neuf : ici la contrepartie existe
+bien, mais dans un **fichier tiers** que rien n'oblige à suivre chaque capacité nouvelle. Famille
+[[L-037]] (« UNE définition, N appelants, dette payée » n'est vraie que si les N appelants sont
+recensés) appliquée à un **registre de capacités** plutôt qu'à une formule dupliquée.
+
+**Corollaire mesuré au passage.** La mesure des onglets doit **retirer les blocs clôturés**
+(`<!-- ... -->`) avant de chercher `:::: methodes`, alors que ses deux voisines (mesure du quiz, de
+la simulation) ne le font pas. Ce site enseigne le contenu-as-code : une leçon qui **documente** la
+grammaire des onglets dans un exemple clôturé ferait passer le littéral de capacité à `true` pendant
+que le spec, lui, continuerait de se sauter faute de conteneur réel — un « vert » qui célèbre la
+mention, pas la couverture.
+
+**Règle.** Tout fichier qui introduit un garde `exiger…` conditionnant le saut d'une suite e2e
+entière **s'accompagne, dans le même diff**, de l'ajout de sa capacité à
+`CAPACITES_MESUREES_EN_E2E` (`src/workflows-github.spec.ts`) — jamais différé à un lot « clôture ».
+Et toute promesse de la forme « ce module échoue bruyamment » écrite dans le fichier A, alors que
+c'est le fichier B qui la fait tenir, se réécrit pour nommer B explicitement, sinon un lecteur de A
+seul croira le filet acquis.
+
+**Réfs.** `e2e/onglets-methodes.spec.ts` ; `e2e/aides/artefact-mesure.ts` (en-tête) ;
+`src/workflows-github.spec.ts` (`CAPACITES_MESUREES_EN_E2E`) ; `docs/agile/reprise-refonte-lecons.md`,
+bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09. Famille [[L-008]], [[L-037]].
+
+---
+
+## L-100 · Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser
+
+**Symptôme.** En préparant le lot 11, quatre mutations de `rendu-blocs.scss` avaient été mesurées
+avant la revue, et les sept tests d'`e2e/onglets-methodes.spec.ts` discriminaient sur les quatre
+(2, 1, 2, 1 rouges exactement) — un dossier de preuve qui semblait complet. La revue a nommé une
+**cinquième** mutation, plus fine (retirer la seule ligne `.panneau-nom { display: block }` dans
+`@media print` plutôt que le bloc entier) : elle rendait **0 rouge** — voir [[L-025]] addendum,
+« `toHaveText` sur un sélecteur masqué ». Aucune des quatre mutations pensées à l'avance ne
+ressemblait à celle-là.
+
+**Règle.** Une campagne de mutations verte mesure la sensibilité du gate **sur les axes que son
+auteur a imaginés** — elle ne dit rien des axes qu'il n'a pas pensé à casser, et un dossier de
+preuve à 4/4 n'est pas un dossier complet. C'est précisément pour cette raison qu'une revue à
+**regard neuf** reste rentable même après une campagne de mutations entièrement verte : elle ne
+revérifie pas les mêmes axes, elle en cherche d'autres.
+
+**Réfs.** `e2e/onglets-methodes.spec.ts` ; `src/app/.../rendu-blocs.scss` (`@media print`) ; revue
+`code-reviewer`, lot 11 « leçons actionnables » ; `docs/agile/reprise-refonte-lecons.md`,
+bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09. Famille [[L-025]].
 
 ---
 
