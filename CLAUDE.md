@@ -286,6 +286,36 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > injecter dans un brief est celle du FICHIER qu'on modifie, jamais celle du gabarit qu'on donne.**
 > Détail : `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 13 » ; table des 27 renvois :
 > `docs/contenu/renvois-diapos-module-03.md`.
+> ✅ **LE LOT 14 EST LIVRÉ (2026-09-10) — `04-automatisation-surveillance` EST REPRIS, LE COMPTEUR DIT
+> `5/9`.** Trente-deux titres, zéro muet : 19 `{diapos}` de la séance 4, 1 `{seance="5"}` pour les
+> permissions et `sudoers`, 12 `{hors-cours}`, neuf étapes de marche à suivre, et le **quatrième
+> `:::: methodes`** (`crontab` contre un timer `systemd`) — **le premier des quatre à ne cacher aucun
+> fait unique**, parce que la parade du lot 13 (écrire la prose visible AVANT les volets) a été
+> appliquée telle quelle. Zéro sous-agent : la source fait 70 diapositives, et une **reprise** n’est pas
+> une rédaction.
+> 🔴 **DÉCRIRE UNE FAUTE DU SUPPORT SANS L’ATTRIBUER PRIVE L’ÉTUDIANT DU SEUL RENSEIGNEMENT UTILE.** La
+> leçon écrivait « on voit parfois `0 3 * * * 6` » ; mesuré, c’est le **cas n° 5 de la diapositive 31**,
+> mot pour mot — six champs pour cinq. La parade « retirer l’attribution, garder le fait » vaut quand la
+> source **n’est pas vérifiable** ; ici elle l’est à la ligne près, et la taire coûtait la diapositive
+> que l’étudiant va réviser. Devenu un `correction-du-cours`. Même famille, plus douce : le cours écrit
+> « Jour de la semaine (0-6) », la leçon l’attribuait à « beaucoup de mémentos ».
+> 🔴 **DEUXIÈME CONFIRMATION QU’UNE DIAPOSITIVE ORPHELINE NE FAIT ROUGIR PERSONNE** — cinq ici (33-37,
+> l’exercice de groupe du cours) contre douze au lot 13. **Le geste qui l’attrape est mécanique :
+> faire l’UNION des diapositives citées et la soustraire de `1..N`** ; ce qui reste est soit une
+> diapositive de titre, soit un trou de leçon. Les deux sens se mesurent séparément.
+> 🔴 **ÉCRIRE LE PREMIER CONTENEUR D’ONGLETS D’UNE PAGE MESURÉE A RENDU CINQ TESTS e2e ROUGES, SANS
+> AUCUN DÉFAUT DU PRODUIT.** Un volet non coché est en `display: none` : son bloc de code est au DOM et
+> **ne peut pas** être un arrêt de tabulation — `defileurs-clavier.spec.ts` comparait le parcours
+> clavier à *tous* les `.defileur`. Correctif : une seconde source filtrée sur `checkVisibility()`, qui
+> **garde le rang au DOM complet** (sans lui, `.defileur.nth(i)` vise le mauvais élément). ⚠️ Et une
+> troisième leçon en prime : **le rang d’une « Étape » n’est PAS un compteur de figures** — une étape
+> sans bloc de code est légale, les rangs rendus font `1, 2, 3, 6, 7, 8`. Une assertion universelle
+> héritée d’une population homogène devient fausse au premier membre d’une autre espèce ; on **nomme
+> l’ensemble** sur lequel elle porte plutôt que de la relâcher pour tout le monde.
+> ⚠️ **Trois titres portaient du code en ligne** (`` `crontab` ``, `` `cron` ``, `` `shell_exec` ``) :
+> dépouillés, comme au module 11 — **le défaut de rendu, lui, reste ouvert**. Détail et nœuds :
+> `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 14 » ; table des 32 renvois :
+> `docs/contenu/renvois-diapos-module-04.md`.
 >
 > ---
 >

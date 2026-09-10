@@ -2200,3 +2200,134 @@ Le candidat naturel est `04-automatisation-surveillance` (séance 4, déck
 l'Examen 1, et dernier avant que la reprise ne quitte le bloc « serveur et système » pour les modules
 OWASP (07 à 10), dont l'ancrage au cours sera d'une tout autre nature : leur matière vit dans les
 décks des séances 7 à 10, pas dans celui de leur propre séance.
+
+
+---
+
+## ✅ CLÔTURE — LOT 14 « la reprise du module 04 » (2026-09-10)
+
+`MODULES_AU_FORMAT_ACTIONNABLE` porte **cinq** slugs et le compteur dit **`5/9 module(s) ancré(s)
+au cours repris ; 4 restant(s) : 07-injection, 08-xss, 09-csrf, 10-controle-acces`**. Le module
+`04-automatisation-surveillance` — séance 4, `crontab` et scriptage PHP — porte **trente-deux**
+titres `##`/`###`, **zéro muet** : dix-neuf `{diapos="…"}` de la séance 4, **un**
+`{seance="5" diapos="38-42, 63, 67-71, 74-77, 82-84"}` pour les permissions et `sudoers`, **douze**
+`{hors-cours}`, une marche à suivre de **neuf** étapes et le **quatrième `:::: methodes` du dépôt**
+(`crontab` contre un timer `systemd`).
+
+Cartographie mesurée : [`docs/contenu/renvois-diapos-module-04.md`](../contenu/renvois-diapos-module-04.md).
+
+### 🔴 CE QUE LE LOT A TROUVÉ ET QU’AUCUN GATE N’AURAIT VU : le cours contient l’erreur qu’il enseigne
+
+La leçon écrivait « **on voit parfois** “tous les samedis à 3 h” écrit `0 3 * * * 6` », dans un
+`::: attention` sans source. Mesuré : c’est le **cas n° 5 de la diapositive 31**, mot pour mot — six
+champs là où `cron` n’en lit que cinq. Les cinq autres cas de la série (27 à 32) sont justes.
+
+⚠️ **Décrire une faute du support en la déguisant en usage général prive l’étudiant du seul
+renseignement utile : la diapositive qu’il révisera contient l’erreur.** C’est le miroir exact de la
+parade « retirer l’attribution, garder le fait », qui vaut quand la source **n’est pas vérifiable** —
+ici elle l’est, à la ligne d’extrait près, et la retirer était une perte. L’encadré est devenu un
+`correction-du-cours` avec sa source. Même famille, plus douce, pour la diapositive 19 : le cours
+écrit « Jour de la semaine (0-6) », la leçon l’attribuait à « beaucoup de mémentos ».
+
+### 🔴 UN TITRE MUET FAIT ROUGIR LE GATE ; UNE DIAPOSITIVE ORPHELINE NE FAIT ROUGIR PERSONNE — deuxième confirmation
+
+Le lot 13 avait trouvé douze diapositives (31-43) qu’aucun titre ne citait. Ici, **cinq** :
+l’**exercice de groupe** des diapositives 33 à 37 — quatre expressions `crontab` à lire, avec les
+réponses du cours dévoilées une par diapositive — ne vivait nulle part dans la leçon. Correctif
+éditorial : une section neuve, `### Lire une expression : les quatre du cours {diapos="33-37"}`, qui
+donne du même coup à la marche à suivre son étape « vérifie ton expression ».
+
+**Le geste qui l’attrape est mécanique, et il vaut la peine d’être écrit** : après avoir posé les
+renvois, faire l’**union** des diapositives citées et la soustraire de `1..N`. Ce qui reste est soit
+une diapositive de titre ou de transition — treize ici, énumérées au §3 de la cartographie — soit un
+trou de leçon. Le sens « chaque renvoi est juste » et le sens « chaque diapositive est atteignable »
+se mesurent séparément ; seul le premier se devine à la lecture.
+
+### 🔴 LE CONTENEUR `methodes` A DÉPLACÉ UNE POPULATION SOUS UN INSTRUMENT — S-010, et cinq tests rouges
+
+`e2e/defileurs-clavier.spec.ts` mesure la **première** leçon prerendue portant `<app-quiz`, découverte
+et triée : `automatisation-surveillance`, depuis sa publication. Ce lot lui a ajouté sa **première**
+marche à suivre **et** son **premier** conteneur d’onglets. Cinq tests sur sept sont devenus rouges, et
+**aucun ne dénonçait un défaut du produit** :
+
+1. **Un volet `methodes` non coché est en `display: none`** (contrat D-C, `rendu-blocs.scss`) : le bloc
+   de code qu’il contient est au DOM et **ne peut pas** être un arrêt de tabulation. C’est correct — on
+   ne tabule pas dans ce qui n’est pas affiché. Le spec comparait le parcours clavier à **tous** les
+   `.defileur` du DOM ; il accusait donc un produit sain (L-035). Correctif : une seconde source,
+   `defileursRendus()`, filtrée sur `checkVisibility()` — et le **rang au DOM complet** conservé dans la
+   mesure, sans quoi le locator `.defileur.nth(i)` viserait le mauvais élément après filtrage.
+2. **Le défileur d’une ÉTAPE s’appelle « Étape n° 1 — bash »**, avec l’insécable **aussi** entre `n°` et
+   le rang — une quatrième forme que `FORME_DU_NOM` ne connaissait pas, et que `rendu-blocs.spec.ts`
+   mesurait pourtant déjà à son étage.
+
+🔴 **ET LE TROISIÈME POINT EST LE PLUS INSTRUCTIF : la continuité des rangs ne vaut PAS pour ce
+genre-là.** Le rang d’une étape est le **numéro de l’étape**, pas un compteur de figures — et le contrat
+dit « **au plus** un bloc de code » par étape. Mesuré sur ce module : les étapes 4, 5 et 9 n’en portent
+aucune, donc les rangs rendus sont `1, 2, 3, 6, 7, 8`. Exiger `1..n` y aurait accusé le produit d’un
+trou que l’auteur a écrit exprès. ⚠️ **Une assertion universelle héritée d’une population homogène
+devient fausse au premier membre d’une autre espèce** — la parade n’est pas de la relâcher pour tout le
+monde, mais de **nommer l’ensemble** sur lequel elle porte : `GENRES_A_RANG_CONTINU`.
+
+### ⚠️ QUATRIÈME CONTENEUR `methodes`, ET LA PARADE DU LOT 13 A TENU
+
+Les trois premiers conteneurs du dépôt ont chacun enfreint la clause D-C — un fait qui ne vivait que
+derrière un onglet. Le lot 13 avait conclu que **ce qui marche n’est pas d’exiger une relecture, c’est
+d’imposer l’ORDRE d’écriture** : la prose visible d’abord, avec tout ce qui doit être trouvable au
+`Ctrl+F` ; les volets ne gardent que la suite de gestes. Appliqué ici en écrivant les quatre paragraphes
+visibles **avant** le conteneur — `OnCalendar=`, `Persistent=true`, `RandomizedDelaySec=`,
+`PrivateTmp=true`, `ProtectSystem=strict`, `daemon-reload`, `enable --now`, `list-timers`,
+`journalctl -u`, `flock`, `crontab -l`, `tail -f`, et les deux chemins de `/etc/systemd/system/` sont
+tous dans la prose. **Zéro fait unique dans un volet, pour la première fois sur quatre.**
+
+### Les cinq réserves du corpus, mesurées avant toute revue
+
+1. **Une promesse d’exclusion en tête de leçon** — « tu n’en seras pas évalué » à propos de la lecture
+   de fichier. Remplacée par la mesure : la diapositive **6** annonce le « Traitement des fichiers », la
+   **11** le retire du programme, et aucune démonstration n’est donnée. Deux autres promesses du même
+   genre retirées dans la foulée (les raccourcis `@`, le `0` du dimanche).
+2. **Le sixième champ de la diapositive 31**, décrit sans être attribué (voir plus haut).
+3. **`0-6` au lieu de `0-7`** pour le jour de la semaine, attribué à « beaucoup de mémentos » alors que
+   c’est la diapositive 19.
+4. **Trois titres portaient du code en ligne** — `` `crontab` ``, `` `cron` ``, `` `shell_exec` `` dans
+   un `##`. Le pipeline ne rend **pas** le code en ligne dans un titre : le lecteur voyait les accents
+   graves, au titre **et** au sommaire. Dépouillés, comme au module 11 ; le défaut de rendu reste ouvert.
+5. **Cinq sur-attributions potentielles**, chacune fermée par une phrase mesurée dans la section :
+   `### Les trois commandes` (le cours ne montre que `crontab -e`), `## Rediriger la sortie` (le cours
+   ne montre que `>`), `### Trois règles` (une seule des trois est du cours), `## PHP en ligne de
+   commande` (le cours s’arrête à la commande), `### Le langage du script` (le cours **nomme** les
+   langages, il ne les compare pas).
+
+### Gates
+
+G-lint **0** · G-typage-outils **0** · G-content **10 leçons · 0 dépassement**
+(`automatisation-surveillance` **244,7 Ko** brut / **59,6 Ko** servi) · G-test **1143 passés / 1
+sauté · 46 fichiers**, inchangé · G-build **14 pages · 14 hachages de style / 0 de script,
+INCHANGÉS** · G-axe **13 fichiers · 1118 vérifications · 0 violation** · G-e2e **57 passés / 1
+sauté**, inchangé · `npm audit --omit=dev` **0**.
+
+**Contrôle positif de la règle 13**, exécuté puis annulé : retirer le bloc d’attributs de
+`### Le langage du script` rend **une** anomalie, et elle nomme la bonne cause (« sans renvoi au cours
+— un module au FORMAT ACTIONNABLE cite ses diapositives, ou déclare le marqueur `{hors-cours}` »).
+
+### Les défauts de BRIEF de ce lot, comptés
+
+**Zéro sous-agent.** Deuxième lot de suite où la cartographie reste au fil principal, et le premier où
+la **rédaction** y reste aussi : le déck fait 70 diapositives, la leçon 1400 lignes, et le travail était
+une **reprise** — poser des renvois, corriger cinq réserves, écrire une section et un conteneur — non
+une rédaction. ⚠️ **Ce n’est pas une règle générale** : le lot 13 avait un rédacteur parce qu’il
+réécrivait la moitié d’une leçon. Le critère reste celui du lot 13, appliqué aux **deux** volumes —
+source à lire **et** texte à produire.
+
+**Ce qui a coûté le plus, et qui n’était pas au plan : les cinq tests e2e rouges.** Ils ne venaient pas
+du contenu mais de la rencontre de deux capacités neuves sur une page qu’un instrument découvre. **À
+attendre à chaque module restant qui recevra son premier conteneur d’onglets** — et la première question
+devant un spec rouge après une reprise reste « quelle page mesure-t-il maintenant, et qu’y a-t-il de
+neuf dessus ? », jamais « quel chiffre y mettre ? ».
+
+**Le geste suivant : la reprise du module suivant**, qui fera passer le compteur de **5/9 à 6/9**. Ici
+la reprise **quitte le bloc « serveur et système »** : les quatre modules restants (07-injection,
+08-xss, 09-csrf, 10-controle-acces) sont les modules OWASP, et leur ancrage sera d’une tout autre
+nature — leur matière vit dans les décks des **séances 7 à 10**, pas dans celui de leur propre séance,
+et trois de ces décks n’ont pas encore été confrontés à une leçon. 🔴 **Réextraire les `.pptx`
+concernés avant de citer une seule diapositive** : le dossier `extraits/` est gitignoré et aucun gate
+ne le confronte à sa source.
