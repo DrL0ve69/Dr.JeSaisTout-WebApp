@@ -971,7 +971,7 @@ function corrigerEncresSombres(css) {
 /**
  * @returns {Promise<Colorateur>}
  */
-async function creerColorateur() {
+export async function creerColorateur() {
   const transformateur = transformerStyleToClass({ classPrefix: PREFIXE_CLASSE });
   const surligneur = await createHighlighter({
     themes: [THEME_CLAIR, THEME_SOMBRE],
@@ -1015,7 +1015,7 @@ async function creerColorateur() {
  * @param {string} classes CSS rendu par `transformerStyleToClass`
  * @returns {string}
  */
-function assemblerFeuille(classes) {
+export function assemblerFeuille(classes) {
   return `// FICHIER GÉNÉRÉ par tools/content-pipeline/compiler-markdown.mjs — NE PAS ÉDITER.
 // Coloration syntaxique Shiki (${THEME_CLAIR} / ${THEME_SOMBRE}), sortie en CLASSES et non en
 // styles en ligne : la CSP du site est à hachages et refuse tout attribut « style ».
@@ -3614,8 +3614,19 @@ function recenserLecons(racine) {
  * validé — `valider.mjs` porte `schemas/exercices.schema.json` et ses quatre règles hors schéma,
  * et `build.mjs` le fait tourner avant. Absent, il vaut `null`.
  *
+ * ⚠️ LE COLORATEUR EST INJECTABLE, ET C'EST CE QUI REND LE MULTI-RACINE POSSIBLE (E7, lot A).
+ * Un colorateur ACCUMULE les classes de coloration des blocs qu'il a colorés, et `feuille` rend
+ * ces classes déjà enveloppées par `assemblerFeuille` — en-têtes, bascule écran/impression et
+ * commentaires épinglés compris. Deux racines compilées avec deux colorateurs distincts
+ * rendraient donc deux feuilles COMPLÈTES, dont la concaténation dupliquerait l'enveloppe : les
+ * mêmes sélecteurs `.shiki` déclarés deux fois, et `src/pipeline-contenu-compilation.spec.ts`
+ * (qui surveille le contenu de cette feuille) mesurerait une feuille que personne n'a voulue.
+ * L'appelant qui compile plusieurs racines crée donc UN colorateur, le passe à chacune, et
+ * n'appelle `assemblerFeuille` qu'une fois, après la dernière — voir `build.mjs`. Sans l'option,
+ * le comportement est inchangé : une racine, son colorateur, sa feuille assemblée.
+ *
  * @param {string} racine chemin absolu
- * @param {{ rendreMermaid?: Contexte['rendreMermaid'] }} [options]
+ * @param {{ rendreMermaid?: Contexte['rendreMermaid'], colorateur?: Colorateur }} [options]
  * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
  */
 export async function compilerRacine(racine, options = {}) {
@@ -3623,7 +3634,7 @@ export async function compilerRacine(racine, options = {}) {
   // par défaut mourrait sur une pile ENOENT ; avec lui, il rend zéro leçon et une feuille vide,
   // ce qui garde `src/styles.scss` compilable. Une racine EXPLICITE introuvable, elle, est une
   // faute d'appel : le lot 4 la fera échouer en code 1 depuis `build.mjs`.
-  const colorateur = await creerColorateur();
+  const colorateur = options.colorateur ?? (await creerColorateur());
   if (!existsSync(racine)) {
     console.error(`compiler-markdown : aucune racine « ${afficher(racine)} » — 0 leçon`);
     return {

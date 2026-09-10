@@ -32,7 +32,8 @@ flowchart LR
 ```
 content/
   cours/                              # racine canonique (backlog §E2-ST1, §E3)
-    securite-web/                    # le sujet (cours), kebab-case
+    securite-web/                    # un sujet (cours), kebab-case — RACINE COMPILÉE
+    php/                              # un second sujet, compilé par la MÊME exécution
       01-fondamentaux/                # <nn>-<slug> : nn = ordre sur 2 chiffres
         lecon.md                      # obligatoire
         quiz.json                     # obligatoire
@@ -40,6 +41,43 @@ content/
       02-evaluation-cvss/
         ...
 ```
+
+### Les racines compilées — `--racine` est RÉPÉTABLE
+
+`npm run content:build` compile **plusieurs sujets en une exécution** et n'en écrit qu'un jeu de
+sorties. La liste par défaut est **nominative**, écrite en toutes lettres dans
+`tools/content-pipeline/build.mjs` (`RACINES_PAR_DEFAUT`) :
+
+| Racine par défaut | Cours |
+|---|---|
+| `content/cours/securite-web` | 420-B10-HU — Sécurité des applications web |
+| `content/cours/php` | 420-4P2-HU — Développement d'application en PHP |
+
+🔴 **Ce n'est PAS un balayage de `content/cours/`, et c'est délibéré.** Un balayage compilerait —
+donc déploierait — un dossier déposé par erreur ou une branche de travail oubliée, sans qu'aucun
+humain l'ait décidé. Ouvrir un sujet est un geste qui se commite dans cette liste, en une ligne
+qu'une revue voit passer (patron « liste blanche nominative » de `.claude/rules/security.md` §4).
+
+`--racine <dossier>` est **répétable** : chaque occurrence ajoute une racine, et **la première
+REMPLACE la liste par défaut** plutôt que de s'y ajouter — sans quoi le moindre
+`--racine <fixture>` d'un test compilerait aussi le corpus de production. Citer deux fois la même
+racine est refusé en nommant la racine, pas en laissant rougir l'unicité des slugs.
+
+**Ce qui reste PAR RACINE** : la validation (`valider.mjs` tourne en processus fils, une fois par
+racine, et son message d'échec nomme la racine), le registre des **sujets frères** que
+`{cours="…"}` consulte, l'`horaire.json`, l'`exercices.json`, et le contrôle des
+`{voir="module:…"}` — un renvoi de module se juge contre les leçons du **même** sujet.
+
+**Ce qui est GLOBAL** : la purge du dossier de sortie, le **colorateur** Shiki (donc la feuille de
+coloration, assemblée une seule fois — une feuille par racine dupliquerait son enveloppe
+écran/impression), le manifeste, la carte d'imports paresseux, l'unicité des slugs **sur toutes
+les racines**, et le contrôle des poids.
+
+**Deux racines qui déclareraient le même `sujet` font ÉCHOUER la construction**, en nommant le
+sujet en cause : la seconde écraserait la première en silence, et le sommaire daterait les séances
+du mauvais cours. Une racine **absente** de la liste par défaut, ou **présente sans aucune leçon**,
+est un état légitime (code 0, sorties écrites quand même) ; une racine fournie explicitement par
+`--racine` et introuvable est, elle, une faute d'appel (code 1).
 
 ## Gabarit `lecon.md`
 

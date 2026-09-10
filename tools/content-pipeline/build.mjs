@@ -23,7 +23,7 @@
  *   coûte une seconde ; réussir en silence sur zéro leçon coûte une enquête.
  *
  * · RACINE PAR DÉFAUT ABSENTE, OU PRÉSENTE MAIS VIDE ⇒ CODE 0, ET LES SORTIES SONT ÉCRITES QUAND
- *   MÊME. C'est l'état RÉEL du dépôt jusqu'à E3 : `content/` ne contient que son `README.md`.
+ *   MÊME — et c'est l'état de `content/cours/php`, qui ne porte à ce jour qu'un `horaire.json`.
  *   Le piège, et il est vicieux : `src/styles.scss` fait `@use 'styles/coloration-syntaxique-generee'`
  *   sur une feuille GITIGNORÉE, que seul ce pipeline produit. Un générateur qui « saute » l'écriture
  *   quand il n'a rien à compiler laisse donc, sur tout clone frais, un `@use` sans cible — et c'est
@@ -56,15 +56,26 @@
  * relue, publique. Voir l'en-tête de `generer-manifeste.mjs`. Le drapeau existe pour `npm start`
  * et la relecture éditoriale ; un artéfact bâti avec lui ne se déploie pas.
  *
+ * ─── 🔴 `--racine` EST RÉPÉTABLE — LE PIPELINE COMPILE PLUSIEURS SUJETS (E7, lot A) ────────────
+ * Le dépôt porte deux cours (`securite-web`, `php`) et l'application n'a qu'UN manifeste : une
+ * exécution compile donc toutes les racines de `RACINES_PAR_DEFAUT`, ou toutes celles que
+ * `--racine` énumère (la première occurrence REMPLACE la liste par défaut, elle ne s'y ajoute pas).
+ * Ce qui reste PAR RACINE : la validation (un processus fils par racine, son message d'échec
+ * nomme la racine), le registre des sujets frères, l'horaire, le registre d'exercices et le
+ * contrôle des `{voir="module:…"}` — un renvoi de module se juge contre les leçons du MÊME sujet.
+ * Ce qui devient GLOBAL : la purge, le colorateur (donc la feuille, assemblée une seule fois), le
+ * manifeste, la carte d'imports, l'unicité des slugs et le contrôle des poids. Une collision de
+ * sujet entre deux racines fait ÉCHOUER en nommant le sujet (`generer-manifeste.mjs`).
+ *
  * Usage :
- *   node tools/content-pipeline/build.mjs [--racine <dossier>] [--sortie <dossier>] [--css <fichier>]
+ *   node tools/content-pipeline/build.mjs [--racine <dossier>]… [--sortie <dossier>] [--css <fichier>]
  *                                         [--inclure-brouillons] [--cache-diagrammes <dossier>]
  */
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { compilerRacine } from './compiler-markdown.mjs';
+import { assemblerFeuille, compilerRacine, creerColorateur } from './compiler-markdown.mjs';
 import {
   controlerSvgCompiles,
   creerRendeurMermaid,
@@ -76,8 +87,22 @@ import { verifierPoids } from './verifier-poids.mjs';
 
 const RACINE_DEPOT = process.cwd();
 
-/** Chemin canonique du cours (backlog §E2-ST1, §E3). */
-const RACINE_PAR_DEFAUT = 'content/cours/securite-web';
+/**
+ * LES RACINES COMPILÉES PAR DÉFAUT — UNE LISTE NOMINATIVE, JAMAIS UN BALAYAGE (E7, lot A).
+ *
+ * Le pipeline compile PLUSIEURS sujets en une exécution : le cours de sécurité et le cours de PHP
+ * vivent côte à côte sous `content/cours/`, et l'application n'a qu'un manifeste. Il aurait été
+ * plus court de balayer `content/cours/*` — c'est précisément ce qu'on refuse : un dossier déposé
+ * par erreur, ou une branche de travail oubliée, serait alors compilé, écrit dans l'artéfact et
+ * déployé sans qu'aucun humain l'ait décidé. C'est le patron « liste blanche nominative » de
+ * `.claude/rules/security.md` §4, appliqué au contenu : ouvrir un sujet est un geste qui se
+ * commite ici, en une ligne qu'une revue voit passer.
+ *
+ * ⚠️ Une racine de cette liste qui n'existe pas — ou qui existe sans porter la moindre leçon —
+ * n'est PAS une faute : voir l'en-tête du fichier, « les deux cas d'absence ». `content/cours/php`
+ * ne porte aujourd'hui qu'un `horaire.json`, et c'est un état légitime.
+ */
+const RACINES_PAR_DEFAUT = ['content/cours/securite-web', 'content/cours/php'];
 
 /** Dossier des sorties destinées à l'application Angular. Gitignoré, réécrit intégralement. */
 const SORTIE_PAR_DEFAUT = 'src/content-generated';
@@ -183,22 +208,33 @@ function etapeValider(racineAbsolue) {
     ]);
   }
   if (resultat.status !== 0) {
-    echec(`contenu refusé par le validateur (code ${String(resultat.status)})`, [
-      'les anomalies sont listées ci-dessus, fichier par fichier',
-      'corriger les fichiers nommés, puis relancer : npm run content:build',
-    ]);
+    // LA RACINE EST NOMMÉE, ET CE N'EST PAS DÉCORATIF DEPUIS QU'IL Y EN A PLUSIEURS : le
+    // validateur tourne une fois par racine, ses anomalies s'impriment fichier par fichier, et
+    // sans ce nom l'auteur ne sait pas lequel des sujets a fait tomber la construction.
+    echec(
+      `contenu refusé par le validateur (code ${String(resultat.status)}) — racine « ${afficher(racineAbsolue)} »`,
+      [
+        'les anomalies sont listées ci-dessus, fichier par fichier',
+        'corriger les fichiers nommés, puis relancer : npm run content:build',
+      ],
+    );
   }
-  etape('1/5 validation — contenu conforme au schéma');
+  etape(`1/5 validation — ${afficher(racineAbsolue)} : contenu conforme au schéma`);
 }
 
 /**
  * Étape 3 — compilation, diagrammes compris.
  *
+ * ⚠️ LE COLORATEUR VIENT DE L'APPELANT, IL N'EST PAS CRÉÉ ICI — voir `principal()` et l'en-tête de
+ * `compilerRacine`. Un colorateur par racine rendrait une feuille COMPLÈTE par racine, et leur
+ * concaténation dupliquerait l'enveloppe écran/impression.
+ *
  * @param {string} racineAbsolue
  * @param {string | undefined} cacheDiagrammes dossier de cache des SVG, ou `undefined` pour le défaut
+ * @param {import('./compiler-markdown.mjs').Colorateur} colorateur le colorateur PARTAGÉ par toutes les racines de l'exécution
  * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
  */
-async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
+async function etapeCompiler(racineAbsolue, cacheDiagrammes, colorateur) {
   /** @type {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | undefined} */
   let rendreMermaid;
 
@@ -218,12 +254,12 @@ async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
       rendreMermaid = rendeur.rendre;
     } else {
       etape(
-        `3/5 diagrammes — aucun bloc « mermaid » dans ${sources.length} leçon(s), Chromium non démarré`,
+        `3/5 diagrammes — ${afficher(racineAbsolue)} : aucun bloc « mermaid » dans ${sources.length} leçon(s), Chromium non démarré`,
       );
     }
   }
 
-  const compile = await compilerRacine(racineAbsolue, { rendreMermaid });
+  const compile = await compilerRacine(racineAbsolue, { rendreMermaid, colorateur });
 
   // LE CONTRÔLE FINAL VIT ICI, ET NULLE PART AILLEURS. Il était logé dans le
   // harnais `node rendre-mermaid.mjs --racine …`, que `npm run content:build`
@@ -235,7 +271,8 @@ async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
   // doit se voir dans le journal (L-005).
   const controle = controlerSvgCompiles(compile.lecons);
   etape(
-    `3/5 compilation — ${compile.lecons.length} leçon(s) · ${controle.svg} SVG contrôlé(s) · ` +
+    `3/5 compilation — ${afficher(racineAbsolue)} : ${compile.lecons.length} leçon(s) · ` +
+      `${controle.svg} SVG contrôlé(s) · ` +
       `${controle.uniques}/${controle.identifiants} identifiant(s) unique(s)`,
   );
   return compile;
@@ -246,13 +283,19 @@ async function etapeCompiler(racineAbsolue, cacheDiagrammes) {
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {{ racine: string, racineExplicite: boolean, sortie: string, css: string,
+ * ⚠️ `--racine` EST RÉPÉTABLE, ET IL REMPLACE LA LISTE PAR DÉFAUT — il ne s'y ajoute pas.
+ * Deux occurrences compilent deux racines ; une seule en compile une, et le défaut multi-sujet ne
+ * se glisse alors PAS dans le dos de l'appelant. C'est ce qui garde utilisables les dizaines de
+ * `--racine <fixture>` des specs : chacune veut mesurer SA racine, jamais celle-là plus le corpus
+ * de production.
+ *
+ * @returns {{ racines: string[], racinesExplicites: boolean, sortie: string, css: string,
  *             inclureBrouillons: boolean, cacheDiagrammes: string | undefined }}
  */
 function lireArguments() {
   const args = process.argv.slice(2);
-  let racine = RACINE_PAR_DEFAUT;
-  let racineExplicite = false;
+  /** @type {string[]} */
+  const racines = [];
   let sortie = SORTIE_PAR_DEFAUT;
   let css = CSS_PAR_DEFAUT;
   let inclureBrouillons = false;
@@ -274,31 +317,81 @@ function lireArguments() {
       arg !== '--cache-diagrammes'
     ) {
       echec(`option inconnue : « ${String(arg)} »`, [
-        'usage : node tools/content-pipeline/build.mjs [--racine <dossier>] [--sortie <dossier>]',
+        'usage : node tools/content-pipeline/build.mjs [--racine <dossier>]… [--sortie <dossier>]',
         '                                             [--css <fichier>] [--inclure-brouillons]',
         '                                             [--cache-diagrammes <dossier>]',
+        '--racine est RÉPÉTABLE : chaque occurrence ajoute une racine, et la première remplace',
+        `la liste par défaut (${RACINES_PAR_DEFAUT.join(', ')})`,
       ]);
     }
     const valeur = args[i + 1];
     if (valeur === undefined || valeur.startsWith('--')) {
       echec(`l'option ${arg} attend un chemin`);
     }
-    if (arg === '--racine') {
-      racine = valeur;
-      racineExplicite = true;
-    } else if (arg === '--sortie') sortie = valeur;
+    if (arg === '--racine') racines.push(valeur);
+    else if (arg === '--sortie') sortie = valeur;
     else if (arg === '--cache-diagrammes') cacheDiagrammes = valeur;
     else css = valeur;
     i += 1;
   }
-  return { racine, racineExplicite, sortie, css, inclureBrouillons, cacheDiagrammes };
+  const racinesExplicites = racines.length > 0;
+  return {
+    racines: racinesExplicites ? racines : [...RACINES_PAR_DEFAUT],
+    racinesExplicites,
+    sortie,
+    css,
+    inclureBrouillons,
+    cacheDiagrammes,
+  };
+}
+
+/**
+ * Résout, dédoublonne et éprouve la liste des racines à compiler — AVANT toute purge, pour qu'un
+ * refus laisse intacte la génération précédente.
+ *
+ * @param {readonly string[]} racines chemins tels que demandés, relatifs ou absolus
+ * @param {boolean} racinesExplicites `true` si elles viennent de `--racine` et non du défaut
+ * @returns {{ racineAbsolue: string, presente: boolean }[]} dans l'ordre demandé
+ */
+function preparerRacines(racines, racinesExplicites) {
+  /** @type {{ racineAbsolue: string, presente: boolean }[]} */
+  const preparees = [];
+  /** @type {Set<string>} */
+  const vues = new Set();
+
+  for (const racine of racines) {
+    const racineAbsolue = resolve(RACINE_DEPOT, racine);
+
+    // DEUX FOIS LA MÊME RACINE EST UNE FAUTE D'APPEL, PAS UNE DEMANDE DE DOUBLE COMPILATION. Sans
+    // ce refus, la seconde passe rendrait exactement les mêmes leçons — donc les mêmes slugs — et
+    // c'est le contrôle d'unicité de `ecrireContenuGenere` qui rougirait, sur une cause qui ne
+    // nomme pas la vraie faute (« deux leçons portent le slug X » plutôt que « la racine X est
+    // citée deux fois »). La faute la plus locale doit sortir la première.
+    if (vues.has(racineAbsolue)) {
+      echec(`racine citée deux fois — « ${afficher(racineAbsolue)} »`, [
+        'chaque racine se compile une seule fois par exécution',
+        'retirer l’occurrence en trop de la ligne de commande',
+      ]);
+    }
+    vues.add(racineAbsolue);
+
+    const presente = estDossier(racineAbsolue);
+    if (!presente && racinesExplicites) {
+      echec(`racine de contenu introuvable — « ${afficher(racineAbsolue)} »`, [
+        `chemin demandé : ${racine}`,
+        'ce chemin a été fourni explicitement par --racine : une faute de frappe est plus probable',
+        "qu'un contenu absent, donc la construction s'arrête au lieu de produire zéro leçon en silence",
+      ]);
+    }
+    preparees.push({ racineAbsolue, presente });
+  }
+  return preparees;
 }
 
 async function principal() {
-  const { racine, racineExplicite, sortie, css, inclureBrouillons, cacheDiagrammes } =
+  const { racines, racinesExplicites, sortie, css, inclureBrouillons, cacheDiagrammes } =
     lireArguments();
 
-  const racineAbsolue = resolve(RACINE_DEPOT, racine);
   const sortieAbsolue = resolve(RACINE_DEPOT, sortie);
   const cssAbsolu = resolve(RACINE_DEPOT, css);
 
@@ -311,16 +404,20 @@ async function principal() {
     ]);
   }
 
-  const racinePresente = estDossier(racineAbsolue);
-  if (!racinePresente && racineExplicite) {
-    echec(`racine de contenu introuvable — « ${afficher(racineAbsolue)} »`, [
-      `chemin demandé : ${racine}`,
-      'ce chemin a été fourni explicitement par --racine : une faute de frappe est plus probable',
-      "qu'un contenu absent, donc la construction s'arrête au lieu de produire zéro leçon en silence",
-    ]);
-  }
+  const presence = preparerRacines(racines, racinesExplicites);
+  const racinesAbsolues = presence.map(({ racineAbsolue }) => racineAbsolue);
 
   console.log('');
+
+  // LE NOMBRE DE RACINES S'ANNONCE AVANT TOUT LE RESTE, MÊME À UNE (L-005). Le pipeline compile
+  // désormais plusieurs sujets : sans cette ligne, « la liste par défaut a bien deux racines » et
+  // « une seule racine a été retenue » s'écriraient exactement pareil dans le journal, et un
+  // manifeste amputé d'un sujet entier passerait pour un manifeste normal.
+  etape(
+    `0/5 racines — ${racinesAbsolues.length} racine(s)` +
+      (racinesExplicites ? ' (--racine)' : ' (liste par défaut)') +
+      ` : ${racinesAbsolues.map(afficher).join(', ')}`,
+  );
 
   // LA VALIDATION PRÉCÈDE LA PURGE, ET CE N'EST PAS UN DÉTAIL D'ORDONNANCEMENT.
   // Le validateur ne lit que `content/` — jamais la sortie — donc rien ne l'oblige à passer
@@ -331,34 +428,58 @@ async function principal() {
   // rédaction d'un module, où `lecon.md` est déposé avant son `quiz.json`. Constaté ce
   // jour-là : un agent qui ne touchait pas au contenu a attendu que l'arbre redevienne
   // constructible. Valider d'abord rend l'échec inoffensif — l'arbre précédent survit intact.
-  if (racinePresente) {
-    etapeValider(racineAbsolue);
-  } else {
-    etape(
-      `1/5 validation — sautée : ${afficher(racineAbsolue)} n'existe pas encore (attendu avant E3)`,
-    );
+  // ⚠️ TOUTES LES RACINES SONT VALIDÉES AVANT QUE LA PREMIÈRE NE SOIT COMPILÉE, et c'est le même
+  // raisonnement porté au multi-racine : un refus sur la SECONDE racine ne doit pas laisser
+  // derrière lui une purge déjà faite. Le validateur reste mono-racine par exécution — il juge
+  // les slugs, les renvois et l'horaire d'UN sujet — donc un processus fils par racine.
+  for (const { racineAbsolue, presente } of presence) {
+    if (presente) {
+      etapeValider(racineAbsolue);
+    } else {
+      etape(`1/5 validation — sautée : ${afficher(racineAbsolue)} n'existe pas encore`);
+    }
   }
 
   etapePurger(sortieAbsolue);
 
-  const { lecons, feuille, horaire, exercices, sujetsFreres } = await etapeCompiler(
-    racineAbsolue,
-    cacheDiagrammes,
-  );
+  // UN SEUL COLORATEUR POUR TOUTES LES RACINES — voir l'en-tête de `compilerRacine`. Il accumule
+  // les classes de coloration de tous les blocs de code de l'exécution, et `assemblerFeuille` ne
+  // l'enveloppe qu'UNE fois, après la boucle : concaténer une feuille par racine dupliquerait
+  // l'en-tête, la bascule écran/impression et les commentaires épinglés.
+  const colorateur = await creerColorateur();
+
+  /** @type {LeconCompilee[]} */
+  const lecons = [];
+  /** @type {(HoraireCompile | null)[]} */
+  const horairesCompiles = [];
+  /** @type {(ExercicesCompiles | null)[]} */
+  const exercicesCompiles = [];
+  /** @type {string[]} */
+  const freresParRacine = [];
+
+  for (const { racineAbsolue } of presence) {
+    const compile = await etapeCompiler(racineAbsolue, cacheDiagrammes, colorateur);
+    lecons.push(...compile.lecons);
+    horairesCompiles.push(compile.horaire);
+    exercicesCompiles.push(compile.exercices);
+    freresParRacine.push(
+      `${afficher(racineAbsolue)} → ${compile.sujetsFreres.length > 0 ? compile.sujetsFreres.join(', ') : 'aucun'}`,
+    );
+  }
 
   // ÉCRITURE INCONDITIONNELLE — c'est le cœur du lot. Voir l'en-tête : zéro leçon écrit quand même
   // la feuille, le manifeste et la carte, sinon `src/styles.scss` perd sa cible sur un clone frais.
-  ecrireAtomique(cssAbsolu, feuille);
+  ecrireAtomique(cssAbsolu, assemblerFeuille(colorateur.feuille()));
   const { entrees, ecartees, incluses, horaires, exercices: registres } = ecrireContenuGenere(
     sortieAbsolue,
     lecons,
     {
       inclureBrouillons,
-      // UNE racine par exécution, donc au plus un horaire — mais l'écrivain en prend une LISTE :
-      // c'est lui qui refuse deux horaires d'un même sujet, et ce contrôle ne vaut que s'il peut
-      // en recevoir plusieurs. Même geste, même raison, pour le registre d'exercices.
-      horaires: [horaire],
-      exercices: [exercices],
+      // UNE ENTRÉE PAR RACINE, `null` COMPRIS. C'est l'écrivain qui refuse deux horaires d'un même
+      // sujet — un `null` (racine sans ancrage au cours) est ignoré, une collision de sujet fait
+      // échouer en la nommant. Même geste, même raison, pour le registre d'exercices.
+      horaires: horairesCompiles,
+      exercices: exercicesCompiles,
     },
   );
   // L'HORAIRE S'ANNONCE MÊME À ZÉRO (L-005) : sans cette ligne, « aucun horaire dans la racine »
@@ -387,8 +508,8 @@ async function principal() {
   // sujet frère » et « la lecture du registre est débranchée » s'écriraient exactement pareil, et
   // un renvoi refusé enverrait chercher la faute dans la leçon plutôt que dans l'arborescence.
   etape(
-    `4/5 sujets frères — ${sujetsFreres.length} sujet(s) voisin(s) portant un « horaire.json »` +
-      (sujetsFreres.length > 0 ? ` : ${sujetsFreres.join(', ')}` : ''),
+    `4/5 sujets frères — registre de ${freresParRacine.length} racine(s) : ` +
+      freresParRacine.join(' · '),
   );
   // LE FILTRE S'ANNONCE TOUJOURS, MÊME À ZÉRO (L-005) : un gate qui n'a rien retiré doit se voir
   // dans le journal, sinon « aucun brouillon » et « filtre débranché » s'écrivent pareil.
@@ -415,7 +536,8 @@ async function principal() {
   etape(`5/5 poids — ${echecs} dépassement(s)`);
 
   console.log(
-    `\n✔ content:build : ${lecons.length} leçon(s) compilée(s) depuis ${afficher(racineAbsolue)}.\n`,
+    `\n✔ content:build : ${lecons.length} leçon(s) compilée(s) depuis ` +
+      `${racinesAbsolues.length} racine(s) : ${racinesAbsolues.map(afficher).join(', ')}.\n`,
   );
 }
 
