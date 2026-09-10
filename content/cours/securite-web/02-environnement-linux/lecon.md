@@ -24,7 +24,7 @@ statut: publiee
 
 # Gestion d'environnement infonuagique
 
-## L'idée en une image
+## L'idée en une image {diapos="9, 12"}
 
 Tu ouvres un commerce. Trois formules s'offrent à toi.
 
@@ -80,7 +80,7 @@ viennent, eux, de la base de connaissances. Ce sont pourtant eux qui font la dif
 séance 3.
 :::
 
-## Pourquoi l'infrastructure est un choix d'ingénierie
+## Pourquoi l'infrastructure est un choix d'ingénierie {diapos="7, 8"}
 
 L'**infrastructure**, c'est l'ensemble de l'équipement qui rend une application accessible à ses
 utilisateurs : serveurs, équipement réseau, pare-feu, stockage, DNS. Le cours le formule
@@ -95,7 +95,7 @@ Trois décisions se prennent au tout début d'un projet, et coûtent cher à rev
 
 La troisième question est celle qu'on oublie, et c'est celle qui produit des failles.
 
-### On-premise ou infonuagique
+### On-premise ou infonuagique {diapos="9-11"}
 
 L'approche **on-premise** (« sur les lieux ») installe le matériel dans les locaux de
 l'organisation. L'approche **infonuagique** loue cette infrastructure à un fournisseur externe
@@ -122,7 +122,7 @@ on-premise derrière un pare-feu d'entreprise, non joignable depuis Internet, es
 d'attaque ; il ne la supprime pas.
 :::
 
-### Le modèle de responsabilité partagée
+### Le modèle de responsabilité partagée {diapos="18"}
 
 C'est le concept qui explique tout le reste, et il tient en une phrase : **dans chaque modèle de
 service, une ligne sépare ce que gère le fournisseur de ce que gère le client — et tout ce qui
@@ -145,7 +145,7 @@ Et regarde l'étage du haut : il ne disparaît **jamais**. Même en SaaS, tes co
 tes données restent à toi. Un dossier partagé « à toute personne disposant du lien » fuite
 exactement comme un serveur mal configuré.
 
-### La grille des neuf couches
+### La grille des neuf couches {diapos="13, 17"}
 
 ::: cours {diapos="13, 17"}
 Le cours porte deux fois la même planche, « Pile (*Stack*) de développement » : c'est **le seul
@@ -184,7 +184,7 @@ dit — c'est pourquoi le diagramme de responsabilité partagée, plus haut, gar
 comptes, vos accès » à ta charge jusque dans la colonne SaaS.
 :::
 
-### IaaS, PaaS, SaaS en une phrase chacun
+### IaaS, PaaS, SaaS en une phrase chacun {diapos="14-16"}
 
 - **IaaS** — tu loues une machine virtuelle et tu accèdes au système d'exploitation. Tu installes
   le runtime, la base de données, le serveur web, le pare-feu. Flexibilité maximale, déploiement
@@ -206,9 +206,9 @@ n'y administre aucun système d'exploitation. Le réflexe à prendre dépasse le
 d'un nom dans une liste d'ouverture ne dit rien du modèle de service qu'il vend.
 :::
 
-## Déployer un serveur Ubuntu et s'y connecter
+## Déployer un serveur Ubuntu et s'y connecter {diapos="22-26"}
 
-### Créer la machine
+### Créer la machine {diapos="23-25"}
 
 Chez DigitalOcean, une machine virtuelle s'appelle un **droplet**. La procédure du cours, en
 cinq choix : **Create → Droplets** ; **image** Ubuntu LTS ; **plan** *Basic / Regular with SSD*,
@@ -239,7 +239,7 @@ de la séance 3 ; ici, retiens simplement que le mot de passe sur le port 22 est
 le plus attaqué d'un serveur neuf.
 :::
 
-### La première connexion, et l'empreinte qu'on n'accepte pas à l'aveugle
+### La première connexion, et l'empreinte qu'on n'accepte pas à l'aveugle {diapos="26-31"}
 
 Le cours se connecte avec **PuTTY**, et c'est la méthode de référence de la séance comme de
 l'examen. Trois champs et un bouton : dans *Host Name (or IP address)*, l'**adresse IP publique**
@@ -324,7 +324,7 @@ affichée par ton client avec celle de la console web du droplet — les lignes
 confiance à ce que tu auras accepté, et la question ne se reposera plus.
 :::
 
-### Le premier geste sur un serveur neuf : cesser d'être `root`
+### Le premier geste sur un serveur neuf : cesser d'être `root` {seance="5" diapos="34, 36, 37, 40"}
 
 `root` est le **superutilisateur** : le compte qui a tous les droits, sans exception et sans
 confirmation.
@@ -356,7 +356,7 @@ d'une seule personne sans changer le mot de passe de tout le monde. La gestion c
 comptes, des groupes et du fichier `sudoers` est la matière de la **séance 5**.
 :::
 
-## L'arborescence Linux : une seule racine
+## L'arborescence Linux : une seule racine {diapos="41, 48"}
 
 Contrairement à Windows, il n'y a **pas de lettres de lecteur**. Tout part d'une racine unique
 notée `/`, et les disques supplémentaires sont *montés* dans un répertoire de cet arbre.
@@ -382,7 +382,7 @@ Trois répertoires suffisent pour cette session :
 - **`/var/log`** — l'endroit où l'on cherche quand ça casse, ou quand on soupçonne une intrusion.
   `/var/log/auth.log` liste les tentatives de connexion SSH ; tu y verras les robots.
 
-## Se repérer, lister, créer
+## Se repérer, lister, créer {diapos="34-53, 56, 57"}
 
 Voici le socle du cours, commande par commande.
 
@@ -478,7 +478,7 @@ d'être connecté. Sur ton poste Windows, `pwd` existe d'ailleurs aussi dans Pow
 un simple alias de `Get-Location`.
 :::
 
-### Lire un fichier sans l'ouvrir
+### Lire un fichier sans l'ouvrir {diapos="54, 55"}
 
 ```bash
 cat index.html          # affiche TOUT le contenu d'un coup
@@ -506,7 +506,7 @@ distribution utilisée, le serveur web installé et l'emplacement de ses fichier
 destiné à être public, et le module de durcissement du serveur web y reviendra.
 :::
 
-## L'éditeur `vi` : deux modes, et toute la confusion vient de là
+## L'éditeur `vi` : deux modes, et toute la confusion vient de là {diapos="66-74"}
 
 `vi` n'est pas une commande qui fait quelque chose et rend la main : c'est un **éditeur de texte
 modal**. Le cours insiste sur ce point à juste titre, parce que c'est là que tout le monde se
@@ -596,7 +596,7 @@ Ne le corrige pas tout de suite, c'est le sujet de l'exercice suivant. Vérifie 
 courant.
 :::
 
-## Renommer, déplacer, se déplacer
+## Renommer, déplacer, se déplacer {diapos="47, 62-65"}
 
 Une seule commande fait les deux premiers, et c'est le point à comprendre : **sous Linux,
 renommer un fichier, c'est le déplacer sur place**.
@@ -631,7 +631,7 @@ répertoire à l'exercice 3. Si tu tapes `Exercice3` alors que tu l'as créé en
 échouera. Enchaîne avec `ls` : tu dois y voir `exercice4.txt`, et rien d'autre.
 :::
 
-## Revenir modifier un fichier existant
+## Revenir modifier un fichier existant {diapos="68"}
 
 Ouvrir un fichier qui existe déjà avec `vi` ne l'efface pas : le curseur se place au début, et
 c'est à toi d'aller là où tu veux écrire. Deux frappes suffisent : `G` saute à la dernière ligne,
@@ -683,7 +683,7 @@ cwRsync ; Git Bash ne le fournit pas d'origine. `scp`, lui, est là dès que le 
 l'est.
 :::
 
-## Supprimer : la commande sans corbeille
+## Supprimer : la commande sans corbeille {diapos="58-61"}
 
 ```bash
 rm fichier.txt          # supprime un fichier
@@ -743,7 +743,7 @@ séance 3 : `grep -i -n "denied" /var/log/auth.log` cherche un texte dans un fic
 retrouve des fichiers par leur nom dans toute une arborescence.
 :::
 
-## Les permissions, en trois classes et trois droits
+## Les permissions, en trois classes et trois droits {seance="5" diapos="63, 66-71, 75-77, 80"}
 
 ::: cours {seance="5" diapos="63, 66-71, 75-77, 80"}
 La séance 2 n'aborde pas les permissions — mais la séance 5 les **développe en entier** :
@@ -781,7 +781,7 @@ l'analogie casse** : sur un répertoire, `x` ne veut pas dire « exécuter » ma
 passer par ce couloir » — un répertoire sans `x` est un couloir muré, même si tu as la clé des
 pièces qui sont derrière.
 
-## Paquets, services et journaux
+## Paquets, services et journaux {seance="5" diapos="35, 41, 42, 49, 94"}
 
 ::: cours {seance="5" diapos="35, 41, 42, 49, 94"}
 La séance 2 ne parle ni de paquets, ni de services, ni de journaux — mais `apt` et `systemctl`
@@ -833,7 +833,7 @@ déjà des dizaines, souvent des centaines de lignes au bout de quelques heures 
 dépend du fournisseur et de la plage d'adresses. Lance-la sur ton droplet : c'est la démonstration
 la plus convaincante de la session.
 
-## Exemple simple
+## Exemple simple {seance="5" diapos="69, 77, 80, 82-84"}
 
 Le cas le plus banal de l'administration d'un serveur web : l'application n'arrive pas à écrire un
 fichier, et le premier résultat de recherche conseille `chmod 777`.
@@ -882,7 +882,7 @@ Le raisonnement à retenir dépasse le cas : `chmod 777` répond à la question 
 l'erreur ? », alors que la vraie question est « **qui** doit avoir le droit d'écrire ici ? ». La
 réponse est presque toujours un `chown`, pas un `chmod` plus large.
 
-## Exemple complet
+## Exemple complet {diapos="24-26, 55"}
 
 Les dix premières minutes d'un serveur neuf, telles que le cours les déroule, puis telles qu'on
 les déroule en production. Les deux colonnes font la même chose : ouvrir une session et préparer
@@ -948,7 +948,7 @@ bannit automatiquement les adresses qui échouent trop souvent à se connecter, 
 cette leçon.
 :::
 
-## À toi de jouer
+## À toi de jouer {hors-cours}
 
 Les treize exercices de la feuille de la séance sont répartis au fil de la leçon, chacun à
 l'endroit où sa notion vient d'être expliquée. Ils s'enchaînent : chacun suppose le précédent
@@ -960,7 +960,7 @@ nécessité de `-r` pour un répertoire, et la sensibilité à la casse.
 
 [[quiz]]
 
-## À retenir
+## À retenir {diapos="13, 17, 40, 61, 70"}
 
 - **La ligne de responsabilité partagée ne descend jamais.** En IaaS, elle commence au système
   d'exploitation : correctifs, comptes, pare-feu et sauvegardes sont à toi. Un serveur « dans le
@@ -978,7 +978,7 @@ nécessité de `-r` pour un répertoire, et la sensibilité à la casse.
   C'est la première explication à envisager quand « la commande ne trouve pas » quelque chose que
   tu vois pourtant à l'écran.
 
-## Aller plus loin
+## Aller plus loin {diapos="82"}
 
 **Fiche de la base de connaissances**
 
