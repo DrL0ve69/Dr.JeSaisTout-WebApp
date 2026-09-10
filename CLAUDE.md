@@ -182,10 +182,25 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > phrase par étape. Il porte **le premier `:::: methodes` du dépôt**, et il est **rendu** : un
 > `<fieldset class="methodes">`, deux radios de même `name`, **un seul `checked`**. G-axe a donc enfin
 > tourné **sur une page à onglets** (1118 vérifications, 0 violation).
-> 🔴 **CE QUI RESTE OUVERT, ET QUI DEMANDE UN LOT À LUI :** le **spec e2e des trois états** (sans JS,
-> pré-hydratation, impression) et la **capture en contraste forcé** n'existent toujours pas — **rien ne
-> mesure que cocher un onglet montre son panneau**. Le lot 10 les **débloque** (la page existe), il ne les
-> écrit pas. ⚠️ **Et aucun gate ne peut mesurer la clause de rédaction de D-C** — le contenu masqué doit
+> ✅ **LE LOT 11 EST LIVRÉ (2026-09-09) — LE LEGS DU LOT 6 EST CLOS EN ENTIER.** Les **quatre** états sont
+> mesurés en navigateur (`e2e/onglets-methodes.spec.ts`, 7 tests, G-e2e **50 → 57**), et la capture en
+> contraste forcé est **mesurée** plutôt que regardée. 🔴 **Elle a réfuté le commentaire de
+> `rendu-blocs.scss`** : en HCM le filet de l'onglet **inactif**, `solid transparent`, devient PEINT lui
+> aussi — 2 rangées contre 1, là où l'écran normal donne 2 contre 0. **Le canal qui porte réellement R-8
+> est donc la RADIO laissée visible** (noyau peint 1,00 cochée / 0,00 vide), pas l'épaisseur.
+> ⚠️ **UN INSTRUMENT QUI SE CALIBRE SUR CE QU'IL MESURE MESURE ZÉRO** : l'aide de capture prenait la
+> teinte MAJORITAIRE pour fond, ce qui s'inverse sur une radio de 13 × 13 — le point peint se comparait à
+> lui-même et sortait à 0,00. Le fond est le pixel du COIN, avec un garde-fou à sens unique.
+> 🔴 **ET LA REVUE A ATTRAPÉ CE QUE SIX MUTATIONS N'ATTEIGNAIENT PAS :** `toHaveText` lit `textContent`,
+> rendu **aussi** pour un élément en `display: none` — l'assertion des titres de volets imprimés était
+> **déjà vraie à l'écran**, et retirer la seule ligne `.panneau-nom` du `@media print` laissait le test
+> **VERT**. ⚠️ **Une assertion de TEXTE sur un sélecteur masqué a toutes les apparences d'une mesure de
+> rendu.** Même lot, même famille : la capacité e2e neuve n'avait **aucun** filet hors de la suite — sept
+> tests pouvaient s'éteindre en silence pendant que G-e2e restait vert, et c'est le fichier qui
+> **promettait** ce filet (`artefact-mesure.ts`, « SAUTE bruyamment, jamais en silence ») qui avait oublié
+> de le poser : `CAPACITES_MESUREES_EN_E2E.onglets` est ajouté, et sa mesure **retire les blocs clôturés**
+> avant de chercher — une leçon qui documente la grammaire écrirait `:::: methodes` sans rendre un seul
+> `<fieldset>`. ⚠️ **Et aucun gate ne peut mesurer la clause de rédaction de D-C** — le contenu masqué doit
 > être l'**équivalent** du visible : elle s'est fait enfreindre **dès le premier conteneur écrit**
 > (`/var/www/html/` n'existait que dans le volet masqué, introuvable au `Ctrl+F`).
 > 🔴 **LA LEÇON DU LOT 10, PAYÉE DEUX FOIS DANS LE MÊME LOT : une section neuve écrite APRÈS des

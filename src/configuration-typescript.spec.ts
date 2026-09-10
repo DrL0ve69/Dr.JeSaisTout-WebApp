@@ -440,7 +440,7 @@ describe('rigueur du compilateur', () => {
      * d'échec que le commentaire annonçait était donc réel, et le gate n'était pas
      * décoratif.
      *
-     * ⚠️ LES SEPT `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
+     * ⚠️ LES HUIT `e2e/aides/*.ts` NE SONT PAS DES SPECS, ET ILS SONT ÉPINGLÉS
      * QUAND MÊME — c'est le point le plus important de cette liste depuis le lot E.
      * Ce sont eux qui portent désormais la MESURE elle-même : `indicateur-focus.ts`
      * décide ce qu'est « un anneau de focus dessiné » pour trois fichiers,
@@ -455,7 +455,11 @@ describe('rigueur du compilateur', () => {
      * `lecon-source.ts`, son voisin neuf, trouve le dossier de `content/` qui publie un slug
      * donné : c'est LUI qui décide quelle source `quiz-source.ts` et `simulation.ts` opposent
      * au DOM, et une recherche qui rend `undefined` en silence les priverait tous deux de leur
-     * seconde source sans qu'aucun appelant s'en aperçoive, `hydratation.ts` définit le point de départ commun
+     * seconde source sans qu'aucun appelant s'en aperçoive, `pre-hydratation.ts` (lot 11) RETIENT le
+     * chunk paresseux de la leçon pour ouvrir la fenêtre d'avant-hydratation — et son mode d'échec est
+     * le pire de la liste : si sa désignation du chunk cessait de mordre, la fenêtre ne s'ouvrirait
+     * jamais et ses deux appelants mesureraient une page DÉJÀ hydratée en croyant mesurer l'inverse ;
+     * c'est pourquoi elle exige elle-même qu'un `.js` ait réellement été retenu, `hydratation.ts` définit le point de départ commun
      * de tout ce qui s'exécute sur la page de leçon, et `artefact-mesure.ts` décide
      * si les specs de la page de leçon ont un SUJET — c'est lui qui les saute quand
      * l'artéfact mesuré est celui de production, et un défaut chez lui rendrait ce
@@ -470,6 +474,7 @@ describe('rigueur du compilateur', () => {
       'e2e/aides/hydratation.ts',
       'e2e/aides/indicateur-focus.ts',
       'e2e/aides/lecon-source.ts',
+      'e2e/aides/pre-hydratation.ts',
       'e2e/aides/quiz-source.ts',
       'e2e/aides/simulation.ts',
       'e2e/aides/sonde-csp.ts',
@@ -486,6 +491,7 @@ describe('rigueur du compilateur', () => {
       // défaut de typage y serait invisible depuis la CI (L-034).
       'e2e/menu-compact-sous-csp.spec.ts',
       'e2e/navigation-clavier.spec.ts',
+      'e2e/onglets-methodes.spec.ts',
       'e2e/parcours-clavier-quiz.spec.ts',
       'e2e/parcours-clavier-simulation.spec.ts',
       'e2e/quiz-pre-hydratation.spec.ts',

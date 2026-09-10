@@ -114,6 +114,37 @@ export const LECON_AVEC_QUIZ = leconPortant('<app-quiz');
 export const LECON_AVEC_SIMULATION = leconPortant('<app-simulation');
 
 /**
+ * Une page de leçon portant un conteneur d'onglets de méthode, s'il en existe une.
+ *
+ * ⚠️ LE MARQUEUR EST UNE CLASSE, PAS UN NOM D'ÉLÉMENT — et c'est une différence de
+ * nature avec ses deux voisins. Le quiz et la simulation sont des COMPOSANTS : leur
+ * sélecteur `<app-…` est un contrat d'Angular, stable par construction. Les onglets
+ * sont rendus par `rendu-blocs` en HTML nu ; il n'existe aucune balise propre à
+ * chercher. `class="methodes"` est donc le seul marqueur disponible — il est le
+ * point d'accroche de TOUTE la feuille (`.methodes`, `.onglet`, `.panneau`), donc
+ * le renommer casserait le rendu bien avant de casser ce garde ; et le rendu de
+ * `rendu-blocs.spec.ts` l'épingle déjà en jsdom. Si le jour vient où il change, ce
+ * fichier SAUTE en nommant le marqueur introuvable.
+ *
+ * 🔴 ET CE SAUT N'EST « JAMAIS SILENCIEUX » QUE PARCE QU'UN AUTRE FICHIER LE DIT.
+ * `src/workflows-github.spec.ts` porte `CAPACITES_MESUREES_EN_E2E.onglets` et
+ * confronte ce littéral à ce que `content/` publie réellement : sans lui, ce garde
+ * éteindrait les sept tests d'onglets en laissant G-e2e vert. La capacité y a été
+ * ajoutée au lot 11 — elle y manquait, alors que ce commentaire promettait déjà le
+ * contraire (constat de revue, 2026-09-09).
+ *
+ * ⚠️ LE MARQUEUR EST UNE SOUS-CHAÎNE DU HTML SERVI, DONC IL PEUT SUR-CAPTER. Ce
+ * site enseigne le contenu-as-code : une leçon qui DOCUMENTE la grammaire des
+ * onglets écrirait `class="methodes"` en nœud texte (les guillemets ne sont pas
+ * échappés hors attribut) et, si son slug précède alphabétiquement, capterait la
+ * découverte. L'échec est alors ROUGE — la page n'a pas de `<fieldset>` à mesurer —
+ * et non un vert silencieux, ce qui le rend tolérable ; le jour où il arrive, la
+ * parade est d'analyser le document plutôt que d'apparier une sous-chaîne
+ * (`tools/a11y/verifier-axe.mjs` est le patron, jsdom est déjà une dépendance).
+ */
+export const LECON_AVEC_ONGLETS = leconPortant('class="methodes"');
+
+/**
  * Route de repli, employée quand la capacité exigée est absente. Elle n'est JAMAIS
  * navigée — le `test.skip` posé par les fonctions ci-dessous s'exécute avant. Elle
  * se nomme quand même, pour qu'un saut défaillant produise une 404 qui s'explique
@@ -126,6 +157,9 @@ export const ROUTE_LECON_QUIZ = LECON_AVEC_QUIZ?.route ?? ROUTE_ABSENTE;
 
 /** La route de la page à mesurer, ou une route parlante quand il n'y en a pas. */
 export const ROUTE_LECON_SIMULATION = LECON_AVEC_SIMULATION?.route ?? ROUTE_ABSENTE;
+
+/** La route de la page à mesurer, ou une route parlante quand il n'y en a pas. */
+export const ROUTE_LECON_ONGLETS = LECON_AVEC_ONGLETS?.route ?? ROUTE_ABSENTE;
 
 /** Le saut commun : il nomme le sujet, le marqueur, et ce que l'artéfact contenait. */
 function sauter(sujet: string, capacite: string, marqueur: string): void {
@@ -194,4 +228,20 @@ export function exigerUneLeconAvecQuiz(sujet: string): void {
 export function exigerUneLeconAvecSimulation(sujet: string): void {
   if (LECON_AVEC_SIMULATION) return;
   sauter(sujet, 'de simulation', '<app-simulation');
+}
+
+/**
+ * Idem, pour un fichier dont tous les tests visent une page de leçon portant un
+ * conteneur d'ONGLETS DE MÉTHODE (`:::: methodes`).
+ *
+ * ⏳ LE TROU QUE CETTE CAPACITÉ FERME, ET IL A DURÉ DEUX JOURS. Le conteneur est
+ * livré depuis le lot 6 et entièrement mesuré en jsdom, mais aucune leçon publiée
+ * ne l'employait : G-axe et G-e2e n'avaient donc VU aucun onglet, et leur vert
+ * prouvait la non-régression, jamais le rendu. Depuis le lot 10, la leçon 01 porte
+ * le premier conteneur du dépôt — c'est ce qui rend ces mesures possibles, et c'est
+ * pourquoi elles arrivent maintenant plutôt qu'au lot 6.
+ */
+export function exigerUneLeconAvecOnglets(sujet: string): void {
+  if (LECON_AVEC_ONGLETS) return;
+  sauter(sujet, "d'onglets de méthode", 'class="methodes"');
 }
