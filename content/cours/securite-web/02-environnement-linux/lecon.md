@@ -59,16 +59,25 @@ La séance 2 du cours 420-B10-HU (millésime 2026) enseigne, dans cet ordre : le
 d'infrastructure et la comparaison on-premise / infonuagique, la **grille des neuf couches**
 IaaS / PaaS / SaaS (répétée deux fois, diapositives 13 et 17), le déploiement d'un serveur Ubuntu
 chez DigitalOcean, la connexion à distance avec PuTTY, puis les neuf commandes de base — `pwd`,
-`clear`, `cd`, `ls`, `cat`, `mkdir`, `rm`, `mv` et `vi`. Les treize exercices de la
-feuille de la séance portent tous sur cette dernière partie.
+`clear`, `cd`, `ls`, `cat`, `mkdir`, `rm`, `mv` et `vi`. **Douze des treize exercices** de la
+feuille de la séance portent sur cette dernière partie ; le premier, lui, est le déploiement du
+serveur et la connexion à distance.
+:::
+
+::: cours {seance="5" diapos="63, 66-71, 75-77, 80"}
+Les permissions (`ls -l`, `chmod`, `chown`), la gestion de paquets (`apt`) et les services
+(`systemctl`) ne sont pas dans les diapositives de la séance 2 — mais ils sont **au programme du
+cours**, un peu plus loin. La séance 5 leur consacre une série entière de diapositives, notation
+numérique **et** symbolique comprises ; `apt` et `systemctl` y reviennent, puis aux séances 9
+et 10. Ce que tu lis ici en avance n'est donc pas de la matière que tu peux mettre de côté :
+c'est de la matière que tu reverras.
 :::
 
 ::: complement
-Le modèle de responsabilité partagée, les permissions (`chmod`, `chown`), la gestion de paquets
-(`apt`), les services (`systemctl`) et les journaux (`journalctl`, `/var/log`) ne sont pas dans
-les diapositives de la séance 2. Ils viennent de la base de connaissances. Ce sont pourtant eux
-qui font la différence entre « un serveur qui démarre » et « un serveur qu'on peut exploiter » :
-tu ne seras pas évalué dessus cette semaine, mais tu en auras besoin dès la séance 3.
+Le modèle de responsabilité partagée et la lecture des journaux (`journalctl`, `/var/log`)
+viennent, eux, de la base de connaissances. Ce sont pourtant eux qui font la différence entre
+« un serveur qui démarre » et « un serveur qu'on peut exploiter » : tu en auras besoin dès la
+séance 3.
 :::
 
 ## Pourquoi l'infrastructure est un choix d'ingénierie
@@ -139,9 +148,11 @@ exactement comme un serveur mal configuré.
 ### La grille des neuf couches
 
 ::: cours {diapos="13, 17"}
-Le cours répète deux fois le même visuel : neuf couches empilées, quatre colonnes, et une
-frontière « vous gérez / le fournisseur gère » qui remonte d'un modèle à l'autre. C'est la
-**question d'examen la plus probable de la séance**. La coche marque ce qui est à votre charge.
+Le cours porte deux fois la même planche, « Pile (*Stack*) de développement » : c'est **le seul
+visuel qu'il répète**, et c'est déjà un indice de l'importance qu'il lui donne. La table
+ci-dessous le reproduit — neuf couches empilées, quatre colonnes, et une frontière « vous gérez /
+le fournisseur gère » qui remonte d'un modèle à l'autre. La coche marque ce qui est à votre
+charge.
 :::
 
 | Couche (de haut en bas) | On-premise | IaaS | PaaS | SaaS |
@@ -163,7 +174,8 @@ PaaS, au-dessus de tout pour le SaaS. La ligne « O/S » est la frontière de ce
 première case que le fournisseur ne remplit plus.
 
 ::: correction-du-cours {source="Fiche KB web/securite/administration-serveur-linux.md, encadré « La grille du cours dit — pour le SaaS sur les lignes Applications et Data » (maj 2026-08-19)"}
-La grille du cours met un tiret pour le SaaS sur les lignes *Applications* et *Data*. À l'examen,
+La grille ci-dessus, reproduite d'après le visuel du cours, met un tiret pour le SaaS sur les
+lignes *Applications* et *Data*. À l'examen,
 reproduis la grille telle quelle. En production, sache que ce tiret est trompeur au point d'être
 dangereux : le fournisseur gère le logiciel et l'infrastructure de stockage, mais **tes données
 restent les tiennes**. Leur classification, qui y accède, ce qui est partagé publiquement, la
@@ -176,8 +188,8 @@ comptes, vos accès » à ta charge jusque dans la colonne SaaS.
 
 - **IaaS** — tu loues une machine virtuelle et tu accèdes au système d'exploitation. Tu installes
   le runtime, la base de données, le serveur web, le pare-feu. Flexibilité maximale, déploiement
-  en minutes, aucune gestion de matériel. Exemples cités par le cours : **DigitalOcean**, **AWS**,
-  **Linode**. C'est le modèle de la session.
+  en minutes, aucune gestion de matériel. Les deux fournisseurs que le cours donne en exemple sur
+  sa diapositive IaaS sont **DigitalOcean** et **AWS**. C'est le modèle de la session.
 - **PaaS** — tu pousses du code, la plateforme s'occupe du système, du runtime et souvent de la
   base. Exemples : Heroku, Azure App Service, Render, Fly.io.
 - **SaaS** — le logiciel complet est loué à l'utilisateur final, par exemple une suite bureautique
@@ -185,11 +197,13 @@ comptes, vos accès » à ta charge jusque dans la colonne SaaS.
   SaaS : revenus prévisibles, dépense déductible pour le client, déploiement centralisé (on met à
   jour un serveur, pas cinq cents postes), et code critique jamais livré sur la machine du client.
 
-::: correction-du-cours {source="Fiche KB web/securite/administration-serveur-linux.md, liste des fournisseurs cités par le cours (maj 2026-08-19)"}
-Le cours cite **Heroku** dans sa liste de fournisseurs d'infrastructure. Heroku est un **PaaS**,
-pas un IaaS : on y pousse du code, on n'y administre aucun système d'exploitation. Si la question
-d'examen demande de reproduire la liste du cours, reproduis-la ; si elle demande de classer
-Heroku dans la grille, la bonne case est PaaS.
+::: cours {diapos="9, 15"}
+Le cours nomme **Heroku** deux fois, et l'ordre a de quoi dérouter : d'abord dans une liste
+générale d'entreprises « qui offrent des services d'infrastructure », aux côtés d'AWS, de
+DigitalOcean et de Linode ; puis, six diapositives plus loin, comme **exemple de PaaS**. C'est la
+seconde mention qui donne le classement, et elle est juste : sur Heroku, on pousse du code, on
+n'y administre aucun système d'exploitation. Le réflexe à prendre dépasse le cas : la présence
+d'un nom dans une liste d'ouverture ne dit rien du modèle de service qu'il vend.
 :::
 
 ## Déployer un serveur Ubuntu et s'y connecter
@@ -231,7 +245,10 @@ Le cours se connecte avec **PuTTY**, et c'est la méthode de référence de la s
 l'examen. Trois champs et un bouton : dans *Host Name (or IP address)*, l'**adresse IP publique**
 de ton droplet ; dans *Port*, **22** ; en *Connection type*, **SSH** ; puis *Open*. La fenêtre
 noire qui s'ouvre demande `login as:` — tu réponds `root`, le seul compte que le fournisseur ait
-créé — puis le mot de passe d'administration du droplet.
+créé — puis le mot de passe d'administration du droplet. Le cours le signale, et c'est un geste
+imposé, pas une recommandation : **à la première connexion, tu devras changer le mot de passe de
+`root`**. Le terminal te le redemande avant de rendre la main ; note le nouveau quelque part, car
+c'est lui qui ouvrira toutes tes séances de travail.
 
 ::: complement
 Sur Windows 10 (depuis la mise à jour d'avril 2018) et sur Windows 11, le client OpenSSH est une
@@ -248,13 +265,20 @@ C'est le même protocole, le même port et la même vérification d'empreinte qu
 l'outil change. À l'examen, décris la procédure PuTTY du cours.
 :::
 
+::: complement
+Tout ce qui suit jusqu'à la fin de cette section — l'empreinte de la clé d'hôte, le fichier
+`known_hosts`, l'attaque de l'intercepteur — est un **ajout de la leçon** : les diapositives de
+la séance 2 s'arrêtent à la fenêtre PuTTY et au mot de passe. C'est pourtant le geste de sécurité
+le plus vite bâclé d'une première connexion, et il prépare directement la séance 3.
+:::
+
 À la toute première connexion, le serveur présente sa **clé d'hôte** et ton client affiche son
 **empreinte** — une chaîne du genre `SHA256:` suivie d'une quarantaine de caractères. PuTTY
 l'affiche dans une boîte **PuTTY Security Alert**, où tu réponds *Accept* (l'empreinte est mise en
 cache) ou *Connect Once* ; en ligne de commande, `ssh` pose la même question dans le terminal et
 attend `yes`.
 
-C'est le moment le plus vite bâclé de la séance, et c'est le seul qui protège d'une **attaque de
+Ce court instant est le seul qui protège d'une **attaque de
 l'intercepteur** (*man-in-the-middle*, MITM) : quelqu'un placé entre ton poste et le serveur peut
 répondre à sa place et te faire taper ton mot de passe chez lui. La parade est simple : comparer
 l'empreinte affichée par ton client avec celle que la console du fournisseur affiche pour la
@@ -286,14 +310,18 @@ seul à chaque connexion. Le jour où elle change sans raison, il refuse bruyamm
 ce message d'alerte n'est pas un bogue à contourner, c'est le mécanisme qui fait son travail.
 
 ::: exercice-du-cours {ref="1"}
-Prends le temps de comparer l'empreinte affichée par ton client SSH avec celle que la console du
-fournisseur affiche pour ton droplet, avant de répondre `yes`. Cette empreinte se lit dans la
-**console web** du droplet (bouton *Console* du tableau de bord) : soit dans les lignes
-`SSH HOST KEY FINGERPRINTS` imprimées au démarrage, soit en tapant
-`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`. C'est le seul instant de toute la
-session où cette vérification est possible : après, ton client fait confiance à ce que tu auras
-accepté. Note aussi l'adresse IP publique dans un fichier local — tu en auras besoin à chaque
-séance, et un droplet détruit puis recréé n'a plus la même.
+Déroule la procédure dans l'ordre : crée le droplet chez l'hébergeur (image Ubuntu, plus petit
+palier, région Toronto), relève son **adresse IP publique** dans la console, puis ouvre PuTTY,
+port `22`, type `SSH`, et connecte-toi en `root` — le fournisseur te fera changer son mot de
+passe au passage. Note l'adresse IP dans un fichier local : tu en auras besoin à chaque séance,
+et un droplet détruit puis recréé n'a plus la même.
+
+**Un geste de plus, que l'énoncé ne demande pas** mais que tu ne pourras plus faire ensuite :
+avant de répondre `yes` (ou d'accepter dans la boîte *PuTTY Security Alert*), compare l'empreinte
+affichée par ton client avec celle de la console web du droplet — les lignes
+`SSH HOST KEY FINGERPRINTS` imprimées au démarrage, ou
+`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`. Après ton acceptation, ton client fait
+confiance à ce que tu auras accepté, et la question ne se reposera plus.
 :::
 
 ### Le premier geste sur un serveur neuf : cesser d'être `root`
@@ -302,8 +330,9 @@ séance, et un droplet détruit puis recréé n'a plus la même.
 confirmation.
 
 ::: correction-du-cours {source="DigitalOcean, « Initial Server Setup with Ubuntu » (digitalocean.com/community/tutorials/initial-server-setup-with-ubuntu), citée en ressource par la fiche KB"}
-Le cours fait toute la séance en `root`, et les exercices sont écrits dans cette hypothèse — c'est
-d'ailleurs pour cela que `pwd` y répond `/root`. Reproduis-le pour l'examen. En production, c'est
+Le cours fait toute la séance en `root`, et les exercices sont écrits dans cette hypothèse —
+c'est pour cela que, tout au long de la séance, ton répertoire de travail sera `/root`.
+Reproduis-le pour l'examen. En production, c'est
 un anti-patron pour trois raisons concrètes : `root` n'a **aucun garde-fou** (une commande
 destructrice s'exécute sans confirmation), il n'offre **aucune traçabilité** (impossible de savoir
 quel humain a fait quoi), et une session `root` compromise l'est **totalement**. Le premier geste
@@ -353,14 +382,6 @@ Trois répertoires suffisent pour cette session :
 - **`/var/log`** — l'endroit où l'on cherche quand ça casse, ou quand on soupçonne une intrusion.
   `/var/log/auth.log` liste les tentatives de connexion SSH ; tu y verras les robots.
 
-::: cours {diapos="36"}
-Le cours fait une démonstration où `pwd` répond **`/root`**, et non `/`. C'est l'ambiguïté
-numéro un de la séance : `/root` est le **répertoire personnel du superutilisateur**, un
-répertoire comme un autre, situé *dans* l'arbre — alors que `/` est la racine de l'arbre entier.
-L'invite de commande abrège le répertoire personnel en `~`. Donc `cd /` et `cd ~` ne mènent pas
-au même endroit quand tu es `root`.
-:::
-
 ## Se repérer, lister, créer
 
 Voici le socle du cours, commande par commande.
@@ -379,6 +400,15 @@ mkdir exercice3         # cree un repertoire
 mkdir -p a/b/c          # cree toute l'arborescence d'un coup
 ```
 
+::: cours {diapos="36"}
+Le cours présente `pwd` comme « l'instruction qui permet d'afficher le répertoire en cours ».
+Profite de cette première commande pour lever l'ambiguïté numéro un de la séance : quand tu
+travailles en `root`, `pwd` te répond `/root`, et `/root` n'est pas `/`. C'est le **répertoire
+personnel du superutilisateur**, un répertoire comme un autre, situé *dans* l'arbre — alors que
+`/` est la racine de l'arbre entier. L'invite de commande abrège le répertoire personnel en `~` :
+`cd /` et `cd ~` ne mènent donc pas au même endroit quand tu es `root`.
+:::
+
 Deux notions générales sortent de ce bloc et resserviront partout.
 
 **Les interrupteurs** (*switches*, ou options) sont les mots précédés d'un tiret qui modifient le
@@ -387,8 +417,9 @@ une convention d'affichage, c'est la grammaire des commandes Unix.
 
 **Chemin absolu ou relatif.** Un chemin qui **commence par `/`** part de la racine et désigne
 toujours le même endroit, d'où que tu l'écrives : `/var/www/html`. Un chemin qui ne commence pas
-par `/` part de **là où tu es** : `html`, `../log/syslog`. C'est un point d'examen probable, et
-c'est aussi la première cause de « la commande ne trouve pas mon fichier ».
+par `/` part de **là où tu es** : `html`, `../log/syslog`. C'est la distinction la plus
+réutilisée de toute la séance, et c'est la première cause de « la commande ne trouve pas mon
+fichier ».
 
 Enfin, la sortie de `ls -l` se lit toujours dans le même ordre. Sur la ligne
 `-rw-r--r-- 1 www-data www-data 612 Aug 7 10:22 index.html` :
@@ -416,19 +447,21 @@ répertoire différent, et tous les exercices suivants échoueront sans te dire 
 :::
 
 **Linux est sensible à la casse.** `Exercice3` et `exercice3` sont deux répertoires distincts, qui
-peuvent coexister dans le même dossier. C'est la source d'erreur numéro un quand on arrive de
-Windows, et le corrigé officiel de la séance le signale lui-même : l'énoncé de l'exercice 9 écrit
-« Exercice3 » avec une majuscule, et `cd Exercice3` échouera.
+peuvent coexister dans le même dossier sans que rien ne te prévienne. C'est la source d'erreur
+numéro un quand on arrive de Windows : un répertoire créé sous un nom et visé sous un autre
+produit un échec qui ne dit pas pourquoi. Le seul remède est de recopier le nom à l'identique —
+et le `Tab` du paragraphe suivant est fait pour ça.
 
-**Cinq raccourcis** qui font gagner un temps considérable : `Tab` complète le nom d'un fichier ou
-d'une commande ; les flèches `haut` et `bas` rejouent l'historique ; `Ctrl+C` interrompt la
-commande en cours ; `Ctrl+R` cherche dans l'historique ; et le clic droit colle dans PuTTY (c'est
-`Ctrl+Shift+V` dans un terminal ordinaire).
+**Trois raccourcis du cours** font gagner un temps considérable : `Tab` complète le nom d'un
+fichier ou d'une commande ; les flèches `haut` et `bas` rejouent l'historique ; le clic droit
+colle dans PuTTY. La leçon en ajoute deux, absents des diapositives : `Ctrl+C` interrompt la
+commande en cours, et `Ctrl+R` cherche dans l'historique (dans un terminal ordinaire, le collage
+se fait par `Ctrl+Shift+V`).
 
 ::: complement
-Trois habitudes qui ne changent rien à l'examen, mais qui te feront gagner du temps ensuite.
+Trois habitudes que le cours ne demande pas, mais qui te feront gagner du temps ensuite.
 
-**`ls -la` plutôt que `ls -l`.** Le cours enseigne `ls -l`, et c'est ce qu'on attend de toi. En
+**`ls -la` plutôt que `ls -l`.** Le cours enseigne `ls -l`, et c'est la forme à connaître. En
 pratique, prends `ls -la` par réflexe : sans le `-a`, tu ne vois **pas** les fichiers cachés — et
 sur un serveur web, ce sont souvent les plus importants, `.htaccess` à la racine du site et
 `.ssh/` dans un répertoire personnel. Un fichier qu'on ne voit pas est un fichier qu'on oublie de
@@ -454,21 +487,23 @@ head -20 fichier.txt    # les 20 premieres lignes ; « tail -20 » donne les 20 
 tail -f /var/log/syslog # SUIT le fichier en temps reel (Ctrl+C pour arreter)
 ```
 
-`cat` convient parfaitement à un fichier de trois lignes, et c'est ce que demandent les exercices.
-Sur un journal de trente mille lignes, il fait défiler l'écran pendant une minute : `less` et
-`tail -f` sont les bons outils.
+**Des quatre commandes ci-dessus, seule `cat` est au programme de la séance** ; `less`, `head` et
+`tail` sont des ajouts de la leçon. `cat` convient parfaitement à un fichier de trois lignes, et
+c'est ce que demandent les exercices. Sur un journal de trente mille lignes, il fait défiler
+l'écran pendant une minute : `less` et `tail -f` sont alors les bons outils.
 
 ::: cours {diapos="55"}
-La démonstration de `cat` du cours porte sur `/var/www/html/index.html`, c'est-à-dire la page
-« Apache2 Ubuntu Default Page — It works! » livrée avec l'image LAMP.
+Le cours démontre `cat` sur « un fichier HTML que j'aurais déposé sur mon serveur » : le fichier
+de la démonstration a été déposé là par l'enseignant, il n'était pas là avant lui.
 :::
 
-::: correction-du-cours {source="Fiche KB web/securite/administration-serveur-linux.md, section « Commandes de base », note sur la page par défaut d'Apache (maj 2026-08-19) ; suite dans web/securite/durcissement-serveur-web.md"}
-Cette page par défaut n'est pas un décor inoffensif. Servie en production, elle **annonce à tout
-visiteur** la distribution utilisée, le serveur web installé et l'emplacement de ses fichiers de
-configuration — c'est-à-dire de quoi cibler une attaque. C'est le premier fichier à remplacer sur
-un serveur destiné à être public. Le cours ne le dit pas ; le module de durcissement du serveur
-web y reviendra.
+::: complement
+Sur une machine fraîchement installée avec Apache, il y a pourtant déjà un fichier dans
+`/var/www/html` : la page d'accueil par défaut, « Apache2 Ubuntu Default Page — It works! ». Ce
+n'est pas un décor inoffensif. Servie en production, elle **annonce à tout visiteur** la
+distribution utilisée, le serveur web installé et l'emplacement de ses fichiers de configuration
+— c'est-à-dire de quoi cibler une attaque. C'est le premier fichier à remplacer sur un serveur
+destiné à être public, et le module de durcissement du serveur web y reviendra.
 :::
 
 ## L'éditeur `vi` : deux modes, et toute la confusion vient de là
@@ -506,6 +541,9 @@ En mode Commande :
 | `gg` / `G` | va au début / à la fin du fichier |
 | `/motif` puis `n` | cherche, puis occurrence suivante |
 
+**Le cours en donne trois** — `:w`, `:wq` et `:q!` ; les cinq autres lignes de la table sont des
+ajouts de la leçon, commodes dès qu'on édite pour de bon, mais absents des diapositives.
+
 Les tildes `~` en marge gauche marquent les lignes **qui n'existent pas** dans le fichier : elles
 ne font pas partie du contenu. Le cours les décrit comme des « lignes bleues » — c'est une
 particularité d'affichage de PuTTY, pas une notion de `vi`.
@@ -535,7 +573,7 @@ du fournisseur — le seul accès qui te reste le jour où SSH ne répond plus, 
 terminal ; un serveur sur lequel tu n'installeras rien ; un dépannage sur une machine que tu ne
 connais pas. Dans ces trois cas, c'est `vi` ou rien. Plus doux que `vi` et presque toujours
 présent sur Ubuntu : `nano fichier.txt`, qui affiche ses raccourcis en bas de l'écran (`Ctrl+O`
-écrit, `Ctrl+X` quitte) — mais ce n'est pas ce que le cours évalue.
+écrit, `Ctrl+X` quitte) — mais c'est `vi` que la séance met en pratique.
 :::
 
 ::: exercice-du-cours {ref="4"}
@@ -567,7 +605,7 @@ renommer un fichier, c'est le déplacer sur place**.
 mv demo.txt nouveau.txt          # RENOMMER : meme repertoire, nom different
 mv demo.txt contenu/             # DEPLACER : vers un repertoire existant
 mv demo.txt contenu/nouveau.txt  # deplacer ET renommer en une fois
-cp source.txt copie.txt          # copier ; « cp -r dossier/ backup/ » pour un repertoire
+cp source.txt copie.txt          # AJOUT DE LA LECON : copier ; « cp -r dossier/ backup/ » pour un repertoire
 ```
 
 La barre oblique finale de `contenu/` n'est pas décorative : elle dit explicitement « la
@@ -588,9 +626,9 @@ silencieusement ton fichier en un fichier nommé `exercice3`.
 
 ::: exercice-du-cours {ref="9"}
 Chemin **relatif** : tu es déjà dans le répertoire parent, il suffit d'écrire le nom du
-sous-répertoire. Attention à la casse — l'énoncé du cours écrit « Exercice3 » avec une majuscule,
-et cette commande-là échouera. Enchaîne avec `ls` : tu dois y voir `exercice4.txt`, et rien
-d'autre.
+sous-répertoire. Attention à la casse : reprends **exactement** le nom que tu as donné au
+répertoire à l'exercice 3. Si tu tapes `Exercice3` alors que tu l'as créé en minuscules, `cd`
+échouera. Enchaîne avec `ls` : tu dois y voir `exercice4.txt`, et rien d'autre.
 :::
 
 ## Revenir modifier un fichier existant
@@ -653,22 +691,37 @@ rm -i fichier.txt       # « -i » demande confirmation
 rm -r contenu/          # « -r » : recursif — le repertoire ET tout son contenu
 ```
 
-::: cours {diapos="59, 60, 61"}
-La démonstration du cours montre que `rm repertoireDemo` **sans** `-r` est refusé, avec le message
-`cannot remove: Is a directory`. Le cours le formule ainsi : « si on ne le fait pas, l'opération
-sera refusée ». Retiens la règle : **un répertoire exige `-r`, un fichier non**.
+::: cours {diapos="58-61"}
+Le cours consacre une section entière à `rm` et y démontre la suppression d'un répertoire qui
+contient un fichier et deux sous-répertoires. Le point de la démonstration est le `-r`, et il le
+formule ainsi : « si on ne le fait pas, l'opération sera refusée ». Retiens la règle : **un
+répertoire exige `-r`, un fichier non.** Sans `-r`, la commande s'arrête d'elle-même et le
+message d'erreur te dit qu'il s'agit d'un répertoire.
 :::
 
 ::: attention
 **`rm` n'a pas de corbeille.** Il n'existe aucun « annuler », aucun dossier d'où récupérer le
-fichier. Deux règles qui coûtent trois secondes et sauvent des serveurs : faire un `ls` sur le
-motif **avant** de le passer à `rm`, et ne jamais combiner `-r` et `-f` par réflexe. Une variable
-vide dans un script — `rm -rf $DOSSIER/*` où `$DOSSIER` ne vaut rien — détruit le système en une
-commande.
+fichier : la sauvegarde est le seul recours, et elle se prépare avant. Deux règles qui coûtent
+trois secondes : faire un `ls` sur le motif **avant** de le passer à `rm`, et ne jamais combiner
+`-r` et `-f` par réflexe.
+:::
 
-**Jamais de barre oblique finale derrière un lien symbolique.** La barre force le suivi du lien :
-`rm -r lien/` s'attaque au **contenu du répertoire cible**, pas au lien. Pour supprimer le lien
-lui-même : `rm lien`, sans barre. Et `ls -l` d'abord — un lien commence par `l`, pas par `d`.
+::: complement
+Deux pièges de `rm` que la séance 2 n'aborde pas, et qui se paient tous les deux dans des
+scripts plutôt qu'au clavier.
+
+**Une variable vide vise la racine.** Dans un script, `rm -rf $DOSSIER/*` où `$DOSSIER` ne vaut
+rien devient `rm -rf /*` : la commande efface le **contenu** de la racine, répertoire par
+répertoire. Le garde-fou `--preserve-root` des `coreutils` refuse bien `rm -rf /` écrit tel quel,
+mais il ne couvre **pas** la forme `/*`, qui contourne la racine en la développant. La parade
+n'est donc pas de compter sur le garde-fou : c'est de citer ses variables et de refuser de
+continuer si l'une est vide.
+
+**Jamais de barre oblique finale derrière un lien symbolique.** Un *lien symbolique* est une
+entrée de répertoire qui ne contient qu'un chemin vers autre chose. La barre finale force le
+suivi du lien : `rm -r lien/` s'attaque au **contenu du répertoire cible**, pas au lien. Pour
+supprimer le lien lui-même : `rm lien`, sans barre. Et `ls -l` d'abord — la sortie commence par
+`l` pour un lien et par `d` pour un répertoire.
 :::
 
 ::: exercice-du-cours {ref="12"}
@@ -692,12 +745,14 @@ retrouve des fichiers par leur nom dans toute une arborescence.
 
 ## Les permissions, en trois classes et trois droits
 
-::: complement
-La séance 2 n'aborde pas les permissions ; la séance 5 les annonce (« configuration des bits
-d'accès ») sans les développer. Ce qui suit est la grille minimale, celle qu'il faut pour lire une
-sortie de `ls -l` et pour comprendre l'exemple corrigé plus bas. Le calcul de `umask`, la notation
-symbolique complète et les bits spéciaux sont la matière du module sur les utilisateurs et les
-permissions.
+::: cours {seance="5" diapos="63, 66-71, 75-77, 80"}
+La séance 2 n'aborde pas les permissions — mais la séance 5 les **développe en entier** :
+`ls -l`, `chmod`, `chown`, `chgrp`, les trois classes et les trois droits, ce que chaque droit
+signifie sur un fichier et sur un répertoire, les valeurs 4/2/1, la notation numérique et la
+notation symbolique (`chmod g+rw`, `chmod a+rwx`). Ce qui suit n'est donc pas un avant-goût
+facultatif : c'est la grille minimale, celle qu'il faut dès maintenant pour lire une sortie de
+`ls -l` et pour comprendre l'exemple corrigé plus bas. Tu la retrouveras, plus complète, à la
+séance 5.
 :::
 
 Chaque fichier appartient à un **propriétaire** et à un **groupe**. Trois classes d'accès en
@@ -728,9 +783,12 @@ pièces qui sont derrière.
 
 ## Paquets, services et journaux
 
-::: complement
-Cette section entière vient de la base de connaissances. Elle n'est pas au programme de la
-séance 2, mais elle est indispensable dès qu'un serveur doit faire autre chose que d'exister.
+::: cours {seance="5" diapos="35, 41, 42, 49, 94"}
+La séance 2 ne parle ni de paquets, ni de services, ni de journaux — mais `apt` et `systemctl`
+sont bel et bien au programme du cours, un peu plus loin. La séance 5 les emploie en montrant ce
+qu'un utilisateur ordinaire peut faire passer par `sudo` (`apt update`, `apt upgrade`,
+`systemctl restart apache2`), et la séance 9 s'en sert pour installer la pile complète. Lis donc
+cette section comme une avance sur la suite du cours, pas comme un hors-programme.
 :::
 
 **Les paquets, avec `apt`.** Un *gestionnaire de paquets* installe des logiciels depuis un
@@ -885,7 +943,9 @@ La colonne de gauche est la procédure du cours, et c'est elle qu'il faut reprod
 La colonne de droite est ce qu'on fait sur un serveur destiné à rester en ligne. L'écart n'est pas
 une question de style : entre les deux, il y a un compte administrateur exposé au mot de passe,
 une machine qui ne reçoit aucun correctif, et une page qui décrit l'installation à quiconque la
-demande. La suite — clés SSH, pare-feu UFW, `fail2ban` — est la matière de la séance 3.
+demande. La suite — clés SSH et pare-feu UFW — est la matière de la séance 3 ; `fail2ban`, qui
+bannit automatiquement les adresses qui échouent trop souvent à se connecter, est un ajout de
+cette leçon.
 :::
 
 ## À toi de jouer
@@ -894,9 +954,9 @@ Les treize exercices de la feuille de la séance sont répartis au fil de la le�
 l'endroit où sa notion vient d'être expliquée. Ils s'enchaînent : chacun suppose le précédent
 réussi, et l'exercice 13 laisse ton répertoire de travail aussi propre qu'au départ.
 
-Le quiz ci-dessous porte sur ce que l'examen est susceptible de demander : la grille des neuf
-couches, la distinction entre chemin absolu et relatif, les deux modes de `vi`, la nécessité de
-`-r` pour un répertoire, et la sensibilité à la casse.
+Le quiz ci-dessous reprend les cinq points de la séance qui resservent le plus : la grille des
+neuf couches, la distinction entre chemin absolu et relatif, les deux modes de `vi`, la
+nécessité de `-r` pour un répertoire, et la sensibilité à la casse.
 
 [[quiz]]
 
