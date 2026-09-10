@@ -211,6 +211,39 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > Même famille : interdire une **classe** d'affirmation (« hors examen ») oblige à recenser **toutes**
 > ses occurrences, pas seulement celle qu'on corrigeait — l'encadré OWASP et le `quiz.json` q6 la
 > portaient encore, et c'est le correctif lui-même qui a créé l'incohérence.
+> ✅ **LE LOT 12 EST LIVRÉ (2026-09-10) — `02-environnement-linux` EST REPRIS, LE COMPTEUR DIT `3/9`.**
+> Vingt-quatre titres : **19** `{diapos}` de la séance 2, **4** `{seance="5" …}`, **1** `{hors-cours}`,
+> huit étapes de marche à suivre, et le **deuxième `:::: methodes`** du dépôt (`vi` / `nano`).
+> 🔴 **`{seance="N"}` N'EST PAS `{hors-cours}`, ET S'Y TROMPER RÉÉCRIT UNE FAUTE DANS LA GRAMMAIRE.**
+> Trois encadrés déclaraient les permissions, `chmod`, `apt` et `systemctl` « issus de la base de
+> connaissances », l'étudiant « pas évalué dessus » — mesuré, ils sont la matière de la **séance 5 du
+> même cours**. Une absence dans le déck de **sa** séance ne dit rien du cours : `{hors-cours}` répond à
+> « aucune diapositive **des 21 extraits** », jamais d'un seul déck. Et la **promesse d'exclusion** est
+> le pire des deux échecs symétriques — elle fait choisir à l'étudiant ce qu'il ne révise pas.
+> ⚠️ **La même accusation vivait dans le `quiz.json`, en plus dure** : un JSON n'apparaît dans aucun
+> diff d'encadré, et corriger la leçon seule aurait laissé le module se contredire.
+> 🔴 **POSER UN RENVOI DE TITRE EST UN JUGEMENT DE PROVENANCE — leçon neuve, attrapée par la revue.**
+> Le lot a donné `{diapos="18"}` à une section **et** laissé cent lignes plus haut l'encadré qui la
+> déclarait hors cours : le recensement de la classe avait été fait **avant** que les renvois existent.
+> **Tout encadré qui parle de la provenance d'une section se relit contre le renvoi NEUF de cette
+> section** — aucun diff ne montre ça, le renvoi est ajouté d'un côté, l'encadré intact de l'autre.
+> ⚠️ **ÉCRIRE UN `:::: methodes` DÉPLACE LA CIBLE DES SPECS D'ONGLETS.** `LECON_AVEC_ONGLETS` est
+> **découverte** (première page prerendue portant `class="methodes"`, ordre trié) : `environnement-linux`
+> précède `fondamentaux`. G-e2e reste à **57/1** uniquement parce que le lot 11 avait fait **dériver**
+> les attentes du spec de la source d'auteur. Un vert peut prouver qu'un lot **antérieur** a bien bâti
+> ses instruments, pas que le lot courant est sans effet (S-010).
+> ⚠️ **`libelle` d'un volet est interpolé NU** (`{{ volet.libelle }}`, dans le `<label>` **et** dans le
+> `panneau-nom` imprimé) : des accents graves y sortiraient littéralement. C'est la **deuxième surface**
+> du défaut « code en ligne non rendu dans un titre » — le corriger reste un lot à part.
+> ⚠️ **La clause D-C s'est fait enfreindre au DEUXIÈME conteneur comme au premier** : `nano` ne vivait
+> plus que derrière l'onglet masqué. **Le mode d'échec d'un `methodes` n'est pas d'y mettre trop, c'est
+> d'y enfermer le seul exemplaire d'un fait.**
+> ⚠️ **La mesure d'absence se sort du périmètre de l'agent** — une sonde jetable qui rend **une ligne
+> par terme** sur les 21 extraits, lancée par le fil principal **avant** d'écrire le brief. Deux gardes
+> non négociables : un mode **mot entier** (sans lui `vi` remonte 191 diapositives), et le rappel qu'une
+> mesure injectée transporte les **hypothèses d'orthographe du coordinateur** avec le statut de fait —
+> `on-premise` et `chemin relatif` sortaient `AUCUN` là où le cours écrit « On Premise » et « adresse
+> relative ». Détail : `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 12 ».
 > ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
