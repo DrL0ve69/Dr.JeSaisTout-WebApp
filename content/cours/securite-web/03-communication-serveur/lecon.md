@@ -18,13 +18,13 @@ prerequis:
 fiches-sources:
   - web/securite/securisation-acces-distant-ssh.md
 cree: 2026-08-26
-maj: 2026-08-26
+maj: 2026-09-10
 statut: publiee
 ---
 
 # Sécurité de la communication serveur
 
-## L'idée en une image
+## L'idée en une image {diapos="9, 10"}
 
 À la séance précédente, tu as loué un local nu et tu y es entré pour la première fois. La porte
 avait un **code** : quatre ou dix caractères reçus par courriel, que tu tapes à l'interphone. Ce
@@ -65,15 +65,83 @@ session.
 
 ::: complement
 Le fichier `/etc/ssh/sshd_config` — c'est-à-dire l'endroit où l'on interdit réellement le mot de
-passe — n'est ouvert nulle part dans le paquet republié de 78 diapositives.
-Les compléments de cette leçon — `PasswordAuthentication no`, `sshd -t`, `fail2ban`, `ufw limit`,
-la restriction par IP source, le fichier `~/.ssh/config` — viennent de la base de connaissances.
-Tu ne seras pas évalué dessus, et pourtant c'est là que se joue la sécurisation réelle : le cours
-t'apprend à **poser** la clé, la base de connaissances t'apprend à **fermer la porte** derrière
-elle.
+passe — n'est ouvert nulle part dans le cours. Mesuré : ni ce nom de fichier, ni `sshd`, ni
+`PasswordAuthentication`, ni `fail2ban`, ni `ssh-agent` n'apparaissent dans les vingt et un paquets
+de diapositives des deux cours, ni dans un énoncé d'exercice. Ces compléments viennent donc de la
+base de connaissances, et c'est là que se joue la sécurisation réelle : le cours t'apprend à
+**poser** la clé, la base de connaissances t'apprend à **fermer la porte** derrière elle.
+Les renvois de diapositives, en tête de chaque section, disent lesquelles viennent du cours et
+lesquelles n'en viennent pas — ce qui est autrement plus utile qu'une promesse sur le contenu de
+l'examen, que personne ici n'est en position de tenir.
 :::
 
-## Pourquoi le mot de passe ne suffit pas
+## En bref — la marche à suivre {hors-cours}
+
+:::: marche-a-suivre {titre="Verrouiller l'accès d'un droplet neuf : clé SSH, puis pare-feu"}
+
+1. {voir="La séquence du cours, telle qu'elle se déroule à l'écran"} Génère la paire de clés
+   **avant** de créer le droplet, et note la passphrase que `ssh-keygen` te fait saisir deux fois :
+   elle ne s'affiche pas pendant la frappe, et elle ne se récupère pas.
+
+   ```bash
+   ssh-keygen                                        # la commande du cours : nom « maCle », passphrase deux fois
+   ssh-keygen -t ed25519 -C "philippe@poste-cours"   # la forme explicite : l'algorithme est DECIDE, pas herite
+   ```
+
+2. {voir="Convertir la clé pour PuTTY"} Convertis la clé privée au format `.ppk` avec **PuTTYgen** —
+   *Load* pour charger `maCle`, passphrase, puis *Save private key* — et retiens que renommer le
+   fichier en `.ppk` ne convertit **rien** : seule la sauvegarde par PuTTYgen produit une vraie clé
+   PuTTY.
+
+3. {voir="La voie du cours : la coller dans DigitalOcean"} Colle le contenu de `maCle.pub`, la clé
+   **publique** et jamais `maCle`, dans l'interface DigitalOcean **au moment même** de créer le
+   droplet : la machine naît alors en « clé seulement », sans la moindre fenêtre de temps pendant
+   laquelle un mot de passe serait encore accepté.
+
+4. {voir="Les permissions, non négociables"} Sur un serveur **déjà en service**, pose toi-même les
+   permissions après avoir déposé la clé, sans quoi OpenSSH la refuse **en silence** et te
+   redemande un mot de passe sans fin.
+
+   ```bash
+   chmod 700 ~/.ssh                    # rwx pour le proprietaire seul
+   chmod 600 ~/.ssh/authorized_keys    # rw  pour le proprietaire seul
+   ```
+
+5. {voir="L'ordre des opérations, ou comment ne pas s'enfermer dehors"} Teste la connexion par clé
+   dans une **seconde fenêtre**, sans fermer la première, et ne ferme le mot de passe qu'ensuite :
+   valide la syntaxe avant de recharger, et recharge plutôt que redémarrer.
+
+   ```bash
+   sudo sshd -t                 # test de syntaxe : le silence signifie que tout va bien
+   sudo systemctl reload ssh    # recharge sans couper les sessions etablies
+   ```
+
+6. {voir="Un service à protéger : le serveur web"} Installe Apache et vérifie qu'il répond **avant**
+   de toucher au pare-feu : sans service à ouvrir et à fermer, aucune règle ne se laisse observer.
+
+   ```bash
+   sudo apt update && sudo apt install apache2
+   systemctl is-active apache2    # doit repondre : active
+   ```
+
+7. {voir="Exemple simple"} Active UFW dans l'ordre sûr, celui qui ne souffre aucune exception : les
+   politiques par défaut, **l'ouverture de SSH d'abord**, une relecture, et l'activation en tout
+   dernier.
+
+   ```bash
+   sudo ufw default deny incoming
+   sudo ufw default allow outgoing
+   sudo ufw allow OpenSSH           # AVANT enable : la ligne qui evite de s'enfermer dehors
+   sudo ufw status                  # relire ce qu'on s'apprete a appliquer
+   sudo ufw enable                  # en DERNIER, jamais avant
+   ```
+
+8. {voir="module:automatisation-surveillance"} Enchaîne sur la séance 4 une fois l'accès verrouillé :
+   il reste à savoir ce qui se passe sur la machine quand tu n'y es pas.
+
+::::
+
+## Pourquoi le mot de passe ne suffit pas {diapos="8, 9"}
 
 Un serveur qui possède une adresse IP publique reçoit, **dans l'heure qui suit sa création**, des
 tentatives de connexion SSH automatisées. Ce ne sont pas des attaques ciblées : ce sont des
@@ -108,7 +176,7 @@ difficile », il le rend **sans objet**. C'est un changement de catégorie, pas 
 degré.
 :::
 
-## La paire de clés : deux fichiers, un seul secret
+## La paire de clés : deux fichiers, un seul secret {diapos="10"}
 
 Une **paire de clés** SSH, ce sont deux fichiers mathématiquement liés, produits ensemble et
 inséparables.
@@ -155,9 +223,9 @@ nommer :
 
 [[simulation]]
 
-## Générer la paire de clés
+## Générer la paire de clés {diapos="14-19"}
 
-### La séquence du cours, telle qu'elle se déroule à l'écran
+### La séquence du cours, telle qu'elle se déroule à l'écran {diapos="14-19"}
 
 ::: cours {diapos="14, 15, 16, 17, 18, 19"}
 Créer un dossier (par exemple `CleSSH`) sur le Bureau, taper `cmd` dans la barre d'adresse de
@@ -209,7 +277,7 @@ opérationnellement à éviter. L'emplacement correct est `~/.ssh/`, c'est-à-di
 gestionnaire de mots de passe, jamais dans un dossier synchronisé en clair.
 :::
 
-### Convertir la clé pour PuTTY
+### Convertir la clé pour PuTTY {diapos="20-26"}
 
 PuTTY n'utilise pas le format OpenSSH mais son propre format, l'extension `.ppk`. D'où la
 manipulation des diapositives 20 à 26 : ouvrir **PuTTYgen**, cliquer **Load** pour charger la clé
@@ -224,18 +292,51 @@ clé OpenSSH sans extension : le renommage est au mieux un confort d'affichage d
 dialogue.
 :::
 
-::: complement
-PuTTY est optionnel en 2026. Sur Windows 10 (depuis la mise à jour d'avril 2018) et sur
-Windows 11, le **client OpenSSH** est une *fonctionnalité facultative*, présente sur la plupart
-des installations mais pas garantie : vérifie par `ssh -V`, et s'il manque, ajoute-le par
-*Paramètres → Applications → Fonctionnalités facultatives*. Une fois là,
-`ssh root@203.0.113.10` fonctionne dans PowerShell, dans Windows Terminal et dans le terminal
-intégré de VS Code, sans aucun `.ppk`. Même chose pour WinSCP (diapositives 38 à 42) : `scp` et
-`sftp` sont livrés avec le client OpenSSH, et l'extension Remote-SSH de VS Code édite les fichiers
-distants directement. **Utilise PuTTY si l'examen l'exige ; utilise `ssh` pour travailler.**
-:::
+**PuTTY est optionnel en 2026, et c'est le bon moment pour le dire.** Une fois la clé fabriquée,
+deux routes mènent au **même shell** sur le droplet, et le cours n'en montre qu'une. La première
+est celle de la séance : **PuTTY**, qui n'accepte que son propre format et impose donc la
+conversion en `.ppk` décrite ci-dessus. La seconde est le **client OpenSSH** de Windows 10 (depuis
+la mise à jour d'avril 2018) et de Windows 11 : c'est une *fonctionnalité facultative*, présente
+sur la plupart des installations mais pas garantie — vérifie-la par `ssh -V`, et s'il manque,
+ajoute-la par *Paramètres → Applications → Fonctionnalités facultatives*. Il lit la clé OpenSSH
+telle quelle, **sans aucun `.ppk`**, dans PowerShell, dans Windows Terminal comme dans le terminal
+intégré de VS Code. Il remplace aussi WinSCP (diapositives 38 à 42), puisque `scp` et `sftp` sont
+livrés avec lui et que l'extension Remote-SSH de VS Code édite les fichiers distants directement.
+**Utilise PuTTY si l'examen l'exige ; utilise `ssh` pour travailler.**
 
-### Quel algorithme choisir
+Les deux volets qui suivent aboutissent exactement au même résultat — une session ouverte sur le
+droplet, authentifiée par ta clé — par deux suites de gestes différentes.
+
+:::: methodes
+::: methode {libelle="La méthode du cours — PuTTY" defaut}
+Ouvre PuTTY et descends dans *Connection → SSH → Auth* : le bouton *Browse* y charge
+`clePutty.ppk`, le fichier produit par PuTTYgen. Remonte ensuite à *Session*, saisis l'**adresse
+IP** du droplet, puis *Open*. À la première connexion, PuTTY affiche l'empreinte de la clé du
+serveur et propose de la mettre en cache : ne l'accepte qu'après l'avoir comparée à celle
+qu'affiche la console web du fournisseur. Saisis enfin `root` comme code utilisateur, puis la
+**passphrase de ta clé** — et non le mot de passe du compte, que le droplet n'accepte plus.
+
+**WinSCP** se règle de la même façon pour le transfert de fichiers : la même `clePutty.ppk` se
+charge dans *Advanced → Authentication*, et *Login* ouvre la session.
+:::
+::: methode {libelle="Le client OpenSSH de Windows"}
+Une seule commande suffit, en pointant la clé privée **au format OpenSSH** — celle que
+`ssh-keygen` a produite, jamais le `.ppk` :
+
+```bash
+ssh -i ~/.ssh/id_ed25519 root@203.0.113.10
+```
+
+À la première connexion, `ssh` affiche l'empreinte du serveur et attend un `yes` avant de
+l'inscrire dans `~/.ssh/known_hosts` ; compare-la, elle aussi, à la console web du fournisseur. La
+passphrase de la clé est demandée ensuite. Pour ne plus répéter ni l'adresse ni le chemin de la
+clé, enregistre l'hôte sous un surnom dans `~/.ssh/config` : une ligne `Host`, puis `HostName`,
+`User` et `IdentityFile` indentés en dessous, le fichier protégé par `chmod 600 ~/.ssh/config`. La
+connexion se réduit alors à `ssh mon-droplet`, et `scp` comme `sftp` acceptent le même surnom.
+:::
+::::
+
+### Quel algorithme choisir {hors-cours}
 
 | Algorithme | Sécurité | Taille de la clé publique — brute puis en base64 | Verdict en 2026 |
 |---|---|---|---|
@@ -256,7 +357,7 @@ base64**, ce qui donne la longue chaîne d'environ 68 caractères. La base64 gon
 tiers. Dire « une clé Ed25519 fait 68 octets », c'est mesurer l'enveloppe d'affichage, pas la clé.
 :::
 
-### La passphrase, et pourquoi elle ne se tape pas cent fois
+### La passphrase, et pourquoi elle ne se tape pas cent fois {diapos="18, 23"}
 
 Le cours fait saisir une passphrase sans expliquer à quoi elle sert. La raison est simple : **la
 clé privée est un fichier**. Si ton portable est volé ou infecté, un fichier non chiffré donne un
@@ -277,9 +378,9 @@ ssh-add -D                            # tout purger avant de quitter un poste pa
 Sur Windows, le service s'appelle `ssh-agent` et se vérifie par `Get-Service ssh-agent` ;
 l'équivalent dans le monde PuTTY s'appelle **Pageant**.
 
-## Déposer la clé publique sur le serveur
+## Déposer la clé publique sur le serveur {diapos="11-13, 27-29"}
 
-### La voie du cours : la coller dans DigitalOcean
+### La voie du cours : la coller dans DigitalOcean {diapos="11-13, 27-29"}
 
 ::: cours {diapos="11, 12, 13, 27, 28, 29"}
 On ouvre `maCle.pub` dans un éditeur de texte, on copie **toute la ligne**, et on la colle dans
@@ -323,7 +424,7 @@ car `ssh` refuse un fichier de configuration inscriptible par autrui. C'est du t
 configuration, pas des commandes — ne le colle pas dans un terminal.
 :::
 
-### Les permissions, non négociables
+### Les permissions, non négociables {seance="5" diapos="63, 69-71, 75-77, 82-84"}
 
 OpenSSH **refuse silencieusement** une clé si les permissions du dossier ou du fichier sont trop
 permissives. C'est la cause numéro un des « ma clé ne marche pas » : rien ne s'affiche côté
@@ -335,7 +436,8 @@ chmod 600 ~/.ssh/authorized_keys     # rw  pour le propriétaire seul
 chown -R deploy:deploy /home/deploy/.ssh
 ```
 
-La logique est celle de la séance précédente, appliquée au fichier le plus sensible du système :
+La logique est celle des droits d'accès Unix — `ls -l`, `chmod`, `chown`, que le cours détaille à la
+**séance 5** et non à la séance précédente —, appliquée ici au fichier le plus sensible du système :
 si un autre utilisateur de la machine peut **écrire** dans ton `authorized_keys`, il peut y
 ajouter **sa** clé et devenir toi. OpenSSH préfère refuser la connexion plutôt que d'honorer un
 fichier modifiable par autrui. Le diagnostic se fait toujours du côté **serveur**, dans
@@ -349,7 +451,8 @@ colle nulle part, sur aucun site.
 
 Le piège de cet exercice, que le cours traverse sans le nommer : l'énoncé promet qu'« il ne sera
 plus nécessaire d'utiliser un mot de passe », et la démonstration te fait pourtant saisir quelque
-chose (`Passphrase for key …`, diapositive 37). Ce n'est **pas** le mot de passe du compte `root` :
+chose — la diapositive 36 dit « Entrer votre mot de passe ». Ce n'est **pas** le mot de passe du
+compte `root` :
 c'est la **passphrase qui déchiffre ta clé privée locale**. Elle ne quitte jamais ton poste et
 n'est jamais envoyée au serveur. Confondre les deux est l'erreur d'examen la plus probable de
 cette séance.
@@ -363,16 +466,17 @@ sudo sshd -T | grep -i passwordauth                # doit répondre : passwordau
 ```
 :::
 
-## Durcir la configuration du serveur SSH
+## Durcir la configuration du serveur SSH {hors-cours}
 
 Le fichier `/etc/ssh/sshd_config` est la configuration du **service** SSH, côté serveur. C'est là,
 et nulle part ailleurs, qu'on décide quelles méthodes d'authentification sont acceptées.
 
 ::: complement
 Cette section entière est un complément de la base de connaissances : ni le fichier ni les
-directives qui suivent n'apparaissent dans le paquet de 78 diapositives.
-Elles ne sont pas exigibles à l'examen. Elles sont, en revanche, ce qui transforme « j'ai une
-clé » en « le mot de passe n'existe plus ».
+directives qui suivent n'apparaissent nulle part dans le cours — c'est ce que déclare le marqueur
+« hors du cours » posé sur son titre, et c'est mesuré sur les vingt et un paquets de diapositives
+des deux cours. Elles sont, en revanche, ce qui transforme « j'ai une clé » en « le mot de passe
+n'existe plus ».
 :::
 
 Trois directives font l'essentiel du travail, et quatre autres complètent utilement :
@@ -387,7 +491,7 @@ Trois directives font l'essentiel du travail, et quatre autres complètent utile
 | `MaxAuthTries 3` | Coupe la connexion après trois tentatives ratées. |
 | `AllowAgentForwarding no` | Empêche un serveur compromis de rebondir vers tes autres serveurs avec ton agent. |
 
-### L'ordre des opérations, ou comment ne pas s'enfermer dehors
+### L'ordre des opérations, ou comment ne pas s'enfermer dehors {hors-cours}
 
 `PermitRootLogin no` et `PasswordAuthentication no` sont des **portes qu'on ferme**. Les fermer
 dans le mauvais ordre, c'est se retrouver du mauvais côté — et il n'y a pas de serrurier.
@@ -458,16 +562,17 @@ Si un changement de port « ne prend pas » malgré un redémarrage du service, 
 cela.
 :::
 
-## Changer le port SSH : ce que ça vaut vraiment
+## Changer le port SSH : ce que ça vaut vraiment {diapos="78"}
 
-::: cours {diapos="45, 46, 47, 48, 49, 50"}
+::: cours {diapos="78"}
 Dans son **édition de 85 diapositives**, retirée du site du cours depuis son ingestion le
 2026-08-07, le cours présentait le changement du
 port SSH comme l'une des **deux méthodes de protection contre le brute force**, à égalité avec la
 clé SSH : ouvrir `/etc/ssh/sshd_config`, décommenter la ligne `#Port 22`, y écrire un port libre
 au-dessus de 1024, recharger le service.
-La section a disparu du paquet republié de 78 diapositives, mais elle survit dans la bibliographie
-de la dernière diapositive et reste plausible à l'examen.
+La section a disparu du paquet republié de 78 diapositives — **aucune** de ses diapositives ne
+traite plus du port SSH — mais elle survit dans la bibliographie de la dernière, la 78, qui renvoie
+encore à un article sur le changement de port. Le sujet reste donc plausible à l'examen.
 :::
 
 ```bash
@@ -507,7 +612,7 @@ qui protège vraiment est `PasswordAuthentication no`, complété par `fail2ban`
 par adresse IP source.
 :::
 
-## Un service à protéger : le serveur web
+## Un service à protéger : le serveur web {diapos="64, 69"}
 
 Un pare-feu ne se comprend qu'avec quelque chose à ouvrir et à fermer. C'est le rôle d'Apache dans
 cette séance : installer un serveur web, vérifier qu'il répond sur le port 80, puis observer ce
@@ -533,7 +638,7 @@ entièrement en **HTTP sur le port 80**, sans TLS : tout ce qui circule est en c
 futur formulaire de connexion.
 :::
 
-## Le pare-feu UFW
+## Le pare-feu UFW {diapos="44-46, 51"}
 
 Un serveur fraîchement créé écoute souvent bien plus de choses que tu ne crois : SSH, mais aussi
 une base de données mal configurée qui écoute sur toutes les interfaces, un serveur de
@@ -554,7 +659,7 @@ officiel. UFW masque les deux : la même commande produit le même effet, seule 
 au-dessous a changé. C'est précisément l'intérêt d'une façade.
 :::
 
-### Comment UFW décide du sort d'un paquet
+### Comment UFW décide du sort d'un paquet {diapos="47, 61"}
 
 ```mermaid
 flowchart TD
@@ -577,7 +682,7 @@ Deux idées seulement sont à retenir de ce schéma, et elles expliquent tout le
 sont évaluées **dans l'ordre**, et la **politique par défaut** est le filet — c'est elle qui
 décide du sort de tout ce que personne n'avait prévu.
 
-### Les commandes
+### Les commandes {diapos="47, 48, 51, 55, 58, 61, 64, 68"}
 
 ```bash
 # --- Consulter ---
@@ -624,7 +729,7 @@ demande confirmation. Le filet : **ouvre une seconde session SSH avant d'activer
 ouverte jusqu'à ce qu'une **troisième** connexion, toute neuve, ait réussi.
 :::
 
-### La démonstration du cours, sortie par sortie
+### La démonstration du cours, sortie par sortie {diapos="47-50, 55-57, 64-66, 69-71"}
 
 ::: cours {diapos="47, 48, 49, 50"}
 Le cours déroule UFW comme une suite de captures d'écran. `ufw status` répond d'abord
@@ -683,7 +788,7 @@ accessible ; ajoute la vérification qu'il ne demande pas mais qui compte davant
 **nouvelle** session SSH passe, depuis une seconde fenêtre, **avant** de fermer la première.
 :::
 
-::: cours {diapos="56, 57, 64, 65, 66, 69, 70, 71"}
+::: cours {diapos="55-57, 64-66, 69-71"}
 La suite de la démonstration montre `ufw status numbered`, qui préfixe chaque règle de son numéro
 entre crochets, puis `ufw delete 4` — le cours choisit le numéro 4, qui est la règle **IPv6 du
 port 80** — et en tire la bonne conclusion : le port 80 reste ouvert en IPv4. Viennent ensuite
@@ -736,7 +841,7 @@ et `curl http://127.0.0.1` depuis le serveur lui-même fonctionne, parce que
 indépendantes.
 :::
 
-## Ce que le cours ne dit pas, et qui compte
+## Ce que le cours ne dit pas, et qui compte {hors-cours}
 
 ::: complement
 **`fail2ban`** est le complément naturel de tout ce qui précède : il lit `/var/log/auth.log`,
@@ -775,7 +880,7 @@ l'industrie pour un parc de serveurs. Le prix : une adresse IP fixe, ou un compo
 d'infrastructure de plus à opérer.
 :::
 
-## Exemple simple
+## Exemple simple {diapos="49"}
 
 Les deux commandes qui séparent un pare-feu correctement activé d'un serveur inaccessible. Ce sont
 littéralement les mêmes commandes, dans un ordre différent.
@@ -827,7 +932,7 @@ Le raisonnement dépasse le cas particulier et vaut pour toute la séance : **qu
 porte à distance, on vérifie d'abord qu'une autre est ouverte.** C'est vrai d'`ufw enable`, c'est
 vrai de `PasswordAuthentication no`, c'est vrai d'un changement de port.
 
-## Exemple complet
+## Exemple complet {diapos="30, 35, 49"}
 
 Les vingt premières minutes d'un droplet, telles que le cours les déroule, puis telles qu'on les
 déroule en production. Les deux colonnes font la même chose : rendre le serveur utilisable et
@@ -900,7 +1005,7 @@ qu'on ferme les autres sessions. Le cours ne va jamais jusque-là : il s'arrête
 fonctionne », ce qui est le milieu du travail, pas sa fin.
 :::
 
-## À toi de jouer
+## À toi de jouer {hors-cours}
 
 Les quatre exercices de la feuille de la séance sont répartis au fil de la leçon, chacun à
 l'endroit où sa notion vient d'être expliquée. Ils s'enchaînent strictement : sans la clé de
@@ -924,7 +1029,7 @@ différence entre `allow ssh` et `allow 80`, et ce que voit le navigateur quand 
 
 [[quiz]]
 
-## À retenir
+## À retenir {diapos="9, 10, 18, 49, 78"}
 
 - **La clé privée ne quitte jamais ton poste.** Le serveur ne détient que la clé publique et ne
   reçoit qu'une **signature**, calculée sur un défi neuf à chaque session. C'est pour cela que le
@@ -942,7 +1047,7 @@ différence entre `allow ssh` et `allow 80`, et ce que voit le navigateur quand 
   réponse du cours à l'examen ; en production, la mesure qui protège est la désactivation du mot
   de passe, complétée par `fail2ban` ou une restriction par adresse source.
 
-## Aller plus loin
+## Aller plus loin {diapos="72, 78"}
 
 **Fiche de la base de connaissances**
 
