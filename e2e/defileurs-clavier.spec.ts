@@ -117,10 +117,33 @@ const INSECABLE = '\u00A0';
  * `PHP`, `C#` ou `Objective-C` (L-035 : une prémisse de test fausse accuse le
  * produit). Le point couvre les langages versionnés (`asp.net`, `f#`).
  */
+/**
+ * 🔴 QUATRIÈME GENRE, AJOUTÉ LE 2026-09-10 (lot 14) — ET SA FORME DIFFÈRE.
+ * Le défileur d'une ÉTAPE de marche à suivre s'appelle « Étape n°<U+00A0>N<U+00A0>— bash »
+ * (`RenduBlocs.etiquetteEtape`) : l'insécable y sépare AUSSI « n° » du rang, ce que les
+ * trois genres de figure ne font pas. La forme est donc écrite en deux alternatives
+ * plutôt qu'en rendant l'insécable optionnel partout, ce qui relâcherait la
+ * vérification des trois autres. Ce fichier ne voyait pas ce genre tant que la page
+ * qu'il mesure — la PREMIÈRE leçon prerendue portant `<app-quiz`, découverte et triée —
+ * n'avait pas de marche à suivre : c'est la POPULATION qui a changé sous l'instrument,
+ * pas le produit (famille S-010).
+ */
 const FORME_DU_NOM = new RegExp(
-  `^(Code|Exemple vulnérable|Correctif) n°(\\d+)${INSECABLE}— [A-Za-z0-9#+.-]+$`,
+  `^(?:(Code|Exemple vulnérable|Correctif) n°|(Étape) n°${INSECABLE})(\\d+)${INSECABLE}— [A-Za-z0-9#+.-]+$`,
   'u',
 );
+
+/**
+ * Les genres dont le rang est un COMPTEUR DE FIGURES, donc continu sur la page.
+ *
+ * 🔴 « Étape » n'en est PAS, et l'exclure est un fait de contrat, pas une commodité : son
+ * rang est le numéro de l'étape dans la marche à suivre, et une étape sans bloc de code est
+ * parfaitement légale (le contrat dit « AU PLUS un bloc de code »). Mesuré sur le module 04 :
+ * les étapes 4, 5 et 9 ne portent aucun code, donc les rangs rendus sont 1, 2, 3, 6, 7, 8.
+ * Exiger 1..n y accuserait le produit d'un trou que l'auteur a écrit exprès (L-035).
+ * Unicité et forme, elles, valent pour tout le monde.
+ */
+const GENRES_A_RANG_CONTINU = new Set(['Code', 'Exemple vulnérable', 'Correctif']);
 
 /**
  * Borne de la marche d'approche. Généreuse mais FINIE : sans elle, un piège du focus
@@ -147,9 +170,13 @@ interface ArretTabulation {
 
 /** Le débordement d'un défileur, tel que la MISE EN PAGE du navigateur le décide. */
 interface MesureDefileur {
+  /** Le rang du défileur dans le DOM COMPLET — celui qui indexe un locator `.defileur`. */
+  readonly rang: number;
   readonly nom: string;
   readonly scrollWidth: number;
   readonly clientWidth: number;
+  /** `false` quand le défileur vit dans un volet `methodes` non coché (`display: none`). */
+  readonly rendu: boolean;
 }
 
 /** Décrit l'élément qui a le focus MAINTENANT, ou `null` si le focus a quitté la page. */
@@ -185,15 +212,38 @@ async function nomsAuDom(page: Page): Promise<readonly (string | null)[]> {
     .evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
 }
 
-/** Le débordement de chaque défileur, dans l'ordre du document, à la largeur courante. */
-async function mesurerDefileurs(page: Page): Promise<readonly MesureDefileur[]> {
+/**
+ * Les défileurs RÉELLEMENT RENDUS, avec leur rang dans l'ordre du document complet.
+ *
+ * 🔴 POURQUOI CETTE SECONDE SOURCE EXISTE (lot 14, 2026-09-10). Le conteneur `methodes`
+ * (décision D-C) met ses panneaux non cochés en `display: none` — un seul volet est à
+ * l'écran, par construction. Un bloc de code qui vit dans le volet masqué est donc dans le
+ * DOM, et **ne peut pas** être un arrêt de tabulation : ce comportement est CORRECT, et le
+ * navigateur le doit à WCAG 2.4.3 autant qu'au bon sens — on ne tabule pas dans ce qui n'est
+ * pas affiché. Comparer le parcours clavier à `nomsAuDom` accuserait donc le produit sain
+ * (L-035). ⚠️ Le `rang` est celui du DOM COMPLET : c'est lui qui indexe `.defileur` dans un
+ * locator, et un index recalculé sur la liste filtrée viserait le mauvais élément.
+ *
+ * `checkVisibility()` est la question exacte — « cet élément est-il rendu ? » — plutôt qu'une
+ * inspection de `style` ou de classe, qui redirait la feuille au lieu de mesurer l'effet.
+ */
+async function defileursRendus(page: Page): Promise<readonly MesureDefileur[]> {
   return page.locator('.defileur').evaluateAll((elements) =>
-    elements.map((element) => ({
-      nom: element.getAttribute('aria-label') ?? '(sans nom)',
-      scrollWidth: element.scrollWidth,
-      clientWidth: element.clientWidth,
-    })),
+    elements
+      .map((element, rang) => ({
+        rang,
+        nom: element.getAttribute('aria-label') ?? '(sans nom)',
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        rendu: element.checkVisibility(),
+      }))
+      .filter((mesure) => mesure.rendu),
   );
+}
+
+/** Les noms accessibles des seuls défileurs rendus, dans l'ordre du document. */
+async function nomsRendus(page: Page): Promise<readonly string[]> {
+  return (await defileursRendus(page)).map((mesure) => mesure.nom);
 }
 
 /** Imprime l'inventaire du débordement — le journal fait foi (L-005). */
@@ -280,13 +330,18 @@ test('le parcours au clavier atteint TOUS les défileurs du DOM, et UN SEUL foca
   // défiler n'entre pas dans ce compte, et c'est le `describe` du bas qui l'imprime.
   const enTrop = arrets.filter((arret) => arret.dansUneFigureDeCode && !arret.estDefileur);
   const auDom = await nomsAuDom(page);
+  const rendus = await nomsRendus(page);
 
   // Le journal fait foi (L-005) : le compte total appartient au CONTENU de la leçon
-  // publiée et n'est donc pas épinglé — mais il s'imprime, parce qu'un écart s'y lit.
+  // publiée et n'est donc pas épinglé — mais il s'imprime, parce qu'un écart s'y lit. Le
+  // compte des MASQUÉS s'imprime aussi : c'est le seul endroit d'où l'on voit qu'un volet
+  // `methodes` retire des défileurs du parcours, et il doit se voir plutôt que se déduire.
   console.log(
     `Défileurs — parcours complet de « ${CHEMIN_LECON} » : ${String(arrets.length)} arrêt(s) de ` +
       `tabulation, dont ${String(defileurs.length)} défileur(s) et ${String(enTrop.length)} arrêt(s) ` +
-      'dans une figure de code sans être le défileur.',
+      'dans une figure de code sans être le défileur. ' +
+      `${String(auDom.length)} défileur(s) au DOM, dont ${String(auDom.length - rendus.length)} ` +
+      'masqué(s) par un volet « methodes » non coché.',
   );
 
   // 🔴 LA NON-RÉGRESSION DU 16 → 8, MESURÉE DANS UN NAVIGATEUR. Si le transformateur
@@ -316,10 +371,11 @@ test('le parcours au clavier atteint TOUS les défileurs du DOM, et UN SEUL foca
   // premier, et l'écart se lit ici (jamais dans un seul des deux).
   expect(
     defileurs.map((arret) => arret.nom),
-    'le parcours au clavier n’atteint pas exactement les défileurs du DOM, dans l’ordre du ' +
+    'le parcours au clavier n’atteint pas exactement les défileurs RENDUS, dans l’ordre du ' +
       'document — un défileur a perdu son tabindex, ou l’ordre de tabulation ne suit plus le ' +
-      'document (WCAG 2.4.3)',
-  ).toEqual([...auDom]);
+      'document (WCAG 2.4.3). Un défileur masqué par un volet « methodes » non coché n’est ' +
+      'PAS attendu ici : il n’est pas rendu, donc il ne se tabule pas.',
+  ).toEqual([...rendus]);
 });
 
 test('chaque défileur porte un nom accessible non vide, DISTINCT sur la page, et de rang CONTINU', async ({
@@ -371,9 +427,9 @@ test('chaque défileur porte un nom accessible non vide, DISTINCT sur la page, e
     // `?? ''` / `?? NaN` plutôt qu’un `!` : `noUncheckedIndexedAccess` a raison sur le TYPE
     // (un groupe de capture peut être vide), même si `.not.toBeNull()` ci-dessus garantit la
     // VALEUR. Un `NaN` de repli échouerait bruyamment à l’assertion de rang, jamais en silence.
-    const genre = correspondance[1] ?? '';
+    const genre = correspondance[1] ?? correspondance[2] ?? '';
     const rangs = rangsParGenre.get(genre) ?? [];
-    rangs.push(Number(correspondance[2] ?? NaN));
+    rangs.push(Number(correspondance[3] ?? NaN));
     rangsParGenre.set(genre, rangs);
   }
 
@@ -392,6 +448,12 @@ test('chaque défileur porte un nom accessible non vide, DISTINCT sur la page, e
   // sans être rendue, et le lecteur cherche en vain la « figure n°3 ». L'égalité à
   // `1..n` dit les deux propriétés d'un coup, et elle dit AUSSI le compte.
   for (const [genre, rangs] of rangsParGenre) {
+    if (!GENRES_A_RANG_CONTINU.has(genre)) {
+      // « Étape » : rang = numéro de l’étape, trous légaux (voir GENRES_A_RANG_CONTINU).
+      // On imprime, on n’assertionne pas — mais la forme et l’unicité l’ont déjà jugé.
+      console.log(`Défileurs — rangs de « ${genre} » (non continus par contrat) : ${rangs.join(', ')}`);
+      continue;
+    }
     expect(
       rangs,
       `les rangs de « ${genre} » ne sont pas CONTINUS depuis 1 (${rangs.join(', ')}) — soit la ` +
@@ -408,7 +470,7 @@ test('au moins un défileur DÉBORDE à 320 px — sans quoi rien n’est mis à
   await page.goto(CHEMIN_LECON);
   await attendreHydratation(page);
 
-  const mesures = await mesurerDefileurs(page);
+  const mesures = await defileursRendus(page);
   journaliserDebordement('320 px (largeur de référence WCAG 1.4.10)', mesures);
 
   expect(mesures.length, 'aucun défileur mesuré : le test serait vert et vide').toBeGreaterThan(0);
@@ -443,11 +505,11 @@ test('une flèche droite fait DÉFILER chaque défileur qui déborde — c’est
   await page.goto(CHEMIN_LECON);
   await attendreHydratation(page);
 
-  const mesures = await mesurerDefileurs(page);
+  const mesures = await defileursRendus(page);
   const defilements: string[] = [];
   let exerces = 0;
 
-  for (const [index, mesure] of mesures.entries()) {
+  for (const mesure of mesures) {
     const nom = await tabulerJusquAuDefileurSuivant(page, 'Tab');
     expect(
       nom,
@@ -463,7 +525,7 @@ test('une flèche droite fait DÉFILER chaque défileur qui déborde — c’est
       continue;
     }
 
-    const defileur = page.locator('.defileur').nth(index);
+    const defileur = page.locator('.defileur').nth(mesure.rang);
     await expect(defileur, 'la marche d’approche n’a pas posé le focus où on le croit').toBeFocused();
     expect(await defileur.evaluate((element) => element.scrollLeft)).toBe(0);
 
@@ -503,7 +565,7 @@ test('chaque défileur porte un indicateur de focus calculé, et il n’est pas 
   // ÉTAT AU REPOS relevé AVANT toute tabulation, sur la page ENTIÈRE : les index
   // renvoyés par la mesure sont ceux de l'ordre du document complet.
   const auRepos = await releverEtatAuRepos(page);
-  const noms = await nomsAuDom(page);
+  const noms = await nomsRendus(page);
 
   const mesures: MesureFocus[] = [];
   for (const nomAttendu of noms) {
@@ -546,8 +608,8 @@ test('aucun piège du focus : Maj+Tab remonte tous les défileurs en miroir', as
   await page.goto(CHEMIN_LECON);
   await attendreHydratation(page);
 
-  const noms = await nomsAuDom(page);
-  expect(noms.length, 'aucun défileur : le miroir serait vert et vide').toBeGreaterThan(0);
+  const noms = await nomsRendus(page);
+  expect(noms.length, 'aucun défileur rendu : le miroir serait vert et vide').toBeGreaterThan(0);
 
   // Aller.
   for (const nomAttendu of noms) {
@@ -619,7 +681,7 @@ test.describe('la largeur par défaut — la dette imprimée, pas assertionnée'
     await page.goto(CHEMIN_LECON);
     await attendreHydratation(page);
 
-    const mesures = await mesurerDefileurs(page);
+    const mesures = await defileursRendus(page);
     const sansEmploi = mesures.filter((mesure) => mesure.scrollWidth <= mesure.clientWidth);
 
     console.log(

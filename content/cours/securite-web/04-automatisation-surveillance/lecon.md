@@ -18,13 +18,13 @@ prerequis:
 fiches-sources:
   - web/securite/automatisation-surveillance-cron.md
 cree: 2026-08-26
-maj: 2026-08-27
+maj: 2026-09-10
 statut: publiee
 ---
 
 # Automatisation et surveillance
 
-## L'idée en une image
+## L'idée en une image {diapos="5, 9, 10"}
 
 Un immeuble bien tenu ne dépend pas de la présence de son propriétaire. Il tient parce que deux
 objets, très bêtes chacun, travaillent ensemble.
@@ -58,23 +58,96 @@ qu'un travail que personne ne peut relire n'a, en pratique, pas eu lieu.
    sans surveillance. Qui peut écrire dans une crontab peut exécuter ce qu'il veut sur la machine.
 
 ::: cours
-La séance 4 du cours 420-B10-HU (millésime 2026, paquet de 70 diapositives) s'intitule
-« Automatisation des tâches de surveillance et nettoyage ». Elle enseigne trois choses, dans cet
-ordre : le **rôle du scriptage** dans l'entretien d'un serveur, la **configuration de crontab**
-— les cinq champs, les opérateurs, `crontab -e`, la redirection de la sortie vers un fichier — et
-le **scriptage en PHP** exécuté hors du serveur web. Les sept exercices de la feuille de la séance
-portent exactement sur cette mécanique : écrire des expressions, planifier un script, journaliser
-sa sortie, purger une table.
+La séance 4 du cours 420-B10-HU (millésime 2026, paquet de 70 diapositives) porte, à l'horaire, le
+titre « Automatisation des tâches de surveillance et nettoyage » ; le support, lui, s'ouvre sur
+« Tâches cédulées et scriptage ». Elle enseigne trois choses, dans cet ordre : le **rôle du
+scriptage** dans l'entretien d'un serveur, la **configuration de crontab** — les cinq champs, les
+opérateurs, `crontab -e`, la redirection de la sortie vers un fichier — et le **scriptage en PHP**
+exécuté hors du serveur web, sur deux cas : purger une table, surveiller et relancer un service.
+Les sept exercices de la feuille de la séance portent exactement sur cette mécanique : écrire des
+expressions, planifier un script, journaliser sa sortie, purger une table.
 :::
 
 ::: complement
-Lire un fichier est précisément ce qu'un script de surveillance fait le plus souvent, et la séance
-n'y consacre aucune démonstration. La section « PHP en ligne de commande » de
-cette leçon le comble avec la base de connaissances : tu n'en seras pas évalué, mais sans elle tu
-ne peux écrire aucun script de surveillance réel.
+La diapositive 6 annonce le **traitement des fichiers** parmi les sujets du cours ; la diapositive
+11 restreint le programme à la configuration de crontab et au scriptage PHP, et aucune
+démonstration de lecture de fichier n'est donnée dans les 70 diapositives. C'est pourtant ce qu'un
+script de surveillance fait le plus souvent : la section « Lire un journal ligne à ligne » le comble
+avec la base de connaissances. Une bonne part de cette leçon est dans le même cas — mesuré en mot
+entier sur les vingt et un paquets de diapositives des deux cours, `MAILTO`, `/etc/cron.d`,
+`flock`, `@reboot`, les timers `systemd`, `journalctl`, `escapeshellarg`, `proc_open`, `fail2ban`
+et le signal de vie n'apparaissent **nulle part**. Les renvois posés en tête de chaque section
+disent lesquelles viennent du cours et lesquelles n'en viennent pas — ce qui est autrement plus
+utile qu'une promesse sur le contenu de l'examen, que personne ici n'est en position de tenir.
 :::
 
-## Pourquoi automatiser : le rôle du scriptage
+## En bref — la marche à suivre {hors-cours}
+
+:::: marche-a-suivre {titre="Planifier un script de surveillance, et pouvoir relire ce qu'il a fait"}
+
+1. {voir="PHP en ligne de commande"} Écris le script, puis **lance-le à la main** avant de parler de
+   planification : un script qui ne tourne pas dans ton terminal ne tournera pas mieux sous `cron`.
+
+   ```bash
+   php /opt/scripts/surveiller.php   # à la main, dans ton terminal : ici le PATH de ta session suffit
+   ```
+
+2. {voir="Les pièges de cron que le cours ne couvre pas"} Relève le chemin **absolu** de
+   l'interpréteur, et remplace dans le script tout chemin relatif par `__DIR__` : `cron` ne lit ni
+   `.bashrc` ni `.profile`, et son répertoire courant n'est pas le tien.
+
+   ```bash
+   which php        # /usr/bin/php — c'est CE chemin-là qui va dans la crontab
+   ```
+
+3. {voir="Les trois commandes à connaître"} Sauvegarde la table existante avant de l'ouvrir, puis
+   ouvre-la — à la première utilisation, `cron` demande quel éditeur employer.
+
+   ```bash
+   crontab -l > ~/crontab.$(date +%F).bak   # deux secondes, et rien à réécrire de mémoire
+   crontab -e
+   ```
+
+4. {voir="La syntaxe : cinq champs, puis la commande"} Écris les **cinq champs** dans l'ordre —
+   minute, heure, jour du mois, mois, jour de la semaine — puis la commande, en chemins absolus des
+   deux côtés.
+
+5. {voir="Lire une expression : les quatre du cours"} Vérifie l'expression sur `crontab.guru`
+   **avant** de la déposer, et regarde les **prochaines dates** plutôt que la traduction en
+   français : une expression peut se traduire juste et ne pas partir quand tu le crois.
+
+6. {voir="Rediriger la sortie : sans journal, pas de surveillance"} Redirige la sortie avec `>>`, et
+   ajoute `2>&1` **après** elle — sinon les erreurs partent dans un courriel que personne ne lit.
+
+   ```bash
+   */5 * * * *  /usr/bin/php /opt/scripts/surveiller.php >> /var/log/mesScripts/surveiller.log 2>&1
+   ```
+
+7. Sauvegarde, quitte l'éditeur, puis **relis la table telle que `cron` l'a enregistrée** et regarde
+   le journal se remplir en direct pendant deux minutes.
+
+   ```bash
+   crontab -l                                   # la table telle qu'elle a été enregistrée
+   tail -f /var/log/mesScripts/surveiller.log   # la preuve que la tâche part vraiment
+   ```
+
+8. {voir="Permissions du script planifié"} Verrouille le script **et chaque répertoire de son
+   chemin** — ci-dessous pour une tâche qui vit dans la crontab de `root`, à ajuster au compte de
+   service si elle vit ailleurs : un fichier lancé par `root` et modifiable par un autre compte est
+   une élévation de privilèges qui n'attend que sa minute.
+
+   ```bash
+   sudo chown root:root /opt/scripts/surveiller.php && sudo chmod 700 /opt/scripts/surveiller.php
+   sudo chmod 755 /opt /opt/scripts   # chaque répertoire du chemin, pas seulement le fichier
+   ```
+
+9. {voir="Trois règles avant d'écrire une seule ligne de suppression"} **Si le script détruit quoi
+   que ce soit**, fais-le commencer en mode simulation : il compte, il journalise le nombre, et il
+   ne supprime que sur argument explicite.
+
+::::
+
+## Pourquoi automatiser : le rôle du scriptage {diapos="5, 7-11"}
 
 Depuis le début du programme, tu écris des programmes qui s'exécutent **dans** un environnement :
 un serveur web reçoit une requête, ton code répond. Personne ne t'a encore demandé de programmer
@@ -120,12 +193,12 @@ branches ajoutées ici — le **signal de vie** et la **journalisation de l'acti
 ce qui distingue un script d'exercice d'un script d'exploitation. Retiens leur existence
 maintenant ; leur mécanique est expliquée à la fin de la section sur les pièges.
 
-## `crontab` : cinq champs et une commande
+## Crontab : cinq champs et une commande {diapos="12, 13, 17"}
 
 `cron` est le démon — c'est-à-dire un programme qui tourne en permanence en arrière-plan — chargé
 de la planification. La **crontab** (*cron table*) est la table qu'il lit : une ligne par tâche.
 
-### Les trois commandes à connaître
+### Les trois commandes à connaître {diapos="13-16"}
 
 ```bash
 crontab -e               # éditer SA crontab (l'éditeur est demandé la 1re fois)
@@ -135,11 +208,17 @@ crontab -u www-data -l   # (en root) lire la crontab d'un AUTRE utilisateur
 crontab -l > ~/crontab.$(date +%F).bak   # le réflexe : sauvegarder avant d'éditer
 ```
 
+À la **première** utilisation, `cron` demande quel éditeur de texte employer — le cours choisit
+`vim.basic`, c'est-à-dire `vi`, vu à la séance 2. On en sort comme partout ailleurs dans `vi` :
+`Échap` pour repasser en mode commande, puis `:wq` et `Entrée`. C'est tout ce que le cours montre
+de cette commande ; les quatre autres lignes ci-dessus sont des réflexes d'exploitation, pas de la
+matière de la séance.
+
 ::: attention
-Le cours ne montre que `crontab -e`. Retiens quand même `crontab -r` — pour ne **jamais** le
-taper : il supprime toute la table sans demander confirmation, il n'existe pas de corbeille, et
-`-e` et `-r` sont voisins au clavier. La ligne de sauvegarde ci-dessus coûte deux secondes et
-t'évite de réécrire de mémoire une planification que tu avais mis une heure à régler.
+Retiens `crontab -r` — pour ne **jamais** le taper : il supprime toute la table sans demander
+confirmation, il n'existe pas de corbeille, et `-e` et `-r` sont voisins au clavier. La ligne de
+sauvegarde ci-dessus coûte deux secondes et t'évite de réécrire de mémoire une planification que tu
+avais mis une heure à régler.
 :::
 
 Le démon relit les crontabs et **évalue les lignes une fois par minute**. Deux conséquences
@@ -147,7 +226,7 @@ concrètes : une tâche ne peut pas s'exécuter plus souvent que toutes les minu
 qui viserait une granularité plus fine — « toutes les 30 secondes » — ne s'écrit pas. Pour du
 sous-minute, `cron` n'est pas l'outil.
 
-### La syntaxe : cinq champs, puis la commande
+### La syntaxe : cinq champs, puis la commande {diapos="18-32"}
 
 ```bash
 # ┌───────────── minute        (0-59)
@@ -179,14 +258,15 @@ déclenche au bon moment. **`*/n` part toujours du minimum du champ**, pas de l'
 `*/15` en minutes donne 0, 15, 30, 45, et `*/2` en mois — dont le minimum est 1 — donne janvier,
 mars, mai… et non février, avril, juin. **`@reboot` n'est pas une expression temporelle** : il
 déclenche au démarrage du démon `cron`, ce qui sert à relancer un processus de fond et ne sert à
-rien pour une tâche périodique. Enfin, **les raccourcis `@` sont absents du cours** : ne compte pas
-dessus à l'examen, mais sache qu'ils rendent une crontab bien plus lisible qu'une rangée d'étoiles.
+rien pour une tâche périodique. Enfin, **les raccourcis `@` sont absents du cours** — mesuré, ni
+`@daily` ni `@reboot` n'apparaissent sur une seule des 70 diapositives —, mais ils rendent une
+crontab bien plus lisible qu'une rangée d'étoiles.
 
 ::: note
-**Le champ jour-de-semaine va de `0` à `7`**, et non `0` à `6` comme l'écrivent beaucoup de
-mémentos : `0` et `7` désignent tous deux le dimanche, ce doublon existant pour accommoder les deux
-conventions en usage. À l'examen, `0` pour dimanche reste sans risque. En lisant une crontab
-existante, en revanche, un `7` n'est pas une erreur.
+**Le champ jour-de-semaine va de `0` à `7`**, et non `0` à `6` comme l'écrit la diapositive 19 :
+`0` et `7` désignent tous deux le dimanche, ce doublon existant pour accommoder les deux conventions
+en usage. Écrire `0` pour dimanche est donc toujours juste, et c'est la seule forme que le cours
+emploie. En lisant une crontab existante, en revanche, un `7` n'est pas une erreur.
 :::
 
 ::: attention
@@ -197,20 +277,23 @@ de la syntaxe où l'intuition trompe systématiquement. Pour un vrai vendredi 13
 13 du mois, et tester le jour de la semaine **dans le script**.
 :::
 
-::: attention
-**Un sixième champ dans une crontab utilisateur est une erreur silencieuse.** On voit parfois
-« tous les samedis à 3 h » écrit `0 3 * * * 6` suivi de la commande. `cron` ne lit que cinq champs :
-il prendrait ici `6` pour le premier mot de la commande, chercherait un programme nommé `6`, et
-échouerait chaque nuit en silence. La forme correcte est `0 3 * * 6` — ou `0 3 * * sat`.
+::: correction-du-cours {diapos="31" source="Support de la séance 4 (millésime 2026), diapositive 31, « Cas #5 : Tous les samedis à 3 heures du matin », où l'expression est écrite `0 3 * * * 6` — relevé sur l'extrait de diapositives le 2026-09-10 ; crontab(5) — https://man7.org/linux/man-pages/man5/crontab.5.html"}
+**Un sixième champ dans une crontab utilisateur est une erreur silencieuse — et la diapositive 31 en
+contient un.** Le cas n° 5 y écrit « tous les samedis à 3 h » sous la forme `0 3 * * * 6`, qui compte
+**six** champs. `cron` n'en lit que cinq : il prendrait `6` pour le premier mot de la commande,
+chercherait un programme nommé `6`, et échouerait chaque nuit en silence. La forme correcte est
+`0 3 * * 6` — ou `0 3 * * sat`. Les cinq autres cas de la série, diapositives 27 à 32, sont justes ;
+c'est une coquille, pas une règle à apprendre.
 :::
 
-::: complement
-**La méthode de travail compte autant que la syntaxe.** Ne mémorise pas les expressions :
-**vérifie-les**, sur un éditeur crontab en ligne, en quatre gestes — cliquer un exemple pour obtenir la syntaxe ; **modifier l'expression et lire la
-phrase explicative qui s'ajuste** ; cliquer « Next » pour voir les **prochaines dates d'exécution
-réelles** ; cliquer « random » comme entraînement, en devinant le sens avant de lire l'explication.
-C'est le troisième geste qui compte le plus : une expression peut se traduire correctement en
-français **et** ne pas se déclencher quand tu le crois.
+::: cours {diapos="38-42"}
+**La méthode de travail compte autant que la syntaxe**, et le cours y consacre cinq diapositives.
+Ne mémorise pas les expressions : **vérifie-les** sur `crontab.guru`, dont la diapositive 38 donne
+l'adresse, en quatre gestes — cliquer un exemple pour obtenir la syntaxe ; **modifier l'expression
+et lire la phrase explicative qui s'ajuste** ; cliquer « Next » pour voir les **prochaines dates
+d'exécution réelles** ; cliquer « random » comme entraînement, en devinant le sens avant de lire
+l'explication. C'est le troisième geste qui compte le plus : une expression peut se traduire
+correctement en français **et** ne pas se déclencher quand tu le crois.
 :::
 
 ::: exercice-du-cours {ref="1"}
@@ -223,7 +306,27 @@ que dimanche vaut `0`. Et le dernier est le plus intéressant : `*/15` produit f
 45, donc il faut **énumérer** les minutes voulues au lieu de diviser.
 :::
 
-### Quand une seule expression ne suffit pas
+### Lire une expression : les quatre du cours {diapos="33-37"}
+
+Le cours s'arrête sur quatre expressions et demande, en classe, ce qu'elles font. Les voici avec la
+réponse que la diapositive 37 donne elle-même — c'est le format exact d'une question posée en
+classe, et il vaut mieux les relire une fois de plus que de les découvrir le jour venu.
+
+| Expression | Ce qu'elle déclenche |
+| --- | --- |
+| `*/15 * * * *` | toutes les 15 minutes — donc aux minutes 0, 15, 30 **et** 45 |
+| `0 0,6,12,18 * * *` | à minuit, 6 h, midi et 18 h, tous les jours |
+| `0 0 1 1 *` | une fois par année : le 1er janvier à minuit |
+| `0 0 * * 1,2` | les lundis et les mardis, à minuit |
+
+Relis-les de gauche à droite, du plus fin au plus grossier : minute, heure, jour du mois, mois, jour
+de la semaine. La deuxième est celle qu'on lit le plus souvent de travers — la virgule **énumère**
+quatre heures précises, elle ne décrit aucune cadence ; `0 */6 * * *` produirait exactement les mêmes
+quatre déclenchements, par l'autre écriture. La quatrième rappelle que `1,2` désigne des **jours de
+la semaine**, lundi et mardi, et non les 1er et 2 du mois : c'est le cinquième champ, pas le
+troisième.
+
+### Quand une seule expression ne suffit pas {diapos="43, 44"}
 
 Certaines règles ne s'expriment pas en une ligne : « toutes les 15 min en semaine, toutes les
 60 min la fin de semaine » demande deux cadences, et un champ de `cron` n'en porte qu'une.
@@ -250,9 +353,13 @@ tu verras alors, dans un seul fichier, les deux rythmes alterner d'heure en heur
 vérification la plus rapide que ton expression fait bien ce que tu crois.
 :::
 
-## Rediriger la sortie : sans journal, pas de surveillance
+## Rediriger la sortie : sans journal, pas de surveillance {diapos="21, 57, 63"}
 
-C'est le point que le cours survole et qui cause le plus de dégâts en pratique.
+C'est le point que le cours survole et qui cause le plus de dégâts en pratique. Mesuré : la seule
+redirection montrée en 70 diapositives est le chevron simple de la diapositive 21, et deux
+diapositives — 57 et 63 — se contentent de constater qu'« on voit la trace dans le fichier log ».
+Ni `>>`, ni `2>&1`, ni `/dev/null` n'apparaissent nulle part ; ce sont pourtant eux qui décident si
+ce fichier de trace est lisible dans six mois.
 
 Quand tu lances un programme dans un terminal, il écrit sur deux canaux distincts : la **sortie
 standard** (`stdout`, le résultat normal) et la **sortie d'erreur** (`stderr`, les messages
@@ -313,7 +420,7 @@ ni la sortie ni les erreurs ». C'est acceptable quand le script tient son propr
 une faute quand il n'en tient pas — tu obtiens alors une tâche parfaitement muette, dont personne
 ne saura jamais si elle a fonctionné.
 
-### Le courriel de cron
+### Le courriel de cron {hors-cours}
 
 Par défaut, **toute sortie d'une tâche `cron` est envoyée par courriel** au propriétaire de la
 crontab, via le serveur de messagerie local. Cela explique pourquoi `cron` ne se plaint jamais : il
@@ -343,7 +450,7 @@ par **`journald`**, le service de journalisation du système : plus besoin d'éc
 2>&1`, la sortie se relit avec `journalctl -u <unité>`, horodatée et déjà découpée par exécution.
 L'avantage n'est pas cosmétique : la rotation, la limite de taille et le filtrage par date sont
 gérés par le système, là où un fichier `.log` grossit jusqu'à remplir le disque si personne n'y
-pense. La méthode du cours reste `>> … 2>&1`, et c'est elle qui est évaluée.
+pense. La méthode du cours reste `>> … 2>&1`, et c'est elle que la séance enseigne.
 :::
 
 ::: exercice-du-cours {ref="2"}
@@ -365,7 +472,7 @@ vient, ne modifie pas l'expression au hasard — vérifie d'abord que le script 
 puis que le chemin de `php` est bien celui que donne `which php`.
 :::
 
-## Où vivent les tâches : trois emplacements, un champ de différence
+## Où vivent les tâches : trois emplacements, un champ de différence {hors-cours}
 
 Tout ce qui précède décrit **ta** crontab, celle qu'ouvre `crontab -e`. Ce n'est pas le seul
 endroit d'où `cron` lit des tâches, et la différence entre ces endroits tient à un champ.
@@ -402,7 +509,7 @@ et il disparaît quand on désinstalle. Une ligne cachée dans la crontab person
 disparaît, elle, le jour où l'on supprime son compte — et personne ne saura jamais ce qu'elle
 faisait.
 
-## Les pièges de `cron` que le cours ne couvre pas
+## Les pièges de cron que le cours ne couvre pas {hors-cours}
 
 Les vrais problèmes de `cron` ne sont **pas** la syntaxe. Une expression fausse se voit tout de
 suite ; les pièges ci-dessous produisent des tâches qui ont l'air de fonctionner.
@@ -446,8 +553,11 @@ toujours ce qu'on veut pour une tâche périodique : la prochaine occurrence arr
 minutes.
 
 **6. Le fuseau horaire est celui du système.** Pas celui de ton application, pas celui de ton
-navigateur. `timedatectl` l'affiche, `sudo timedatectl set-timezone America/Toronto` le corrige. Un
-serveur laissé en UTC exécute ta tâche de « minuit » à 19 h ou 20 h heure du Québec. Au passage à l'heure avancée, `cron`
+navigateur : un serveur laissé en UTC exécute ta tâche de « minuit » à 19 h ou 20 h heure du Québec.
+Le réglage lui-même — `timedatectl` pour l'afficher, `sudo timedatectl set-timezone America/Toronto`
+pour le corriger — est l'objet de l'**exercice 2** de la séance, et il est enseigné en diapositives
+dans l'autre cours du programme, celui de PHP, au chapitre du déploiement. Ce que **ni l'un ni
+l'autre** ne dit tient au comportement propre de `cron`. Au passage à l'heure avancée, il
 **rattrape** de lui-même : un décalage de moins de trois heures fait exécuter aussitôt les tâches à
 heure fixe que le saut de printemps aurait sautées, et empêche de rejouer celles de l'heure répétée
 à l'automne (`cron(8)`, *Daylight Saving Time and other time changes*). Ce filet ne couvre **que**
@@ -475,7 +585,7 @@ terminée avec le **code de retour** 0, la convention Unix pour « succès ». U
 de sortir avec `exit(1)` en cas d'erreur transforme donc automatiquement tout échec en absence de
 signal, donc en alerte.
 
-## PHP en ligne de commande
+## PHP en ligne de commande {diapos="46-50"}
 
 Jusqu'ici, ton PHP s'exécutait toujours de la même façon : un navigateur demande une page, le
 serveur web réveille PHP, PHP produit du HTML. Un script planifié n'a ni navigateur ni serveur
@@ -486,6 +596,11 @@ appelée SAPI (*Server API*) : la SAPI **CLI** (*command-line interface*).
 php /opt/scripts/copieDeSauvegarde.php           # depuis ton terminal
 /usr/bin/php /opt/scripts/copieDeSauvegarde.php  # dans une crontab : chemin absolu, toujours
 ```
+
+Le cours s'arrête à cette commande : la diapositive 48 donne `php < chemin du fichier >` et son
+exemple, la 50 la replace dans une crontab. Tout ce qui suit — les deux fichiers de configuration,
+`$argv`, `STDIN`, le code de retour, le shebang — est mesuré absent des 70 diapositives, et c'est
+pourtant ce qui sépare un script qui tourne d'un script sur lequel on peut compter.
 
 Ce n'est pas un détail d'emballage : plusieurs choses que tu tiens pour acquises n'existent plus.
 
@@ -531,7 +646,7 @@ amont. Si c'est vraiment inévitable : un jeton secret obligatoire, une restrict
 et le fichier placé hors de l'arborescence publique.
 :::
 
-### Lire un journal ligne à ligne
+### Lire un journal ligne à ligne {diapos="6, 11"}
 
 Voici enfin le geste central d'un script de surveillance : ouvrir un journal et le parcourir. La
 règle qui gouverne tout le reste est une règle de **mémoire**.
@@ -595,7 +710,7 @@ verrouillage temporaire du compte — qui refuse la tentative au moment où elle
 se complètent : la première voit ce que la seconde ne peut pas voir, à savoir les attaques qui ne
 passent jamais par ton code.
 
-## Surveiller un service et le relancer
+## Surveiller un service et le relancer {diapos="58-63"}
 
 Un service qui s'arrête n'a presque jamais l'élégance de prévenir. Apache tombe à 3 h 15 parce que
 le disque était plein, et personne ne le découvre avant le premier appel d'un utilisateur, huit
@@ -763,7 +878,7 @@ peu plus d'une minute que `cron` passe, puis relire le journal et confirmer avec
 lorsqu'un redémarrage a lieu, sinon le fichier devient illisible dès le premier jour.
 :::
 
-## Les scripts qui suppriment
+## Les scripts qui suppriment {diapos="51-53"}
 
 Jusqu'ici, nos scripts **lisaient**. On passe maintenant à ceux qui **détruisent** — purger des
 imports vieux d'un an, effacer des fichiers temporaires, vider une table de sessions. C'est la
@@ -776,7 +891,12 @@ dans un bureau vide. Là où l'analogie casse : la déchiqueteuse fait du bruit 
 confettis, alors qu'un `DELETE` réussi ne produit **aucun signe extérieur**. C'est au script de
 fabriquer ce bruit — d'où les trois règles qui suivent.
 
-### Trois règles avant d'écrire une seule ligne de suppression
+### Trois règles avant d'écrire une seule ligne de suppression {diapos="55"}
+
+Une seule des trois vient du cours, et c'est la première : la diapositive 55 pose le `SELECT` **avant**
+le `DELETE`, sur exactement le même filtre. Les deux autres — la clause bornée, la trace de ce qui a
+été détruit — viennent de la base de connaissances ; « mode simulation », « argument explicite » et
+« nombre de lignes journalisé » ne sont sur aucune des 70 diapositives.
 
 1. **Compter avant de supprimer, et ne supprimer que sur demande explicite.** Le script démarre en
    mode **simulation** : il exécute le `SELECT COUNT(*)` correspondant exactement au `DELETE`, écrit
@@ -804,7 +924,7 @@ find /var/app/uploads/tmp -maxdepth 1 -type f -mtime +30 -delete   # réel : la 
 répertoires eux-mêmes, `-mtime +30` borne l'âge. Les trois ensemble font que la commande ne peut
 pas s'échapper du dossier visé, même si quelqu'un y a glissé un lien.
 
-### Le cas du cours : purger une table
+### Le cas du cours : purger une table {diapos="54-57"}
 
 ::: cours
 La démonstration (diapositives 54 à 57) porte sur une table `fichierImporte` de la base
@@ -879,7 +999,7 @@ de commande — et ce jour-là ce sera une injection SQL. Employer PDO avec des 
 le premier script coûte deux lignes et supprime la question.
 :::
 
-### La version que l'on met en production
+### La version que l'on met en production {hors-cours}
 
 Le script ci-dessous répond aux trois règles à la fois : mode simulation par défaut, filtre écrit
 une seule fois et réutilisé pour le comptage comme pour la suppression, et journal qui porte le
@@ -942,7 +1062,7 @@ Un booléen stocké en `varchar(10)` est un choix de l'énoncé, pas une bonne p
 éviterait les cas `'True'`, `'TRUE'` et `NULL`.
 :::
 
-## `shell_exec` et l'injection de commande OS
+## shell_exec et l'injection de commande OS {diapos="6, 62, 70"}
 
 Le cours emploie `shell_exec` une seule fois, dans le script de surveillance d'Apache, et sans en
 expliquer le fonctionnement. Or cette famille de fonctions est la porte la plus large que PHP puisse
@@ -956,7 +1076,7 @@ forme qui donne le code de retour** — `exec` ou `proc_open` — car `shell_exe
 pas le succès, et une commande en échec peut rendre une chaîne vide qu'on confondra avec un résultat
 normal.
 
-### La faille, sur l'exemple le plus court possible
+### La faille, sur l'exemple le plus court possible {hors-cours}
 
 ```php
 <?php
@@ -1032,7 +1152,7 @@ en ligne de commande, celle qu'emploient les tâches planifiées. Le mécanisme 
 constat d'usage — aucune source ne la chiffre.
 :::
 
-## Permissions du script planifié
+## Permissions du script planifié {seance="5" diapos="38-42, 63, 67-71, 74-77, 82-84"}
 
 Voici l'angle mort du cours, et il annule à lui seul tout le reste : **un script exécuté par la
 crontab de `root` hérite de tous les privilèges de `root`**. La question n'est donc pas seulement
@@ -1064,17 +1184,19 @@ Le moindre privilège appliqué à une tâche planifiée tient en trois décisio
 2. **Si une seule commande exige `root`, l'accorder chirurgicalement** par le fichier `sudoers` :
    `svc-surveillance ALL=(root) NOPASSWD: /usr/bin/systemctl start apache2`. Jamais
    `NOPASSWD: ALL`, et jamais un binaire acceptant des arguments arbitraires — `systemctl` tout
-   court permettrait de démarrer, d'arrêter et de masquer **n'importe quel** service.
+   court permettrait de démarrer, d'arrêter et de masquer **n'importe quel** service. La séance 5
+   donne d'ailleurs `alex ALL=(root) /usr/bin/systemctl *` en exemple de **syntaxe** : l'astérisque
+   y sert à montrer la grammaire du champ « commande », il n'est pas un modèle de règle à recopier.
 3. **Aucun mot de passe en clair dans le script** : variable d'environnement définie en tête de
    crontab, ou fichier en `600` appartenant au compte de service.
 
-## Alternatives et arbitrages
+## Alternatives et arbitrages {hors-cours}
 
 `cron` n'est pas la seule façon de déclencher une tâche, et un script maison n'est pas la seule
 façon de surveiller. Cette section existe pour que tu saches **quand ce que tu viens d'apprendre
 n'est plus le bon outil**.
 
-### Quatre façons de planifier
+### Quatre façons de planifier {hors-cours}
 
 | Critère | `cron` | Timers `systemd` | Planificateur applicatif | Service managé |
 | --- | --- | --- | --- | --- |
@@ -1087,7 +1209,14 @@ n'est plus le bon outil**.
 | Sous la minute | impossible | `OnUnitActiveSec=30s`, à condition d'ajouter `AccuracySec=1s` (défaut : 1 min) | oui | rarement |
 | Coût de mise en place | une ligne | deux fichiers | déjà là si le cadriciel l'est | configuration et facturation |
 
-::: complement
+Les deux premières colonnes sont **la même tâche par deux chemins**, et il vaut la peine de les voir
+côte à côte sur un cas unique : planifier la purge à 3 h 15, chaque jour, avec un journal relisable.
+
+La méthode du cours tient en **une ligne** de crontab — ouverte par `crontab -e`, relue par
+`crontab -l` — et elle te laisse écrire toi-même la redirection `>>`, le `2>&1` et le verrou `flock`,
+les trois gestes qu'aucun outil ne fait à ta place ici. Tu vérifies ensuite que la tâche part en
+laissant tourner `tail -f` sur le journal.
+
 Un timer `systemd` s'écrit en **deux fichiers** déposés dans `/etc/systemd/system/`. Le premier,
 d'extension `.service`, décrit **quoi** exécuter : un `Type=oneshot`, l'utilisateur sous lequel
 tourner (`User=www-data`), la commande (`ExecStart=/usr/bin/php /opt/app/scripts/purge.php reel`) et
@@ -1095,22 +1224,38 @@ les protections souhaitées (`PrivateTmp=true`, `ProtectSystem=strict`, `ReadWri
 Le second, d'extension `.timer` et de même nom, décrit **quand** : `OnCalendar=*-*-* 03:15:00`,
 `Persistent=true` pour rattraper l'exécution si la machine était éteinte à 3 h 15, et
 `RandomizedDelaySec=300` pour éviter que cinquante serveurs frappent la base à la même seconde. On
-l'active ainsi :
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now purge.timer
-systemctl list-timers                  # prochaines exécutions et dernier déclenchement
-journalctl -u purge.service -n 50      # aucune redirection à écrire : tout est déjà capturé
-```
+les met en service avec `sudo systemctl daemon-reload`, puis `sudo systemctl enable --now
+purge.timer` ; `systemctl list-timers` donne les prochaines exécutions et le dernier déclenchement,
+et `journalctl -u purge.service -n 50` relit la sortie — il n'y a **aucune redirection à écrire**,
+`journald` capte déjà tout.
 
 Les trois lignes que `cron` t'oblige à écrire à la main — la redirection, le `2>&1` et le `flock` —
-disparaissent, parce que le gestionnaire de services s'en charge. En contrepartie, deux fichiers au
-lieu d'une ligne, et une syntaxe à apprendre. **À l'examen, la réponse attendue est `crontab`** ; en
-production sur une distribution moderne, le timer est le choix par défaut raisonnable — constat
+disparaissent donc, parce que le gestionnaire de services s'en charge. En contrepartie, deux fichiers
+au lieu d'une ligne, et une syntaxe à apprendre. **À l'examen, la réponse attendue est `crontab`** ;
+en production sur une distribution moderne, le timer est le choix par défaut raisonnable — constat
 d'usage de 2026, et non une dépréciation : `cron` reste installé par défaut sur Debian comme sur
 Ubuntu.
+
+:::: methodes
+::: methode {libelle="La méthode du cours — une ligne de crontab" defaut}
+```bash
+crontab -e
+# 15 3 * * *  /usr/bin/flock -n /var/lock/purge.lock /usr/bin/php /opt/app/scripts/purge.php reel >> /var/log/app/purge.log 2>&1
+crontab -l                        # relire la table telle qu'elle a été enregistrée
+tail -f /var/log/app/purge.log    # la preuve que la tâche part vraiment
+```
 :::
+::: methode {libelle="L'équivalent moderne — deux fichiers et un timer systemd"}
+```bash
+sudo vi /etc/systemd/system/purge.service   # Type=oneshot, User=, ExecStart=, ProtectSystem=strict
+sudo vi /etc/systemd/system/purge.timer     # OnCalendar=*-*-* 03:15:00, Persistent=true
+sudo systemctl daemon-reload
+sudo systemctl enable --now purge.timer
+systemctl list-timers                       # prochaines exécutions et dernier déclenchement
+journalctl -u purge.service -n 50           # aucune redirection à écrire : journald capte tout
+```
+:::
+::::
 
 ::: attention
 **En conteneur, `cron` ne va pas de soi.** Un conteneur exécute un processus ; y installer `cron`
@@ -1119,7 +1264,7 @@ signaux mal propagés à l'arrêt. La réponse est un `CronJob` de l'orchestrate
 dédié lancé à l'heure voulue.
 :::
 
-### Surveiller : script maison ou outil déjà écrit
+### Surveiller : script maison ou outil déjà écrit {hors-cours}
 
 | Solution | Ce qu'elle fait | Bonne pour | Sa limite |
 | --- | --- | --- | --- |
@@ -1137,7 +1282,7 @@ est une perte de temps doublée d'un risque. **De deux à cinq serveurs, ou dès
 astreinte** : supervision centralisée. Le moment où tu écris ton troisième script d'alerte par
 courriel est celui où tu aurais dû installer un outil de supervision.
 
-### Le langage du script
+### Le langage du script {diapos="10, 47"}
 
 | Critère | Bash | PHP en ligne de commande | Python |
 | --- | --- | --- | --- |
@@ -1147,13 +1292,17 @@ courriel est celui où tu aurais dû installer un outil de supervision.
 | Déjà installé | toujours | si l'application est en PHP | presque toujours |
 | Piège principal | citation des variables, mots séparés | fichier de configuration distinct en ligne de commande | environnements virtuels à gérer |
 
+Le cours, lui, se contente de **nommer** les langages possibles — « PHP, Python, Bash, Perl, etc. »
+aux diapositives 10 et 47 — sans jamais les comparer : le tableau ci-dessus vient de la base de
+connaissances.
+
 Le cours enseigne PHP parce que c'est le langage du programme et de l'application : c'est un choix
 pédagogique valide, et c'est aussi le bon choix en pratique **quand le script a besoin de la base de
 données et de la configuration de l'application** — la purge de l'exercice 5 en est l'exemple exact.
 Pour enchaîner `systemctl`, `find` et `tar`, Bash est plus court et plus honnête. Pour de l'analyse
 de journaux volumineux ou du dialogue avec des API, Python est le standard de l'exploitation.
 
-### Quand ne PAS planifier une tâche
+### Quand ne PAS planifier une tâche {hors-cours}
 
 - **L'événement est déclencheur, pas périodique.** « Quand un fichier arrive » relève d'un
   surveillant de répertoire (`inotify`, `systemd.path`) ou d'une file de messages, pas d'un sondage
@@ -1169,7 +1318,7 @@ de journaux volumineux ou du dialogue avec des API, Python est le standard de l'
 - **Personne ne lit le résultat.** Un rapport quotidien que personne n'ouvre est du bruit, et ce
   bruit masquera la vraie alerte le jour où elle arrivera.
 
-## Exemple simple
+## Exemple simple {diapos="21"}
 
 Une tâche de ménage posée un vendredi soir, essayée une fois à la main, puis oubliée. Trois semaines
 plus tard, personne ne peut dire si elle a tourné — et pourtant tout semblait en ordre, puisque
@@ -1227,11 +1376,16 @@ comparable d'un jour à l'autre. **Le silence de `cron` ne prouve pas le succès
 uniquement que rien n'a été écrit sur la sortie.** Une tâche muette et une tâche morte produisent
 exactement le même journal.
 
-## Exemple complet
+## Exemple complet {diapos="48, 62"}
 
 Un script d'entretien réaliste : archiver le répertoire d'un site, puis effacer les archives de
 plus de trente jours. Le nom du site est un paramètre, parce qu'il y en a plusieurs sur la machine —
 et c'est ce paramètre qui fait toute la différence entre les deux colonnes.
+
+Le cours donne le scénario et la forme fautive, rien de plus : la diapositive 48 lance
+`php /mesScripts/copieDeSauvegarde.php`, et la 62 explique un `shell_exec` sur une chaîne construite
+— exactement la colonne de gauche. La liste blanche, `proc_open` avec un tableau et la lecture des
+codes de retour de la colonne de droite viennent de la base de connaissances.
 
 :::: comparaison
 ::: vulnerable
@@ -1317,7 +1471,7 @@ dans `/var/backups`. Il vit donc dans la crontab d'un compte de service —
 `sudo crontab -u svc-sauvegarde -e` — et la ligne y reprend la forme de l'exemple simple, chemins
 absolus et `>> … 2>&1` compris.
 
-## À toi de jouer
+## À toi de jouer {hors-cours}
 
 Les **sept exercices** de la feuille de la séance sont posés au fil de la leçon, chacun là où sa
 notion vient d'être expliquée. Ils forment deux escaliers plutôt qu'une file, et il vaut mieux le
@@ -1345,7 +1499,7 @@ purge, et choisir la parade juste face à une commande construite avec une entr�
 
 [[quiz]]
 
-## À retenir
+## À retenir {diapos="21, 55, 62, 66"}
 
 - **Un script planifié qui ne laisse pas de trace n'est pas de la surveillance.** Redirection avec
   `>>` et `2>&1`, ou journalisation par le script lui-même, plus un code de retour qui distingue
@@ -1364,7 +1518,7 @@ purge, et choisir la parade juste face à une commande construite avec une entr�
   **chaque répertoire du chemin** vérifié : un script inscriptible lancé par `root` est une
   élévation de privilèges qui n'attend que sa minute.
 
-## Aller plus loin
+## Aller plus loin {diapos="38, 68, 70"}
 
 **Fiche de la base de connaissances**
 
@@ -1382,6 +1536,9 @@ purge, et choisir la parade juste face à une commande construite avec une entr�
   `fail2ban`, cité ici comme alternative au script maison, est traité pour lui-même.
 - L'injection de commande système, esquissée ici, est un cas particulier de la famille des
   injections, traitée dans son propre module.
+- La séance **5** enchaîne sur la sécurité des utilisateurs — comptes, `sudo` et le fichier
+  `sudoers`, groupes, `ls -l`, `chmod` et `chown` : c'est là que se règlent pour de bon les
+  permissions du script planifié et la règle `sudoers` de cette leçon.
 
 **Sources originales citées par la fiche**
 
