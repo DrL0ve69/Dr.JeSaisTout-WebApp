@@ -221,7 +221,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       // s’impriment, donc leur ordre est observable. Les deux ensemble couvrent le
       // contrat — celui-ci l’ordre nominal, l’autre l’effet sur le disque.
       const rangValidation = execution.journal.indexOf('1/5 validation');
-      const rangPurge = execution.journal.indexOf('2/5 purge');
+      const rangPurge = execution.journal.indexOf('3/5 purge');
       expect(rangValidation).toBeGreaterThanOrEqual(0);
       expect(rangPurge).toBeGreaterThan(rangValidation);
     });
@@ -441,7 +441,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
   // Le validateur ne lisant QUE `content/`, rien ne l'obligeait à passer après la purge.
   //
   // ⚠️ LE TÉMOIN EST UN FICHIER SENTINELLE, PAS LE JOURNAL. Un test qui se
-  // contenterait de lire « 1/5 validation » avant « 2/5 purge » mesurerait un
+  // contenterait de lire « 1/5 validation » avant « 3/5 purge » mesurerait un
   // ÉTIQUETAGE, pas un effacement : renuméroter les étapes le laisserait vert sur un
   // pipeline qui détruit toujours. On mesure donc ce qui reste sur le disque.
   describe('sur un contenu REFUSÉ par le validateur', () => {
@@ -599,6 +599,61 @@ describe("l'orchestrateur du pipeline de contenu", () => {
         // leçon, le refus serait sorti plus tôt, sur les slugs, et cette fixture aurait
         // mesuré la mauvaise règle en restant verte (famille L-035).
         expect(execution.journal).not.toContain('portent le slug');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 🔴 LE CONTRÔLE POSITIF DE L'ORDRE « JUGER PUIS PURGER » (constat de revue,
+    // 2026-09-10). Les trois refus de l'écrivain — slug en double, collision de
+    // sujet sur les horaires, sur les exercices — tombaient APRÈS la purge, et
+    // les deux derniers après que les corps de leçons et le manifeste avaient
+    // DÉJÀ été écrits. Une collision laissait donc `src/content-generated/` vide
+    // ou, pire, à moitié écrit : le `npm test` suivant tombait sur une erreur
+    // Sass qui ne nommait pas la cause — exactement l'incident du 2026-08-26 que
+    // l'en-tête de `build.mjs` déclarait clos.
+    //
+    // ⚠️ CE QUE CE BLOC MESURE, ET QU'AUCUN AUTRE NE MESURE : les blocs voisins
+    // écrivent dans un bac NEUF, où « rien n'a été détruit » et « rien n'a
+    // jamais existé » s'écrivent exactement pareil. Il faut donc une génération
+    // ANTÉRIEURE réussie, puis un refus par-dessus, dans le MÊME dossier.
+    // -------------------------------------------------------------------------
+    describe('un refus de l’écrivain, par-dessus une génération réussie', () => {
+      const { sortie, css } = bac('refus-sur-generation-existante');
+      let avant: string;
+      let execution: Execution;
+
+      beforeAll(() => {
+        // 1. Une construction SAINE, qui laisse un arbre complet derrière elle.
+        const saine = lancer(['--racine', join(F, 'alpha'), '--sortie', sortie, '--css', css]);
+        expect(saine.code).toBe(0);
+        avant = readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8');
+
+        // 2. Une construction en COLLISION DE SUJET, dans le même dossier de sortie.
+        execution = lancer([
+          '--racine',
+          join(F, 'alpha'),
+          '--racine',
+          join(F, 'alpha-en-double'),
+          '--sortie',
+          sortie,
+          '--css',
+          css,
+        ]);
+      }, DELAI);
+
+      it('refuse en code 1', () => {
+        expect(execution.code).toBe(1);
+      });
+
+      it('n’atteint JAMAIS la purge — le refus est jugé avant elle', () => {
+        expect(execution.journal).not.toContain('purge —');
+      });
+
+      it('laisse la génération PRÉCÉDENTE intacte, au lieu de vider l’arbre', () => {
+        // C'est la moitié qui compte : sans le correctif, ce fichier n'existe plus.
+        expect(existsSync(join(sortie, 'manifeste-routes.json'))).toBe(true);
+        expect(readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8')).toBe(avant);
+        expect(existsSync(join(sortie, 'lecons', 'alpha.json'))).toBe(true);
       });
     });
 

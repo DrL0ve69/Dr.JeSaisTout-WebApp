@@ -6,15 +6,26 @@
  * ordre, et aucune n'est facultative :
  *
  *   1. VALIDATION (`valider.mjs`) — une leçon malformée fait échouer la construction ICI, là où le
- *      message peut encore nommer le fichier et le champ fautifs. ⚠️ ELLE PRÉCÈDE LA PURGE, et c'est
- *      délibéré : le validateur ne lit que `content/`, donc un refus doit laisser la sortie
- *      PRÉCÉDENTE intacte plutôt que de vider l'arbre dont `npm test` et `npm start` dépendent.
- *   2. PURGE de `src/content-generated/` — avant toute écriture, et seulement une fois le contenu
- *      déclaré conforme.
- *   3. COMPILATION (`compiler-markdown.mjs`), diagrammes Mermaid inclus (`rendre-mermaid.mjs`),
+ *      message peut encore nommer le fichier et le champ fautifs.
+ *   2. COMPILATION (`compiler-markdown.mjs`), diagrammes Mermaid inclus (`rendre-mermaid.mjs`),
  *      SUIVIE DU CONTRÔLE FINAL des SVG (`controlerSvgCompiles`) — voir `etapeCompiler`.
+ *   3. PURGE de `src/content-generated/`.
  *   4. MANIFESTE + CARTE d'imports paresseux (`generer-manifeste.mjs`).
  *   5. POIDS (`verifier-poids.mjs`) — la table s'imprime toujours.
+ *
+ * ─── 🔴 LA PURGE EST L'AVANT-DERNIER GESTE, ET C'EST TOUT LE SUJET DE CET ORDRE ────────────────
+ * Elle est le premier geste IRRÉVERSIBLE de l'exécution : elle efface l'arbre dont `npm test` et
+ * `npm start` dépendent. Tout ce qui peut REFUSER passe donc avant elle — la validation du contenu,
+ * la compilation, ET les trois refus de l'écrivain (slug en double entre deux racines, collision de
+ * sujet sur les horaires, sur les exercices), que `preparerContenuGenere` porte sans rien écrire.
+ * ⚠️ CET ORDRE A ÉTÉ FAUX DEUX FOIS, ET LA SECONDE FOIS LE COMMENTAIRE PROMETTAIT LE CONTRAIRE.
+ * Jusqu'au 2026-08-26 la purge précédait la validation : un contenu refusé laissait la sortie vide
+ * et `npm test` tombait ensuite sur une erreur Sass qui ne nommait pas la cause. Corrigé — mais
+ * jusqu'au 2026-09-10 les refus de l'ÉCRIVAIN tombaient encore après la purge, et les deux derniers
+ * après que les corps de leçons et le manifeste avaient déjà été écrits : une collision de sujet
+ * laissait donc l'arbre vide, ou pire, à MOITIÉ écrit. Le texte de ce fichier affirmait pourtant
+ * l'incident clos. **Un refus, quel qu'il soit, laisse aujourd'hui la génération précédente
+ * intacte** — et c'est un contrôle positif qui le tient, pas cette phrase.
  *
  * ─── LES DEUX CAS D'ABSENCE, ET POURQUOI ILS NE SE TRAITENT PAS PAREIL ──────────────────────────
  *
@@ -82,7 +93,11 @@ import {
   extraireDiagrammes,
   recenserFichiersLecon,
 } from './rendre-mermaid.mjs';
-import { ecrireAtomique, ecrireContenuGenere } from './generer-manifeste.mjs';
+import {
+  ecrireAtomique,
+  ecrireContenuPrepare,
+  preparerContenuGenere,
+} from './generer-manifeste.mjs';
 import { verifierPoids } from './verifier-poids.mjs';
 
 const RACINE_DEPOT = process.cwd();
@@ -182,7 +197,7 @@ function estDossier(chemin) {
  */
 function etapePurger(dossierSortie) {
   rmSync(dossierSortie, { recursive: true, force: true });
-  etape(`2/5 purge — ${afficher(dossierSortie)}`);
+  etape(`3/5 purge — ${afficher(dossierSortie)}`);
 }
 
 /**
@@ -232,7 +247,13 @@ function etapeValider(racineAbsolue) {
  * @param {string} racineAbsolue
  * @param {string | undefined} cacheDiagrammes dossier de cache des SVG, ou `undefined` pour le défaut
  * @param {import('./compiler-markdown.mjs').Colorateur} colorateur le colorateur PARTAGÉ par toutes les racines de l'exécution
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
+ * ⚠️ PAS DE `feuille` DANS CE TYPE, ET C'EST LE CONTRAT : cet orchestrateur injecte un colorateur
+ * PARTAGÉ, donc `compilerRacine` ne rend aucune feuille — elle n'aurait de sens qu'à la toute fin,
+ * une fois la dernière racine compilée. C'est `principal()` qui appelle `assemblerFeuille`, une
+ * seule fois. Déclarer `feuille: string` ici ferait passer pour un contrat ce qui serait, au mieux,
+ * l'état partiel de l'accumulateur.
+ *
+ * @returns {Promise<{ lecons: LeconCompilee[], horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
  */
 async function etapeCompiler(racineAbsolue, cacheDiagrammes, colorateur) {
   /** @type {((code: string) => { svg: string, titreAccessible: string, descriptionLongue: string }) | undefined} */
@@ -254,7 +275,7 @@ async function etapeCompiler(racineAbsolue, cacheDiagrammes, colorateur) {
       rendreMermaid = rendeur.rendre;
     } else {
       etape(
-        `3/5 diagrammes — ${afficher(racineAbsolue)} : aucun bloc « mermaid » dans ${sources.length} leçon(s), Chromium non démarré`,
+        `2/5 diagrammes — ${afficher(racineAbsolue)} : aucun bloc « mermaid » dans ${sources.length} leçon(s), Chromium non démarré`,
       );
     }
   }
@@ -271,7 +292,7 @@ async function etapeCompiler(racineAbsolue, cacheDiagrammes, colorateur) {
   // doit se voir dans le journal (L-005).
   const controle = controlerSvgCompiles(compile.lecons);
   etape(
-    `3/5 compilation — ${afficher(racineAbsolue)} : ${compile.lecons.length} leçon(s) · ` +
+    `2/5 compilation — ${afficher(racineAbsolue)} : ${compile.lecons.length} leçon(s) · ` +
       `${controle.svg} SVG contrôlé(s) · ` +
       `${controle.uniques}/${controle.identifiants} identifiant(s) unique(s)`,
   );
@@ -440,8 +461,6 @@ async function principal() {
     }
   }
 
-  etapePurger(sortieAbsolue);
-
   // UN SEUL COLORATEUR POUR TOUTES LES RACINES — voir l'en-tête de `compilerRacine`. Il accumule
   // les classes de coloration de tous les blocs de code de l'exécution, et `assemblerFeuille` ne
   // l'enveloppe qu'UNE fois, après la boucle : concaténer une feuille par racine dupliquerait
@@ -467,21 +486,37 @@ async function principal() {
     );
   }
 
+  // 🔴 JUGER AVANT DE PURGER — LA PURGE EST LE DERNIER GESTE RÉVERSIBLE DE L'EXÉCUTION.
+  // `preparerContenuGenere` porte les TROIS refus de l'écrivain (slug en double entre deux racines,
+  // collision de sujet sur les horaires, collision de sujet sur les exercices) et n'écrit rien.
+  // Jusqu'au 2026-09-10 ces refus tombaient APRÈS la purge — et les deux derniers après que les
+  // corps de leçons et le manifeste avaient déjà été écrits : une collision laissait
+  // `src/content-generated/` vide ou, pire, à MOITIÉ écrit, et le `npm test` suivant tombait sur
+  // une erreur Sass qui ne nommait pas la cause. C'est exactement l'incident du 2026-08-26 que le
+  // commentaire de la validation ci-dessus déclare avoir fermé : la promesse y était plus forte
+  // que ce que le code tenait. Elle l'est de nouveau, et pour tous les refus à la fois.
+  // ⚠️ Aucun prédicat n'est recopié ici : `generer-manifeste.mjs` reste le SEUL juge (L-016).
+  const prepare = preparerContenuGenere(lecons, {
+    inclureBrouillons,
+    // UNE ENTRÉE PAR RACINE, `null` COMPRIS. C'est l'écrivain qui refuse deux horaires d'un même
+    // sujet — un `null` (racine sans ancrage au cours) est ignoré, une collision de sujet fait
+    // échouer en la nommant. Même geste, même raison, pour le registre d'exercices.
+    horaires: horairesCompiles,
+    exercices: exercicesCompiles,
+  });
+
+  etapePurger(sortieAbsolue);
+
   // ÉCRITURE INCONDITIONNELLE — c'est le cœur du lot. Voir l'en-tête : zéro leçon écrit quand même
   // la feuille, le manifeste et la carte, sinon `src/styles.scss` perd sa cible sur un clone frais.
   ecrireAtomique(cssAbsolu, assemblerFeuille(colorateur.feuille()));
-  const { entrees, ecartees, incluses, horaires, exercices: registres } = ecrireContenuGenere(
-    sortieAbsolue,
-    lecons,
-    {
-      inclureBrouillons,
-      // UNE ENTRÉE PAR RACINE, `null` COMPRIS. C'est l'écrivain qui refuse deux horaires d'un même
-      // sujet — un `null` (racine sans ancrage au cours) est ignoré, une collision de sujet fait
-      // échouer en la nommant. Même geste, même raison, pour le registre d'exercices.
-      horaires: horairesCompiles,
-      exercices: exercicesCompiles,
-    },
-  );
+  const {
+    entrees,
+    ecartees,
+    incluses,
+    horaires,
+    exercices: registres,
+  } = ecrireContenuPrepare(sortieAbsolue, prepare);
   // L'HORAIRE S'ANNONCE MÊME À ZÉRO (L-005) : sans cette ligne, « aucun horaire dans la racine »
   // et « lecture de l'horaire débranchée » s'écriraient exactement pareil dans le journal.
   const sujetsAvecHoraire = Object.keys(horaires);
@@ -542,5 +577,31 @@ async function principal() {
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  // --- Mode LISTE DES RACINES PAR DÉFAUT ---------------------------------------
+  //
+  // 🔴 POURQUOI CE MODE EXISTE, ET IL NE SERT QU'À ÇA. `RACINES_PAR_DEFAUT` est l'objet le plus
+  // structurant du lot E7-A — c'est elle qui décide quels cours existent — et, jusqu'au
+  // 2026-09-10, elle était l'objet que RIEN ne mesurait : aucun spec ne lançait ce fichier sans
+  // `--racine`, si bien qu'en retirer `content/cours/php` laissait G-test et G-build entièrement
+  // VERTS. Le cours aurait disparu du manifeste en silence le jour où il porte une leçon. C'est la
+  // « permission morte » du lot 9, à l'identique, et la parade est la même : exposer la liste à un
+  // gate. Même geste et même forme que `valider.mjs --modules-actionnables`, dont
+  // `src/format-actionnable.spec.ts` se sert — un mode qui imprime une décision de ce fichier, et
+  // sort en 0.
+  //
+  // ⚠️ IL NE SE COMBINE À RIEN : il imprime une liste, il ne construit pas. Les autres options
+  // seraient lues puis ignorées, ce qui ferait croire à une construction qui n'a pas eu lieu.
+  if (process.argv.slice(2).includes('--racines-par-defaut')) {
+    if (process.argv.slice(2).length > 1) {
+      echec('--racines-par-defaut ne se combine à aucune autre option — il imprime une liste', [
+        'usage : node tools/content-pipeline/build.mjs --racines-par-defaut',
+      ]);
+    }
+    // NON TRIÉ, DÉLIBÉRÉMENT : l'ordre de déclaration EST l'ordre de compilation, et c'est une
+    // information de plus. Un tri alphabétique la détruirait pour ne rien garantir de mieux — la
+    // sortie est déjà déterministe, elle vient d'un littéral de ce fichier.
+    process.stdout.write(`${JSON.stringify([...RACINES_PAR_DEFAUT])}\n`);
+    process.exit(0);
+  }
   await principal();
 }
