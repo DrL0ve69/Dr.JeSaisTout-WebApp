@@ -248,6 +248,44 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
 > `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
 > mémoire, et n'envoie pas `WebFetch` le lire : il invente plutôt que d'échouer.
+> ✅ **LE LOT 13 EST LIVRÉ (PR #65, 2026-09-10) — `03-communication-serveur` EST REPRIS, LE COMPTEUR
+> DIT `4/9`.** Vingt-sept titres, zéro muet : **19** `{diapos}` de la séance 3, **1** `{seance="5"}`
+> pour les droits d'accès, **6** `{hors-cours}`, neuf étapes de marche à suivre, et le **troisième
+> `:::: methodes`** du dépôt (PuTTY / client OpenSSH). La cartographie est revenue **au fil
+> principal** : le déck de la séance 3 fait 78 diapositives, donc 78 lignes d'extrait. 🔴 **C'est la
+> taille de la SOURCE qui décide s'il faut un agent, pas la nature de la tâche.**
+> 🔴 **L-101 A UNE DEUXIÈME FACE, et elle est l'angle mort exact du geste posé au lot 12.** Le même
+> commit posait un renvoi **positif** sur `### Les commandes` — dont cinq formes (`ufw default`,
+> `limit`, `status verbose`, profil `OpenSSH`, `delete allow 80/tcp`) ne sont sur **aucune**
+> diapositive — **et supprimait**, six cents lignes plus haut, la seule phrase qui les qualifiait de
+> compléments. ⚠️ **Un recensement fait sur le FICHIER ne voit pas ça** : la phrase n'y est plus. Il
+> se fait sur les lignes **SUPPRIMÉES** du diff.
+> 🔴 **UN TITRE MUET FAIT ROUGIR LE GATE ; UN RENVOI TROP ÉTROIT NE FAIT ROUGIR PERSONNE.** Douze
+> diapositives (31-43 : toute la connexion PuTTY et WinSCP, l'aboutissement de la séance) n'étaient
+> citées par **aucun** titre — elles vivaient dans le conteneur d'onglets, sous un titre qui ne
+> parlait que de la conversion `.ppk`. La règle 13 exige un bloc d'attributs, elle ne peut rien dire
+> de sa **justesse**. **Une cartographie vérifie que chaque renvoi est juste ; elle doit AUSSI
+> vérifier que chaque diapositive du déck est atteignable.**
+> 🔴 **LE FORMAT ACTIONNABLE FAIT REMONTER LES CONTRADICTIONS LATENTES D'UNE LEÇON** — à attendre aux
+> six modules restants. La marche à suivre neuve et `## Exemple complet` se contredisaient sur l'état
+> du mot de passe d'un droplet neuf ; la contradiction **préexistait** entre deux sections éloignées,
+> le résumé l'a portée **en tête de page**. Tranchée par la source (documentation DigitalOcean :
+> *« Password authentication is disabled by default on Droplets created with an SSH key »*, valeur
+> écrite dans `/etc/ssh/sshd_config.d/50-cloud-init.conf`), pas par l'avis.
+> ⚠️ **TROISIÈME CONTENEUR `methodes`, TROISIÈME INFRACTION À D-C — et cette fois les DEUX volets
+> étaient fautifs**, y compris celui qui porte `defaut`. Un volet est masqué la moitié du temps : la
+> clause vaut **symétriquement**. Le brief l'exigeait en toutes lettres et n'a pas suffi ; **ce qui
+> marche est d'imposer l'ORDRE d'écriture** — la prose visible d'abord, avec tout ce qui doit être
+> trouvable au `Ctrl+F` ; les volets ne gardent que la suite de gestes.
+> ⚠️ **Un renvoi d'encadré survit à la republication du support qui l'a justifié** : `{diapos="45-50"}`
+> pointait le changement de port, ces six diapositives traitent d'UFW depuis la republication. **La
+> grammaire de `diapos` contrôle la forme des jetons, jamais leur sens** — rien ne peut rougir.
+> ⚠️ **Le test du « + » vaut aussi pour un brief de REVUE.** Six axes donnés au relecteur → **175k**,
+> au-dessus du maximum. Le rédacteur, lui, a fini à **115k pour 14 appels** parce que son brief portait
+> les titres mesurés au caractère près et le squelette des étapes déjà décidé. Et : **la convention à
+> injecter dans un brief est celle du FICHIER qu'on modifie, jamais celle du gabarit qu'on donne.**
+> Détail : `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 13 » ; table des 27 renvois :
+> `docs/contenu/renvois-diapos-module-03.md`.
 >
 > ---
 >
