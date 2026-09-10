@@ -3158,4 +3158,85 @@ qu'aucune phrase le soit), [[L-098]].
 
 ---
 
+## L-104 · Décrire une faute de la SOURCE sans l'attribuer prive le lecteur du seul renseignement utile — « retirer l'attribution, garder le fait » ne vaut que pour une source NON VÉRIFIABLE
+
+**Symptôme.** Lot 14 (module `04-automatisation-surveillance`, 2026-09-10). La leçon écrivait, dans
+un encadré `::: attention` sans source : « **On voit parfois** “tous les samedis à 3 h” écrit
+`0 3 * * * 6` suivi de la commande. `cron` ne lit que cinq champs… ». Le fait est juste, la parade
+est bonne — et la mesure sur `securite-app-web-2026/extraits/Cours04-…` montre que ce « on voit
+parfois » est le **cas n° 5 de la diapositive 31 du cours**, mot pour mot. L'étudiant lit donc un
+avertissement contre une faute anonyme, révise ensuite la diapositive qui la contient, et repart avec
+la faute. Les cinq autres cas de la série (27 à 32) sont justes : ce n'est pas une règle du support,
+c'est une coquille — et c'est justement ce qu'il fallait pouvoir lui dire.
+
+**Ce qui avait produit l'anonymat, et pourquoi c'était une bonne règle mal appliquée.** Le dépôt
+porte une parade explicite, née le 2026-08-27 : quand `WebFetch` a rendu une lecture INVENTÉE d'un
+`.pptx` qui confirmait quatre accusations portées contre le support, la consigne est devenue
+« **retirer l’attribution, garder le fait** » — un `correction-du-cours` redevient une `note`, un
+encadré `cours` redevient un `complement`. Elle existe pour ne **jamais accuser à tort** faute d'une
+source vérifiable. Or depuis, `tools/supports-cours/extraire-diapositives.mjs` **numérote les
+diapositives des deux cours** : la source est redevenue vérifiable à la ligne près. La parade a
+survécu à sa condition, et elle coûtait désormais l'information au lieu de protéger.
+
+**Règle.** Une parade née d’une **impossibilité de vérifier** se réévalue le jour où l’outil de
+vérification existe. Concrètement, sur ce dépôt : une faute du support **relevée sur un extrait
+numéroté** s’écrit en `correction-du-cours` avec sa `source` — numéro de diapositive, libellé cité,
+date du relevé ; une faute **déduite, rapportée ou non retrouvable** garde l’anonymat. Le test est
+« puis-je citer la ligne d’extrait ? », jamais « suis-je sûr ? ». ⚠️ Et la forme douce du même défaut
+compte autant : attribuer à « beaucoup de mémentos » ce que la **diapositive 19** écrit noir sur blanc
+(« Jour de la semaine (0-6) », là où `crontab(5)` dit `0-7`) laisse l’étudiant croire que son support
+est d’accord avec la leçon.
+
+**Réfs.** `content/cours/securite-web/04-automatisation-surveillance/lecon.md` (`### La syntaxe`,
+encadrés du sixième champ et du jour de semaine) ; `docs/contenu/renvois-diapos-module-04.md` §4
+réserves R-3 et R-4 ; `CLAUDE.md`, bloc du 2026-08-27 (la parade d’origine et son motif) ;
+`tools/supports-cours/extraire-diapositives.mjs`. Famille [[L-101]] (poser un renvoi de provenance
+est un jugement), [[L-081]].
+
+---
+
+## L-105 · Une assertion universelle héritée d'une population HOMOGÈNE devient fausse au premier membre d'une autre espèce — on nomme l'ensemble sur lequel elle porte, on ne la relâche pas pour tout le monde
+
+**Symptôme.** Lot 14 (2026-09-10). `e2e/defileurs-clavier.spec.ts` mesure la **première** leçon
+prerendue portant `<app-quiz`, découverte et triée — donc `automatisation-surveillance`. Le lot lui a
+donné sa première **marche à suivre** et son premier conteneur d'**onglets**. Cinq de ses sept tests
+sont devenus rouges **sans aucun défaut du produit**, sur trois causes distinctes :
+
+1. le spec comparait le parcours clavier à **tous** les `.defileur` du DOM — or un volet `methodes`
+   non coché est en `display: none` (contrat D-C), donc son bloc de code **ne peut pas** être un arrêt
+   de tabulation, et c'est correct ;
+2. `FORME_DU_NOM` connaissait trois genres de nom accessible (`Code`, `Exemple vulnérable`,
+   `Correctif`) ; le quatrième — « Étape n° 1 — bash » — porte l'insécable **aussi** entre `n°` et le
+   rang ;
+3. et surtout : la vérification « les rangs d'un genre sont CONTINUS depuis 1 » — écrite en 2026-08-20
+   pour attraper une figure comptée mais non rendue — est **fausse par contrat** pour ce quatrième
+   genre. Le rang d'une étape est le **numéro de l'étape**, et le contrat dit « **au plus** un bloc de
+   code » : les étapes 4, 5 et 9 du module 04 n’en portent aucun, donc les rangs rendus sont
+   `1, 2, 3, 6, 7, 8`. Exiger `1..n` accusait le produit d’un trou écrit exprès.
+
+**Ce que la structure du défaut a de général.** Aucune de ces trois assertions n’était fausse quand
+elle a été écrite : la population qu’elle observait était **homogène** — que des figures de code, sur
+une page sans onglets. Rien ne s’est éteint, aucun test n’est passé en `skip` : c’est la **population**
+qui a changé sous l’instrument (famille [[S-010]]). Et la tentation, devant cinq tests rouges sur un
+produit sain, est de **relâcher** — retirer la continuité, élargir la forme du nom — ce qui éteindrait
+la mesure pour les genres où elle mordait vraiment.
+
+**Règle.** Quand une assertion universelle rougit sur un membre d’une **espèce neuve**, on ne la
+relâche pas : on **nomme l’ensemble** sur lequel elle porte, en écrivant pourquoi ce membre-là en est
+exclu — ici `GENRES_A_RANG_CONTINU`, avec la mesure `1, 2, 3, 6, 7, 8` dans son commentaire. Et quand
+la population comporte désormais des membres **non rendus**, on tient **deux inventaires**, jamais un
+seul élargi : celui du DOM (forme, unicité, rangs) et celui de ce qui est **rendu**
+(`checkVisibility()`, pour tout ce qui touche au clavier et à la mise en page). ⚠️ **Le piège de
+l’inventaire filtré** : le rang conservé doit rester celui du **DOM complet**, sinon un locator
+`.defileur.nth(i)` vise silencieusement le mauvais élément — un filtre déplace les index, et un index
+faux ne rougit que par accident.
+
+**Réfs.** `e2e/defileurs-clavier.spec.ts` (`FORME_DU_NOM`, `GENRES_A_RANG_CONTINU`,
+`defileursRendus`) ; `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.scss` (`.panneau`
+`display: none`) ; `docs/contenu/pipeline-contenu.md`, conteneurs `marche-a-suivre` et `methodes` ;
+`docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 14 ». Famille [[L-035]] (une prémisse de
+test fausse rougit sur un produit sain), [[L-078]] (une cible découverte doit être totalement
+ordonnée), [[L-005]].
+
+---
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
