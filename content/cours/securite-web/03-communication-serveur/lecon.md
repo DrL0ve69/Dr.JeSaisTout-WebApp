@@ -65,11 +65,17 @@ session.
 
 ::: complement
 Le fichier `/etc/ssh/sshd_config` — c'est-à-dire l'endroit où l'on interdit réellement le mot de
-passe — n'est ouvert nulle part dans le cours. Mesuré : ni ce nom de fichier, ni `sshd`, ni
-`PasswordAuthentication`, ni `fail2ban`, ni `ssh-agent` n'apparaissent dans les vingt et un paquets
-de diapositives des deux cours, ni dans un énoncé d'exercice. Ces compléments viennent donc de la
-base de connaissances, et c'est là que se joue la sécurisation réelle : le cours t'apprend à
-**poser** la clé, la base de connaissances t'apprend à **fermer la porte** derrière elle.
+passe — n'est ouvert nulle part dans le **paquet republié de 78 diapositives** (l'édition
+antérieure, elle, l'ouvrait pour changer le port ; on y revient plus bas). Mesuré : ni ce nom de
+fichier, ni `sshd`, ni `PasswordAuthentication`, ni `fail2ban`, ni `ssh-agent`, ni `ssh-copy-id`
+n'apparaissent dans les vingt et un paquets de diapositives des deux cours, ni dans un énoncé
+d'exercice. Même chose pour une partie des commandes UFW de cette leçon : les politiques par défaut
+`ufw default deny incoming` et `allow outgoing`, la limitation de débit `ufw limit`, la suppression
+par règle `ufw delete allow 80/tcp`, le profil `OpenSSH` et `ufw status verbose` **ne sont sur aucune
+diapositive** — le cours ouvre et ferme des ports, il ne pose jamais de politique par défaut. À quoi
+s'ajoutent le fichier `~/.ssh/config` et la restriction par adresse IP source. Ces compléments
+viennent donc de la base de connaissances, et c'est là que se joue la sécurisation réelle : le cours
+t'apprend à **poser** la clé, la base de connaissances t'apprend à **fermer la porte** derrière elle.
 Les renvois de diapositives, en tête de chaque section, disent lesquelles viennent du cours et
 lesquelles n'en viennent pas — ce qui est autrement plus utile qu'une promesse sur le contenu de
 l'examen, que personne ici n'est en position de tenir.
@@ -85,7 +91,7 @@ l'examen, que personne ici n'est en position de tenir.
 
    ```bash
    ssh-keygen                                        # la commande du cours : nom « maCle », passphrase deux fois
-   ssh-keygen -t ed25519 -C "philippe@poste-cours"   # la forme explicite : l'algorithme est DECIDE, pas herite
+   ssh-keygen -t ed25519 -C "philippe@poste-cours"   # la forme explicite : l'algorithme est DÉCIDÉ, pas hérité
    ```
 
 2. {voir="Convertir la clé pour PuTTY"} Convertis la clé privée au format `.ppk` avec **PuTTYgen** —
@@ -98,45 +104,55 @@ l'examen, que personne ici n'est en position de tenir.
    droplet : la machine naît alors en « clé seulement », sans la moindre fenêtre de temps pendant
    laquelle un mot de passe serait encore accepté.
 
-4. {voir="Les permissions, non négociables"} Sur un serveur **déjà en service**, pose toi-même les
-   permissions après avoir déposé la clé, sans quoi OpenSSH la refuse **en silence** et te
-   redemande un mot de passe sans fin.
+4. {voir="Se connecter au droplet"} Connecte-toi, et **compare l'empreinte du serveur** à celle
+   qu'affiche la console web du fournisseur avant de l'accepter : c'est le seul moment où la
+   question se pose. Ce qu'on te demande ensuite est la **passphrase de ta clé**, jamais le mot de
+   passe du compte.
 
    ```bash
-   chmod 700 ~/.ssh                    # rwx pour le proprietaire seul
-   chmod 600 ~/.ssh/authorized_keys    # rw  pour le proprietaire seul
+   ssh -i ~/.ssh/id_ed25519 root@203.0.113.10    # ou PuTTY, avec « clePutty.ppk » dans Connection / SSH / Auth
    ```
 
-5. {voir="L'ordre des opérations, ou comment ne pas s'enfermer dehors"} Teste la connexion par clé
+5. {voir="Les permissions, non négociables"} **Voie alternative, si la clé n'a pas été déposée par
+   le fournisseur** mais copiée à la main sur un serveur déjà en service : pose toi-même les
+   permissions, sans quoi OpenSSH refuse la clé **en silence** et te redemande un mot de passe sans
+   fin.
+
+   ```bash
+   chmod 700 ~/.ssh                    # rwx pour le propriétaire seul
+   chmod 600 ~/.ssh/authorized_keys    # rw  pour le propriétaire seul
+   ```
+
+6. {voir="L'ordre des opérations, ou comment ne pas s'enfermer dehors"} Reteste la connexion par clé
    dans une **seconde fenêtre**, sans fermer la première, et ne ferme le mot de passe qu'ensuite :
    valide la syntaxe avant de recharger, et recharge plutôt que redémarrer.
 
    ```bash
    sudo sshd -t                 # test de syntaxe : le silence signifie que tout va bien
-   sudo systemctl reload ssh    # recharge sans couper les sessions etablies
+   sudo systemctl reload ssh    # recharge sans couper les sessions établies
    ```
 
-6. {voir="Un service à protéger : le serveur web"} Installe Apache et vérifie qu'il répond **avant**
+7. {voir="Un service à protéger : le serveur web"} Installe Apache et vérifie qu'il répond **avant**
    de toucher au pare-feu : sans service à ouvrir et à fermer, aucune règle ne se laisse observer.
 
    ```bash
    sudo apt update && sudo apt install apache2
-   systemctl is-active apache2    # doit repondre : active
+   systemctl is-active apache2    # doit répondre : active
    ```
 
-7. {voir="Exemple simple"} Active UFW dans l'ordre sûr, celui qui ne souffre aucune exception : les
+8. {voir="Exemple simple"} Active UFW dans l'ordre sûr, celui qui ne souffre aucune exception : les
    politiques par défaut, **l'ouverture de SSH d'abord**, une relecture, et l'activation en tout
    dernier.
 
    ```bash
    sudo ufw default deny incoming
    sudo ufw default allow outgoing
-   sudo ufw allow OpenSSH           # AVANT enable : la ligne qui evite de s'enfermer dehors
-   sudo ufw status                  # relire ce qu'on s'apprete a appliquer
+   sudo ufw allow OpenSSH           # AVANT enable : la ligne qui évite de s'enfermer dehors
+   sudo ufw status                  # relire ce qu'on s'apprête à appliquer
    sudo ufw enable                  # en DERNIER, jamais avant
    ```
 
-8. {voir="module:automatisation-surveillance"} Enchaîne sur la séance 4 une fois l'accès verrouillé :
+9. {voir="module:automatisation-surveillance"} Enchaîne sur la séance 4 une fois l'accès verrouillé :
    il reste à savoir ce qui se passe sur la machine quand tu n'y es pas.
 
 ::::
@@ -292,17 +308,29 @@ clé OpenSSH sans extension : le renommage est au mieux un confort d'affichage d
 dialogue.
 :::
 
+### Se connecter au droplet {diapos="31-43"}
+
+C'est le geste que la séance met treize diapositives à dérouler — de la configuration de PuTTY
+jusqu'à WinSCP —, et sa légende d'arrivée est « Et voilà! Vous êtes connecté! ».
+
 **PuTTY est optionnel en 2026, et c'est le bon moment pour le dire.** Une fois la clé fabriquée,
 deux routes mènent au **même shell** sur le droplet, et le cours n'en montre qu'une. La première
-est celle de la séance : **PuTTY**, qui n'accepte que son propre format et impose donc la
-conversion en `.ppk` décrite ci-dessus. La seconde est le **client OpenSSH** de Windows 10 (depuis
-la mise à jour d'avril 2018) et de Windows 11 : c'est une *fonctionnalité facultative*, présente
-sur la plupart des installations mais pas garantie — vérifie-la par `ssh -V`, et s'il manque,
-ajoute-la par *Paramètres → Applications → Fonctionnalités facultatives*. Il lit la clé OpenSSH
-telle quelle, **sans aucun `.ppk`**, dans PowerShell, dans Windows Terminal comme dans le terminal
-intégré de VS Code. Il remplace aussi WinSCP (diapositives 38 à 42), puisque `scp` et `sftp` sont
-livrés avec lui et que l'extension Remote-SSH de VS Code édite les fichiers distants directement.
-**Utilise PuTTY si l'examen l'exige ; utilise `ssh` pour travailler.**
+est celle de la séance : **PuTTY**, qui n'accepte que son propre format et attend donc le fichier
+`clePutty.ppk` produit à l'étape précédente — c'est aussi celui que **WinSCP** réclame, dans
+*Advanced → Authentication*, pour le transfert de fichiers (diapositives 38 à 42). La seconde est
+le **client OpenSSH** de Windows 10 (depuis la mise à jour d'avril 2018) et de Windows 11 : c'est
+une *fonctionnalité facultative*, présente sur la plupart des installations mais pas garantie —
+vérifie-la par `ssh -V`, et s'il manque, ajoute-la par *Paramètres → Applications →
+Fonctionnalités facultatives*. Il lit la clé OpenSSH telle quelle, **sans aucun `.ppk`**, avec
+`ssh -i <chemin de la clé privée> <utilisateur>@<adresse IP>`, dans PowerShell, dans Windows
+Terminal comme dans le terminal intégré de VS Code. Il remplace aussi WinSCP, puisque `scp` et
+`sftp` sont livrés avec lui et que l'extension Remote-SSH de VS Code édite les fichiers distants
+directement. **Utilise PuTTY si l'examen l'exige ; utilise `ssh` pour travailler.**
+
+Les deux routes posent la même question à la première connexion : elles affichent l'**empreinte de
+la clé du serveur** et demandent de l'accepter — PuTTY la met en cache dans le registre, `ssh`
+l'inscrit dans `~/.ssh/known_hosts`. C'est le seul moment où l'on peut la comparer à celle
+qu'affiche la console web du fournisseur, et la question ne se reposera plus ensuite.
 
 Les deux volets qui suivent aboutissent exactement au même résultat — une session ouverte sur le
 droplet, authentifiée par ta clé — par deux suites de gestes différentes.
@@ -472,11 +500,12 @@ Le fichier `/etc/ssh/sshd_config` est la configuration du **service** SSH, côt�
 et nulle part ailleurs, qu'on décide quelles méthodes d'authentification sont acceptées.
 
 ::: complement
-Cette section entière est un complément de la base de connaissances : ni le fichier ni les
-directives qui suivent n'apparaissent nulle part dans le cours — c'est ce que déclare le marqueur
-« hors du cours » posé sur son titre, et c'est mesuré sur les vingt et un paquets de diapositives
-des deux cours. Elles sont, en revanche, ce qui transforme « j'ai une clé » en « le mot de passe
-n'existe plus ».
+Cette section entière est un complément de la base de connaissances : aucune des directives qui
+suivent n'apparaît dans les vingt et un paquets de diapositives des deux cours — c'est ce que
+déclare le marqueur « hors du cours » posé sur son titre. Le **fichier**, lui, était ouvert par
+l'édition retirée du cours, mais pour y changer le port et non pour y fermer le mot de passe. Ces
+directives sont, en revanche, ce qui transforme « j'ai une clé » en « le mot de passe n'existe
+plus ».
 :::
 
 Trois directives font l'essentiel du travail, et quatre autres complètent utilement :
@@ -618,6 +647,11 @@ Un pare-feu ne se comprend qu'avec quelque chose à ouvrir et à fermer. C'est l
 cette séance : installer un serveur web, vérifier qu'il répond sur le port 80, puis observer ce
 que le pare-feu en fait.
 
+**L'installation d'Apache n'est sur aucune diapositive** : elle est demandée par l'**énoncé de
+l'exercice 2**, et les deux diapositives citées en tête de section sont celles où la page web est
+déjà debout — « J'ai un site avec une page web active », puis la même page devenue injoignable. Le
+cours démontre le pare-feu sur un service qu'il te fait monter en atelier.
+
 ::: exercice-du-cours {ref="2"}
 La forme exacte de l'énoncé est `apt-get install apache2`. La forme moderne est
 `sudo apt update && sudo apt install apache2` : `apt` est la commande destinée aux humains depuis
@@ -682,6 +716,12 @@ Deux idées seulement sont à retenir de ce schéma, et elles expliquent tout le
 sont évaluées **dans l'ordre**, et la **politique par défaut** est le filet — c'est elle qui
 décide du sort de tout ce que personne n'avait prévu.
 
+Les deux diapositives citées en tête de section portent la moitié gauche du schéma : le pare-feu
+actif ou inactif, et ce que veulent dire `allow` et `deny`. Le reste — l'ordre d'évaluation, la
+politique par défaut, le `LIMIT`, et surtout la différence entre un paquet **jeté** et un paquet
+**refusé** — vient de la base de connaissances. Le cours ne pose jamais de politique par défaut,
+comme la section suivante le rappellera.
+
 ### Les commandes {diapos="47, 48, 51, 55, 58, 61, 64, 68"}
 
 ```bash
@@ -713,6 +753,16 @@ sudo ufw enable                   # persiste au redémarrage de la machine
 sudo ufw disable
 sudo ufw reset                    # remet à zéro ET DÉSACTIVE le pare-feu
 ```
+
+**Ce que le cours montre, et ce que ce bloc ajoute — la distinction compte, parce que le renvoi de
+ce titre ne vaut que pour la première moitié.** Les diapositives citées portent `ufw status`,
+`enable`, `disable`, `reset`, `status numbered`, `delete <numéro>`, l'installation par `apt-get`,
+la syntaxe `allow`/`deny`, et le filtrage par port comme par protocole. Elles ne portent **ni** les
+politiques par défaut (`ufw default deny incoming` / `allow outgoing`), **ni** `ufw limit`, **ni**
+`ufw status verbose`, **ni** le profil applicatif `OpenSSH`, **ni** la suppression par règle
+(`ufw delete allow 80/tcp`) : ces cinq formes viennent de la base de connaissances. Elles sont
+meilleures, et c'est pour cela qu'elles sont là — mais seule la première liste est ce que le cours a
+réellement montré à l'écran.
 
 ::: attention
 `ufw enable` lancé depuis une session SSH, **sans avoir autorisé SSH auparavant**, te laisse dehors
@@ -948,10 +998,12 @@ ufw allow ssh
 ufw enable
 ```
 
-{lignes="1"} Session ouverte directement en `root`. La clé a bien été déposée par DigitalOcean —
-donc l'authentification est correcte — mais `PasswordAuthentication` reste à `yes` dans la
-configuration du serveur : le mot de passe demeure une méthode acceptée, et les robots continuent
-de l'essayer toute la journée.
+{lignes="1"} Session ouverte directement en `root`, et personne n'a **vérifié** dans quel état est le
+serveur. Un droplet créé avec une clé naît bien avec le mot de passe désactivé — DigitalOcean
+l'écrit dans `/etc/ssh/sshd_config.d/50-cloud-init.conf`, pas dans `sshd_config` — mais cet état
+est **hérité, pas décidé** : il ne survit pas à une image personnalisée, à une restauration, ni à
+quelqu'un qui remet `PasswordAuthentication yes` pour dépanner un collègue. Une seule commande le
+dit, et elle n'est pas tapée ici : `sudo sshd -T | grep -i passwordauth`.
 
 {lignes="2"} Le catalogue de paquets n'a pas été rafraîchi. Sur une image un peu ancienne,
 l'installation échoue sur un « unable to locate package » qui n'a rien à voir avec Apache.
@@ -961,8 +1013,9 @@ UDP sur ce port, donc la conséquence est faible ici — mais c'est une surface 
 n'a décidé d'ouvrir.
 
 {lignes="5"} Le pare-feu est actif et le serveur fonctionne. Trois choses manquent, et aucune ne
-produira le moindre message d'erreur : le mot de passe est toujours accepté, `root` se connecte
-toujours directement, et rien ne limite le nombre de tentatives.
+produira le moindre message d'erreur : l'état du mot de passe n'a jamais été **relu**, `root` se
+connecte toujours directement — il n'existe pas d'autre compte —, et rien ne limite le nombre de
+tentatives.
 :::
 ::: corrige
 ```bash
