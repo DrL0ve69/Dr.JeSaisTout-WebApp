@@ -1185,6 +1185,7 @@ const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
   'fondamentaux',
   'environnement-linux',
   'communication-serveur',
+  'automatisation-surveillance',
 ]);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
