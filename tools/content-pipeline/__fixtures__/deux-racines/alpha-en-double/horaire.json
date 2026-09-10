@@ -1,0 +1,11 @@
+{
+  "sujet": "alpha",
+  "cours": {
+    "code": "420-AAB-HU",
+    "titre": "Cours témoin Alpha, second dossier",
+    "enseignant": "Enseignante témoin",
+    "etablissement": "Cégep témoin",
+    "session": "Hiver 2027"
+  },
+  "seances": [{ "numero": 1, "date": "2027-01-12", "titre": "Séance en collision" }]
+}

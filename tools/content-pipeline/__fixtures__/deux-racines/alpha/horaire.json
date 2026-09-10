@@ -1,0 +1,11 @@
+{
+  "sujet": "alpha",
+  "cours": {
+    "code": "420-AAA-HU",
+    "titre": "Cours témoin Alpha",
+    "enseignant": "Enseignante témoin",
+    "etablissement": "Cégep témoin",
+    "session": "Automne 2026"
+  },
+  "seances": [{ "numero": 1, "date": "2026-08-04", "titre": "Séance témoin Alpha" }]
+}

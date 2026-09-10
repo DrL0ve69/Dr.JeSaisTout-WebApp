@@ -221,7 +221,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       // s’impriment, donc leur ordre est observable. Les deux ensemble couvrent le
       // contrat — celui-ci l’ordre nominal, l’autre l’effet sur le disque.
       const rangValidation = execution.journal.indexOf('1/5 validation');
-      const rangPurge = execution.journal.indexOf('2/5 purge');
+      const rangPurge = execution.journal.indexOf('3/5 purge');
       expect(rangValidation).toBeGreaterThanOrEqual(0);
       expect(rangPurge).toBeGreaterThan(rangValidation);
     });
@@ -441,7 +441,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
   // Le validateur ne lisant QUE `content/`, rien ne l'obligeait à passer après la purge.
   //
   // ⚠️ LE TÉMOIN EST UN FICHIER SENTINELLE, PAS LE JOURNAL. Un test qui se
-  // contenterait de lire « 1/5 validation » avant « 2/5 purge » mesurerait un
+  // contenterait de lire « 1/5 validation » avant « 3/5 purge » mesurerait un
   // ÉTIQUETAGE, pas un effacement : renuméroter les étapes le laisserait vert sur un
   // pipeline qui détruit toujours. On mesure donc ce qui reste sur le disque.
   describe('sur un contenu REFUSÉ par le validateur', () => {
@@ -479,6 +479,241 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       // l’ordre des étiquettes — la purge n’est pas seulement après, elle n’a pas lieu.
       expect(execution.journal).not.toContain('purge —');
       expect(execution.journal).toContain('contenu refusé par le validateur');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // MULTI-RACINE — E7, lot A
+  // ---------------------------------------------------------------------------
+  // Ce que le CORPUS DE PRODUCTION ne peut pas démontrer, et c'est pourquoi ces
+  // fixtures existent : `content/cours/securite-web` et `content/cours/php` ne
+  // collisionnent pas sur leur sujet, et ne disparaissent pas du disque. Un
+  // `content:build` vert ne dit donc rien de la sensibilité des deux règles qui
+  // font la valeur du multi-racine (le refus de collision, la tolérance à une
+  // racine vide) — seule une racine qui les VIOLE le dit.
+  //
+  // ⚠️ `--racine` REMPLACE la liste par défaut, il ne s'y ajoute pas : chaque bloc
+  // ci-dessous mesure exactement les racines qu'il nomme, jamais celles-là plus le
+  // corpus de production.
+  describe('sur PLUSIEURS racines', () => {
+    const F = 'tools/content-pipeline/__fixtures__/deux-racines';
+
+    /**
+     * Le montage COMMUN des six blocs ci-dessous : autant de `--racine` que de fixtures nommées,
+     * puis le bac de sortie.
+     *
+     * ⚠️ EXTRAIT PARCE QUE SONARCLOUD L'A MESURÉ, ET LA MESURE ÉTAIT JUSTE : ces six blocs
+     * répétaient le même `beforeAll` de quatorze lignes, soit 99 lignes dupliquées — 37,5 % du
+     * code neuf de la PR #69, contre un seuil à 3 %. Aucun gate LOCAL du dépôt ne mesure la
+     * duplication ; c'est la deuxième fois que SonarCloud attrape ce que les gates locaux ne
+     * voient pas (précédent : le bac à sable inter-cours, lot 1c).
+     *
+     * ⚠️ CE QUI EST PARTAGÉ EST LE MONTAGE, JAMAIS LE JUGEMENT — chaque bloc garde son exécution
+     * et ses propres assertions. Partager la plomberie d'un test n'affaiblit rien ; partager ce
+     * qu'il conclut le viderait.
+     */
+    const lancerSurRacines = (
+      sortie: string,
+      css: string,
+      racines: readonly string[],
+    ): Execution =>
+      lancer([
+        ...racines.flatMap((racine) => ['--racine', join(F, racine)]),
+        '--sortie',
+        sortie,
+        '--css',
+        css,
+      ]);
+
+    describe('deux sujets DISTINCTS', () => {
+      const { sortie, css } = bac('deux-racines-distinctes');
+      let execution: Execution;
+
+      beforeAll(() => {
+        execution = lancerSurRacines(sortie, css, ['alpha', 'beta']);
+      }, DELAI);
+
+      it('compile les deux racines en une exécution', () => {
+        expect(diagnostic(execution)).toBe('');
+        expect(execution.code).toBe(0);
+      });
+
+      it('annonce le nombre de racines au journal, même à une (L-005)', () => {
+        // Sans cette ligne, « la liste par défaut a bien deux racines » et « une seule
+        // racine a été retenue » s'écrivent exactement pareil : un manifeste amputé
+        // d'un sujet entier passerait pour un manifeste normal.
+        expect(execution.journal).toContain('0/5 racines — 2 racine(s)');
+      });
+
+      it('valide CHAQUE racine séparément — le validateur reste mono-racine', () => {
+        // ⚠️ Le journal affiche les chemins en séparateurs POSIX (`afficher()` de
+        // `build.mjs`), alors que `join()` rend des antislashs sur ce poste : sans cette
+        // normalisation, l'assertion serait rouge sur un produit sain (L-085).
+        expect(execution.journal).toContain(`1/5 validation — ${F}/alpha`);
+        expect(execution.journal).toContain(`1/5 validation — ${F}/beta`);
+      });
+
+      it('n’écrit QU’UN manifeste, portant les leçons des DEUX racines', () => {
+        const manifeste: { slug: string; sujet: string }[] = JSON.parse(
+          readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8'),
+        );
+        expect(manifeste.map((entree) => entree.slug).sort()).toEqual(['alpha', 'beta']);
+        expect(manifeste.map((entree) => entree.sujet).sort()).toEqual(['alpha', 'beta']);
+      });
+
+      it('écrit les DEUX horaires, indexés par sujet, sans qu’aucun n’écrase l’autre', () => {
+        const horaires: Record<string, { cours: { code: string } }> = JSON.parse(
+          readFileSync(join(sortie, 'horaires.json'), 'utf8'),
+        );
+        expect(Object.keys(horaires).sort()).toEqual(['alpha', 'beta']);
+        expect(horaires['alpha']?.cours.code).toBe('420-AAA-HU');
+        expect(horaires['beta']?.cours.code).toBe('420-BBB-HU');
+        expect(execution.journal).toContain('2 horaire(s) de sujet : alpha, beta');
+      });
+
+      it('n’assemble l’enveloppe de la feuille de coloration QU’UNE fois', () => {
+        // 🔴 LA RÉGRESSION QUE CE TEST FERME. `compilerRacine` rendait une feuille DÉJÀ
+        // assemblée — en-tête, bascule écran/impression, commentaires épinglés. Une
+        // feuille par racine, concaténées, aurait dupliqué cette enveloppe : deux
+        // déclarations `.shiki` pour un seul thème, sur une sortie que
+        // `pipeline-contenu-compilation.spec.ts` surveille au contenu. Un colorateur
+        // PARTAGÉ + un seul `assemblerFeuille` est ce qui l'évite.
+        const feuille = readFileSync(css, 'utf8');
+        const enTetes = feuille.match(/FICHIER GÉNÉRÉ par tools\/content-pipeline/g) ?? [];
+        expect(enTetes).toHaveLength(1);
+      });
+    });
+
+    describe('deux racines déclarant le MÊME sujet', () => {
+      const { sortie, css } = bac('deux-racines-en-collision');
+      let execution: Execution;
+
+      beforeAll(() => {
+        execution = lancerSurRacines(sortie, css, ['alpha', 'alpha-en-double']);
+      }, DELAI);
+
+      it('échoue en code 1 plutôt que de laisser la seconde écraser la première', () => {
+        expect(execution.code).toBe(1);
+      });
+
+      it('NOMME le sujet en cause — sans lui, l’auteur cherche dans deux arborescences', () => {
+        // La chaîne est copiée depuis la sortie réelle, jamais retapée (L-089).
+        expect(execution.journal).toContain(
+          'deux horaires compilés portent le sujet « alpha »',
+        );
+      });
+
+      it('échoue sur la COLLISION DE SUJET, pas sur l’unicité des slugs', () => {
+        // ⚠️ `alpha-en-double/` ne porte aucune leçon, précisément pour ça : avec une
+        // leçon, le refus serait sorti plus tôt, sur les slugs, et cette fixture aurait
+        // mesuré la mauvaise règle en restant verte (famille L-035).
+        expect(execution.journal).not.toContain('portent le slug');
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 🔴 LE CONTRÔLE POSITIF DE L'ORDRE « JUGER PUIS PURGER » (constat de revue,
+    // 2026-09-10). Les trois refus de l'écrivain — slug en double, collision de
+    // sujet sur les horaires, sur les exercices — tombaient APRÈS la purge, et
+    // les deux derniers après que les corps de leçons et le manifeste avaient
+    // DÉJÀ été écrits. Une collision laissait donc `src/content-generated/` vide
+    // ou, pire, à moitié écrit : le `npm test` suivant tombait sur une erreur
+    // Sass qui ne nommait pas la cause — exactement l'incident du 2026-08-26 que
+    // l'en-tête de `build.mjs` déclarait clos.
+    //
+    // ⚠️ CE QUE CE BLOC MESURE, ET QU'AUCUN AUTRE NE MESURE : les blocs voisins
+    // écrivent dans un bac NEUF, où « rien n'a été détruit » et « rien n'a
+    // jamais existé » s'écrivent exactement pareil. Il faut donc une génération
+    // ANTÉRIEURE réussie, puis un refus par-dessus, dans le MÊME dossier.
+    // -------------------------------------------------------------------------
+    describe('un refus de l’écrivain, par-dessus une génération réussie', () => {
+      const { sortie, css } = bac('refus-sur-generation-existante');
+      let avant: string;
+      let execution: Execution;
+
+      beforeAll(() => {
+        // 1. Une construction SAINE, qui laisse un arbre complet derrière elle.
+        const saine = lancerSurRacines(sortie, css, ['alpha']);
+        expect(saine.code).toBe(0);
+        avant = readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8');
+
+        // 2. Une construction en COLLISION DE SUJET, dans le même dossier de sortie.
+        execution = lancerSurRacines(sortie, css, ['alpha', 'alpha-en-double']);
+      }, DELAI);
+
+      it('refuse en code 1', () => {
+        expect(execution.code).toBe(1);
+      });
+
+      it('n’atteint JAMAIS la purge — le refus est jugé avant elle', () => {
+        expect(execution.journal).not.toContain('purge —');
+      });
+
+      it('laisse la génération PRÉCÉDENTE intacte, au lieu de vider l’arbre', () => {
+        // C'est la moitié qui compte : sans le correctif, ce fichier n'existe plus.
+        expect(existsSync(join(sortie, 'manifeste-routes.json'))).toBe(true);
+        expect(readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8')).toBe(avant);
+        expect(existsSync(join(sortie, 'lecons', 'alpha.json'))).toBe(true);
+      });
+    });
+
+    describe('une racine VIDE parmi deux', () => {
+      const { sortie, css } = bac('deux-racines-dont-une-vide');
+      let execution: Execution;
+
+      beforeAll(() => {
+        execution = lancerSurRacines(sortie, css, ['alpha', 'sans-lecon']);
+      }, DELAI);
+
+      it('réussit — c’est l’état de `content/cours/php` avant sa première leçon', () => {
+        expect(diagnostic(execution)).toBe('');
+        expect(execution.code).toBe(0);
+      });
+
+      it('compile l’autre racine quand même — une racine vide n’en annule aucune', () => {
+        const manifeste: { slug: string }[] = JSON.parse(
+          readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8'),
+        );
+        expect(manifeste.map((entree) => entree.slug)).toEqual(['alpha']);
+      });
+    });
+
+    describe('une racine EXPLICITE absente parmi deux', () => {
+      const { sortie, css } = bac('deux-racines-dont-une-absente');
+      let execution: Execution;
+
+      beforeAll(() => {
+        execution = lancerSurRacines(sortie, css, ['alpha', 'nexiste-pas']);
+      }, DELAI);
+
+      it('échoue AVANT toute purge, en nommant LAQUELLE des deux est introuvable', () => {
+        // Le contrat des « deux cas d'absence » est inchangé par le multi-racine : un
+        // chemin fourni à la main est une faute de frappe probable. Ce qui change, c'est
+        // qu'il faut désormais dire de quelle racine on parle — et que le refus tombe
+        // avant la purge, donc sans détruire la génération précédente des AUTRES racines.
+        expect(execution.code).toBe(1);
+        expect(execution.journal).toContain('racine de contenu introuvable');
+        expect(execution.journal).toContain('nexiste-pas');
+        expect(execution.journal).not.toContain('purge —');
+      });
+    });
+
+    describe('la même racine citée DEUX FOIS', () => {
+      const { sortie, css } = bac('racine-en-double');
+      let execution: Execution;
+
+      beforeAll(() => {
+        execution = lancerSurRacines(sortie, css, ['alpha', 'alpha']);
+      }, DELAI);
+
+      it('refuse en nommant la CAUSE LOCALE, pas le symptôme sur les slugs', () => {
+        // Sans ce refus, la seconde passe rendrait les mêmes leçons, donc les mêmes
+        // slugs, et c'est le contrôle d'unicité de `ecrireContenuGenere` qui rougirait
+        // — sur une cause qui n'aide pas (« deux leçons portent le slug alpha »).
+        expect(execution.code).toBe(1);
+        expect(execution.journal).toContain('racine citée deux fois');
+        expect(execution.journal).not.toContain('portent le slug');
+      });
     });
   });
 });

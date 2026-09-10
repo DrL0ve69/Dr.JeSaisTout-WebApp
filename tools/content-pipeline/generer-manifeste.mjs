@@ -240,6 +240,18 @@ export const carteLecons: Record<string, ChargeurLecon> = {${
  */
 
 /**
+ * Ce que `preparerContenuGenere` a JUGÉ et calculé, prêt à écrire — et qui ne peut plus refuser.
+ *
+ * @typedef {object} ContenuPrepare
+ * @property {EntreeManifesteRoutes[]} entrees
+ * @property {Map<string, LeconCompilee>} parSlug leçons retenues, indexées ; unicité déjà prouvée
+ * @property {Record<string, HoraireCompile>} horaires indexés par sujet, collision déjà refusée
+ * @property {Record<string, ExercicesCompiles>} exercices idem
+ * @property {boolean} inclureBrouillons
+ * @property {string[]} slugsNonPubliees pour le journal (L-005)
+ */
+
+/**
  * Sépare les leçons PUBLIÉES du reste — l'unique lecture de `statut` de ce module.
  *
  * Exportée pour être mise à l'épreuve : elle n'a qu'un appelant, `ecrireContenuGenere` ci-dessous.
@@ -290,25 +302,39 @@ function indexerParSujet(donnees, quoi, consequence) {
 }
 
 /**
- * Écrit les CINQ sorties dans `dossierSortie` — les trois filtrées par publication (corps de
- * leçons, manifeste, carte d'imports) plus les deux données de SUJET (horaires, registre
- * d'exercices), qui ne le sont pas et n'ont rien à l'être. Le dossier est supposé DÉJÀ PURGÉ par
- * l'orchestrateur : ce module ajoute, il n'efface pas.
+ * PREMIÈRE MOITIÉ — tout ce qui peut REFUSER, et rien qui écrive.
+ *
+ * 🔴 POURQUOI CETTE MOITIÉ EXISTE, ET C'EST UN DÉFAUT MESURÉ, PAS UNE ÉLÉGANCE. Jusqu'au
+ * 2026-09-10, les trois refus de cette fonction — slug en double, collision de sujet sur les
+ * horaires, collision de sujet sur les exercices — vivaient MÊLÉS aux écritures, et les deux
+ * derniers tombaient APRÈS que les corps de leçons, le manifeste et la carte avaient déjà été
+ * écrits. Deux conséquences, la seconde pire que la première :
+ *
+ *   · l'orchestrateur purge `src/content-generated/` avant d'appeler cette fonction, si bien
+ *     qu'un refus laissait le dossier VIDE — exactement l'incident que `build.mjs` déclare avoir
+ *     fermé le 2026-08-26 en faisant passer la validation avant la purge ; la promesse écrite
+ *     là-bas était donc plus forte que ce que le code tenait ;
+ *   · une collision d'horaire laissait derrière elle un arbre à MOITIÉ écrit — des leçons et un
+ *     manifeste d'une génération, pas d'horaires du tout — ce qu'aucun lecteur ne distingue d'un
+ *     arbre sain.
+ *
+ * Séparer JUGER d'ÉCRIRE règle la classe entière : l'orchestrateur juge d'abord, purge ensuite,
+ * écrit enfin. Un refus, quel qu'il soit, laisse la génération précédente intacte. Et il n'y a
+ * toujours qu'UN endroit qui juge — ce fichier — donc aucun prédicat recopié (L-016).
  *
  * ⚠️ LE FILTRE DE PUBLICATION S'APPLIQUE ICI, EN TÊTE, ET UNE SEULE FOIS — voir l'en-tête du
  * fichier. Tout ce qui suit travaille sur `retenues` : les trois sorties ne peuvent donc pas se
  * contredire sur ce qu'est une leçon publique.
  *
- * @param {string} dossierSortie chemin absolu
  * @param {readonly LeconCompilee[]} lecons
  * @param {{ inclureBrouillons?: boolean, horaires?: readonly (HoraireCompile | null)[], exercices?: readonly (ExercicesCompiles | null)[] }} [options]
  *   `inclureBrouillons` rétablit l'écriture des leçons non publiées. DÉFAUT FERMÉ : sans ce
  *   drapeau, elles ne sont pas écrites du tout. `horaires` porte l'horaire de chaque racine
  *   compilée — les `null` (racine sans ancrage au cours) sont simplement ignorés. `exercices` porte
  *   le registre de chaque racine, même règle.
- * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[], horaires: Record<string, HoraireCompile>, exercices: Record<string, ExercicesCompiles> }}
+ * @returns {ContenuPrepare}
  */
-export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
+export function preparerContenuGenere(lecons, options = {}) {
   const inclureBrouillons = options.inclureBrouillons === true;
   const { publiees, nonPubliees } = separerPubliees(lecons);
   const retenues = inclureBrouillons ? [...lecons] : publiees;
@@ -328,6 +354,50 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
     }
     parSlug.set(slug, lecon);
   }
+
+  // L'HORAIRE N'EST PAS FILTRÉ PAR `statut`, et il n'y a rien à filtrer : c'est le calendrier du
+  // COURS, pas un contenu de module. Un horaire écrit alors qu'aucune leçon n'est publiée décrit un
+  // cours dont le site n'affiche encore rien — ce qui est exact, et ne divulgue aucun brouillon.
+  const horaires = /** @type {Record<string, HoraireCompile>} */ (
+    indexerParSujet(
+      options.horaires ?? [],
+      'horaires',
+      'le second écraserait le premier en silence, et le sommaire daterait les séances du mauvais',
+    )
+  );
+
+  // LE REGISTRE D'EXERCICES N'EST PAS FILTRÉ PAR `statut` NON PLUS, et pour la même raison : ce
+  // sont les exercices du COURS, pas un contenu de module. Un registre écrit alors qu'aucune leçon
+  // n'est publiée décrit une feuille d'exercices que le site n'a pas encore commentée — ce qui est
+  // exact, et ne divulgue aucun brouillon.
+  const exercices = /** @type {Record<string, ExercicesCompiles>} */ (
+    indexerParSujet(
+      options.exercices ?? [],
+      "registres d'exercices",
+      'le second écraserait le premier en silence, et le gate de complétude mesurerait le mauvais',
+    )
+  );
+
+  return { entrees, parSlug, horaires, exercices, inclureBrouillons, slugsNonPubliees };
+}
+
+/**
+ * SECONDE MOITIÉ — les écritures, et RIEN qui refuse.
+ *
+ * 🔴 AUCUNE LIGNE DE CETTE FONCTION NE DOIT POUVOIR ÉCHOUER SUR UNE FAUTE D'AUTEUR. Tout jugement
+ * appartient à `preparerContenuGenere`, qui tourne AVANT la purge. Y remettre un `echec` rouvrirait
+ * le défaut que la séparation vient de fermer : le dossier serait déjà purgé, et l'arbre
+ * précédent perdu. (Une panne d'écriture — disque plein, permission — reste possible et n'est pas
+ * de ce ressort.)
+ *
+ * Le dossier est supposé DÉJÀ PURGÉ par l'orchestrateur : ce module ajoute, il n'efface pas.
+ *
+ * @param {string} dossierSortie chemin absolu
+ * @param {ContenuPrepare} prepare
+ * @returns {{ entrees: EntreeManifesteRoutes[], fichiers: FichierEcrit[], manifeste: string, carte: string, ecartees: string[], incluses: string[], horaires: Record<string, HoraireCompile>, exercices: Record<string, ExercicesCompiles> }}
+ */
+export function ecrireContenuPrepare(dossierSortie, prepare) {
+  const { entrees, parSlug, horaires, exercices, inclureBrouillons, slugsNonPubliees } = prepare;
 
   /** @type {FichierEcrit[]} */
   const fichiers = [];
@@ -349,31 +419,10 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
   const carte = rendreCarteLecons(entrees);
   ecrireAtomique(join(dossierSortie, FICHIER_CARTE), carte);
 
-  // L'HORAIRE N'EST PAS FILTRÉ PAR `statut`, et il n'y a rien à filtrer : c'est le calendrier du
-  // COURS, pas un contenu de module. Un horaire écrit alors qu'aucune leçon n'est publiée décrit un
-  // cours dont le site n'affiche encore rien — ce qui est exact, et ne divulgue aucun brouillon.
-  const horaires = /** @type {Record<string, HoraireCompile>} */ (
-    indexerParSujet(
-      options.horaires ?? [],
-      'horaires',
-      'le second écraserait le premier en silence, et le sommaire daterait les séances du mauvais',
-    )
-  );
   // Indenté, comme le manifeste et pour la même raison : c'est un artéfact court qu'un humain ouvre
   // pour comprendre ce que le build a vu.
   ecrireAtomique(join(dossierSortie, FICHIER_HORAIRES), `${JSON.stringify(horaires, null, 2)}\n`);
 
-  // LE REGISTRE D'EXERCICES N'EST PAS FILTRÉ PAR `statut` NON PLUS, et pour la même raison : ce
-  // sont les exercices du COURS, pas un contenu de module. Un registre écrit alors qu'aucune leçon
-  // n'est publiée décrit une feuille d'exercices que le site n'a pas encore commentée — ce qui est
-  // exact, et ne divulgue aucun brouillon.
-  const exercices = /** @type {Record<string, ExercicesCompiles>} */ (
-    indexerParSujet(
-      options.exercices ?? [],
-      "registres d'exercices",
-      'le second écraserait le premier en silence, et le gate de complétude mesurerait le mauvais',
-    )
-  );
   ecrireAtomique(join(dossierSortie, FICHIER_EXERCICES), `${JSON.stringify(exercices, null, 2)}\n`);
 
   return {
@@ -390,4 +439,21 @@ export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
     ecartees: inclureBrouillons ? [] : slugsNonPubliees,
     incluses: inclureBrouillons ? slugsNonPubliees : [],
   };
+}
+
+/**
+ * Les deux moitiés enchaînées — la forme d'origine, gardée pour les appelants qui n'ont pas à
+ * intercaler une purge entre le jugement et l'écriture (les tests, notamment).
+ *
+ * ⚠️ `build.mjs` NE L'EMPLOIE PLUS, et c'est délibéré : c'est précisément entre les deux moitiés
+ * qu'il doit purger. Un appelant qui reviendrait à cette fonction pour « simplifier » rouvrirait
+ * le défaut décrit en tête de `preparerContenuGenere`.
+ *
+ * @param {string} dossierSortie chemin absolu
+ * @param {readonly LeconCompilee[]} lecons
+ * @param {{ inclureBrouillons?: boolean, horaires?: readonly (HoraireCompile | null)[], exercices?: readonly (ExercicesCompiles | null)[] }} [options]
+ * @returns {ReturnType<typeof ecrireContenuPrepare>}
+ */
+export function ecrireContenuGenere(dossierSortie, lecons, options = {}) {
+  return ecrireContenuPrepare(dossierSortie, preparerContenuGenere(lecons, options));
 }

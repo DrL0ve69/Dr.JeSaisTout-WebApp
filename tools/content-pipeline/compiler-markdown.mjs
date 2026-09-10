@@ -971,7 +971,7 @@ function corrigerEncresSombres(css) {
 /**
  * @returns {Promise<Colorateur>}
  */
-async function creerColorateur() {
+export async function creerColorateur() {
   const transformateur = transformerStyleToClass({ classPrefix: PREFIXE_CLASSE });
   const surligneur = await createHighlighter({
     themes: [THEME_CLAIR, THEME_SOMBRE],
@@ -1015,7 +1015,7 @@ async function creerColorateur() {
  * @param {string} classes CSS rendu par `transformerStyleToClass`
  * @returns {string}
  */
-function assemblerFeuille(classes) {
+export function assemblerFeuille(classes) {
   return `// FICHIER GÉNÉRÉ par tools/content-pipeline/compiler-markdown.mjs — NE PAS ÉDITER.
 // Coloration syntaxique Shiki (${THEME_CLAIR} / ${THEME_SOMBRE}), sortie en CLASSES et non en
 // styles en ligne : la CSP du site est à hachages et refuse tout attribut « style ».
@@ -3614,21 +3614,58 @@ function recenserLecons(racine) {
  * validé — `valider.mjs` porte `schemas/exercices.schema.json` et ses quatre règles hors schéma,
  * et `build.mjs` le fait tourner avant. Absent, il vaut `null`.
  *
+ * ⚠️ LE COLORATEUR EST INJECTABLE, ET C'EST CE QUI REND LE MULTI-RACINE POSSIBLE (E7, lot A).
+ * Un colorateur ACCUMULE les classes de coloration des blocs qu'il a colorés, et `feuille` rend
+ * ces classes déjà enveloppées par `assemblerFeuille` — en-têtes, bascule écran/impression et
+ * commentaires épinglés compris. Deux racines compilées avec deux colorateurs distincts
+ * rendraient donc deux feuilles COMPLÈTES, dont la concaténation dupliquerait l'enveloppe : les
+ * mêmes sélecteurs `.shiki` déclarés deux fois, et `src/pipeline-contenu-compilation.spec.ts`
+ * (qui surveille le contenu de cette feuille) mesurerait une feuille que personne n'a voulue.
+ * L'appelant qui compile plusieurs racines crée donc UN colorateur, le passe à chacune, et
+ * n'appelle `assemblerFeuille` qu'une fois, après la dernière — voir `build.mjs`. Sans l'option,
+ * le comportement est inchangé : une racine, son colorateur, sa feuille assemblée.
+ *
+ * 🔴 ET C'EST POURQUOI `feuille` EST ABSENTE DÈS QU'UN COLORATEUR EST INJECTÉ. Elle ne pouvait pas
+ * rester : l'accumulateur étant partagé, une feuille rendue à la fin de CETTE racine porterait les
+ * classes de toutes les racines déjà compilées et d'aucune des suivantes — une feuille complète
+ * d'apparence, cumulative-partielle en fait. `build.mjs` la jetait, donc rien n'était cassé ; mais
+ * un futur appelant multi-racine qui l'aurait écrite aurait produit une feuille amputée **sans
+ * qu'aucun gate ne rougisse**. Un membre qui ne peut être juste que par la discrétion de son
+ * appelant n'est pas un contrat : on le retire, et le typage refuse alors de le lire.
+ *
  * @param {string} racine chemin absolu
- * @param {{ rendreMermaid?: Contexte['rendreMermaid'] }} [options]
- * @returns {Promise<{ lecons: LeconCompilee[], feuille: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
+ * @param {{ rendreMermaid?: Contexte['rendreMermaid'], colorateur?: Colorateur }} [options]
+ * @returns {Promise<{ lecons: LeconCompilee[], feuille?: string, horaire: HoraireCompile | null, exercices: ExercicesCompiles | null, sujetsFreres: string[] }>}
+ *   `feuille` n'est rendue QUE si le colorateur est possédé, c'est-à-dire si `options.colorateur`
+ *   est absent. Avec un colorateur injecté, c'est à l'appelant d'assembler, une fois, à la fin.
  */
 export async function compilerRacine(racine, options = {}) {
   // `content/cours/securite-web/` n'existe pas encore (E3 l'ouvrira). Sans ce garde-fou, l'appel
   // par défaut mourrait sur une pile ENOENT ; avec lui, il rend zéro leçon et une feuille vide,
   // ce qui garde `src/styles.scss` compilable. Une racine EXPLICITE introuvable, elle, est une
   // faute d'appel : le lot 4 la fera échouer en code 1 depuis `build.mjs`.
-  const colorateur = await creerColorateur();
+  // POSSÉDÉ ou INJECTÉ — c'est ce booléen, et lui seul, qui décide si `feuille` a un sens.
+  const colorateurPossede = options.colorateur === undefined;
+  const colorateur = options.colorateur ?? (await creerColorateur());
+  /**
+   * La feuille, et SEULEMENT quand elle est complète. Étalée dans les deux retours ci-dessous :
+   * absente d'un objet, elle ne s'y lit pas, là où un `undefined` explicite se serait écrit sans
+   * broncher dans un fichier.
+   *
+   * ⚠️ C'EST UNE FONCTION, PAS UNE CONSTANTE, et ce n'est pas un détail de style : le colorateur
+   * n'a rien accumulé tant que les leçons ne sont pas compilées. Figée en tête, la feuille sortirait
+   * VIDE — et vide, elle reste une chaîne parfaitement valide que rien ne distingue d'une feuille
+   * sans blocs de code.
+   *
+   * @returns {{ feuille?: string }}
+   */
+  const feuilleSiPossedee = () =>
+    colorateurPossede ? { feuille: assemblerFeuille(colorateur.feuille()) } : {};
   if (!existsSync(racine)) {
     console.error(`compiler-markdown : aucune racine « ${afficher(racine)} » — 0 leçon`);
     return {
       lecons: [],
-      feuille: assemblerFeuille(colorateur.feuille()),
+      ...feuilleSiPossedee(),
       horaire: null,
       exercices: null,
       sujetsFreres: [],
@@ -3655,7 +3692,7 @@ export async function compilerRacine(racine, options = {}) {
   verifierRenvoisDeModule(lecons, dossiers);
   return {
     lecons,
-    feuille: assemblerFeuille(colorateur.feuille()),
+    ...feuilleSiPossedee(),
     horaire: lireHoraire(racine),
     exercices,
     // LES NOMS SEULEMENT, POUR LE JOURNAL (L-005) : un registre qui n'a rien vu doit se voir, sinon
@@ -3969,9 +4006,19 @@ function lireArguments() {
 async function principal() {
   const { racine, json, css } = lireArguments();
   const racineAbsolue = resolve(RACINE_DEPOT, racine);
+  // AUCUN COLORATEUR INJECTÉ ICI — ce mode ne compile qu'UNE racine, donc `compilerRacine` possède
+  // le sien et rend une feuille COMPLÈTE. C'est ce qui autorise l'écriture ci-dessous.
   const { lecons, feuille } = await compilerRacine(racineAbsolue);
 
   if (css !== null) {
+    if (feuille === undefined) {
+      // Inatteignable tant que l'appel ci-dessus n'injecte pas de colorateur — et c'est
+      // précisément l'invariant qu'on refuse de laisser se rompre en silence : une feuille
+      // manquante s'écrirait « vide », indiscernable d'une racine sans bloc de code.
+      echec('compiler-markdown : feuille absente alors que le colorateur est possédé', [
+        'invariant interne rompu — `compilerRacine` a reçu un colorateur qu’il ne devait pas recevoir',
+      ]);
+    }
     const cible = resolve(RACINE_DEPOT, css);
     mkdirSync(dirname(cible), { recursive: true });
     writeFileSync(cible, feuille, 'utf8');

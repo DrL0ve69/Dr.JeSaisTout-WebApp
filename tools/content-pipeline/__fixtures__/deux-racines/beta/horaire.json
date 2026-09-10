@@ -1,0 +1,11 @@
+{
+  "sujet": "beta",
+  "cours": {
+    "code": "420-BBB-HU",
+    "titre": "Cours témoin Beta",
+    "enseignant": "Enseignant témoin",
+    "etablissement": "Cégep témoin",
+    "session": "Automne 2026"
+  },
+  "seances": [{ "numero": 1, "date": "2026-08-05", "titre": "Séance témoin Beta" }]
+}
