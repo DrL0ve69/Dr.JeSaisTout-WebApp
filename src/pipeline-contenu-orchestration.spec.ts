@@ -498,21 +498,39 @@ describe("l'orchestrateur du pipeline de contenu", () => {
   describe('sur PLUSIEURS racines', () => {
     const F = 'tools/content-pipeline/__fixtures__/deux-racines';
 
+    /**
+     * Le montage COMMUN des six blocs ci-dessous : autant de `--racine` que de fixtures nommées,
+     * puis le bac de sortie.
+     *
+     * ⚠️ EXTRAIT PARCE QUE SONARCLOUD L'A MESURÉ, ET LA MESURE ÉTAIT JUSTE : ces six blocs
+     * répétaient le même `beforeAll` de quatorze lignes, soit 99 lignes dupliquées — 37,5 % du
+     * code neuf de la PR #69, contre un seuil à 3 %. Aucun gate LOCAL du dépôt ne mesure la
+     * duplication ; c'est la deuxième fois que SonarCloud attrape ce que les gates locaux ne
+     * voient pas (précédent : le bac à sable inter-cours, lot 1c).
+     *
+     * ⚠️ CE QUI EST PARTAGÉ EST LE MONTAGE, JAMAIS LE JUGEMENT — chaque bloc garde son exécution
+     * et ses propres assertions. Partager la plomberie d'un test n'affaiblit rien ; partager ce
+     * qu'il conclut le viderait.
+     */
+    const lancerSurRacines = (
+      sortie: string,
+      css: string,
+      racines: readonly string[],
+    ): Execution =>
+      lancer([
+        ...racines.flatMap((racine) => ['--racine', join(F, racine)]),
+        '--sortie',
+        sortie,
+        '--css',
+        css,
+      ]);
+
     describe('deux sujets DISTINCTS', () => {
       const { sortie, css } = bac('deux-racines-distinctes');
       let execution: Execution;
 
       beforeAll(() => {
-        execution = lancer([
-          '--racine',
-          join(F, 'alpha'),
-          '--racine',
-          join(F, 'beta'),
-          '--sortie',
-          sortie,
-          '--css',
-          css,
-        ]);
+        execution = lancerSurRacines(sortie, css, ['alpha', 'beta']);
       }, DELAI);
 
       it('compile les deux racines en une exécution', () => {
@@ -571,16 +589,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       let execution: Execution;
 
       beforeAll(() => {
-        execution = lancer([
-          '--racine',
-          join(F, 'alpha'),
-          '--racine',
-          join(F, 'alpha-en-double'),
-          '--sortie',
-          sortie,
-          '--css',
-          css,
-        ]);
+        execution = lancerSurRacines(sortie, css, ['alpha', 'alpha-en-double']);
       }, DELAI);
 
       it('échoue en code 1 plutôt que de laisser la seconde écraser la première', () => {
@@ -624,21 +633,12 @@ describe("l'orchestrateur du pipeline de contenu", () => {
 
       beforeAll(() => {
         // 1. Une construction SAINE, qui laisse un arbre complet derrière elle.
-        const saine = lancer(['--racine', join(F, 'alpha'), '--sortie', sortie, '--css', css]);
+        const saine = lancerSurRacines(sortie, css, ['alpha']);
         expect(saine.code).toBe(0);
         avant = readFileSync(join(sortie, 'manifeste-routes.json'), 'utf8');
 
         // 2. Une construction en COLLISION DE SUJET, dans le même dossier de sortie.
-        execution = lancer([
-          '--racine',
-          join(F, 'alpha'),
-          '--racine',
-          join(F, 'alpha-en-double'),
-          '--sortie',
-          sortie,
-          '--css',
-          css,
-        ]);
+        execution = lancerSurRacines(sortie, css, ['alpha', 'alpha-en-double']);
       }, DELAI);
 
       it('refuse en code 1', () => {
@@ -662,16 +662,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       let execution: Execution;
 
       beforeAll(() => {
-        execution = lancer([
-          '--racine',
-          join(F, 'alpha'),
-          '--racine',
-          join(F, 'sans-lecon'),
-          '--sortie',
-          sortie,
-          '--css',
-          css,
-        ]);
+        execution = lancerSurRacines(sortie, css, ['alpha', 'sans-lecon']);
       }, DELAI);
 
       it('réussit — c’est l’état de `content/cours/php` avant sa première leçon', () => {
@@ -692,16 +683,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       let execution: Execution;
 
       beforeAll(() => {
-        execution = lancer([
-          '--racine',
-          join(F, 'alpha'),
-          '--racine',
-          join(F, 'nexiste-pas'),
-          '--sortie',
-          sortie,
-          '--css',
-          css,
-        ]);
+        execution = lancerSurRacines(sortie, css, ['alpha', 'nexiste-pas']);
       }, DELAI);
 
       it('échoue AVANT toute purge, en nommant LAQUELLE des deux est introuvable', () => {
@@ -721,16 +703,7 @@ describe("l'orchestrateur du pipeline de contenu", () => {
       let execution: Execution;
 
       beforeAll(() => {
-        execution = lancer([
-          '--racine',
-          join(F, 'alpha'),
-          '--racine',
-          join(F, 'alpha'),
-          '--sortie',
-          sortie,
-          '--css',
-          css,
-        ]);
+        execution = lancerSurRacines(sortie, css, ['alpha', 'alpha']);
       }, DELAI);
 
       it('refuse en nommant la CAUSE LOCALE, pas le symptôme sur les slugs', () => {
