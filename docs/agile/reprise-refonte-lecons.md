@@ -2054,3 +2054,149 @@ Le candidat naturel est `03-communication-serveur` (séance 3, déck `Cours03-Se
 et la sonde de mesure d'absence se rejoue telle quelle : elle est jetable et vit dans le scratchpad,
 mais son patron — **un terme, une ligne de sortie ; préfixe `=` pour le mot entier** — est ce qui a
 tenu le budget de la cartographie du côté lecture.
+
+---
+
+## ✅ CLÔTURE — LOT 13 « la reprise du module 03 » (2026-09-10)
+
+`MODULES_AU_FORMAT_ACTIONNABLE` porte **quatre** slugs et le compteur dit **`4/9 module(s) ancré(s)
+au cours repris ; 5 restant(s) : 04-automatisation-surveillance, 07-injection, 08-xss, 09-csrf,
+10-controle-acces`**. Le module `03-communication-serveur` — séance 3, clés SSH et UFW — porte
+**vingt-sept** titres `##`/`###`, **zéro muet** : dix-neuf `{diapos="…"}` de la séance 3, **un**
+`{seance="5" diapos="63, 69-71, 75-77, 82-84"}` pour les droits d'accès Unix, **six**
+`{hors-cours}`, une marche à suivre de **neuf** étapes et le **troisième `:::: methodes` du dépôt**
+(PuTTY contre le client OpenSSH de Windows).
+
+Cartographie mesurée : [`docs/contenu/renvois-diapos-module-03.md`](../contenu/renvois-diapos-module-03.md).
+
+### La cartographie est revenue AU FIL PRINCIPAL, et c'est le bon découpage quand la source est petite
+
+Au lot 12, la cartographie avait coûté **213k** — non pas en lecture, mais pour produire un document
+de 392 lignes. Ici le déck de la séance 3 fait **78 diapositives**, donc **78 lignes d'extrait** : il
+tient en une lecture, et la leçon en fait 972. Le fil principal a donc absorbé l'extrait entier, la
+leçon entière, la mesure d'absence, la table des 27 renvois, les cinq réserves et les six correctifs
+de revue — **deux agents seulement** ont été convoqués, un rédacteur et un relecteur.
+
+🔴 **La règle qui se dégage, et elle est mesurable AVANT d'écrire un brief : c'est la taille de la
+SOURCE qui décide s'il faut un agent, pas la nature de la tâche.** « Cartographier un module » n'est
+pas un lot ; « cartographier un module contre un déck de 230 diapositives » en est un.
+
+### 🔴 L-101 A UNE DEUXIÈME FACE, ET C'EST LA REVUE QUI L'A TROUVÉE
+
+Le lot 12 avait établi que *poser un renvoi de titre est un jugement de provenance*, donc que tout
+encadré parlant de la provenance d'une section se relit contre le renvoi **neuf** de cette section.
+Ce lot a payé la **face symétrique** : le même commit qui posait `### Les commandes {diapos="47, 48,
+51, 55, 58, 61, 64, 68"}` — un renvoi **positif** sur un bloc dont cinq commandes ne sont sur aucune
+diapositive — **supprimait**, six cents lignes plus haut, la seule phrase qui qualifiait `ufw limit`
+et `~/.ssh/config` de compléments de la base de connaissances.
+
+⚠️ **Un recensement fait sur le FICHIER ne voit pas ça** : la phrase n'y est plus. Il faut le faire
+sur les lignes **supprimées** du diff. C'est l'angle mort exact du geste que le lot 12 avait posé.
+
+### 🔴 UN TITRE MUET FAIT ROUGIR LE GATE ; UN RENVOI TROP ÉTROIT NE FAIT ROUGIR PERSONNE
+
+La règle 13 exige qu'un titre porte un bloc d'attributs. Elle ne peut rien dire de sa **justesse**.
+Mesuré ici : les diapositives **31 à 43** — toute la connexion PuTTY, toute la configuration WinSCP,
+douze diapositives, l'aboutissement de la séance — n'étaient citées par **aucun** titre. Elles
+vivaient dans le conteneur d'onglets, placé sous un titre qui ne parlait que de la conversion `.ppk`.
+Le gate était vert, la leçon promettait en tête que « les renvois disent lesquelles viennent du
+cours », et un étudiant cherchant « comment je me connecte » ne trouvait rien.
+
+**Le correctif est éditorial, pas technique** : une section neuve, `### Se connecter au droplet
+{diapos="31-43"}`, qui accueille le conteneur — et qui donne du même coup à la marche à suivre
+l'étape « connecte-toi » qui lui manquait. ⚠️ **La cartographie vérifiait que chaque renvoi est
+juste ; elle ne vérifiait pas que chaque diapositive du déck est atteignable.** Les deux sens se
+mesurent.
+
+### 🔴 LE FORMAT ACTIONNABLE FAIT REMONTER LES CONTRADICTIONS LATENTES D'UNE LEÇON
+
+La marche à suivre écrivait qu'un droplet créé avec une clé « naît en clé seulement, sans la moindre
+fenêtre de temps » ; `## Exemple complet`, six cents lignes plus bas, écrivait que
+« `PasswordAuthentication` reste à `yes` ». La contradiction **préexistait** — le lot ne l'a pas
+créée, il l'a portée **en tête de page**, dans le résumé que le lecteur lit en premier.
+
+Tranchée par la **source**, pas par l'avis : la documentation DigitalOcean écrit *« Password
+authentication is disabled by default on Droplets created with an SSH key »*, et la valeur vit dans
+`/etc/ssh/sshd_config.d/50-cloud-init.conf` — le fichier inclus dont la leçon parlait déjà sans faire
+le lien. `## Exemple complet` a été réécrit sur ce que son exemple montre réellement : un état
+**hérité que personne n'a relu**, ce qui est un meilleur enseignement que l'affirmation d'origine.
+
+⚠️ **À attendre aux six modules restants** : un résumé actionnable met en voisinage immédiat des
+affirmations que des centaines de lignes séparaient. Chaque reprise doit prévoir qu'il en sortira au
+moins une.
+
+### ⚠️ TROISIÈME CONTENEUR `methodes`, TROISIÈME INFRACTION À LA CLAUSE D-C
+
+`clePutty.ppk` et le chemin WinSCP *Advanced → Authentication* ne vivaient que dans le volet du
+cours ; `~/.ssh/known_hosts` et la forme `ssh -i` que dans l'autre. **Les deux volets étaient
+fautifs, chacun de son côté** — ce que les deux premiers conteneurs n'avaient pas montré, où seul le
+volet masqué par défaut était en cause. Un volet est masqué la moitié du temps : la clause vaut
+**symétriquement**, et le volet `defaut` n'y échappe pas.
+
+🔴 **Le brief le disait pourtant, en toutes lettres, et l'agent a tout de même laissé quatre faits
+uniques.** La parade qui a marché est celle du fil principal après la revue : **écrire la prose
+visible d'abord, en y nommant tout ce qui doit être trouvable au `Ctrl+F`, et ne laisser aux volets
+que la suite de gestes**. Un brief qui demande de « vérifier qu'aucun fait n'est unique » demande une
+relecture ; un brief qui impose l'ordre d'écriture impose une structure.
+
+### Ce que le lot déplace sans que rien ne le dise — S-010, encore
+
+`LECON_AVEC_ONGLETS` est une cible **découverte** : écrire le troisième `:::: methodes` du dépôt
+réassigne les sept tests de `e2e/onglets-methodes.spec.ts` à `communication-serveur`, qui précède
+`environnement-linux` dans l'ordre trié. **Mesuré sur l'artéfact** (les trois pages portant
+`class="methodes"`, énumérées et triées), pas déduit. G-e2e reste à **57/1**, et il ne le reste que
+parce que le lot 11 avait fait dériver les attentes du spec de la source d'auteur. Deuxième
+confirmation de suite qu'un vert peut prouver qu'un lot **antérieur** a bien bâti ses instruments.
+
+### Les cinq réserves du corpus, mesurées avant la revue
+
+1. **Un renvoi d'encadré survit à la republication du support qui l'a justifié.** `::: cours
+   {diapos="45, 46, 47, 48, 49, 50"}` sur le changement de port SSH : ces six diapositives traitent
+   d'**UFW** dans le paquet republié de 78. L'encadré disait lui-même, deux lignes plus bas, que la
+   section avait disparu du paquet. **La grammaire de `diapos` contrôle la forme des jetons, jamais
+   leur sens** — rien ne pouvait rougir.
+2. **Deux promesses d'exclusion** (« tu ne seras pas évalué dessus »), sur `sshd_config`. La matière
+   est bien absente partout, mais la promesse porte sur le **contenu de l'examen**, que ce dépôt
+   n'est pas en position de tenir — et le module 03 est dans la **portée de l'Examen 1**.
+3. **`chmod`/`chown` attribués à « la séance précédente »** : mesuré, c'est la **séance 5**.
+   Exactement le constat du lot 12, sur un autre module, et il devenait une contradiction interne au
+   moment même où le titre recevait `{seance="5" …}`.
+4. **Une diapositive citée à un rang près** (37 au lieu de 36). Le libellé exact de l'invite est dans
+   l'**image**, que l'extrait ne voit pas : la citation a été remplacée par le **texte mesuré** de la
+   diapositive, qui porte le même enseignement.
+5. **Une borne basse trop courte** : `ufw status numbered` est introduit à [55], l'encadré partait de
+   [56].
+
+### Gates
+
+G-lint **0** · G-typage-outils **0** · G-content **10 leçons · 0 dépassement**
+(`communication-serveur` 209,2 → **214,3 Ko** brut / **54,4 Ko** servi) · G-test **1143 passés / 1
+sauté · 46 fichiers**, inchangé · G-build **14 pages · 14 hachages de style / 0 de script,
+INCHANGÉS** · G-axe **13 fichiers · 1118 vérifications · 0 violation** · G-e2e **57 passés / 1
+sauté** · `npm audit --omit=dev` **0**. CI verte sur la PR **#65**, SonarCloud vert.
+
+### Les défauts de BRIEF de ce lot, comptés
+
+Deux agents. **Rédacteur 115k** (sous la cible de 120k) — le brief injectait les 25 titres mesurés
+au caractère près, le squelette des huit étapes déjà décidé, le déck résumé diapositive par
+diapositive et la mesure d'absence : il n'a fait **14 appels d'outils**. **Revue 175k**, au-dessus du
+maximum de 150k, et la cause est nommable : je lui ai donné **six axes** d'investigation (provenance,
+exactitude des 26 renvois un par un, clause D-C, marche à suivre, cohérence quiz/simulation,
+hygiène). ⚠️ **Le test du « + » vaut aussi pour un brief de REVUE** : « vérifie les renvois **et** la
+clause D-C **et** le quiz » est un lot de plus à chaque « et ». La découpe juste était deux
+relecteurs — l'un sur les renvois contre l'extrait, l'autre sur la rédaction et les conteneurs.
+Le rapport, lui, était excellent : cinq majeurs, **tous réels**, dont deux qu'aucun gate ne pouvait
+voir.
+
+**Un correctif de brief déjà appliqué, à ne pas répéter :** j'avais donné au rédacteur la convention
+de commentaires de code du **module 02** (désaccentués). Le module 03 accentue les siens. Résultat :
+deux orthographes du même commentaire à trois cents lignes d'écart, dans le même fichier. **La
+convention à injecter dans un brief est celle du FICHIER qu'on modifie, jamais celle du fichier
+qu'on donne en gabarit.**
+
+**Le geste suivant : la reprise du module suivant**, qui fera passer le compteur de **4/9 à 5/9**.
+Le candidat naturel est `04-automatisation-surveillance` (séance 4, déck
+`Cours04-Taches_cedulees_et_scriptage`, extrait de 70 diapositives) — dernier module de la portée de
+l'Examen 1, et dernier avant que la reprise ne quitte le bloc « serveur et système » pour les modules
+OWASP (07 à 10), dont l'ancrage au cours sera d'une tout autre nature : leur matière vit dans les
+décks des séances 7 à 10, pas dans celui de leur propre séance.
