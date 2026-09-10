@@ -18,7 +18,7 @@ prerequis:
 fiches-sources:
   - web/securite/administration-serveur-linux.md
 cree: 2026-08-26
-maj: 2026-08-26
+maj: 2026-09-10
 statut: publiee
 ---
 
@@ -74,10 +74,12 @@ c'est de la matière que tu reverras.
 :::
 
 ::: complement
-Le modèle de responsabilité partagée et la lecture des journaux (`journalctl`, `/var/log`)
-viennent, eux, de la base de connaissances. Ce sont pourtant eux qui font la différence entre
-« un serveur qui démarre » et « un serveur qu'on peut exploiter » : tu en auras besoin dès la
-séance 3.
+Du modèle de responsabilité partagée, le cours pose la **frontière** — « en IaaS, notre
+responsabilité commence au système d'exploitation » — mais ni son nom, ni le schéma en neuf
+couches qui la rend lisible : ceux-là viennent de la base de connaissances. La lecture des
+journaux (`journalctl`, `/var/log`) en vient entièrement. Ce sont pourtant eux qui font la
+différence entre « un serveur qui démarre » et « un serveur qu'on peut exploiter » : tu en auras
+besoin dès la séance 3.
 :::
 
 ## En bref — la marche à suivre {hors-cours}
@@ -90,8 +92,9 @@ séance 3.
    répète.
 
 2. {voir="Créer la machine"} Crée le droplet — image Ubuntu LTS, plus petit palier, région Toronto,
-   nom d'hôte parlant — puis relève l'**adresse IP publique** affichée dans la console et note-la
-   dans un fichier local : un droplet détruit puis recréé n'a plus la même.
+   nom d'hôte parlant — puis relève l'**adresse IP publique** dans le courriel de mise en service
+   que le fournisseur t'envoie, et note-la dans un fichier local : un droplet détruit puis recréé
+   n'a plus la même.
 
 3. {voir="La première connexion, et l'empreinte qu'on n'accepte pas à l'aveugle"} Connecte-toi avec
    **PuTTY** — adresse IP, port `22`, type `SSH`, compte `root` — et change le mot de passe que le
@@ -376,7 +379,8 @@ ce message d'alerte n'est pas un bogue à contourner, c'est le mécanisme qui fa
 
 ::: exercice-du-cours {ref="1"}
 Déroule la procédure dans l'ordre : crée le droplet chez l'hébergeur (image Ubuntu, plus petit
-palier, région Toronto), relève son **adresse IP publique** dans la console, puis ouvre PuTTY,
+palier, région Toronto), relève son **adresse IP publique** — le fournisseur envoie par courriel
+le code utilisateur, le mot de passe et l'adresse, et la console les affiche aussi — puis ouvre PuTTY,
 port `22`, type `SSH`, et connecte-toi en `root` — le fournisseur te fera changer son mot de
 passe au passage. Note l'adresse IP dans un fichier local : tu en auras besoin à chaque séance,
 et un droplet détruit puis recréé n'a plus la même.
@@ -486,7 +490,9 @@ par `/` part de **là où tu es** : `html`, `../log/syslog`. C'est la distinctio
 réutilisée de toute la séance, et c'est la première cause de « la commande ne trouve pas mon
 fichier ».
 
-Enfin, la sortie de `ls -l` se lit toujours dans le même ordre. Sur la ligne
+Enfin, la sortie de `ls -l` se lit toujours dans le même ordre. La séance 2 s'arrête à
+« `-l` pour afficher tout le détail des fichiers » ; **la lecture colonne par colonne ci-dessous
+est celle de la séance 5**, où elle est enseignée en entier. Sur la ligne
 `-rw-r--r-- 1 www-data www-data 612 Aug 7 10:22 index.html` :
 
 | Position | Valeur de l'exemple | Ce qu'elle dit |
@@ -575,7 +581,8 @@ destiné à être public, et le module de durcissement du serveur web y reviendr
 
 `vi` n'est pas une commande qui fait quelque chose et rend la main : c'est un **éditeur de texte
 modal**. Le cours insiste sur ce point à juste titre, parce que c'est là que tout le monde se
-bloque. `vim` (*vi improved*) en est la version moderne, celle réellement installée sur Ubuntu.
+bloque. `vim` (*vi improved*) en est la version moderne, celle réellement installée sur Ubuntu —
+et le cours nomme lui-même `vim` et `nano` parmi les « applications similaires ».
 
 `vi exercice4.txt` ouvre le fichier ; s'il n'existe pas, il sera créé **à la sauvegarde**, pas à
 l'ouverture.
@@ -653,7 +660,7 @@ mode Commande : `i` passe en mode Insertion et tu tapes ton texte, `Échap` revi
 vi exercice4.txt   # « i » pour ecrire, « Echap » pour reprendre la main, « :wq » pour enregistrer
 ```
 :::
-::: methode {libelle="L'équivalent moderne — l'éditeur nano"}
+::: methode {libelle="L'autre éditeur que le cours cite — nano"}
 `nano exercice4.txt` ouvre le même fichier et te met directement en écriture : il n'y a pas de modes
 à connaître. Les raccourcis sont rappelés en bas de l'écran, où `^` désigne la touche `Ctrl` :
 `Ctrl+O` puis `Entrée` enregistre, `Ctrl+X` quitte. `nano` est plus doux que `vi` et presque
