@@ -18,21 +18,17 @@
 // `TestBed` n'ayant pas de DOM prerendu avant son premier rendu. C'est le motif
 // L-032 : vert sur un comportement que l'instrument n'implémente pas.
 //
-// 🔴 ON NE TESTE PAS UNE COURSE — ON ÉLARGIT LA FENÊTRE.
-// « Cliquer assez vite » serait instable et ne prouverait rien. On INTERCEPTE le
-// chargement du chunk paresseux de la leçon et on le RETIENT : tant qu'il ne
-// répond pas, le routeur ne peut pas activer la route, donc `Quiz` n'est jamais
-// instancié — le HTML prerendu reste seul à l'écran, aussi longtemps qu'on veut.
-// On agit dedans, puis on relâche.
-//
-// QUEL CHUNK, ET COMMENT ON LE DÉSIGNE SANS ÉCRIRE UN HACHAGE. Le document servi
-// référence lui-même ses scripts (`main-…`, et les `modulepreload` de la coquille
-// ET du composant `lecon`). Le SEUL `.js` que la page demande sans l'avoir annoncé
-// est le chunk de DONNÉES de la leçon — celui que `resoudre-lecon` charge par un
-// `import()` dynamique. La règle est donc : tout `.js` absent du document servi est
-// retenu. Elle survit à un rehachage, à un renommage, à un découpage différent —
-// contrairement à un `chunk-EEPZ63KW.js` écrit en dur, qui rendrait ce fichier
-// vert et vide au prochain build (mode d'échec L-019).
+// 🔴 ON NE TESTE PAS UNE COURSE — ON ÉLARGIT LA FENÊTRE, et la mécanique qui
+// l'ouvre vit désormais dans `e2e/aides/pre-hydratation.ts` (lot 11, 2026-09-09) :
+// `e2e/onglets-methodes.spec.ts` en a eu besoin à son tour, et deux copies d'un
+// harnais aussi subtil auraient divergé en silence (L-016). ⚠️ LE COMMENTAIRE A
+// DÉMÉNAGÉ AVEC LE CODE, ET C'EST DÉLIBÉRÉ : les deux paragraphes qui décrivaient
+// la rétention du chunk et sa désignation sans hachage vivaient encore ici en
+// double, et la copie locale disait déjà quelque chose de FAUX pour l'autre
+// appelant (« donc `Quiz` n'est jamais instancié » — les onglets n'instancient
+// aucun composant). Appliquer L-016 au code sans l'appliquer au commentaire qui
+// porte la subtilité du code laisse exactement la divergence qu'on voulait éviter.
+// Le détail est donc dans l'en-tête de l'aide, à un seul endroit.
 //
 // 🔴 LE CONTRÔLE POSITIF, SANS LEQUEL UN VERT NE VOUDRAIT RIEN DIRE (L-019).
 // Un test qui coche puis constate que la coche est là prouverait la même chose si
@@ -67,6 +63,7 @@ import { Page, expect, test } from '@playwright/test';
 import { attendreHydratation } from './aides/hydratation';
 import { ROUTE_LECON_QUIZ, exigerUneLeconAvecQuiz } from './aides/artefact-mesure';
 import { citationDeReponse, lireQuizSource } from './aides/quiz-source';
+import { ouvrirFenetreDePreHydratation } from './aides/pre-hydratation';
 
 exigerUneLeconAvecQuiz('la fenêtre de pré-hydratation (L-033)');
 
@@ -136,80 +133,20 @@ const REPONSE_SELECT = ASSOCIER?.paires?.map((paire) => paire.droite).find(
  * elle, et elle seule, qui mesure réellement l’insécable — pour les deux fichiers.
  */
 
-/** Poignée sur une fenêtre de pré-hydratation ouverte. */
-interface FenetreDePreHydratation {
-  /** Laisse repartir le chunk retenu. Idempotent. */
-  readonly relacher: () => void;
-  /** Les `.js` effectivement retenus — sert au contrôle positif et au journal. */
-  readonly retenus: readonly string[];
-}
-
 /**
- * Ouvre la fenêtre de pré-hydratation, PUIS navigue vers la page de leçon.
+ * Le JALON PRERENDU du quiz : toutes ses questions sont peintes avant qu'un seul
+ * composant n'existe.
  *
- * Au retour, le HTML prerendu est à l'écran, complet et interrogeable, et rien
- * n'est hydraté. L'appelant agit, puis appelle `relacher()`.
+ * ⚠️ LE COMPTE VIENT DE `quiz.json`, PAS DU DOM (2026-08-20 ; il valait 5 en dur,
+ * calibré sur la fixture témoin — la leçon 01 en publie 8). Le croisement des deux
+ * sources EST l'assertion : un DOM qui se compterait lui-même prouverait sa propre
+ * entrée (S-014), et une page servie amputée d'une question passerait verte.
  */
-async function ouvrirFenetreDePreHydratation(page: Page): Promise<FenetreDePreHydratation> {
-  // Le document servi est demandé HORS navigation, pour établir la liste de ses
-  // propres scripts avant que le navigateur ne commence à les réclamer.
-  const document = await page.request.get(CHEMIN_LECON);
-  expect(
-    document.ok(),
-    `${CHEMIN_LECON} n'est pas servi alors que l'artéfact sur le disque porte cette page : le serveur sert-il un autre dist/ ?`,
-  ).toBe(true);
-  const html = await document.text();
-  const annonces = new Set(
-    [...html.matchAll(/(?:src|href)="([^"]+\.js)"/g)].map((occurrence) =>
-      String(occurrence[1]).split('/').pop(),
-    ),
-  );
-  expect(
-    annonces.size,
-    'le document servi n’annonce aucun script : la liste des « annoncés » est vide, donc TOUT serait retenu et la mesure ne vaudrait rien',
-  ).toBeGreaterThan(0);
-
-  const retenus: string[] = [];
-  let relacher = (): void => {};
-  const barriere = new Promise<void>((resoudre) => {
-    relacher = resoudre;
-  });
-
-  await page.route('**/*.js', async (route) => {
-    const nom = new URL(route.request().url()).pathname.split('/').pop();
-    if (annonces.has(nom)) {
-      await route.continue();
-      return;
-    }
-    retenus.push(String(nom));
-    await barriere;
-    await route.continue();
-  });
-
-  await page.goto(CHEMIN_LECON);
-  // Le HTML prerendu est peint : TOUS les `<fieldset>` du quiz sont là AVANT que
-  // le moindre composant ne soit instancié. C'est l'état « sans JS » — et c'est
-  // aussi celui, plus trompeur, de « pas encore hydraté ».
-  //
-  // ⚠️ LE COMPTE VIENT DE `quiz.json`, PAS DU DOM (2026-08-20 ; il valait 5 en dur,
-  // calibré sur la fixture témoin — la leçon 01 en publie 8). Le croisement des deux
-  // sources EST l'assertion : un DOM qui se compterait lui-même prouverait sa propre
-  // entrée (S-014), et une page servie amputée d'une question passerait verte.
+async function questionsPrerendues(page: Page): Promise<void> {
   await expect(
     page.locator('.quiz fieldset.question'),
     `le HTML prerendu ne porte pas les ${QUESTIONS_SOURCE.length} questions que « quiz.json » déclare`,
   ).toHaveCount(QUESTIONS_SOURCE.length);
-
-  // Le chunk de données a bien été intercepté, et il attend. `expect.poll` plutôt
-  // qu'une attente arbitraire : on attend un ÉTAT, jamais une durée.
-  await expect
-    .poll(
-      () => retenus.length,
-      { message: 'aucun `.js` retenu : la fenêtre de pré-hydratation ne s’est jamais ouverte' },
-    )
-    .toBeGreaterThan(0);
-
-  return { relacher, retenus };
 }
 
 test('une coche posée PENDANT la fenêtre de pré-hydratation survit, et le composant la compte', async ({
@@ -223,7 +160,7 @@ test('une coche posée PENDANT la fenêtre de pré-hydratation survit, et le com
   );
   if (QUESTION_RADIO === undefined) return;
 
-  const fenetre = await ouvrirFenetreDePreHydratation(page);
+  const fenetre = await ouvrirFenetreDePreHydratation(page, CHEMIN_LECON, questionsPrerendues);
 
   // Contrôle positif STRUCTUREL : le HTML prerendu n'est pas encore hydraté.
   await expect(
@@ -288,7 +225,7 @@ test('un `<select>` d’associer rempli PENDANT la fenêtre garde sa valeur, et 
   );
   if (ASSOCIER === undefined || REPONSE_SELECT === undefined) return;
 
-  const fenetre = await ouvrirFenetreDePreHydratation(page);
+  const fenetre = await ouvrirFenetreDePreHydratation(page, CHEMIN_LECON, questionsPrerendues);
 
   const premierChamp = page.locator(`#quiz-${ASSOCIER.id} select[data-champ]`).first();
 

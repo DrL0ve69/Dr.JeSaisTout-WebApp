@@ -395,7 +395,23 @@ describe('le script `build`, celui que les deux workflows exécutent', () => {
 // prémisses de test héritées de la fixture témoin — 6 étapes et 1 surbrillance écrites en dur —
 // corrigées en dérivant ces comptes du `simulation.json` de l'auteur, L-035). Elles sont vertes
 // depuis. C'est la FERMETURE qui réclamait la revue, pas l'ouverture : elle a eu lieu.
-const CAPACITES_MESUREES_EN_E2E = { quiz: true, simulation: true } as const;
+// ✅ `onglets` AJOUTÉ le 2026-09-09 (lot 11). Le trou qu'il ferme était réel et il était NEUF :
+// `e2e/onglets-methodes.spec.ts` arrivait avec son garde `exigerUneLeconAvecOnglets`, donc avec
+// la capacité de se sauter tout entier — SEPT tests — sans qu'aucune des deux listes ci-dessous
+// ne le connaisse. Le jour où `01-fondamentaux` perdrait son `:::: methodes`, G-e2e serait passé
+// de 57 à 50 passés + 7 sautés, VERT, et G-test aussi. ⚠️ C'est le fichier qui PROMET ce filet
+// (`e2e/aides/artefact-mesure.ts`, « ce fichier SAUTE bruyamment, jamais en silence ») qui avait
+// oublié de le poser : une promesse écrite plus forte que ce qui est appliqué. Constat de revue.
+const CAPACITES_MESUREES_EN_E2E = { quiz: true, simulation: true, onglets: true } as const;
+
+/**
+ * Le spec qui exige une page de leçon portant un conteneur d'onglets `:::: methodes`.
+ *
+ * Une seule entrée aujourd'hui, et la liste existe quand même : c'est elle qui interdit que le
+ * fichier soit supprimé ou qu'on lui retire son garde « pour qu'il tourne enfin » pendant une
+ * période où il saute.
+ */
+const SPECS_D_ONGLETS = ['e2e/onglets-methodes.spec.ts'] as const;
 
 /** Les trois specs qui n'ont plus de sujet tant qu'aucune leçon publiée n'a de simulation. */
 const SPECS_DE_SIMULATION = [
@@ -434,7 +450,11 @@ function frontmatter(chemin: string): string {
 }
 
 /** Ce que `content/` publie RÉELLEMENT — mesuré, jamais déclaré. */
-function capacitesPubliees(): { readonly quiz: boolean; readonly simulation: boolean } {
+function capacitesPubliees(): {
+  readonly quiz: boolean;
+  readonly simulation: boolean;
+  readonly onglets: boolean;
+} {
   const dossiers = existsSync(RACINE_COURS_PRODUCTION)
     ? readdirSync(RACINE_COURS_PRODUCTION, { withFileTypes: true })
         .filter((entree) => entree.isDirectory())
@@ -459,10 +479,27 @@ function capacitesPubliees(): { readonly quiz: boolean; readonly simulation: boo
   const porte = (dossier: string, fichier: string, ancre: RegExp): boolean =>
     existsSync(join(dossier, fichier)) && ancre.test(readFileSync(join(dossier, 'lecon.md'), 'utf8'));
 
+  // 🔴 LES ONGLETS N'ONT NI FICHIER NI ANCRE — le conteneur vit DANS le `lecon.md`, ce qui
+  // interdit de réemployer `porte(…)`. Le prédicat du garde e2e est `class="methodes"` dans le
+  // HTML prerendu ; le plus proche amont mesurable est l'ouverture du conteneur, seule sur sa
+  // ligne, comme le compilateur la reconnaît.
+  //
+  // ⚠️ ON RETIRE LES BLOCS CLÔTURÉS AVANT DE CHERCHER, et c'est la différence avec les deux
+  // mesures ci-dessus. Ce module ENSEIGNE le contenu-as-code : une leçon qui documente la
+  // grammaire des onglets écrirait « :::: methodes » dans un bloc de code, sans rendre le
+  // moindre `<fieldset>`. Le compter donnerait un littéral à `true` pendant que le spec, lui,
+  // ne trouve rien et se saute — très exactement le silence que ce bloc existe pour interdire.
+  const horsBlocsDeCode = (markdown: string): string => markdown.replace(/^```[\s\S]*?^```/gm, '');
+
   return {
     quiz: publiees.some((dossier) => porte(dossier, 'quiz.json', /^\[\[quiz\]\]\s*$/m)),
     simulation: publiees.some((dossier) =>
       porte(dossier, 'simulation.json', /^\[\[simulation\]\]\s*$/m),
+    ),
+    onglets: publiees.some((dossier) =>
+      /^::::[ \t]+methodes[ \t]*$/m.test(
+        horsBlocsDeCode(readFileSync(join(dossier, 'lecon.md'), 'utf8')),
+      ),
     ),
   };
 }
@@ -501,6 +538,17 @@ describe('la couverture e2e de la page de leçon (clôture du harnais, E3-ST1)',
         `qui réclame la revue, pas son ouverture. Trou ouvert le 2026-08-20 (leçon 01 sans ` +
         `simulation, décision du propriétaire), refermeture prévue à E3-ST3 « 03-injection ».`,
     ).toBe(CAPACITES_MESUREES_EN_E2E.simulation);
+
+    expect(
+      reelles.onglets,
+      `le littéral dit « onglets: ${String(CAPACITES_MESUREES_EN_E2E.onglets)} », la mesure dit ` +
+        `« ${String(reelles.onglets)} ». Si plus aucune leçon publiée ne porte de conteneur ` +
+        `« :::: methodes », les ${SPECS_D_ONGLETS.length} spec(s) d’onglets ` +
+        `(${SPECS_D_ONGLETS.join(', ')}) se sautent EN SILENCE — et avec eux les SEPT mesures des ` +
+        `quatre états du lecteur : sans JS, pré-hydratation, impression, contraste forcé. C’est le ` +
+        `seul mécanisme interactif du site qui fonctionne sans JavaScript, et le seul endroit du ` +
+        `dépôt où « cocher un onglet montre son panneau » est mesuré.`,
+    ).toBe(CAPACITES_MESUREES_EN_E2E.onglets);
   });
 
   // 🔴 LE MODE D'ÉCHEC QUE CE CAS SEUL ATTRAPE : un spec qui saute pendant trois semaines a
@@ -529,6 +577,16 @@ describe('la couverture e2e de la page de leçon (clôture du harnais, E3-ST1)',
       // Même ancre que ci-dessus, et pour la même raison (L-043) : un appel mis en commentaire
       // laissait ce gate vert.
     ).toMatch(/^\s*exigerUneLeconAvecQuiz\(/m);
+  });
+
+  it.each([...SPECS_D_ONGLETS])('garde %s gardé par la capacité qu’il exige', (chemin) => {
+    expect(existsSync(chemin), `${chemin} a été SUPPRIMÉ`).toBe(true);
+    expect(
+      readFileSync(chemin, 'utf8'),
+      `${chemin} n'appelle plus « exigerUneLeconAvecOnglets » EN POSITION D'INSTRUCTION : il ` +
+        `partirait en 404 sur tout artéfact dont aucune leçon ne porte de « :::: methodes ».`,
+      // Même ancre que ses deux voisins (L-043).
+    ).toMatch(/^\s*exigerUneLeconAvecOnglets\(/m);
   });
 
   it('interdit le retour du harnais de fixture dans ci.yml', () => {

@@ -1664,7 +1664,226 @@ uniques · 0 dépassement** (`fondamentaux` 123,0 → 124 Ko brut / 33,4 Ko serv
 · G-build **13 routes · 14 hachages de style / 0 de script**, **inchangés** · G-axe **13 fichiers ·
 1118 vérifications · 0 violation** · G-e2e **50 passés / 1 sauté**.
 
-**Le geste suivant : le legs du lot 6, dans sa moitié qui reste.** Écrire le spec e2e des trois états
-d'un onglet sur `cours/securite-web/fondamentaux/` — la page porte enfin le conteneur — et la capture
-en contraste forcé (R-8 : l'onglet actif se signale par un canal **non chromatique**). Puis la reprise
-du module suivant, qui fera descendre le compteur de 2/9 à 3/9.
+**Le geste suivant : le legs du lot 6, dans sa moitié qui reste.** ✅ **FAIT AU LOT 11** (bloc de
+clôture en fin de document) — le spec e2e des quatre états et la capture en contraste forcé existent,
+et G-e2e passe de 50 à 57. Reste la reprise du module suivant, qui fera descendre le compteur de 2/9
+à 3/9.
+
+## ✅ CLÔTURE — LOT 11 « les quatre états des onglets, mesurés en navigateur » (2026-09-09)
+
+Le legs du lot 6 est **entièrement levé**. `e2e/onglets-methodes.spec.ts` porte **sept tests** sur
+`cours/securite-web/fondamentaux/` — la seule page du dépôt qui porte un `:::: methodes` — et G-e2e
+passe de **50 à 57 passés / 1 sauté**. Avant ce lot, « cocher un onglet montre son panneau », c'est-à-dire
+le comportement **entier** de la fonctionnalité, n'était mesuré **nulle part** : jsdom épingle la
+structure et n'applique aucune feuille ; G-axe et G-e2e, eux, n'avaient jamais vu d'onglet.
+
+### Les quatre états, et ce que chacun a exigé d'instrument
+
+1. **Sans JavaScript** — un `browser.newContext({ javaScriptEnabled: false })`, parce que le drapeau ne
+   se règle qu'à la création du contexte. Contrôle positif : les attributs `ngh` du HTML déshydraté
+   sont **toujours là** ; un contexte dont le drapeau serait ignoré rendrait le test vert en mesurant
+   une page vivante.
+2. **Pendant la fenêtre de pré-hydratation** — l'état posé par le DOM natif survit. ⚠️ **Cet état n'a
+   PAS de contrôle positif comportemental, et c'est structurel** : le contrôle du spec du quiz est
+   « un clic émis dans la fenêtre est perdu », or ici il n'y a **aucun écouteur à perdre** — c'est
+   précisément ce qu'on mesure. Restent les deux contrôles structurels (`ngh` présents, un `.js`
+   réellement retenu).
+3. **À l'impression** — les trois volets visibles, chacun sous son `<p class="panneau-nom">`, dans
+   l'ordre du document ; radios et `<label>` absents. Témoin négatif posé **avant** `emulateMedia` :
+   à l'écran, un seul panneau — sans lui, une feuille `print` jamais appliquée serait indiscernable
+   d'une page qui montre déjà tout.
+4. **En `forced-colors: active`** — mesuré **deux fois**, par la règle retenue et par les pixels.
+
+### 🔴 CE QUE LA CAPTURE A APPRIS, ET QU'AUCUNE LECTURE DE FEUILLE NE DISAIT
+
+Le critère de R-8 demandait « une capture manuelle en HCM à la clôture ». Elle est **mesurée** plutôt
+que regardée, et elle a **réfuté la lecture optimiste** du commentaire de `rendu-blocs.scss`.
+
+**Le canal d'épaisseur survit, mais sa marge se réduit exactement là où on comptait sur lui.** En
+`forced-colors: active`, le filet de l'onglet **inactif** — `solid transparent`, donc rien du tout à
+l'écran normal — devient **PEINT** : le moteur force sa teinte sur `CanvasText` comme celle de son
+voisin. Relevé en rangées pleines sous le `<label>` : **écran normal 2 contre 0 · contraste forcé 2
+contre 1**. En HCM, **tous** les onglets portent donc un trait, et il ne reste **qu'un pixel d'écart**
+entre l'actif et les autres.
+
+🔴 **C'est pourquoi le canal qui porte réellement R-8 est l'AUTRE, et il est désormais mesuré en
+pixels : la radio native laissée visible.** `rendu-blocs.scss` l'affirmait déjà (« le point d'une
+radio cochée est peint par l'agent utilisateur et survit ») ; l'affirmation était écrite et non
+mesurée. Relevé dans le quart central de la boîte de 13 × 13, en contraste forcé : radio **cochée
+1,00**, radio **vide 0,00** — un anneau creux contre un point plein. Et le point **suit la
+sélection** : après bascule, l'encre a déménagé et l'onglet abandonné est revenu à 0,00 (sans ce
+second relevé, un rendu où le premier onglet serait peint en dur — mécanisme mort — passerait).
+
+### 🔴 UN INSTRUMENT QUI SE CALIBRE SUR CE QU'IL MESURE MESURE ZÉRO
+
+Défaut trouvé **par la mutation, pas par relecture**, et c'est la leçon de méthode du lot. La
+première version de `profilPeint` définissait son « fond » comme la **teinte majoritaire** de la
+capture — heuristique juste sur un `<label>` de 358 × 44, où le fond domine largement. Elle
+**s'inverse** sur une radio cochée : dans une boîte de 13 × 13 occupée par un anneau plein et son
+point, c'est l'**encre** qui est majoritaire, si bien que le point peint se comparait à lui-même et
+se mesurait **0,00**. Le test accusait le produit ; c'était l'instrument.
+
+Le fond est désormais le **pixel du coin supérieur gauche** — hors du disque d'une radio comme hors
+du filet d'un onglet — avec un garde-fou **à sens unique** : au-delà de 0,98 d'encre, le coin est
+tombé sur de l'encre et l'aide **lève**. ⚠️ **Le sens inverse est délibérément laissé passer** : une
+capture presque vide n'est pas un défaut d'instrument, c'est un élément qui ne peint rien — très
+exactement la régression que les appelants cherchent. La refuser dans l'aide **volerait à
+l'assertion de l'appelant son message**, qui nomme R-8.
+
+Même famille, corrigé au passage : le message du contrôle positif n'accusait **que** l'instrument
+(« la découpe est tombée à côté »). Mesuré par mutation, c'est la cause la **moins** probable : un
+`appearance: none` posé sur `.onglet` « pour faire propre » fait tomber la même assertion, et c'est
+alors R-8 qui est mort. Le message nomme désormais les deux lectures, **la cause produit d'abord**.
+
+### Les six mutations, et ce qu'elles ont mesuré
+
+| Mutation | Ce qu'elle casse | Rouges mesurés |
+|---|---|---|
+| retrait de `border-block-end-width: var(--filet-marge)` | le canal d'épaisseur | **2** (règle + pixels) |
+| `appearance: none` sur `.onglet` | le canal de la radio | **1** |
+| retrait des trois `.onglet:nth-of-type(N):checked ~ div:nth-of-type(N)` | états 1 et 2 | **2** |
+| retrait du bloc `@media print` entier | état 3 | **1** |
+| retrait de la SEULE ligne `.panneau-nom` du bloc `@media print` | « chacun sous son libellé » | **1** — et **0 avant le correctif de revue** |
+| `CAPACITES_MESUREES_EN_E2E.onglets` à `false` | le filet hors-suite | **1** (G-test) |
+
+Feuille et littéral restaurés, `git diff` vide sur les deux. ⚠️ **Chaque mutation de feuille a coûté un
+`npm run build` complet** (~70 s) : les specs mesurent `dist/`, une feuille mutée sans rebâtissage ne
+mesure rien — et c'est le mode d'échec qui fait croire qu'un test discrimine alors qu'il n'a **pas vu**
+la mutation (L-015, transposé à l'artéfact).
+
+🔴 **La cinquième ligne est celle qui valait le plus.** Les quatre premières mutations étaient celles
+que j'avais imaginées, et elles sont toutes passées ; c'est la **revue** qui a nommé la faute qu'aucune
+ne couvrait, et la mutation ciblée l'a confirmée en mesurant **0 rouge** avant correctif. Une batterie
+de mutations ne prouve que ce que son auteur a pensé à casser.
+
+### ⚠️ AUCUN COMPTE DE RANGÉES N'EST ÉPINGLÉ, ET C'EST DÉLIBÉRÉ
+
+La feuille demande **3 px** sous l'onglet actif ; la capture en compte **2 rangées pleines** —
+l'alignement subpixel de la découpe, pas un défaut de style. On mesure donc un **ORDRE** (l'actif est
+peint plus épais que l'inactif) et un **plancher** (il est peint) ; un littéral « 3 » rougirait sur le
+premier poste en DPR 2 **sans qu'aucun défaut existe**. ⚠️ **Ce qui stabilise le relevé n'est pas le
+test, c'est le projet** : `playwright.config.ts` fixe `deviceScaleFactor: 1`. À DPR 2 la marge devrait
+s'élargir plutôt que se réduire (3 px et 1 px de CSS donnant 6 et 2 pixels d'appareil) — **ce n'est pas
+mesuré, et le commentaire du fichier ne l'affirme donc pas**. C'était une promesse de commentaire plus
+forte que ce qui est appliqué, attrapée en revue.
+
+### La seconde source, et le filet qui la protège
+
+Aucun compte d'onglet n'est écrit à la main : le nombre de volets, leurs libellés et **lequel** porte
+`defaut` sont lus dans le `lecon.md` de l'**auteur** (S-014 — un test qui compterait les onglets dans
+le DOM puis vérifierait qu'il y en a ce nombre-là prouverait sa propre entrée). ⚠️ On lit le
+**Markdown**, pas le JSON compilé : le contrat compilé sort du même pipeline que le HTML servi, les
+opposer comparerait une sortie à elle-même. Et `INDEX_DEFAUT` est **relu** plutôt que supposé en
+tête : rien dans la grammaire n'oblige l'auteur à placer le volet par défaut en premier.
+
+Le filet de L-019 est un test à lui : une lecture de source qui échouerait rendrait un tableau vide,
+et les six tests suivants mesureraient le vide. Il exige 2 à 3 volets et **exactement un** `defaut`.
+
+### `pre-hydratation.ts` — une aide de plus, et le risque qu'elle déplace
+
+La mécanique d'ouverture de la fenêtre de pré-hydratation vivait entière dans
+`quiz-pre-hydratation.spec.ts`. Ce lot lui a donné un **second** appelant ; deux copies d'un harnais
+aussi subtil auraient divergé en silence (L-016), comme l'avaient déjà fait déménager
+`indicateur-focus.ts`, `sonde-csp.ts` et `hydratation.ts`. Elle est donc extraite — et elle paie le
+prix de **L-034** : elle est épinglée dans `src/configuration-typescript.spec.ts`, qui passe de
+**SEPT à HUIT** `e2e/aides/*.ts`. 🔴 **Son mode d'échec est le pire de cette liste** : si sa
+désignation du chunk cessait de mordre, la fenêtre ne s'ouvrirait **jamais** et ses deux appelants
+mesureraient une page **déjà hydratée** en croyant mesurer l'inverse. C'est pourquoi elle exige
+elle-même qu'un `.js` ait **réellement** été retenu, et pourquoi le **jalon prerendu est un paramètre
+obligatoire** : ouvrir la fenêtre sans constater que la chose qu'on va manipuler est déjà peinte
+serait un gate creux.
+
+⚠️ **Le tripwire du pinning a mordu, et c'est ce qui l'a rendu visible** : les deux fichiers neufs
+étaient entrés dans le programme e2e sans être épinglés, et `ne compile RIEN d'autre que ces fichiers`
+rougissait — le même mode d'échec que celui qu'il avait attrapé sur six fichiers d'un coup au lot E
+d'E2-ST3, et pour la même raison : un fichier entre dans le programme sans que personne le constate.
+
+### Ce que ce lot NE prouve toujours pas, dit franchement
+
+- **Qu'un œil humain distingue les deux onglets.** « Peint plus épais » n'est pas « perçu comme
+  actif », et aucun gate ne peut trancher ça. En HCM la distinction tient à **un pixel de filet** et
+  au **point de la radio** ; c'est le point qui fait le travail.
+- **La clause de rédaction de D-C** — le contenu masqué doit être l'**équivalent** du visible — reste
+  sans aucun gate possible, et elle s'était fait enfreindre dès le premier conteneur écrit (lot 10).
+- **La politique de routage de production** : `npx swa start` n'implémente pas `trailingSlash`
+  (L-032, couvert en ligne seulement).
+- Un **second** `:::: methodes` sur une même page n'est mesuré que pour le **premier** conteneur
+  (`.first()`, nommément) ; le contrat ne l'interdit pas, aucune leçon ne le fait aujourd'hui.
+
+**Gates.** G-lint **0** · G-typage-outils **0** · `tsc -p tsconfig.e2e.json` **0** · G-content
+**10 leçons · 939/939 identifiants uniques · 0 dépassement**, `--fixtures` **52/52** (comptes
+**inchangés**) · compteur du format actionnable **2/9**, inchangé — ce lot ne touche aucun contenu ·
+G-test **1143 passés / 1 sauté · 46 fichiers** (+3 : les deux épinglages et le cas `SPECS_D_ONGLETS`) · G-build **13 routes · 14
+hachages de style / 0 de script**, **inchangés** · G-axe **13 fichiers · 1118 vérifications · 0
+violation**, **inchangés** · G-e2e **57 passés / 1 sauté** (était 50/1) · `npm audit --omit=dev`
+**0**.
+
+**Le geste suivant : la reprise du module suivant**, qui fera descendre le compteur de **2/9 à 3/9**.
+Le legs du lot 6 est clos : plus aucune moitié du conteneur d'onglets n'attend de mesure.
+
+### 🔴 CE QUE LA REVUE À REGARD NEUF A ATTRAPÉ — quatre majeurs, tous réels, tous corrigés
+
+**(1) La capacité e2e neuve n'avait AUCUN filet hors de la suite, et c'est le fichier qui PROMET ce
+filet qui avait oublié de le poser.** `e2e/onglets-methodes.spec.ts` arrivait avec son garde
+`exigerUneLeconAvecOnglets`, donc avec le pouvoir de se sauter **tout entier** — sept tests — sans
+qu'aucune liste de `src/workflows-github.spec.ts` ne le connaisse : `CAPACITES_MESUREES_EN_E2E` ne
+portait que `quiz` et `simulation`. Le jour où `01-fondamentaux` perdrait son `:::: methodes`, G-e2e
+passerait de 57 à 50 passés + 7 sautés, **vert**, et G-test aussi. ⚠️ **Pendant ce temps l'en-tête de
+`artefact-mesure.ts` écrivait « ce fichier SAUTE bruyamment, jamais en silence »** — une promesse plus
+forte que ce qui était appliqué, dans le fichier même qui dépend du filet. Corrigé :
+`onglets: true`, `SPECS_D_ONGLETS`, la mesure sur `content/`, et le cas qui exige que le spec existe
+**et** appelle son garde en position d'instruction (L-043). Mutation du littéral à `false` → **1
+rouge exactement**, avec le message qui nomme les sept mesures perdues.
+⚠️ **La mesure des onglets retire les blocs clôturés avant de chercher, et ses deux voisines ne le
+font pas.** Le conteneur n'a ni fichier ni ancre : il vit **dans** le `lecon.md`, donc `porte(…)` est
+inapplicable. Or ce module **enseigne le contenu-as-code** — une leçon qui documente la grammaire
+écrirait `:::: methodes` dans un bloc de code sans rendre un seul `<fieldset>`, ce qui mettrait le
+littéral à `true` pendant que le spec, lui, se sauterait. C'est le silence exact que ce bloc existe
+pour interdire.
+
+**(2) Le seul des trois tests de contraste forcé qui porte réellement R-8 n'avait pas de contrôle
+positif d'émulation.** Ses deux frères en portent un. 🔴 **Mais la revue s'est trompée sur la
+conséquence, et la mesure tranche :** elle annonçait un test **vert** si `forcedColors` était ignoré
+— c'est faux. En thème sombre, l'agent utilisateur peint aussi l'intérieur d'une radio **vide**
+(noyau relevé à **1,00**), si bien qu'une émulation sans effet fait **tomber** l'assertion « le noyau
+de la vide est à 0,00 ». Le test était donc déjà protégé — **mais par accident**, par la façon dont
+Chromium peint une radio sur fond sombre, que rien de ce dépôt ne contrôle. Le relevé d'avant
+émulation rend la protection **explicite** et cesse d'en dépendre. ⚠️ Un constat de revue peut être
+juste sur le défaut et faux sur son mode d'échec : le correctif se garde, la justification se
+remesure.
+
+**(3) `toHaveText` ne mesure RIEN de l'impression — et c'est le plus retors des quatre.**
+`toHaveText` lit `textContent`, que le DOM rend **aussi** pour un élément en `display: none` :
+l'égalité des libellés de panneaux était donc **déjà vraie à l'écran**, avant toute émulation. Elle
+mesure l'ordre et l'orthographe, **jamais la révélation**. Or c'est `.panneau-nom { display: block }`
+dans le `@media print` qui porte la moitié « chacun sous son libellé » du critère d'acceptation.
+**Mesuré : retirer cette seule ligne laissait le test VERT** ; le « 1 rouge » obtenu au retrait du
+bloc entier venait de la moitié `.panneau`. Corrigé par un `toBeVisible()` par volet, plus un
+**témoin d'écran** qui mesure du même coup la promesse d'accessibilité du gabarit (le nom de panneau
+est masqué à l'écran pour ne pas faire entendre deux fois le libellé au lecteur d'écran). Mutation
+ciblée sur la seule ligne `.panneau-nom` → **1 rouge exactement**, là où elle était verte avant.
+🔴 **La leçon est celle d'un instrument mal choisi, pas d'une assertion manquante** : une assertion de
+texte, sur un sélecteur masqué, a toutes les apparences d'une mesure de rendu.
+
+**(4) Une seconde conclusion « ce noyau est vide » sans le contrôle d'instrument que le fichier
+impose quarante lignes plus haut.** `apresBascule` s'auto-garde par son `> 0.9` ; `abandonnee`, non —
+une découpe qui aurait raté sa cible après le clic l'aurait rendue vraie sans rien mesurer. Une ligne.
+
+**Cinq mineurs, corrigés aussi.** Le marqueur `defaut` était cherché dans **tout** le bloc
+d'attributs, **valeurs entre guillemets comprises** : un libellé légitime (« La méthode par
+defaut ») aurait fait rougir le test-filet sur un contenu sain (L-035). · Un commentaire **périmé**
+affirmait encore que « la capture en contraste forcé reste à faire », 230 lignes au-dessus de la
+capture. · Les états 1 et 2 n'examinaient que **deux** panneaux alors que l'en-tête promet que rien
+n'épingle « deux » : avec trois volets, la règle `:nth-of-type(3)` de la feuille n'aurait été mesurée
+que par le test d'impression — remplacé par un balayage de l'ensemble déclaré. · L'affirmation « la
+mesure survit à un changement de densité d'écran » n'était **pas mesurée** : ce qui stabilise le
+relevé est `playwright.config.ts` (`deviceScaleFactor: 1`), pas le test, et le commentaire le dit
+désormais. · L-016 avait été appliqué au **code** et pas au **commentaire qui porte la subtilité du
+code** : les deux paragraphes déménagés vivaient encore en double dans `quiz-pre-hydratation.spec.ts`,
+et la copie locale disait déjà quelque chose de **faux** pour l'autre appelant (« donc `Quiz` n'est
+jamais instancié » — les onglets n'instancient aucun composant).
+
+⚠️ **Et un défaut que seul le lint a vu** : le passage des états 1 et 2 à l'aide commune laissait un
+`panneaux` destructuré sans emploi. La correction à la main en a retiré **un de trop** — celui de
+l'état 2, encore utilisé — et c'est `tsc -p tsconfig.e2e.json` qui l'a dit. Le lint nommait **une**
+ligne ; en corriger deux « par symétrie » est exactement la faute que le lot 10 a payée deux fois.
