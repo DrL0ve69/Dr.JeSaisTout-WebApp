@@ -116,7 +116,9 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-100 | 3021–3042 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
 | L-101 | 3043–3091 | Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change |
 | L-102 | 3092–3127 | Un livrable ABSENT fait rougir le gate ; un livrable trop ÉTROIT ne fait rougir personne — le second sens d'un contrôle de couverture n'a jamais de gate |
-| L-103 | 3128–3162 | Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune |
+| L-103 | 3128–3160 | Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune |
+| L-104 | 3161–3197 | Décrire une faute de la SOURCE sans l'attribuer prive le lecteur du seul renseignement utile — « retirer l'attribution, garder le fait » ne vaut que pour une source NON VÉRIFIABLE |
+| L-105 | 3198–3243 | Une assertion universelle héritée d'une population HOMOGÈNE devient fausse au premier membre d'une autre espèce — on nomme l'ensemble sur lequel elle porte, on ne la relâche pas pour tout le monde |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -152,4 +154,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-026 | 1115–1177 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 | S-027 | 1178–1227 | « Fermée pour le PIPELINE » n'est pas « fermée pour la FONCTION » — une grammaire portée par une couche AMONT laisse la copie AVAL seule autorité sur tout chemin qui court-circuite l'amont (A03 · CWE-20, septième forme de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]]/[[S-026]]) |
 
-_130 entrées indexées._
+_132 entrées indexées._
