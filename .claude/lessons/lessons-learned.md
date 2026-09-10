@@ -3040,4 +3040,39 @@ bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09. Famille [[L-025]].
 
 ---
 
+## L-101 · Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change
+
+**Symptôme.** Lot 12 (module `02-environnement-linux`, 2026-09-10) faisait deux choses dans le même
+commit : fermer une classe d'affirmation (trois encadrés déclarant permissions/`chmod`/`apt`/
+`systemctl` « issus de la base de connaissances » et « hors examen », alors qu'ils sont la matière de
+la séance 5) — avec un recensement complet, grep sur « examen »/« évalué »/« base de connaissances »,
+injecté dans le brief — **et** poser 24 blocs d'attributs de renvoi (`{diapos="…"}`, `{hors-cours}`)
+sur les titres de la même leçon. La revue à regard neuf a trouvé qu'un de ces 24 renvois,
+`{diapos="18"}` sur `### Le modèle de responsabilité partagée`, **contredisait** un encadré situé
+cent dix lignes plus haut — encadré que le recensement du même lot avait laissé intact parce qu'il
+n'entrait dans aucune des classes cherchées, et que le renvoi neuf rendait pourtant faux : la section
+n'était plus « hors programme », elle avait une diapositive nommée.
+
+**Ce qui rendait le trou invisible.** Le recensement n'était pas fautif — il était **antérieur** au
+geste qui l'a périmé. Il avait balayé l'état du fichier avant que les renvois ne changent le statut de
+provenance d'une section qu'il avait jugée saine. Aucun diff ne pouvait le montrer : le renvoi est
+*ajouté* d'un côté, l'encadré est *intact* de l'autre, tous deux dans le même commit — variante de
+[[L-098]] (une section neuve résume la leçon et ressuscite une affirmation corrigée), mais ici ce
+n'est pas une section neuve qui recopie de mémoire : c'est **le lot lui-même, par un geste sans
+rapport apparent, qui rend fausse une phrase saine ailleurs**.
+
+**Règle.** Poser un renvoi (`{diapos="…"}`, `{hors-cours}`, `{seance="…"}`) sur une section est un
+**jugement sur sa provenance**. Tout texte qui parle DÉJÀ de la provenance de cette section — un
+encadré « ceci vient d'ailleurs », une promesse d'exclusion d'examen, une note de périmètre — se
+relit contre le renvoi **qui vient d'être posé**, même si rien dans le brief ne les rapproche. Et un
+recensement de classe fait **avant** un geste qui change la provenance d'une section doit être
+**rejoué après**, pas seulement archivé comme preuve de clôture.
+
+**Réfs.** `content/cours/securite-web/02-environnement-linux/lecon.md` (section « Le modèle de
+responsabilité partagée ») ; lot 12 « leçons actionnables », revue `code-reviewer`, 2026-09-10.
+Famille [[L-098]], [[L-077]] (une correction laisse la prose en aval décrire l'ancien état, sans
+qu'aucun diff ne la signale), [[L-081]] (une leçon peut être fausse sans qu'aucune phrase le soit).
+
+---
+
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

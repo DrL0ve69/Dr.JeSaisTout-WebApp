@@ -113,7 +113,8 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-097 | 2909–2943 | Un contrôle positif écrit pour ISOLER la branche visée peut esquiver la forme NATURELLE de la faute — et taire qu'une règle neuve recoupe une règle existante |
 | L-098 | 2944–2981 | Une section neuve écrite APRÈS des correctifs les recopie de mémoire — et ressuscite la version corrigée |
 | L-099 | 2982–3020 | Une capacité e2e neuve n'est livrée que si son filet HORS SUITE la connaît — c'est le fichier qui PROMET le filet qui l'avait oublié |
-| L-100 | 3021–3044 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
+| L-100 | 3021–3042 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
+| L-101 | 3043–3079 | Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -149,4 +150,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-026 | 1115–1177 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 | S-027 | 1178–1227 | « Fermée pour le PIPELINE » n'est pas « fermée pour la FONCTION » — une grammaire portée par une couche AMONT laisse la copie AVAL seule autorité sur tout chemin qui court-circuite l'amont (A03 · CWE-20, septième forme de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]]/[[S-026]]) |
 
-_127 entrées indexées._
+_128 entrées indexées._

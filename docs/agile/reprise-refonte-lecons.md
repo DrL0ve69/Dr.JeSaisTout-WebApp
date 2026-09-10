@@ -1818,7 +1818,7 @@ hachages de style / 0 de script**, **inchangés** · G-axe **13 fichiers · 1118
 violation**, **inchangés** · G-e2e **57 passés / 1 sauté** (était 50/1) · `npm audit --omit=dev`
 **0**.
 
-**Le geste suivant : la reprise du module suivant**, qui fera descendre le compteur de **2/9 à 3/9**.
+~~**Le geste suivant : la reprise du module suivant**, qui fera descendre le compteur de **2/9 à 3/9**.~~ ✅ **FAIT AU LOT 12** — `02-environnement-linux`, bloc de clôture en fin de document. Le compteur dit **3/9**.
 Le legs du lot 6 est clos : plus aucune moitié du conteneur d'onglets n'attend de mesure.
 
 ### 🔴 CE QUE LA REVUE À REGARD NEUF A ATTRAPÉ — quatre majeurs, tous réels, tous corrigés
@@ -1887,3 +1887,170 @@ jamais instancié » — les onglets n'instancient aucun composant).
 `panneaux` destructuré sans emploi. La correction à la main en a retiré **un de trop** — celui de
 l'état 2, encore utilisé — et c'est `tsc -p tsconfig.e2e.json` qui l'a dit. Le lint nommait **une**
 ligne ; en corriger deux « par symétrie » est exactement la faute que le lot 10 a payée deux fois.
+
+## ✅ CLÔTURE — LOT 12 « la reprise du module 02 » (2026-09-10)
+
+`MODULES_AU_FORMAT_ACTIONNABLE` porte **trois** slugs et le compteur dit **`3/9 module(s) ancré(s)
+au cours repris ; 6 restant(s)`**. Le module `02-environnement-linux` — seize titres `##` et huit
+`###` — porte **dix-neuf** `{diapos="…"}` de la séance 2, **quatre** `{seance="5" diapos="…"}`, **un**
+`{hors-cours}`, une marche à suivre de huit étapes et le **deuxième `:::: methodes` du dépôt**.
+
+### 🔴 `{seance="5"}` N'EST PAS `{hors-cours}`, ET C'EST LE FAIT CENTRAL DU LOT
+
+Trois encadrés de la leçon publiée déclaraient que les permissions, `chmod`, `chown`, `apt` et
+`systemctl` « viennent de la base de connaissances » et que l'étudiant « ne sera pas évalué dessus ».
+La **première** moitié était mesurée et juste : dans le déck de la séance 2, `permission` **0**,
+`chmod` **0**, `apt` **0**, `systemctl` **0**. La seconde était fausse — la **séance 5 du même cours**
+leur consacre `[63]`, `[66]`-`[71]`, `[75]`-`[77]`, `[80]`, `[82]`-`[84]`, notation symbolique
+comprise, et la table des trois droits de la leçon est `[71]` **mot pour mot**.
+
+⚠️ **Une absence dans le déck de SA séance ne dit rien du cours.** Le marqueur `{hors-cours}` répond
+à « aucune diapositive **des deux cours** ne porte cette section » ; se contenter du déck de la séance
+aurait réécrit R-2 dans la grammaire même de la leçon, cette fois de façon **structurée et durable**.
+La mesure d'absence porte donc sur les **21 extraits**, jamais sur un seul.
+
+🔴 **Et c'est le mode d'échec n°2 du dépôt, la promesse d'EXCLUSION** — le pire des deux échecs
+symétriques, parce qu'il fait choisir à l'étudiant **ce qu'il ne révise pas**. Ce dépôt ne peut pas la
+tenir : la diapositive [6] de la séance 1 écrit que l'examen porte sur « les notes **et les
+exercices** », donc sur les treize séances.
+
+### 🔴 LA MÊME ACCUSATION VIVAIT DANS LE `quiz.json`, ET DURCIE
+
+R-7 : un `correction-du-cours` accusait le cours de ranger Heroku en IaaS. Mesuré, sa diapositive
+**[15] le classe explicitement en PaaS**, six diapositives avant l'endroit où la leçon le corrigeait.
+Or l'explication d'une question du quiz portait la **même** affirmation, en plus catégorique (« un
+classement à connaître parce que le cours le **range mal** »). ⚠️ **Corriger la leçon seule aurait
+laissé le module se contredire** — c'est le corollaire du lot 10, reconfirmé : *interdire une CLASSE
+d'affirmation oblige à recenser toutes ses occurrences*, y compris hors du fichier qu'on corrigeait.
+Le recensement a été **fait avant d'écrire le brief** et injecté dedans, ligne par ligne.
+
+### 🔴 CE QUE LE LOT A DÉPLACÉ SANS QUE RIEN NE LE DISE — S-010, énième occurrence
+
+`LECON_AVEC_ONGLETS` (`e2e/aides/artefact-mesure.ts`) est une cible **DÉCOUVERTE** : la première page
+prerendue portant `class="methodes"`, dans un ordre **explicitement trié**. `environnement-linux`
+précède `fondamentaux` : **écrire le deuxième `:::: methodes` du dépôt réassigne les sept tests de
+`e2e/onglets-methodes.spec.ts` à une autre page.** G-e2e reste vert à **57 passés / 1 sauté** — et il
+ne le reste que parce que le **lot 11 avait fait DÉRIVER les attentes du spec de la source d'auteur**
+(`voletsDeclares()` relit le `lecon.md` de la leçon découverte) au lieu de les épingler. Un compte de
+volets ou un libellé écrit en dur aurait rougi ici, et la première question aurait été « quel chiffre
+y mettre ? » plutôt que « quelle page mesure-t-il maintenant ? ».
+⚠️ **Le vert d'un lot ne prouve donc pas que ce lot est sans effet sur les instruments** : il peut
+prouver qu'un lot **antérieur** avait bien construit les siens.
+
+### ⚠️ SURFACE NEUVE POUR UN DÉFAUT DÉJÀ NOMMÉ : `libelle` est interpolé nu
+
+Le lot 8 avait nommé, sans le corriger, que **le pipeline ne rend pas le code en ligne dans un
+TITRE**. Mesuré ici : `volet.libelle` est rendu par une **interpolation nue** — `{{ volet.libelle }}` —
+**aux deux endroits** où il paraît (`rendu-blocs.ts` : le `<label class="onglet-nom">` de l'onglet, et
+le `<p class="panneau-nom">` que le `@media print` révèle). Des accents graves dans un `libelle`
+sortiraient donc **littéralement**, à l'écran et sur le papier. Les deux libellés du conteneur
+s'écrivent sans accents graves. **Le défaut a donc au moins deux surfaces, pas une** ; le corriger
+reste un lot à part.
+
+### Ce qui a rendu ce lot moins cher que le lot 10, et ce qui l'a rendu plus cher
+
+✅ **La mesure d'absence est sortie du périmètre de l'agent.** Au lot 10, elle avait fait déborder la
+cartographie à **186k** : le brief la mentionnait en une ligne, c'était en réalité **44 termes × 21
+fichiers**, dont chaque sortie de `grep` entrait au contexte. Ici, une **sonde jetable** (scratchpad,
+hors dépôt) rend **une ligne par terme** — `terme <TAB> total <TAB> deck:diapos…` ou `AUCUN` — et
+47 termes ont été mesurés **par le fil principal avant d'écrire le brief**, puis injectés dedans.
+
+🔴 **Deux enseignements, dont un contre-intuitif.** **(a)** La sonde a besoin d'un mode **mot
+entier** : sans lui, `vi` remonte **191** diapositives (vie, avis, service, vider) et donnerait à une
+absence toutes les apparences d'une présence. **(b)** ⚠️ **La mesure injectée portait DEUX fausses
+absences** — `on-premise` et `chemin relatif` sortaient `AUCUN` parce que le cours écrit « On Premise »
+et « adresse relative ». **Pré-mesurer pour un agent transfère les hypothèses d'orthographe du
+coordinateur dans son contexte avec le statut de fait mesuré.** L'agent les a rattrapées en cherchant
+les variantes — c'est exactement ce qu'il faut lui demander, donc c'est ce qu'il faut lui **dire** :
+une mesure injectée est un point de départ, jamais un verdict.
+
+❌ **Le volume d'ÉCRITURE reste sous-estimé, comme au §9 du budget de contexte.** La cartographie a
+fini à **213k** pour **19 appels d'outils** : rien n'a débordé du côté *lecture*, c'est le document de
+**392 lignes** qu'elle devait produire qui a coûté. Un document de cette taille est un **corpus**, et
+il se compte avant d'écrire le brief exactement comme un jeu de fixtures. La découpe juste était
+**(A1)** la table des 25 titres, **(A2)** les treize réserves — A2 n'a besoin que de la table, pas du
+transcript d'A1.
+
+⚠️ **Un agent coupé en cours de route laisse un livrable à moitié écrit, et son rapport ne dit pas
+lequel.** L'agent des correctifs a été interrompu par une limite de session ; son dernier message
+annonçait deux encadrés restants, alors que la **mesure du fichier** en montrait un seul, plus le
+`quiz.json` intact. **C'est l'état du dépôt qui fait foi à la reprise, jamais le rapport de l'agent** —
+le recensement a été rejoué sur le fichier avant que les cinq sites restants soient finis au fil
+principal.
+
+### ⚠️ LE PIÈGE DU POSEUR DE RENVOIS, ET IL AURAIT ÉTÉ SILENCIEUX
+
+La cartographie **annote** les sections imposées : « `## Exemple simple` *(le chmod 777 et le chown)* ».
+Or leur titre réel est **nu**, et `valider.mjs` reconnaît une section imposée par **égalité de chaîne
+exacte** sur le titre dépouillé de son bloc d'attributs. Recopier l'annotation aurait fait refuser la
+leçon pour « **section absente** » — un message qui n'aurait aidé personne.
+
+Le poseur apparie donc sur le **TEXTE** du titre, jamais sur son numéro de ligne — que les correctifs
+des réserves avaient **déjà décalé une fois** — et il **ÉCHOUE en nommant** tout titre non apparié
+plutôt que de le sauter. Il a mordu du premier coup : deux titres emploient l'apostrophe **droite** là
+où le poseur écrivait la typographique. **Un poseur qui saute en silence pose 22 renvois sur 24 et
+laisse le gate nommer les deux manquants sans dire pourquoi.**
+
+### Contrôle positif de la règle 13
+
+Un titre privé de son bloc d'attributs (`## Renommer, déplacer, se déplacer`) rend **1 rouge
+exactement**, avec sa cause propre : « *sans renvoi au cours — un module au FORMAT ACTIONNABLE cite
+ses diapositives, ou déclare le marqueur `{hors-cours}`* ». Le gate mord sur ce module ; il ne l'a pas
+seulement laissé passer.
+
+### Gates
+
+G-lint **0** · G-typage-outils **0** · G-content **10 leçons · 0 dépassement**
+(`environnement-linux` 167,0 → **181,4 Ko** brut / **45,9 Ko** servi) · G-test **1143 passés / 1
+sauté · 46 fichiers** · G-build **14 pages · 14 hachages de style / 0 de script, INCHANGÉS** ·
+G-axe **13 fichiers · 1118 vérifications · 0 violation** · G-e2e **57 passés / 1 sauté** ·
+`npm audit --omit=dev` **0**.
+
+
+### 🔴 CE QUE LA REVUE À REGARD NEUF A ATTRAPÉ — un Majeur, et il est né DANS ce lot
+
+Le lot a posé `{diapos="18"}` sur `### Le modèle de responsabilité partagée`, et laissé intact, cent
+dix lignes plus haut, un encadré déclarant que « le modèle de responsabilité partagée … **vient de la
+base de connaissances** ». Or la phrase-clé de cette section — « en IaaS, ta responsabilité commence
+au système d'exploitation » — **est** la diapositive [18] mot pour mot. La leçon se contredisait, dans
+la classe d'affirmation même que le lot existait pour éteindre.
+
+🔴 **LA LEÇON, ET ELLE ÉLARGIT CELLE DU LOT 10.** *Recenser toutes les occurrences d'une classe
+d'affirmation* ne suffit pas : il faut aussi celles que **le même lot rend fausses par ailleurs**.
+**Poser un renvoi de titre est un JUGEMENT DE PROVENANCE** — donc tout encadré qui parle de la
+provenance d'une section se relit contre le renvoi **neuf** de cette section. ⚠️ **Aucun diff ne
+montre ça** : le renvoi est *ajouté* d'un côté, l'encadré est *intact* de l'autre, et les deux sont
+dans le même commit. Le recensement de la classe avait été fait — il datait d'**avant** que les
+renvois existent.
+
+**Trois mineurs tranchés par la MESURE plutôt que par l'avis** — la revue les a posés en questions,
+faute d'avoir les extraits, et la sonde a répondu :
+- la diapositive **[25], point 10** écrit « Vous recevrez un **courriel** avec les informations de
+  connexion du serveur (Code utilisateur, mot de passe, adresse IP) ». La leçon faisait relever
+  l'adresse IP « dans la console » — vrai en pratique, mais ce n'est pas la procédure du cours ;
+- la diapositive **[67]** nomme « VIM, **NANO** » elle-même. Le volet masqué ne pouvait donc pas
+  s'intituler « l'équivalent **moderne** » — et surtout, le lot avait supprimé la seule mention
+  **visible** de `nano` : le mot ne vivait plus que derrière un onglet, donc **introuvable au
+  `Ctrl+F`**. C'est la clause de rédaction **D-C** enfreinte pour la deuxième fois en deux
+  conteneurs écrits — ⚠️ **le mode d'échec de ce conteneur n'est pas d'y mettre trop, c'est d'y
+  enfermer le seul exemplaire d'un fait** ;
+- la lecture colonne par colonne de `ls -l` est la **quatrième** occurrence de la famille R-10, non
+  traitée : elle est mesurée en **séance 5**, et le renvoi neuf du titre l'étiquetait séance 2 —
+  ce qui **aggravait** l'attribution au lieu de la laisser neutre.
+
+Plus un mineur d'hygiène : **379 lignes réécrites sans bumper `maj:`**. Gates relancés après
+correctifs, tous inchangés.
+
+### Les défauts de BRIEF de ce lot, comptés
+
+Quatre agents : cartographie **213k** (au-dessus du maximum — cause nommée ci-dessus : le volume
+d'**écriture**), correctifs des réserves **coupé par une limite de session**, format actionnable
+**171k**, revue **155k**. Le fil principal a absorbé la mesure d'absence, les 24 blocs d'attributs,
+les cinq sites laissés par l'agent coupé et les six correctifs de revue — soit tout ce qui était
+**déjà décidé**, et qui n'avait donc pas à repartir d'un cache froid.
+
+**Le geste suivant : la reprise du module suivant**, qui fera descendre le compteur de **3/9 à 4/9**.
+Le candidat naturel est `03-communication-serveur` (séance 3, déck `Cours03-Securite_communication_serveur`),
+et la sonde de mesure d'absence se rejoue telle quelle : elle est jetable et vit dans le scratchpad,
+mais son patron — **un terme, une ligne de sortie ; préfixe `=` pour le mot entier** — est ce qui a
+tenu le budget de la cartographie du côté lecture.
