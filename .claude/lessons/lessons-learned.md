@@ -3068,10 +3068,93 @@ relit contre le renvoi **qui vient d'être posé**, même si rien dans le brief 
 recensement de classe fait **avant** un geste qui change la provenance d'une section doit être
 **rejoué après**, pas seulement archivé comme preuve de clôture.
 
+🔴 **LA DEUXIÈME FACE, mesurée au lot 13 (module `03-communication-serveur`, 2026-09-10) — et c'est
+l'angle mort exact de la règle ci-dessus.** Le geste prescrit se fait sur le **fichier** : relire les
+textes de provenance **présents**. Le lot 13 a produit le défaut **symétrique**. Le même commit
+posait `### Les commandes {diapos="47, 48, 51, 55, 58, 61, 64, 68"}` — un renvoi **positif** sur un
+bloc dont cinq commandes (`ufw default`, `ufw limit`, `ufw status verbose`, le profil `OpenSSH`,
+`ufw delete allow 80/tcp`) ne sont sur **aucune** de ces huit diapositives — **et supprimait**, six
+cents lignes plus haut, la seule phrase du fichier qui les qualifiait de compléments de la base de
+connaissances. ⚠️ **Un recensement fait sur le FICHIER ne peut pas voir ça : la phrase n'y est
+plus.** Il se fait aussi sur les lignes **SUPPRIMÉES** du diff — un lot peut périmer une provenance
+en *retirant* une qualification pendant qu'il *ajoute* un renvoi positif sur le même contenu. Aucun
+gate ne le pouvait ; c'est la revue à regard neuf qui l'a attrapé, aux deux lots de suite.
+
 **Réfs.** `content/cours/securite-web/02-environnement-linux/lecon.md` (section « Le modèle de
-responsabilité partagée ») ; lot 12 « leçons actionnables », revue `code-reviewer`, 2026-09-10.
+responsabilité partagée ») ; `content/cours/securite-web/03-communication-serveur/lecon.md` (section
+« Les commandes ») ; lots 12 et 13 « leçons actionnables », revues `code-reviewer`, 2026-09-10.
 Famille [[L-098]], [[L-077]] (une correction laisse la prose en aval décrire l'ancien état, sans
-qu'aucun diff ne la signale), [[L-081]] (une leçon peut être fausse sans qu'aucune phrase le soit).
+qu'aucun diff ne la signale), [[L-081]] (une leçon peut être fausse sans qu'aucune phrase le soit),
+[[L-102]] (l'autre sens du même contrôle : ce que le renvoi n'atteint pas).
+
+---
+
+## L-102 · Un livrable ABSENT fait rougir le gate ; un livrable trop ÉTROIT ne fait rougir personne — le second sens d'un contrôle de couverture n'a jamais de gate
+
+**Symptôme.** Lot 13 (module `03-communication-serveur`, 2026-09-10). La règle 13 de
+`tools/content-pipeline/valider.mjs` exige que **chaque** titre `##`/`###` d'un module au format
+actionnable porte un bloc d'attributs — un renvoi de diapositives, ou le marqueur `{hors-cours}`.
+Vingt-sept titres, vingt-sept blocs, gate vert. Et pourtant **douze diapositives du cours n'étaient
+citées par aucun titre** : les 31 à 43 du déck de la séance 3 — toute la connexion PuTTY, toute la
+configuration WinSCP, l'aboutissement de la séance — vivaient dans un conteneur d'onglets placé sous
+un titre qui ne parlait, lui, que de la conversion `.ppk`, et dont le renvoi disait donc `20-26`.
+La leçon promettait pourtant en tête de page que « les renvois disent lesquelles viennent du cours ».
+Un étudiant cherchant « comment je me connecte » ne trouvait rien.
+
+**Ce qui rendait le trou invisible.** Le gate mesure la **présence** d'un renvoi par titre. Il ne
+peut rien dire de sa **justesse**, et encore moins de sa **couverture** : il ne connaît pas le déck.
+La cartographie mesurée du lot, elle, vérifiait bien un sens — *pour chaque renvoi posé, les
+diapositives citées portent-elles la matière de la section ?* — et **pas** le sens inverse : *pour
+chaque diapositive du déck, existe-t-il un titre qui la cite ?* Le premier sens attrape la
+**sur-attribution**, le second la **sous-attribution**, et seule la sur-attribution laisse une trace
+qu'un relecteur croise en lisant la leçon.
+
+**Règle.** Tout contrôle de couverture a **deux sens**, et le gate n'en tient jamais qu'un — celui
+qui se lit depuis le livrable. Le sens qui se lit depuis la **source** (chaque diapositive, chaque
+exigence, chaque cas du contrat est-il atteint ?) doit être mesuré à la main, dans la cartographie ou
+la table qui prépare le lot, et **écrit** — sinon il n'existe pas. Le signal à chercher dans son
+propre brief : dès qu'on dit « chaque X porte un Y », se demander à voix haute « et chaque Y est-il
+porté par un X ? ». Ici le correctif a été **éditorial** — une section neuve, `### Se connecter au
+droplet {diapos="31-43"}` — et non technique : aucune règle de validateur ne pouvait le produire.
+
+**Réfs.** `tools/content-pipeline/valider.mjs` (règle 13) ;
+`docs/contenu/renvois-diapos-module-03.md` §3bis ;
+`content/cours/securite-web/03-communication-serveur/lecon.md` ; revue `code-reviewer`, lot 13,
+2026-09-10. Famille [[L-101]] (l'autre sens du même contrôle : ce que le renvoi affirme à tort),
+[[L-039]] (une mutation survit à 573 tests parce qu'un chemin n'était jamais exercé).
+
+---
+
+## L-103 · Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune
+
+**Symptôme.** Lot 13 (2026-09-10). La marche à suivre neuve du module 03 écrivait qu'un droplet créé
+avec une clé SSH « naît en « clé seulement », sans la moindre fenêtre de temps pendant laquelle un
+mot de passe serait encore accepté ». Six cents lignes plus bas, `## Exemple complet` annotait le même
+scénario par « `PasswordAuthentication` reste à `yes` … le mot de passe demeure une méthode
+acceptée ». La contradiction **préexistait** au lot — entre l'encadré de la section « La voie du
+cours » et cette annotation —, et elle avait traversé la rédaction, la vérification de théorie et la
+publication du module sans être vue. Le résumé actionnable ne l'a pas créée : il l'a portée **en tête
+de page**, à quinze lignes de la première phrase, là où elle devient visible.
+
+**Ce que ça change pour la méthode.** Ce n'est pas un défaut du lot, c'est une **propriété** du
+format : un document long tolère deux affirmations contraires parce que personne ne les lit dans la
+même minute. Un résumé les rapproche. **Toute reprise au format actionnable doit donc prévoir qu'il
+en sortira au moins une**, et budgéter la vérification du fait plutôt que d'être surprise par elle.
+Corollaire : le doute se tranche par la **source**, jamais par l'avis ni par « la version qui est
+écrite deux fois gagne » — ici la documentation DigitalOcean (« *Password authentication is disabled
+by default on Droplets created with an SSH key* ») a donné raison au passage **minoritaire**, et la
+valeur vivait dans `/etc/ssh/sshd_config.d/50-cloud-init.conf`, le fichier inclus dont la leçon
+parlait déjà sans faire le lien.
+
+⚠️ **Et ne pas « aligner » en recopiant.** Le passage fautif a été réécrit sur ce que son exemple
+montre réellement — un état **hérité que personne n'a relu**, avec la commande qui le vérifierait —
+plutôt que sur l'affirmation gagnante. Une contradiction résolue par copie perd l'enseignement que la
+tension contenait.
+
+**Réfs.** `content/cours/securite-web/03-communication-serveur/lecon.md` (« En bref — la marche à
+suivre » étape 3, et « Exemple complet ») ; `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE —
+LOT 13 » ; revue `code-reviewer`, 2026-09-10. Famille [[L-081]] (une leçon peut être fausse sans
+qu'aucune phrase le soit), [[L-098]].
 
 ---
 
