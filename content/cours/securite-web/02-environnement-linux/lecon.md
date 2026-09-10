@@ -80,6 +80,71 @@ viennent, eux, de la base de connaissances. Ce sont pourtant eux qui font la dif
 séance 3.
 :::
 
+## En bref — la marche à suivre {hors-cours}
+
+:::: marche-a-suivre {titre="Monter un serveur Linux neuf, puis s'y déplacer en ligne de commande"}
+
+1. {voir="La grille des neuf couches"} Situe ce qui restera à ta charge **avant** de louer quoi que
+   ce soit : en IaaS, la frontière passe sous le système d'exploitation, donc les correctifs, les
+   comptes et le pare-feu sont à toi. La grille des neuf couches est le seul visuel que le cours
+   répète.
+
+2. {voir="Créer la machine"} Crée le droplet — image Ubuntu LTS, plus petit palier, région Toronto,
+   nom d'hôte parlant — puis relève l'**adresse IP publique** affichée dans la console et note-la
+   dans un fichier local : un droplet détruit puis recréé n'a plus la même.
+
+3. {voir="La première connexion, et l'empreinte qu'on n'accepte pas à l'aveugle"} Connecte-toi avec
+   **PuTTY** — adresse IP, port `22`, type `SSH`, compte `root` — et change le mot de passe que le
+   serveur t'impose de changer à cette première connexion. Un geste de plus, que l'énoncé ne demande
+   pas : compare l'empreinte affichée avec celle de la console web du droplet avant de l'accepter,
+   car la question ne se reposera plus ensuite.
+
+   ```bash
+   ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub   # dans la console web : l'empreinte a comparer
+   ```
+
+4. {voir="Se repérer, lister, créer"} Prends tes repères avant de toucher à quoi que ce soit : `pwd`
+   dit où tu es, `ls -l` dit ce qu'il y a, `cd` t'emmène ailleurs — et souviens-toi qu'un chemin qui
+   commence par `/` part de la racine, tandis que tout autre part de là où tu te trouves.
+
+   ```bash
+   pwd                     # ou suis-je ?
+   ls -l /var/www/html     # chemin ABSOLU : il commence par « / »
+   cd html                 # chemin RELATIF : il part du repertoire courant
+   ```
+
+5. {voir="L'éditeur `vi` : deux modes, et toute la confusion vient de là"} Crée et modifie tes
+   fichiers avec `vi` en gardant les deux modes en tête : `i` pour écrire, `Échap` pour reprendre la
+   main, `:wq` pour enregistrer et sortir — et `:q!` pour sortir sans rien garder.
+
+   ```bash
+   vi exercice4.txt   # « i » pour ecrire, « Echap » puis « :wq » pour enregistrer et sortir
+   ```
+
+6. {voir="Renommer, déplacer, se déplacer"} Renomme et déplace avec la **même** commande, `mv`, et
+   écris la barre oblique finale dès que la destination est un répertoire : sans elle, un répertoire
+   absent te vaut un fichier renommé plutôt qu'une erreur.
+
+   ```bash
+   mv demo.txt nouveau.txt   # RENOMMER : meme repertoire, nom different
+   mv demo.txt contenu/      # DEPLACER : la barre finale dit « c'est un repertoire »
+   ```
+
+7. {voir="Supprimer : la commande sans corbeille"} Fais un `ls` avant chaque `rm`, puisqu'il n'y a
+   pas de corbeille, et rappelle-toi qu'un répertoire exige `-r` : sans lui, l'opération est
+   refusée.
+
+   ```bash
+   ls contenu/        # d'abord regarder ce qu'on s'apprete a detruire
+   rm demo.txt        # un fichier
+   rm -r contenu/     # un repertoire : le « -r » est exige
+   ```
+
+8. {voir="module:communication-serveur"} Enchaîne sur la séance 3 dès que la machine est debout : il
+   reste à en fermer l'accès, avec des clés SSH et un pare-feu.
+
+::::
+
 ## Pourquoi l'infrastructure est un choix d'ingénierie {diapos="7, 8"}
 
 L'**infrastructure**, c'est l'ensemble de l'équipement qui rend une application accessible à ses
@@ -566,15 +631,39 @@ fonctionner, l'extension **dépose un composant serveur sur le droplet** (*VS Co
 s'y exécute sous ton compte. Ce n'est pas un transfert de fichiers, c'est du code de plus sur ta
 machine — un arbitrage parfaitement raisonnable sur un serveur d'exercice, à poser sciemment sur
 un serveur de production.
+:::
 
 **Cela ne dispense pas d'apprendre `vi`, et ce n'est pas une formule de politesse.** `vi` reste la
 référence évaluée par ce cours, et trois situations le rendent incontournable : la **console web**
 du fournisseur — le seul accès qui te reste le jour où SSH ne répond plus, et elle n'a que le
 terminal ; un serveur sur lequel tu n'installeras rien ; un dépannage sur une machine que tu ne
-connais pas. Dans ces trois cas, c'est `vi` ou rien. Plus doux que `vi` et presque toujours
-présent sur Ubuntu : `nano fichier.txt`, qui affiche ses raccourcis en bas de l'écran (`Ctrl+O`
-écrit, `Ctrl+X` quitte) — mais c'est `vi` que la séance met en pratique.
+connais pas. Dans ces trois cas, c'est `vi` ou rien.
+
+Pour la tâche elle-même — modifier un fichier texte sur le serveur — deux outils font exactement le
+même travail : ouvrir, écrire, enregistrer, quitter. Choisis l'onglet que tu veux ; c'est `vi` que
+la séance met en pratique, et c'est lui qui est évalué.
+
+:::: methodes
+::: methode {libelle="La méthode du cours — l'éditeur vi" defaut}
+`vi exercice4.txt` ouvre le fichier ; s'il n'existe pas, il sera créé à la sauvegarde. Tu arrives en
+mode Commande : `i` passe en mode Insertion et tu tapes ton texte, `Échap` revient au mode Commande,
+`:wq` enregistre et quitte. Pour sortir sans rien garder : `Échap`, puis `:q!`.
+
+```bash
+vi exercice4.txt   # « i » pour ecrire, « Echap » pour reprendre la main, « :wq » pour enregistrer
+```
 :::
+::: methode {libelle="L'équivalent moderne — l'éditeur nano"}
+`nano exercice4.txt` ouvre le même fichier et te met directement en écriture : il n'y a pas de modes
+à connaître. Les raccourcis sont rappelés en bas de l'écran, où `^` désigne la touche `Ctrl` :
+`Ctrl+O` puis `Entrée` enregistre, `Ctrl+X` quitte. `nano` est plus doux que `vi` et presque
+toujours présent sur Ubuntu.
+
+```bash
+nano exercice4.txt   # « Ctrl+O » puis « Entree » enregistre, « Ctrl+X » quitte
+```
+:::
+::::
 
 ::: exercice-du-cours {ref="4"}
 La séquence complète, dans l'ordre : `vi exercice4.txt`, puis `i` pour passer en mode Insertion,
