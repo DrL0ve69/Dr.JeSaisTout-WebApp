@@ -2,7 +2,7 @@
 // Lecon — la PAGE d'une leçon (E2-ST2, lot B)
 // -----------------------------------------------------------------------------
 // CE QU'ELLE FAIT. Elle met en page une `LeconCompilee` déjà chargée et déjà
-// validée par `resoudreLecon` : page de garde (titre, repères, objectifs,
+// validée par `resoudreLeconDe` : page de garde (titre, repères, objectifs,
 // prérequis), sommaire ancré, sections, puis navigation vers les leçons voisines.
 // Elle ne charge RIEN et ne parse RIEN — le Markdown est devenu du HTML au build,
 // et le rendu des blocs appartient à `RenduBlocs`.
@@ -38,7 +38,7 @@
 //
 // 🔴 AUCUN SEGMENT D'URL N'EST RÉAFFICHÉ. Tout ce qui s'écrit dans cette page vient
 // du frontmatter compilé ou du manifeste — donc de textes écrits par la boucle
-// contenu. Le slug a servi à CHOISIR la leçon, dans `resoudreLecon`, et il s'arrête
+// contenu. Le slug a servi à CHOISIR la leçon, dans `resoudreLeconDe`, et il s'arrête
 // là (règle en tête d'`app.routes.server.ts`). Le slug employé ci-dessous pour
 // trouver les voisines est celui du FRONTMATTER, pas celui de l'URL.
 //

@@ -150,8 +150,10 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 
 | Lot | Objet | État |
 |---|---|---|
-| **PHP-0** | Plan d'implémentation de la plomberie « second cours » (`solution-architect`) | 🟦 en cours |
-| **PHP-1..n** | La plomberie elle-même, découpée par le plan de PHP-0 | ⬜ |
+| **PHP-0** | Plan d'implémentation de la plomberie « second cours » | ✅ découpage en trois lots, ci-dessous |
+| **E7 lot A** | `content:build` compile **plusieurs racines** (`securite-web` + `php`) en une exécution | ✅ PR #69 |
+| **E7 lot B** | Les **routes** du cours de PHP, des deux côtés : `cours/php` (sommaire) et `cours/php/:slug` (leçon), résolveur **par cours** | ✅ ce lot |
+| **E7 lot C** | La **navigation** : lien d'en-tête, carte d'accueil, comptes d'arrêts clavier épinglés en e2e | ⬜ suivant |
 | **PHP-A** | Grammaire d'auteur pour D-PHP-1 — si le conteneur `:::: methodes` existant ne suffit pas **dans** une marche à suivre, la mesurer avant d'écrire quoi que ce soit de neuf | ⬜ |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ⬜ |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ⬜ |
@@ -159,6 +161,46 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-5** | Séance 4 — Programmation orientée objet | ⬜ |
 | **PHP-6** | Séance 5 — Intégration de base de données | ⬜ |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
+
+### ✅ CLÔTURE — E7 lot B « les routes du cours de PHP » (2026-09-10)
+
+Le découpage de PHP-0 n'avait été écrit nulle part — le PR #69 disait seulement « le premier des
+trois lots ». Il est reconstitué ici par mesure du couplage : sur **32 fichiers** portant
+`securite-web` hors contenu, presque tous étaient **déjà génériques** (`Sommaire` prend un `sujet`,
+la progression est indexée `sujet/slug`, `parametresDePrerender`, `voisinesDe` et `titreDeDocument`
+filtrent par cours, et la page de leçon tire son sujet du **frontmatter**, jamais de l'URL). Ce qui
+restait en dur tenait en trois points : les deux tables de routes, le résolveur, et la navigation.
+
+🔴 **LE RÉSOLVEUR ÉTAIT AVEUGLE AU COURS, et c'est le seul défaut réel que le lot ait trouvé.**
+`resoudreLecon` cherchait le slug parmi les leçons publiées **de tous les cours**. Sans effet tant
+qu'une seule route de leçon existait ; avec `cours/php/:slug`, un lien forgé `/cours/php/xss` aurait
+monté la leçon de sécurité sous l'URL du cours de PHP, en navigation cliente. Il devient une
+fabrique `resoudreLeconDe(sujet)`, dont le filtre **est** `parametresDePrerender` : la route
+n'accepte exactement que les URL qu'elle a prerendues — une seule porte. ⚠️ Le spec du résolveur ne
+peut pas voir un `resoudreLeconDe('securite-web')` **recopié sur la route de PHP** : c'est
+`app.routes.spec.ts` qui exerce chaque résolveur **tel que la table le câble**, contre un manifeste
+à deux cours.
+
+🔴 **LE « SECOND ADAPTATEUR DE QUINZE LIGNES » ANNONCÉ PAR E2-ST6 AURAIT COÛTÉ UN HACHAGE CSP.**
+Recopier la feuille de `page-sommaire-securite-web.scss` dans un adaptateur PHP produisait un
+second bloc `<style>` — même texte, identifiant `_ngcontent` différent — donc un 15ᵉ hachage
+`style-src` pour zéro octet de style neuf. Titre, chapô, feuille et montage de `Sommaire` sont
+passés dans `CadreSommaire` ; les deux adaptateurs n'ont plus de `styleUrl`. **Le compte reste à
+14** ; la **valeur** d'un hachage change (le bloc de l'adaptateur devient celui du cadre, mêmes
+règles, identifiant neuf).
+
+Titres d'onglet : les deux sommaires nomment désormais leur cours — deux onglets « Sommaire du
+cours » auraient été indiscernables (WCAG 2.4.2), et un test l'exige.
+
+**Le lot C, ce qu'il doit faire et ce qu'il va faire rougir.** Un lien « Développement
+d'application en PHP » dans la navigation principale (`en-tete.ts:118-127` et son spec, qui épingle
+**deux** destinations) et une `CarteCours` sur l'accueil (sans jauge : `modulesPublies` est
+facultatif et une carte sans plan chiffré n'en affiche pas — `carte-cours.ts:110-119`). ⚠️ **Chaque
+lien ajouté est un arrêt de tabulation épinglé** : `e2e/focus-visible.spec.ts` (`ARRETS_ATTENDUS =
+8`) et `e2e/navigation-clavier.spec.ts` (l'ordre exact, l. 112-143) rougiront, et c'est voulu —
+`accueil.spec.ts` l. 141-159 en compte trois sur la page. Les ajuster **dans le même diff**, comme
+E6 l'a fait. Et `e2e/aides/artefact-mesure.ts` / `src/format-actionnable.spec.ts` restent bornés à
+`securite-web` (dette nommée au PR #69) : à revoir le jour où PHP **publie** une leçon, pas avant.
 
 ### 🔴 PHP-A EST RÉEL — mesuré le 2026-09-10, et l'hypothèse optimiste est réfutée
 

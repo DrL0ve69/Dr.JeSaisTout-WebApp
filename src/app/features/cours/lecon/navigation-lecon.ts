@@ -214,7 +214,7 @@ export function urlDeLecon(sujet: string, slug: string): string {
  * ⚠️ CETTE FONCTION NE FILTRE PAS SUR `statut`, DÉLIBÉRÉMENT (E2-ST6, lot C2).
  * `leconsPubliees` garde ce que le public ATTEINT — une URL prerendue, un lien de
  * sommaire, une voisine, et depuis le correctif du 2026-08-19 le chargement même de
- * la leçon (`resoudreLecon`) et son ÉCRITURE dans l'artéfact
+ * la leçon (`resoudreLeconDe`) et son ÉCRITURE dans l'artéfact
  * (`generer-manifeste.mjs`). Un titre d'onglet, lui, ne fait atteindre personne : il
  * nomme une page DÉJÀ à l'écran. Filtrer ici ne retirerait donc aucune page
  * publique ; ça donnerait un onglet « Sécurité des applications web » au-dessus d'un
@@ -229,7 +229,7 @@ export function urlDeLecon(sujet: string, slug: string): string {
  * de la leçon était écrit, servi en 200, et le routeur client montait la page entière
  * sur l'URL non prerendue. Après le correctif, un brouillon n'est plus rendu NULLE
  * PART — ni en ligne, ni en `npm start` : le drapeau `--inclure-brouillons` remet le
- * chunk, mais `resoudreLecon` refuse toujours. Cette fonction ne nomme donc plus,
+ * chunk, mais `resoudreLeconDe` refuse toujours. Cette fonction ne nomme donc plus,
  * aujourd'hui, que des pages publiées ; elle reste sans filtre pour le jour où une
  * prévisualisation EXPLICITE existera (voir l'en-tête de `resoudre-lecon.ts`).
  *

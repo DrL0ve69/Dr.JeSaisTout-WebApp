@@ -30,10 +30,20 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { TestBed } from '@angular/core/testing';
-import { Route, provideRouter } from '@angular/router';
+import {
+  RedirectCommand,
+  Route,
+  convertToParamMap,
+  provideRouter,
+  type ActivatedRouteSnapshot,
+  type ResolveFn,
+  type RouterStateSnapshot,
+} from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 
 import { routes } from './app.routes';
+import { MANIFESTE_LECONS } from './features/cours/contenu-compile';
+import { CARTE_LECONS } from './features/cours/lecon/resoudre-lecon';
 
 /** Le nom du site, écrit à la main : chaque onglet doit l'identifier. */
 const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
@@ -77,7 +87,20 @@ describe('table de routes', () => {
       // Contrôle positif des deux formes : sans lui, ce filtre resterait vert sur
       // une table où plus aucune route n'aurait de titre du tout (L-019).
       expect(routes.filter((route) => typeof route.title === 'string').length).toBeGreaterThan(0);
-      expect(routes.filter((route) => typeof route.title === 'function').length).toBe(1);
+      // Une par route de leçon : une par cours.
+      expect(routes.filter((route) => typeof route.title === 'function').length).toBe(2);
+    });
+
+    it('donne un titre d’onglet DISTINCT à chaque route littérale', () => {
+      // Deux cours, deux sommaires : deux onglets titrés pareil seraient
+      // indiscernables dans la barre d'onglets comme dans l'historique (WCAG 2.4.2).
+      // `404` et `**` montent la MÊME page, ils partagent donc légitimement le leur.
+      const titres = routes
+        .filter((route) => typeof route.title === 'string' && route.path !== '**')
+        .map((route) => route.title as string);
+
+      expect(new Set(titres).size).toBe(titres.length);
+      expect(titres.length).toBeGreaterThan(2);
     });
 
     it('ne fait dépendre AUCUN `<h1>` d’un `data` de route', () => {
@@ -119,30 +142,103 @@ describe('table de routes', () => {
       // est vérifié sur des données réelles par `lecon.spec.ts` — ici on tient le
       // câblage, là-bas le contenu.
       const parametrees = routes.filter((route) => (route.path ?? '').includes(':'));
-      expect(parametrees.map(nommer)).toEqual(["path: 'cours/securite-web/:slug'"]);
-
-      // Elle doit précéder le `**` : le routeur prend le premier motif qui
-      // correspond, et un joker placé avant avalerait toutes les leçons.
-      const rangLecon = routes.findIndex((route) => route.path === 'cours/securite-web/:slug');
-      const rangJoker = routes.findIndex((route) => route.path === '**');
-      expect(rangLecon).toBeGreaterThan(-1);
-      expect(rangLecon).toBeLessThan(rangJoker);
-
-      // Son contenu est chargé par un `resolve` de route, pas par le composant :
-      // sans lui, le prerenderer écrirait un fichier avant que la leçon n'arrive.
-      expect(parametrees[0]?.resolve?.['lecon']).toBeDefined();
+      expect(parametrees.map(nommer)).toEqual([
+        "path: 'cours/securite-web/:slug'",
+        "path: 'cours/php/:slug'",
+      ]);
 
       const source = readFileSync(join(process.cwd(), 'src', 'app', 'app.routes.server.ts'), 'utf8');
-      const rangServeurLecon = source.indexOf("path: 'cours/securite-web/:slug'");
+      const rangJoker = routes.findIndex((route) => route.path === '**');
       const rangServeurJoker = source.indexOf("path: '**'");
-      expect(rangServeurLecon).toBeGreaterThan(-1);
-      expect(rangServeurLecon).toBeLessThan(rangServeurJoker);
-      expect(source).toContain('getPrerenderParams');
-      // La forme exacte qui échouerait en silence : `Prerender` SANS paramètres.
-      // `@angular/ssr` refuse ce cas au build, mais le message n'arrive qu'au bout
-      // du gate le plus lent — ici, c'est rouge en deux secondes.
-      expect(source.slice(rangServeurLecon, rangServeurJoker)).toContain('RenderMode.Prerender');
-      expect(source.slice(rangServeurLecon, rangServeurJoker)).toContain('getPrerenderParams');
+
+      for (const route of parametrees) {
+        const chemin = route.path ?? '';
+
+        // Elle doit précéder le `**` : le routeur prend le premier motif qui
+        // correspond, et un joker placé avant avalerait toutes les leçons.
+        expect(routes.indexOf(route), chemin).toBeLessThan(rangJoker);
+
+        // Son contenu est chargé par un `resolve` de route, pas par le composant :
+        // sans lui, le prerenderer écrirait un fichier avant que la leçon n'arrive.
+        expect(route.resolve?.['lecon'], chemin).toBeDefined();
+
+        // Le pendant serveur : même chemin, AVANT le `**`, en prerender PARAMÉTRÉ.
+        const debut = source.indexOf(`path: '${chemin}'`);
+        expect(debut, chemin).toBeGreaterThan(-1);
+        expect(debut, chemin).toBeLessThan(rangServeurJoker);
+        // L'entrée serveur de CETTE route s'arrête à l'entrée suivante : borner la
+        // tranche au `**` seul laisserait la première route emprunter les
+        // `getPrerenderParams` de la seconde.
+        const suivante = source.indexOf("path: '", debut + 1);
+        const tranche = source.slice(debut, suivante === -1 ? undefined : suivante);
+        // La forme exacte qui échouerait en silence : `Prerender` SANS paramètres.
+        // `@angular/ssr` refuse ce cas au build, mais le message n'arrive qu'au bout
+        // du gate le plus lent — ici, c'est rouge en deux secondes.
+        expect(tranche, chemin).toContain('RenderMode.Prerender');
+        expect(tranche, chemin).toContain('getPrerenderParams');
+        // Et le sujet passé au prerender est CELUI QUE LE CHEMIN NOMME : le prendre
+        // à l'autre cours écrirait ses leçons sous ce chemin-ci.
+        const sujetDuChemin = chemin.split('/')[1] ?? '';
+        expect(tranche, chemin).toContain(`parametresDePrerender(manifesteLecons, '${sujetDuChemin}')`);
+      }
+    });
+
+    describe('chaque route de leçon ne résout QUE les leçons du cours que son chemin nomme', () => {
+      // 🔴 LE DÉFAUT QUE CE BLOC TIENT (E7, lot B). Un résolveur aveugle au cours
+      // montait, en navigation cliente, n'importe quelle leçon publiée sous
+      // n'importe quel chemin de cours : `/cours/php/xss` rendait la leçon de
+      // sécurité. Le résolveur est exercé ICI, tel que la table le câble — c'est la
+      // seule façon d'attraper un `resoudreLeconDe('securite-web')` recopié sur la
+      // route de PHP, que `resoudre-lecon.spec.ts` (qui appelle la fabrique
+      // lui-même) ne peut pas voir.
+      //
+      // Le manifeste porte UNE leçon publiée par cours. La carte ne charge rien :
+      // son chargeur lève une erreur SENTINELLE, et c'est cette erreur qui prouve
+      // que le résolveur a ACCEPTÉ le slug (il est allé jusqu'au chargement). Un
+      // refus, lui, rend une `RedirectCommand` sans jamais toucher la carte.
+      const SENTINELLE = 'chargeur atteint';
+      const MANIFESTE_DEUX_COURS: EntreeManifesteRoutes[] = [
+        { sujet: 'securite-web', slug: 'lecon-securite', ordre: 1, titre: 'S', dureeEstimee: 1, niveau: 'cegep', statut: 'publiee' },
+        { sujet: 'php', slug: 'lecon-php', ordre: 1, titre: 'P', dureeEstimee: 1, niveau: 'cegep', statut: 'publiee' },
+      ];
+      const leverSentinelle = (): Promise<never> => Promise.reject(new Error(SENTINELLE));
+      const CARTE = { 'lecon-securite': leverSentinelle, 'lecon-php': leverSentinelle };
+
+      function resoudreSur(route: Route, slug: string): Promise<unknown> {
+        const resolveur = route.resolve?.['lecon'] as ResolveFn<unknown>;
+        const instantane = { paramMap: convertToParamMap({ slug }) } as unknown as ActivatedRouteSnapshot;
+        return TestBed.runInInjectionContext(() =>
+          Promise.resolve(resolveur(instantane, {} as RouterStateSnapshot)),
+        );
+      }
+
+      beforeEach(() => {
+        TestBed.configureTestingModule({
+          providers: [
+            provideRouter([]),
+            { provide: MANIFESTE_LECONS, useValue: MANIFESTE_DEUX_COURS },
+            { provide: CARTE_LECONS, useValue: CARTE },
+          ],
+        });
+      });
+
+      for (const [chemin, propre, etrangere] of [
+        ['cours/securite-web/:slug', 'lecon-securite', 'lecon-php'],
+        ['cours/php/:slug', 'lecon-php', 'lecon-securite'],
+      ] as const) {
+        it(`« ${chemin} » accepte « ${propre} » et refuse « ${etrangere} »`, async () => {
+          const route = routes.find((candidate) => candidate.path === chemin);
+          expect(route).toBeDefined();
+
+          // Contrôle positif (L-019) : la leçon de CE cours va jusqu'au chargeur —
+          // sans lui, un résolveur qui refuserait tout passerait ce test.
+          await expect(resoudreSur(route as Route, propre)).rejects.toThrow(SENTINELLE);
+
+          const refus = await resoudreSur(route as Route, etrangere);
+          expect(refus).toBeInstanceOf(RedirectCommand);
+          expect(String((refus as RedirectCommand).redirectTo)).toBe('/404');
+        });
+      }
     });
 
     it('ne déclare AUCUN `RenderMode.Client` côté serveur', () => {
@@ -176,10 +272,10 @@ describe('table de routes', () => {
       document.title = titreOriginal;
     });
 
-    it('couvre bien les trois chemins livrés — sinon ce groupe ne teste rien', () => {
+    it('couvre bien les quatre chemins livrés — sinon ce groupe ne teste rien', () => {
       // Garde-fou contre le vert vide (L-005) : si le filtre ci-dessus cessait de
       // trouver des chemins, la boucle suivante passerait sans rien vérifier.
-      expect(CHEMINS_LITTERAUX).toEqual(['', 'cours/securite-web', '404']);
+      expect(CHEMINS_LITTERAUX).toEqual(['', 'cours/securite-web', 'cours/php', '404']);
     });
 
     for (const chemin of CHEMINS_LITTERAUX) {

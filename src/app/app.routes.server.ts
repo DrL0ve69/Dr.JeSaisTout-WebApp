@@ -87,6 +87,14 @@ export const serverRoutes: ServerRoute[] = [
       Promise.resolve(parametresDePrerender(manifesteLecons, 'securite-web')),
   },
   {
+    // LE SECOND COURS (E7, lot B, 2026-09-10) — même contrat, même raison d'écrire
+    // le sujet en dur. Tant qu'aucun module de PHP n'est publié, la fonction rend
+    // `[]` et le build prerende zéro leçon ici, sans échouer : c'est l'état attendu.
+    path: 'cours/php/:slug',
+    renderMode: RenderMode.Prerender,
+    getPrerenderParams: () => Promise.resolve(parametresDePrerender(manifesteLecons, 'php')),
+  },
+  {
     path: '**',
     renderMode: RenderMode.Prerender,
   },

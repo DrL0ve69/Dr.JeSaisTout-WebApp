@@ -459,7 +459,7 @@ export const MANIFESTE_LECONS = new InjectionToken<readonly EntreeManifesteRoute
  *   · la navigation prev/next — un brouillon ne s'atteint pas de proche en proche ;
  *   · `parametresDePrerender` — sans lui, un brouillon resterait PRERENDU et
  *     INDEXABLE, et la réserve (3) d'E2-ST2 ne serait fermée qu'en façade ;
- *   · `resoudreLecon`         — sans lui, le routeur CLIENT rend la leçon entière sur
+ *   · `resoudreLeconDe`         — sans lui, le routeur CLIENT rend la leçon entière sur
  *     une URL non prerendue, sous le document 404 servi par l'hébergeur.
  * Quatre recopies du même prédicat seraient un L-016 en puissance : la personne qui
  * ajoutera un statut en oublierait une, et le trou serait silencieux.

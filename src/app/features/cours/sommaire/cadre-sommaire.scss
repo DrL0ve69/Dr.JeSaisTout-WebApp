@@ -1,9 +1,17 @@
-// Page du sommaire de « Sécurité des applications web ».
+// Le cadre d'une page de sommaire — commun à TOUS les cours.
 //
 // Cette feuille ne concerne QUE l'en-tête de la page (titre, chapô) : la carte de
 // parcours porte la sienne (`sommaire.scss`). Aucune règle ne descend dans
-// `app-sommaire` — un adaptateur de route qui restylerait son enfant annulerait
-// la généricité que ce découpage existe pour préserver.
+// `app-sommaire` — un cadre qui restylerait son enfant annulerait la généricité que
+// ce découpage existe pour préserver.
+//
+// 🔴 ELLE VIT ICI, ET PLUS DANS CHAQUE ADAPTATEUR, POUR UNE RAISON DE CSP (E7, lot B).
+// Une feuille de composant est émise en bloc `<style>` inline, et chaque bloc distinct
+// coûte un hachage de plus dans `style-src` (`NOMBRE_HACHAGES_STYLE_ATTENDU`,
+// `tools/deploiement/generer-config-swa.mjs`). Deux adaptateurs portant chacun la
+// même feuille produiraient DEUX blocs — même texte, identifiants `_ngcontent`
+// différents — donc un hachage de plus par cours ouvert. Portée par le cadre, la
+// feuille est UN bloc, identique sur toutes les pages de sommaire.
 //
 // Aucun `@use` : ce fichier n'appelle aucun mixin, et surtout jamais `themes`,
 // qui émettrait le bloc `:root` et dupliquerait tous les jetons dans le CSS de ce

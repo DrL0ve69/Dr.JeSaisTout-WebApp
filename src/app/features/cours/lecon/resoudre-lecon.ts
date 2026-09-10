@@ -69,7 +69,8 @@ import { InjectionToken, inject } from '@angular/core';
 import { RedirectCommand, Router, type ResolveFn } from '@angular/router';
 
 import { carteLecons, type ChargeurLecon } from '../../../../content-generated/carte-lecons';
-import { MANIFESTE_LECONS, leconsPubliees, lireLeconCompilee } from '../contenu-compile';
+import { MANIFESTE_LECONS, lireLeconCompilee } from '../contenu-compile';
+import { parametresDePrerender } from './navigation-lecon';
 
 /** La route littérale réellement prerendue en `404/index.html` (cf. `app.routes.ts`). */
 const ROUTE_404 = '/404';
@@ -88,21 +89,43 @@ export const CARTE_LECONS = new InjectionToken<Record<string, ChargeurLecon>>(
 );
 
 /**
- * Résout la leçon d'une route `cours/securite-web/:slug`.
+ * Le résolveur de la route `cours/<sujet>/:slug` — UN par cours, le sujet fixé par la
+ * table de routes.
+ *
+ * 🔴 POURQUOI UNE FABRIQUE, ET PLUS UNE CONSTANTE (E7, lot B, 2026-09-10). Le résolveur
+ * unique ne cherchait que le slug parmi les leçons publiées, TOUS COURS CONFONDUS. Tant
+ * qu'une seule route de leçon existait, c'était sans effet ; avec `cours/php/:slug` en
+ * plus, un lien forgé `/cours/php/xss` aurait monté, en navigation cliente, la leçon de
+ * sécurité sous l'URL du cours de PHP. L'unicité des slugs ne règle rien : elle dit
+ * QUELLE leçon on désigne, jamais sous QUEL chemin (même raisonnement en tête de
+ * `navigation-lecon.ts`).
+ *
+ * LE FILTRE EST CELUI DU PRERENDER, pas une recopie : `parametresDePrerender` décide déjà
+ * quels fichiers la route écrit sur le disque. Le résolveur n'accepte donc EXACTEMENT que
+ * les URL que la même route a prerendues — une seule porte pour « publiée » et « de ce
+ * cours », que le prerender, le sommaire et la navigation franchissent aussi (L-016).
  *
  * Le type déclaré est `LeconCompilee` : `ResolveFn<T>` autorise déjà un
  * `RedirectCommand` en retour, il n'a pas à figurer dans le paramètre de type.
+ *
+ * @param sujet le cours que le chemin de la route nomme — un LITTÉRAL de la table,
+ *   jamais une valeur lue dans l'URL
  */
-export const resoudreLecon: ResolveFn<LeconCompilee> = async (route) => {
+export function resoudreLeconDe(sujet: string): ResolveFn<LeconCompilee> {
+  return (route) => resoudre(route.paramMap.get('slug') ?? '', sujet);
+}
+
+async function resoudre(slugDemande: string, sujet: string): Promise<LeconCompilee | RedirectCommand> {
+  // Les trois `inject` précèdent le premier `await` : un contexte d'injection ne
+  // survit pas à une suspension.
   const routeur = inject(Router);
   const carte = inject(CARTE_LECONS);
-  const publiees = leconsPubliees(inject(MANIFESTE_LECONS));
-  const slugDemande = route.paramMap.get('slug') ?? '';
+  const duCours = parametresDePrerender(inject(MANIFESTE_LECONS), sujet);
 
-  // PUBLIÉE D'ABORD — avant même de regarder la carte, donc avant tout téléchargement.
-  // La comparaison porte sur un TABLEAU : aucune indexation, donc aucune surface
-  // `Object.prototype` à refermer ici (voir plus bas pour la carte, qui en a une).
-  if (!publiees.some((entree) => entree.slug === slugDemande)) {
+  // PUBLIÉE ET DE CE COURS D'ABORD — avant même de regarder la carte, donc avant tout
+  // téléchargement. La comparaison porte sur un TABLEAU : aucune indexation, donc aucune
+  // surface `Object.prototype` à refermer ici (voir plus bas pour la carte, qui en a une).
+  if (!duCours.some((parametres) => parametres['slug'] === slugDemande)) {
     return new RedirectCommand(routeur.parseUrl(ROUTE_404));
   }
 
@@ -121,4 +144,4 @@ export const resoudreLecon: ResolveFn<LeconCompilee> = async (route) => {
   // `generer-manifeste.mjs`, pas par le visiteur. Le citer nomme donc le fichier
   // fautif au développeur, sans jamais rendre du texte de tiers.
   return lireLeconCompilee(module.default, `src/content-generated/lecons/${slugDemande}.json`);
-};
+}

@@ -37,7 +37,7 @@ import {
 
 import { type ChargeurLecon } from '../../../../content-generated/carte-lecons';
 import { MANIFESTE_LECONS } from '../contenu-compile';
-import { CARTE_LECONS, resoudreLecon } from './resoudre-lecon';
+import { CARTE_LECONS, resoudreLeconDe } from './resoudre-lecon';
 
 const SLUG_CONNU = 'lecon-connue';
 const SLUG_MALFORME = 'lecon-malformee';
@@ -161,9 +161,9 @@ function routePourSlug(slug: string): ActivatedRouteSnapshot {
  * refaire ici casserait dès qu'un test résout deux slugs — le module de test est
  * instancié au premier `runInInjectionContext`.
  */
-function resoudre(slug: string): Promise<LeconCompilee | RedirectCommand> {
+function resoudre(slug: string, sujet = 'securite-web'): Promise<LeconCompilee | RedirectCommand> {
   return TestBed.runInInjectionContext(() =>
-    resoudreLecon(routePourSlug(slug), {} as RouterStateSnapshot),
+    resoudreLeconDe(sujet)(routePourSlug(slug), {} as RouterStateSnapshot),
   ) as Promise<LeconCompilee | RedirectCommand>;
 }
 
@@ -255,6 +255,21 @@ describe('resoudreLecon — le choix du chargeur', () => {
     const lecon = resultat as LeconCompilee;
     expect(lecon.frontmatter.slug).toBe(SLUG_CONNU);
     expect(lecon.sections.map((section) => section.ancre)).toEqual(['introduction']);
+  });
+
+  it('REFUSE une leçon publiée d’un AUTRE cours, sans en appeler le chargeur (E7, lot B)', async () => {
+    // LE DÉFAUT QUE LA FABRIQUE FERME : le slug est publié, présent dans la carte, et
+    // chargeable — mais il appartient au cours de sécurité. Demandé sous le chemin du
+    // cours de PHP, il doit tomber en 404, comme l'URL qu'aucun fichier ne sert.
+    // Contrôle positif d'abord (L-010) : sous SON cours, le même slug se résout.
+    const sousSonCours = await resoudre(SLUG_CONNU, 'securite-web');
+    expect(sousSonCours).not.toBeInstanceOf(RedirectCommand);
+
+    // Le chargeur du non-publié LÈVE ; sous un autre cours, même un slug PUBLIÉ ne doit
+    // pas atteindre la carte. On le vérifie sur ce slug-là : si le filtre de cours ne
+    // passait qu'après le chargement, ce test échouerait sur l'exception.
+    expect(cibleDe(await resoudre(SLUG_CONNU, 'php'))).toBe('/404');
+    expect(cibleDe(await resoudre(SLUG_NON_PUBLIE, 'php'))).toBe('/404');
   });
 
   it('nomme le fichier par la CLEF de la carte, jamais par l’URL, quand le JSON est hors contrat', async () => {
