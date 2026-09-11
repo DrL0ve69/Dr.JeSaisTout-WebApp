@@ -85,7 +85,7 @@ interface SegmentDeJauge {
       }
 
       <p class="action">
-        <a class="cta" [routerLink]="lien()">Commencer le cours</a>
+        <a class="cta" [routerLink]="lien()">{{ libelleAction() }}</a>
       </p>
     </article>
   `,
@@ -106,6 +106,21 @@ export class CarteCours {
    * et ferait dériver le rythme vertical de la carte.
    */
   readonly mentionChantier = input<string>();
+
+  /**
+   * Le libellé de l'appel à l'action. FACULTATIF, « Commencer le cours » par défaut.
+   *
+   * Né avec la seconde carte de l'accueil (E7, lot C, 2026-09-10), pour deux raisons
+   * qui tiennent chacune seule :
+   *  · un cours SANS module publié ne se « commence » pas — l'appel mènerait à un
+   *    sommaire qui annonce « Modules en préparation. », et le libellé mentirait ;
+   *  · deux liens de MÊME nom vers deux destinations différentes sur la même page
+   *    obligent l'utilisateur d'une liste de liens (lecteur d'écran, commande
+   *    vocale) à ouvrir chacun pour savoir où il mène (WCAG 2.4.4).
+   * Le libellé reste un texte d'UN SEUL TENANT, rendu tel quel dans le lien : son nom
+   * accessible est son contenu (L-024, WCAG 2.5.3).
+   */
+  readonly libelleAction = input('Commencer le cours');
 
   /**
    * Modules déjà publiés, et modules prévus au plan. FACULTATIFS, tous les deux :

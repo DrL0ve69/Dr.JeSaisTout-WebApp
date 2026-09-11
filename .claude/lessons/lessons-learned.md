@@ -625,6 +625,19 @@ qu'un moteur de rendu ferait « probablement » par défaut.
 **Réfs (addendum lot 11).** `e2e/onglets-methodes.spec.ts` (test R-8, `forced-colors: active`) ;
 `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09.
 
+**Addendum (E7, mise en ligne du cours PHP, 2026-09-10) — un titre de test qui promet « SANS
+appeler X » doit COMPTER les appels à X, pas seulement juger le résultat final.** Le test « REFUSE
+une leçon publiée d'un AUTRE cours, sans en appeler le chargeur » n'assertait qu'une redirection.
+La revue à regard neuf a vu qu'un filtre de cours déplacé **après** le chargement produit lui aussi
+une redirection — même verdict, mais le chunk du chargeur a bel et bien été téléchargé : le titre
+mentait, vert. Correctif : un compteur d'appels au chargeur (1 sous le bon cours = contrôle
+positif, 0 sous l'autre = ce que le titre promet). Mutation « filtre après chargement » : 3 rouges,
+dont ce test. **Règle élargie** : quand un titre de test énonce une contrainte d'ORDRE ou
+d'ABSENCE D'APPEL, le résultat seul ne la prouve jamais — il faut un compteur ou un espion sur
+l'opération nommée dans le titre.
+
+**Réfs (addendum E7).** `src/app/features/cours/lecon/resoudre-lecon.spec.ts` ; PR #69, 2026-09-10.
+
 ---
 
 ## L-020 · L-014 s'applique à **chaque nouveau programme TypeScript**, pas qu'à celui qui l'a fait naître
@@ -1978,6 +1991,24 @@ intercepter le signal que ses appelants existent pour observer ([[L-034]]).
 **Réfs (c).** `e2e/aides/pre-hydratation.ts` ; `e2e/onglets-methodes.spec.ts` ; S-014 ;
 `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 11 » ; PR #62, 2026-09-09.
 
+**Symptôme (d), E7 mise en ligne du cours PHP, 2026-09-10 — un instrument qui PLANTE peut imprimer
+un faux zéro d'apparence plausible.** Un script PowerShell 5.1 mesurant la dérive du verrou npm
+utilisait `ConvertFrom-Json` sur `package-lock.json` : la clef racine vide (`""`) le fait échouer,
+l'erreur s'affiche à l'écran, **et le script continue** jusqu'à imprimer « changements : 0 » — un
+résultat qui ressemble exactement à ce qu'on attendait (verrou intact). Refait en Node
+(`JSON.parse`, qui digère la clef vide sans broncher) : **64 changements**. Le message d'erreur
+était bien là, mais noyé, et rien dans la sortie finale ne distinguait « zéro mesuré » de « zéro
+parce que la mesure n'a jamais eu lieu ».
+
+**Règle (d).** Une mesure qui peut sortir ZÉRO doit **prouver qu'elle a lu quelque chose** — imprimer
+le nombre d'entrées comparées à côté du résultat, et faire échouer bruyamment (`exit 1` / lever) sur
+toute exception plutôt que de la laisser s'afficher et continuer. En PowerShell 5.1 spécifiquement,
+un JSON dont la clef racine est une chaîne vide casse `ConvertFrom-Json` — le lire en Node plutôt que
+d'ajouter une rustine PowerShell borgne.
+
+**Réfs (d).** Sonde de dérive du verrou npm, chantier E7 (montée `@angular/*` 22.1.0) ; famille
+[[L-005]] (« un vert ne prouve pas qu'une vérification a tourné »).
+
 ---
 
 ## L-063 · Un invariant que rien n'observe n'est pas vrai — il est INDÉTERMINÉ
@@ -3230,6 +3261,50 @@ seul élargi : celui du DOM (forme, unicité, rangs) et celui de ce qui est **re
 l’inventaire filtré** : le rang conservé doit rester celui du **DOM complet**, sinon un locator
 `.defileur.nth(i)` vise silencieusement le mauvais élément — un filtre déplace les index, et un index
 faux ne rougit que par accident.
+
+---
+
+## L-106 · Dupliquer un composant PORTEUR DE STYLES ajoute un hachage CSP, même pour un texte identique — la duplication à surveiller n'est pas le code, c'est le bloc `<style>`
+
+**Symptôme.** E7 (mise en ligne du cours PHP, 2026-09-10) devait créer un second adaptateur de
+sommaire, annoncé depuis E2-ST6 comme « le jour où PHP arrive, un second adaptateur de quinze
+lignes ». Recopier tel quel le composant existant — `styleUrl` compris — aurait émis un **second**
+bloc `<style>` : mêmes règles CSS, mais un attribut `_ngcontent-*` différent selon Angular produit
+un hachage `sha256` différent, donc un 15ᵉ hachage épinglé dans `NOMBRE_HACHAGES_STYLE_ATTENDU`
+(`tools/deploiement/generer-config-swa.mjs`) — pour zéro octet de style réellement nouveau.
+
+**Règle.** Avant de dupliquer un composant qui porte un `styleUrl`/`styles` propre, compter combien
+de blocs `<style>` DISTINCTS la duplication ajoute — pas combien de fichiers ou combien de lignes.
+La feuille de style migre dans un composant **partagé** (ici `CadreSommaire`), et les adaptateurs
+n'ont alors plus de `styleUrl` : le compte de hachages `style-src` reste inchangé. C'est le même
+geste que « factoriser pour la lisibilité », mais la raison qui le rend **obligatoire** ici est un
+gate de sécurité, pas le goût du DRY.
+
+**Réfs.** [[S-005]], [[S-010]] (compte de hachages `style-src` et provenance d'un bloc `<style>`) ;
+`src/app/features/cours/sommaire/` (composant `CadreSommaire`) ; E7 lot A, PR #69, 2026-09-10.
+
+---
+
+## L-107 · Une montée de version Angular en ERESOLVE se répare en retirant du VERROU les seules entrées concernées, jamais par `--force`/`--legacy-peer-deps`
+
+**Symptôme.** E7 (2026-09-10) : `npm audit` rougissait sur `GHSA-p297-fm68-3q8c` (et deux *high* sur
+`platform-server`, `GHSA-v3p8-whq6-r5jg`/`GHSA-f6mr-pjwc-34m4`) apparus le même jour sur **toutes**
+les PR ouvertes, sans une ligne de code changée — un gate de dépendances peut rougir par le
+calendrier. La montée bute en `ERESOLVE` : `@angular/forms@22.1.0` exige `@angular/common@"22.1.0"`
+**exactement**. Ni deux `npm install` séparés (prod puis dev), ni réécrire les onze fourchettes de
+`package.json` avant `npm install`, ne suffisent — `package-lock.json` retient chaque paquet
+`@angular/*` par ses frères déjà verrouillés.
+
+**Règle.** Retirer du `package-lock.json` les SEULES entrées `node_modules/@angular/*` concernées
+(et leurs dossiers sur disque), puis lancer **un seul** `npm install` : tout le sous-arbre `@angular/*`
+se résout ensemble, le reste du verrou reste intact. Vérifier ensuite par `npm ci` (code 0, verrou
+non réécrit) et mesurer la dérive entrée par entrée plutôt que de la supposer nulle ([[L-062]]
+symptôme d). **`--force` et `--legacy-peer-deps` restent des refus** : ils n'expliquent rien de ce
+qui a été relâché et peuvent installer une paire de versions qu'aucun mainteneur n'a testée
+ensemble — cette parade cible précisément les entrées en conflit, sans toucher au reste.
+
+**Réfs.** `package.json`/`package-lock.json`, montée `@angular/*` 22.1.0, E7 lot A, 2026-09-10 ;
+[[L-062]] (instrument qui mesure zéro).
 
 **Réfs.** `e2e/defileurs-clavier.spec.ts` (`FORME_DU_NOM`, `GENRES_A_RANG_CONTINU`,
 `defileursRendus`) ; `src/app/features/cours/lecon/rendu-blocs/rendu-blocs.scss` (`.panneau`

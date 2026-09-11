@@ -125,6 +125,22 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
                 Sécurité des applications web
               </a>
             </li>
+            <li>
+              <!--
+                Le second cours (E7, lot C). Même nom que le « h1 » de sa page, comme
+                pour la sécurité : le lien annonce l'endroit où il mène. Correspondance
+                par PRÉFIXE, comme le lien voisin : la page courante reste annoncée sur
+                une leçon du cours, pas seulement sur son sommaire.
+              -->
+              <a
+                routerLink="/cours/php"
+                routerLinkActive="est-actif"
+                #phpActif="routerLinkActive"
+                [attr.aria-current]="phpActif.isActive ? 'page' : null"
+              >
+                Développement d’application en PHP
+              </a>
+            </li>
           </ul>
         </nav>
       </details>

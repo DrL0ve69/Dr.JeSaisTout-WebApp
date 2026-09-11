@@ -152,8 +152,8 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 |---|---|---|
 | **PHP-0** | Plan d'implémentation de la plomberie « second cours » | ✅ découpage en trois lots, ci-dessous |
 | **E7 lot A** | `content:build` compile **plusieurs racines** (`securite-web` + `php`) en une exécution | ✅ PR #69 |
-| **E7 lot B** | Les **routes** du cours de PHP, des deux côtés : `cours/php` (sommaire) et `cours/php/:slug` (leçon), résolveur **par cours** | ✅ ce lot |
-| **E7 lot C** | La **navigation** : lien d'en-tête, carte d'accueil, comptes d'arrêts clavier épinglés en e2e | ⬜ suivant |
+| **E7 lot B** | Les **routes** du cours de PHP, des deux côtés : `cours/php` (sommaire) et `cours/php/:slug` (leçon), résolveur **par cours** | ✅ PR #70 |
+| **E7 lot C** | La **navigation** : lien d'en-tête, carte d'accueil, comptes d'arrêts clavier épinglés en e2e | ✅ PR suivante — **la plomberie « second cours » est close** |
 | **PHP-A** | Grammaire d'auteur pour D-PHP-1 — si le conteneur `:::: methodes` existant ne suffit pas **dans** une marche à suivre, la mesurer avant d'écrire quoi que ce soit de neuf | ⬜ |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ⬜ |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ⬜ |
@@ -201,6 +201,29 @@ lien ajouté est un arrêt de tabulation épinglé** : `e2e/focus-visible.spec.t
 `accueil.spec.ts` l. 141-159 en compte trois sur la page. Les ajuster **dans le même diff**, comme
 E6 l'a fait. Et `e2e/aides/artefact-mesure.ts` / `src/format-actionnable.spec.ts` restent bornés à
 `securite-web` (dette nommée au PR #69) : à revoir le jour où PHP **publie** une leçon, pas avant.
+
+### ✅ CLÔTURE — E7 lot C « la navigation vers le cours de PHP » (2026-09-10)
+
+Un lien « Développement d’application en PHP » dans la navigation principale (même nom que le
+`<h1>` de la page, comme pour la sécurité), et une seconde `CarteCours` sur l'accueil, **sans
+jauge**. Sur « / », les arrêts de tabulation passent de **8 à 10**, ajustés dans les trois specs
+qui les épinglent (`focus-visible`, `navigation-clavier`, `cibles-pointeur`) et dans
+`accueil.spec.ts` (3 → 4 focalisables) — dans le même diff.
+
+⚠️ **`CarteCours` gagne une entrée facultative `libelleAction`.** La carte PHP dit « Voir le
+sommaire », pas « Commencer le cours » : un cours sans module ne se commence pas, et deux liens de
+**même nom** vers deux destinations obligent l'utilisateur d'une liste de liens à ouvrir chacun
+(WCAG 2.4.4) — Playwright l'aurait d'ailleurs refusé en mode strict. `accueil.spec.ts` exige
+désormais des noms d'action **distincts**.
+
+⏰ **À revoir le jour où un module de PHP est publié** : le libellé, la description et peut-être une
+jauge de la carte PHP (commentaire dans `accueil.ts`), `e2e/aides/artefact-mesure.ts` et
+`src/format-actionnable.spec.ts` (bornés à `securite-web`, dette du PR #69), et l'ordre de
+découverte des specs e2e, qui peut glisser vers une page PHP (§7).
+
+**Le geste suivant : PHP-A**, la grammaire d'auteur de D-PHP-1 (ci-dessous), puis **PHP-2**, la
+séance 1. ⚠️ Les sept chemins du §3 ne sont toujours pas fournis : tout exemple concret de PHP-2
+portera `à-vérifier:`, donc le module restera en `statut: verifiee`.
 
 ### 🔴 PHP-A EST RÉEL — mesuré le 2026-09-10, et l'hypothèse optimiste est réfutée
 

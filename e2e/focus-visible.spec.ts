@@ -70,10 +70,14 @@ const LIMITE_TABULATIONS = 20;
  * élément passerait vert en ne prouvant rien — c'est le mode d'échec silencieux
  * d'une boucle de mesure.
  *
- * LES HUIT, DANS L'ORDRE DU DOCUMENT : (1) lien d'évitement · (2) logotype ·
- * (3) lien « Accueil » · (4) lien « Sécurité des applications web » · (5) « Commencer
- * le module 01 » · (6) « Voir les 13 modules » · (7) « Commencer le cours » · (8) le
- * lien du pied de page.
+ * LES DIX, DANS L'ORDRE DU DOCUMENT : (1) lien d'évitement · (2) logotype ·
+ * (3) lien « Accueil » · (4) lien « Sécurité des applications web » · (5) lien
+ * « Développement d’application en PHP » · (6) « Commencer le module 01 » · (7) « Voir
+ * les 13 modules » · (8) « Commencer le cours » · (9) « Voir le sommaire » (carte du
+ * cours de PHP) · (10) le lien du pied de page.
+ *
+ * 📈 HUIT → DIX le 2026-09-10 (E7, lot C) : le second cours entre dans la navigation
+ * de l'en-tête (+1) et sur l'accueil par sa carte (+1).
  *
  * 📉 SEPT → HUIT le 2026-08-20 (bascule E6), MESURÉ et non déduit : le groupe de
  * radios du thème sort de l'en-tête (−1, phase 1 à thème unique, décision D-2), les
@@ -81,7 +85,7 @@ const LIMITE_TABULATIONS = 20;
  * compact n'est PAS compté : à 1280 px (`devices['Desktop Chrome']`) il est en
  * `display: none`, au-dessus du point de rupture de 840 px d'`en-tete.scss`.
  */
-const ARRETS_ATTENDUS = 8;
+const ARRETS_ATTENDUS = 10;
 
 test("chaque arrêt de tabulation porte un indicateur de focus calculé, et il n'est pas masqué", async ({
   page,

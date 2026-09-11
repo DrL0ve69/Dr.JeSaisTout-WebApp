@@ -18,6 +18,11 @@
 //     réponse HTTP ;
 //  3. la carte du cours porte une JAUGE SEGMENTÉE de progression éditoriale.
 //
+// 📈 QUATRE depuis le 2026-09-10 (E7, lot C) : l'appel à l'action de la carte du
+// cours de PHP s'ajoute, et le lien PHP de l'en-tête avec lui — 8 → 10 arrêts sur
+// « / », ajustés dans les trois specs e2e qui les épinglent, dans le même diff.
+// Le paragraphe qui suit raconte l'étape précédente.
+//
 // ⚠️ TROIS ÉLÉMENTS FOCALISABLES SUR CETTE PAGE, PLUS UN (voir `accueil.spec.ts`).
 // C'était UN seul depuis E1-ST3, et le compte est ÉPINGLÉ hors de ce dépôt de
 // tests : `e2e/focus-visible.spec.ts` (`ARRETS_ATTENDUS`) et
@@ -145,6 +150,23 @@ const MODULES_TOTAL = 13;
         lien="/cours/securite-web"
         [modulesPublies]="modulesPublies"
         [modulesTotal]="modulesTotal"
+      />
+
+      <!--
+        LE SECOND COURS (E7, lot C, 2026-09-10) — en ligne avant son premier module
+        (décision D-PHP-2). AUCUNE JAUGE, et c'est le contrat de « CarteCours » :
+        sans plan chiffré ni module publié, une jauge vide promettrait un décompte
+        qui n'existe pas. Le libellé d'action n'est pas « Commencer le cours » pour
+        la même raison — le sommaire annonce « Modules en préparation. ».
+        ⚠️ Le jour où un module de PHP est publié, cette carte REDEVIENT à revoir :
+        libellé, description, et peut-être une jauge confrontée au manifeste comme
+        celle d'au-dessus.
+      -->
+      <app-carte-cours
+        titre="Développement d’application en PHP"
+        description="Le cours 420-4P2-HU, séance par séance&nbsp;: syntaxe, superglobales, librairie standard, programmation orientée objet, base de données. Chaque module s’ajoutera au sommaire dès qu’il sera publié."
+        lien="/cours/php"
+        libelleAction="Voir le sommaire"
       />
     </div>
   `,

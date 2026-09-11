@@ -32,6 +32,7 @@ import { EnTete } from './en-tete';
 const ROUTES_HARNAIS: Routes = [
   { path: '', children: [] },
   { path: 'cours/securite-web', children: [] },
+  { path: 'cours/php', children: [] },
 ];
 
 function liens(fixture: ComponentFixture<EnTete>): HTMLAnchorElement[] {
@@ -131,16 +132,22 @@ describe('EnTete', () => {
       expect(nav?.getAttribute('aria-label')).toBe('Navigation principale');
     });
 
-    it('expose exactement les deux destinations de la phase 1', async () => {
+    it('expose exactement les trois destinations de la phase 1 — l’accueil et les deux cours', async () => {
+      // 📈 DEUX → TROIS le 2026-09-10 (E7, lot C) : le cours de PHP rejoint la
+      // navigation. Chaque lien ajouté ici est un arrêt de tabulation de PLUS sur
+      // TOUTES les pages — `e2e/focus-visible.spec.ts`, `e2e/navigation-clavier.spec.ts`
+      // et `e2e/cibles-pointeur.spec.ts` l'épinglent et se mettent à jour avec lui.
       const fixture = await creerSur('/');
 
       expect(liens(fixture).map((lien) => lien.getAttribute('href'))).toEqual([
         '/',
         '/cours/securite-web',
+        '/cours/php',
       ]);
       expect(liens(fixture).map((lien) => (lien.textContent ?? '').trim())).toEqual([
         'Accueil',
         'Sécurité des applications web',
+        'Développement d’application en PHP',
       ]);
     });
 
@@ -159,7 +166,7 @@ describe('EnTete', () => {
       const hote = fixture.nativeElement as HTMLElement;
 
       expect(hote.querySelectorAll('nav').length).toBe(1);
-      expect(liens(fixture).length).toBe(2);
+      expect(liens(fixture).length).toBe(3);
     });
 
     it('replie la navigation derrière un `<details>` NATIF, sans le moindre gestionnaire', async () => {
@@ -222,6 +229,15 @@ describe('EnTete', () => {
       const fixture = await creerSur('/cours/securite-web');
 
       expect(pagesCourantes(fixture)).toEqual(['Sécurité des applications web']);
+    });
+
+    it('marque le cours de PHP — et lui seul — sur `/cours/php`', async () => {
+      // Le cas qu'un copier-coller du lien voisin rate le plus vite : une variable
+      // de gabarit `#coursActif` réemployée ferait annoncer le cours de SÉCURITÉ
+      // comme page courante sur le sommaire de PHP.
+      const fixture = await creerSur('/cours/php');
+
+      expect(pagesCourantes(fixture)).toEqual(['Développement d’application en PHP']);
     });
 
     it('RETIRE l’attribut des liens inactifs, au lieu d’écrire `aria-current="false"`', async () => {

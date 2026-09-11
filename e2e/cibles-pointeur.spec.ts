@@ -156,10 +156,14 @@ test('chaque cible de pointeur tient la barre AA de 24 × 24 px (2.5.8)', async 
   }
 
   // Garde-fou : une énumération qui ne trouve rien passerait verte en ne prouvant
-  // rien. LA PAGE « / » EN COMPTE 8 AUJOURD'HUI, dans l'ordre du document : lien
+  // rien. LA PAGE « / » EN COMPTE 10 AUJOURD'HUI, dans l'ordre du document : lien
   // d'évitement · logotype · lien « Accueil » · lien « Sécurité des applications
-  // web » · « Commencer le module 01 » · « Voir les 13 modules » · « Commencer le
-  // cours » · lien du pied de page.
+  // web » · lien « Développement d’application en PHP » · « Commencer le module 01 » ·
+  // « Voir les 13 modules » · « Commencer le cours » · « Voir le sommaire » · lien du
+  // pied de page.
+  //
+  // 📈 HUIT → DIX le 2026-09-10 (E7, lot C) : le second cours, +1 dans l'en-tête et
+  // +1 par sa carte sur l'accueil.
   //
   // 📉 NEUF → HUIT le 2026-08-20 (bascule E6), MESURÉ sur l'artéfact : les 3 radios
   // du thème sortent (−3, phase 1 à thème unique, décision D-2), les deux appels à
@@ -172,7 +176,7 @@ test('chaque cible de pointeur tient la barre AA de 24 × 24 px (2.5.8)', async 
   // donc contrôlée par AUCUN gate au point de rupture où il est visible (< 840 px).
   // Constat porté au rapport du lot ; l'élargir demanderait de mesurer cette page à
   // une seconde largeur, ce qui n'est pas le périmètre de ce fichier.
-  expect(cibles.length, "aucune cible mesurée : l'énumération ne trouve plus rien").toBe(8);
+  expect(cibles.length, "aucune cible mesurée : l'énumération ne trouve plus rien").toBe(10);
 
   const tropPetites = cibles.filter(
     (cible) =>
