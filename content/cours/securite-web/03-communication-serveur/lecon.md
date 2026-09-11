@@ -91,8 +91,8 @@ l'examen, que personne ici n'est en position de tenir.
    s'affiche pas pendant la frappe, et elle ne se récupère pas.
 
    ```bash
-   ssh-keygen                                        # la commande du cours : nom « maCle », passphrase deux fois
-   ssh-keygen -t ed25519 -C "philippe@poste-cours"   # la forme explicite : l'algorithme est DÉCIDÉ, pas hérité
+   ssh-keygen                                          # la commande du cours : nom « maCle », passphrase deux fois
+   ssh-keygen -t ed25519 -C "<toi>@<ta-machine>"       # la forme explicite : l'algorithme est DÉCIDÉ, pas hérité
    ```
 
 2. {voir="Convertir la clé pour PuTTY"} Convertis la clé privée au format `.ppk` avec **PuTTYgen** —
@@ -263,24 +263,28 @@ un secret.
 ssh-keygen
 
 # La forme recommandée en 2026, qui ne dépend d'aucun défaut implicite :
-ssh-keygen -t ed25519 -C "philippe@poste-cours"
+ssh-keygen -t ed25519 -C "<toi>@<ta-machine>"
 
 # Par compatibilité avec du matériel ancien (appliances, cartes de gestion à distance) :
-ssh-keygen -t rsa -b 4096 -C "philippe@poste-cours"
+ssh-keygen -t rsa -b 4096 -C "<toi>@<ta-machine>"
 ```
 
 `-b 4096` ne s'applique **qu'à RSA** : une clé Ed25519 a une taille fixe, il n'y a aucun choix à
-faire. `-C` est un simple commentaire collé en fin de clé publique ; mets-y **qui et quelle
-machine**, c'est ce qui te permettra dans deux ans de savoir quelle ligne d'`authorized_keys`
-supprimer sans casser l'accès de quelqu'un d'autre.
+faire. `-C` est un simple **commentaire texte libre** collé en fin de clé publique — il n'a
+**aucun effet technique**, ne correspond à aucun compte ni mot de passe, et rien n'oblige à suivre
+le format `user@machine`. `<toi>@<ta-machine>` n'est donc pas une syntaxe imposée mais un
+générique à remplacer ; mets-y **qui et quelle machine**, c'est ce qui te permettra dans deux ans
+de savoir quelle ligne d'`authorized_keys` supprimer sans casser l'accès de quelqu'un d'autre.
 
 ::: note
 **Concret, poste du Cégep.** Le dossier personnel s'appelle `C:\Users\0758510` : la clé se range
 donc hors OneDrive, par exemple dans `C:\Users\0758510\CleSSH`. Explorateur → créer ce dossier →
 cliquer dans la barre d'adresse → taper `cmd` → `Entrée` : une invite s'ouvre déjà positionnée là.
+Le commentaire `-C` devient ici, à titre d'exemple parmi d'autres possibles, le matricule et le nom
+du poste :
 
 ```bash
-C:\Users\0758510\CleSSH> ssh-keygen -t ed25519 -C "philippe@poste-cours"
+C:\Users\0758510\CleSSH> ssh-keygen -t ed25519 -C "0758510@poste-cegep"
 Generating public/private ed25519 key pair.
 Enter file in which to save the key (C:\Users\0758510/.ssh/id_ed25519): maCle
 Enter passphrase (empty for no passphrase):
