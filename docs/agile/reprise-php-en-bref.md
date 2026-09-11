@@ -83,9 +83,9 @@ cette section n'est pas remplie.
 
 | # | Ce qu'il faut | Valeur | Hypothèse de travail (**NON confirmée**) |
 |---|---|---|---|
-| P-1 | Racine du dossier personnel de l'étudiant sur le poste du Cégep | ⬜ à fournir | `C:/usr/0758510` — forme évoquée de mémoire, matricule inclus, **non vérifiée** |
+| P-1 | Racine du dossier personnel de l'étudiant sur le poste du Cégep | 🟨 hypothèse du propriétaire (2026-09-11) | `C:\Utilisateur\0758510` — donnée « quelque chose comme », **non confirmée**. ⚠️ L'Explorateur en français affiche « Utilisateurs » pour le dossier réel `C:\Users` : le chemin exact se lit par `echo %USERPROFILE%` dans `cmd` |
 | P-2 | Dossier de travail PHP à l'intérieur de P-1 | ⬜ à fournir | — |
-| P-3 | Racine servie par Apache sous WAMP sur ce poste | ⬜ à fournir | `C:/wamp64/www` (Cours 1, diapo 54) |
+| P-3 | Racine servie par Apache sous WAMP sur ce poste | 🟨 hypothèse du propriétaire (2026-09-11) | WAMP « au niveau du poste », donc `C:\wamp` et une racine servie `C:\wamp\www` — **non confirmée** ; le Cours 1, diapo 54, montre `C:/wamp64/www` (installation 64 bits) : l'écart se tranche sur le poste |
 | P-4 | Port d'écoute d'Apache | ⬜ à fournir | `80`, ou `8080` si IIS l'occupe (Cours 1, diapos 35-37 et 46-49) |
 | P-5 | Nom d'utilisateur / matricule à faire figurer dans les exemples | ⬜ à fournir | — |
 | P-6 | Éditeur réellement utilisé | ⬜ à fournir | Notepad++ (Cours 1, diapo 107 et références) |
@@ -257,6 +257,23 @@ ce qui **recense**, lui, se partage.
 livrable**, et se compte à part dès qu'il dépasse deux ou trois cas.
 
 ---
+
+### ⏸️ SESSION DU 2026-09-11 — pointeur remis à jour, chantier suspendu pour l'examen 1 de sécurité
+
+La session précédente s'est arrêtée à court de jetons après la mesure de PHP-A ; rien n'avait été
+perdu, mais la ligne de `CLAUDE.md` annonçait encore « PHP-A » comme un geste simple. **L'état réel :**
+
+- **PHP-A est mesuré, pas fait.** La décision qui reste est d'ordre produit, et elle appartient au
+  propriétaire : (A) admettre `:::: methodes` dans une étape (`lireEtape`) ou (C) un attribut d'étape
+  `{voie="…"}` — dans les deux cas **deux juges** et un corpus de fixtures compté à part (§9 du
+  budget). La voie `{voir="…"}` est gratuite mais éloigne la comparaison de l'étape.
+- **P-1 et P-3 portent désormais une hypothèse du propriétaire** (§3). Elles restent **non
+  confirmées** : tout exemple concret garde son `à-vérifier:`, donc le blocage de publication tient.
+- **Interruption :** l'examen 1 de 420-B10-HU (séance 6, 2026-09-11, matière des cours 1 à 4 selon
+  la diapositive 118 du Cours 5) a pris la priorité. Livrable de révision, hors du pipeline de
+  contenu : [`docs/revision/examen-1-securisation-2026.md`](../revision/examen-1-securisation-2026.md).
+
+**Le geste suivant, au retour :** trancher A ou C avec le propriétaire, puis PHP-A, puis PHP-2.
 
 ## 7 · Les pièges hérités qui mordront sur ce chantier
 
