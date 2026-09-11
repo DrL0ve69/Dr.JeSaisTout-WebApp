@@ -138,7 +138,7 @@ describe('Accueil', () => {
   });
 
   describe('les appels à l’action', () => {
-    it('en expose EXACTEMENT trois, et pas un focalisable de plus', async () => {
+    it('en expose EXACTEMENT quatre, et pas un focalisable de plus', async () => {
       const rendu = hote(await rendre());
 
       const focalisables = rendu.querySelectorAll<HTMLElement>(
@@ -156,7 +156,14 @@ describe('Accueil', () => {
       // parcours de tabulation RÉEL de « / ». Ces deux fichiers appartiennent au
       // lot e2e de la bascule ; tant qu'ils ne sont pas ajustés, G-e2e rougit —
       // ce qui est le comportement voulu, pas un dommage collatéral.
-      expect(focalisables.length).toBe(3);
+      //
+      // 📈 QUATRE depuis le 2026-09-10 (E7, lot C) : « Voir le sommaire » de la carte
+      // du cours de PHP. Les trois specs e2e (8 → 10 arrêts, lien d'en-tête compris)
+      // ont été ajustées dans le même diff.
+      expect(focalisables.length).toBe(4);
+      // Et deux appels de MÊME nom n'existent pas : chaque carte dit où elle mène.
+      const noms = [...focalisables].map((element) => element.textContent?.trim());
+      expect(new Set(noms).size).toBe(noms.length);
     });
 
     it('le décor d’ambiance n’ajoute AUCUN focalisable et n’est pas annoncé', async () => {
@@ -190,7 +197,7 @@ describe('Accueil', () => {
 
       expect(urlsConnues.length).toBeGreaterThan(1);
       expect(slugsPublies.length).toBeGreaterThan(0);
-      expect(liens.length).toBe(3);
+      expect(liens.length).toBe(4);
 
       for (const lien of liens) {
         const href = lien.getAttribute('href') ?? '';

@@ -60,6 +60,15 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 >
 > ---
 >
+> ## ⏭️ REPRISE — chantier PRIORITAIRE depuis le 2026-09-10 : cours de PHP, format « En bref »
+>
+> 🔴 **La priorité est passée au cours de PHP (séances 1 à 5)**, et la refonte sécurité ci-dessous est
+> **différée** au compteur `5/9`. **Tout est dans [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md)
+> — le lire AVANT toute ligne de ce chantier, et commencer par son §6.** La plomberie « second cours »
+> (E7, lots A-B-C) est **livrée** : `/cours/php/` est en ligne, sans module. Le geste suivant est
+> **PHP-A** (grammaire d'auteur de D-PHP-1), puis la séance 1. ⚠️ Les chemins du poste de travail
+> (§3) ne sont pas fournis : tout exemple concret porte `à-vérifier:` et bloque la publication.
+>
 > ## ⏭️ REPRISE — chantier OUVERT au 2026-08-31 : « leçons actionnables »
 >
 > 🔴 **UNE REFONTE DU FORMAT DES LEÇONS EST EN COURS, branche `feat/refonte-lecons-actionnables`.**

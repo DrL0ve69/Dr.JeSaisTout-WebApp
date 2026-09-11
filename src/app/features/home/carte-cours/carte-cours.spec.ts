@@ -34,6 +34,7 @@ interface EntreesCarte {
   description: string;
   lien: string;
   mentionChantier?: string;
+  libelleAction?: string;
 }
 
 const ENTREES_MINIMALES: EntreesCarte = {
@@ -113,6 +114,17 @@ describe('CarteCours', () => {
       const cta = hote(fixture).querySelector<HTMLAnchorElement>('a');
 
       expect(cta?.textContent?.trim()).toBe('Commencer le cours');
+    });
+
+    it('rend le `libelleAction` fourni À LA PLACE du libellé par défaut', async () => {
+      // La seconde carte de l'accueil (E7, lot C) l'emploie : un cours sans module
+      // ne se « commence » pas. Le libellé est choisi ICI (L-012), et l'absence du
+      // défaut prouve qu'il est REMPLACÉ, pas accolé.
+      const fixture = await rendre({ ...ENTREES_MINIMALES, libelleAction: 'Un libellé choisi par le test' });
+      const cta = hote(fixture).querySelector<HTMLAnchorElement>('a');
+
+      expect(cta?.textContent?.trim()).toBe('Un libellé choisi par le test');
+      expect(cta?.textContent).not.toContain('Commencer');
     });
   });
 

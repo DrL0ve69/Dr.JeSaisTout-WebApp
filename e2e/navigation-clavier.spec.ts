@@ -95,9 +95,10 @@ import { Locator, Page, expect, test } from '@playwright/test';
  * mode strict — un rouge exact mais illisible, qui accuserait l'ordre de
  * tabulation d'une faute qu'il n'a pas commise.
  *
- * LES TROIS ARRÊTS DU `<main>`, DANS L'ORDRE DU DOCUMENT : les deux appels à
+ * LES QUATRE ARRÊTS DU `<main>`, DANS L'ORDRE DU DOCUMENT : les deux appels à
  * l'action de la bande d'ouverture (`accueil.ts`, `.actions`), puis « Commencer le
- * cours » de `CarteCours`, qui vient plus bas dans le gabarit. Ils suivent tous les
+ * cours » de la carte du cours de sécurité et « Voir le sommaire » de celle du cours
+ * de PHP (E7, lot C), qui viennent plus bas dans le gabarit. Ils suivent tous les
  * liens de l'en-tête ; s'ils se mettaient à les précéder, c'est que quelqu'un aurait
  * déplacé le contenu principal AVANT l'en-tête dans le document. Le titre de
  * `CarteCours` reste un `<h2>` et non un `<a>` (E1-ST3, décision 1) : il n'est pas
@@ -127,6 +128,10 @@ function arretsAttendus(page: Page): readonly { readonly nom: string; readonly e
       element: navigation.getByRole('link', { name: 'Sécurité des applications web', exact: true }),
     },
     {
+      nom: 'lien « Développement d’application en PHP » de la navigation principale',
+      element: navigation.getByRole('link', { name: 'Développement d’application en PHP', exact: true }),
+    },
+    {
       nom: 'appel à l’action « Commencer le module 01 » de la bande d’ouverture',
       element: page.getByRole('link', { name: 'Commencer le module 01', exact: true }),
     },
@@ -137,6 +142,10 @@ function arretsAttendus(page: Page): readonly { readonly nom: string; readonly e
     {
       nom: 'appel à l’action « Commencer le cours » de la carte du cours',
       element: page.getByRole('link', { name: 'Commencer le cours', exact: true }),
+    },
+    {
+      nom: 'appel à l’action « Voir le sommaire » de la carte du cours de PHP',
+      element: page.getByRole('link', { name: 'Voir le sommaire', exact: true }),
     },
     {
       nom: 'lien du pied de page',
@@ -172,18 +181,19 @@ test("l'ordre de tabulation de la page d'accueil suit l'ordre du document, radio
   // parcours), et le `<summary>` du menu compact n'en est pas un À 1280 PX
   // (`display: none` au-dessus de 840 px — voir le commentaire d'`arretsAttendus`).
   //
-  // LES HUIT, DANS L'ORDRE : (1) lien d'évitement · (2) logotype · (3) « Accueil » ·
-  // (4) « Sécurité des applications web » · (5) « Commencer le module 01 » ·
-  // (6) « Voir les 13 modules » · (7) « Commencer le cours » · (8) le lien du pied de
-  // page. 📉 Sept avant la bascule E6 : le groupe de radios du thème valait le
-  // cinquième arrêt (−1), les deux appels à l'action de la bande d'ouverture sont
-  // neufs (+2).
+  // LES DIX, DANS L'ORDRE : (1) lien d'évitement · (2) logotype · (3) « Accueil » ·
+  // (4) « Sécurité des applications web » · (5) « Développement d’application en
+  // PHP » · (6) « Commencer le module 01 » · (7) « Voir les 13 modules » ·
+  // (8) « Commencer le cours » · (9) « Voir le sommaire » · (10) le lien du pied de
+  // page. 📈 Huit avant le lot C d'E7 (le second cours : +1 en-tête, +1 carte).
+  // 📉 Sept avant la bascule E6 : le groupe de radios du thème valait le cinquième
+  // arrêt (−1), les deux appels à l'action de la bande d'ouverture sont neufs (+2).
   //
   // Le « pas de huitième arrêt », lui, n'est pas mesurable de façon fiable ici :
   // au-delà du dernier élément, Chromium sans affichage BOUCLE sur le premier
   // focalisable — un « le focus a quitté la liste » y serait faux, et le troisième
   // test de ce fichier refuse déjà, pour la même raison, de tabuler au-delà.
-  expect(arrets).toHaveLength(8);
+  expect(arrets).toHaveLength(10);
 });
 
 // 📉 LE TEST « le groupe de radios ne consomme QU'UNE tabulation, et les flèches y
