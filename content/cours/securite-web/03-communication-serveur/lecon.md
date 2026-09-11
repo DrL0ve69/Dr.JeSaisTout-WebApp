@@ -86,8 +86,9 @@ l'examen, que personne ici n'est en position de tenir.
 :::: marche-a-suivre {titre="Verrouiller l'accès d'un droplet neuf : clé SSH, puis pare-feu"}
 
 1. {voir="La séquence du cours, telle qu'elle se déroule à l'écran"} Génère la paire de clés
-   **avant** de créer le droplet, et note la passphrase que `ssh-keygen` te fait saisir deux fois :
-   elle ne s'affiche pas pendant la frappe, et elle ne se récupère pas.
+   **avant** de créer le droplet, dans un dossier hors OneDrive — par exemple `C:\Users\0758510\CleSSH`
+   sur le poste du Cégep — et note la passphrase que `ssh-keygen` te fait saisir deux fois : elle ne
+   s'affiche pas pendant la frappe, et elle ne se récupère pas.
 
    ```bash
    ssh-keygen                                        # la commande du cours : nom « maCle », passphrase deux fois
@@ -273,6 +274,26 @@ faire. `-C` est un simple commentaire collé en fin de clé publique ; mets-y **
 machine**, c'est ce qui te permettra dans deux ans de savoir quelle ligne d'`authorized_keys`
 supprimer sans casser l'accès de quelqu'un d'autre.
 
+::: note
+**Concret, poste du Cégep.** Le dossier personnel s'appelle `C:\Users\0758510` : la clé se range
+donc hors OneDrive, par exemple dans `C:\Users\0758510\CleSSH`. Explorateur → créer ce dossier →
+cliquer dans la barre d'adresse → taper `cmd` → `Entrée` : une invite s'ouvre déjà positionnée là.
+
+```bash
+C:\Users\0758510\CleSSH> ssh-keygen -t ed25519 -C "philippe@poste-cours"
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (C:\Users\0758510/.ssh/id_ed25519): maCle
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+C:\Users\0758510\CleSSH> dir
+maCle
+maCle.pub
+```
+
+Deux fichiers apparaissent : `maCle` (la clé **privée**, ne la donne jamais) et `maCle.pub` (la clé
+**publique**, celle qui va sur le serveur — voir plus bas).
+:::
+
 ::: correction-du-cours {source="OpenSSH 9.5 release notes (openssh.com/txt/release-9.5, 2023-10-04) : « ssh-keygen(1): generate Ed25519 keys by default »"}
 Le cours génère en réalité une clé **RSA 3072 bits**, sans le dire nulle part : l'en-tête
 `+---[RSA 3072]----+` de l'image aléatoire, à la diapositive 18, le prouve. C'était le défaut
@@ -353,6 +374,13 @@ Une seule commande suffit, en pointant la clé privée **au format OpenSSH** —
 
 ```bash
 ssh -i ~/.ssh/id_ed25519 root@203.0.113.10
+```
+
+**Concret, poste du Cégep** — la clé générée à l'étape précédente dans `C:\Users\0758510\CleSSH`
+s'y prend par son chemin complet :
+
+```bash
+ssh -i C:\Users\0758510\CleSSH\maCle root@203.0.113.10
 ```
 
 À la première connexion, `ssh` affiche l'empreinte du serveur et attend un `yes` avant de

@@ -556,6 +556,18 @@ rien télécharger (c'est une *fonctionnalité à la demande*, donc désinstalla
 ssh utilisateur@203.0.113.10
 scp index.php utilisateur@203.0.113.10:/var/www/html/
 ```
+
+**Générique :** `scp <fichier-local> <compte>@<IP-du-serveur>:<dossier-distant>/` — `<fichier-local>`
+est cherché dans le dossier **courant** de ton invite de commandes, `<compte>` est `root` pour ce
+laboratoire (le fournisseur ne crée que ce compte-là), `<IP-du-serveur>` vient de la console
+DigitalOcean, et `<dossier-distant>` se termine par `/` pour préciser qu'il s'agit d'un dossier.
+
+**Concret, poste du Cégep** — si ton projet vit dans `C:\wamp64\www\monSite`, ouvre `cmd` dans ce
+dossier (barre d'adresse de l'Explorateur → taper `cmd`) avant de lancer la commande :
+
+```bash
+C:\wamp64\www\monSite> scp index.php root@203.0.113.10:/var/www/html/
+```
 :::
 ::::
 
