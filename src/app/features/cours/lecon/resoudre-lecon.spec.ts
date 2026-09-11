@@ -103,8 +103,17 @@ const LECON_VALIDE = {
  * contrat — c'est LUI qui fait parler `lireLeconCompilee`, donc qui rend la
  * provenance observable.
  */
+/**
+ * Les appels au chargeur de `SLUG_CONNU` — ce qui permet de prouver qu'un refus est
+ * intervenu AVANT le téléchargement, et pas seulement que le résultat est un refus.
+ */
+let appelsDuChargeurConnu = 0;
+
 const CARTE_DE_TEST: Record<string, ChargeurLecon> = {
-  [SLUG_CONNU]: () => Promise.resolve({ default: LECON_VALIDE }),
+  [SLUG_CONNU]: () => {
+    appelsDuChargeurConnu += 1;
+    return Promise.resolve({ default: LECON_VALIDE });
+  },
   [SLUG_MALFORME]: () => Promise.resolve({ default: { frontmatter: {}, sections: [] } }),
   // Le chargeur du non-publié LÈVE : le résolveur doit refuser AVANT de l'appeler, donc avant
   // que le navigateur ne télécharge le chunk. Un refus qui n'interviendrait qu'après aurait
@@ -261,15 +270,19 @@ describe('resoudreLecon — le choix du chargeur', () => {
     // LE DÉFAUT QUE LA FABRIQUE FERME : le slug est publié, présent dans la carte, et
     // chargeable — mais il appartient au cours de sécurité. Demandé sous le chemin du
     // cours de PHP, il doit tomber en 404, comme l'URL qu'aucun fichier ne sert.
-    // Contrôle positif d'abord (L-010) : sous SON cours, le même slug se résout.
+    // Contrôle positif d'abord (L-010) : sous SON cours, le même slug se résout — et
+    // son chargeur est bien appelé, ce qui prouve que le compteur observe quelque chose.
+    appelsDuChargeurConnu = 0;
     const sousSonCours = await resoudre(SLUG_CONNU, 'securite-web');
     expect(sousSonCours).not.toBeInstanceOf(RedirectCommand);
+    expect(appelsDuChargeurConnu).toBe(1);
 
-    // Le chargeur du non-publié LÈVE ; sous un autre cours, même un slug PUBLIÉ ne doit
-    // pas atteindre la carte. On le vérifie sur ce slug-là : si le filtre de cours ne
-    // passait qu'après le chargement, ce test échouerait sur l'exception.
+    // Sous un autre cours : refus, ET AUCUN appel de plus. Le résultat seul ne suffirait
+    // pas — un filtre de cours déplacé APRÈS le chargement rendrait lui aussi une
+    // redirection, mais après avoir fait télécharger le chunk de la leçon.
+    appelsDuChargeurConnu = 0;
     expect(cibleDe(await resoudre(SLUG_CONNU, 'php'))).toBe('/404');
-    expect(cibleDe(await resoudre(SLUG_NON_PUBLIE, 'php'))).toBe('/404');
+    expect(appelsDuChargeurConnu).toBe(0);
   });
 
   it('nomme le fichier par la CLEF de la carte, jamais par l’URL, quand le JSON est hors contrat', async () => {

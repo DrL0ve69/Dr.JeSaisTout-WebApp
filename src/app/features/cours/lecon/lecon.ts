@@ -343,8 +343,9 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
 
             LE SUJET DESCEND AVEC LE QUIZ (E2-ST6, lot A2), et il vient du
             FRONTMATTER — jamais de l'URL, conformément à la note 🔴 de l'en-tête
-            de ce fichier. La route est cours/securite-web/:slug — le sujet n'y
-            est même pas un paramètre, il est en dur dans le chemin. Le quiz en a
+            de ce fichier. Les routes sont cours/securite-web/:slug et
+            cours/php/:slug — le sujet n'y est même pas un paramètre, il est en
+            dur dans chaque chemin. Le quiz en a
             besoin parce que la progression est indexée par le couple
             (sujet, slug) et que QuizCompile ne porte que le slug.
 

@@ -26,8 +26,15 @@
 //
 // AUCUNE LOGIQUE ICI. Tout ce qui touche au manifeste, à la progression ou au gate
 // d'hydratation (L-033) vit dans `Sommaire`. Ce composant n'injecte rien — en
-// particulier pas `ActivatedRoute` : rien de l'URL n'entre dans la page (les specs
-// des adaptateurs le mesurent par espion).
+// particulier pas `ActivatedRoute` : rien de l'URL n'entre dans la page. C'est
+// `page-sommaire-securite-web.spec.ts` qui le mesure par espion, en montant CE cadre
+// à travers son adaptateur ; le mesurer une fois suffit, le cadre étant le même.
+//
+// ⚠️ LE CHAPÔ N'ACCEPTE QUE DU CONTENU DE PHRASÉ (texte, `<em>`, `<a>`…). Il est
+// projeté dans un `<p>` : un bloc projeté (`<ul>`, `<div>`, `<p>`) ferait fermer ce
+// `<p>` par l'analyseur HTML du NAVIGATEUR dans la page prerendue, pas par Angular —
+// le DOM servi ne correspondrait plus à l'arbre du composant, d'où un décalage
+// d'hydratation. Les deux adaptateurs n'y mettent aujourd'hui qu'une phrase.
 // =============================================================================
 
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
