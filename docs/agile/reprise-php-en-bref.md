@@ -276,3 +276,22 @@ livrable**, et se compte à part dès qu'il dépasse deux ou trois cas.
 - **Les fins de ligne de ce dépôt sont mixtes**, `backlog-phase-1.md` compris.
 - **Une PR fusionnée ne prouve pas que la branche est vide** — `git log --oneline origin/main..<branche>`
   fait foi à la clôture d'un lot.
+- 🔴 **DETTE CI NOMMÉE (2026-09-10) — deux vérifications en ligne de `deploy.yml` jugent AVANT la fin
+  de la propagation SWA, et elles ont rougi DEUX déploiements sur deux, sur une production saine.**
+  **(1) Routage, contrôle (c)** (`deploy.yml:790-832`, déploiement de #70) : il lit `/` **une seule
+  fois** puis teste chaque asset **une seule fois**, sans la boucle d'attente que (a) et (b) portent.
+  Mesuré : 24 s après la publication, la page servie référençait encore `main-VV5Q5OM6.js` — l'asset
+  du build **précédent** (#71), déjà retiré — d'où un 404 ; le build de #70 était `main-RMDDMDZI.js`,
+  servi 200 dès la minute suivante. Son message d'erreur accuse en plus la mauvaise cause
+  (`trailingSlash` produit une **redirection** 3xx, pas un 404).
+  **(2) En-têtes** (déploiement de #72) : `style-src` servie ≠ artéfact, 14 hachages des deux côtés
+  mais **3 échangés** — les trois blocs de style que le lot C venait de changer. La boucle attend que
+  les en-têtes soient **présents**, pas qu'ils soient **égaux** à l'artéfact : elle a comparé la
+  configuration du déploiement précédent. Relue quelques minutes plus tard : les 3 hachages neufs
+  présents, les 3 anciens absents.
+  **Correctif, en lot à part** (workflow épinglé par `FENETRE_AVANT_SCEAU_REVUE`, revue
+  `security-reviewer` requise) : attendre l'**effet** (L-004) — boucler jusqu'à ce que la page servie
+  référence les assets **de ce build** et que la CSP servie soit **égale** à celle de l'artéfact, puis
+  seulement juger ; et distinguer 3xx de 404 dans le message de (c). ⚠️ **Tant qu'il n'est pas fait,
+  un déploiement rouge sur ces deux étapes se relit contre la production AVANT d'être cru** : relever
+  les assets de `/` et la CSP servie, puis rejouer le job (`gh run rerun <id> --failed`).
