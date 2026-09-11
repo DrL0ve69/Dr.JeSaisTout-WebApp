@@ -34,7 +34,7 @@
 // composant monté par le routeur ne reçoit AUCUN input. Un composant qui en exige
 // un — `Sommaire` et son `sujet` — n'est donc jamais monté directement : la route
 // monte un adaptateur mince qui fixe la valeur dans son gabarit
-// (`page-sommaire-securite-web.ts`). Rien à câbler ici.
+// (`page-sommaire-securite-web.ts`, `page-sommaire-php.ts`). Rien à câbler ici.
 //
 // ⚠️ `withNoIncrementalHydration()` EST UN ARBITRAGE, PAS UNE OPTION DÉCORATIVE —
 // ne pas le « nettoyer ». `provideClientHydration()` seul active l'hydratation

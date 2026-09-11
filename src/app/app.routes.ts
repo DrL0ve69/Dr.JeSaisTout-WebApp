@@ -88,7 +88,7 @@ import { Routes } from '@angular/router';
 import { PageIntrouvable } from './core/layout/page-introuvable/page-introuvable';
 import { manifesteLecons } from './features/cours/contenu-compile';
 import { titreDeDocument } from './features/cours/lecon/navigation-lecon';
-import { resoudreLecon } from './features/cours/lecon/resoudre-lecon';
+import { resoudreLeconDe } from './features/cours/lecon/resoudre-lecon';
 import { Accueil } from './features/home/accueil';
 
 export const routes: Routes = [
@@ -114,7 +114,10 @@ export const routes: Routes = [
       import('./features/cours/sommaire/page-sommaire-securite-web').then(
         (module) => module.PageSommaireSecuriteWeb,
       ),
-    title: 'Sommaire du cours — Dr. Je-Sais-Tout',
+    // Le nom du cours DANS le titre d'onglet : deux cours ont désormais chacun leur
+    // sommaire, et deux onglets « Sommaire du cours » seraient indiscernables
+    // (WCAG 2.4.2).
+    title: 'Sécurité des applications web — sommaire du cours — Dr. Je-Sais-Tout',
   },
   {
     // LA PAGE DE LEÇON. Elle vient APRÈS le chemin littéral `cours/securite-web`
@@ -127,12 +130,37 @@ export const routes: Routes = [
     // la raison pour laquelle il ne réaffiche JAMAIS le slug de l'URL.
     path: 'cours/securite-web/:slug',
     loadComponent: () => import('./features/cours/lecon/lecon').then((module) => module.Lecon),
-    resolve: { lecon: resoudreLecon },
-    // Le sujet est en dur, comme dans `app.routes.server.ts` : c'est le cours que
-    // le `path` ci-dessus nomme déjà, pas une seconde source de vérité. Sans lui,
-    // le titre pourrait venir d'une leçon d'un AUTRE cours.
+    // 🔴 Le sujet est en dur, deux fois sur cette entrée (résolveur, titre) et une
+    // fois dans `app.routes.server.ts` : c'est le cours que le `path` nomme déjà,
+    // pas une seconde source de vérité. Sans lui, le résolveur monterait une leçon
+    // d'un AUTRE cours sous ce chemin (`resoudre-lecon.ts`), et le titre viendrait
+    // de celle-là. `app.routes.spec.ts` exerce chaque route de leçon contre un
+    // manifeste à DEUX cours.
+    resolve: { lecon: resoudreLeconDe('securite-web') },
     title: (route) =>
       titreDeDocument(manifesteLecons, 'securite-web', route.paramMap.get('slug') ?? ''),
+  },
+  {
+    // LE SOMMAIRE DU SECOND COURS (E7, lot B, 2026-09-10) — même montage que celui
+    // de la sécurité : chemin littéral, donc prerendu ; paresseux ; un adaptateur
+    // qui fixe le sujet dans son gabarit. Il est en ligne AVANT son premier module
+    // (décision D-PHP-2) et rend alors « Modules en préparation. ».
+    path: 'cours/php',
+    loadComponent: () =>
+      import('./features/cours/sommaire/page-sommaire-php').then(
+        (module) => module.PageSommairePhp,
+      ),
+    title: 'Développement d’application en PHP — sommaire du cours — Dr. Je-Sais-Tout',
+  },
+  {
+    // LA PAGE DE LEÇON DU SECOND COURS. Même composant `Lecon` : tout ce qu'il
+    // dérive (voisines, progression, ancrage au cours, `og:url`) vient du SUJET DU
+    // FRONTMATTER, jamais de l'URL. Seuls le résolveur et le titre ont besoin du
+    // sujet de la route — et c'est un littéral, pour la raison dite plus haut.
+    path: 'cours/php/:slug',
+    loadComponent: () => import('./features/cours/lecon/lecon').then((module) => module.Lecon),
+    resolve: { lecon: resoudreLeconDe('php') },
+    title: (route) => titreDeDocument(manifesteLecons, 'php', route.paramMap.get('slug') ?? ''),
   },
   {
     // Chemin littéral → réellement prerendu en `404/index.html`. C'est LUI que

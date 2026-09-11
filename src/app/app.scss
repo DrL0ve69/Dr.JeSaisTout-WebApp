@@ -128,7 +128,7 @@
 // Contenu
 // -----------------------------------------------------------------------------
 // Le `<main>` ne fixe NI largeur NI rembourrage : chaque page décide de sa mesure
-// (`page-sommaire-securite-web.scss` se borne à `--largeur-lecture` et se centre
+// (`cadre-sommaire.scss` se borne à `--largeur-lecture` et se centre
 // lui-même).
 // Imposer ici une largeur obligerait une future page pleine largeur — un schéma
 // de leçon, une simulation — à la défaire.

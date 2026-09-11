@@ -2,7 +2,7 @@
 // Lecon — la PAGE d'une leçon (E2-ST2, lot B)
 // -----------------------------------------------------------------------------
 // CE QU'ELLE FAIT. Elle met en page une `LeconCompilee` déjà chargée et déjà
-// validée par `resoudreLecon` : page de garde (titre, repères, objectifs,
+// validée par `resoudreLeconDe` : page de garde (titre, repères, objectifs,
 // prérequis), sommaire ancré, sections, puis navigation vers les leçons voisines.
 // Elle ne charge RIEN et ne parse RIEN — le Markdown est devenu du HTML au build,
 // et le rendu des blocs appartient à `RenduBlocs`.
@@ -38,7 +38,7 @@
 //
 // 🔴 AUCUN SEGMENT D'URL N'EST RÉAFFICHÉ. Tout ce qui s'écrit dans cette page vient
 // du frontmatter compilé ou du manifeste — donc de textes écrits par la boucle
-// contenu. Le slug a servi à CHOISIR la leçon, dans `resoudreLecon`, et il s'arrête
+// contenu. Le slug a servi à CHOISIR la leçon, dans `resoudreLeconDe`, et il s'arrête
 // là (règle en tête d'`app.routes.server.ts`). Le slug employé ci-dessous pour
 // trouver les voisines est celui du FRONTMATTER, pas celui de l'URL.
 //
@@ -343,8 +343,9 @@ const NOM_DU_SITE = 'Dr. Je-Sais-Tout';
 
             LE SUJET DESCEND AVEC LE QUIZ (E2-ST6, lot A2), et il vient du
             FRONTMATTER — jamais de l'URL, conformément à la note 🔴 de l'en-tête
-            de ce fichier. La route est cours/securite-web/:slug — le sujet n'y
-            est même pas un paramètre, il est en dur dans le chemin. Le quiz en a
+            de ce fichier. Les routes sont cours/securite-web/:slug et
+            cours/php/:slug — le sujet n'y est même pas un paramètre, il est en
+            dur dans chaque chemin. Le quiz en a
             besoin parce que la progression est indexée par le couple
             (sujet, slug) et que QuizCompile ne porte que le slug.
 
