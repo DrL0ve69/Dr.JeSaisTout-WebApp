@@ -66,8 +66,11 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 > **différée** au compteur `5/9`. **Tout est dans [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md)
 > — le lire AVANT toute ligne de ce chantier, et commencer par son §6.** La plomberie « second cours »
 > (E7, lots A-B-C) est **livrée** : `/cours/php/` est en ligne, sans module. Le geste suivant est
-> **PHP-A** (grammaire d'auteur de D-PHP-1), puis la séance 1. ⚠️ Les chemins du poste de travail
-> (§3) ne sont pas fournis : tout exemple concret porte `à-vérifier:` et bloque la publication.
+> **PHP-A** (grammaire d'auteur de D-PHP-1), puis la séance 1 — ⚠️ **PHP-A est MESURÉ, pas fait** : il
+> exige une grammaire neuve (A dans l'étape, ou attribut C), choix à faire avec le propriétaire (§6,
+> bloc « SESSION DU 2026-09-11 »). Chemins du poste (§3) : P-1 `C:\Utilisateur\0758510` et P-3
+> `C:\wamp` sont des **hypothèses du propriétaire, non confirmées** — tout exemple concret garde
+> `à-vérifier:` et bloque la publication.
 >
 > ## ⏭️ REPRISE — chantier OUVERT au 2026-08-31 : « leçons actionnables »
 >
