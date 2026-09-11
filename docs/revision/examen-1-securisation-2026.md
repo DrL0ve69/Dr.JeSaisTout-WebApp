@@ -13,7 +13,7 @@ ce qui la suit.
 
 | Ce que tu vois au début de la ligne | Où tu es | Comment tu y es arrivé |
 |---|---|---|
-| `C:\Utilisateur\0758510\CleSSH>` | 🪟 **invite de commandes Windows** (`cmd`) **sur ton poste**, dans le dossier `CleSSH` | Explorateur → ouvrir le dossier → taper `cmd` dans la barre d'adresse → `Entrée` |
+| `C:\Users\0758510\CleSSH>` | 🪟 **invite de commandes Windows** (`cmd`) **sur ton poste**, dans le dossier `CleSSH` | Explorateur → ouvrir le dossier → taper `cmd` dans la barre d'adresse → `Entrée` |
 | `root@mon-droplet:~#` | 🐧 **PuTTY**, connecté **au serveur** en `root`, dans **`/root`** (`~` = ton répertoire personnel = `/root`) | PuTTY → IP → *Open* → `login as: root` |
 | `root@mon-droplet:/scriptExerciceCours6#` | 🐧 **PuTTY**, même serveur, mais dans le répertoire **`/scriptExerciceCours6`** | après un `cd /scriptExerciceCours6` |
 | `MariaDB [(none)]>` / `MariaDB [cours4]>` | 🗄️ **client MariaDB**, à l'intérieur de PuTTY (la base `cours4` est sélectionnée dans le 2e cas) | taper `mysql` dans PuTTY ; en sortir avec `EXIT;` |
@@ -40,8 +40,8 @@ ce qui la suit.
 | Quoi | Valeur | À faire |
 |---|---|---|
 | IP du droplet | `203.0.113.10` | **remplace-la par l'IP de TON droplet** (203.0.113.x est une plage réservée aux exemples) |
-| Dossier perso Windows (poste du Cégep) | `C:\Utilisateur\0758510` | hypothèse : tape `echo %USERPROFILE%` dans `cmd` pour lire le vrai chemin (l'Explorateur français affiche « Utilisateurs » pour `C:\Users`) |
-| WAMP | `C:\wamp` (racine web `C:\wamp\www`) | hypothèse : peut être `C:\wamp64` sur une installation 64 bits |
+| Dossier perso Windows (poste du Cégep) | `C:\Users\0758510` | confirmé par le propriétaire (2026-09-11) |
+| WAMP | `C:\wamp64` (racine web `C:\wamp64\www`) | confirmé par le propriétaire (2026-09-11) — installation 64 bits |
 | Compte sur le serveur | `root` | le cours travaille toujours en `root` → **pas besoin de `sudo`** |
 
 > 💡 **À propos de `sudo`** : en `root`, ajouter `sudo` ne change rien et ne casse rien. Si tu es
@@ -535,19 +535,19 @@ root@mon-droplet:~# tail -f /scriptExerciceCours6/exercice7.log   # observer l'�
 
 **A. Générer la clé — 🪟 sur ton poste Windows**
 
-1. Explorateur Windows : créer le dossier `C:\Utilisateur\0758510\CleSSH`.
+1. Explorateur Windows : créer le dossier `C:\Users\0758510\CleSSH`.
 2. Ouvrir ce dossier, cliquer dans la **barre d'adresse**, taper `cmd`, `Entrée` : une invite de
    commandes s'ouvre **déjà positionnée dans ce dossier**.
 3. Lancer la commande ; répondre `maCle` au nom de fichier ; taper la passphrase **deux fois**
    (rien ne s'affiche pendant la frappe — c'est normal).
 
 ```bat
-C:\Utilisateur\0758510\CleSSH> ssh-keygen
+C:\Users\0758510\CleSSH> ssh-keygen
 Generating public/private ed25519 key pair.
 Enter file in which to save the key (C:\Users\0758510/.ssh/id_ed25519): maCle      ← taper maCle
 Enter passphrase (empty for no passphrase):                                         ← taper la phrase secrète
 Enter same passphrase again:                                                        ← la retaper
-C:\Utilisateur\0758510\CleSSH> dir                                                  ← vérifier : maCle et maCle.pub
+C:\Users\0758510\CleSSH> dir                                                  ← vérifier : maCle et maCle.pub
 ```
 
 `maCle` = clé **privée** (ne la donne jamais) · `maCle.pub` = clé **publique** (va sur le serveur).
@@ -569,7 +569,7 @@ C:\Utilisateur\0758510\CleSSH> dir                                              
 
 4. ⚠️ Le cours fait renommer `maCle` en `maCle.ppk` (diapo 20) : ce renommage ne convertit rien, il
    sert seulement à voir le fichier dans la boîte *Load* (sinon, choisir le filtre « All Files (\*.\*) »).
-5. Ouvrir **PuTTYgen** → bouton *Load* → sélectionner la clé dans `C:\Utilisateur\0758510\CleSSH` →
+5. Ouvrir **PuTTYgen** → bouton *Load* → sélectionner la clé dans `C:\Users\0758510\CleSSH` →
    entrer la passphrase → message de confirmation → *OK*.
 6. Bouton *Save private key* → enregistrer dans le même dossier sous **`clePutty.ppk`**.
 
@@ -583,7 +583,7 @@ C:\Utilisateur\0758510\CleSSH> dir                                              
 **D. Se connecter — 🖱️ PuTTY, sur ton poste**
 
 10. Menu de gauche : *Connection → SSH → Auth* (versions récentes : *Auth → Credentials*) → *Browse* →
-    `C:\Utilisateur\0758510\CleSSH\clePutty.ppk`.
+    `C:\Users\0758510\CleSSH\clePutty.ppk`.
 11. Remonter à *Session* → *Host Name* : `203.0.113.10` · *Port* : `22` · *SSH* → *Open*.
 12. Fenêtre *PuTTY Security Alert* → *Accept* (mise en cache de la clé du serveur).
 13. Dans la fenêtre noire :
@@ -603,7 +603,7 @@ root@mon-droplet:~#                                   ← connecté !
 passphrase. Gauche = ton poste, droite = le serveur ; glisser-déposer pour transférer.
 
 > 💡 **Même résultat sans PuTTY**, 🪟 dans `cmd` ou PowerShell sur ton poste :
-> `ssh -i C:\Utilisateur\0758510\CleSSH\maCle root@203.0.113.10` (`-i` = *identity* : la clé
+> `ssh -i C:\Users\0758510\CleSSH\maCle root@203.0.113.10` (`-i` = *identity* : la clé
 > **privée** au format OpenSSH, pas le `.ppk`).
 
 ### Exercice 2 — Installer Apache et vérifier
@@ -776,12 +776,12 @@ root@mon-droplet:~# ls                                   # plus rien des exercic
 
 | Outil | À quoi il sert | Vérification |
 |---|---|---|
-| **WAMP** (ou XAMPP) | serveur web local Apache + PHP + MySQL sous Windows | lancer WAMP → icône **verte** dans la barre des tâches → 🌐 `http://localhost` affiche la page de WAMP ; tes fichiers vont dans `C:\wamp\www` |
+| **WAMP** (ou XAMPP) | serveur web local Apache + PHP + MySQL sous Windows | lancer WAMP → icône **verte** dans la barre des tâches → 🌐 `http://localhost` affiche la page de WAMP ; tes fichiers vont dans `C:\wamp64\www` |
 | Éditeur de texte | écrire le code (Notepad++, VS Code, PHPStorm) | — |
 | **PuTTY** | terminal distant **SSH** vers le serveur Linux | s'ouvre sur la fenêtre de configuration |
 | **WinSCP** | transfert de fichiers poste ↔ serveur (glisser-déposer) | s'ouvre sur la fenêtre *Login* |
 
-> Sur le poste du Cégep, WAMP est déjà installé (hypothèse : `C:\wamp`).
+> Sur le poste du Cégep, WAMP est déjà installé, en `C:\wamp64`.
 
 ### Exercice 2 — Compte DigitalOcean fonctionnel
 
@@ -867,7 +867,7 @@ root@mon-droplet:/examen1# rm -r temporaire              #   -r obligatoire pour
 ### Tâche 3 — Clé SSH, droplet protégé, WinSCP (séance 3)
 
 1. Sur ton poste, génère une paire de clés nommée `cleExamen` (avec une passphrase), dans
-   `C:\Utilisateur\0758510\CleSSH`.
+   `C:\Users\0758510\CleSSH`.
 2. Convertis-la pour PuTTY sous le nom `cleExamenPutty.ppk`.
 3. Crée un droplet qui n'accepte **que** cette clé, et connecte-toi avec PuTTY.
 4. Installe Apache.
@@ -877,10 +877,10 @@ root@mon-droplet:/examen1# rm -r temporaire              #   -r obligatoire pour
 
 <details><summary>Solution</summary>
 
-**1)** 🪟 Explorateur → `C:\Utilisateur\0758510\CleSSH` → barre d'adresse → `cmd` → `Entrée` :
+**1)** 🪟 Explorateur → `C:\Users\0758510\CleSSH` → barre d'adresse → `cmd` → `Entrée` :
 
 ```bat
-C:\Utilisateur\0758510\CleSSH> ssh-keygen
+C:\Users\0758510\CleSSH> ssh-keygen
 Enter file in which to save the key (...): cleExamen
 Enter passphrase (empty for no passphrase):        ← passphrase
 Enter same passphrase again:                       ← passphrase
@@ -1307,7 +1307,7 @@ Clé **publique** sur le serveur, clé **privée** gardée par toi (ne pas la pe
 | Déposer | 🌐 DigitalOcean | *Authentication : SSH Key* → *New SSH Key* → coller le **.pub** | contenu de `maCle.pub` |
 | Connecter | 🖱️ PuTTY | *Connection → SSH → Auth* → *Browse* `.ppk` → *Session* : IP → *Open* → `root` → passphrase | `203.0.113.10`, port 22 |
 | Transférer | 🖱️ WinSCP | *Advanced → SSH → Authentication* → clé `.ppk` → *Login* | idem |
-| 💡 Connecter | 🪟 `cmd` / PowerShell | `ssh -i <clé privée> <utilisateur>@<IP>` | `ssh -i C:\Utilisateur\0758510\CleSSH\maCle root@203.0.113.10` |
+| 💡 Connecter | 🪟 `cmd` / PowerShell | `ssh -i <clé privée> <utilisateur>@<IP>` | `ssh -i C:\Users\0758510\CleSSH\maCle root@203.0.113.10` |
 
 Détail pas à pas : [séance 3, ex. 1](#a3).
 
