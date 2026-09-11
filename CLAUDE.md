@@ -1110,11 +1110,14 @@ pipeline porte deux diagrammes — donc **`npm ci && npm test` seul est ROUGE**,
 parle de Playwright au milieu d'un test de contenu. La CI l'installe en tête des deux workflows pour
 cette raison.
 
-`npm audit` complet remonte **5 vulnérabilités, dont 4 *high*** — toutes **dev-only et
-préexistantes** : `adm-zip`, `devcert` et `tmp` via `@azure/static-web-apps-cli`, `nanoid` via
-`@angular/build`. Aucune n'atteint la surface livrée : **`--omit=dev` reste à 0**, et c'est lui qui
-fait foi (mesure du 2026-08-16 ; l'ancienne note « 3 moderate via le SDK MCP d'@angular/cli » était
-périmée). Reste à venir : `dotnet build`/`dotnet test` (**phase 2**).
+`npm audit` complet remonte **12 vulnérabilités, dont 6 *high*** — toutes **dev-only** (mesure de la
+revue de sécurité du 2026-09-10, sur le verrou d'après la montée Angular 22.1.6 ; il y en avait 17
+avant). Parmi elles, `hono` 4.12.34 tiré par `@modelcontextprotocol/sdk` (SDK MCP d'`@angular/cli`) :
+3 avis *moderate*, corrigés en 4.13.5 — **lot séparé à ouvrir**. Aucune n'atteint la surface livrée :
+**`--omit=dev` reste à 0**, et c'est lui qui fait foi. ⚠️ **Ce gate rougit par le CALENDRIER, pas par
+le code** : le 2026-09-10, trois avis Angular publiés le même jour (GHSA-p297-fm68-3q8c, et deux
+*high* sur `@angular/platform-server`) ont fait rougir G-audit sur toutes les PR sans une ligne changée
+— montée en PR #71. Reste à venir : `dotnet build`/`dotnet test` (**phase 2**).
 
 ## Règles dures (rappelées automatiquement par les hooks)
 
