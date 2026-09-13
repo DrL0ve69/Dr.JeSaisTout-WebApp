@@ -388,3 +388,78 @@ au singulier, et elles ont une date de péremption — celle du jour où un seco
   (diapo 6 contre `horaire.json`), la version « Admin » de WAMP (diapo 33, réfutée par le
   propriétaire), et XAMPP annoncé en conclusion (diapo 107) alors qu'il est interdit au Cégep
   (diapo 26).
+
+---
+
+### ⏭️ REPRISE — état exact à la fin de la session du 2026-09-13
+
+> **Lire ce bloc en premier.** La session s'est arrêtée faute de quota, un sous-agent **en cours de
+> travail**. Rien n'est perdu, mais **le travail sur le disque n'est ni committé, ni vérifié**.
+
+**✅ FUSIONNÉ — PR #79, `chore/plancher-contexte-agents`.** Le plancher de contexte des sous-agents
+est corrigé : **76 094 → 62 715 tokens**. Cause mesurée : `CLAUDE.md` était monté à **19 720 tokens
+injectés** (968 lignes), dont **80 % de récit de clôture de lot** ; il est retombé à **5 305** (289
+lignes). Le récit est archivé verbatim dans `journal-reprises-claude-md.md`. Voir
+`.claude/rules/agent-context-budget.md` **§10** — il porte la mesure et **les deux causes séparées**.
+
+**🟦 EN COURS — branche `feat/php-a1-voie-etape`, commit `80acdd0`, PAS de PR ouverte.**
+PHP-A1 (l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}`) est livré et **était vert** au
+commit : G-content 10 leçons / 2 racines · G-test **1195 passés / 48 fichiers / 1 sauté / 0 échec** ·
+G-lint · `typecheck:tools`. La revue l'a **approuvé avec trois réserves**.
+
+🔴 **CE QUI EST SUR LE DISQUE, NON COMMITTÉ ET NON VÉRIFIÉ.** Un agent de correctifs travaillait
+encore quand la session s'est arrêtée. Il avait créé `tools/content-pipeline/tete-d-etape.mjs` et
+modifié `compiler-markdown.mjs`, `valider.mjs`, `pipeline-contenu-compilation.spec.ts`,
+`pipeline-contenu-validation.spec.ts`. **Le premier geste de la prochaine session est de constater
+l'état réel** (`git status`, `git diff`), **pas de refaire** — puis de relancer les gates. S'il est
+incomplet, reprendre par un agent **frais** avec les trois constats ci-dessous, qui sont déjà un
+brief autonome.
+
+#### Les trois réserves de la revue, telles quelles
+
+1. **MAJEUR — ce qui RECENSE est dupliqué sans lien exécutable.** `MOTIF_ATTRIBUT_EN_TETE` et
+   `decouperTeteDEtape` existent en deux copies indépendantes (`compiler-markdown.mjs` ~l. 381,
+   `valider.mjs` ~l. 1228) qu'**aucun fichier n'apparie** — mesuré par `grep` sur `src/` et `tools/`.
+   **L-095** : la duplication est le contrat pour ce qui **JUGE**, jamais pour ce qui **RECENSE**.
+   Correctif : module partagé `tools/content-pipeline/tete-d-etape.mjs`, sur le patron **déjà
+   existant** de `sujets-freres.mjs`. ⚠️ Les `echec(...)` / `signaler(...)` restent **dupliqués**,
+   délibérément. ⚠️ `blanchirCodeEnLigne` est une dette **antérieure** : ne pas la déplacer ici.
+   ⚠️ Le validateur tourne **avant** le compilateur et ne doit pas l'importer.
+2. **Le sur-refus NEUF de l'accolade nue** (`compiler-markdown.mjs:2063-2068`, `valider.mjs:2189-2196`).
+   Le contrôle `if (source.startsWith('{'))` ne gardait que le cas « rien n'a été lu » ; réemployé
+   sur le **reste** de la phrase, il refuse du contenu légal —
+   `1. {voir="Les tableaux"} {} est un objet vide en JS.` — avec le message le plus trompeur possible
+   (« bloc d'attributs illisible **en tête** » sur une tête parfaitement formée). Zéro leçon en
+   production touchée, **mais le cours qu'on écrit est du PHP/JS**, où une phrase s'ouvre sur `{`.
+   Correctif dans les **deux** copies : `/^\{[A-Za-z][A-Za-z-]*\s*=/` au lieu de `.startsWith('{')`.
+   Exige **un cas positif** (`{}` après une tête valide est accepté) **et un cas négatif**
+   (`{voie=x}` non cité reste refusé) — sans les deux, le correctif peut tout relâcher sans rougir.
+3. **Inventaire périmé, dans le fichier même qui cite L-075.** `pipeline-contenu-validation.spec.ts`
+   l. 1096 (« six refus » → il y en a douze) et l. 1263-1266 (« deux renvois » → quatre, plus trois
+   voies) ; renommer le `describe` en « la **tête** d'une étape, côté VALIDATEUR ».
+   🔴 **Recompter sur le fichier, ne pas recopier ces chiffres.**
+
+**Leçon candidate, à porter au corpus par un `mentor`** — *une condition déplacée se relit contre
+l'ensemble sur lequel elle porte MAINTENANT, jamais contre celui pour lequel elle a été écrite.* Un
+refactor qui élargit un garde-fou déplace aussi ses contrôles négatifs, et le message hérité accuse
+alors la mauvaise cause.
+
+#### Le geste suivant, une fois PHP-A1 fusionné : **PHP-2**
+
+La séance 1, **« En bref » + sommaire bref** des six sections imposées — c'est la priorité posée par
+le propriétaire. **Le terrain est déjà posé et vérifié**, ne pas le refaire :
+
+- `content/cours/php/exercices.json` — 14 exercices, refs 1 à 14, énoncés reformulés, **vérifiés sur
+  le site de l'enseignant** (2026-09-13) ; `content:build` les accepte déjà.
+- `docs/contenu/renvois-diapos-php-01.md` — la cartographie des 111 diapositives, **24 titres**, les
+  deux sens mesurés (92 citées sur 111, 19 orphelines justifiées une par une). **C'est le squelette
+  du brief du `professeur-web`** : les titres et leurs renvois y sont déjà arbitrés.
+- Extrait réextrait le 2026-09-13, identique au `.pptx` local (lequel date du **2026-08-31** — une
+  republication depuis serait invisible).
+
+⚠️ **Le module n'entre PAS dans `MODULES_AU_FORMAT_ACTIONNABLE`** (lot **PHP-F** : `CORPUS` est en dur
+sur `securite-web` dans `src/format-actionnable.spec.ts:29`). Il porte ses renvois quand même.
+⚠️ Il reste en **`statut: verifiee`** : P-2, P-4, P-5, P-6, P-7 ne sont pas fournis (§3).
+⚠️ Dimensionner le brief : **KB `web/php/php-fondamentaux.md` (570 l.) + `php-environnement-developpement-moderne.md` (500 l.)**,
+dont le §« Le tableau qui compte — méthode du cours ↔ équivalent moderne » est exactement la matière
+de D-PHP-1. `quiz.json` est **obligatoire** même si les quiz sont hors périmètre : le faire minimal.
