@@ -108,6 +108,11 @@ import { createHighlighter } from 'shiki';
 import { transformerStyleToClass } from '@shikijs/transformers';
 import { compterLignes } from './compter-lignes.mjs';
 import { recenserLesSujetsFreres } from './sujets-freres.mjs';
+import {
+  MOTIF_BLOC_DATTRIBUTS_PROBABLE,
+  amorceDeTete,
+  decouperTeteDEtape,
+} from './tete-d-etape.mjs';
 
 /** @typedef {ReturnType<InstanceType<typeof MarkdownIt>['parse']>[number]} JetonMd */
 
@@ -365,27 +370,10 @@ const NOMS_DE_TETE = /** @type {const} */ ([ATTRIBUT_VOIR, ATTRIBUT_VOIE]);
 /** Les formes admises, DÉRIVÉES des noms — jamais réécrites à la main dans un message. */
 const FORMES_DE_TETE = NOMS_DE_TETE.map((nom) => `{${nom}="…"}`).join(' et ');
 
-/**
- * UN bloc d'attributs de tête d'étape — même position imposée que `{lignes="…"}` sur une
- * annotation. Ancré sur `^`, donc aucun retour arrière possible : ce qui n'est pas en tête n'est
- * pas reconnu, et l'appelant le refuse en le nommant plutôt que de le laisser passer.
- *
- * 🔴 LE NOM EST CAPTURÉ, PAS FIGÉ DANS LE MOTIF — et c'est ce qui a changé au lot PHP-A1. Un motif
- * par nom admis (`^\{voir="…"\}`) ne peut rien dire de `{couleur="x"}` ni de `{voi="x"}` : ils ne
- * matchent pas, et l'étape tombait dans « bloc d'attributs illisible ». En capturant le nom, la
- * tête se lit UNE fois et la liste blanche `NOMS_DE_TETE` refuse en NOMMANT ce qu'elle a lu.
- */
-const MOTIF_ATTRIBUT_EN_TETE = /^\{([A-Za-z][A-Za-z-]*)="([^"]*)"\}/;
-
-/**
- * Ce qu'on cherche pour dire « il y a un `<nom>` ICI, mais pas au bon endroit ».
- *
- * @param {string} nom
- * @returns {string}
- */
-function amorceDeTete(nom) {
-  return `{${nom}=`;
-}
+// ⚠️ `MOTIF_ATTRIBUT_EN_TETE`, `MOTIF_BLOC_DATTRIBUTS_PROBABLE`, `amorceDeTete` et
+// `decouperTeteDEtape` ONT DÉMÉNAGÉ (correctif de revue du lot PHP-A1) — ils vivent dans
+// `./tete-d-etape.mjs`, importé en tête et partagé avec `valider.mjs`. Ils RECENSENT ; L-095 ne
+// duplique que ce qui JUGE, et tous les `echec(...)` de la tête restent donc ici, en double.
 
 /**
  * Une étape compilée — DÉRIVÉE du contrat, jamais réécrite. Recopier sa forme ici ferait deux
@@ -2063,11 +2051,15 @@ function lireTeteDEtape(source, situe, ctx) {
     attributs.set(bloc.nom, bloc.valeur);
   }
 
-  // Un `{` qui n'a pas été lu comme un bloc : guillemets courbes, valeur non citée, accolade non
-  // fermée. On le dit AVANT de chercher les amorces égarées — l'auteur a écrit un bloc, il veut
-  // savoir pourquoi il n'est pas lu, pas s'entendre dire qu'il est mal placé.
+  // Ce qui RESSEMBLE à un bloc d'attributs et n'a pas été lu comme tel : guillemets courbes,
+  // valeur non citée, accolade non fermée. On le dit AVANT de chercher les amorces égarées —
+  // l'auteur a écrit un bloc, il veut savoir pourquoi il n'est pas lu, pas s'entendre dire
+  // qu'il est mal placé. ⚠️ UNE ACCOLADE NUE N'EST PAS UN BLOC MAL ÉCRIT : « {} est un objet
+  // vide en JS » est une phrase légale, et le cours de PHP/JS est celui où elle arrive — voir
+  // `MOTIF_BLOC_DATTRIBUTS_PROBABLE`.
   const resteBrut = source.slice(consomme);
-  if ((consomme === 0 ? resteBrut : resteBrut.trimStart()).startsWith('{')) {
+  const reste = consomme === 0 ? resteBrut : resteBrut.trimStart();
+  if (MOTIF_BLOC_DATTRIBUTS_PROBABLE.test(reste)) {
     echec(`${ctx.nomFichier} : ${situe} — bloc d'attributs illisible en tête`, [
       `seules les formes ${FORMES_DE_TETE} sont acceptées, guillemets droits compris`,
     ]);
@@ -2086,34 +2078,6 @@ function lireTeteDEtape(source, situe, ctx) {
   const renvoi = lireValeurDeRenvoi(attributs.get(ATTRIBUT_VOIR), situe, ctx);
   const voie = lireValeurDeVoie(attributs.get(ATTRIBUT_VOIE), situe, ctx);
   return { renvoi, voie, phrase };
-}
-
-/**
- * Découpe la TÊTE d'une étape en blocs `{nom="valeur"}` — RECENSEMENT PUR, aucun jugement.
- *
- * 🔴 SÉPARER LE DÉCOUPAGE DU JUGEMENT N'EST PAS UN ARRANGEMENT DE LISIBILITÉ : c'est ce qui permet
- * aux deux copies du juge (ici et dans `valider.mjs`) d'être comparées ligne à ligne. La
- * DUPLICATION reste le contrat pour ce qui JUGE (L-095) — le validateur tourne AVANT le compilateur
- * et ne doit pas l'importer —, et ce que les douze cas de refus de chaque spec mesurent est
- * précisément que les deux copies rendent LA MÊME PHRASE.
- *
- * @param {string} source texte BRUT du paragraphe de l'étape (jeton `inline`)
- * @returns {{ blocs: { nom: string, valeur: string }[], consomme: number }}
- */
-function decouperTeteDEtape(source) {
-  /** @type {{ nom: string, valeur: string }[]} */
-  const blocs = [];
-  let consomme = 0;
-  for (;;) {
-    const bloc = MOTIF_ATTRIBUT_EN_TETE.exec(source.slice(consomme));
-    if (bloc === null) break;
-    blocs.push({ nom: bloc[1] ?? '', valeur: bloc[2] ?? '' });
-    consomme += bloc[0].length;
-    // Entre DEUX blocs la blanche est libre ; avant le premier elle ne l'est pas — `^` l'interdit.
-    const apres = source.slice(consomme);
-    consomme += apres.length - apres.trimStart().length;
-  }
-  return { blocs, consomme };
 }
 
 /**

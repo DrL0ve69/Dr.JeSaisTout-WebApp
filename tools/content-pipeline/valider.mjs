@@ -106,6 +106,11 @@ import { Ajv } from 'ajv';
 // validateur et inverserait la stratification du pipeline. Voir `compter-lignes.mjs`.
 import { compterLignes } from './compter-lignes.mjs';
 import { recenserLesSujetsFreres } from './sujets-freres.mjs';
+import {
+  MOTIF_BLOC_DATTRIBUTS_PROBABLE,
+  amorceDeTete,
+  decouperTeteDEtape,
+} from './tete-d-etape.mjs';
 
 const RACINE_DEPOT = process.cwd();
 // Chemin CANONIQUE du cours, écrit en séparateurs POSIX : c'est celui du backlog (§E2-ST1, §E3) et
@@ -1210,25 +1215,12 @@ const CONTENEUR_VOLET = 'methode';
 const ATTRIBUT_LIBELLE = 'libelle';
 /** Le premier MARQUEUR SANS VALEUR du dépôt — admis sur un volet, et nulle part ailleurs. */
 const MARQUEUR_DEFAUT = 'defaut';
-/**
- * UN bloc d'attributs de tête d'étape — ancré sur `^`, DONC EN TÊTE, exactement comme dans le
- * compilateur. Les deux copies doivent voir la MÊME CHAÎNE : c'est le défaut du lot 1a
- * (`### Titre ##`, fermeture ATX légale que l'un voyait et l'autre pas), et il ne se repaie pas.
- *
- * 🔴 LE NOM EST CAPTURÉ, PAS FIGÉ DANS LE MOTIF (lot PHP-A1) — sans quoi `{couleur="x"}` et
- * `{voi="x"}` tombent tous deux dans « bloc d'attributs illisible », qui ne dit pas ce qui cloche.
- */
-const MOTIF_ATTRIBUT_EN_TETE = /^\{([A-Za-z][A-Za-z-]*)="([^"]*)"\}/;
+// ⚠️ `MOTIF_ATTRIBUT_EN_TETE`, `MOTIF_BLOC_DATTRIBUTS_PROBABLE`, `amorceDeTete` et
+// `decouperTeteDEtape` ONT DÉMÉNAGÉ (correctif de revue du lot PHP-A1) — ils vivent dans
+// `./tete-d-etape.mjs`, importé en tête et partagé avec `compiler-markdown.mjs`. Ils RECENSENT,
+// et une divergence du MOTIF entre deux copies serait invisible à tout appariement de messages ;
+// L-095 ne duplique que ce qui JUGE, et les `signaler(...)` de la tête restent donc ici.
 
-/**
- * Ce qu'on cherche pour dire « il y a un `<nom>` ICI, mais pas au bon endroit ».
- *
- * @param {string} nom
- * @returns {string}
- */
-function amorceDeTete(nom) {
-  return `{${nom}=`;
-}
 /**
  * L'ITEM D'UNE LISTE ORDONNÉE, tel que CommonMark le définit : au plus trois blanches, un à neuf
  * chiffres, un `.` ou un `)`, puis au moins une blanche. Préfixe seul, le texte se prend en JS —
@@ -2179,8 +2171,12 @@ function lireTeteDEtape(texte, situe, signaler) {
     attributs.set(bloc.nom, bloc.valeur);
   }
 
+  // ⚠️ UNE ACCOLADE NUE N'EST PAS UN BLOC MAL ÉCRIT : « {} est un objet vide en JS » est une
+  // phrase légale, et le cours de PHP/JS est celui où elle arrive. On ne refuse donc que ce qui
+  // RESSEMBLE à un bloc — voir `MOTIF_BLOC_DATTRIBUTS_PROBABLE`, partagé avec le compilateur.
   const resteBrut = texte.slice(consomme);
-  if ((consomme === 0 ? resteBrut : resteBrut.trimStart()).startsWith('{')) {
+  const reste = consomme === 0 ? resteBrut : resteBrut.trimStart();
+  if (MOTIF_BLOC_DATTRIBUTS_PROBABLE.test(reste)) {
     signaler(
       `${situe} — bloc d'attributs illisible en tête ; seules les formes ` +
         `${FORMES_DE_TETE} sont acceptées, guillemets droits compris`,
@@ -2202,34 +2198,6 @@ function lireTeteDEtape(texte, situe, signaler) {
   }
 
   return { attributs, faute: false };
-}
-
-/**
- * Découpe la TÊTE d'une étape en blocs `{nom="valeur"}` — RECENSEMENT PUR, aucun jugement.
- *
- * 🔴 SÉPARER LE DÉCOUPAGE DU JUGEMENT N'EST PAS UN ARRANGEMENT DE LISIBILITÉ : c'est ce qui permet
- * aux deux copies du juge (ici et dans `compiler-markdown.mjs`) d'être comparées ligne à ligne. La
- * DUPLICATION reste le contrat pour ce qui JUGE (L-095) — le validateur tourne AVANT le compilateur
- * et ne doit pas l'importer —, et ce que les douze cas de refus de chaque spec mesurent est
- * précisément que les deux copies rendent LA MÊME PHRASE.
- *
- * @param {string} texte le texte de l'item, marqueur de liste retiré
- * @returns {{ blocs: { nom: string, valeur: string }[], consomme: number }}
- */
-function decouperTeteDEtape(texte) {
-  /** @type {{ nom: string, valeur: string }[]} */
-  const blocs = [];
-  let consomme = 0;
-  for (;;) {
-    const bloc = MOTIF_ATTRIBUT_EN_TETE.exec(texte.slice(consomme));
-    if (bloc === null) break;
-    blocs.push({ nom: bloc[1] ?? '', valeur: bloc[2] ?? '' });
-    consomme += bloc[0].length;
-    // Entre DEUX blocs la blanche est libre ; avant le premier elle ne l'est pas — `^` l'interdit.
-    const apres = texte.slice(consomme);
-    consomme += apres.length - apres.trimStart().length;
-  }
-  return { blocs, consomme };
 }
 
 /**

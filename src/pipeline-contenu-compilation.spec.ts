@@ -2094,6 +2094,18 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
           aide: "noms admis en tête d'une étape : voir, voie",
         },
         {
+          // 🔴 LE JUMEAU DU CAS POSITIF « accolade nue ». Le correctif restreint le refus à ce
+          // qui RESSEMBLE à un bloc d'attributs ; il doit donc TOUJOURS mordre sur une valeur non
+          // citée, y compris quand une tête PARFAITEMENT formée la précède — la position même où
+          // le sur-refus corrigé se tenait.
+          nom: 'valeur-non-citee',
+          quoi: 'une valeur NON CITÉE dans un second bloc, après une tête valide',
+          etape:
+            '1. {voir="Ce que le validateur regarde"} {voie=cours} Lancer la construction.',
+          cause: "bloc d'attributs illisible en tête",
+          aide: 'guillemets droits compris',
+        },
+        {
           nom: 'voir-vide',
           quoi: 'un renvoi VIDE — comportement INCHANGÉ par le lot PHP-A1',
           etape: '1. {voir=""} Lancer la construction.',
@@ -2156,6 +2168,44 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
           );
           expect(() =>
             compiler(racine, join(bacASable, 'jetable-voie-mentionnee.scss')),
+          ).not.toThrow();
+        },
+        DELAI,
+      );
+
+      // 🔴 LE CAS QUI EMPÊCHE LE CORRECTIF DE TOUT RELÂCHER (correctif de revue du lot PHP-A1).
+      // Le refus « bloc d’attributs illisible en tête » s’appliquait à TOUTE accolade ouvrante du
+      // reste de la phrase : « {} est un objet vide en JS » était refusé, sur un message qui
+      // parlait d’une tête parfaitement formée. Le cours de PHP/JS est exactement celui où une
+      // phrase s’ouvre sur `{`. Ce cas et le cas « valeur-non-citee » de la table ci-dessus se
+      // tiennent par les deux bouts : sans le premier le sur-refus revient en silence, sans le
+      // second le motif pourrait n’attraper plus rien.
+      it(
+        'ACCEPTE une phrase d’étape qui porte `{}` ou `{ma: 1}` en ouverture de phrase',
+        () => {
+          const racine = leconAdHoc('marche-accolade-nue', (source) =>
+            source.replace(
+              '## Ce que le validateur regarde',
+              [
+                '## En bref — la marche à suivre',
+                '',
+                ':::: marche-a-suivre {titre="Écrire un objet vide en JavaScript"}',
+                '',
+                // Avec une tête LUE, puis sans tête du tout : les deux seules positions que le
+                // refus ait jamais regardées. Une accolade au milieu d'une phrase n'a jamais
+                // rien déclenché — un cas écrit là serait vert avant comme après le correctif.
+                '1. {voir="Ce que le validateur regarde"} {} est un objet vide en JS.',
+                '',
+                '2. {ma: 1} est un littéral d’objet, pas une tête d’étape.',
+                '',
+                '::::',
+                '',
+                '## Ce que le validateur regarde',
+              ].join('\n'),
+            ),
+          );
+          expect(() =>
+            compiler(racine, join(bacASable, 'jetable-accolade-nue.scss')),
           ).not.toThrow();
         },
         DELAI,
