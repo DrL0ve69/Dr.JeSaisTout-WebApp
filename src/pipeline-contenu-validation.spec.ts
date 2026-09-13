@@ -1133,11 +1133,14 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
   }
 
   /**
-   * LES SIX REFUS, EN TABLE — chacun sur SA cause propre.
+   * LES DOUZE REFUS, EN TABLE — chacun sur SA cause propre.
    *
    * ⚠️ Un garde-fou qui refuserait TOUT renvoi passerait un test qui n'épingle que l'échec. Ce qui
    * discrimine est le fragment de message : il nomme la faute commise, et lui seul distingue ces
-   * six branches les unes des autres.
+   * branches les unes des autres.
+   * ⚠️ SIX AU LOT 7, DOUZE DEPUIS LE LOT PHP-A1 — la tête d'une étape admet un second nom
+   * (`{voie="…"}`), et ce compte se recompte quand on en ajoute un (L-075) : un inventaire périmé
+   * sous un en-tête qui se donne l'air exhaustif est pire que pas d'inventaire.
    */
   const REFUS: readonly { nom: string; quoi: string; etape: string; cause: string }[] = [
     {
@@ -1184,8 +1187,59 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
       nom: 'accolade-illisible',
       quoi: 'un bloc d’attributs aux guillemets COURBES, en disant lesquels sont acceptés',
       etape: '2. {voir=“Ce que le validateur regarde”} Relire le journal.',
+      // ⚠️ CETTE PHRASE A CHANGÉ AU LOT PHP-A1, ET C'EST VOULU : « seule la forme {voir="…"} est
+      // acceptée » est devenu FAUX le jour où la tête d'une étape a admis un second nom. Un message
+      // périmé qui se donne l'air exhaustif envoie l'auteur chercher une faute là où il n'y en a
+      // pas — il se corrige dans les DEUX copies du juge, jamais dans une seule.
       cause:
-        'bloc d\'attributs illisible en tête ; seule la forme {voir="…"} est acceptée, guillemets droits compris',
+        'bloc d\'attributs illisible en tête ; seules les formes {voir="…"} et {voie="…"} sont acceptées, guillemets droits compris',
+    },
+    // -------------------------------------------------------------------------------------------
+    // LA VOIE — `{voie="…"}`, décision D-PHP-1, lot PHP-A1
+    // -------------------------------------------------------------------------------------------
+    // 🔴 LES MÊMES CAS, LES MÊMES PHRASES QUE DANS `pipeline-contenu-compilation.spec.ts`. Le
+    // validateur tourne AVANT le compilateur : si les deux juges divergeaient, l'auteur recevrait
+    // le message de celui qui a mordu en premier, et corrigerait contre une grammaire que l'autre
+    // n'applique pas (L-095 — la duplication est le contrat pour ce qui JUGE).
+    {
+      nom: 'voie-vide',
+      quoi: 'une voie VIDE — elle ne désigne rien',
+      etape: '2. {voie=""} Relire la PREMIÈRE anomalie du journal.',
+      cause: 'voie vide ; valeurs admises : cours, moderne',
+    },
+    {
+      // 🔴 LE CŒUR DE LA LISTE FERMÉE : le refus ÉNUMÈRE. Sans cette moitié, un garde-fou qui
+      // refuserait TOUTE voie passerait ce test — y compris les deux qui sont admises.
+      nom: 'voie-hors-liste',
+      quoi: 'une voie HORS de la liste fermée, en énumérant les deux admises',
+      etape: '2. {voie="ancienne"} Relire la PREMIÈRE anomalie du journal.',
+      cause: 'voie inconnue « ancienne » ; valeurs admises : cours, moderne',
+    },
+    {
+      nom: 'deux-voies',
+      quoi: 'DEUX voies sur la même étape',
+      etape: '2. {voie="cours"} {voie="moderne"} Relire le journal.',
+      cause: 'deux voies sur la même étape ; une étape porte AU PLUS une voie',
+    },
+    {
+      nom: 'voie-pas-en-tete',
+      quoi: 'une voie valide mais posée AU MILIEU de la phrase',
+      etape: '2. Relire le journal {voie="cours"} sans tarder.',
+      cause: "la voie n'est pas en TÊTE de l'étape",
+    },
+    {
+      nom: 'nom-de-tete-inconnu',
+      quoi: 'un NOM d’attribut de tête inconnu, en énumérant les noms admis',
+      etape: '2. {couleur="ambre"} Relire le journal.',
+      cause: "attribut de tête inconnu « couleur » ; noms admis en tête d'une étape : voir, voie",
+    },
+    {
+      // 🔴 LA FAUTE DE FRAPPE D'UN CARACTÈRE. Sans cette branche, `{voi="…"}` tombait dans « bloc
+      // d'attributs illisible » — vrai, mais muet sur la seule chose à corriger.
+      nom: 'voi-faute-de-frappe',
+      quoi: 'la faute de frappe « voi » — elle se NOMME, elle ne passe pas en silence',
+      etape: '2. {voi="cours"} Relire le journal.',
+      cause: 'attribut de tête inconnu « voi »',
     },
   ];
 
@@ -1196,7 +1250,7 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
         const sortie = causeDeLEtape(cas.nom, cas.etape);
         expect(sortie).toContain(cas.cause);
         // La LIGNE du corps est ce que l'auteur voit dans son éditeur : sans elle, il relit toute
-        // la marche à suivre. Les six cas mutent la même ligne, donc l'attendu est le même.
+        // la marche à suivre. Tous les cas mutent la même ligne, donc l'attendu est le même.
         expect(sortie).toContain('corps ligne 22');
         // UNE faute, jamais deux : le contrat « un cas = une cause » du mode --fixtures vaut aussi
         // ici. Une cause parasite masquerait la disparition de celle qu'on mesure.

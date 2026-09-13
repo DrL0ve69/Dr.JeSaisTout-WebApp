@@ -1,5 +1,18 @@
 # Pipeline de contenu — de la KnowledgeBase au site (Dr. Je-Sais-Tout)
 
+> 🔴 **COMMENT LIRE CE FICHIER — ne l'ouvre PAS en entier.** Il pesait ~7 700 tokens le 2026-08-25 ;
+> il en pèse **plus du double** aujourd'hui, et il grossit à chaque lot. Cinq définitions d'agents le
+> désignent : ouvert en entier, il mange à lui seul un quart d'un budget de 120k
+> (`.claude/rules/agent-context-budget.md` §7).
+>
+> **Le geste : `grep -n "^## " docs/contenu/pipeline-contenu.md` d'abord**, choisis les 1-3 sections
+> qui touchent ton lot, puis ouvre chacune avec un `Read(fichier, offset, limit)` borné par les
+> numéros que le `grep` vient de rendre.
+>
+> ⚠️ **Aucune plage de lignes n'est écrite ici, et c'est délibéré** : un index stocké dans le fichier
+> qu'il indexe se périme au premier ajout et envoie alors lire le **mauvais** passage, en silence —
+> ce qui coûte plus cher que pas d'index du tout. Le `grep` se recalcule, lui, à chaque lecture.
+
 > **Statut : contrat de départ.** Les gabarits et schémas ci-dessous sont la référence pour la
 > production de contenu dès aujourd'hui ; le schéma exact (validation JSON Schema, types
 > TypeScript, loaders Angular) sera **validé par le `solution-architect` au spike S-01** du
@@ -330,6 +343,8 @@ confondent pas.** Une clause de contrat que rien ne mesure est une promesse plus
 | la **place** de la section — elle suit immédiatement `## L'idée en une image` | `valider.mjs` | refus nommé, pour **tout** module qui porte une marche à suivre |
 | le `{titre="…"}` obligatoire et non vide | les **deux** copies | refus nommé |
 | la grammaire et la position en tête du `{voir="…"}`, la cible d'un titre de section | les **deux** copies | refus nommé |
+| la grammaire, la position et la **valeur** du `{voie="…"}` — liste fermée à `cours` / `moderne` | les **deux** copies | refus nommé, qui **énumère** les valeurs admises |
+| un **nom** d'attribut de tête hors de `voir` / `voie` (`{couleur="x"}`, la faute de frappe `{voi="x"}`) | les **deux** copies | refus nommé, qui **énumère** les noms admis |
 | la cible d'un `{voir="module:<slug>"}` — slug connu **et** `statut: publiee` | les **deux** copies | refus nommé, à la racine entière (une leçon seule ne voit pas ses sœurs) |
 | la **structure** d'une étape (un seul bloc de code, aucune liste imbriquée, aucun titre) | `compiler-markdown.mjs` **seul** | refus nommé, à la compilation |
 | « la section ne contient **que** ce conteneur » | **personne** | convention éditoriale, tenue à la relecture |
@@ -354,15 +369,49 @@ clause doit mordre, elle se juge **sur l'AST compilé**, jamais par un balayage 
 2. {voir="module:02-environnement-linux"} Vérifier ce qui est réellement installé — pas ce qu'on
    croit avoir installé.
 
+3. {voie="cours"} Téléverser les fichiers avec le client graphique montré en classe.
+
+4. {voie="moderne"} {voir="Les commandes, dans l'ordre"} Préférer `scp` depuis un terminal — aucun
+   client à installer, et la commande se met dans un script.
+
 ::::
 ````
 
 **Ce qu'une étape admet, et rien d'autre** : une phrase **impérative**, puis **au plus un** bloc de
-code clôturé (langage pris dans les huit du contrat), puis **au plus un** renvoi `{voir="…"}` écrit
-**littéralement en tête** de l'item — même position imposée que `{lignes="…"}` sur une annotation. Un
-item sans phrase, un deuxième bloc de code, un titre ou une liste imbriquée sont des **refus
-nommés**. ⚠️ **C'est voulu** : le jour où une étape a besoin de trois paragraphes, elle appartient à
-la théorie, pas au résumé — et le renvoi existe exactement pour ça.
+code clôturé (langage pris dans les huit du contrat). Sa **tête** — écrite **littéralement au début
+de l'item**, même position imposée que `{lignes="…"}` sur une annotation — porte **au plus deux**
+blocs d'attributs, `{voir="…"}` et `{voie="…"}`, **chacun au plus une fois**, dans l'ordre que
+l'auteur veut. Un item sans phrase, un deuxième bloc de code, un titre ou une liste imbriquée sont
+des **refus nommés**. ⚠️ **C'est voulu** : le jour où une étape a besoin de trois paragraphes, elle
+appartient à la théorie, pas au résumé — et le renvoi existe exactement pour ça.
+
+**`{voie="…"}` — la méthode du cours contre l'équivalent moderne** (décision **D-PHP-1**, lot
+PHP-A1). Elle distingue, **à l'intérieur** du résumé actionnable, ce que le cours enseigne de ce
+qu'on ferait aujourd'hui, **quand l'écart tient en une ou quelques lignes**. Au-delà, ce n'est plus
+une étape : c'est un conteneur `methodes` (décision D-C, plus bas).
+
+| Valeur | Étiquette rendue | Quand l'employer |
+|---|---|---|
+| `cours` | « Voie du cours » | la méthode enseignée, **celle qui sera évaluée** |
+| `moderne` | « Équivalent moderne » | la bonne pratique d'aujourd'hui, hors examen |
+
+- **La liste est FERMÉE à ces deux valeurs.** Toute autre est un refus qui les **énumère**.
+- **L'attribut est facultatif**, et c'est un **champ distinct** : une étape sans `voie` ne déclare
+  **rien** de sa provenance — absent ne veut pas dire `cours`. Lui prêter une valeur par défaut
+  écrirait un fait que personne n'a constaté (même arbitrage que `{hors-cours}` sur un titre).
+- 🔴 **L'étiquette visible est composée AU RENDU, jamais écrite par l'auteur** — même raison que le
+  libellé d'un `exercice-du-cours` : deux implémentations du même texte finissent par en dire deux
+  choses différentes.
+- 🔴 **C'est l'étiquette ÉCRITE qui porte le sens, pas le liseré.** Le liseré est un canal couleur,
+  et un canal couleur disparaît en `forced-colors: active` — mesuré au lot 11 sur les onglets de
+  méthode (famille R-8). Le mot, lui, reste (WCAG 1.4.1). Aucune couleur neuve n'entre au design :
+  les deux voies réemploient les paires déjà mesurées des encadrés `cours` et `complement`.
+- ⚠️ **`voir` et `voie` ne diffèrent que d'un caractère.** `{voi="…"}` et `{voire="…"}` tombent sur
+  un refus qui **nomme** le nom lu et énumère les deux admis — jamais sur « le renvoi n'est pas en
+  tête », qui enverrait corriger une position parfaitement juste.
+- ⚠️ **La MENTION n'est pas l'USAGE** (S-015) : une étape qui *documente* la grammaire en citant
+  `` `{voie="cours"}` `` entre accents graves passe — les deux juges cherchent l'amorce **hors du
+  code en ligne**.
 
 **`titre` est obligatoire et non vide.** Il nomme la tâche que la marche accomplit ; c'est lui que lit
 un lecteur d'écran avant la liste.

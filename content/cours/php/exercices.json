@@ -1,0 +1,82 @@
+{
+  "sujet": "php",
+  "avertissement": "Énoncés REFORMULÉS à partir des feuilles d'exercices d'Alexandre Mageau-Pétrin (420-4P2-HU, automne 2026). L'intention, l'ordre et la numérotation sont conservés ; le texte est réécrit — ce dépôt est public et ne rediffuse pas le matériel de l'enseignant.",
+  "seances": [
+    {
+      "numero": 1,
+      "feuille": "Exercices du cours 1 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Monter l'environnement de développement",
+          "enonce": "Installe WAMP et un éditeur de code sur ton poste (VS Code, PhpStorm ou Notepad++ — le cours nomme les trois)."
+        },
+        {
+          "reference": "2",
+          "titre": "Afficher « Bonjour le monde »",
+          "enonce": "Écris une page PHP qui affiche « Bonjour le monde » au visiteur. L'affichage se fait avec « echo »."
+        },
+        {
+          "reference": "3",
+          "titre": "Additionner deux variables",
+          "enonce": "Crée deux variables $x et $y, donne-leur les valeurs 3 et 4, puis affiche leur somme avec « echo »."
+        },
+        {
+          "reference": "4",
+          "titre": "Une fonction qui retourne le plus grand de deux entiers",
+          "enonce": "Écris une fonction « maxValeur() » qui prend deux entiers en paramètre et retourne le plus grand des deux. Appelle-la trois fois avec des paramètres différents et affiche chaque résultat."
+        },
+        {
+          "reference": "5",
+          "titre": "Division entière et reste",
+          "enonce": "Écris une fonction qui prend deux paramètres x et y et affiche le quotient et le reste de la division. Un appel « Diviser(9, 4) » doit produire : « Le résultat de la division de 9 par 4 est de 2 reste 1. »"
+        },
+        {
+          "reference": "6",
+          "titre": "Un formulaire soumis en POST",
+          "enonce": "Construis un formulaire qui demande un nom, une adresse courriel et un message. Soumets-le à ta page PHP par la méthode POST, puis affiche les trois valeurs à l'écran."
+        },
+        {
+          "reference": "7",
+          "titre": "Un module PHP importé par une page",
+          "enonce": "Crée un module PHP qui offre une fonction « addition » prenant deux nombres et retournant leur somme. Importe ce module depuis une page PHP, appelle la fonction avec deux nombres de ton choix et affiche le résultat."
+        },
+        {
+          "reference": "8",
+          "titre": "La racine carrée d'un nombre",
+          "enonce": "Écris une fonction « Carre() » qui retourne la racine carrée du nombre reçu en paramètre."
+        },
+        {
+          "reference": "9",
+          "titre": "La somme des valeurs d'un tableau",
+          "enonce": "Écris une fonction « sommeTableau() » qui prend un tableau d'entiers en paramètre et retourne la somme de toutes les valeurs qu'il contient."
+        },
+        {
+          "reference": "10",
+          "titre": "Dire si un nombre est premier",
+          "enonce": "Écris une fonction qui affiche si un nombre est premier ou non — un nombre premier n'est divisible que par 1 et par lui-même. « estPremier(7) » doit afficher « 7 est premier » et « estPremier(15) », « 15 n'est pas premier »."
+        },
+        {
+          "reference": "11",
+          "titre": "Tous les nombres premiers jusqu'à une borne reçue en URL",
+          "enonce": "Écris une page à laquelle on fournit un paramètre « nombre » dans l'URL. Elle affiche tous les nombres premiers de 1 jusqu'à ce nombre."
+        },
+        {
+          "reference": "12",
+          "titre": "Trois pages qui partagent en-tête et pied de page",
+          "enonce": "Crée trois pages web qui partagent le même en-tête et le même pied de page. L'en-tête porte le menu de navigation qui permet de passer d'une page à l'autre."
+        },
+        {
+          "reference": "13",
+          "titre": "Saluer le nom reçu en GET",
+          "enonce": "Écris une page qui reçoit un champ « nom » en paramètre GET et affiche « Bonjour » suivi de ce nom. L'appel ressemble à « localhost/ex12/index.php?nom=Alexandre »."
+        },
+        {
+          "reference": "14",
+          "titre": "Choisir une feuille de style depuis l'URL",
+          "enonce": "Crée deux fichiers CSS, l'un donnant un fond bleu, l'autre un fond vert. Sur une page HTML de base, ajoute un « switch » qui lit la valeur GET « style » : 1 charge la première feuille, 2 charge la seconde. L'appel ressemble à « localhost/ex12/index.php?style=1 »."
+        }
+      ]
+    }
+  ]
+}

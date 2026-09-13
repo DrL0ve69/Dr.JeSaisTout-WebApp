@@ -334,10 +334,30 @@ type BlocContenu =
       etapes: {
         /**
          * La phrase impérative, rendue en HTML **inline** (pas de `<p>`) : c'est le rendu qui
-         * l'enveloppe dans son `<li>`. Le bloc `{voir="…"}` de tête a déjà été retiré — il ressort
-         * dans `renvoi`, jamais dans le texte.
+         * l'enveloppe dans son `<li>`. Les blocs `{voir="…"}` et `{voie="…"}` de tête ont déjà été
+         * retirés — ils ressortent dans `renvoi` et `voie`, jamais dans le texte.
          */
         html: string;
+        /**
+         * LA VOIE de l'étape — décision **D-PHP-1**, lot PHP-A1. Elle distingue, à l'intérieur du
+         * résumé actionnable, la méthode que le cours enseigne (`'cours'`) de la bonne pratique
+         * d'aujourd'hui (`'moderne'`), quand l'écart tient en **une ou quelques lignes de code**.
+         * Au-delà, ce n'est plus une étape mais un conteneur `methodes` (décision D-C).
+         *
+         * 🔴 FACULTATIVE, ET CHAMP DISTINCT — jamais une union portant une valeur par défaut.
+         * Absent ne veut pas dire `'cours'` : une étape sans `voie` ne déclare RIEN de sa
+         * provenance, et lui en prêter une écrirait un fait que personne n'a constaté (même
+         * arbitrage que `horsCours`, lot 1c, où `absent ≠ false` est ce qui rend le gate total
+         * possible). Le rendu ne pose donc son étiquette que sur les étapes qui la portent.
+         *
+         * 🔴 L'ÉTIQUETTE VISIBLE N'EST PAS DANS L'ARTÉFACT, et c'est délibéré. « Voie du cours » /
+         * « Équivalent moderne » sont composées AU RENDU depuis cette valeur — même raison que le
+         * libellé d'un `exercice-du-cours` : une seconde implémentation du texte finirait par en
+         * dire autre chose, et l'auteur n'écrit jamais une étiquette que le produit possède.
+         * L'étiquette est le canal SÉMANTIQUE (WCAG 1.4.1) ; le liseré du rendu n'est que décor,
+         * puisqu'il disparaît en `forced-colors: active` (famille R-8, mesurée au lot 11).
+         */
+        voie?: 'cours' | 'moderne';
         /**
          * AU PLUS UN bloc de code clôturé, colorié par le même chemin qu'un bloc `code` du corps
          * (mêmes garanties, mêmes ancres de ligne). Un `mermaid` y est refusé : une étape montre

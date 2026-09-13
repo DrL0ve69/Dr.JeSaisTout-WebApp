@@ -536,6 +536,70 @@
   margin-block-start: var(--espace-3);
 }
 
+// -----------------------------------------------------------------------------
+// LA VOIE d'une étape — décision D-PHP-1, lot PHP-A1
+// -----------------------------------------------------------------------------
+// 🔴 AUCUNE PAIRE DE COULEUR NEUVE, ET C'EST UNE CONTRAINTE DE GATE, PAS UNE
+// ÉCONOMIE (L-080 : `verifier-contrastes.mjs` tourne en CI, et une paire non
+// déclarée est une dette silencieuse qu'aucun gate ne voit). Les deux voies
+// réemploient EXACTEMENT les deux paires déjà à la table sous « Provenance
+// pédagogique » : encre `--couleur-provenance-cours` sur fond
+// `--couleur-provenance-cours-surface`, et son équivalent `complement`. C'est
+// aussi la bonne sémantique : `cours` dit déjà « au programme du cours » et
+// `complement` dit déjà « utile, mais pas ce que l'enseignant a montré ».
+// ⚠️ LE VERT ET LE ROUGE SONT EXCLUS PAR PRINCIPE — sur ce site le vert dit
+// « corrigé » et le rouge « vulnérable ». Ni l'un ni l'autre n'apparaît ici :
+// `--couleur-provenance-complement` est le gris-ardoise `$phosphore-300`, pas un
+// vert (le nom de la primitive vient de la famille du tube, pas de sa teinte).
+//
+// 🔴 L'ÉTIQUETTE EST LE CANAL QUI PORTE LE SENS ; LE LISERÉ EST DÉCOR. En
+// `forced-colors: active` toutes les teintes tombent sur CanvasText et les deux
+// liserés deviennent indiscernables — mesuré au lot 11 sur les onglets (famille
+// R-8). Le MOT, lui, reste écrit, en police de corps, dans l'ordre du document.
+// C'est pour ça qu'il n'y a pas de `micro-etiquette` ici : cette police est
+// bitmap (Silkscreen) et « Équivalent » porte un É.
+.marche-a-suivre .etape > .voie {
+  display: inline-block;
+  margin-block: 0 var(--espace-1);
+  padding: 0 var(--espace-1);
+  border-radius: var(--rayon-net);
+  font-size: var(--taille-xs);
+  font-weight: var(--graisse-titre);
+}
+
+.marche-a-suivre .etape[data-voie='cours'] {
+  border-inline-start: var(--filet-marge) solid var(--couleur-provenance-cours);
+  padding-inline-start: var(--espace-2);
+
+  > .voie {
+    color: var(--couleur-provenance-cours);
+    background-color: var(--couleur-provenance-cours-surface);
+  }
+}
+
+.marche-a-suivre .etape[data-voie='moderne'] {
+  border-inline-start: var(--filet-marge) dashed var(--couleur-provenance-complement);
+  padding-inline-start: var(--espace-2);
+
+  > .voie {
+    color: var(--couleur-provenance-complement);
+    background-color: var(--couleur-provenance-complement-surface);
+  }
+}
+
+// Le TRAIT diffère déjà (plein contre tirets), exactement comme `cours` et
+// `complement` s'opposent plus haut — c'est le second canal, et il SURVIT au
+// contraste forcé, là où les deux teintes se rabattent ensemble sur CanvasText.
+.marche-a-suivre .etape[data-voie] {
+  @include m.contraste-force {
+    border-inline-start-color: CanvasText;
+
+    > .voie {
+      background-color: Canvas;
+    }
+  }
+}
+
 // Le défileur d'une étape prend son `overflow-x` de la règle `.defileur` commune,
 // plus haut — seule l'espace qui le sépare de sa phrase est décidée ici.
 .marche-a-suivre .etape > .defileur {

@@ -41,6 +41,15 @@ d'ouvrir, alors qu'une leçon refusée fait échouer la construction du site en 
 
 3. Corriger, relancer, recommencer jusqu'au code 0.
 
+4. {voie="cours"} Lancer la construction complète depuis la racine du dépôt, comme la séance le
+   montre.
+
+5. {voie="moderne"} {voir="Ce que le validateur regarde"} Lancer le validateur seul quand on ne
+   change qu'un `lecon.md` — il rend la main bien plus vite.
+
+6. {voir="module:cible"} {voie="cours"} Relire le journal en entier avant de corriger quoi que ce
+   soit.
+
 ::::
 
 ## Ce que le validateur regarde

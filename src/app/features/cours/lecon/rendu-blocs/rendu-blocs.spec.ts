@@ -197,7 +197,11 @@ const FIXTURES: Record<BlocContenu['type'], BlocContenu> = {
     type: 'marche-a-suivre',
     titre: 'Durcir la configuration en quatre gestes',
     etapes: [
-      { html: 'Ouvre le fichier de configuration du service.' },
+      // ⚠️ LA PREMIÈRE ÉTAPE PORTE UNE VOIE (lot PHP-A1) et les trois autres N'EN PORTENT PAS :
+      // c'est ce contraste qui prouve que l'étiquette est posée par la DONNÉE et non par le
+      // gabarit. Une fixture où toutes les étapes en porteraient une laisserait « le rendu pose
+      // l'étiquette partout » indiscernable du comportement attendu.
+      { html: 'Ouvre le fichier de configuration du service.', voie: 'cours' },
       {
         html: 'Recharge le service pour appliquer la <strong>directive</strong>.',
         code: {
@@ -2009,6 +2013,69 @@ describe('RenduBlocs', () => {
       expect(phrases[1]?.querySelector('p')).toBeNull();
     });
 
+    // ───────────────────────────────────────────────────────────────────────────
+    // LA VOIE d'une étape — décision D-PHP-1, lot PHP-A1
+    // ───────────────────────────────────────────────────────────────────────────
+    it('🔴 rend la voie en ÉTIQUETTE ÉCRITE, avant la phrase, et seulement où elle existe', async () => {
+      const rendu = await rendre([MARCHE]);
+      const etapes = [...rendu.querySelectorAll('li.etape')];
+
+      // (1) L'ÉTIQUETTE EST DU TEXTE, ET C'EST LE CANAL QUI PORTE LE SENS (WCAG 1.4.1). Le liseré
+      // est un canal COULEUR, et un canal couleur disparaît en `forced-colors: active` — mesuré au
+      // lot 11 (famille R-8). Retirer ce <p> en gardant le liseré rend ce test ROUGE, et c'est le
+      // contrôle positif qui tient R-8 sur ce chemin.
+      const etiquette = etapes[0]?.querySelector('p.voie');
+      expect(etiquette?.textContent?.trim()).toBe('Voie du cours');
+
+      // (2) ELLE PRÉCÈDE LA PHRASE DANS L'ORDRE DU DOCUMENT — sans quoi un lecteur d'écran
+      // entendrait la consigne avant de savoir de quelle méthode elle relève. `compareDocumentPosition`
+      // et non l'index des enfants : c'est la position RÉELLE qui compte, pas l'ordre du gabarit.
+      const phrase = etapes[0]?.querySelector('span.phrase');
+      expect(etiquette).not.toBeNull();
+      expect(phrase).not.toBeNull();
+      expect(
+        (etiquette?.compareDocumentPosition(phrase as Node) ?? 0) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      // (3) LES TROIS AUTRES ÉTAPES N'EN PORTENT AUCUNE. Sans cette moitié, un gabarit qui poserait
+      // l'étiquette sur TOUTES les étapes passerait (1) et (2) — et écrirait une provenance que
+      // personne n'a déclarée, très exactement ce que le champ facultatif existe pour empêcher.
+      expect(rendu.querySelectorAll('li.etape > p.voie')).toHaveLength(1);
+
+      // (4) LE LISERÉ EST BRANCHÉ SUR LA DONNÉE, pas sur une classe écrite à la main. `data-voie`
+      // est le seul crochet de la feuille (`.etape[data-voie='cours']`).
+      expect(etapes[0]?.getAttribute('data-voie')).toBe('cours');
+      expect(etapes[1]?.hasAttribute('data-voie')).toBe(false);
+    });
+
+    it('rend « Équivalent moderne » pour l’autre voie — la table est TOTALE sur la liste fermée', async () => {
+      // 🔴 LES DEUX VALEURS SONT EXERCÉES. Une table à deux entrées dont une seule est mesurée
+      // laisse la seconde libre de rendre `undefined` : le lecteur verrait un paragraphe vide, et
+      // aucun gate ne rougirait.
+      const moderne = {
+        ...MARCHE,
+        etapes: [{ html: 'Utilise un timer systemd.', voie: 'moderne' as const }],
+      };
+      const rendu = await rendre([moderne]);
+      expect(rendu.querySelector('li.etape > p.voie')?.textContent?.trim()).toBe(
+        'Équivalent moderne',
+      );
+    });
+
+    it('🔴 la voie ne touche NI au nom accessible de la liste NI à celui du défileur', async () => {
+      // L'étiquette est du texte VISIBLE dans l'ordre du document : elle est lue par construction,
+      // sans qu'aucun nom accessible composé ailleurs ait à la porter. Ce test épingle la
+      // non-régression des deux noms que le lot PHP-A1 aurait pu abîmer en passant.
+      const rendu = await rendre([MARCHE]);
+      expect(rendu.querySelector('ol.etapes')?.getAttribute('aria-label')).toBe(MARCHE.titre);
+      expect(rendu.querySelector('.marche-a-suivre .defileur')?.getAttribute('aria-label')).toContain(
+        'Étape',
+      );
+      // AUCUN ARRÊT DE TABULATION NEUF, AUCUN RÔLE NEUF : l'étiquette est un paragraphe, rien de plus.
+      expect(rendu.querySelectorAll('p.voie[tabindex], p.voie[role]')).toHaveLength(0);
+    });
+
     it('🔴 le renvoi de SECTION est un `routerLink` + `fragment`, jamais un `href="#…"` nu', async () => {
       // L-030, mesurée sur ce dépôt : `index.html` pose `<base href="/">`, donc un fragment NU
       // se résout contre la BASE du document et renverrait le lecteur à l'ACCUEIL. Deux
@@ -2197,6 +2264,21 @@ describe('RenduBlocs', () => {
         } as unknown as BlocContenu;
         await expect(rendre([exotique])).rejects.toThrowError(/cible de renvoi inconnue/);
         await expect(rendre([exotique])).rejects.toThrowError(/glossaire/);
+      });
+
+      it('🔴 REFUSE une VOIE inconnue — sinon c’est une provenance publiée et TUE', async () => {
+        // Sans cette liste blanche, un `voie: "legacy"` venu d'un artéfact compilé par une autre
+        // version du pipeline poserait un `data-voie` que la feuille ne connaît pas — aucun liseré,
+        // et surtout aucune étiquette : l'étape DÉCLARERAIT une provenance sans en dire un mot au
+        // lecteur. Un silence, précisément ce que la décision D-PHP-1 existe pour empêcher.
+        const inconnue = {
+          ...MARCHE,
+          etapes: [{ html: 'Fais autrement.', voie: 'legacy' }],
+        } as unknown as BlocContenu;
+        await expect(rendre([inconnue])).rejects.toThrowError(/voie inconnue/);
+        // LISTE BLANCHE NOMINATIVE : le refus CITE la voie lue et ÉNUMÈRE les deux rendues.
+        await expect(rendre([inconnue])).rejects.toThrowError(/legacy/);
+        await expect(rendre([inconnue])).rejects.toThrowError(/cours, moderne/);
       });
 
       it('refuse un bloc de code sans langage — le défileur s’annoncerait « undefined »', async () => {

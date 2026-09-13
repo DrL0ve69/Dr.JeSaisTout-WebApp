@@ -338,13 +338,54 @@ const MARQUEUR_DEFAUT = 'defaut';
 const VOLETS_MIN = 2;
 const VOLETS_MAX = 3;
 /**
- * Le renvoi d'une étape, EN TÊTE et nulle part ailleurs — même position imposée que `{lignes="…"}`
- * sur une annotation. Ancré sur `^`, donc aucun retour arrière possible : ce qui n'est pas en tête
- * n'est pas reconnu, et l'appelant le refuse en le nommant plutôt que de le laisser passer.
+ * LA VOIE d'une étape — décision **D-PHP-1**, lot PHP-A1. Elle distingue, DANS le résumé
+ * actionnable, la méthode que le cours enseigne de la bonne pratique moderne, quand l'écart tient
+ * en une ou quelques lignes. Au-delà, ce n'est plus une étape : c'est un `:::: methodes` (D-C).
+ *
+ * 🔴 FACULTATIVE, ET CHAMP DISTINCT — jamais une union avec une valeur par défaut. Une étape sans
+ * `voie` ne dit RIEN de sa provenance ; lui poser `voie: 'cours'` d'office écrirait une provenance
+ * que personne n'a constatée, exactement la faute que `{hors-cours}` existe pour éviter (lot 1c).
  */
-const MOTIF_VOIR_EN_TETE = new RegExp(String.raw`^\{${ATTRIBUT_VOIR}="([^"]*)"\}`);
-/** Ce qu'on cherche pour dire « il y a un renvoi ICI, mais pas au bon endroit ». */
-const AMORCE_VOIR = `{${ATTRIBUT_VOIR}=`;
+const ATTRIBUT_VOIE = 'voie';
+/**
+ * LA LISTE EST FERMÉE À DEUX, et le refus les ÉNUMÈRE — liste blanche nominative
+ * (`.claude/rules/security.md` §4). L'ordre est celui du message : il ne se trie pas à l'exécution.
+ */
+const VOIES_ADMISES = /** @type {const} */ (['cours', 'moderne']);
+
+/**
+ * Les noms admis dans la TÊTE d'une étape, dans l'ordre où le refus les énumère.
+ *
+ * ⚠️ `voir` ET `voie` NE DIFFÈRENT QUE D'UN CARACTÈRE, et c'est la faute de frappe qu'un auteur
+ * commettra. Elle doit tomber sur le refus « attribut de tête inconnu », qui NOMME le nom lu et
+ * énumère les deux admis — jamais dans un silence, et jamais sur « le renvoi n'est pas en tête »,
+ * qui enverrait l'auteur corriger une position parfaitement juste.
+ */
+const NOMS_DE_TETE = /** @type {const} */ ([ATTRIBUT_VOIR, ATTRIBUT_VOIE]);
+/** Les formes admises, DÉRIVÉES des noms — jamais réécrites à la main dans un message. */
+const FORMES_DE_TETE = NOMS_DE_TETE.map((nom) => `{${nom}="…"}`).join(' et ');
+
+/**
+ * UN bloc d'attributs de tête d'étape — même position imposée que `{lignes="…"}` sur une
+ * annotation. Ancré sur `^`, donc aucun retour arrière possible : ce qui n'est pas en tête n'est
+ * pas reconnu, et l'appelant le refuse en le nommant plutôt que de le laisser passer.
+ *
+ * 🔴 LE NOM EST CAPTURÉ, PAS FIGÉ DANS LE MOTIF — et c'est ce qui a changé au lot PHP-A1. Un motif
+ * par nom admis (`^\{voir="…"\}`) ne peut rien dire de `{couleur="x"}` ni de `{voi="x"}` : ils ne
+ * matchent pas, et l'étape tombait dans « bloc d'attributs illisible ». En capturant le nom, la
+ * tête se lit UNE fois et la liste blanche `NOMS_DE_TETE` refuse en NOMMANT ce qu'elle a lu.
+ */
+const MOTIF_ATTRIBUT_EN_TETE = /^\{([A-Za-z][A-Za-z-]*)="([^"]*)"\}/;
+
+/**
+ * Ce qu'on cherche pour dire « il y a un `<nom>` ICI, mais pas au bon endroit ».
+ *
+ * @param {string} nom
+ * @returns {string}
+ */
+function amorceDeTete(nom) {
+  return `{${nom}=`;
+}
 
 /**
  * Une étape compilée — DÉRIVÉE du contrat, jamais réécrite. Recopier sa forme ici ferait deux
@@ -1980,7 +2021,8 @@ function blanchirCodeEnLigne(texte) {
 }
 
 /**
- * Lit le RENVOI d'une étape — `{voir="…"}`, écrit LITTÉRALEMENT en tête de l'item.
+ * Lit la TÊTE d'une étape — une suite d'AU PLUS DEUX blocs `{<nom>="<valeur>"}`, écrits
+ * LITTÉRALEMENT au début de l'item, chaque nom au plus une fois, dans l'ordre que l'auteur veut.
  *
  * 🔴 LE RENVOI DÉSIGNE UN TITRE PAR SON TEXTE, JAMAIS PAR SON ANCRE. L'ancre est fabriquée par
  * `ancrer` (qui suffixe en cas de collision) : un auteur qui écrirait `#les-commandes` poserait un
@@ -1988,45 +2030,149 @@ function blanchirCodeEnLigne(texte) {
  * ici, et remplie par `resoudreRenvoisDeSection` une fois TOUS les titres de la leçon connus — la
  * marche à suivre est en tête de leçon et cite couramment une section située plus bas.
  *
+ * 🔴 CE QUI N'A PAS CHANGÉ AU LOT PHP-A1, ET QUI EST LE CONTRAT DE CETTE FONCTION : quand la tête
+ * ne porte QUE `{voir="…"}`, le comportement est STRICTEMENT celui d'avant — mêmes refus, mêmes
+ * phrases, même `phrase` rendue. C'est ce qu'exige le corpus déjà publié : quatre modules repris
+ * portent des renvois d'étape, et un message qui bougerait ferait rougir des specs sans qu'aucune
+ * leçon soit fautive.
+ *
  * @param {string} source texte BRUT du paragraphe de l'étape (jeton `inline`)
  * @param {string} situe où l'erreur se lit, déjà rédigé
  * @param {Contexte} ctx
- * @returns {{ renvoi: NonNullable<EtapeMarche['renvoi']> | null, phrase: string }}
+ * @returns {{ renvoi: NonNullable<EtapeMarche['renvoi']> | null, voie: EtapeMarche['voie'], phrase: string }}
  */
-function lireRenvoiDEtape(source, situe, ctx) {
-  // L'amorce se cherche HORS du `code en ligne` — voir `blanchirCodeEnLigne`.
+function lireTeteDEtape(source, situe, ctx) {
+  // L'amorce se cherche HORS du `code en ligne` — voir `blanchirCodeEnLigne`. La longueur est
+  // préservée, donc tout `slice` calculé sur la source reste valide sur la chaîne blanchie.
   const horsCode = blanchirCodeEnLigne(source);
-  const tete = MOTIF_VOIR_EN_TETE.exec(source);
-  if (tete === null) {
-    if (source.startsWith('{')) {
-      echec(`${ctx.nomFichier} : ${situe} — bloc d'attributs illisible en tête`, [
-        `seule la forme {${ATTRIBUT_VOIR}="…"} est acceptée, guillemets droits compris`,
+  const { blocs, consomme } = decouperTeteDEtape(source);
+
+  /** @type {Map<string, string>} */
+  const attributs = new Map();
+  for (const bloc of blocs) {
+    if (!/** @type {readonly string[]} */ (NOMS_DE_TETE).includes(bloc.nom)) {
+      // LISTE BLANCHE NOMINATIVE : le nom LU est cité, et les admis sont énumérés. Sans cette
+      // branche, `{voi="x"}` — la faute de frappe la plus probable, un caractère d'écart — serait
+      // avalé par « bloc d'attributs illisible », qui n'aide pas à la trouver.
+      echec(`${ctx.nomFichier} : ${situe} — attribut de tête inconnu « ${bloc.nom} »`, [
+        `noms admis en tête d'une étape : ${NOMS_DE_TETE.join(', ')}`,
+        `« ${ATTRIBUT_VOIR} » et « ${ATTRIBUT_VOIE} » ne diffèrent que d'un caractère — relire le nom`,
       ]);
     }
-    if (horsCode.includes(AMORCE_VOIR)) {
-      echec(`${ctx.nomFichier} : ${situe} — le renvoi n'est pas en TÊTE de l'étape`, [
-        `« ${AMORCE_VOIR}…"} » s'écrit littéralement au début de l'item, avant la phrase`,
-        'même position imposée que {lignes="…"} sur une annotation',
-      ]);
-    }
-    return { renvoi: null, phrase: source.trim() };
+    if (attributs.has(bloc.nom)) echecDeDoublonDeTete(bloc.nom, situe, ctx);
+    attributs.set(bloc.nom, bloc.valeur);
   }
 
-  const valeur = (tete[1] ?? '').trim();
-  const phrase = source.slice(tete[0].length).trim();
-  if (horsCode.slice(tete[0].length).includes(AMORCE_VOIR)) {
-    echec(`${ctx.nomFichier} : ${situe} — deux renvois sur la même étape`, [
-      'une étape porte AU PLUS un renvoi ; deux destinations valent deux étapes',
+  // Un `{` qui n'a pas été lu comme un bloc : guillemets courbes, valeur non citée, accolade non
+  // fermée. On le dit AVANT de chercher les amorces égarées — l'auteur a écrit un bloc, il veut
+  // savoir pourquoi il n'est pas lu, pas s'entendre dire qu'il est mal placé.
+  const resteBrut = source.slice(consomme);
+  if ((consomme === 0 ? resteBrut : resteBrut.trimStart()).startsWith('{')) {
+    echec(`${ctx.nomFichier} : ${situe} — bloc d'attributs illisible en tête`, [
+      `seules les formes ${FORMES_DE_TETE} sont acceptées, guillemets droits compris`,
     ]);
   }
+
+  // LES AMORCES ÉGARÉES, dans l'ordre des noms admis. Un nom déjà lu en tête et retrouvé plus loin
+  // est un DOUBLON ; un nom jamais lu en tête est un bloc MAL PLACÉ. Les deux fautes sont
+  // distinctes, et les confondre enverrait l'auteur corriger la mauvaise chose.
+  for (const nom of NOMS_DE_TETE) {
+    if (!horsCode.slice(consomme).includes(amorceDeTete(nom))) continue;
+    if (attributs.has(nom)) echecDeDoublonDeTete(nom, situe, ctx);
+    echecDePositionDeTete(nom, situe, ctx);
+  }
+
+  const phrase = resteBrut.trim();
+  const renvoi = lireValeurDeRenvoi(attributs.get(ATTRIBUT_VOIR), situe, ctx);
+  const voie = lireValeurDeVoie(attributs.get(ATTRIBUT_VOIE), situe, ctx);
+  return { renvoi, voie, phrase };
+}
+
+/**
+ * Découpe la TÊTE d'une étape en blocs `{nom="valeur"}` — RECENSEMENT PUR, aucun jugement.
+ *
+ * 🔴 SÉPARER LE DÉCOUPAGE DU JUGEMENT N'EST PAS UN ARRANGEMENT DE LISIBILITÉ : c'est ce qui permet
+ * aux deux copies du juge (ici et dans `valider.mjs`) d'être comparées ligne à ligne. La
+ * DUPLICATION reste le contrat pour ce qui JUGE (L-095) — le validateur tourne AVANT le compilateur
+ * et ne doit pas l'importer —, et ce que les douze cas de refus de chaque spec mesurent est
+ * précisément que les deux copies rendent LA MÊME PHRASE.
+ *
+ * @param {string} source texte BRUT du paragraphe de l'étape (jeton `inline`)
+ * @returns {{ blocs: { nom: string, valeur: string }[], consomme: number }}
+ */
+function decouperTeteDEtape(source) {
+  /** @type {{ nom: string, valeur: string }[]} */
+  const blocs = [];
+  let consomme = 0;
+  for (;;) {
+    const bloc = MOTIF_ATTRIBUT_EN_TETE.exec(source.slice(consomme));
+    if (bloc === null) break;
+    blocs.push({ nom: bloc[1] ?? '', valeur: bloc[2] ?? '' });
+    consomme += bloc[0].length;
+    // Entre DEUX blocs la blanche est libre ; avant le premier elle ne l'est pas — `^` l'interdit.
+    const apres = source.slice(consomme);
+    consomme += apres.length - apres.trimStart().length;
+  }
+  return { blocs, consomme };
+}
+
+/**
+ * « Deux fois le même nom » — deux phrases, parce que les deux fautes ne se corrigent pas pareil :
+ * deux renvois valent deux étapes, deux voies ne valent rien du tout.
+ *
+ * @param {string} nom
+ * @param {string} situe
+ * @param {Contexte} ctx
+ * @returns {never}
+ */
+function echecDeDoublonDeTete(nom, situe, ctx) {
+  if (nom === ATTRIBUT_VOIE) {
+    echec(`${ctx.nomFichier} : ${situe} — deux voies sur la même étape`, [
+      'une étape porte AU PLUS une voie ; deux méthodes valent un « :::: methodes », pas une étape',
+    ]);
+  }
+  echec(`${ctx.nomFichier} : ${situe} — deux renvois sur la même étape`, [
+    'une étape porte AU PLUS un renvoi ; deux destinations valent deux étapes',
+  ]);
+}
+
+/**
+ * « Le bloc est là, mais pas en tête » — même faute pour les deux noms, même position imposée que
+ * `{lignes="…"}` sur une annotation.
+ *
+ * @param {string} nom
+ * @param {string} situe
+ * @param {Contexte} ctx
+ * @returns {never}
+ */
+function echecDePositionDeTete(nom, situe, ctx) {
+  const quoi = nom === ATTRIBUT_VOIE ? 'la voie' : 'le renvoi';
+  echec(`${ctx.nomFichier} : ${situe} — ${quoi} n'est pas en TÊTE de l'étape`, [
+    `« ${amorceDeTete(nom)}…"} » s'écrit littéralement au début de l'item, avant la phrase`,
+    'même position imposée que {lignes="…"} sur une annotation',
+  ]);
+}
+
+/**
+ * La valeur d'un `{voir="…"}` déjà lu en tête — inchangée depuis le lot 3, extraite pour que la
+ * lecture de la tête ne mélange plus grammaire et sémantique.
+ *
+ * @param {string | undefined} brute
+ * @param {string} situe
+ * @param {Contexte} ctx
+ * @returns {NonNullable<EtapeMarche['renvoi']> | null}
+ */
+function lireValeurDeRenvoi(brute, situe, ctx) {
+  if (brute === undefined) return null;
+  const valeur = brute.trim();
   if (valeur === '') {
     echec(`${ctx.nomFichier} : ${situe} — renvoi vide`, [
       `{${ATTRIBUT_VOIR}=""} ne désigne rien — citer un titre de section, ou « ${PREFIXE_MODULE}<slug> »`,
     ]);
   }
   if (!valeur.startsWith(PREFIXE_MODULE)) {
-    // `ancre` est délibérément VIDE à cet instant — voir l'en-tête de cette fonction.
-    return { renvoi: { cible: 'section', titre: valeur, ancre: '' }, phrase };
+    // `ancre` est délibérément VIDE à cet instant — voir l'en-tête de `lireTeteDEtape`.
+    return { cible: 'section', titre: valeur, ancre: '' };
   }
   const slug = valeur.slice(PREFIXE_MODULE.length).trim();
   if (slug === '') {
@@ -2034,7 +2180,36 @@ function lireRenvoiDEtape(source, situe, ctx) {
       `forme attendue : {${ATTRIBUT_VOIR}="${PREFIXE_MODULE}02-environnement-linux"}`,
     ]);
   }
-  return { renvoi: { cible: 'module', slug }, phrase };
+  return { cible: 'module', slug };
+}
+
+/**
+ * La valeur d'un `{voie="…"}` — liste FERMÉE à deux, et le refus les ÉNUMÈRE.
+ *
+ * ⚠️ L'ÉTIQUETTE RENDUE N'EST PAS ICI, ET C'EST VOULU : elle est composée AU RENDU depuis la
+ * valeur, jamais écrite par l'auteur ni recopiée dans l'artéfact — même raison que le libellé d'un
+ * exercice du cours, une seconde implémentation finissant toujours par en dire autre chose.
+ *
+ * @param {string | undefined} brute
+ * @param {string} situe
+ * @param {Contexte} ctx
+ * @returns {EtapeMarche['voie']}
+ */
+function lireValeurDeVoie(brute, situe, ctx) {
+  if (brute === undefined) return undefined;
+  const valeur = brute.trim();
+  if (valeur === '') {
+    echec(`${ctx.nomFichier} : ${situe} — voie vide`, [
+      `{${ATTRIBUT_VOIE}=""} ne désigne rien — valeurs admises : ${VOIES_ADMISES.join(', ')}`,
+    ]);
+  }
+  if (!/** @type {readonly string[]} */ (VOIES_ADMISES).includes(valeur)) {
+    echec(`${ctx.nomFichier} : ${situe} — voie inconnue « ${valeur} »`, [
+      `valeurs admises : ${VOIES_ADMISES.join(', ')}`,
+      '« cours » = la méthode enseignée, « moderne » = la bonne pratique d’aujourd’hui',
+    ]);
+  }
+  return /** @type {EtapeMarche['voie']} */ (valeur);
 }
 
 /**
@@ -2072,7 +2247,7 @@ function lireEtape(contenu, rang, ctx) {
     ]);
   }
 
-  const { renvoi, phrase } = lireRenvoiDEtape(phraseInline.content, situe, ctx);
+  const { renvoi, voie, phrase } = lireTeteDEtape(phraseInline.content, situe, ctx);
   if (phrase === '') {
     echec(`${ctx.nomFichier} : ${situe} — étape sans phrase`, [
       'un renvoi seul ne dit pas ce qu’il faut FAIRE — le résumé doit rester actionnable',
@@ -2113,6 +2288,11 @@ function lireEtape(contenu, rang, ctx) {
 
   if (code !== undefined) etape.code = code;
   if (renvoi !== null) etape.renvoi = renvoi;
+  // POSÉ SEULEMENT S'IL EXISTE, jamais à `undefined` — même geste que `code` et `renvoi`
+  // ci-dessus, et que `horsCours` au lot 1c : absent et `undefined` se sérialisent pareil en JSON,
+  // mais le champ ABSENT est ce que le contrat déclare, et c'est lui qui se relit sans ambiguïté
+  // dans un artéfact déposé.
+  if (voie !== undefined) etape.voie = voie;
   return etape;
 }
 

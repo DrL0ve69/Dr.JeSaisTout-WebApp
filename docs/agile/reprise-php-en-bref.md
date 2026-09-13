@@ -156,8 +156,10 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **E7 lot A** | `content:build` compile **plusieurs racines** (`securite-web` + `php`) en une exécution | ✅ PR #69 |
 | **E7 lot B** | Les **routes** du cours de PHP, des deux côtés : `cours/php` (sommaire) et `cours/php/:slug` (leçon), résolveur **par cours** | ✅ PR #70 |
 | **E7 lot C** | La **navigation** : lien d'en-tête, carte d'accueil, comptes d'arrêts clavier épinglés en e2e | ✅ PR suivante — **la plomberie « second cours » est close** |
-| **PHP-A** | Grammaire d'auteur pour D-PHP-1 — si le conteneur `:::: methodes` existant ne suffit pas **dans** une marche à suivre, la mesurer avant d'écrire quoi que ce soit de neuf | ⬜ |
+| **PHP-A1** | Grammaire d'auteur pour D-PHP-1, **format C** — l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}` : étiquette écrite + liseré, les deux voies toujours visibles | 🟦 en cours |
+| **PHP-A2** | Grammaire d'auteur pour D-PHP-1, **format A** — admettre `:::: methodes` **dans** une étape de marche à suivre, pour une démarche qui diverge vraiment | ⬜ **pas ouvert** |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ⬜ |
+| **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ⬜ **nommé le 2026-09-13** |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ⬜ |
 | **PHP-4** | Séance 3 — Librairie standard | ⬜ |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ⬜ |
@@ -316,3 +318,73 @@ perdu, mais la ligne de `CLAUDE.md` annonçait encore « PHP-A » comme un geste
   seulement juger ; et distinguer 3xx de 404 dans le message de (c). ⚠️ **Tant qu'il n'est pas fait,
   un déploiement rouge sur ces deux étapes se relit contre la production AVANT d'être cru** : relever
   les assets de `/` et la CSP servie, puis rejouer le job (`gh run rerun <id> --failed`).
+
+---
+
+### 🔵 SESSION DU 2026-09-13 — PHP-A est TRANCHÉ, et il donne DEUX lots, pas un
+
+**La décision du propriétaire, telle qu'elle a été rendue** (question posée avec les trois formats
+sur le même contenu) : *« Dans le cas où la démarche diffère vraiment je veux deux onglets. Lorsqu'il
+s'agit d'une ou quelques lignes de code, l'option 1 me convient. »*
+
+Autrement dit **les deux grammaires, chacune à sa place** — et c'est D-PHP-1 appliqué à la lettre
+(« lorsque possible A, sinon si vraiment plus convenable au contexte C ») :
+
+| L'écart porte sur… | Format | Où |
+|---|---|---|
+| **une ou quelques lignes de code** | **C** — attribut d'étape `{voie="cours"}` / `{voie="moderne"}` | **dans** l'étape de la marche à suivre — **PHP-A1** |
+| **toute une démarche** (suite de gestes différente, outils différents) | **A** — le conteneur `:::: methodes` | section de théorie, citée depuis l'étape par `{voir="…"}` aujourd'hui ; **dans** l'étape le jour où **PHP-A2** est ouvert |
+
+🔴 **Pourquoi A n'est PAS gratuit dans une étape, et pourquoi c'est un lot à part.** `lireEtape`
+(`compiler-markdown.mjs:2059-2117`) définit une étape comme **exactement** un paragraphe puis **au
+plus un** bloc de code clôturé ; tout autre jeton tombe sur un `echec` nommé. Admettre un
+`:::: methodes` demande donc : la tokenisation imbriquée dans un item de liste, l'extension du
+schéma de `name` des radios (aujourd'hui `chemin` = ancre de section puis `_e`/`_m`/`_v` par
+récursion) à un segment d'étape, le rendu, **deux juges** (L-095) et un corpus de fixtures compté à
+part (`.claude/rules/agent-context-budget.md` §9). ⚠️ Et il **réintroduit** au cœur du résumé
+actionnable le mode d'échec de la clause D-C — un volet masqué qui enferme le seul exemplaire d'un
+fait — qui a mordu **trois conteneurs sur quatre**.
+
+**Ce que la séance 1 demande réellement, mesuré :** une seule démarche diverge vraiment (monter
+l'environnement : WAMP du cours contre serveur intégré `php -S`), et elle appartient de toute façon
+à une section de théorie, où `:::: methodes` est **déjà légal et déjà mesuré**. Tous les autres
+écarts tiennent en une ou quelques lignes — `include "header.inc"` contre `require_once` sur un
+`.php`, `echo $_GET[…]` nu contre `htmlspecialchars`, `array(…)` contre `[…]`. **PHP-A2 n'est donc
+pas sur le chemin critique de PHP-2**, et il s'ouvrira le jour où un cas le réclame.
+
+### 🔴 PHP-F — le gate du format actionnable est FERMÉ au second cours (mesuré le 2026-09-13)
+
+`src/format-actionnable.spec.ts:29` fixe `const CORPUS = 'content/cours/securite-web'` **en dur**.
+Le test « ne porte AUCUNE permission morte » construit ses `eligibles()` à partir de ce seul dossier :
+y inscrire un slug du cours de PHP le compterait comme **permission morte** et ferait rougir G-test,
+**sans correctif possible** — le module PHP n'est ni dans ce corpus, ni `publiee` (les `à-vérifier:`
+des chemins du poste l'en empêchent, §3).
+
+**Conséquence acceptée pour PHP-2** : le module 01 de PHP écrit ses renvois `{diapos="…"}` et
+`{hors-cours}` — leur **grammaire est légale sur n'importe quel module** — mais **n'entre pas** dans
+`MODULES_AU_FORMAT_ACTIONNABLE`. Ce n'est donc pas la règle 13 qui les rend obligatoires ici, c'est
+la cartographie écrite (`docs/contenu/renvois-diapos-php-01.md`), relue à la main.
+
+⚠️ **Deuxième face du même défaut, plus sournoise :** `MODULES_AU_FORMAT_ACTIONNABLE` est indexée par
+**slug nu**, jamais par `sujet/slug`. Deux cours qui partageraient un slug appliqueraient le gate au
+mauvais module, **en silence**. Famille **S-010** : « le corpus » et « le module » sont des promesses
+au singulier, et elles ont une date de péremption — celle du jour où un second cours est entré dans
+`content/`.
+
+### ✅ Ce que la session a mesuré et posé avant d'écrire la leçon
+
+- **`content/cours/php/exercices.json` existe** — 14 exercices pour la séance 1, références 1 à 14,
+  aucun numéro qui saute, énoncés **reformulés** (décision X-1). ✅ **Vérifiés à la source
+  d'autorité** le 2026-09-13, sur <https://www.alexandrepetrin.ca/exercice-php-cours-1-2026/> — le
+  **site** de l'enseignant, pas la copie locale : les deux concordent.
+- **L'extrait de la séance 1 est frais** — `extraire-diapositives.mjs` relancé le 2026-09-13, sortie
+  **identique octet pour octet** à `php-2026/extraits/` : 111 diapositives. 🔴 Cela ne dit **rien**
+  d'une republication depuis le téléchargement du `.pptx`, daté du **2026-08-31**.
+- **La cartographie des 111 diapositives est écrite** :
+  [`docs/contenu/renvois-diapos-php-01.md`](../contenu/renvois-diapos-php-01.md) — 24 titres, les
+  deux sens mesurés (**92 diapositives citées sur 111**, les **19** orphelines justifiées une par
+  une : diapositives de titre, administration de session, transition).
+- **Trois contradictions de la source sont nommées et non tranchées en silence** : la pondération
+  (diapo 6 contre `horaire.json`), la version « Admin » de WAMP (diapo 33, réfutée par le
+  propriétaire), et XAMPP annoncé en conclusion (diapo 107) alors qu'il est interdit au Cégep
+  (diapo 26).
