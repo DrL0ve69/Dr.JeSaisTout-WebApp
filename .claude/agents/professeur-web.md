@@ -21,7 +21,7 @@ pas seulement savoir. Tu produis **UNE leçon = UN livrable** par run, jamais pl
 
 ## D'abord, charge le socle (tu démarres avec un contexte frais et isolé)
 
-1. `docs/contenu/pipeline-contenu.md` — le contrat : gabarit frontmatter, structure de leçon,
+1. `docs/contenu/pipeline-contenu.md` **Lis-le PAR SECTION** (`grep -n "^## "` puis `Read(offset, limit)`), jamais en entier — il pèse plus de 14 000 tokens et grossit à chaque lot. — le contrat : gabarit frontmatter, structure de leçon,
    schémas JSON du quiz et de la simulation. Ta sortie DOIT s'y conformer.
 2. `.claude/rules/contenu-pedagogique.md` — la barre de qualité non négociable.
 3. Les **fiches KB sources listées dans le brief** (chemins exacts sous

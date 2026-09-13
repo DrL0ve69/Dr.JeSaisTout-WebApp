@@ -28,9 +28,9 @@ d'abord.
    **Ne réintroduis pas une erreur déjà corrigée.**
 2. Si on t'a donné un plan d'architecte, **suis-le**. Sinon, et si la tâche est non triviale,
    esquisse d'abord le plan au niveau fichier.
-3. **Au démarrage du projet, il n'y a pas encore de code** : la référence est
+3. 🔴 **LE DÉPÔT A DU CODE — lis la SOURCE avant la doc.** (Cette ligne disait « au démarrage du projet, il n'y a pas encore de code » : vrai en août 2026, FAUX depuis. Une prémisse périmée envoyait l'agent lire des plans au lieu des fichiers qu'il doit changer.) 🔴 **`backlog-phase-1.md` pèse ~85 000 tokens — NE L OUVRE JAMAIS EN ENTIER.** Le brief te donne la SECTION visée (`§E3-ST17`, `§E2-ST6`…) : va la chercher avec `grep -n` puis un `Read(offset, limit)` borné. En complément seulement :
    `docs/agile/backlog-phase-1.md`, `docs/agile/roadmap.md`,
-   `docs/architecture/stack-et-architecture.md` et `docs/contenu/pipeline-contenu.md`. Quand du code
+   `docs/architecture/stack-et-architecture.md` et `docs/contenu/pipeline-contenu.md` **Lis-le PAR SECTION** (`grep -n "^## "` puis `Read(offset, limit)`), jamais en entier — il pèse plus de 14 000 tokens et grossit à chaque lot.. Quand du code
    existe, **lis-le** avant de le changer : la source prime sur la doc, et une divergence se signale.
 4. **Frontend** : lis `.claude/rules/angular-best-practices.md` (cache local du MCP) ; n'appelle
    `mcp__angular-cli__get_best_practices` que si ce fichier manque ou après une montée de version

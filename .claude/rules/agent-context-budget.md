@@ -261,3 +261,61 @@ avec la lecture du validateur. C'est un second livrable, et il a doublé le lot.
 injectées ont fonctionné : l'agent n'a ouvert en entier aucun des deux fichiers de 2 400 lignes.
 Sans elles le run aurait été pire. **Ne pas conclure « les pointeurs ne servent à rien »** — ils ont
 tenu la moitié *lecture* du budget ; c'est la moitié *écriture* qui n'avait été estimée par personne.
+
+---
+
+## 10 · Le plancher REMESURÉ le 2026-09-13 — et les DEUX causes, séparées
+
+> Le propriétaire a signalé des sous-agents démarrant « à 150k » là où ils tenaient sous 100k, et un
+> implémenteur fini à **310 993 tokens / 126 appels**. **Les deux faits ont des causes distinctes**,
+> et les confondre aurait fait corriger la mauvaise chose.
+
+### (a) Le PLANCHER avait presque doublé — un seul fichier en portait l'essentiel
+
+| Fichier auto-injecté | 2026-08-20 | 2026-08-25 | **2026-09-13, avant** | **après** |
+|---|---|---|---|---|
+| `CLAUDE.md` (injecté, commentaires retirés) | 8 407 | 10 768 | **19 720** | **5 305** |
+| `docs/contenu/pipeline-contenu.md` (5 définitions le désignent) | — | 7 657 | **14 444** | inchangé, mais lu **par section** |
+
+**La cause, et elle est mécanique** : chaque clôture de lot ajoutait un paragraphe au bloc de reprise
+de `CLAUDE.md`. **771 des 968 lignes injectées — 80 % — étaient du récit de clôture**, dont les
+quatorze détails vivaient **déjà** dans `docs/agile/reprise-refonte-lecons.md` et le backlog. Le
+fichier est retombé à **289 lignes / 5 305 tokens**, et le récit retiré est archivé verbatim dans
+`docs/agile/journal-reprises-claude-md.md`.
+
+- [ ] 🔴 **Un état d'avancement s'écrit dans son document de reprise. `CLAUDE.md` n'en porte qu'UNE
+      ligne.** C'était déjà écrit au §7 ; ça s'est reproduit quand même, parce que **ajouter trois
+      lignes à chaque clôture ne ressemble jamais à un problème**. Le garde-fou n'est pas la bonne
+      volonté : c'est de **remesurer** `CLAUDE.md` à chaque clôture d'epic (`wc -c`, ÷ 4) et de le
+      ramener sous ~250 lignes injectées.
+- [ ] 🔴 **Un document qu'une définition d'agent DÉSIGNE est un budget partagé.** `pipeline-contenu.md`
+      a doublé sans que personne ne le remesure, et cinq définitions le faisaient ouvrir en entier.
+      La parade est celle du §7 — lire **par section** — mais **sans stocker de plages** : elles se
+      périment et envoient lire le mauvais passage en silence. `grep -n "^## "` puis `Read(offset,
+      limit)` se recalcule à chaque lecture et ne ment jamais.
+- [ ] 🔴 **Une PRÉMISSE périmée coûte autant qu'un fichier trop gros.** Trois définitions affirmaient
+      encore « le dépôt n'a pas encore de code » — vrai en août 2026 — et envoyaient donc l'agent
+      lire `backlog-phase-1.md`, **85 692 tokens**, au lieu des fichiers qu'il doit changer. Même
+      famille que les chiffres recopiés du §8 : *ce qui est écrit une fois et jamais remesuré devient
+      un mensonge silencieux à la vitesse où le dépôt grossit.*
+
+### (b) Le 310k n'était PAS le plancher — c'était le BRIEF, et il cumulait deux fautes
+
+Le plancher n'explique que ~62k. Les 250k restants viennent du périmètre, et les deux fautes sont
+**déjà nommées** aux §2 et §4 de ce fichier — elles ont été commises quand même :
+
+1. **SEPT livrables dans un lot** : compilateur + validateur + contrat + rendu + SCSS + doc +
+   corpus de cas + specs. Le brief *paraissait* dimensionné parce qu'il annonçait **une** grammaire ;
+   le test du « + » se lit sur les **fichiers touchés**, pas sur la phrase d'ouverture. Découpe
+   juste : **(A1)** les deux juges + le contrat · **(A2)** le rendu + SCSS + doc.
+2. **QUATRE suites de tests complètes dans le contexte de l'implémenteur** — la référence, puis une
+   par mutation. L'agent l'a nommé lui-même comme **le poste dominant**. Le §4 le dit depuis
+   toujours : les gates lourds vont à un **agent de vérification jetable**. 🔴 **Et une mesure par
+   mutation EST un gate lourd** — c'est ce que le §4 ne disait pas assez fort : elle relance la
+   suite entière une fois par mutation, donc elle se sort du périmètre de l'implémenteur **par
+   construction**, même quand le lot est correctement découpé.
+
+- [ ] **Le geste concret** : l'implémenteur écrit le code et ses tests, et lance **ses** tests ciblés.
+      Un second agent, frais et jetable, reçoit la liste des mutations à mesurer (`fichier:ligne`,
+      littéral avant/après, rouge attendu) et rend **N lignes de chiffres**. Il n'a pas besoin du
+      transcript d'implémentation : la liste des mutations est déjà un brief autonome (§3).

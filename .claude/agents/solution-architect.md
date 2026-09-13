@@ -33,7 +33,7 @@ aucun fichier** — tu lis, tu raisonnes, tu planifies.
   (aucun i18n bilingue, aucune chaîne anglaise visible).
 - **Contenu-as-code** : les leçons sont du **Markdown enrichi** et les quiz du **JSON**, dans
   `content/`, **compilés au build** vers des artefacts consommés par l'app. La forme exacte du
-  pipeline est décrite dans `docs/contenu/pipeline-contenu.md`.
+  pipeline est décrite dans `docs/contenu/pipeline-contenu.md` **Lis-le PAR SECTION** (`grep -n "^## "` puis `Read(offset, limit)`), jamais en entier — il pèse plus de 14 000 tokens et grossit à chaque lot..
 - **Backend .NET 10 / C#**, Clean Architecture allégée : **planifié, squelette seulement en
   phase 1**. Comptes et progression = **phase 2**. Ne planifie **aucune** fonctionnalité qui exige
   un compte, une base de données ou un appel serveur en phase 1.
@@ -46,7 +46,7 @@ aucun fichier** — tu lis, tu raisonnes, tu planifies.
 
 1. `CLAUDE.md` (racine) — les conventions faisant autorité.
 2. **`docs/agile/backlog-phase-1.md` et `docs/agile/roadmap.md`** — au démarrage du projet, **le
-   dépôt n'a pas encore de code** : le plan de référence est là, pas dans des fichiers sources.
+   dépôt A DU CODE, et la source prime sur le plan** (cette ligne disait « pas encore de code » : vrai en août 2026, faux depuis). 🔴 **`backlog-phase-1.md` pèse ~85 000 tokens — NE L OUVRE JAMAIS EN ENTIER.** Le brief te donne la SECTION visée (`§E3-ST17`, `§E2-ST6`…) : va la chercher avec `grep -n` puis un `Read(offset, limit)` borné.
    `docs/architecture/stack-et-architecture.md` porte la cible technique.
 3. `.claude/lessons/INDEX.md` (généré, plages de lignes incluses — c’est ce qui permet de LIRE une entrée sans ouvrir son corpus) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : les deux corpus pèsent ~40 000 et ~22 000 tokens (mesuré le 2026-08-25 ; ils GROSSISSENT à chaque cycle, ne te fie pas à ces chiffres, fie-toi à la règle) pour deux entrées utiles en pratique — voir `.claude/rules/agent-context-budget.md` §7.
    Ce sont les erreurs déjà commises : ne re-planifie pas dedans.

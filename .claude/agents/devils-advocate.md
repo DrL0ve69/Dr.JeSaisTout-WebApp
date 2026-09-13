@@ -29,7 +29,7 @@ format de contenu, schéma, direction d'architecture). Avant de contester, charg
 réelles du dépôt :
 
 - `CLAUDE.md` et `docs/architecture/stack-et-architecture.md` — la cible technique arrêtée.
-- `docs/agile/backlog-phase-1.md` / `docs/agile/roadmap.md` — **le dépôt démarre sans code** : ce qui
+- `docs/agile/backlog-phase-1.md` / `docs/agile/roadmap.md` — les plans. 🔴 **Le dépôt A du code** (cette ligne affirmait le contraire jusqu au 2026-09-13). 🔴 **`backlog-phase-1.md` pèse ~85 000 tokens — NE L OUVRE JAMAIS EN ENTIER.** Le brief te donne la SECTION visée (`§E3-ST17`, `§E2-ST6`…) : va la chercher avec `grep -n` puis un `Read(offset, limit)` borné. Ce qui
   « existe » aujourd'hui, ce sont ces plans. Une objection qui invente du code inexistant est du
   bruit.
 - `.claude/rules/budget-free-tier.md` (zéro dépense, gratuit **et** sans clé),

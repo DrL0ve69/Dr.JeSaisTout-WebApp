@@ -1,0 +1,1035 @@
+# Journal des blocs de reprise retirés de `CLAUDE.md` (élagage du 2026-09-13)
+
+> **Ce que c est.** Le texte INTÉGRAL des quatre blocs « BASCULE » et « REPRISE » que `CLAUDE.md`
+> portait jusqu au 2026-09-13, retiré parce qu il était devenu la cause mesurée du plancher de
+> contexte des sous-agents : **19 720 tokens injectés**, contre 8 407 le 2026-08-20 — payés par
+> CHAQUE agent de CHAQUE session. Rien n a été supprimé : tout est ici, et le détail de chaque
+> clôture de lot vit de toute façon dans [`reprise-refonte-lecons.md`](reprise-refonte-lecons.md),
+> [`reprise-php-en-bref.md`](reprise-php-en-bref.md) et [`backlog-phase-1.md`](backlog-phase-1.md).
+>
+> ⚠️ **Ce fichier n est PAS auto-injecté, et ne doit jamais le devenir.** Il est du récit clos :
+> on vient y chercher un détail, on ne le charge pas d office.
+
+---
+
+> ## 🔴 BASCULE DE DIRECTION — 2026-08-17, à lire AVANT le bloc de reprise
+>
+> Le propriétaire a changé la direction produit et visuelle. **Quatre décisions, prises, à ne pas
+> rouvrir** (détail et justifications : [`docs/design/direction-visuelle.md`](docs/design/direction-visuelle.md) §0 et §4) :
+>
+> **D-1 · L'habillage devient « Moniteur ambre ».** La structure produit de **boot.dev**
+> (apprentissage jalonné, carte de parcours, progression visible) habillée en **rétro-arcade +
+> Matrix**. La direction **« Carnet de laboratoire » est ABANDONNÉE** — papier ivoire, Fraunces,
+> marginalia, tampons, encre : tout ce vocabulaire est mort. ⚠️ **Le point à ne pas rater :** la
+> couleur de marque est **l'AMBRE `#FFB454`, pas le vert**, parce que **le vert est déjà pris — il
+> veut dire « corrigé »**. Un vert phosphore de marque diluerait la seule signature chromatique
+> pédagogique du site (rouge = vulnérable / vert = corrigé). *Matrix* passe par le **motif** (pluie de
+> glyphes, scanlines, noir profond), jamais par la teinte. Palette d'amorçage **mesurée** : 18 paires,
+> 0 échec.
+> **D-2 · Thème SOMBRE SEUL en phase 1.** G5 est amendé ; le thème clair devient un **livrable
+> d'E4-ST1**, pas une note flottante (mode d'échec connu du dépôt, famille L-007).
+> **D-3 · La bascule s'exécute APRÈS E3 bloc A**, sous l'épic **E6**. Le contenu garde le chemin
+> critique de mi-septembre. **Ordre révisé : E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B/C → E4 → E5.**
+> **D-4 · Identité typographique, aucun avatar dessiné.** « Dr. Je-Sais-Tout » reste le nom ; son
+> incarnation devient l'**opérateur** derrière la console.
+>
+> **Deux conséquences immédiates pour qui code d'ici E6 :** (a) écrire du composant neuf est **sans
+> risque** *à condition* de ne consommer que des **jetons sémantiques** — le pari explicite d'E6 est
+> qu'aucun composant n'a besoin d'être touché pour changer de peau, et tout composant qui l'exige
+> sera consigné comme **défaut G7** ; (b) une **règle d'architecture neuve et bloquante en revue** :
+> **aucune feature n'importe une autre feature** — `cours/sommaire` lit la progression que
+> `cours/quiz` écrit **via `core/progression/`**, jamais par import direct. Elle se gagne ou se perd
+> exactement au couple **E2-ST3 / E2-ST6**.
+>
+> **Deux tâches neuves au backlog :** **E3-ST0** — le site du cours de l'enseignant a été **complété
+> depuis la passe `/archiviste`** ; les fiches KB de `web/securite/` ont donc des trous, et une leçon
+> écrite sur une fiche trouée est à réécrire. Fusion à faire **avant** la première leçon
+> (<https://www.alexandrepetrin.ca/securisation-des-applications-web/> et
+> <https://www.alexandrepetrin.ca/php/>). Et **E6** (5 sous-tâches).
+>
+> **Périmètre « jeu », tranché et restreint** (backlog §E2-ST6) : on prend la **carte de parcours** et
+> la **maîtrise** (quiz réussi, jamais le temps passé) ; on **refuse** série quotidienne, ligues,
+> classements, monnaie et boutique — dark patterns documentés, impossibles sans compte, sans usage
+> réel ici. ⚠️ **Trou de KB constaté** : `npm run kb -- gamification …` ne remonte que 2 fiches ; ce
+> qui a tranché est de la recherche web datée, pas la KB (consigné dans `docs/kb-map.md`).
+>
+> ---
+>
+> ## ⏭️ REPRISE — chantier PRIORITAIRE depuis le 2026-09-10 : cours de PHP, format « En bref »
+>
+> 🔴 **La priorité est passée au cours de PHP (séances 1 à 5)**, et la refonte sécurité ci-dessous est
+> **différée** au compteur `5/9`. **Tout est dans [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md)
+> — le lire AVANT toute ligne de ce chantier, et commencer par son §6.** La plomberie « second cours »
+> (E7, lots A-B-C) est **livrée** : `/cours/php/` est en ligne, sans module. Le geste suivant est
+> **PHP-A** (grammaire d'auteur de D-PHP-1), puis la séance 1 — ⚠️ **PHP-A est MESURÉ, pas fait** : il
+> exige une grammaire neuve (A dans l'étape, ou attribut C), choix à faire avec le propriétaire (§6,
+> bloc « SESSION DU 2026-09-11 »). Chemins du poste (§3) : ✅ **P-1 et P-3 sont CONFIRMÉS
+> (2026-09-11)** — `C:\Users\0758510` et `C:\wamp64` (racine servie `C:\wamp64\www`). **P-2, P-4,
+> P-5, P-6 et P-7 restent à fournir** — tout exemple concret garde `à-vérifier:` et bloque la
+> publication tant qu'ils manquent.
+>
+> ## ⏭️ REPRISE — chantier OUVERT au 2026-08-31 : « leçons actionnables »
+>
+> 🔴 **UNE REFONTE DU FORMAT DES LEÇONS EST EN COURS, branche `feat/refonte-lecons-actionnables`.**
+> Le propriétaire ne peut pas se servir d'une leçon pour **agir** : marche à suivre concise en tête,
+> renvois de diapositives jusque dans le sommaire, onglets pour comparer la méthode du cours et
+> l'équivalent moderne. Elle s'appliquera aux **dix** modules publiés, module 11 d'abord.
+> **Tout est dans [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) —
+> le lire AVANT de toucher au pipeline de contenu, au rendu d'une leçon ou à un `lecon.md`, et
+> commencer par son §6.** Ce pointeur reste court exprès : un bloc de reprise est payé par chaque
+> agent de chaque session.
+> 🔴 **LES SEPT ARBITRAGES DE LA REFONTE SONT RENDUS (2026-08-31), et ils font foi.** D-A conteneur
+> `:::: marche-a-suivre` · D-B l'attribut de diapos sur le **titre lui-même** · D-C onglets **CSS purs**
+> (radios), zéro JavaScript · D-D gate qui **se durcit module par module**, avec compteur · R-3 la règle
+> s'assouplit — une séance d'évaluation **pratique** peut porter un module, l'examen écrit reste interdit ·
+> R-7 **la reprise des dix modules passe DEVANT le contenu neuf** · R-4 la perte du `Ctrl+F` dans un
+> onglet masqué est **acceptée**, sous réserve écrite au contrat. Ce que chacun engage :
+> [`docs/design/refonte-lecons-actionnables.md`](docs/design/refonte-lecons-actionnables.md), bloc « VERDICT ».
+> ✅ **R-1 EST LEVÉ PAR LA MESURE (2026-09-06, lot 4bis)** : l'hydratation ne réécrit **pas** le
+> `checked` d'une radio statique, et une interaction voisine ne réinitialise pas l'onglet. **Les onglets
+> CSS purs de D-C sont confirmés, le repli option 2 est sans objet.**
+> ✅ **LE LOT 6 EST LIVRÉ (PR #50, 2026-09-07) — les onglets sont RENDUS, en CSS pur.** L'unicité du
+> `name` sur la page entière, qui était son critère d'acceptation, est tenue **par construction** (un
+> input `chemin` : ancre de section, puis `_e`/`_m`/`_v` par récursion) et mesurée aux **deux** étages —
+> `rendu-blocs.spec.ts` à l'intérieur d'une instance, `lecon.spec.ts` d'une section à l'autre.
+> ✅ **LE LOT 7 EST LIVRÉ (2026-09-07), ET SON PÉRIMÈTRE A ÉTÉ RÉFUTÉ PAR LA MESURE.** Le plan
+> annonçait ~12 dossiers de fixtures invalides ; **dix étaient déjà écrits** par les lots 3 et 5,
+> et le douzième attend le lot 9. Ce que la mesure a trouvé à la place : `jugerRenvoiDEtape` — la
+> copie **validateur** de `{voir="…"}` — porte **sept** refus dont **un seul** était exercé, pendant
+> que le compilateur avait les siens : **l’aval refusait, l’amont laissait passer** (S-010, L-019).
+> Livré : six cas en bac à sable jetable + la fixture `voir-module-inconnu` (compte en dur
+> **51 → 52**), deux contrôles positifs par mutation à **1 rouge exactement** — dont un où la racine
+> reste refusée et où **seule la cause propre attrape la régression**.
+> 🔴 **UN LOT DIFFÉRÉ SE RE-MESURE CONTRE L’ÉTAT DU DÉPÔT LE JOUR OÙ IL S’OUVRE, jamais contre la
+> ligne du plan qui l’a nommé** : les lots 3 et 5 avaient écrit leurs contrôles positifs en bac à
+> sable *précisément parce que* le corpus était renvoyé au lot 7 — le lot différé peut donc être
+> vidé de sa substance par ses propres voisins. Détail :
+> [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 7 ».
+>
+> ✅ **LE LOT 1b EST LIVRÉ (PR #52, 2026-09-08) — `cours="…"` SE RÉSOUT.** Sa valeur est un **nom de
+> dossier** de sujet frère (`php`), jamais un code de cours : le compilateur lit le `cours.code` de
+> l'`horaire.json` cité et pose **ce code** au contrat compilé — le membre rendu **cesse d'être du texte
+> d'auteur**, ce qui ferme **S-026**. `content/cours/php/horaire.json` existe (13 séances du 420-4P2-HU,
+> relevées sur le site de l’enseignant). ⚠️ **La clef du registre est le nom de DOSSIER, pas le champ
+> `sujet` déclaré** — mesuré : les racines de fixtures déclarent presque toutes `securite-web`.
+> ✅ **LE LOT 1b-B EST LIVRÉ (2026-09-08) — ET IL A RÉFUTÉ SON PROPRE PÉRIMÈTRE, comme le lot 7.**
+> Le plan disait « cinq refus » ; le recomptage en trouve **QUINZE**, sur **trois** juges (6 au
+> validateur, 5 au compilateur, **4 de plus** dans `lireHoraireDUnSujetFrere`), dont **un seul**
+> était exercé. ⚠️ **Les dix manquants ne s’atteignent pas en écrivant un attribut** — il faut abîmer
+> l’`horaire.json` du **frère** : on recense des branches en lisant le JUGE, jamais en énumérant les
+> entrées d’auteur. Les quinze sont tenues une par une, et **trois mutations** mesurent qu’elles
+> discriminent (1, 2 et 1 rouges exactement).
+> 🔴 **CE QUE LE LOT A TROUVÉ AU PASSAGE, ET QUI VAUT AU-DELÀ DE LUI : le garde S-026 que la revue de
+> sécurité du 2026-09-08 avait exigé n’avait AUCUN contrôle positif commité.** La revue l’avait mesuré
+> **une fois, à la main**, en le débranchant — et cette mesure est morte avec son rapport. ⚠️ **Une
+> revue mesure pour DÉCIDER ; si personne ne transforme sa mesure en test, le garde le plus récent du
+> dépôt est le moins protégé contre sa propre disparition** (L-019). Il l’est désormais aux deux
+> étages du couple S-027.
+> 🔴 **« Fermée pour le PIPELINE » n’est pas « fermée pour la FONCTION » (S-027)** : une grammaire
+> qui ne vit que dans le schéma ne protège que le chemin où le validateur tourne avant le compilateur.
+> Et **la duplication compilateur/validateur est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE**
+> (L-095) — le balayage vit désormais dans `tools/content-pipeline/sujets-freres.mjs`, partagé.
+>
+> ✅ **LE LOT 1c EST LIVRÉ (PR #55, 2026-09-08) — `{hors-cours}` SE COMPILE, SE VALIDE ET SE REND.**
+> Il écrit qu’une section EST cartographiée et qu’aucune diapositive ne la porte, ce qui la distingue du
+> **silence**, réservé au non-cartographié. `horsCours?: true` est un champ **distinct**, pas une union :
+> absent ≠ `false`, et c’est ce qui permettra au gate du lot 9 d’être total. ⚠️ `SousEntreeSommaire`
+> nomme désormais son champ **`mention`** et non plus `renvoiCours` — il peut porter « (hors du cours) »,
+> l’exact contraire d’un renvoi (famille S-010 : une promesse au singulier a une date de péremption).
+> 🔴 **SONARCLOUD A RÉVÉLÉ CE QUE LES GATES DU DÉPÔT NE MESURENT PAS** — 10,8 % de duplication sur le
+> code neuf. La plomberie du bac à sable et la table des refus sont montées dans
+> `src/aides-de-test/bac-a-sable-inter-cours.ts` (**→ 0,0 %**, comptes de tests identiques). ⚠️ **Partager
+> une table d’ATTENTE n’affaiblit pas L-095** : chaque spec lance toujours son propre juge, et le contrat
+> veut la même phrase des deux côtés puisque l’auteur ne sait pas lequel des deux outils l’a repoussé.
+> ✅ **LE LOT 8 EST LIVRÉ EN ENTIER — 8-A (PR #56) ET 8-B (PR #57), 2026-09-08. LE MODULE 11 EST
+> TOTALEMENT CARTOGRAPHIÉ.** Relevé sur l’artéfact prerendu : **18** `<p class="renvoi-titre">`, et au
+> sommaire **18 entrées sur 18 portant une mention, ZÉRO muette** (8-A en laissait 7). C’est la
+> condition que le gate total du **lot 9** attend — et c’est aussi pourquoi ce gate **ne pourra pas se
+> prouver sur le corpus** : il faudra une fixture qui viole la règle. ⚠️ **`{hors-cours}` n’est pas
+> « je n’ai pas cherché »** : les dix sont adossés à une mesure d’absence sur les 16 extraits (748
+> diapositives). Les **dix** recoupements de `docs/contenu/renvois-diapos-module-11.md` §2 sont
+> traités ; le mode est toujours le même — **nommer le désaccord dans la leçon**, jamais le trancher en
+> silence, parce que l’étudiant a la diapositive sous les yeux. ⚠️ **Une correction d’encadré se
+> propage au RÉSUMÉ, qui n’est dans aucun diff d’encadré** : R-4 et R-5 vivaient aussi dans le
+> paragraphe d’ouverture de la section et dans `À retenir`.
+> ✅ **La 4ᵉ réserve du lot 0ter est fermée** : `sommaire.ts:positionDuJalon` ne *teste* aucune nature
+> d’évaluation, il **présuppose** qu’un jalon ne partage jamais sa séance avec un module — faux en
+> production depuis `evaluation-pratique`. 🔴 **Un CONSOMMATEUR d’invariant ne rougit dans aucun grep de
+> la règle qu’il suppose ; seul un test le tient** (mutation `<` → `<=` : 1 rouge exactement).
+> ⚠️ **DÉFAUT NEUF, NOMMÉ ET NON CORRIGÉ : le pipeline ne rend pas le code en ligne dans un TITRE** — ni
+> dans le `<h3>`, ni au sommaire ; le lecteur voit les accents graves. Contourné côté contenu au module
+> 11 ; toute leçon qui met des rétronotations dans un titre reproduira le défaut.
+> ✅ **LE LOT 9 EST LIVRÉ (2026-09-08) — LE GATE DU FORMAT ACTIONNABLE EXISTE, ET SON COMPTEUR DIT
+> `1/9`.** `MODULES_AU_FORMAT_ACTIONNABLE` est lue par la règle 13 de `valider.mjs` : pour un module
+> de la liste, la marche à suivre est imposée à sa place et **chaque** titre `##` **ou** `###` doit
+> porter un bloc d'attributs ; pour tous les autres, **rien ne change**. ⚠️ **L'exigence des renvois ne
+> rejuge pas leur grammaire** — la règle 4d refuse déjà tout bloc ne citant ni `diapos` ni
+> `{hors-cours}` ; les composer donne un gate total sans produire deux causes pour une faute.
+> 🔴 **LA PERMISSION MORTE NE POUVAIT PAS VIVRE DANS LE VALIDATEUR, et c'est mesuré contre le contrat
+> du lot 0** : « le corpus » n'y existe pas — la racine est **paramétrable**, et toutes celles de
+> `__fixtures__/` en sont. Elle vit donc dans `src/format-actionnable.spec.ts` (G-test rouge tant que
+> la liste ment). 🔴 **Et ce qui prouve le gate n'est aucun de ses refus : c'est le cas de plus,
+> qui ACCEPTE la même faute sur un module hors de la liste.** Le module 11 étant déjà conforme, le
+> corpus ne pouvait rien démontrer.
+> 🔴 **CE QUE LA REVUE A ATTRAPÉ, ET QUI VAUT AU-DELÀ DU LOT — un cas de test peut être COMPOSÉ pour
+> cacher une seconde cause.** La règle 13 juge la place du **titre**, la règle 11 celle du
+> **conteneur** : déplacer la section « En bref » **entière** — la seule façon dont un auteur se
+> trompe — rendait **deux** anomalies, dont la première mentait à l'œil. Le cas de contrôle positif
+> esquivait la question en renommant deux titres et en laissant le conteneur en place. ⚠️ **Quand une
+> règle neuve recoupe une règle existante sur la même donnée, le cas à écrire est la forme NATURELLE
+> de la faute, pas celle qui isole proprement la branche visée** — et « une seule cause par faute »
+> n'a **aucun garde-fou exécutable** hors du mode `--fixtures`.
+> ⚠️ **Un contrat qui annonce un ÉTAT FINAL doit nommer l'ensemble qu'il épuise.** Le compteur
+> comptait `20-evaluation-cvss`, publiée mais **sans `seance`** donc structurellement inéligible :
+> « le jour où les deux ensembles coïncident » était **inatteignable**. Dénominateur = les publiées
+> **ancrées au cours**. Détail :
+> [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md), bloc « CLÔTURE — LOT 9 ».
+> ✅ **LE LOT 10 EST LIVRÉ (PR #61, 2026-09-09) — `01-fondamentaux` EST REPRIS, LE COMPTEUR DIT `2/9`.**
+> Dix-sept titres `##` (aucun `###`) : onze `{diapos="…"}`, six `{hors-cours}`, une marche à suivre à six
+> étapes **sans aucun bloc de code** — le module ne porte aucune commande à taper, et l'exigence admet la
+> phrase par étape. Il porte **le premier `:::: methodes` du dépôt**, et il est **rendu** : un
+> `<fieldset class="methodes">`, deux radios de même `name`, **un seul `checked`**. G-axe a donc enfin
+> tourné **sur une page à onglets** (1118 vérifications, 0 violation).
+> ✅ **LE LOT 11 EST LIVRÉ (2026-09-09) — LE LEGS DU LOT 6 EST CLOS EN ENTIER.** Les **quatre** états sont
+> mesurés en navigateur (`e2e/onglets-methodes.spec.ts`, 7 tests, G-e2e **50 → 57**), et la capture en
+> contraste forcé est **mesurée** plutôt que regardée. 🔴 **Elle a réfuté le commentaire de
+> `rendu-blocs.scss`** : en HCM le filet de l'onglet **inactif**, `solid transparent`, devient PEINT lui
+> aussi — 2 rangées contre 1, là où l'écran normal donne 2 contre 0. **Le canal qui porte réellement R-8
+> est donc la RADIO laissée visible** (noyau peint 1,00 cochée / 0,00 vide), pas l'épaisseur.
+> ⚠️ **UN INSTRUMENT QUI SE CALIBRE SUR CE QU'IL MESURE MESURE ZÉRO** : l'aide de capture prenait la
+> teinte MAJORITAIRE pour fond, ce qui s'inverse sur une radio de 13 × 13 — le point peint se comparait à
+> lui-même et sortait à 0,00. Le fond est le pixel du COIN, avec un garde-fou à sens unique.
+> 🔴 **ET LA REVUE A ATTRAPÉ CE QUE SIX MUTATIONS N'ATTEIGNAIENT PAS :** `toHaveText` lit `textContent`,
+> rendu **aussi** pour un élément en `display: none` — l'assertion des titres de volets imprimés était
+> **déjà vraie à l'écran**, et retirer la seule ligne `.panneau-nom` du `@media print` laissait le test
+> **VERT**. ⚠️ **Une assertion de TEXTE sur un sélecteur masqué a toutes les apparences d'une mesure de
+> rendu.** Même lot, même famille : la capacité e2e neuve n'avait **aucun** filet hors de la suite — sept
+> tests pouvaient s'éteindre en silence pendant que G-e2e restait vert, et c'est le fichier qui
+> **promettait** ce filet (`artefact-mesure.ts`, « SAUTE bruyamment, jamais en silence ») qui avait oublié
+> de le poser : `CAPACITES_MESUREES_EN_E2E.onglets` est ajouté, et sa mesure **retire les blocs clôturés**
+> avant de chercher — une leçon qui documente la grammaire écrirait `:::: methodes` sans rendre un seul
+> `<fieldset>`. ⚠️ **Et aucun gate ne peut mesurer la clause de rédaction de D-C** — le contenu masqué doit
+> être l'**équivalent** du visible : elle s'est fait enfreindre **dès le premier conteneur écrit**
+> (`/var/www/html/` n'existait que dans le volet masqué, introuvable au `Ctrl+F`).
+> 🔴 **LA LEÇON DU LOT 10, PAYÉE DEUX FOIS DANS LE MÊME LOT : une section neuve écrite APRÈS des
+> correctifs les recopie de mémoire et RESSUSCITE la version corrigée.** Deux étapes de la marche à
+> suivre ont réintroduit des réserves fermées deux commits plus tôt ; la seconde n'a été vue que par la
+> revue. ⚠️ **Aucun diff ne montre ça** — la section est *ajoutée*, la correction qu'elle défait est
+> ailleurs et intacte. **Une section neuve se relit contre chaque réserve FERMÉE, jamais contre le diff.**
+> Même famille : interdire une **classe** d'affirmation (« hors examen ») oblige à recenser **toutes**
+> ses occurrences, pas seulement celle qu'on corrigeait — l'encadré OWASP et le `quiz.json` q6 la
+> portaient encore, et c'est le correctif lui-même qui a créé l'incohérence.
+> ✅ **LE LOT 12 EST LIVRÉ (2026-09-10) — `02-environnement-linux` EST REPRIS, LE COMPTEUR DIT `3/9`.**
+> Vingt-quatre titres : **19** `{diapos}` de la séance 2, **4** `{seance="5" …}`, **1** `{hors-cours}`,
+> huit étapes de marche à suivre, et le **deuxième `:::: methodes`** du dépôt (`vi` / `nano`).
+> 🔴 **`{seance="N"}` N'EST PAS `{hors-cours}`, ET S'Y TROMPER RÉÉCRIT UNE FAUTE DANS LA GRAMMAIRE.**
+> Trois encadrés déclaraient les permissions, `chmod`, `apt` et `systemctl` « issus de la base de
+> connaissances », l'étudiant « pas évalué dessus » — mesuré, ils sont la matière de la **séance 5 du
+> même cours**. Une absence dans le déck de **sa** séance ne dit rien du cours : `{hors-cours}` répond à
+> « aucune diapositive **des 21 extraits** », jamais d'un seul déck. Et la **promesse d'exclusion** est
+> le pire des deux échecs symétriques — elle fait choisir à l'étudiant ce qu'il ne révise pas.
+> ⚠️ **La même accusation vivait dans le `quiz.json`, en plus dure** : un JSON n'apparaît dans aucun
+> diff d'encadré, et corriger la leçon seule aurait laissé le module se contredire.
+> 🔴 **POSER UN RENVOI DE TITRE EST UN JUGEMENT DE PROVENANCE — leçon neuve, attrapée par la revue.**
+> Le lot a donné `{diapos="18"}` à une section **et** laissé cent lignes plus haut l'encadré qui la
+> déclarait hors cours : le recensement de la classe avait été fait **avant** que les renvois existent.
+> **Tout encadré qui parle de la provenance d'une section se relit contre le renvoi NEUF de cette
+> section** — aucun diff ne montre ça, le renvoi est ajouté d'un côté, l'encadré intact de l'autre.
+> ⚠️ **ÉCRIRE UN `:::: methodes` DÉPLACE LA CIBLE DES SPECS D'ONGLETS.** `LECON_AVEC_ONGLETS` est
+> **découverte** (première page prerendue portant `class="methodes"`, ordre trié) : `environnement-linux`
+> précède `fondamentaux`. G-e2e reste à **57/1** uniquement parce que le lot 11 avait fait **dériver**
+> les attentes du spec de la source d'auteur. Un vert peut prouver qu'un lot **antérieur** a bien bâti
+> ses instruments, pas que le lot courant est sans effet (S-010).
+> ⚠️ **`libelle` d'un volet est interpolé NU** (`{{ volet.libelle }}`, dans le `<label>` **et** dans le
+> `panneau-nom` imprimé) : des accents graves y sortiraient littéralement. C'est la **deuxième surface**
+> du défaut « code en ligne non rendu dans un titre » — le corriger reste un lot à part.
+> ⚠️ **La clause D-C s'est fait enfreindre au DEUXIÈME conteneur comme au premier** : `nano` ne vivait
+> plus que derrière l'onglet masqué. **Le mode d'échec d'un `methodes` n'est pas d'y mettre trop, c'est
+> d'y enfermer le seul exemplaire d'un fait.**
+> ⚠️ **La mesure d'absence se sort du périmètre de l'agent** — une sonde jetable qui rend **une ligne
+> par terme** sur les 21 extraits, lancée par le fil principal **avant** d'écrire le brief. Deux gardes
+> non négociables : un mode **mot entier** (sans lui `vi` remonte 191 diapositives), et le rappel qu'une
+> mesure injectée transporte les **hypothèses d'orthographe du coordinateur** avec le statut de fait —
+> `on-premise` et `chemin relatif` sortaient `AUCUN` là où le cours écrit « On Premise » et « adresse
+> relative ». Détail : `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 12 ».
+> ⚠️ Les renvois `diapos` sont désormais **mesurables** : `tools/supports-cours/extraire-diapositives.mjs`
+> numérote les diapositives des **deux** cours dans `securite-app-web-2026/extraits/` et
+> `php-2026/extraits/` (gitignorés). Aucun outil d'agent ne lit un `.pptx` — n'en cite jamais un de
+> mémoire, et n'envoie pas `WebFetch` le lire : il invente plutôt que d'échouer.
+> ✅ **LE LOT 13 EST LIVRÉ (PR #65, 2026-09-10) — `03-communication-serveur` EST REPRIS, LE COMPTEUR
+> DIT `4/9`.** Vingt-sept titres, zéro muet : **19** `{diapos}` de la séance 3, **1** `{seance="5"}`
+> pour les droits d'accès, **6** `{hors-cours}`, neuf étapes de marche à suivre, et le **troisième
+> `:::: methodes`** du dépôt (PuTTY / client OpenSSH). La cartographie est revenue **au fil
+> principal** : le déck de la séance 3 fait 78 diapositives, donc 78 lignes d'extrait. 🔴 **C'est la
+> taille de la SOURCE qui décide s'il faut un agent, pas la nature de la tâche.**
+> 🔴 **L-101 A UNE DEUXIÈME FACE, et elle est l'angle mort exact du geste posé au lot 12.** Le même
+> commit posait un renvoi **positif** sur `### Les commandes` — dont cinq formes (`ufw default`,
+> `limit`, `status verbose`, profil `OpenSSH`, `delete allow 80/tcp`) ne sont sur **aucune**
+> diapositive — **et supprimait**, six cents lignes plus haut, la seule phrase qui les qualifiait de
+> compléments. ⚠️ **Un recensement fait sur le FICHIER ne voit pas ça** : la phrase n'y est plus. Il
+> se fait sur les lignes **SUPPRIMÉES** du diff.
+> 🔴 **UN TITRE MUET FAIT ROUGIR LE GATE ; UN RENVOI TROP ÉTROIT NE FAIT ROUGIR PERSONNE.** Douze
+> diapositives (31-43 : toute la connexion PuTTY et WinSCP, l'aboutissement de la séance) n'étaient
+> citées par **aucun** titre — elles vivaient dans le conteneur d'onglets, sous un titre qui ne
+> parlait que de la conversion `.ppk`. La règle 13 exige un bloc d'attributs, elle ne peut rien dire
+> de sa **justesse**. **Une cartographie vérifie que chaque renvoi est juste ; elle doit AUSSI
+> vérifier que chaque diapositive du déck est atteignable.**
+> 🔴 **LE FORMAT ACTIONNABLE FAIT REMONTER LES CONTRADICTIONS LATENTES D'UNE LEÇON** — à attendre aux
+> six modules restants. La marche à suivre neuve et `## Exemple complet` se contredisaient sur l'état
+> du mot de passe d'un droplet neuf ; la contradiction **préexistait** entre deux sections éloignées,
+> le résumé l'a portée **en tête de page**. Tranchée par la source (documentation DigitalOcean :
+> *« Password authentication is disabled by default on Droplets created with an SSH key »*, valeur
+> écrite dans `/etc/ssh/sshd_config.d/50-cloud-init.conf`), pas par l'avis.
+> ⚠️ **TROISIÈME CONTENEUR `methodes`, TROISIÈME INFRACTION À D-C — et cette fois les DEUX volets
+> étaient fautifs**, y compris celui qui porte `defaut`. Un volet est masqué la moitié du temps : la
+> clause vaut **symétriquement**. Le brief l'exigeait en toutes lettres et n'a pas suffi ; **ce qui
+> marche est d'imposer l'ORDRE d'écriture** — la prose visible d'abord, avec tout ce qui doit être
+> trouvable au `Ctrl+F` ; les volets ne gardent que la suite de gestes.
+> ⚠️ **Un renvoi d'encadré survit à la republication du support qui l'a justifié** : `{diapos="45-50"}`
+> pointait le changement de port, ces six diapositives traitent d'UFW depuis la republication. **La
+> grammaire de `diapos` contrôle la forme des jetons, jamais leur sens** — rien ne peut rougir.
+> ⚠️ **Le test du « + » vaut aussi pour un brief de REVUE.** Six axes donnés au relecteur → **175k**,
+> au-dessus du maximum. Le rédacteur, lui, a fini à **115k pour 14 appels** parce que son brief portait
+> les titres mesurés au caractère près et le squelette des étapes déjà décidé. Et : **la convention à
+> injecter dans un brief est celle du FICHIER qu'on modifie, jamais celle du gabarit qu'on donne.**
+> Détail : `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 13 » ; table des 27 renvois :
+> `docs/contenu/renvois-diapos-module-03.md`.
+> ✅ **LE LOT 14 EST LIVRÉ (2026-09-10) — `04-automatisation-surveillance` EST REPRIS, LE COMPTEUR DIT
+> `5/9`.** Trente-deux titres, zéro muet : 19 `{diapos}` de la séance 4, 1 `{seance="5"}` pour les
+> permissions et `sudoers`, 12 `{hors-cours}`, neuf étapes de marche à suivre, et le **quatrième
+> `:::: methodes`** (`crontab` contre un timer `systemd`) — **le premier des quatre à ne cacher aucun
+> fait unique**, parce que la parade du lot 13 (écrire la prose visible AVANT les volets) a été
+> appliquée telle quelle. Zéro sous-agent : la source fait 70 diapositives, et une **reprise** n’est pas
+> une rédaction.
+> 🔴 **DÉCRIRE UNE FAUTE DU SUPPORT SANS L’ATTRIBUER PRIVE L’ÉTUDIANT DU SEUL RENSEIGNEMENT UTILE.** La
+> leçon écrivait « on voit parfois `0 3 * * * 6` » ; mesuré, c’est le **cas n° 5 de la diapositive 31**,
+> mot pour mot — six champs pour cinq. La parade « retirer l’attribution, garder le fait » vaut quand la
+> source **n’est pas vérifiable** ; ici elle l’est à la ligne près, et la taire coûtait la diapositive
+> que l’étudiant va réviser. Devenu un `correction-du-cours`. Même famille, plus douce : le cours écrit
+> « Jour de la semaine (0-6) », la leçon l’attribuait à « beaucoup de mémentos ».
+> 🔴 **DEUXIÈME CONFIRMATION QU’UNE DIAPOSITIVE ORPHELINE NE FAIT ROUGIR PERSONNE** — cinq ici (33-37,
+> l’exercice de groupe du cours) contre douze au lot 13. **Le geste qui l’attrape est mécanique :
+> faire l’UNION des diapositives citées et la soustraire de `1..N`** ; ce qui reste est soit une
+> diapositive de titre, soit un trou de leçon. Les deux sens se mesurent séparément.
+> 🔴 **ÉCRIRE LE PREMIER CONTENEUR D’ONGLETS D’UNE PAGE MESURÉE A RENDU CINQ TESTS e2e ROUGES, SANS
+> AUCUN DÉFAUT DU PRODUIT.** Un volet non coché est en `display: none` : son bloc de code est au DOM et
+> **ne peut pas** être un arrêt de tabulation — `defileurs-clavier.spec.ts` comparait le parcours
+> clavier à *tous* les `.defileur`. Correctif : une seconde source filtrée sur `checkVisibility()`, qui
+> **garde le rang au DOM complet** (sans lui, `.defileur.nth(i)` vise le mauvais élément). ⚠️ Et une
+> troisième leçon en prime : **le rang d’une « Étape » n’est PAS un compteur de figures** — une étape
+> sans bloc de code est légale, les rangs rendus font `1, 2, 3, 6, 7, 8`. Une assertion universelle
+> héritée d’une population homogène devient fausse au premier membre d’une autre espèce ; on **nomme
+> l’ensemble** sur lequel elle porte plutôt que de la relâcher pour tout le monde.
+> ⚠️ **Trois titres portaient du code en ligne** (`` `crontab` ``, `` `cron` ``, `` `shell_exec` ``) :
+> dépouillés, comme au module 11 — **le défaut de rendu, lui, reste ouvert**. Détail et nœuds :
+> `docs/agile/reprise-refonte-lecons.md`, bloc « CLÔTURE — LOT 14 » ; table des 32 renvois :
+> `docs/contenu/renvois-diapos-module-04.md`.
+>
+> ---
+>
+> ## ⏭️ REPRISE — état au 2026-08-27
+
+> ✅ **NEUF LEÇONS SONT EN LIGNE. E3-ST16 `04-automatisation-surveillance` (séance 4) EST PUBLIÉE** —
+> `lecon.md` 1400 l., `quiz.json` 9 questions, **pas de simulation** (lecture guidée de journaux). Les
+> 7 exercices de la séance sont placés un par un. La décision « les deux, côte à côte » vaut jusqu'à la
+> séance 5 : méthode du cours (`crontab` + PHP CLI) en chemin principal ET référence évaluable,
+> équivalent moderne (timers systemd, `journald`, `disable_functions`) en `::: complement`. Détail,
+> constats et **nœuds laissés au propriétaire** : backlog, bloc « ✅ CLÔTURE — E3-ST16 ». Gates :
+> G-test **949/43**, G-axe **12 pages / 1032 vérifications / 0 violation**, G-build **12 routes · 14
+> hachages de style / 0 de script**, G-e2e **50 passés / 1 sauté**, `npm audit --omit=dev` **0**.
+>
+> 🔴 **UNE PR FUSIONNÉE NE PROUVE PAS QUE LA BRANCHE EST VIDE — payé en PRODUCTION le 2026-08-27.**
+> La PR #40 a emporté `feat/realignement-cours-2026` jusqu'à la **séance 2** ; les trois commits
+> suivants (séances 3 et 4) sont restés dessus. Le site a servi **404** sur deux leçons `publiee`
+> pendant que tous les gates étaient verts et que la branche figurait parmi les PR **fusionnées** :
+> rien ne pouvait rougir. ⚠️ **`git log --oneline origin/main..<branche>` fait foi à la clôture d'un
+> lot** — un journal **vide** est la seule preuve de livraison. Quand un lot continue sur une branche
+> déjà fusionnée, ouvrir la PR suivante **avant** le premier commit.
+>
+> 🔴 **G-CONTRASTE EST UN GATE DE CONTENU DÉGUISÉ EN GATE DE DESIGN — L-080.**
+> `src/styles/_coloration-syntaxique-generee.scss` est **généré par `content:build`** : une
+> construction syntaxique inédite dans une leçon y fait naître des classes, donc des propriétés,
+> neuves. Un `\S` de regex PHP (séance 4) a produit `--shiki-{light,dark}-font-weight: bold` et fait
+> rougir la CI **à la publication**, sur une PR sans une ligne de code de design. La liste blanche du
+> gate est désormais fermée sur le **contrat de Shiki** — dix noms lus dans sa source — et non sur le
+> corpus du jour ; les six propriétés de style sont admises, non mesurées, mais leur **valeur** est
+> contrainte (S-020). ⚠️ **Toute leçon peut faire rougir un gate que personne n'associe au contenu.**
+>
+> ✅ **LA PORTÉE DE L'EXAMEN 1 EST [1, 2, 3, 4]** — `content/cours/securite-web/horaire.json`, séance 6
+> le **2026-09-11**. Les quatre leçons évaluées sont **en ligne**. La séance 5 est enseignée le
+> 2026-09-04, donc **avant** l'examen, mais n'y est **pas évaluée** : elle n'apparaît qu'à la portée de
+> l'**Examen final**. E3-ST17 reste le geste suivant du plan, **sans être sur le chemin critique**.
+>
+> **Le geste suivant : E3-ST17 `05-utilisateurs-permissions` (séance 5)** — comptes, groupes, `sudo`,
+> politique de mots de passe, propriétaires et bits d'accès. Fiches KB `web/securite/administration-serveur-linux.md`
+> **+** `web/securite/stockage-mots-de-passe.md`, **sans simulation**. Matériel de modernisation dans
+> `README.txt` (Cours 5 : l. 290-334), **NON sourcé** — conversation avec un assistant IA, il entre
+> comme piste sous marqueur `à-vérifier:`.
+> ✅ **« LA SÉANCE 5 EST UN SQUELETTE » EST PÉRIMÉ — REMESURÉ LE 2026-09-09.** Le propriétaire a
+> déposé un support neuf ; réextrait, il rend **119 diapositives, zéro `(TODO)`**, contre 23 dont dix
+> muettes. Le cours couvre `adduser`/`usermod`/`userdel`/`passwd`/`su`/`whoami`/`useradd`, les
+> comptes administrateurs et la syntaxe complète de `sudoers`, les groupes, `ls -l`/`chmod`
+> (numérique **et** symbolique)/`chown`/`chgrp`, puis la politique de mots de passe (complexité,
+> expiration, uniformisation). **La consigne « tout le reste est du complément » tombe avec sa
+> prémisse** : il y a désormais une vraie matière d'examen à couvrir, et c'est le volume de source
+> qui dimensionne le rédacteur (~26 Ko d'extrait → scinder, cf. L-047).
+> ⚠️ **UN EXTRAIT DE `extraits/` PEUT ÊTRE PÉRIMÉ SANS QUE RIEN NE ROUGISSE** : le dossier est
+> gitignoré, aucun gate ne le confronte à son `.pptx`. Ici l'extrait datait du 2026-08-25 et le
+> support du 2026-09-09. **Réextraire avant de citer une diapositive**, sinon les renvois `diapos`
+> d'une leçon neuve pointent la numérotation de l'ancien support.
+>
+> 🔴 **LE BRIEF DE RÉDACTION DOIT NOMMER LES SIX SECTIONS DU GABARIT — défaut neuf, payé un agent
+> entier.** Ni le rédacteur de la moitié A ni celui de la moitié B n'ont écrit « Exemple simple »,
+> « Exemple complet » et « À toi de jouer » : chacun couvrait le plan qu'on lui avait donné, et ce plan
+> ne les portait pas. C'est `valider.mjs` qui les a réclamées **après coup**, et il a fallu un
+> troisième agent (113k) pour les insérer. **La moitié qui FERME une leçon reçoit la liste des sections
+> obligatoires dans son brief**, jamais supposée connue. Même famille, même lot : le frontmatter admet
+> **au plus 5 objectifs** — un brief qui en demande « 5 à 6 » fait rougir G-content au premier essai.
+>
+> 🔴 **DIMENSIONNER LE RÉDACTEUR AU VOLUME ÉCRIT, PAS À LA FICHE SOURCE.** Mesuré quatre fois. Ici :
+> fiche de 792 lignes → **scindée en deux moitiés thématiques**, et la moitié A a tout de même fini à
+> **153k** pour 600 lignes écrites. Le seuil tient : **au-delà d'environ 700 lignes de fiche source,
+> scinder** ; au-delà de ~550 lignes ÉCRITES par moitié, scinder encore. Le **vérificateur** se
+> dimensionne au volume de la leçon (146k pour 1342 lignes), pas au nombre de marqueurs.
+> ⚠️ **Un `professeur-web` n'a pas l'outil `Bash`** : lui ordonner de rendre `npm run content:build`
+> vert lui demande l'impossible. **C'est l'appelant qui lance le gate** — même patron que
+> `npm run lecons:index` avec les `mentor`.
+>
+> 🔴 **CE QUE LES SÉANCES 3 ET 4 ONT APPRIS, ET QUI VAUT POUR LA SÉANCE 5 — deux fois sur deux.**
+> **(a) Le mode d'échec d'une leçon d'admin système est le danger SURÉVALUÉ, pas l'omission.** Séance
+> 4 : « les tâches de 2 h à 3 h sautent au printemps et se rejouent à l'automne » (faux — `cron(8)`
+> rattrape sous trois heures) et « sous `cron`, `stdout` et `stderr` ne vont nulle part » (faux — ils
+> sont captés et postés). ⚠️ Une menace exagérée **s'auto-détruit** : l'étudiant essaie, rien ne casse,
+> et il classe le danger réel comme imaginaire.
+> **(b) Relire une leçon CONTRE son propre principe.** Le second danger surévalué était **contredit par
+> la leçon elle-même**, 55 lignes plus bas. Aucun diff ne montre ça.
+>
+> 🔴 **AUCUN OUTIL D'AGENT NE LIT UN `.pptx` — et `WebFetch` HALLUCINE plutôt que d'échouer.** Sur les
+> quatre accusations portées contre le support de l'enseignant, `WebFetch` a d'abord rendu une lecture
+> **inventée qui les confirmait**, puis « ABSENT » sur relance verbatim. ⚠️ **Une hallucination qui
+> confirme ce qu'on cherche est le pire mode d'échec d'une vérification.** Parade, désormais
+> systématique : **retirer l'attribution, garder le fait** — un encadré `correction-du-cours` devient
+> `note` ou `attention`, un encadré `cours` devient `complement`. Le fait technique reste enseigné,
+> personne n'est accusé à tort.
+>
+> ⚠️ **PUBLIER DÉPLACE LA CIBLE DES SPECS E2E, EN SILENCE — et un compte qui BAISSE n'est pas plus
+> anodin qu'un compte qui monte.** `automatisation-surveillance` prend la tête de l'ordre alphabétique :
+> `ROUTE_LECON_QUIZ` la désigne désormais (leçon **sans** simulation), tandis que
+> `ROUTE_LECON_SIMULATION` reste sur `communication-serveur`. Les deux constantes de
+> `e2e/simulation-sous-csp.spec.ts`, égales à 7 depuis E3-ST5, **se séparent** :
+> `BLOCS_STYLE_PAGE_QUIZ` = **6**, `BLOCS_STYLE_PAGE_SIMULATION` = **7**. La directive servie compte
+> toujours **14 hachages** et l'assertion « 0 orphelin » passe : aucune permission n'a bougé. **La
+> première question devant un littéral épinglé qui rougit est « quelle page mesure-t-il maintenant ? »,
+> jamais « quel chiffre y mettre ? ».**
+>
+> ✅ **LE TRIPWIRE DE L'ACCUEIL MORD À CHAQUE PUBLICATION, ET C'EST VOULU.** `MODULES_PUBLIES` dans
+> `src/app/features/home/accueil.ts` est confronté par `accueil.spec.ts` au manifeste réellement
+> compilé : **le porter au nouveau compte fait partie du lot de toute leçon publiée** (8 → 9 ici), avec
+> le commentaire voisin qui écrit le chiffre en toutes lettres.
+>
+> ✅ **DEUXIÈME BASCULE `verifiee` → `publiee` DE SUITE SANS DÉFAUT** — G-axe vert du premier coup sur
+> une leçon portant quatre tableaux comparatifs. Ce qui l'a permis : la consigne de **nommer le coin
+> supérieur gauche de tout tableau comparatif**, portée dans le brief du rédacteur depuis trois
+> `empty-table-header` d'affilée. Une consigne dans le brief coûte une ligne ; le même défaut trouvé à
+> la bascule coûte un cycle de correctif.
+>
+> ⚠️ **U+26A0 (`⚠`) EST UN MARQUEUR RÉSERVÉ**, au même titre que 📘 et 🧩 : `valider.mjs` §8 l'interdit
+> en prose, hors bloc de code. L'employer comme simple signe d'attention fait rougir G-content.
+>
+> ⚠️ **LES FINS DE LIGNE DE CE DÉPÔT SONT MIXTES, `docs/agile/backlog-phase-1.md` COMPRIS** — une même
+> page peut porter des lignes CRLF et des lignes LF. Un remplacement de littéral multi-ligne écrit en
+> `\n` ne mord alors **que sur une partie du fichier**, sans erreur (L-015). Tout script d'édition
+> détecte les fins de ligne **du passage visé**, ou insère par position de ligne.
+>
+> ⚠️ **DETTE D'ÉTIQUETAGE, RÉSIDU NOMMÉ :** les deux blocs d'**en-tête HTTP** (la CSP dans 08-xss, le
+> `Set-Cookie` dans 09-csrf) n'ont **aucune étiquette juste** — la liste des langues est fermée à huit
+> et `http` n'en fait pas partie. Ils sont rendus en code **en ligne**, sans `<figcaption>` ni
+> `aria-label` annonçant une langue. Ajouter `http` comme neuvième grammaire est un **lot à part** :
+> une grammaire neuve fait apparaître des encres neuves à mesurer contre `--couleur-code-surface`.
+
+> ## ⏭️ REPRISE — état au 2026-08-24
+>
+> **✅ CINQ LEÇONS SONT EN LIGNE.** `01-fondamentaux`, `02-evaluation-cvss`, `03-injection`,
+> `04-xss` et `05-csrf`. **E0, E1, E2, E6 et E3-ST1 à ST5 sont CLOS EN ENTIER** ; E6 (« Moniteur
+> ambre ») avait gagné son pari avec **zéro défaut G7**. Détail, chiffres et **nœuds laissés au
+> propriétaire** : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md), bloc
+> « ✅ CLÔTURE — E3-ST5 `05-csrf` (2026-08-21) ».
+>
+> 🟦 **E3-ST6 `06-controle-acces` EST RÉDIGÉE, PAS ENCORE PUBLIÉE.** `lecon.md` **1367 lignes**,
+> `quiz.json` (8 questions), `simulation.json` (5 acteurs, 12 étapes, IDOR par manipulation
+> d'identifiant). `statut: verifiee` — G-content la valide et l'**écarte** de la publication, ce qui
+> est le comportement voulu. **Le geste suivant : la passe `verificateur-theorie`** (lancée le
+> 2026-08-24, verdict non rendu au moment d'écrire), puis les correctifs, puis la bascule à
+> `publiee`.
+> 🔴 **SIX marqueurs `à-vérifier:` bloquent la publication**, et le plus grave est le n°2 : la leçon
+> attribue la **fuite Optus 2022** à un IDOR, alors que les analyses publiques décrivent un endpoint
+> d'API **sans aucune authentification** — ce qui n'est pas un IDOR, et le module entier repose sur
+> cette distinction. Les cinq autres : statut d'OWASP Top 10:2025 · la règle « 404 et jamais 403 »
+> (absolue selon la fiche KB, arbitrage selon l'OWASP Authorization Cheat Sheet) · le mécanisme de
+> l'incident GitHub 2012 · `Response::denyAsNotFound()` en Laravel · les licences des moteurs
+> d'autorisation externes (enjeu **budget zéro dépense**).
+> ⚠️ **Ni le quiz ni la simulation ne s'appuient sur ces six points** — c'était une consigne de brief :
+> un JSON ne peut pas porter de marqueur de doute, donc un fait qui sera peut-être corrigé y
+> deviendrait de la dette **silencieuse**.
+>
+> 🔴 **LA DÉCOUPE DU RÉDACTEUR, MESURÉE UNE FOIS DE PLUS — et la moitié n'est plus le bon axe.**
+> Moitié A **151 375**, moitié B **144 044** : toutes deux au-dessus du maximum de 150k pour une
+> fiche de **659 lignes**. En revanche **quiz et simulation SÉPARÉS ont donné 128k et 97k**, contre
+> **160k** pour le lot combiné d'E3-ST5 — la séparation, elle, tient. ⚠️ Ce qui a permis 97k est
+> **l'injection des plages de lignes exactes dans le brief** : un agent à qui l'on dit « lis
+> l. 195-354 » ne relit pas 1367 lignes. **À reproduire à chaque leçon.**
+>
+> ✅ **LA LISTE DES LANGAGES COLORABLES EST OUVERTE À HUIT (2026-08-24)** — `php, csharp, typescript,
+> sql, bash, json` **plus `html` et `javascript`** (`compiler-markdown.mjs:133`, et les `enum` de
+> `quiz.schema.json` **et** `simulation.schema.json`). Le contournement qu'ont subi quatre leçons de
+> suite est mort. 🔴 **Ce que la mesure a établi CONTRE l'attente écrite ici** : les deux grammaires
+> neuves n'apportent **aucune encre à corriger**. La seule sous le seuil (`#6A737D`, 3,95:1) était
+> **déjà** dans `ENCRES_SOMBRES_CORRIGEES` et sort à 5,66:1. Le risque était réel, il ne s'est pas
+> matérialisé — et c'est un banc qui le dit, pas une lecture : `__fixtures__/langages-web/` +
+> `src/coloration-encres-contraste.spec.ts`, qui couvre ce que le **contrat autorise** et non ce que
+> le corpus contient (cousin de S-010). Résidu nommé : `#24292E` et `#2F363D` restent sous le seuil
+> mais ne naissent que d'un `` égaré dans un bloc clôturé ; le spec les attraperait.
+> ⚠️ **DETTE OUVERTE, ET ELLE EST AU CONTENU, PAS AU CODE.** Les leçons **03, 04 et 05 portent encore
+> leurs contournements** — du JavaScript étiqueté ```typescript, un en-tête HTTP étiqueté ```bash.
+> Tant qu'elles ne sont pas réétiquetées, `rendu-blocs` compose « Exemple n°N — **php** » et le pose
+> **à la fois** en `<figcaption>` visible et en `aria-label` : le lecteur **voit**, et le lecteur
+> d'écran **entend**, une langue que le bloc ne contient pas. ⚠️ `etiquetteCode` n'a **aucun défaut**
+> — elle est fidèle à ce que l'auteur déclare ; c'est l'étiquette d'auteur qu'il faut corriger.
+>
+> ✅ **LE POIDS N'ÉTAIT PAS UN PROBLÈME — TRANCHÉ PAR MESURE LE 2026-08-24, seuils relevés à
+> 300/450 Ko.** L'alarme (« 862,8 Ko pour 5 leçons, donc 2,2 Mo à 13 ») commettait deux fautes : elle
+> raisonnait sur un **total que personne ne télécharge** (un chunk par slug — le gate le disait déjà
+> dans son propre commentaire), et elle prenait le **JSON brut pour le poids servi**. Mesuré sur
+> l'artéfact : `csrf` fait 270 156 o de JSON pour **65 866 o compressés**, et le chunk réellement
+> livré fait 264 257 o pour 66 275 o — les deux se suivent **à 1 % près**. Le proxy surestimait le
+> transfert d'un facteur **~4,1**. Les cinq leçons réunies pèsent **205,3 Ko servis**.
+> `verifier-poids.mjs` imprime désormais une colonne **« servi »** : le chiffre honnête est au
+> journal, plutôt que redérivé d'un ratio que personne ne remesurerait. Décision du propriétaire :
+> **densité légitime**, on ne scinde aucun module.
+>
+> ✅ **DÉCOUPE DU RÉDACTEUR — la piste d'E3-ST4 est VALIDÉE, avec une limite neuve.** Découper la
+> leçon **par moitié** (théorie / défenses) plutôt que par livrable a donné **113 786** et
+> **147 765** tokens — première fois qu'un rédacteur passe sous la cible, contre 163k à E3-ST4 et
+> 197k/206k avant. 🔴 **Mais le lot « quiz + simulation » a fini à 160 336** : il doit lire toute la
+> leçon pour l'évaluer. **Au-delà de ~800 lignes de leçon : un agent pour le quiz, un autre pour la
+> simulation.** ⚠️ Les **revues** débordent aussi (171k et 145k sur un diff mixte contenu + code).
+>
+> 🔴 **`readdirSync` NE TRIE PAS — corrigé le 2026-08-21, à ne pas réintroduire.** Plusieurs specs
+> raisonnaient sur « la première page prerendue portant tel marqueur, **dans l'ordre alphabétique** » :
+> la phrase était **fausse**, vraie par accident sur le NTFS du poste, jamais garantie sur le runner.
+> `e2e/aides/artefact-mesure.ts` trie désormais explicitement. **Un compte épinglé sur une cible
+> DÉCOUVERTE doit être invariant sur toutes les cibles possibles, ou la découverte doit être
+> totalement ordonnée** (S-010, 6ᵉ occurrence).
+>
+> 🔴 **Un commentaire de correctif qui affirme une CAUSE doit l'avoir mesurée PAR RETRAIT** (**L-074**,
+> née à ce lot). Sur trois règles CSS posées contre un débordement, une était **inerte** — le retrait
+> ne changeait rien, sur aucune page — et l'attribution écrite dans les deux autres était fausse. Une
+> mesure d'**état** (« l'enfant le plus large est X ») ne donne jamais une causalité : X remplissait
+> la largeur que son parent avait déjà prise. ⚠️ Et toute mesure par mutation doit **imprimer la
+> preuve que la mutation a eu lieu** — sur ce poste en **CRLF**, un remplacement de littéral en `\n`
+> ne mord pas, et on mesure alors la référence en croyant mesurer la variante (L-015).
+>
+> ⚠️ **LA BASCULE `verifiee` → `publiee` N'EST PAS UNE FORMALITÉ — deux fois sur deux, elle a révélé
+> un défaut.** Une leçon en `verifiee` n'est pas prerendue : **G-axe, G-e2e et le compte de hachages
+> CSP ne mesurent alors RIEN**. La 04 portait une violation `empty-table-header` invisible jusqu'à la
+> bascule ; la 05 en portait **deux** (même famille — un coin de tableau comparatif laissé vide),
+> **plus** un débordement horizontal de page qui a fait peindre un anneau de focus **hors de l'écran**
+> (WCAG 2.4.11). Publier, **puis** relancer G-axe, G-e2e et le build — dans cet ordre, et attendre
+> qu'ils rougissent avant de croire la leçon finie.
+>
+> <!-- RÉCIT CLOS — dette E3-ST1, payée le 2026-08-21. Le correctif est en place et tenu par un test ; ce qui reste actif vit dans .claude/rules et dans le backlog.
+> **✅ LA DETTE OUVERTE PAR E3-ST1 EST REFERMÉE (2026-08-21).**
+> `CAPACITES_MESUREES_EN_E2E.simulation` est passé à `true`, **après** exécution des 3 specs de
+> simulation, comme le tripwire l'exigeait. Ce qu'il faut en retenir pour la suite : les deux échecs
+> de cette exécution étaient des **prémisses de test fausses sur un produit sain** (L-035) — des
+> comptes « mesurés sur la fixture témoin » (6 étapes, 4 acteurs, 1 surbrillance) contre une leçon
+> publiée qui en porte 10, 3 et 8. Ces comptes sont désormais **dérivés du `simulation.json` de
+> l'auteur** (`e2e/aides/simulation.ts`, alimenté par le fichier neuf `e2e/aides/lecon-source.ts`).
+> **Publier une leçon avec une simulation de N étapes n'oblige donc plus à toucher aucun spec.**
+> -->
+>
+> **🔴 « LA PAGE DE LEÇON » N'EST PLUS UN OBJET UNIQUE — le piège neuf, et il n'a pas de garde-fou.**
+> À trois leçons publiées, deux littéraux nommés `…_PAGE_LECON` désignaient deux pages
+> **différentes** sans que rien ne le dise, et le 14ᵉ hachage de `style-src` s'est retrouvé le seul
+> qu'aucun instrument n'énumérait sur la page qui le produit. ⚠️ **Aucun spec n'avait été éteint** :
+> c'est la *population* qui a changé sous l'instrument, si bien que la règle « un lot qui augmente
+> une permission ET passe un spec en `skip` doit recenser ce que ce spec prouvait seul » ne pouvait
+> pas mordre. Écrit en checklist dans `.claude/rules/security.md` §1 ; famille **S-010**.
+>
+> **🔴 CE QUI A CHANGÉ DANS LA MÉCANIQUE DES SPECS E2E, et qui vaut pour toute leçon à venir.** Les
+> specs **ne visent plus une route écrite en dur**. `e2e/aides/artefact-mesure.ts` DÉCOUVRE dans
+> `dist/` une page portant `<app-quiz` ou `<app-simulation` et expose `exigerUneLeconAvecQuiz` /
+> `exigerUneLeconAvecSimulation` + `ROUTE_LECON_QUIZ` / `ROUTE_LECON_SIMULATION`. La découverte prend
+> la **première** page prerendue portant le marqueur, dans l'ordre alphabétique — **explicitement
+> trié depuis le 2026-08-21**, voir plus haut.
+> ⚠️ **Ces deux routes désignent aujourd'hui LA MÊME page** (`csrf`, qui porte les deux composants et
+> prend la tête de l'ordre alphabétique) — elles visaient `evaluation-cvss` et `injection` jusqu'à
+> E3-ST4. **Publier une leçon peut donc déplacer la cible de plusieurs specs sans qu'aucun ne
+> s'éteigne** : quand un littéral épinglé rougit après une publication, la première question est
+> « quelle page mesure-t-il maintenant ? », jamais « quel chiffre y mettre ? ».
+> ⚠️ `exigerLaPageDeLecon` **n'existe plus** — si un document du dépôt la prescrit encore, il est
+> périmé. Un artéfact **sans aucune** page de leçon **LÈVE** au lieu de sauter.
+>
+> **🔴 CSP : `style-src` est à 14 hachages, `script-src` à ZÉRO.** Le 14ᵉ a été mesuré et nommé avant
+> épinglage (S-005) : `.simulation[_ngcontent-…]`, **4 775 o**, porté depuis E3-ST5 par **trois**
+> pages (`csrf`, `injection`, `xss`) — publier une leçon avec simulation **n'ajoute aucun hachage**,
+> un même bloc `<style>` sur une page de plus produisant le même hachage.
+> ⚠️ **Sept de ces quatorze hachages n'ont AUCUN énumérateur live** : `e2e/simulation-sous-csp.spec.ts`
+> est le seul énumérateur du dépôt et ne navigue que des pages de **leçon** ; l'accueil (4), le
+> sommaire (2) et la 404 (1) ne sont couverts que par le **compte global**. Dette consignée au backlog.
+> Le compte est recopié à la main aux **trois** endroits épinglés
+> (`tools/deploiement/generer-config-swa.mjs`, `src/config-swa-provenance-style.spec.ts`,
+> `src/config-swa-contournements.spec.ts`) — plus deux comptes **par page** dans
+> `e2e/simulation-sous-csp.spec.ts` (`BLOCS_STYLE_PAGE_QUIZ` = 6, `BLOCS_STYLE_PAGE_SIMULATION` = 7).
+> `script-src 'self'` est écrit en dur et le jeton `__HACHAGES_SCRIPT__` a disparu de la source ; sa
+> réapparition est refusée nominativement. Remettre un script inline exige une revue
+> `security-reviewer`, jamais une édition d'`index.html`.
+> ⚠️ **L'option `--hachages-style` a été SUPPRIMÉE** du générateur : plus aucun appelant ne l'employait
+> depuis le retrait du harnais, et supprimer un levier vaut mieux que le garder (S-018).
+>
+> **⚠️ DEUX CONTRAINTES DE MÉTHODE PAYÉES À CE LOT, avant d'écrire la leçon suivante.**
+> **(a)** Le skill `/lecon` impose désormais `statut: verifiee` au rédacteur, **jamais `publiee`** :
+> `valider.mjs` §6 interdit les marqueurs `à-vérifier:` dès `publiee`, si bien qu'un brief qui
+> impose `publiee` force le professeur à taire ses doutes. La bascule à `publiee` est le **dernier**
+> geste, après le verdict.
+> **(b)** **« Une leçon » n'est pas « un agent ».** Les deux rédacteurs de ce lot ont fini à
+> **197 798** et **206 884** tokens — au-delà du plafond. La variable n'est pas le nombre de
+> livrables mais le **volume de source × le volume produit** (L-047). Au-delà d'environ 500 lignes
+> de fiche source, ou dès qu'une simulation s'ajoute au quiz : **scinder en deux agents**.
+>
+> **⚠️ CE QUE LES DEUX REVUES ONT ATTRAPÉ, ET QUI SE REPRODUIRA SI ON N'Y PENSE PAS.**
+> **(a)** Le lot élargissait `style-src` de 3 permissions **et éteignait dans le même commit la seule
+> preuve LIVE que la directive est appliquée** (`exigerStyleSrcApplique` n'avait qu'un appelant, un
+> spec devenu sauté). Règle neuve : **quand un lot augmente un compte de permission ET fait passer un
+> spec en `skip`, recenser ce que ce spec était le SEUL à prouver.**
+> **(b)** Un garde-fou d'ordonnancement peut se contourner **par le CORPS d'un script npm** — le YAML
+> est inspecté, le script qu'il appelle ne l'était pas (S-018, 6ᵉ occurrence). Les corps de
+> `content:build` et `config:swa` sont désormais épinglés, et les six crochets npm réinterdits.
+> **(c)** Un compteur qui remplace un littéral **doit mesurer LE MÊME PRÉDICAT que le garde qu'il
+> protège** — ici « `quiz.json` existe » vs « `<app-quiz` est rendu ».
+>
+> <!-- RÉCIT CLOS — mesure de contexte du 2026-08-20, corrigée. La méthode vit désormais dans .claude/rules/agent-context-budget.md §7, chargé de toute façon.
+> **📉 CONTEXTE DES AGENTS — mesuré le 2026-08-20, et corrigé.** Un sous-agent portait **~74 000 tokens
+> de préambule** avant d'avoir lu une ligne de son lot, dont **51 600** pour les deux corpus de leçons
+> que six définitions d'agents faisaient lire **en entier**. ⚠️ **Un sous-agent n'hérite PAS du contexte
+> du fil principal** (sauf `fork`) : l'hypothèse inverse est réfutée. Correctif : les corpus se lisent
+> par **`.claude/lessons/INDEX.md`** (généré, **avec plages de lignes**, ~3 900 tokens) — un agent ouvre
+> 2-4 entrées par `Read(offset, limit)`. Les deux `mentor` **régénèrent l'index** (`npm run lecons:index`)
+> après toute édition, et `src/index-lecons.spec.ts` le vérifie. Détail et méthode :
+> `.claude/rules/agent-context-budget.md` §7.
+> -->
+>
+> <!--
+> **Chiffres de clôture d'E3-ST1 (2026-08-20)** : G-test **867 passés / 41 fichiers / 0 échec** (3 runs)
+> · G-build 4 routes, **13 hachages de style / 1 de script** · G-axe 4 pages, 344 vérifications,
+> **0 violation** — page de leçon RÉELLE comprise · G-e2e **33 passés / 18 sautés / 0 échec** (2 runs)
+> · `npm audit --omit=dev` **0** · typecheck outils et e2e **0**.
+> -->
+>
+> <!--
+> **E0 CLOS · E1 CLOSE EN ENTIER · E2-ST1 CLOSE · E2-ST2 CLOSE (2 réserves sur 3 levées, la 3ᵉ FERMÉE
+> à E2-ST6) · E2-ST3 CLOSE EN ENTIER** (PR #17 fusionnée) **· E2-ST4 CLOSE EN ENTIER** (lots A1, A2,
+> B, C — PR #18, #19, #20, et la PR du lot C) **· E2-ST5 CLOSE ET FUSIONNÉE** (PR #22) **· E3-ST0
+> CLOSE ET FUSIONNÉE** (PR #22) **· E2-ST6 CLOSE** (sommaire du cours + progression, PR à surveiller
+> — voir §E2-ST6 du backlog) — **E2 est donc CLOS EN ENTIER**.
+> **✅ LE LOT DE DETTE SÉCURITÉ PRÉ-E3-ST1 EST CLOS (2026-08-20)** — quatre PR fusionnées et
+> déployées : **#27** (S-003 + les deux trous jumeaux du garde-fou d'attributs — `generer-config-swa.mjs`
+> n'apparie plus aucun motif pour **décider**, un seul parse jsdom par page sert aux trois contrôles)
+> · **#28** (CSP servie comparée **structurellement**, 11 directives énumérées au journal, + action
+> de déploiement épinglée au SHA `1a947af9992250f3bc2e68ad0754c0b0c11566c9`) · **#29** (valeurs
+> `FuncIRI` contraintes aux références locales) · **#30** (job `contenu` propre : le sceau retrouve sa
+> portée pleine). Chiffres : G-test **824/40**, 0 échec · G-e2e 50 passés/1 sauté (fixture), 13
+> (production) · G-axe 0 violation · builds **10/1** et **14/1** inchangés · `npm audit --omit=dev` 0.
+> Leçons : **L-056**, **S-020**, **S-021** ; `.claude/rules/security.md` §4 élargie à trois surfaces
+> neuves. Détail : backlog, bloc de clôture du lot.
+> **✅ LA DETTE D'INTERMITTENCE EST PAYÉE (2026-08-20) — les DEUX familles sont closes** (détail
+> juste en dessous, avec la correction d'une hypothèse **réfutée**).
+> **Le geste suivant : E3 bloc A — la première leçon publiée**, module **E3-ST1 `01-fondamentaux`**
+> (`content/cours/securite-web/01-fondamentaux/`), par le skill **`/lecon`** (boucle contenu :
+> `professeur-web` → `verificateur-theorie`), **pas** `/feature-cycle`. Décisions du propriétaire du
+> 2026-08-20 : sources KB `web/securite/fondamentaux-securite-web.md` (662 l.) +
+> `carte.md` (177 l.) + **`panorama-menaces.md` (483 l.) en source secondaire** (orpheline
+> jusqu'ici) · **`section: « Fondamentaux »` posée dès la 01** (champ tout-ou-rien par sujet —
+> engage les 18 modules suivants) · **pas de simulation** (schéma kill chain statique).
+> ⚠️ Le tripwire auto-périmant `src/workflows-github.spec.ts:472-485` **rougira dès le premier
+> `lecon.md` déposé** sous `content/cours/securite-web/` : le retrait du harnais de fixture
+> (`ci.yml` qui redevient `npm run build`) doit se faire **dans le même commit** que la leçon.
+> ⚠️ Le module 01 est à **6 📘 pour 32 🧩** (voir backlog, recensement de provenance) — c'est celui
+> où le marquage de provenance compte le plus.
+> Ordre révisé (D-3 bascule 2026-08-17) : E2 → E3-ST0 → E3 bloc A → E6 → E3 blocs B/C → E4 → E5.
+> **Chiffres à la clôture d'E2-ST6 (2026-08-19)** : G-test **744/36**, 0 échec, G-e2e **50 passés/1
+> sauté** (fixture) et 13 passés/38 sautés (production), G-axe 258 vérif./0 violation, G-build
+> production 10/1 hachages de style/script (était 9), fixture 14/1 (était 13), `npm audit --omit=dev`
+> 0. Détail complet, dette neuve et leçons (L-050 à L-055, S-019) : backlog §E2-ST6, bloc « ✅
+> CLÔTURE — 2026-08-19 ».
+>
+> **✅ L'INTERMITTENCE PORTAIT DEUX FAMILLES DISTINCTES — TOUTES DEUX PAYÉES le 2026-08-20.**
+>
+> **Famille e2e — la cause écrite ici jusqu'au 2026-08-19 était FAUSSE, et c'est mesuré, pas
+> supposé.** L'hypothèse tenue depuis E2-ST5 (« l'absence d'attributs `ngh` prouve l'hydratation
+> des vues, pas que le comportement d'un composant paresseux est armé », famille **L-033**) est
+> **réfutée par la mesure** : `app-simulation` porte bien `ngh="7"`, l'armement du composant est
+> vérifié **8/8**, et **20 gestes** émis à l'instant où `attendreHydratation` rend la main sont
+> **tous reçus (0 perdu)**. ⚠️ Nuance à garder : **L-033 n'est pas fausse en entier** — la fenêtre
+> de pré-hydratation et l'amorçage de l'état depuis le DOM restent **vrais** ; seule son
+> **extension e2e** (le diagnostic du symptôme ci-dessus) est réfutée.
+> **Vraie cause** : une assertion portant sur une **valeur** lue par une `page.evaluate` **unique**
+> n'est **jamais réessayée** par Playwright, alors que l'effet d'un geste est peint sur une frame
+> ultérieure — 15 lectures de ce type dans 3 specs. Mesures : effet au DOM 26-407 ms, lecture servie
+> 112-938 ms ; sur 800 essais, une lecture CDP précède un `requestAnimationFrame` déjà planifié
+> **3 fois (0,4 %)**. **Correctif** : trois barrières auto-réessayées sur des assertions de
+> **locator** (`e2e/aides/simulation.ts`) — aucun `retries`, aucun `waitForTimeout`, **aucun code
+> produit touché**. Détail et preuve : **L-057**.
+>
+> **Famille Vitest** (`lecon.spec.ts`) : 14 tests montent la leçon-témoin grasse dans jsdom
+> (580-1018 ms chacun, 1658 ms pour le plus lourd) contre un défaut Vitest de 5 000 ms — c'était du
+> **calcul**, pas une attente perdue. Correctif : `DELAI_RENDU = 20_000` porté sur **le `describe`
+> entier**, `angular.json` **non touché** (aucun relâchement global). Contrôle positif et témoin
+> négatif confirment que la sensibilité du gate reste intacte ailleurs ; un garde-fou neuf interdit
+> tout `testTimeout` global.
+>
+> **Chiffres de clôture (2026-08-20)** : G-test **849 passés / 40 fichiers / 0 échec** (2 runs,
+> aucun `Test timed out`) · G-e2e fixture **50 passés/1 sauté/0 échec**, production **13 passés/38
+> sautés/0 échec** · stabilité `--repeat-each=6` sur les deux specs instables → **96 passés/0
+> échec**. Détail complet, dette neuve (S-022 notamment) et leçons : backlog, bloc de clôture du
+> lot `fix/intermittence-gates-pre-e3-st1`.
+> -->
+>
+> <!--
+> **🔴 LE DÉPLOIEMENT A ÉTÉ ROUGE, ET LA LEÇON VAUT POUR TOUT SPEC E2E À VENIR.** La PR #17 est
+> passée verte en CI puis a rendu `deploy.yml` **rouge sur 10 tests e2e**. Cause structurelle : la
+> décision E-2 fait bâtir à `ci.yml` l'artéfact depuis la **fixture témoin**, tandis que `deploy.yml`
+> garde la racine de **production** — or les huit specs du lot E visent
+> `/cours/securite-web/lecon-temoin/`, une route qui n'existe **que** dans l'artéfact de fixture. Le
+> vert de `ci.yml` masquait le trou parce qu'il regarde l'autre artéfact (**L-007**).
+> ⚠️ **Donc : tout spec e2e neuf qui vise la page de leçon DOIT appeler `exigerLaPageDeLecon(…)`**
+> (`e2e/aides/artefact-mesure.ts`) — il interroge le **disque**, pas le serveur (une 404 ne
+> distinguerait pas « artéfact de production » de « serveur cassé »), saute en imprimant ce qui n'a
+> pas été mesuré, et ce saut est tenu par un filet **hors de la suite e2e** : un fichier entièrement
+> sauté ne peut pas s'assertionner, c'est donc `src/workflows-github.spec.ts` qui exige que la
+> fixture de `ci.yml` porte une leçon **au slug exact** que ces specs cherchent.
+> Mesures attendues : **21 e2e / 0 sauté** sur l'artéfact fixture, **11 passés / 10 sautés** sur
+> l'artéfact de production.
+> -->
+>
+> **🔵 LES DEUX DÉCISIONS D'E2-ST4, PRISES LE 2026-08-18, À NE PAS ROUVRIR.**
+> **ST4-1 · Il n'y a PAS de sélecteur de langage, et le nœud « onglets » du backlog est SANS OBJET.**
+> L'objectif écrit annonçait « onglets de langage (PHP/C#/TS) ». Le modèle de données ne porte pas
+> ça : les `exemples` d'un bloc `comparaison` sont des **paires de vulnérabilités DISTINCTES** — la
+> fixture témoin fait PHP/XSS puis C#/injection SQL — et `compiler-markdown.mjs` n'impose aucune
+> unicité de langage entre paires. Des onglets « de langage » cacheraient **un exemple pédagogique
+> entier** derrière une étiquette mensongère. Ni ARIA `tablist`, ni `<details name>` : **aucun
+> sélecteur**, et **aucun repliage** (un `<details>` fermé ne s'imprime pas, Safari ne le trouve pas
+> au `Ctrl+F`, et un accordéon exclusif peut finir avec zéro exemple à l'écran).
+> ⚠️ À garder de la passe d'architecture, parce que ça vaut pour **tout** composant à venir :
+> construire des onglets JavaScript sur une page prerendue de ce dépôt donnerait un **bouton mort
+> qui a l'air vivant** pendant la fenêtre de pré-hydratation (`withNoIncrementalHydration()` actif,
+> **L-033**).
+> **ST4-2 · On enrichit le rendu EN PLACE, on n'extrait pas de `code-compare/`.** Le rendu
+> `comparaison` **existe déjà** (`src/app/features/cours/lecon/rendu-blocs/rendu-blocs.ts`, ~l.
+> 114-165 : deux volets côte à côte, étiquettes écrites, annotations, zéro JS) et s'y annonce
+> lui-même comme provisoire ; ses paires de contraste sont **déjà mesurées**. Le chemin
+> `src/app/features/cours/code-compare/` écrit dans l'objectif est donc **caduc**.
+> Le delta réel : **(a)** ancrer les annotations à la ligne, **(b)** le contrôle de portée manquant,
+> **(c)** les 2 colonnes en large.
+>
+> ✅ **E2-ST4 CLOSE EN ENTIER (lots A1, A2, B, C).** Lots A1/A2/B : contrat `lignes: number[]`
+> (le vrai défaut était `lignes="1,,2"`, jeton VIDE légal par coercition) ; ancre de ligne en
+> `class="ancre-ligne-N"` (le sanitizer d'Angular efface `id`/`data-*`, S-014) ; numérotation CSS de
+> toutes les lignes plutôt qu'un filet `.ligne-annotee` (invisible en `forced-colors: active`) ;
+> syntaxe d'auteur à forme unique `{lignes="…"}`.
+> **Lot C — décision du propriétaire, à ne pas rouvrir : numérotation des figures de code CONTINUE
+> sur toute la page** (compteurs `code`/`paires` distincts mais non réinitialisés par section).
+> Trois constats à retenir de toutes les revues du sous-lot : **(1)** une mutation survivait aux 573
+> tests — le compteur `paires` n'était jamais exercé à travers la récursion (**L-039**) ; **(2)** un
+> test vert **par compensation** — son commentaire l'annonçait comme filet de la récursion, la
+> mutation correspondante le laissait vert parce que le harnais travaillait à un décalage neutre
+> (0) où la descente compense exactement la propagation absente ; **(3)** ⚠️ **la CSP servie bloque
+> une écriture CSSOM `style` SANS lever d'événement `securitypolicyviolation`** — l'attribut se
+> relit dans le DOM, `getComputedStyle` ne bouge pas : un contrôle positif e2e bâti sur l'événement
+> serait un no-op silencieux accusant le produit (**L-041**/**S-016**, à relire avant tout nouveau
+> spec e2e qui teste un refus de style).
+> **Dettes neuves → E6 : `--couleur-code-fond` PAYÉE au lot E6** (le jeton n'existait même pas ; le
+> vrai sujet était la feuille de coloration générée, corrigée). Restait : huit `tabindex="0"` posés
+> par le lot B, **sans emploi à 1280 px**
+> (aucun défileur ne déborde à cette largeur — bruit clavier, pas un échec WCAG). **Dette neuve →
+> sécurité** : le contrôle positif CSP (`e2e/aides/sonde-csp.ts`) ne couvre que `script-src` ;
+> `style-src` (la directive la plus mouvante) n'a **aucun** contrôle positif prouvant qu'il bloque
+> réellement (voir **S-016**).
+> <!--
+> **Chiffres à la clôture d'E2-ST4 (2026-08-19)** : G-test **576/30**, G-e2e 29/0 sauté (fixture) et
+> 12 passés/17 sautés (production), G-axe 344 vérif./0 violation, G-build 12/1 hachages (fixture)
+> inchangés, `npm audit --omit=dev` 0.
+> **Chiffres à la clôture d'E2-ST5 (2026-08-19)** : G-test **661/32**, 0 échec, G-e2e **48 passés/0
+> sauté** (fixture) et 12 passés/36 sautés (production), G-axe 344 vérif./0 violation, G-build
+> production 9/9 hachages de style + 1 de script, fixture 13/13, `npm audit --omit=dev` 0.
+> -->
+>
+> <!--
+> **🔧 Lot CI du 2026-08-19** : les trois workflows portent désormais un `timeout-minutes` par job
+> (un job pendu ne court plus jusqu'au plafond GitHub de 6 h) ; l'installation du navigateur est
+> scindée en **deux scripts npm** dont la CI n'appelle que `e2e:install:navigateur` — le
+> développeur local garde `npm run e2e:install` comme commande unique, qui enchaîne les deux
+> moitiés. ⚠️ **`npm run e2e:install:deps` ne doit jamais revenir dans un workflow** — un test
+> l'interdit. Détail et cause mesurée : backlog §E0-ST4, « Lot CI du 2026-08-19 ».
+> -->
+>
+> ---
+>
+> <!--
+> **✅ CE QUE LE LOT E A FERMÉ, ET QUI NE SE REDÉCOUVRE PAS.**
+> **(1) La CSP est mesurée avec le quiz à l'écran, par DEUX instruments.** Côté artéfact : la page
+> de leçon interactive porte bien un script inline de plus — `<script id="ng-state"
+> type="application/json">`, l'état d'hydratation — mais son `type` est **inerte**, donc `script-src`
+> **n'a pas bougé** et la liste blanche reste **nominative à un seul élément**. Côté navigateur :
+> `npx swa start` + Playwright, quiz réellement actionné (4 radios, 3 `<select>`, correction, 5
+> verdicts) → **0 violation**, contrôle positif injecté **après hydratation**, témoin prouvant que la
+> politique est **appliquée** et non `report-only`.
+> 🔴 **La crainte de S-005 était juste sur le principe et fausse sur la CIBLE** : ce n'est pas
+> `script-src` qui bouge quand la page devient interactive, c'est **`style-src`** (+3 hachages, les
+> blocs `<style>` des composants) — et c'est lui qui est **dérivé de l'artéfact**. Les 3 ont été
+> **nommés et inspectés un par un** avant d'être épinglés.
+> **(2) L-033 est mesuré, plus raisonné.** La fenêtre de pré-hydratation est **élargie** : le chunk
+> paresseux est retenu (règle : tout `.js` que le document servi n'annonce pas), on agit dedans, on
+> relâche. Deux contrôles positifs attestent qu'elle était ouverte — un clic sur « Corriger » émis
+> pendant la fenêtre est **perdu**, et les `ngh` sont encore là. Le piège jumeau du `<select>` a son
+> test.
+> **(3) G-clavier existe** : huit arrêts dans l'ordre du document, flèches dans les trois mécaniques
+> à radios, `<select>` rempli à la flèche seule avec preuve que le `(change)` a couru, Maj+Tab en
+> miroir, indicateur de focus calculé et non masqué partout (2.4.7 / 2.4.11).
+> **Chiffres de clôture (2026-08-18)** : **G-test 498 / 28 fichiers · G-e2e 21 · G-axe 4 fichiers,
+> 344 vérifications, 0 violation · G-build 12 hachages de style (fixture) / 9 (production), 1 de
+> script des deux côtés · `npm audit --omit=dev` 0.**
+> -->
+>
+> **⚠️ TROISIÈME PIÈGE DU HARNAIS E2E, PAYÉ EN DIRECT AU LOT A1 — et il ment dans les DEUX sens.**
+> `playwright.config.ts` pose `reuseExistingServer: !CI`. Un `npx swa start` laissé en marche par un
+> run précédent est **réutilisé**, et il sert la politique CSP qu'il a lue à **son** démarrage :
+> reconstruire l'artéfact ne le lui apprend pas. Or changer un gabarit change l'identifiant du
+> composant, donc le contenu de son bloc `<style>`, donc son hachage. Constaté : une violation
+> `style-src-elem` parfaitement **reproductible** sur un dépôt sain — j'ai cru à une régression.
+> **Le sens inverse est le vrai danger** : un serveur démarré sur une politique plus permissive
+> rendrait **vert** exactement ce que ces specs existent pour attraper. `exigerCspServie` compare
+> désormais la CSP **servie** à celle de l'artéfact **sur le disque**, à l'octet près (contrôle
+> positif exécuté). En local, après tout rebâtissage : **arrêter le processus qui écoute le port
+> 4280** avant de relancer `npm run e2e`.
+>
+> **⚠️ LES DEUX PIÈGES QUE LE LOT E A CRÉÉS EN SE CORRIGEANT — à connaître avant d'écrire un e2e.**
+> **(a) Mutualiser une vérification DÉPLACE le risque** (**L-034**, née ici). `e2e/aides/` porte
+> désormais la mesure elle-même — ce qu'est un anneau de focus dessiné, les trois collecteurs de
+> violations CSP, le point de départ commun de la page de leçon. Ces modules **ne sont pas des
+> specs** et sont épinglés nommément dans `src/configuration-typescript.spec.ts` : un défaut de
+> typage y serait invisible depuis les appelants et ferait passer **verts** les gates les plus
+> structurants du dépôt. Tout fichier neuf sous `e2e/` doit être inscrit dans cette liste — sinon
+> G-test rougit, et c'est voulu (le tripwire a mordu sur six fichiers d'un coup, avant qu'aucun
+> humain ne remarque leur entrée).
+> **(b) Une prémisse de test fausse rougit sur un produit sain** (**L-035**, née ici). Les trois
+> échecs du lot E-c1 venaient tous du spec : un compte relevé sur la page entière réemployé dans un
+> périmètre borné au quiz (14 au lieu de 11), un test qui choisissait la **bonne** réponse puis
+> exigeait une correction qui ne cite que les **fausses**, et une U+00A0 littérale refusée par
+> `no-irregular-whitespace` (elle s'écrit `\u00A0` dans un littéral).
+>
+> <!--
+> **⏳ PÉREMPTION, à ne pas perdre : le harnais de fixture se retire à la clôture d'E3-ST1.** Depuis
+> le lot E-b2, `ci.yml` bâtit son artéfact depuis `tools/content-pipeline/__fixtures__/temoin/…` avec
+> `--hachages-style 12` : G-axe, G-e2e et le générateur de CSP voient donc en permanence une page de
+> leçon **interactive**. `deploy.yml` garde la racine de production (9 hachages). Le jour où
+> `content/` porte sa première leçon, l'étape G-build de `ci.yml` redevient `npm run build` et le
+> drapeau disparaît. Écrit à trois endroits (workflow, `src/workflows-github.spec.ts`, backlog), dont
+> un **tripwire exécutable**.
+> -->
+>
+> <!--
+> **⚠️ RESTE OUVERT après E2-ST3** — la réserve **(3)** d'E2-ST2 : une leçon en `statut: brouillon`
+> **sera prerendue publique et indexable**. Elle se lève en clôture d'E3-ST1. Les réserves (1) et (2)
+> -->
+>
+> **🟢 LEÇON S-011 — PARTIELLEMENT PÉRIMÉE, mesurée le 2026-08-21 sur la leçon XSS publiée.**
+> Le texte qui vivait ici annonçait que `generer-config-swa.mjs` balaie le HTML prerendu et refuse
+> tout `on…=` suivi d'un guillemet — donc qu'une charge XSS d'exemple casserait le build. **C'est
+> faux depuis la fermeture de S-003** (2026-08-19) : le générateur **analyse** chaque page avec
+> jsdom et n'inspecte, pour `style` et `on…`, que des **attributs analysés**. Mesure : la page
+> `cours/securite-web/xss/` porte **2 `onerror=alert(1)` littéraux** en nœuds texte et **16
+> `&lt;script` échappées**, build **vert**. ⚠️ **N'invente donc aucune parade typographique dans une
+> charge utile** — elle enseignerait au lecteur une charge qui ne fonctionne pas.
+> **Ce qui subsiste :** le compte brut de `<script`/`<style>` reste un **contrôle de conservation**,
+> et la sérialisation n'échappe pas `<` dans une **valeur d'attribut** — un `<script` placé dans un
+> champ d'auteur rendu en attribut (**trois le sont aujourd'hui : `simulation.titre`,
+> `etapes[].titre`, l'`accTitle` d'un mermaid — plus `paires[].droite` en `<option value>`**) casse
+> le build ; là, la parade éditoriale est **requise**, pas seulement justifiée. ⚠️ L'attribut n'est
+> **qu'un des QUATRE écarts** possibles de ce contrôle, énumérés à ne pas reformuler de mémoire :
+> `tools/deploiement/generer-config-swa.mjs:755-763` — dont le `<script` **en commentaire HTML**,
+> celui qui a réellement mordu (E6, `src/index.html`). Le patron « à deux mains » est intact.
+>
+> **Ce que les lots A et B avaient posé, et qui reste vrai :** (a) `ficheSource` **n'est pas** dans
+> l'artéfact, c'est voulu — la voie publiée vers les sources est « Aller plus loin » ; (b) ce qui
+> autorise à rendre `htmlColore` est **mesuré** et plus étroit qu'il n'y paraît : Shiki échappe `<`
+> en `&#x3C;` et **laisse `>` brut** — sûr parce qu'aucune balise ne peut s'**ouvrir**, pas parce que
+> tout serait échappé. ⚠️ Le lot C **ne lit toujours pas** `htmlColore` : il rend le `code` brut, par
+> interpolation.
+>
+> <!--
+> **🔴 INCIDENT DE PRODUCTION RÉSOLU LE 2026-08-17 — à connaître avant de toucher au routage.**
+> Signalé par le propriétaire depuis la console du site déployé : `main-<hash>.js/chunk-<hash>.js` en
+> **404**. `trailingSlash: "always"` redirigeait **aussi les fichiers** ; le 301 déplaçait l'URL
+> finale du module, donc la **base de ses imports relatifs**, et **la route paresseuse de la page de
+> leçon était morte**. Défaut **connu et écrit depuis E1-ST1-B** — mais classé *coût de performance*,
+> personne n'ayant vu qu'il deviendrait une panne dès le **premier chunk paresseux** (E2-ST2).
+> -->
+> Corrigé en **`trailingSlash: "auto"`** (les dossiers restent canonicalisés, les fichiers sont
+> servis directement). ⚠️ **Aucun gate local ne pouvait le voir** : l'émulateur `npx swa start`
+> n'implémente pas `trailingSlash`, donc `e2e` était vert sur une politique de routage qui n'était
+> pas celle de la production. D'où le gate neuf, **en ligne uniquement** : `deploy.yml` → « Vérifier
+> le routage servi » bloc **(c)**, chaque asset référencé par la page servie doit répondre 200 et
+> jamais 3xx. Leçon **L-032** ; détail dans `docs/deployment.md`.
+>
+> <!--
+> **⚠️ Les 3 réserves de clôture d'E2-ST2, toutes dues à un `content/` VIDE** (détail : backlog
+> §E2-ST2) : (1) `a11y:axe` et `e2e` **n'ont jamais vu** une page de leçon — la barre AXE est
+> *contournée par l'absence de données*, pas franchie ; (2) la **CSP servie n'a jamais été mesurée**
+> sur une page de leçon ; (3) une leçon en `statut: brouillon` **sera prerendue publique et
+> indexable**. Les trois se lèvent **en clôture d'E3-ST1**, pas avant.
+> -->
+>
+> <!--
+> **Ce qui suit reste vrai** — le **moteur de contenu tourne**. `content/` est
+> validé (Ajv + règles hors schéma), compilé en AST typé (Markdown → HTML, Shiki précompilé, encadrés),
+> ses diagrammes Mermaid sont rendus au build et **déshabillés par un analyseur à liste blanche**, et
+> il en sort un manifeste de routes + une carte d'imports paresseux. `content:build` précède `ng build`
+> **et** `ng test` (crochets + étape CI avant G-lint dans les deux workflows).
+> **Au 2026-08-18 : 509 tests / 28 fichiers · 21 e2e (fixture) ou 11 + 10 sautés (production) ·
+> axe 344 vérifications, 0 violation ·
+> `npm audit --omit=dev` 0.**
+> Le **jalon J2 est atteint neuf jours avant son échéance**.
+> -->
+>
+> **⚠️ PIÈGES ENCORE ACTIFS, hérités des lots précédents.**
+> **(1) `withNoIncrementalHydration()` est toujours actif** — `@defer (hydrate …)` est **inerte** et
+> le rejeu d'événements est perdu. Piège hérité d'E1-ST2, et il **a mordu au lot C d'E2-ST3**, comme
+> annoncé : entre la peinture prerendue et l'hydratation, le DOM natif accepte la saisie, et la
+> première détection de changements l'**écrase**. Le composant amorce donc son état depuis le DOM
+> (`afterNextRender`) — **leçon L-033, à relire avant tout `(change)`/`(click)` neuf sur une page
+> prerendue**. « Sans JS » et « pas encore hydraté » sont deux états distincts ; le second ment,
+> parce que l'interface a l'air vivante.
+> **(2) Une CSP validée sur une page INERTE ne vaut que pour une page inerte.** Le premier écouteur
+> d'événement d'une page fait apparaître des scripts inline que le framework n'émettait pas avant
+> (constaté en E1-ST2, build rouge). **E2-ST3 est exactement ce moment-là pour la page de leçon** :
+> revalider la CSP, et garder la liste blanche **NOMINATIVE**, jamais dérivée de l'artéfact (S-005).
+> **(3) Le sanitizer d'Angular efface TOUT le SVG** — mesuré (`src/sonde-sanitizer-svg.spec.ts`,
+> gardée comme tripwire) : 24 éléments → 0, 71 attributs → 0. D'où le `bypassSecurityTrustHtml`
+> **scopé au seul bloc `mermaid`**, justifié nominativement au point d'appel. Ne pas l'élargir.
+>
+> <!--
+> **❓ NŒUDS : tous tranchés le 2026-08-16, ne pas les rouvrir** (détail : §E2 du backlog). Dette
+> sécurité → **avant E3-ST1**, pas avant E2-ST1 · leçon-témoin → **fixture hors de `content/`** ·
+> diagrammes Mermaid → **rendus au build** (une invocation `mmdc` par leçon, cache par hachage,
+> Chromium de Playwright réutilisé). **Un seul reste ouvert, et il n'appartient qu'au propriétaire :**
+> marquer *False Positive* le `css:S8776` de SonarCloud (le `&` de `@mixin focus-visible`) — un
+> fichier de propriétés ne sait pas taire une issue.
+> -->
+>
+> <!--
+> **✅ LES CONSTATS NAVIGATEUR D'E1 SONT FAITS** (2026-08-16, sur le site déployé) — et la consigne qui
+> les bloquait était **fausse par excès** : ce n'est pas le navigateur qui est banni, c'est
+> l'**extension** Claude in Chrome. **Playwright, déjà installé, est la voie.** Résultats : **0**
+> violation de CSP en actionnant les trois états de la bascule (avec **contrôle positif** : un script
+> inline non haché injecté est bien capté) · **aucun flash** de clair sur thème sombre épinglé,
+> *prouvé par capture* — les 3 images du chargement filmé sont sombres dès la première (L-025) ·
+> `/404/*` **couvre bien** `/404/` (`x-robots-tag: noindex` présent) · le lien du pied de page porte un
+> **soulignement** en plus de sa couleur (`link-in-text-block` tenu).
+> ⚠️ *Leçon de méthode payée au passage* : la 1ʳᵉ mesure du flash a échoué **sur l'instrument** — un
+> `MutationObserver` posé avant l'existence de `documentElement` levait, et le script a rapporté son
+> propre plantage comme « 1 violation CSP ».
+> -->
+>
+> **Dette à ne pas perdre**, de la plus mordante à la plus froide. ✅ **Les cinq premières sont
+> PAYÉES le 2026-08-20** (S-003, le garde-fou ` style="`, la CSP servie structurelle, la portée du
+> sceau, l'épinglage de l'action) — voir le bloc de clôture en tête. **Ce qu'elles ont laissé
+> derrière elles**, consigné au backlog et non corrigé : les **autres en-têtes globaux** (HSTS,
+> Referrer-Policy, Permissions-Policy, X-Content-Type-Options) restent vérifiés par **présence
+> seule** — un `Permissions-Policy: camera=*` servi passerait tous les gates · `publication` ne
+> **revérifie pas le sceau** après `download-artifact` · le refus nominatif rougirait sur un
+> `<noscript>` de repli ou un `<iframe>` de média **légitimes** (zéro occurrence aujourd'hui ; le
+> jour où l'un est voulu, c'est une **revue de sécurité**, pas un retrait de la balise) · le **compte
+> brut** `<script[\s>/]` compte aussi dans les **valeurs d'attribut**, où la sérialisation n'échappe
+> pas `<` — parade **éditoriale**, jamais un assouplissement (pression S-011) · les **11 empreintes
+> d'étapes** de `FENETRE_AVANT_SCEAU_REVUE` se maintiennent à la main, et rougissent sur un
+> renommage bénin — c'est **voulu** · le nom du job `lint · test · build · audit` **sous-décrit** ce
+> qu'il exécute (il porte aussi G-axe et G-e2e, ce qui a déjà induit un lecteur en erreur).
+> Puis, plus froid : **`.claude/rules/security.md` n'a pas intégré S-007/S-008** (le lot du 2026-08-20
+> y a ajouté trois surfaces neuves en §4, mais **pas** celles-là) · **typage (b) 34 et (c) 35
+> erreurs** sur les deux gates de design · et
+> le texte de l'extrait d'en-têtes de la Home est **en dur** (borné par un test qui relit
+> `staticwebapp.config.source.json`).
+> Détail de chacune : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) §E1-ST1, §E1-ST2, §E1-ST3 et §E2.
+>
+> <!--
+> **Acquis, vérifié :** dépôt <https://github.com/DrL0ve69/Dr.JeSaisTout-WebApp> (public, `main`) ·
+> ressources Azure créées (*Azure for Students*, palier **Free**) · secret
+> `AZURE_STATIC_WEB_APPS_API_TOKEN` posé · workflows `Déploiement` **et** `Infra` **verts, zéro
+> annotation** · ST1-A : design system 3 couches (73 primitives → 58 jetons sémantiques → 0 jeton
+> composant), gate `verifier-contrastes.mjs` (33 paires, 66 mesures, plus bas 3,24:1/3,39:1) ·
+> ST1-B : Fraunces + Inter en OFL auto-hébergées (196 Ko livrés, **83 Ko chargés**), gate
+> `verifier-glyphes.mjs` (lecture réelle de la table `cmap`, 80 vérifications) · ST2 : `deploy.yml`
+> **scindé en deux jobs** (`gates` sans secret → `publication` qui détient le jeton), artéfact
+> **scellé par empreintes sha256** entre les deux, vérifications en ligne **fail-closed** et portant
+> sur les **directives** CSP, pas seulement sur la présence des en-têtes — tous les gates câblés dans
+> `ci.yml` **et** `deploy.yml` (L-007) · aucun `tfstate` versionné.
+> -->
+>
+> **Pièges à ne pas repayer.** Les trois neufs d'E2-ST1 d'abord, parce qu'ils se ressemblent :
+> **(A) une liste NOIRE de motifs sur un format structuré est un S-003 par construction.** Le scrub
+> du SVG surveillait cinq motifs par regex ; `<a xlink:href="javascript:…">`, `<use href="https://…">`
+> et `<animate attributeName="href">` passaient intacts. On **parse**, puis on confronte à une **liste
+> blanche nominative** — jamais l'inverse. **(B) un contrôle positif qu'aucun runner n'exécute est une
+> intention, pas un gate** : les 9 fixtures invalides du validateur étaient exactes, exécutables à la
+> main… et lancées par personne, donc invisibles à toute régression (cousine de **L-019**, sur l'axe
+> *câblage*). Même famille : un garde-fou qui ne vit que dans un harnais CLI que la CI n'appelle pas.
+> **(C) un identifiant dérivé du hachage du CONTENU se duplique dès que le contenu se répète** — deux
+> diagrammes identiques dans une leçon recevaient le même SVG, donc les mêmes `id` dans la page. Une
+> clef de cache indexe une **source** ; un préfixe doit distinguer une **occurrence**.
+>
+> Puis (0, celui d'E1-ST3, le plus retors parce qu'il ne fait rougir
+> AUCUN gate) : la feuille de l'agent utilisateur pose `margin-inline: auto` sur `<hr>` — en **item
+> de grille**, une marge automatique l'emporte sur l'étirement et la largeur retombe à **zéro**. Le
+> filet occupait sa place et ne peignait rien, avec un style calculé parfaitement juste. Corrigé dans
+> `@mixin filet-horizontal` ; morale plus large : **un `getComputedStyle` correct ne prouve pas un
+> pixel peint**, seule une capture ou une géométrie le prouve (**L-025**, cousine de L-021). Puis les
+> deux d'E1-ST2 : (1) `provideClientHydration()` d'Angular 22 active par
+> défaut l'**hydratation incrémentale**, qui injecte deux scripts inline que la CSP à hachages refuse —
+> et ces scripts n'apparaissent **qu'avec le premier élément interactif**. D'où
+> `withNoIncrementalHydration()` dans `app.config.ts` : rejeu d'événements perdu, `@defer (hydrate …)`
+> inerte — **piège pour E2**. (2) `preserveWhitespaces: false` retire le nœud blanc entre deux
+> `<span>` : le nom accessible se calcule **en un seul mot**, l'espace visible ne venant que du `gap`
+> CSS qu'aucune API d'accessibilité ne lit (**L-024**).
+>
+> **⚠️ Contrainte de RÉDACTION née de ST1-B : le contenu emploie U+00A0**, jamais U+202F.
+> L'espace fine insécable est **absente de Fraunces comme d'Inter**, et irrécupérable (le
+> sous-ensemble maison est interdit — c'est lui qui casse `œ`, `« »`, `’` en silence). U+2009 n'est
+> pas une issue : Inter la porte, Fraunces non. À reporter dans
+> `.claude/rules/contenu-pedagogique.md` §3 à la première leçon. Détail :
+> [`docs/design/polices.md`](docs/design/polices.md).
+>
+> **SonarCloud** : porte **verte**. L'analyse est **automatique** (app GitHub) — elle lit
+> `.sonarcloud.properties`, et **ignore** `sonar-project.properties` ; ne pas créer ce dernier en
+> croyant régler quelque chose. Un seul reliquat, côté propriétaire : marquer *False Positive* le
+> bug `css:S8776` sur le `&` de `@mixin focus-visible` (faux positif prouvé en compilant ; le
+> fichier de propriétés ne sait pas taire une issue).
+>
+> **Pièges déjà payés, à ne pas repayer.** (1) Une vérification post-déploiement doit attendre
+> l'**effet**, pas le code de retour : SWA répond 200 pendant ~30-60 s *avant* d'appliquer
+> `staticwebapp.config.json`, et `curl --retry` ne rattrape rien puisque la réponse est un succès
+> (lesson **L-004**). (2) Un run « vert » ne prouve pas qu'une vérification a *tourné* — c'est le
+> **journal** qui fait foi. (3) `public/**` est copié sans empreinte de contenu alors que les
+> `.js` sont servis `immutable` un an — d'où le choix ST1-C d'un script inline haché plutôt qu'un
+> fichier externe pour l'anti-flash de thème, et d'où les **noms de polices versionnés** de ST1-B.
+> (4) Un outil d'analyse a raison **et** tort dans le même run : sur la PR #1, la duplication et le
+> « bug » étaient deux faux positifs ; sur la PR #2, les cinq bugs signalés étaient réels. On
+> vérifie chaque constat, on n'accepte ni ne rejette le lot en bloc. (5) `.yml`/`.json` sont en
+> **CRLF** sur ce poste : un `replace()` sur un littéral multi-ligne en `\n` ne mute rien, et une
+> regex ancrée `$` en multiligne s'ancre **après** le `\r` (**L-015**).
+>
+> Spikes tranchés : addendums §9 de
+> [`docs/architecture/stack-et-architecture.md`](docs/architecture/stack-et-architecture.md).
+> Le plan fait foi : [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md).
+> Scaffold par CLI officiels (`ng new` / `dotnet new`) uniquement — jamais à la main.

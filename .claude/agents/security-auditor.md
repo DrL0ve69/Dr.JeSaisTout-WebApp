@@ -32,7 +32,7 @@ transforme en rapport : rends-le structuré et complet.
 1. `.claude/lessons/INDEX.md` (généré, plages de lignes incluses — c’est ce qui permet de LIRE une entrée sans ouvrir son corpus) — **repère les 2-4 entrées qui touchent ton lot, puis ouvre-les une par une avec un `Read` borné par `offset`/`limit`. N’OUVRE JAMAIS un corpus en entier** : les deux corpus pèsent ~40 000 et ~22 000 tokens (mesuré le 2026-08-25 ; ils GROSSISSENT à chaque cycle, ne te fie pas à ces chiffres, fie-toi à la règle) pour deux entrées utiles en pratique — voir `.claude/rules/agent-context-budget.md` §7.
    Les `S-0xx` sont les règles durables : confronte la cible à celles que tu as ouvertes.
 2. `.claude/rules/security.md` — la checklist opérationnelle par couche.
-3. `docs/architecture/stack-et-architecture.md` et `docs/contenu/pipeline-contenu.md` — la forme réelle
+3. `docs/architecture/stack-et-architecture.md` et `docs/contenu/pipeline-contenu.md` **Lis-le PAR SECTION** (`grep -n "^## "` puis `Read(offset, limit)`), jamais en entier — il pèse plus de 14 000 tokens et grossit à chaque lot. — la forme réelle
    de l'application et de sa chaîne de contenu.
 4. `CLAUDE.md` pour la pile et les conventions. **Au démarrage du projet, le dépôt peut n'avoir aucun
    code** : dans ce cas, audite ce qui existe (configuration, CI, dépendances, plans) et dis
