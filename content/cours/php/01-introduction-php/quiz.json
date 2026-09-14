@@ -1,0 +1,95 @@
+{
+  "lecon": "introduction-php",
+  "titre": "Quiz — introduction à PHP, la pile et la syntaxe",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Un visiteur ouvre une page .php, puis fait « Afficher le code source ». Il n'y voit aucune balise <?php. Pourquoi ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Le navigateur masque le code PHP, qu'il reconnaît comme du code serveur."
+        },
+        {
+          "id": "b",
+          "texte": "Le code a été exécuté sur le serveur avant l'envoi : le client ne reçoit que sa sortie."
+        },
+        {
+          "id": "c",
+          "texte": "Apache chiffre les portions PHP de la réponse avant de l'envoyer au navigateur."
+        },
+        {
+          "id": "d",
+          "texte": "Le code PHP est bien envoyé, mais il est placé dans des commentaires HTML."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "PHP signifie « PHP: Hypertext Preprocessor » : il traite la page AVANT de la remettre au navigateur. Apache passe le fichier à l'interpréteur, qui exécute le code et ne renvoie que ce que echo ou print ont envoyé. La réponse a place la décision du mauvais côté : le navigateur ne peut pas masquer ce qu'il n'a jamais reçu, et il ne sait rien de PHP. La réponse c invente un chiffrement qui n'existe pas dans la pile LAMP ; s'il existait, le navigateur ne pourrait pas afficher la page. La réponse d décrit exactement ce qui NE se passe pas : un commentaire HTML, lui, part bien dans la page et se lit avec « Afficher le code source », contrairement à un commentaire PHP.",
+      "ficheSource": "web/php/php-fondamentaux.md"
+    },
+    {
+      "id": "q2",
+      "type": "vrai-faux",
+      "affirmation": "En PHP, l'opérateur + permet de coller deux chaînes de caractères l'une à l'autre.",
+      "bonneReponse": false,
+      "justification": "Faux : en PHP, + est exclusivement arithmétique. La concaténation s'écrit avec un POINT, comme dans echo \"Bonjour \" . $nom;. C'est le piège numéro un quand on arrive de C# ou de JavaScript, où + fait les deux travaux. Ne confonds pas non plus = qui affecte une valeur et == qui compare deux valeurs.",
+      "ficheSource": "web/php/php-fondamentaux.md"
+    },
+    {
+      "id": "q3",
+      "type": "associer",
+      "consigne": "Associe chaque composant de la pile LAMP au rôle qu'il tient dans une application web.",
+      "paires": [
+        { "gauche": "Linux", "droite": "Le système d'exploitation qui héberge tout le reste" },
+        {
+          "gauche": "Apache",
+          "droite": "Reçoit la requête HTTP et rapporte la réponse HTTP"
+        },
+        { "gauche": "PHP", "droite": "Prépare la page sur le serveur, avant l'envoi" },
+        { "gauche": "MySQL", "droite": "Conserve les données qui doivent durer" }
+      ],
+      "explication": "C'est la répartition des rôles du restaurant : Linux est le bâtiment, Apache le serveur de salle qui prend la commande et rapporte l'assiette, PHP le cuisinier qui prépare hors de la vue du client, MySQL — ou MariaDB, sa version dérivée — le garde-manger. La confusion la plus fréquente est de croire qu'Apache exécute le code : il ne fait que le passer à l'interpréteur PHP, d'après l'extension du fichier. Retiens aussi la limite de l'analogie : le cuisinier oublie tout entre deux commandes, chaque requête PHP repart d'une mémoire vierge, et c'est pour cela que ce qui doit durer passe par la base de données.",
+      "ficheSource": "web/php/php-fondamentaux.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Une page charge un en-tête commun sans lequel elle n'a aucun sens. Quelle est la différence entre include et require pour ce chargement ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Aucune : les deux insèrent le fichier, seul le nom change."
+        },
+        {
+          "id": "b",
+          "texte": "Si le fichier manque, include produit un avertissement et le script continue ; require provoque une erreur fatale et le script s'arrête."
+        },
+        {
+          "id": "c",
+          "texte": "include insère le fichier une seule fois, require le réinsère à chaque appel."
+        },
+        {
+          "id": "d",
+          "texte": "include s'utilise pour du PHP, require uniquement pour du HTML."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Les deux insèrent le contenu d'un autre fichier à l'endroit de l'appel, comme si le code y avait été écrit ; leur seule différence tient au fichier manquant. D'où la règle d'usage : include pour un fragment facultatif, require pour tout ce sans quoi la page n'a aucun sens — ce qui est le cas ici. La réponse a nie une différence réelle, et c'est celle qui coûte le plus cher : une page amputée de son en-tête continue de s'afficher, à moitié cassée, sans message clair. La réponse c décrit une autre paire, include_once et require_once, dont le rôle est d'éviter l'erreur « fonction déjà déclarée ». La réponse d invente une distinction de contenu qui n'existe pas : le fichier inclus peut contenir n'importe quoi.",
+      "ficheSource": "web/php/php-fondamentaux.md"
+    },
+    {
+      "id": "q5",
+      "type": "trouver-la-faille",
+      "consigne": "Cette page salue le visiteur par le nom reçu dans l'URL. Quelle ligne permet de faire exécuter du JavaScript chez le visiteur, et pourquoi ?",
+      "langage": "php",
+      "code": "<?php\ninclude \"header.inc\";\n$nom = $_GET[\"nom\"];\necho \"Bonjour $nom\";\ninclude \"footer.inc\";\n?>",
+      "ligneFautive": 4,
+      "faille": "XSS réfléchi — une valeur venue du client réinjectée telle quelle dans la page",
+      "explication": "La ligne 4 renvoie au navigateur une valeur écrite par le visiteur lui-même : un appel ?nom=<script>alert('XSS')</script> fait exécuter ce script chez celui qui ouvre le lien. C'est le point du cours sur echo : echo n'affiche pas, il ENVOIE — et le navigateur interprète ce qu'il reçoit. La ligne 3 est souvent désignée à tort : lire $_GET n'a rien de fautif en soi, tout dépend de ce qu'on fait ensuite de la valeur ; son seul défaut ici est de ne pas prévoir le cas où le paramètre est absent, ce qui produit un simple avertissement. Les lignes 2 et 5 portent un autre problème, réel mais différent : Apache ne connaît pas l'extension .inc et sert ces fichiers en texte brut. La parade contre le XSS est l'encodage À LA SORTIE, avec htmlspecialchars(), qui transforme < et > en entités HTML pour que le navigateur les affiche au lieu de les interpréter.",
+      "correction": "<?php\ndeclare(strict_types=1);\nrequire __DIR__ . \"/header.php\";\n$nom = $_GET[\"nom\"] ?? \"visiteur\";\necho \"Bonjour \" . htmlspecialchars($nom, ENT_QUOTES | ENT_SUBSTITUTE, \"UTF-8\");\nrequire __DIR__ . \"/footer.php\";",
+      "ficheSource": "web/php/php-fondamentaux.md"
+    }
+  ]
+}
