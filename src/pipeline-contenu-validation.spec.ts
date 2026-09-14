@@ -56,6 +56,7 @@ import {
   TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
+import { refusDeTete } from './aides-de-test/mutations-de-tete-d-etape';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
@@ -1075,9 +1076,10 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
 // l'aval refuse, l'amont laisse passer, et l'auteur reçoit le message de l'aval, qui parle d'un
 // objet (une étape compilée) qu'il n'a pas sous les yeux. Famille S-010.
 //
-// ⚠️ POURQUOI ICI PLUTÔT QUE DANS `__fixtures__/invalides/`. Chacun de ces six cas est une
-// MUTATION D'UNE SEULE LIGNE de la racine témoin `__fixtures__/marche-a-suivre`, qui est VALIDE.
-// En faire six dossiers coûterait ~1 000 lignes recopiées pour six lignes utiles, et §9 de
+// ⚠️ POURQUOI ICI PLUTÔT QUE DANS `__fixtures__/invalides/`. Chacun de ces treize cas (douze
+// refus et un cas positif) est une MUTATION D’UNE SEULE LIGNE de la racine témoin
+// `__fixtures__/marche-a-suivre`, qui est VALIDE. En faire treize dossiers coûterait ~1 000
+// lignes recopiées par cas pour une ligne utile, et §9 de
 // `.claude/rules/agent-context-budget.md` dit qu'un corpus de fixtures se COMPTE avant d'être
 // écrit. Le bac à sable jetable exécute le MÊME binaire sur une VRAIE racine : la couverture est
 // la même, le coût ne l'est pas. Le dossier `invalides/` reste réservé aux fautes qu'une mutation
@@ -1093,7 +1095,7 @@ describe('les volets d’un « :::: methodes », côté VALIDATEUR', () => {
 // la droite. Les deux apparaissent dans le même cas `titre-introuvable` — ce n'est pas une faute
 // de frappe.
 // =============================================================================
-describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () => {
+describe('la tête d’une étape (« {voir="…"} », « {voie="…"} »), côté VALIDATEUR', () => {
   const FIXTURE_MARCHE = 'tools/content-pipeline/__fixtures__/marche-a-suivre';
 
   /** L'étape témoin de la racine valide — la SEULE ligne que chaque cas remplace. */
@@ -1111,14 +1113,22 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
   });
 
   /**
-   * Copie la racine témoin, remplace son étape n°2 par celle du cas, et rend la sortie du refus.
+   * Copie la racine témoin, remplace son étape n°2 par celle du cas, et LANCE le validateur —
+   * sans rien présumer du verdict, puisque la tête d’une étape a désormais des cas qui doivent
+   * PASSER (l’accolade nue d’une phrase JS) autant que des cas qui doivent être refusés.
    *
    * 🔴 LA MUTATION EST VÉRIFIÉE AVANT D'ÊTRE MESURÉE (L-015). Les fins de ligne de ce dépôt sont
-   * mixtes ; un remplacement qui ne mordrait pas laisserait la racine VALIDE, et le `throw` de la
-   * fin accuserait le garde-fou d'un défaut qui serait celui du harnais. On lève donc sur
-   * l'absence de l'étape témoin — c'est-à-dire sur la fixture qui aurait changé de forme.
+   * mixtes ; un remplacement qui ne mordrait pas laisserait la racine VALIDE — ce qui accuserait
+   * le garde-fou pour un cas de refus, et FABRIQUERAIT le vert pour un cas d’acceptation, la
+   * moitié la plus silencieuse des deux. On lève donc sur l’absence de l’étape témoin.
+   *
+   * @param nom le sous-dossier jetable du bac à sable
+   * @param etape la ligne qui remplace l’étape n°2
    */
-  function causeDeLEtape(nom: string, etape: string): string {
+  function validerAvecLEtape(
+    nom: string,
+    etape: string,
+  ): { readonly sortie: string; readonly code: number } {
     const racine = join(bac, nom);
     cpSync(FIXTURE_MARCHE, racine, { recursive: true });
     const fichier = join(racine, '02-guide', 'lecon.md');
@@ -1127,17 +1137,32 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
       throw new Error(`« ${nom} » : l’étape témoin est introuvable — la fixture a changé de forme`);
     }
     writeFileSync(fichier, source.replace(ETAPE_TEMOIN, etape), 'utf8');
-    const { sortie, code } = lancer(['--racine', racine]);
+    return lancer(['--racine', racine]);
+  }
+
+  /**
+   * La sortie du REFUS attendu — elle lève si le garde-fou n’a pas mordu, de sorte qu’un cas de
+   * la table ne puisse pas passer pour vert en étant simplement accepté.
+   *
+   * @param nom le sous-dossier jetable du bac à sable
+   * @param etape la ligne qui remplace l’étape n°2
+   */
+  function causeDeLEtape(nom: string, etape: string): string {
+    const { sortie, code } = validerAvecLEtape(nom, etape);
     if (code === 0) throw new Error(`« ${nom} » a été ACCEPTÉ — le garde-fou n’a pas mordu`);
     return sortie;
   }
 
   /**
-   * LES SIX REFUS, EN TABLE — chacun sur SA cause propre.
+   * LES REFUS DU RENVOI, EN TABLE — chacun sur SA cause propre.
    *
    * ⚠️ Un garde-fou qui refuserait TOUT renvoi passerait un test qui n'épingle que l'échec. Ce qui
    * discrimine est le fragment de message : il nomme la faute commise, et lui seul distingue ces
-   * six branches les unes des autres.
+   * branches les unes des autres.
+   * ⚠️ SIX AU LOT 7, DOUZE AU LOT PHP-A1, TREIZE DEPUIS SON CORRECTIF DE REVUE — la tête d'une
+   * étape admet un second nom (`{voie="…"}`), et son refus ne mord plus sur une accolade nue.
+   * Ce compte se RECOMPTE sur la table à chaque ajout (L-075) : un inventaire périmé sous un
+   * en-tête qui se donne l'air exhaustif est pire que pas d'inventaire.
    */
   const REFUS: readonly { nom: string; quoi: string; etape: string; cause: string }[] = [
     {
@@ -1184,19 +1209,70 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
       nom: 'accolade-illisible',
       quoi: 'un bloc d’attributs aux guillemets COURBES, en disant lesquels sont acceptés',
       etape: '2. {voir=“Ce que le validateur regarde”} Relire le journal.',
+      // ⚠️ CETTE PHRASE A CHANGÉ AU LOT PHP-A1, ET C'EST VOULU : « seule la forme {voir="…"} est
+      // acceptée » est devenu FAUX le jour où la tête d'une étape a admis un second nom. Un message
+      // périmé qui se donne l'air exhaustif envoie l'auteur chercher une faute là où il n'y en a
+      // pas — il se corrige dans les DEUX copies du juge, jamais dans une seule.
       cause:
-        'bloc d\'attributs illisible en tête ; seule la forme {voir="…"} est acceptée, guillemets droits compris',
+        'bloc d\'attributs illisible en tête ; seules les formes {voir="…"} et {voie="…"} sont acceptées, guillemets droits compris',
     },
   ];
 
-  for (const cas of REFUS) {
+  /**
+   * CE QUE CE JUGE-CI DOIT DIRE sur chaque mutation du corpus partagé — une cause par `nom`.
+   *
+   * 🔴 CETTE TABLE NE MONTE PAS DANS LE CORPUS, ET C'EST LA MOITIÉ QUI COMPTE (L-095). Les
+   * MUTATIONS recensent — recopiées dans les deux specs, elles pouvaient DIVERGER en silence, sans
+   * qu'aucun appariement de messages ne rougisse : c'est le mode d'échec que L-095 décrit. Les
+   * CAUSES, elles, JUGENT : elles sont écrites ici ET dans `pipeline-contenu-compilation.spec.ts`,
+   * séparément, et c'est cet appariement qui ferme « l'aval refuse, l'amont laisse passer » (S-010).
+   *
+   * ⚠️ CE JUGE-CI DIT LA CAUSE EN UNE SEULE PHRASE (cause et aide jointes), là où le compilateur
+   * les épingle en deux fragments. Ce n'est pas une incohérence : chaque copie est mesurée sur le
+   * message qu'elle rend vraiment, pas sur celui que l'autre rend.
+   */
+  const CAUSES_DE_TETE: Readonly<Record<string, string>> = {
+    'voie-vide': 'voie vide ; valeurs admises : cours, moderne',
+    // 🔴 LE CŒUR DE LA LISTE FERMÉE : le refus ÉNUMÈRE. Sans cette moitié, un garde-fou qui
+    // refuserait TOUTE voie passerait ce test — y compris les deux qui sont admises.
+    'voie-hors-liste': 'voie inconnue « ancienne » ; valeurs admises : cours, moderne',
+    'deux-voies': 'deux voies sur la même étape ; une étape porte AU PLUS une voie',
+    'voie-pas-en-tete': "la voie n'est pas en TÊTE de l'étape",
+    'nom-de-tete-inconnu':
+      "attribut de tête inconnu « couleur » ; noms admis en tête d'une étape : voir, voie",
+    // 🔴 LA FAUTE DE FRAPPE D'UN CARACTÈRE. Sans cette branche, `{voi="…"}` tombait dans « bloc
+    // d'attributs illisible » — vrai, mais muet sur la seule chose à corriger.
+    'voi-faute-de-frappe': 'attribut de tête inconnu « voi »',
+    'voire-faute-de-frappe': 'attribut de tête inconnu « voire »',
+    // 🔴 LE JUMEAU DU CAS POSITIF « accolade nue » plus bas. Le correctif restreint le refus à ce
+    // qui RESSEMBLE à un bloc d'attributs ; il doit donc TOUJOURS mordre sur une valeur non citée,
+    // y compris quand une tête PARFAITEMENT formée la précède — la position où le sur-refus se
+    // tenait.
+    'valeur-non-citee':
+      'bloc d\'attributs illisible en tête ; seules les formes {voir="…"} et {voie="…"} sont acceptées, guillemets droits compris',
+  };
+
+  // Les refus du RENVOI, écrits au lot 7, puis les mutations de TÊTE du corpus partagé, appariées
+  // à leurs causes locales. `refusDeTete` lève si une mutation du corpus n'a pas de cause déclarée
+  // ci-dessus : c'est ce qui rend le corpus exhaustif pour ce juge-ci, plutôt que déclaratif.
+  const TOUS_LES_REFUS = [
+    ...REFUS,
+    ...refusDeTete('module:cible', 2, CAUSES_DE_TETE).map((cas) => ({
+      nom: cas.nom,
+      quoi: cas.quoi,
+      etape: cas.etape,
+      cause: cas.attendu,
+    })),
+  ];
+
+  for (const cas of TOUS_LES_REFUS) {
     it(
       `refuse ${cas.quoi}`,
       () => {
         const sortie = causeDeLEtape(cas.nom, cas.etape);
         expect(sortie).toContain(cas.cause);
         // La LIGNE du corps est ce que l'auteur voit dans son éditeur : sans elle, il relit toute
-        // la marche à suivre. Les six cas mutent la même ligne, donc l'attendu est le même.
+        // la marche à suivre. Tous les cas mutent la même ligne, donc l'attendu est le même.
         expect(sortie).toContain('corps ligne 22');
         // UNE faute, jamais deux : le contrat « un cas = une cause » du mode --fixtures vaut aussi
         // ici. Une cause parasite masquerait la disparition de celle qu'on mesure.
@@ -1206,16 +1282,45 @@ describe('le renvoi « {voir="…"} » d’une étape, côté VALIDATEUR', () =>
     );
   }
 
-  // L'AUTRE MOITIÉ DE LA PINCE : la racine témoin, NON mutée, passe en code 0. Sans elle, les six
-  // refus ci-dessus resteraient compatibles avec un validateur qui refuserait toute marche à
-  // suivre — et les deux renvois valides qu'elle porte (un titre, un module publié) sont
-  // précisément les formes que les six cas mutent.
+  // L'AUTRE MOITIÉ DE LA PINCE : la racine témoin, NON mutée, passe en code 0. Sans elle, les
+  // DOUZE refus ci-dessus resteraient compatibles avec un validateur qui refuserait toute marche
+  // à suivre — et les QUATRE renvois valides (étapes 1, 2, 5 et 6 : deux titres de section, deux
+  // `module:cible`) et les TROIS voies (étapes 4, 5 et 6, dont deux cohabitent avec un renvoi)
+  // qu’elle porte sont précisément les formes que les douze cas mutent.
+  // ⚠️ CES COMPTES SONT RECOMPTÉS SUR LA FIXTURE (L-075), jamais recopiés d’un commentaire :
+  // « six refus » et « deux renvois valides » étaient tous deux périmés au lot PHP-A1, dans le
+  // fichier même qui prescrit ce recomptage.
   it(
-    'accepte la racine témoin — les deux renvois valides passent, en code 0',
+    'accepte la racine témoin — les quatre renvois et les trois voies passent, en code 0',
     () => {
       const { sortie, code } = lancer(['--racine', FIXTURE_MARCHE]);
       expect(code).toBe(0);
       expect(sortie).toMatch(/2 leçon\(s\) valides/);
+    },
+    DELAI,
+  );
+
+  // 🔴 LE CAS QUI EMPÊCHE LE CORRECTIF DE TOUT RELÂCHER. Le refus « bloc d’attributs illisible en
+  // tête » s’appliquait à TOUTE accolade ouvrante du reste de la phrase : « {} est un objet vide
+  // en JS » était refusé, sur un message qui parlait d’une tête parfaitement formée. Le cours de
+  // PHP/JS est exactement celui où une phrase s’ouvre sur `{`. Ce cas et le cas négatif
+  // « valeur-non-citee » de la table ci-dessus se tiennent par les deux bouts : sans le premier le
+  // sur-refus revient en silence, sans le second le motif pourrait n’attraper plus rien.
+  it(
+    'ACCEPTE une phrase d’étape qui porte `{}` ou `{ma: 1}` en ouverture de phrase',
+    () => {
+      // 🔴 LA POSITION EST TOUT : seul le PREMIER caractère de ce qui reste après la tête a
+      // jamais été regardé. Une accolade plus loin dans la phrase n'a jamais rien déclenché —
+      // un cas écrit là serait vert AVANT comme APRÈS le correctif, et ne prouverait rien.
+      // Les DEUX branches du test sont donc exercées : avec une tête lue, et sans tête du tout.
+      for (const [nom, etape] of [
+        ['accolade-vide-apres-tete', '2. {voir="module:cible"} {} est un objet vide en JS.'],
+        ['accolade-litterale-sans-tete', '2. {ma: 1} est un littéral d’objet, pas une tête.'],
+      ] as const) {
+        const { sortie, code } = validerAvecLEtape(nom, etape);
+        expect(sortie).not.toContain("bloc d'attributs illisible");
+        expect(code).toBe(0);
+      }
     },
     DELAI,
   );

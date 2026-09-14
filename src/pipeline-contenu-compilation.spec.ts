@@ -53,6 +53,7 @@ import {
   TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
+import { refusDeTete } from './aides-de-test/mutations-de-tete-d-etape';
 
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
 const FIXTURE_TEMOIN = 'tools/content-pipeline/__fixtures__/temoin-minimal';
@@ -73,6 +74,12 @@ interface BlocQuelconque {
     html: string;
     code?: { langage: string; htmlColore: string };
     renvoi?: { cible: string; titre?: string; ancre?: string; slug?: string };
+    /**
+     * `voie` (décision D-PHP-1) — lue en `string` LARGE et non en union fermée, comme tout le
+     * reste de ce fichier : y recopier `'cours' | 'moderne'` ferait passer pour VÉRIFIÉ ce que ce
+     * spec doit constater à l'exécution (L-012). C'est l'assertion qui épingle les valeurs.
+     */
+    voie?: string;
   }[];
   exemples?: {
     langage: string;
@@ -1792,9 +1799,34 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
       marche = tousLesBlocs(guide.sections).find((b) => b.type === 'marche-a-suivre');
     }, DELAI);
 
-    it('porte son titre et ses trois étapes, dans l’ordre du document', () => {
+    it('porte son titre et ses six étapes, dans l’ordre du document', () => {
       expect(marche?.titre).toBe('Faire passer une leçon au validateur');
-      expect(marche?.etapes).toHaveLength(3);
+      // SIX DEPUIS LE LOT PHP-A1 : trois étapes de plus exercent `{voie="…"}` — seule, puis en
+      // couple avec `{voir="…"}` dans LES DEUX ORDRES (voir le LISEZMOI de la fixture).
+      expect(marche?.etapes).toHaveLength(6);
+    }, DELAI);
+
+    // 🔴 LA VOIE EST UN CHAMP DISTINCT, POSÉ SEULEMENT S'IL EXISTE — jamais `undefined` écrit, et
+    // surtout jamais une valeur par défaut : une étape sans voie ne déclare RIEN de sa provenance.
+    // C'est ce qui distingue « le cours fait autrement » de « personne n'a regardé » (même
+    // arbitrage que `horsCours` au lot 1c).
+    it('compile `{voie="…"}` en champ DISTINCT, dans les deux ordres d’écriture', () => {
+      const voies = marche?.etapes?.map((etape) => etape.voie);
+      expect(voies).toEqual([undefined, undefined, undefined, 'cours', 'moderne', 'cours']);
+
+      // L'étape n°5 s'écrit `{voie="…"} {voir="…"}`, la n°6 `{voir="…"} {voie="…"}` : les deux
+      // rendent les DEUX champs. Un seul des deux ordres exercé laisserait la moitié de la boucle
+      // de lecture de tête sans aucun contrôle.
+      expect(marche?.etapes?.[4]?.renvoi?.cible).toBe('section');
+      expect(marche?.etapes?.[5]?.renvoi?.cible).toBe('module');
+
+      // ET LA PHRASE EST AMPUTÉE DES DEUX BLOCS — sans cette moitié, `{voie="cours"}` sortirait
+      // LITTÉRALEMENT dans le texte rendu au lecteur.
+      expect(marche?.etapes?.[3]?.html).not.toContain('{voie=');
+      expect(marche?.etapes?.[4]?.html).not.toContain('{voie=');
+      expect(marche?.etapes?.[5]?.html).not.toContain('{voie=');
+      expect(marche?.etapes?.[5]?.html).not.toContain('{voir=');
+      expect(marche?.etapes?.[3]?.html).toContain('Lancer la construction');
     }, DELAI);
 
     it('rend la phrase en HTML INLINE, amputée de son bloc « {voir="…"} »', () => {
@@ -1977,6 +2009,216 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
       );
       expect(() => compiler(racine, join(bacASable, 'jetable-sans-titre.scss'))).toThrow();
     }, DELAI);
+
+    // ---------------------------------------------------------------------------------------------
+    // LA TÊTE D'UNE ÉTAPE — `{voie="…"}` et sa cohabitation avec `{voir="…"}` (D-PHP-1, lot PHP-A1)
+    // ---------------------------------------------------------------------------------------------
+    // 🔴 POURQUOI EN BAC À SABLE ET NON EN `__fixtures__/invalides/` : chacun de ces cas est UNE ligne
+    // mutée. En faire des dossiers coûterait ~160 lignes de `lecon.md` + `quiz.json` par cas pour une
+    // ligne utile — §9 de `.claude/rules/agent-context-budget.md` dit qu'un corpus de fixtures se
+    // COMPTE avant d'être écrit. Le bac à sable exécute le MÊME binaire sur une VRAIE leçon.
+    //
+    // ⚠️ LES TROIS DERNIERS CAS NE SONT PAS DES NOUVEAUTÉS : ils épinglent le comportement INCHANGÉ
+    // de `{voir="…"}` (vide, doublé, « module: » sans slug). Le lot PHP-A1 a réécrit la lecture de la
+    // tête pour qu'elle porte deux noms ; « rien n'a bougé pour `voir` » est donc une clause du
+    // contrat, et une clause de contrat que rien ne mesure est une promesse plus forte que le gate
+    // (patron S-005). Le compilateur ne les exerçait pas — seul le validateur le faisait.
+    describe('la tête d’une étape — `{voie="…"}`, côté COMPILATEUR', () => {
+      /**
+       * Une cible de `{voir="…"}` qui se résout VRAIMENT dans la leçon ad hoc de ce spec — c'est
+       * un titre de section de la fixture. Le cas `valeur-non-citee` la fait précéder le bloc
+       * fautif : un renvoi introuvable y ajouterait une seconde cause.
+       */
+      const RENVOI_VALIDE = 'Ce que le validateur regarde';
+
+      /**
+       * LES REFUS, EN TABLE — chacun sur SA cause propre.
+       *
+       * ⚠️ Un garde-fou qui refuserait TOUTE tête passerait un test qui n'épingle que l'échec. Ce qui
+       * discrimine est le fragment de message : il NOMME la faute commise, et lui seul distingue ces
+       * branches les unes des autres.
+       *
+       * ⚠️ LES MUTATIONS ELLES-MÊMES VIENNENT DU CORPUS PARTAGÉ
+       * (`aides-de-test/mutations-de-tete-d-etape`) : elles RECENSENT, donc elles se partagent
+       * (L-095). Leurs causes, qui JUGENT, restent ici.
+       */
+      /**
+       * CE QUE CE JUGE-CI DOIT DIRE, un fragment par mutation du corpus partagé.
+       *
+       * 🔴 CETTE TABLE NE MONTE PAS DANS LE CORPUS, ET C'EST LA MOITIÉ QUI COMPTE (L-095). Les
+       * MUTATIONS recensent — elles se partagent, une divergence y serait invisible. Les CAUSES
+       * jugent : elles sont écrites ici ET dans `pipeline-contenu-validation.spec.ts`, séparément,
+       * pour que les deux copies de la lecture de tête soient épinglées chacune pour soi. C'est
+       * cet appariement, et lui seul, qui ferme le motif « l'aval refuse, l'amont laisse passer ».
+       *
+       * `aide` est le second fragment — celui qui prouve que le message AIDE, pas seulement qu'il
+       * refuse.
+       */
+      const CAUSES_DE_TETE: Readonly<Record<string, { cause: string; aide: string }>> = {
+        'voie-vide': { cause: 'voie vide', aide: 'valeurs admises : cours, moderne' },
+        // 🔴 LE CŒUR DE LA LISTE FERMÉE. Le message ÉNUMÈRE les deux valeurs : sans cette moitié,
+        // un auteur qui écrit « ancienne » ou « legacy » devine.
+        'voie-hors-liste': {
+          cause: 'voie inconnue « ancienne »',
+          aide: 'valeurs admises : cours, moderne',
+        },
+        'deux-voies': { cause: 'deux voies sur la même étape', aide: 'AU PLUS une voie' },
+        'voie-pas-en-tete': {
+          cause: "la voie n'est pas en TÊTE de l'étape",
+          aide: 'avant la phrase',
+        },
+        'nom-de-tete-inconnu': {
+          cause: 'attribut de tête inconnu « couleur »',
+          aide: "noms admis en tête d'une étape : voir, voie",
+        },
+        // 🔴 LA FAUTE DE FRAPPE QUE CE LOT DOIT ATTRAPER : le message doit NOMMER l'attribut, et
+        // dire que les deux noms ne diffèrent que d'un caractère.
+        'voi-faute-de-frappe': {
+          cause: 'attribut de tête inconnu « voi »',
+          aide: "ne diffèrent que d'un caractère",
+        },
+        'voire-faute-de-frappe': {
+          cause: 'attribut de tête inconnu « voire »',
+          aide: "noms admis en tête d'une étape : voir, voie",
+        },
+        'valeur-non-citee': {
+          cause: "bloc d'attributs illisible en tête",
+          aide: 'guillemets droits compris',
+        },
+      };
+
+      /**
+       * LES REFUS PROPRES À `{voir="…"}` — comportement INCHANGÉ par le lot PHP-A1, et c'est
+       * précisément pour cela qu'ils sont mesurés : « rien n'a bougé pour `voir` » est une clause
+       * du contrat, et une clause que rien ne mesure est une promesse plus forte que le gate
+       * (patron S-005). Ils restent locaux : le validateur les éprouve déjà par d'autres cas.
+       */
+      const REFUS_DU_RENVOI: readonly {
+        nom: string;
+        quoi: string;
+        etape: string;
+        cause: string;
+        aide: string;
+      }[] = [
+        {
+          nom: 'voir-vide',
+          quoi: 'un renvoi VIDE — comportement INCHANGÉ par le lot PHP-A1',
+          etape: '1. {voir=""} Lancer la construction.',
+          cause: 'renvoi vide',
+          aide: 'citer un titre de section',
+        },
+        {
+          nom: 'deux-voir',
+          quoi: 'DEUX renvois — comportement INCHANGÉ par le lot PHP-A1',
+          etape:
+            '1. {voir="Ce que le validateur regarde"} Lancer {voir="Ce que le validateur regarde"} la construction.',
+          cause: 'deux renvois sur la même étape',
+          aide: 'deux destinations valent deux étapes',
+        },
+        {
+          nom: 'module-sans-slug',
+          quoi: 'un « module: » sans slug — comportement INCHANGÉ par le lot PHP-A1',
+          etape: '1. {voir="module:"} Lancer la construction.',
+          cause: '« module: » sans slug',
+          aide: 'forme attendue',
+        },
+      ];
+
+      // Les mutations partagées, appariées à leurs causes locales, PUIS les refus propres au
+      // renvoi. `refusDeTete` lève si une mutation du corpus n'a pas de cause déclarée ici —
+      // c'est ce qui rend le corpus exhaustif pour ce juge-ci.
+      const REFUS_DE_TETE = [
+        ...refusDeTete(RENVOI_VALIDE, 1, CAUSES_DE_TETE).map((cas) => ({
+          nom: cas.nom,
+          quoi: cas.quoi,
+          etape: cas.etape,
+          ...cas.attendu,
+        })),
+        ...REFUS_DU_RENVOI,
+      ];
+
+      for (const cas of REFUS_DE_TETE) {
+        it(
+          `refuse ${cas.quoi}`,
+          () => {
+            const message = messageDEchecDeLaMarche(cas.nom, [cas.etape]);
+            expect(message).toContain(cas.cause);
+            expect(message).toContain(cas.aide);
+            // Le numéro d'étape est ce que l'auteur VOIT à l'écran.
+            expect(message).toContain('étape n° 1');
+          },
+          DELAI,
+        );
+      }
+
+      // 🔴 LA MENTION N'EST PAS L'USAGE (S-015, famille L-043). Ce dépôt écrit des leçons SUR SON
+      // PROPRE PIPELINE : une étape qui DOCUMENTE la grammaire en la citant entre accents graves doit
+      // passer. Sans ce cas, le contenu le plus certain de faire mordre le garde-fou est précisément
+      // la leçon qui enseigne le motif surveillé — et personne ne s'en apercevrait avant de l'écrire.
+      it(
+        'ACCEPTE une étape qui MENTIONNE `{voie="cours"}` entre accents graves',
+        () => {
+          const racine = leconAdHoc('marche-voie-mentionnee', (source) =>
+            source.replace(
+              '## Ce que le validateur regarde',
+              [
+                '## En bref — la marche à suivre',
+                '',
+                ':::: marche-a-suivre {titre="Documenter la grammaire des étapes"}',
+                '',
+                '1. Écrire `{voie="cours"}` en tête de l’étape pour marquer la méthode du cours.',
+                '',
+                '::::',
+                '',
+                '## Ce que le validateur regarde',
+              ].join('\n'),
+            ),
+          );
+          expect(() =>
+            compiler(racine, join(bacASable, 'jetable-voie-mentionnee.scss')),
+          ).not.toThrow();
+        },
+        DELAI,
+      );
+
+      // 🔴 LE CAS QUI EMPÊCHE LE CORRECTIF DE TOUT RELÂCHER (correctif de revue du lot PHP-A1).
+      // Le refus « bloc d’attributs illisible en tête » s’appliquait à TOUTE accolade ouvrante du
+      // reste de la phrase : « {} est un objet vide en JS » était refusé, sur un message qui
+      // parlait d’une tête parfaitement formée. Le cours de PHP/JS est exactement celui où une
+      // phrase s’ouvre sur `{`. Ce cas et le cas « valeur-non-citee » de la table ci-dessus se
+      // tiennent par les deux bouts : sans le premier le sur-refus revient en silence, sans le
+      // second le motif pourrait n’attraper plus rien.
+      it(
+        'ACCEPTE une phrase d’étape qui porte `{}` ou `{ma: 1}` en ouverture de phrase',
+        () => {
+          const racine = leconAdHoc('marche-accolade-nue', (source) =>
+            source.replace(
+              '## Ce que le validateur regarde',
+              [
+                '## En bref — la marche à suivre',
+                '',
+                ':::: marche-a-suivre {titre="Écrire un objet vide en JavaScript"}',
+                '',
+                // Avec une tête LUE, puis sans tête du tout : les deux seules positions que le
+                // refus ait jamais regardées. Une accolade au milieu d'une phrase n'a jamais
+                // rien déclenché — un cas écrit là serait vert avant comme après le correctif.
+                '1. {voir="Ce que le validateur regarde"} {} est un objet vide en JS.',
+                '',
+                '2. {ma: 1} est un littéral d’objet, pas une tête d’étape.',
+                '',
+                '::::',
+                '',
+                '## Ce que le validateur regarde',
+              ].join('\n'),
+            ),
+          );
+          expect(() =>
+            compiler(racine, join(bacASable, 'jetable-accolade-nue.scss')),
+          ).not.toThrow();
+        },
+        DELAI,
+      );
+    });
   });
 
   // ---------------------------------------------------------------------------------------------

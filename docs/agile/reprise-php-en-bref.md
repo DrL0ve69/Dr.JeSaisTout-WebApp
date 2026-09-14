@@ -156,8 +156,10 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **E7 lot A** | `content:build` compile **plusieurs racines** (`securite-web` + `php`) en une exécution | ✅ PR #69 |
 | **E7 lot B** | Les **routes** du cours de PHP, des deux côtés : `cours/php` (sommaire) et `cours/php/:slug` (leçon), résolveur **par cours** | ✅ PR #70 |
 | **E7 lot C** | La **navigation** : lien d'en-tête, carte d'accueil, comptes d'arrêts clavier épinglés en e2e | ✅ PR suivante — **la plomberie « second cours » est close** |
-| **PHP-A** | Grammaire d'auteur pour D-PHP-1 — si le conteneur `:::: methodes` existant ne suffit pas **dans** une marche à suivre, la mesurer avant d'écrire quoi que ce soit de neuf | ⬜ |
+| **PHP-A1** | Grammaire d'auteur pour D-PHP-1, **format C** — l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}` : étiquette écrite + liseré, les deux voies toujours visibles | 🟦 en cours |
+| **PHP-A2** | Grammaire d'auteur pour D-PHP-1, **format A** — admettre `:::: methodes` **dans** une étape de marche à suivre, pour une démarche qui diverge vraiment | ⬜ **pas ouvert** |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ⬜ |
+| **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ⬜ **nommé le 2026-09-13** |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ⬜ |
 | **PHP-4** | Séance 3 — Librairie standard | ⬜ |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ⬜ |
@@ -316,3 +318,213 @@ perdu, mais la ligne de `CLAUDE.md` annonçait encore « PHP-A » comme un geste
   seulement juger ; et distinguer 3xx de 404 dans le message de (c). ⚠️ **Tant qu'il n'est pas fait,
   un déploiement rouge sur ces deux étapes se relit contre la production AVANT d'être cru** : relever
   les assets de `/` et la CSP servie, puis rejouer le job (`gh run rerun <id> --failed`).
+
+---
+
+### 🔵 SESSION DU 2026-09-13 — PHP-A est TRANCHÉ, et il donne DEUX lots, pas un
+
+**La décision du propriétaire, telle qu'elle a été rendue** (question posée avec les trois formats
+sur le même contenu) : *« Dans le cas où la démarche diffère vraiment je veux deux onglets. Lorsqu'il
+s'agit d'une ou quelques lignes de code, l'option 1 me convient. »*
+
+Autrement dit **les deux grammaires, chacune à sa place** — et c'est D-PHP-1 appliqué à la lettre
+(« lorsque possible A, sinon si vraiment plus convenable au contexte C ») :
+
+| L'écart porte sur… | Format | Où |
+|---|---|---|
+| **une ou quelques lignes de code** | **C** — attribut d'étape `{voie="cours"}` / `{voie="moderne"}` | **dans** l'étape de la marche à suivre — **PHP-A1** |
+| **toute une démarche** (suite de gestes différente, outils différents) | **A** — le conteneur `:::: methodes` | section de théorie, citée depuis l'étape par `{voir="…"}` aujourd'hui ; **dans** l'étape le jour où **PHP-A2** est ouvert |
+
+🔴 **Pourquoi A n'est PAS gratuit dans une étape, et pourquoi c'est un lot à part.** `lireEtape`
+(`compiler-markdown.mjs:2059-2117`) définit une étape comme **exactement** un paragraphe puis **au
+plus un** bloc de code clôturé ; tout autre jeton tombe sur un `echec` nommé. Admettre un
+`:::: methodes` demande donc : la tokenisation imbriquée dans un item de liste, l'extension du
+schéma de `name` des radios (aujourd'hui `chemin` = ancre de section puis `_e`/`_m`/`_v` par
+récursion) à un segment d'étape, le rendu, **deux juges** (L-095) et un corpus de fixtures compté à
+part (`.claude/rules/agent-context-budget.md` §9). ⚠️ Et il **réintroduit** au cœur du résumé
+actionnable le mode d'échec de la clause D-C — un volet masqué qui enferme le seul exemplaire d'un
+fait — qui a mordu **trois conteneurs sur quatre**.
+
+**Ce que la séance 1 demande réellement, mesuré :** une seule démarche diverge vraiment (monter
+l'environnement : WAMP du cours contre serveur intégré `php -S`), et elle appartient de toute façon
+à une section de théorie, où `:::: methodes` est **déjà légal et déjà mesuré**. Tous les autres
+écarts tiennent en une ou quelques lignes — `include "header.inc"` contre `require_once` sur un
+`.php`, `echo $_GET[…]` nu contre `htmlspecialchars`, `array(…)` contre `[…]`. **PHP-A2 n'est donc
+pas sur le chemin critique de PHP-2**, et il s'ouvrira le jour où un cas le réclame.
+
+### 🔴 PHP-F — le gate du format actionnable est FERMÉ au second cours (mesuré le 2026-09-13)
+
+`src/format-actionnable.spec.ts:29` fixe `const CORPUS = 'content/cours/securite-web'` **en dur**.
+Le test « ne porte AUCUNE permission morte » construit ses `eligibles()` à partir de ce seul dossier :
+y inscrire un slug du cours de PHP le compterait comme **permission morte** et ferait rougir G-test,
+**sans correctif possible** — le module PHP n'est ni dans ce corpus, ni `publiee` (les `à-vérifier:`
+des chemins du poste l'en empêchent, §3).
+
+**Conséquence acceptée pour PHP-2** : le module 01 de PHP écrit ses renvois `{diapos="…"}` et
+`{hors-cours}` — leur **grammaire est légale sur n'importe quel module** — mais **n'entre pas** dans
+`MODULES_AU_FORMAT_ACTIONNABLE`. Ce n'est donc pas la règle 13 qui les rend obligatoires ici, c'est
+la cartographie écrite (`docs/contenu/renvois-diapos-php-01.md`), relue à la main.
+
+⚠️ **Deuxième face du même défaut, plus sournoise :** `MODULES_AU_FORMAT_ACTIONNABLE` est indexée par
+**slug nu**, jamais par `sujet/slug`. Deux cours qui partageraient un slug appliqueraient le gate au
+mauvais module, **en silence**. Famille **S-010** : « le corpus » et « le module » sont des promesses
+au singulier, et elles ont une date de péremption — celle du jour où un second cours est entré dans
+`content/`.
+
+### ✅ Ce que la session a mesuré et posé avant d'écrire la leçon
+
+- **`content/cours/php/exercices.json` existe** — 14 exercices pour la séance 1, références 1 à 14,
+  aucun numéro qui saute, énoncés **reformulés** (décision X-1). ✅ **Vérifiés à la source
+  d'autorité** le 2026-09-13, sur <https://www.alexandrepetrin.ca/exercice-php-cours-1-2026/> — le
+  **site** de l'enseignant, pas la copie locale : les deux concordent.
+- **L'extrait de la séance 1 est frais** — `extraire-diapositives.mjs` relancé le 2026-09-13, sortie
+  **identique octet pour octet** à `php-2026/extraits/` : 111 diapositives. 🔴 Cela ne dit **rien**
+  d'une republication depuis le téléchargement du `.pptx`, daté du **2026-08-31**.
+- **La cartographie des 111 diapositives est écrite** :
+  [`docs/contenu/renvois-diapos-php-01.md`](../contenu/renvois-diapos-php-01.md) — 24 titres, les
+  deux sens mesurés (**92 diapositives citées sur 111**, les **19** orphelines justifiées une par
+  une : diapositives de titre, administration de session, transition).
+- **Trois contradictions de la source sont nommées et non tranchées en silence** : la pondération
+  (diapo 6 contre `horaire.json`), la version « Admin » de WAMP (diapo 33, réfutée par le
+  propriétaire), et XAMPP annoncé en conclusion (diapo 107) alors qu'il est interdit au Cégep
+  (diapo 26).
+
+---
+
+### ⏭️ REPRISE — état exact à la fin de la session du 2026-09-13
+
+> **Lire ce bloc en premier.** La session s'est arrêtée faute de quota, un sous-agent **en cours de
+> travail**. Rien n'est perdu, mais **le travail sur le disque n'est ni committé, ni vérifié**.
+
+**✅ FUSIONNÉ — PR #79, `chore/plancher-contexte-agents`.** Le plancher de contexte des sous-agents
+est corrigé : **76 094 → 62 715 tokens**. Cause mesurée : `CLAUDE.md` était monté à **19 720 tokens
+injectés** (968 lignes), dont **80 % de récit de clôture de lot** ; il est retombé à **5 305** (289
+lignes). Le récit est archivé verbatim dans `journal-reprises-claude-md.md`. Voir
+`.claude/rules/agent-context-budget.md` **§10** — il porte la mesure et **les deux causes séparées**.
+
+> ⏭️ **CE BLOC EST HISTORIQUE depuis le 2026-09-14** — PHP-A1 est fusionné. L'état courant est à la
+> section **« ✅ CLÔTURE — PHP-A1 »** tout en bas de ce document ; ce qui suit dit d'où il vient.
+
+**🟦 EN COURS — branche `feat/php-a1-voie-etape`, commit `80acdd0`, PAS de PR ouverte.**
+PHP-A1 (l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}`) est livré et **était vert** au
+commit : G-content 10 leçons / 2 racines · G-test **1195 passés / 48 fichiers / 1 sauté / 0 échec** ·
+G-lint · `typecheck:tools`. La revue l'a **approuvé avec trois réserves**.
+
+🔴 **CE QUI EST SUR LE DISQUE, NON COMMITTÉ ET NON VÉRIFIÉ.** Un agent de correctifs travaillait
+encore quand la session s'est arrêtée. Il avait créé `tools/content-pipeline/tete-d-etape.mjs` et
+modifié `compiler-markdown.mjs`, `valider.mjs`, `pipeline-contenu-compilation.spec.ts`,
+`pipeline-contenu-validation.spec.ts`. **Le premier geste de la prochaine session est de constater
+l'état réel** (`git status`, `git diff`), **pas de refaire** — puis de relancer les gates. S'il est
+incomplet, reprendre par un agent **frais** avec les trois constats ci-dessous, qui sont déjà un
+brief autonome.
+
+#### Les trois réserves de la revue, telles quelles
+
+1. **MAJEUR — ce qui RECENSE est dupliqué sans lien exécutable.** `MOTIF_ATTRIBUT_EN_TETE` et
+   `decouperTeteDEtape` existent en deux copies indépendantes (`compiler-markdown.mjs` ~l. 381,
+   `valider.mjs` ~l. 1228) qu'**aucun fichier n'apparie** — mesuré par `grep` sur `src/` et `tools/`.
+   **L-095** : la duplication est le contrat pour ce qui **JUGE**, jamais pour ce qui **RECENSE**.
+   Correctif : module partagé `tools/content-pipeline/tete-d-etape.mjs`, sur le patron **déjà
+   existant** de `sujets-freres.mjs`. ⚠️ Les `echec(...)` / `signaler(...)` restent **dupliqués**,
+   délibérément. ⚠️ `blanchirCodeEnLigne` est une dette **antérieure** : ne pas la déplacer ici.
+   ⚠️ Le validateur tourne **avant** le compilateur et ne doit pas l'importer.
+2. **Le sur-refus NEUF de l'accolade nue** (`compiler-markdown.mjs:2063-2068`, `valider.mjs:2189-2196`).
+   Le contrôle `if (source.startsWith('{'))` ne gardait que le cas « rien n'a été lu » ; réemployé
+   sur le **reste** de la phrase, il refuse du contenu légal —
+   `1. {voir="Les tableaux"} {} est un objet vide en JS.` — avec le message le plus trompeur possible
+   (« bloc d'attributs illisible **en tête** » sur une tête parfaitement formée). Zéro leçon en
+   production touchée, **mais le cours qu'on écrit est du PHP/JS**, où une phrase s'ouvre sur `{`.
+   Correctif dans les **deux** copies : `/^\{[A-Za-z][A-Za-z-]*\s*=/` au lieu de `.startsWith('{')`.
+   Exige **un cas positif** (`{}` après une tête valide est accepté) **et un cas négatif**
+   (`{voie=x}` non cité reste refusé) — sans les deux, le correctif peut tout relâcher sans rougir.
+3. **Inventaire périmé, dans le fichier même qui cite L-075.** `pipeline-contenu-validation.spec.ts`
+   l. 1096 (« six refus » → il y en a douze) et l. 1263-1266 (« deux renvois » → quatre, plus trois
+   voies) ; renommer le `describe` en « la **tête** d'une étape, côté VALIDATEUR ».
+   🔴 **Recompter sur le fichier, ne pas recopier ces chiffres.**
+
+**Leçon candidate, à porter au corpus par un `mentor`** — *une condition déplacée se relit contre
+l'ensemble sur lequel elle porte MAINTENANT, jamais contre celui pour lequel elle a été écrite.* Un
+refactor qui élargit un garde-fou déplace aussi ses contrôles négatifs, et le message hérité accuse
+alors la mauvaise cause.
+
+#### Le geste suivant, une fois PHP-A1 fusionné : **PHP-2**
+
+La séance 1, **« En bref » + sommaire bref** des six sections imposées — c'est la priorité posée par
+le propriétaire. **Le terrain est déjà posé et vérifié**, ne pas le refaire :
+
+- `content/cours/php/exercices.json` — 14 exercices, refs 1 à 14, énoncés reformulés, **vérifiés sur
+  le site de l'enseignant** (2026-09-13) ; `content:build` les accepte déjà.
+- `docs/contenu/renvois-diapos-php-01.md` — la cartographie des 111 diapositives, **24 titres**, les
+  deux sens mesurés (92 citées sur 111, 19 orphelines justifiées une par une). **C'est le squelette
+  du brief du `professeur-web`** : les titres et leurs renvois y sont déjà arbitrés.
+- Extrait réextrait le 2026-09-13, identique au `.pptx` local (lequel date du **2026-08-31** — une
+  republication depuis serait invisible).
+
+⚠️ **Le module n'entre PAS dans `MODULES_AU_FORMAT_ACTIONNABLE`** (lot **PHP-F** : `CORPUS` est en dur
+sur `securite-web` dans `src/format-actionnable.spec.ts:29`). Il porte ses renvois quand même.
+⚠️ Il reste en **`statut: verifiee`** : P-2, P-4, P-5, P-6, P-7 ne sont pas fournis (§3).
+⚠️ Dimensionner le brief : **KB `web/php/php-fondamentaux.md` (570 l.) + `php-environnement-developpement-moderne.md` (500 l.)**,
+dont le §« Le tableau qui compte — méthode du cours ↔ équivalent moderne » est exactement la matière
+de D-PHP-1. `quiz.json` est **obligatoire** même si les quiz sont hors périmètre : le faire minimal.
+
+---
+
+### ✅ CLÔTURE — PHP-A1 « l'attribut de voie d'une étape » (2026-09-14)
+
+**Fusionné dans `main`.** L'attribut `{voie="cours"}` / `{voie="moderne"}` (décision **D-PHP-1**) est
+en production : grammaire lue par un module partagé, deux juges appariés, rendu SCSS à deux canaux
+(teinte **et** style de trait), et les trois réserves de la revue sont fermées.
+
+**Ce que la session du 2026-09-14 a corrigé, et pourquoi c'est la partie à retenir.** La PR était
+rouge sur deux gates que le travail d'implémentation n'avait pas vus — tous deux *déclenchés* par le
+lot, mais *causés* par des seuils et des habitudes plus anciens.
+
+**(a) G-build — le budget `anyComponentStyle` d'`angular.json`.** `rendu-blocs.scss` passait à
+**8,39 kB** minifiés contre un plafond de 8 kB. Deux gestes, dans cet ordre, et l'ordre est la leçon :
+
+1. **D'abord chercher le DOUBLON, jamais le seuil.** Quatre variantes d'encadré (`cours`,
+   `exercice-du-cours`, `complement`, `correction-du-cours`) recopiaient chacune le même bloc
+   `@include m.contraste-force { border-color: CanvasText; background-color: Canvas; }`, et `cours`
+   / `exercice-du-cours` recopiaient la recette cyan entière alors que **seul le style du trait les
+   oppose**. Idem pour `note` / `a-retenir` (même surface creusée, même largeur de montant) et pour
+   les deux voies d'étape. **370 octets rendus** sans retirer une seule règle — 8,39 → **8,02 kB**.
+2. **Ensuite seulement, recalibrer.** L'avertissement était à **6 kB** et la feuille le dépassait
+   **DÉJÀ avant ce lot** : un avertissement rouge en permanence ne signale plus rien. Seuils portés à
+   **8 kB / 10 kB**, ce qui rend l'avertissement de nouveau actionnable et laisse ~2 kB de marge.
+   🔴 **La justification est écrite en tête de `rendu-blocs.scss`, pas seulement ici** :
+   `angular.json` ne porte pas de commentaire, et un seuil relevé sans raison écrite à côté est
+   exactement ce que `.claude/rules/agent-context-budget.md` appelle un chiffre qui devient un
+   mensonge silencieux.
+
+⚠️ **Pourquoi ce budget mord ICI et sur aucune autre feuille, et pourquoi il remordra.**
+`rendu-blocs.scss` habille **tout** le vocabulaire de blocs d'une leçon là où un composant ordinaire
+habille un écran : il grossit à chaque enrichissement du format. La question à poser au prochain
+dépassement est donc « **quel doublon ?** », pas « quel chiffre y mettre ? ».
+
+**(b) SonarCloud — 12,2 % de lignes dupliquées sur le code neuf** (seuil 3 %), concentrées dans
+`pipeline-contenu-validation.spec.ts` (45,5 %) et `pipeline-contenu-compilation.spec.ts` (26,3 %).
+🔴 **C'est L-095, appliquée à la deuxième moitié du lot.** La réserve n°1 de la revue avait bien fait
+extraire ce qui RECENSE côté **outils** (`tools/content-pipeline/tete-d-etape.mjs`) — mais les
+**specs** gardaient deux copies de la **table de mutations**, qui ne juge rien non plus. Une mutation
+ajoutée d'un côté et pas de l'autre laissait un juge non mesuré **sans qu'aucun appariement de
+messages ne rougisse** : chaque copie rendait la bonne cause pour la population qu'elle avait.
+
+Correctif : `src/aides-de-test/mutations-de-tete-d-etape.ts` porte les **huit mutations** (recensement,
+partagé) ; chaque spec garde sa **table de causes attendues** (jugement, dupliqué **exprès**, c'est
+lui qui ferme S-010). Le renvoi valide qu'exige le cas `valeur-non-citee` est un **paramètre**, parce
+que la cible doit exister dans la fixture de chaque appelant — sinon une seconde cause s'ajoute et le
+contrat « un cas = une cause » tombe en silence. Et `refusDeTete` **lève** sur une mutation dont le
+juge appelant n'a déclaré aucune cause : ajouter une entrée au corpus **force** désormais les deux
+juges à dire ce qu'ils en font.
+
+⚠️ **Ce qu'on a vérifié au passage, et qui vaut pour la prochaine fois.** `.sonarcloud.properties`
+n'est lu **que depuis `main`** : un réglage posé dans une PR ne change rien à l'analyse de cette PR.
+Une duplication de test ne se règle donc pas par une exclusion de dernière minute — elle se règle
+dans le code, ou elle attend une fusion.
+
+#### Le geste suivant : **PHP-2** (inchangé)
+
+Tout ce qui suit la ligne « Le geste suivant, une fois PHP-A1 fusionné » plus haut reste **exact et
+valide** : `exercices.json` (14 exercices vérifiés), `renvois-diapos-php-01.md` (111 diapositives
+cartographiées dans les deux sens), le dimensionnement du brief et les trois avertissements
+(`MODULES_AU_FORMAT_ACTIONNABLE`, `statut: verifiee`, `quiz.json` minimal obligatoire).

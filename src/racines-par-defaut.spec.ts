@@ -39,6 +39,17 @@ import { statSync } from 'node:fs';
 const ORCHESTRATEUR = 'tools/content-pipeline/build.mjs';
 
 /**
+ * 🔴 LE MÊME DÉLAI QUE LES AUTRES SPECS À PROCESSUS FILS (60 s), ET IL N'EST PAS DÉCORATIF.
+ * Les trois cas d'ici lancent chacun un `node` neuf ; sous charge, un démarrage dépasse facilement
+ * les 5 s du défaut de Vitest, et les trois tombaient alors sur « Test timed out » — un ROUGE qui
+ * n'accuse pas le gate mais la machine, et qui use la confiance dans la suite.
+ * Mesuré le 2026-09-14 : 7,4 s, 6,1 s et 6,2 s sur ce poste, pendant qu'un build tournait à côté.
+ * `format-actionnable.spec.ts` et les deux specs du pipeline portaient déjà ce délai ; ce
+ * fichier-ci l'avait simplement oublié.
+ */
+const DELAI = 60_000;
+
+/**
  * Les cours que le dépôt compile et publie, au 2026-09-10.
  *
  * ⚠️ CETTE LISTE SE MODIFIE EN MÊME TEMPS QUE `RACINES_PAR_DEFAUT`, JAMAIS APRÈS COUP — et c'est
@@ -60,7 +71,7 @@ function lireRacinesParDefaut(): string[] {
 describe('les racines compilées par défaut', () => {
   it('nomment EXACTEMENT les cours attendus — le gate de la permission morte', () => {
     expect(lireRacinesParDefaut()).toEqual(RACINES_ATTENDUES);
-  });
+  }, DELAI);
 
   it('désignent toutes un dossier RÉEL du dépôt', () => {
     // Le cas qu'on attrape ici est la faute de frappe, pas l'oubli : une racine par défaut absente
@@ -68,7 +79,7 @@ describe('les racines compilées par défaut', () => {
     for (const racine of lireRacinesParDefaut()) {
       expect(statSync(racine, { throwIfNoEntry: false })?.isDirectory(), racine).toBe(true);
     }
-  });
+  }, DELAI);
 
   it('refuse de se combiner à une autre option — il imprime, il ne construit pas', () => {
     // Sans ce refus, `--racines-par-defaut --racine X` imprimerait la liste et sortirait en 0 :
@@ -80,5 +91,5 @@ describe('les racines compilées par défaut', () => {
         { encoding: 'utf8', stdio: 'pipe' },
       ),
     ).toThrow();
-  });
+  }, DELAI);
 });

@@ -288,6 +288,34 @@ const VARIANTE_SOURCEE = 'correction-du-cours';
 const CIBLES_RENVOI_RENDUES: readonly string[] = ['section', 'module'];
 
 /**
+ * LES VOIES RENDUES — liste blanche NOMINATIVE, même patron et même raison que
+ * `CIBLES_RENVOI_RENDUES` juste au-dessus (décision D-PHP-1, lot PHP-A1).
+ *
+ * 🔴 CE QU'UNE VOIE INCONNUE PRODUIRAIT SANS ELLE : un `data-voie` posé sur le `<li>` que la
+ * feuille ne connaît pas, donc AUCUN liseré, et surtout aucune étiquette — l'étape porterait une
+ * provenance dans l'artéfact et n'en dirait rien au lecteur. Un silence, exactement ce que la
+ * décision existe pour empêcher. Elle échoue donc en se nommant.
+ */
+const VOIES_RENDUES: readonly string[] = ['cours', 'moderne'];
+
+/** UNE voie d'étape — dérivée du contrat, jamais recopiée (L-016). */
+type VoieEtape = NonNullable<Extract<BlocContenu, { type: 'marche-a-suivre' }>['etapes'][number]['voie']>;
+
+/**
+ * L'ÉTIQUETTE ÉCRITE de chaque voie — composée ICI, jamais écrite par l'auteur ni portée par
+ * l'artéfact (même raison que le libellé d'un `exercice-du-cours` : deux implémentations du même
+ * texte finissent par en dire deux choses différentes).
+ *
+ * 🔴 C'EST ELLE QUI PORTE LE SENS, PAS LE LISERÉ. Le liseré est un canal COULEUR, et un canal
+ * couleur disparaît en `forced-colors: active` — mesuré au lot 11 sur les onglets de méthode, où le
+ * filet de l'onglet inactif devenait peint lui aussi (famille R-8). Le mot, lui, reste. WCAG 1.4.1.
+ */
+const ETIQUETTES_DE_VOIE: Readonly<Record<VoieEtape, string>> = {
+  cours: 'Voie du cours',
+  moderne: 'Équivalent moderne',
+};
+
+/**
  * Le refus d'une marche à suivre malformée, TOUJOURS sous le même préambule — même patron
  * qu'`erreurPortee`, pour qu'un artéfact d'une autre version du pipeline se nomme de la même façon
  * qu'il ait perdu son titre, ses étapes ou la cible d'un renvoi.
@@ -830,7 +858,23 @@ const NOM_GROUPE_ONGLETS = 'Choix de la méthode';
             <p class="etiquette">{{ bloc.titre }}</p>
             <ol class="etapes" [attr.aria-label]="bloc.titre">
               @for (etape of bloc.etapes; track $index; let rangEtape = $index) {
-                <li class="etape">
+                <li class="etape" [attr.data-voie]="etape.voie ?? null">
+                  <!--
+                    🔴 L'ÉTIQUETTE DE VOIE EST DU TEXTE VISIBLE, AVANT LA PHRASE, ET
+                    C'EST LE CANAL QUI PORTE LE SENS (décision D-PHP-1, lot PHP-A1).
+                    Le data-voie du <li> ne sert qu'au LISERÉ, qui est décor : il
+                    tombe en forced-colors: active, où toutes les teintes se
+                    rabattent sur CanvasText (famille R-8, mesurée au lot 11). Retirer
+                    ce <p> en gardant le liseré rendrait la distinction invisible aux
+                    lecteurs d'écran ET en contraste forcé — un test le tient.
+                    ⚠️ AUCUN aria-label, AUCUN rôle, AUCUN tabindex neuf : le mot est
+                    dans l'ordre du document, il est lu par construction. Et il ne
+                    touche ni au nom accessible du <ol> ni à celui du défileur, tous
+                    deux composés ailleurs.
+                  -->
+                  @if (etiquetteDeLaVoie(etape); as voie) {
+                    <p class="voie">{{ voie }}</p>
+                  }
                   <!--
                     html est INLINE au contrat (pas de <p>) : c'est ce <span> qui
                     l'accueille, à l'intérieur du <li>. Sanitizer d'Angular ACTIF,
@@ -1445,6 +1489,24 @@ export class RenduBlocs {
   }
 
   /**
+   * L'ÉTIQUETTE ÉCRITE de la voie d'une étape — `null` quand l'étape n'en déclare aucune.
+   *
+   * 🔴 `null` ET NON LA CHAÎNE VIDE : le gabarit l'emploie en `@if (… ; as voie)`, si bien qu'une
+   * chaîne vide émettrait un `<p class="voie">` VIDE sur toutes les étapes non annotées — un nœud
+   * que la feuille styleraît (liseré compris, via la marge) et qu'un lecteur d'écran annoncerait
+   * comme un paragraphe. Même geste que `renvoiDeLEtape` juste au-dessus.
+   *
+   * ⚠️ AUCUNE LEVÉE ICI, et c'est voulu : `preparer()` a déjà refusé toute voie hors
+   * `VOIES_RENDUES`, la table est donc totale sur ce qui arrive. Le `?? null` couvre le seul cas
+   * qui resterait — un appel direct — sans rendre d'étiquette inventée.
+   */
+  etiquetteDeLaVoie(etape: EtapeMarche): string | null {
+    const voie = etape.voie;
+    if (voie === undefined) return null;
+    return ETIQUETTES_DE_VOIE[voie] ?? null;
+  }
+
+  /**
    * L'étiquette de portée d'une annotation : « Ensemble du bloc », « Ligne 3 », « Lignes 1 et 2 ».
    *
    * La portée est ÉCRITE, jamais seulement suggérée par une couleur ou une position — c'est ce qui
@@ -1720,9 +1782,11 @@ export class RenduBlocs {
    * portées, les diagrammes et les variantes d'encadré — est un `lecons/<slug>.json` compilé par
    * une AUTRE version du pipeline : là, le TYPE ment par construction, et sans garde le rendu
    * produirait un titre vide, une liste sans nom accessible, une liste SANS AUCUN PAS, un
-   * `aria-label` disant « undefined » ou un lien vers `undefined`. Aucun de ces cinq défauts ne
-   * ferait rougir un gate ; tous seraient publiés. Le rendu ayant lieu au prerender, on lève, et
-   * la construction casse.
+   * `aria-label` disant « undefined », un lien vers `undefined` — ou, depuis le lot PHP-A1, une
+   * étape déclarant une VOIE que ni l'étiquette ni le liseré ne sauraient rendre, c'est-à-dire une
+   * provenance écrite au contrat et TUE à l'écran. Aucun de ces six défauts ne ferait rougir un
+   * gate ; tous seraient publiés. Le rendu ayant lieu au prerender, on lève, et la construction
+   * casse.
    * ⚠️ CETTE ÉNUMÉRATION EST CELLE DES GARDES ÉCRITES CI-DESSOUS, et elle se recompte quand on en
    * ajoute une (L-075) — un inventaire périmé sous un en-tête qui se donne l'air exhaustif est
    * pire que pas d'inventaire.
@@ -1785,6 +1849,22 @@ export class RenduBlocs {
           // s'annoncerait « Étape n° 1 — undefined » (WCAG 2.4.6 franchi, mais mensongèrement).
           throw erreurMarche(ou, 'bloc de code sans « langage » ni « htmlColore »');
         }
+      }
+
+      // LA VOIE — liste blanche NOMINATIVE, même patron que les cibles de renvoi ci-dessous.
+      // 🔴 SANS CE REFUS, une voie inconnue venue d'un artéfact compilé par une AUTRE version du
+      // pipeline rendrait une étape SANS étiquette et SANS liseré : elle déclarerait une provenance
+      // dans le contrat et n'en dirait rien au lecteur. Un silence — précisément ce que la décision
+      // D-PHP-1 existe pour empêcher (patron S-009 / L-008).
+      const voie: unknown = etape.voie;
+      if (voie !== undefined && (typeof voie !== 'string' || !VOIES_RENDUES.includes(voie))) {
+        // UNE CHAÎNE SE CITE NUE — même raison qu'en dessous : `decrire` passe par `JSON.stringify`
+        // et sortirait des guillemets JSON à l'intérieur des guillemets français.
+        const citee = typeof voie === 'string' ? voie : decrire(voie);
+        throw erreurMarche(
+          ou,
+          `voie inconnue « ${citee} » (rendues${INSECABLE}: ${VOIES_RENDUES.join(', ')})`,
+        );
       }
 
       const renvoi: unknown = etape.renvoi;

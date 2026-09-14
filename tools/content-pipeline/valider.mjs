@@ -106,6 +106,11 @@ import { Ajv } from 'ajv';
 // validateur et inverserait la stratification du pipeline. Voir `compter-lignes.mjs`.
 import { compterLignes } from './compter-lignes.mjs';
 import { recenserLesSujetsFreres } from './sujets-freres.mjs';
+import {
+  MOTIF_BLOC_DATTRIBUTS_PROBABLE,
+  amorceDeTete,
+  decouperTeteDEtape,
+} from './tete-d-etape.mjs';
 
 const RACINE_DEPOT = process.cwd();
 // Chemin CANONIQUE du cours, écrit en séparateurs POSIX : c'est celui du backlog (§E2-ST1, §E3) et
@@ -1190,6 +1195,19 @@ const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
 const PREFIXE_MODULE = 'module:';
+/** LA VOIE d'une étape (décision D-PHP-1, lot PHP-A1) et sa liste FERMÉE à deux valeurs. */
+const ATTRIBUT_VOIE = 'voie';
+const VOIES_ADMISES = /** @type {const} */ (['cours', 'moderne']);
+/**
+ * Les noms admis dans la TÊTE d'une étape, dans l'ordre où le refus les énumère.
+ *
+ * ⚠️ `voir` ET `voie` NE DIFFÈRENT QUE D'UN CARACTÈRE : `{voi="x"}` doit tomber sur « attribut de
+ * tête inconnu », qui NOMME le nom lu — jamais sur « le renvoi n'est pas en tête », qui enverrait
+ * l'auteur corriger une position juste, ni dans un silence.
+ */
+const NOMS_DE_TETE = /** @type {const} */ ([ATTRIBUT_VOIR, ATTRIBUT_VOIE]);
+/** Les formes admises, DÉRIVÉES des noms — jamais réécrites à la main dans un message. */
+const FORMES_DE_TETE = NOMS_DE_TETE.map((nom) => `{${nom}="…"}`).join(' et ');
 
 /** Le conteneur des ONGLETS de méthode (décision D-C), son volet, et ce qu'un volet déclare. */
 const CONTENEUR_METHODES = 'methodes';
@@ -1197,14 +1215,12 @@ const CONTENEUR_VOLET = 'methode';
 const ATTRIBUT_LIBELLE = 'libelle';
 /** Le premier MARQUEUR SANS VALEUR du dépôt — admis sur un volet, et nulle part ailleurs. */
 const MARQUEUR_DEFAUT = 'defaut';
-/**
- * Le renvoi d'une étape — ancré sur `^`, DONC EN TÊTE, exactement comme dans le compilateur. Les
- * deux copies doivent voir la MÊME CHAÎNE : c'est le défaut du lot 1a (`### Titre ##`, fermeture
- * ATX légale que l'un voyait et l'autre pas), et il ne se repaie pas.
- */
-const MOTIF_VOIR_EN_TETE = new RegExp(String.raw`^\{${ATTRIBUT_VOIR}="([^"]*)"\}`);
-/** Ce qu'on cherche pour dire « il y a un renvoi ICI, mais pas au bon endroit ». */
-const AMORCE_VOIR = `{${ATTRIBUT_VOIR}=`;
+// ⚠️ `MOTIF_ATTRIBUT_EN_TETE`, `MOTIF_BLOC_DATTRIBUTS_PROBABLE`, `amorceDeTete` et
+// `decouperTeteDEtape` ONT DÉMÉNAGÉ (correctif de revue du lot PHP-A1) — ils vivent dans
+// `./tete-d-etape.mjs`, importé en tête et partagé avec `compiler-markdown.mjs`. Ils RECENSENT,
+// et une divergence du MOTIF entre deux copies serait invisible à tout appariement de messages ;
+// L-095 ne duplique que ce qui JUGE, et les `signaler(...)` de la tête restent donc ici.
+
 /**
  * L'ITEM D'UNE LISTE ORDONNÉE, tel que CommonMark le définit : au plus trois blanches, un à neuf
  * chiffres, un `.` ou un `)`, puis au moins une blanche. Préfixe seul, le texte se prend en JS —
@@ -2123,8 +2139,123 @@ function causeDuTitreDeLaMarche(reste) {
 }
 
 /**
+ * Lit la TÊTE d'une étape — la suite d'AU PLUS DEUX blocs `{<nom>="<valeur>"}` qui l'ouvre — et
+ * signale la première faute de GRAMMAIRE ou de POSITION qu'elle porte.
+ *
+ * 🔴 JUMELLE DE `lireTeteDEtape` DANS `compiler-markdown.mjs`, ET C'EST LE CONTRAT : le validateur
+ * tourne AVANT le compilateur et ne doit pas l'importer (L-095 — la duplication est le contrat pour
+ * ce qui JUGE, jamais pour ce qui RECENSE). Les deux copies doivent refuser les mêmes cas AVEC LA
+ * MÊME PHRASE : l'auteur ne sait pas lequel des deux outils l'a repoussé.
+ *
+ * @param {string} texte le texte de l'item, marqueur de liste retiré
+ * @param {string} situe où l'anomalie se lit, déjà rédigé
+ * @param {(cause: string) => void} signaler
+ * @returns {{ attributs: Map<string, string>, faute: boolean }}
+ */
+function lireTeteDEtape(texte, situe, signaler) {
+  // 🔴 L'AMORCE SE CHERCHE HORS DU `code en ligne`, JAMAIS SUR LA LIGNE BRUTE — même geste, même
+  // outil et même raison que la règle G1 (voir `blanchirCodeEnLigne`). La longueur est préservée,
+  // donc tout `slice` calculé sur le texte brut reste valide sur la chaîne blanchie.
+  const horsCode = blanchirCodeEnLigne(texte);
+
+  const { blocs, consomme } = decouperTeteDEtape(texte);
+
+  /** @type {Map<string, string>} */
+  const attributs = new Map();
+  for (const bloc of blocs) {
+    const cause = causeDeBlocDeTeteIllegal(bloc.nom, attributs);
+    if (cause !== null) {
+      signaler(`${situe} — ${cause}`);
+      return { attributs, faute: true };
+    }
+    attributs.set(bloc.nom, bloc.valeur);
+  }
+
+  // ⚠️ UNE ACCOLADE NUE N'EST PAS UN BLOC MAL ÉCRIT : « {} est un objet vide en JS » est une
+  // phrase légale, et le cours de PHP/JS est celui où elle arrive. On ne refuse donc que ce qui
+  // RESSEMBLE à un bloc — voir `MOTIF_BLOC_DATTRIBUTS_PROBABLE`, partagé avec le compilateur.
+  const resteBrut = texte.slice(consomme);
+  const reste = consomme === 0 ? resteBrut : resteBrut.trimStart();
+  if (MOTIF_BLOC_DATTRIBUTS_PROBABLE.test(reste)) {
+    signaler(
+      `${situe} — bloc d'attributs illisible en tête ; seules les formes ` +
+        `${FORMES_DE_TETE} sont acceptées, guillemets droits compris`,
+    );
+    return { attributs, faute: true };
+  }
+
+  for (const nom of NOMS_DE_TETE) {
+    if (!horsCode.slice(consomme).includes(amorceDeTete(nom))) continue;
+    if (attributs.has(nom)) {
+      signaler(`${situe} — ${causeDeDoublonDeTete(nom)}`);
+    } else {
+      const quoi = nom === ATTRIBUT_VOIE ? 'la voie' : 'le renvoi';
+      signaler(
+        `${situe} — ${quoi} n'est pas en TÊTE de l'étape ; « ${amorceDeTete(nom)}…"} » s'écrit au début de l'item, avant la phrase`,
+      );
+    }
+    return { attributs, faute: true };
+  }
+
+  return { attributs, faute: false };
+}
+
+/**
+ * La cause d'un bloc de tête illégal — nom hors liste blanche, ou nom déjà lu. `null` s'il passe.
+ *
+ * @param {string} nom
+ * @param {ReadonlyMap<string, string>} dejaVus
+ * @returns {string | null}
+ */
+function causeDeBlocDeTeteIllegal(nom, dejaVus) {
+  if (!/** @type {readonly string[]} */ (NOMS_DE_TETE).includes(nom)) {
+    return (
+      `attribut de tête inconnu « ${nom} » ; noms admis en tête d'une étape : ` +
+      `${NOMS_DE_TETE.join(', ')} (« ${ATTRIBUT_VOIR} » et « ${ATTRIBUT_VOIE} » ne diffèrent ` +
+      "que d'un caractère)"
+    );
+  }
+  return dejaVus.has(nom) ? causeDeDoublonDeTete(nom) : null;
+}
+
+/**
+ * « Deux fois le même nom » — deux phrases, parce que les deux fautes ne se corrigent pas pareil.
+ *
+ * @param {string} nom
+ * @returns {string}
+ */
+function causeDeDoublonDeTete(nom) {
+  return nom === ATTRIBUT_VOIE
+    ? 'deux voies sur la même étape ; une étape porte AU PLUS une voie'
+    : 'deux renvois sur la même étape ; deux destinations valent deux étapes';
+}
+
+/**
+ * Juge la VOIE d'une étape — liste FERMÉE à deux, et le refus les ÉNUMÈRE (liste blanche
+ * nominative, `.claude/rules/security.md` §4).
+ *
+ * @param {string | undefined} brute
+ * @param {string} situe
+ * @param {(cause: string) => void} signaler
+ * @returns {boolean} vrai si une anomalie a été signalée
+ */
+function jugerVoieDEtape(brute, situe, signaler) {
+  if (brute === undefined) return false;
+  const valeur = brute.trim();
+  if (valeur === '') {
+    signaler(`${situe} — voie vide ; valeurs admises : ${VOIES_ADMISES.join(', ')}`);
+    return true;
+  }
+  if (!/** @type {readonly string[]} */ (VOIES_ADMISES).includes(valeur)) {
+    signaler(`${situe} — voie inconnue « ${valeur} » ; valeurs admises : ${VOIES_ADMISES.join(', ')}`);
+    return true;
+  }
+  return false;
+}
+
+/**
  * Juge le renvoi d'UNE étape : sa grammaire, sa position, et — pour la forme « titre de section » —
- * l'existence ET l'unicité de sa cible.
+ * l'existence ET l'unicité de sa cible. Juge AUSSI sa voie, lue par la même tête.
  *
  * 🔴 DEUX SECTIONS AU MÊME TITRE SONT UN REFUS, jamais « la première gagne ». Le message nomme les
  * DEUX lignes en cause, et l'auteur tranche en renommant l'une d'elles. (Le compilateur, lui, nomme
@@ -2139,29 +2270,17 @@ function causeDuTitreDeLaMarche(reste) {
  */
 function jugerRenvoiDEtape(texte, ligne, sections, signaler, modulesCites) {
   const situe = `corps ligne ${ligne} : étape de « :::: ${CONTENEUR_MARCHE} »`;
-  // 🔴 L'AMORCE SE CHERCHE HORS DU `code en ligne`, JAMAIS SUR LA LIGNE BRUTE — même geste, même
-  // outil et même raison que la règle G1 (voir `blanchirCodeEnLigne`). La longueur est préservée,
-  // donc le `slice` calculé sur `tete[0]` reste valide sur la chaîne blanchie.
-  const horsCode = blanchirCodeEnLigne(texte);
-  const tete = MOTIF_VOIR_EN_TETE.exec(texte);
-  if (tete === null) {
-    if (texte.startsWith('{')) {
-      signaler(
-        `${situe} — bloc d'attributs illisible en tête ; seule la forme {${ATTRIBUT_VOIR}="…"} est acceptée, guillemets droits compris`,
-      );
-    } else if (horsCode.includes(AMORCE_VOIR)) {
-      signaler(
-        `${situe} — le renvoi n'est pas en TÊTE de l'étape ; « ${AMORCE_VOIR}…"} » s'écrit au début de l'item, avant la phrase`,
-      );
-    }
-    return;
-  }
+  const { attributs, faute } = lireTeteDEtape(texte, situe, signaler);
+  if (faute) return;
 
-  const valeur = (tete[1] ?? '').trim();
-  if (horsCode.slice(tete[0].length).includes(AMORCE_VOIR)) {
-    signaler(`${situe} — deux renvois sur la même étape ; deux destinations valent deux étapes`);
-    return;
-  }
+  // UNE FAUTE, JAMAIS DEUX. La voie est jugée avant le renvoi parce qu'elle est la grammaire la
+  // plus récente, donc celle qu'un auteur écrit de travers ; deux causes pour une étape masqueraient
+  // celle qu'on mesure (contrat « un cas = une cause » du mode --fixtures).
+  if (jugerVoieDEtape(attributs.get(ATTRIBUT_VOIE), situe, signaler)) return;
+
+  const brute = attributs.get(ATTRIBUT_VOIR);
+  if (brute === undefined) return;
+  const valeur = brute.trim();
   if (valeur === '') {
     signaler(
       `${situe} — renvoi vide ; citer un titre de section de cette leçon, ou « ${PREFIXE_MODULE}<slug> »`,
