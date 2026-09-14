@@ -26,6 +26,21 @@
 //
 // G7 : aucune couleur, taille ni distance littérale — uniquement des jetons.
 //
+// ⚠️ LE BUDGET `anyComponentStyle` D'`angular.json` MORD ICI, ET SUR AUCUNE AUTRE
+// FEUILLE DU DÉPÔT. C'est structurel : cette feuille habille TOUT le vocabulaire de
+// blocs d'une leçon — six variantes d'encadré, la comparaison, la marche à suivre, les
+// onglets de méthodes, la figure —, là où un composant ordinaire habille un écran.
+// Elle grossit donc à chaque enrichissement du format de leçon, et c'est attendu.
+// 🔴 CE QUI N'EST PAS ATTENDU, C'EST UN DOUBLON : deux variantes qui partagent une
+// recette l'écrivent UNE fois, et n'écrivent séparément que ce qui les OPPOSE — le
+// style du trait, qui est le canal non chromatique de WCAG 1.4.1. Le lot PHP-A1 a
+// rendu 370 octets par ce seul geste. Quand le plafond remordra, c'est le doublon
+// qu'il faut chercher d'abord ; relever le seuil est le dernier geste, pas le premier,
+// et il se paie d'une ligne écrite ici.
+// Seuils au 2026-09-14 : avertissement 8 kB, échec 10 kB (feuille à ~8,0 kB minifiés).
+// L'avertissement était à 6 kB et la feuille le dépassait DÉJÀ avant PHP-A1 : un
+// avertissement rouge en permanence ne signale plus rien, d'où le recalibrage.
+//
 // CONFINEMENT DES CONTRASTES. Chaque encre employée ici forme avec son fond une
 // paire mesurée par `tools/design/verifier-contrastes.mjs`. ⚠️ E3-ST1 y ajoute DEUX
 // paires `non-texte` (1.4.11) et pas une de plus : les deux teintes de provenance
@@ -318,9 +333,7 @@
 .encadre[data-variante='note'] {
   @include m.cartouche;
 
-  border-inline-start-width: var(--filet-marge);
   border-inline-start-color: var(--couleur-filet-fort);
-  background-color: var(--couleur-surface-creuse);
 
   > .etiquette {
     color: var(--couleur-encre-tertiaire);
@@ -332,13 +345,21 @@
 .encadre[data-variante='a-retenir'] {
   @include m.cartouche(var(--couleur-accent));
 
-  border-inline-start-width: var(--filet-marge);
   border-inline-start-style: double;
-  background-color: var(--couleur-surface-creuse);
 
   > .etiquette {
     color: var(--couleur-accent);
   }
+}
+
+// Les deux variantes de TON creusent la même surface et épaississent le même montant :
+// seuls la teinte du filet et son style les opposent. ⚠️ Cette règle doit rester APRÈS
+// les deux : `cartouche` pose un `border` raccourci, qui écraserait la largeur si elle
+// était écrite avant lui.
+.encadre[data-variante='note'],
+.encadre[data-variante='a-retenir'] {
+  border-inline-start-width: var(--filet-marge);
+  background-color: var(--couleur-surface-creuse);
 }
 
 // --- Provenance (E3-ST1) — `.claude/rules/contenu-pedagogique.md` §6 -----------
@@ -378,17 +399,21 @@
 // 📘 « au programme du cours » — cadre COMPLET, trait continu : ce qui est délimité
 // de tous côtés est ce qui sera évalué. Le seul encadré entièrement fermé avec la
 // correction, et le seul des deux à trait plein.
-.encadre[data-variante='cours'] {
+//
+// ⚠️ LA RECETTE CYAN EST ÉCRITE UNE SEULE FOIS, POUR `cours` ET `exercice-du-cours`.
+// Les deux partagent la teinte DÉLIBÉRÉMENT (la note de la variante suivante dit
+// pourquoi) : l'écrire deux fois n'ajoutait aucun sens, seulement des octets — et le
+// budget `anyComponentStyle` de cette feuille est une contrainte réelle, mesurée au
+// build. Ce qui OPPOSE les deux — le style du trait — reste écrit séparément, à
+// l'endroit exact où la note l'explique, parce que c'est lui qui porte le canal non
+// chromatique de WCAG 1.4.1.
+.encadre[data-variante='cours'],
+.encadre[data-variante='exercice-du-cours'] {
   border: var(--filet-marge) solid var(--couleur-provenance-cours);
   background-color: var(--couleur-provenance-cours-surface);
 
   > .etiquette {
     color: var(--couleur-provenance-cours);
-  }
-
-  @include m.contraste-force {
-    border-color: CanvasText;
-    background-color: Canvas;
   }
 }
 
@@ -408,12 +433,9 @@
 // pointillé d'`attention` n'est qu'un montant de gauche, pas un cadre. Il dit d'ailleurs la bonne
 // chose : un cadre à remplir, pas un exposé clos.
 .encadre[data-variante='exercice-du-cours'] {
-  border: var(--filet-marge) dotted var(--couleur-provenance-cours);
-  background-color: var(--couleur-provenance-cours-surface);
-
-  > .etiquette {
-    color: var(--couleur-provenance-cours);
-  }
+  // Seule la FORME du trait est propre à cette variante ; la teinte, le fond et
+  // l'encre de l'étiquette viennent de la règle partagée ci-dessus.
+  border-style: dotted;
 
   // L'ÉNONCÉ VIENT DU REGISTRE, LA PISTE VIENT DU MODULE. Le titre porte la graisse de titre pour
   // que l'œil trouve la consigne sans la confondre avec l'indice qui la suit ; les deux restent en
@@ -427,11 +449,6 @@
   > .exercice-enonce {
     margin-block: 0;
     color: var(--couleur-encre);
-  }
-
-  @include m.contraste-force {
-    border-color: CanvasText;
-    background-color: Canvas;
   }
 }
 
@@ -455,10 +472,6 @@
   > .etiquette {
     color: var(--couleur-provenance-complement);
   }
-
-  @include m.contraste-force {
-    background-color: Canvas;
-  }
 }
 
 // ⚠️ « correction du cours » — cadre COMPLET, trait DOUBLE. Aucune teinte propre :
@@ -474,7 +487,19 @@
   > .etiquette {
     color: var(--couleur-attention);
   }
+}
 
+// 🔴 LE CONTRASTE FORCÉ DES QUATRE VARIANTES, EN UN SEUL ENDROIT. Toutes les teintes
+// tombent sur `CanvasText` : ce qui reste pour distinguer les quatre encadrés est le
+// STYLE du trait (plein · pointillé · tirets · double), que chaque variante garde
+// au-dessus. Quatre copies de ce bloc ne disaient rien de plus que celle-ci, et la
+// dernière écrite gagnait de toute façon. ⚠️ Cette règle doit rester APRÈS les quatre
+// variantes : `cartouche` (employé par `complement`) pose sa propre couleur de cadre
+// en contraste forcé, et c'est bien `CanvasText` qui doit l'emporter.
+.encadre[data-variante='cours'],
+.encadre[data-variante='exercice-du-cours'],
+.encadre[data-variante='complement'],
+.encadre[data-variante='correction-du-cours'] {
   @include m.contraste-force {
     border-color: CanvasText;
     background-color: Canvas;
@@ -513,7 +538,7 @@
 // marche à suivre appartient — elle y est nommée, et seule la teinte se règle ici.
 // La `<legend>` d'un conteneur d'onglets de méthode REJOINT CE SÉLECTEUR plutôt que
 // d'ouvrir une règle à elle (lot 6) : même recette, même teinte, et cette feuille est
-// à quelques centaines d'octets du plafond d'`angular.json`.
+// à environ deux kilo-octets du plafond d'`angular.json` (voir l'en-tête).
 // ⚠️ « MÊME RECETTE » N'ÉTAIT VRAI QU'À MOITIÉ jusqu'à la revue du lot 6a — la teinte se
 // réglait bien ici, mais la `<legend>` manquait au groupe qui LÈVE `micro-etiquette` plus
 // haut, et « Choix de la méthode » sortait en Silkscreen capitales espacées. Elle y est
@@ -567,19 +592,22 @@
   font-weight: var(--graisse-titre);
 }
 
-.marche-a-suivre .etape[data-voie='cours'] {
-  border-inline-start: var(--filet-marge) solid var(--couleur-provenance-cours);
+// Le LISERÉ et le retrait sont les mêmes pour les deux voies ; seules la teinte et
+// la forme du trait les opposent. Ils sont donc posés une fois, ici — et `solid` est
+// la valeur par défaut, que `moderne` remplace à lui seul.
+.marche-a-suivre .etape[data-voie] {
   padding-inline-start: var(--espace-2);
+  border-inline-start: var(--filet-marge) solid var(--couleur-provenance-cours);
+}
 
-  > .voie {
-    color: var(--couleur-provenance-cours);
-    background-color: var(--couleur-provenance-cours-surface);
-  }
+.marche-a-suivre .etape[data-voie='cours'] > .voie {
+  color: var(--couleur-provenance-cours);
+  background-color: var(--couleur-provenance-cours-surface);
 }
 
 .marche-a-suivre .etape[data-voie='moderne'] {
-  border-inline-start: var(--filet-marge) dashed var(--couleur-provenance-complement);
-  padding-inline-start: var(--espace-2);
+  border-inline-start-style: dashed;
+  border-inline-start-color: var(--couleur-provenance-complement);
 
   > .voie {
     color: var(--couleur-provenance-complement);

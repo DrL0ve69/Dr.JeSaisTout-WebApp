@@ -56,6 +56,7 @@ import {
   TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
+import { refusDeTete } from './aides-de-test/mutations-de-tete-d-etape';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
@@ -1153,7 +1154,7 @@ describe('la tête d’une étape (« {voir="…"} », « {voie="…"} »), côt
   }
 
   /**
-   * LES TREIZE REFUS, EN TABLE — chacun sur SA cause propre.
+   * LES REFUS DU RENVOI, EN TABLE — chacun sur SA cause propre.
    *
    * ⚠️ Un garde-fou qui refuserait TOUT renvoi passerait un test qui n'épingle que l'échec. Ce qui
    * discrimine est le fragment de message : il nomme la faute commise, et lui seul distingue ces
@@ -1215,67 +1216,56 @@ describe('la tête d’une étape (« {voir="…"} », « {voie="…"} »), côt
       cause:
         'bloc d\'attributs illisible en tête ; seules les formes {voir="…"} et {voie="…"} sont acceptées, guillemets droits compris',
     },
-    // -------------------------------------------------------------------------------------------
-    // LA VOIE — `{voie="…"}`, décision D-PHP-1, lot PHP-A1
-    // -------------------------------------------------------------------------------------------
-    // 🔴 LES MÊMES CAS, LES MÊMES PHRASES QUE DANS `pipeline-contenu-compilation.spec.ts`. Le
-    // validateur tourne AVANT le compilateur : si les deux juges divergeaient, l'auteur recevrait
-    // le message de celui qui a mordu en premier, et corrigerait contre une grammaire que l'autre
-    // n'applique pas (L-095 — la duplication est le contrat pour ce qui JUGE).
-    {
-      nom: 'voie-vide',
-      quoi: 'une voie VIDE — elle ne désigne rien',
-      etape: '2. {voie=""} Relire la PREMIÈRE anomalie du journal.',
-      cause: 'voie vide ; valeurs admises : cours, moderne',
-    },
-    {
-      // 🔴 LE CŒUR DE LA LISTE FERMÉE : le refus ÉNUMÈRE. Sans cette moitié, un garde-fou qui
-      // refuserait TOUTE voie passerait ce test — y compris les deux qui sont admises.
-      nom: 'voie-hors-liste',
-      quoi: 'une voie HORS de la liste fermée, en énumérant les deux admises',
-      etape: '2. {voie="ancienne"} Relire la PREMIÈRE anomalie du journal.',
-      cause: 'voie inconnue « ancienne » ; valeurs admises : cours, moderne',
-    },
-    {
-      nom: 'deux-voies',
-      quoi: 'DEUX voies sur la même étape',
-      etape: '2. {voie="cours"} {voie="moderne"} Relire le journal.',
-      cause: 'deux voies sur la même étape ; une étape porte AU PLUS une voie',
-    },
-    {
-      nom: 'voie-pas-en-tete',
-      quoi: 'une voie valide mais posée AU MILIEU de la phrase',
-      etape: '2. Relire le journal {voie="cours"} sans tarder.',
-      cause: "la voie n'est pas en TÊTE de l'étape",
-    },
-    {
-      nom: 'nom-de-tete-inconnu',
-      quoi: 'un NOM d’attribut de tête inconnu, en énumérant les noms admis',
-      etape: '2. {couleur="ambre"} Relire le journal.',
-      cause: "attribut de tête inconnu « couleur » ; noms admis en tête d'une étape : voir, voie",
-    },
-    {
-      // 🔴 LA FAUTE DE FRAPPE D'UN CARACTÈRE. Sans cette branche, `{voi="…"}` tombait dans « bloc
-      // d'attributs illisible » — vrai, mais muet sur la seule chose à corriger.
-      nom: 'voi-faute-de-frappe',
-      quoi: 'la faute de frappe « voi » — elle se NOMME, elle ne passe pas en silence',
-      etape: '2. {voi="cours"} Relire le journal.',
-      cause: 'attribut de tête inconnu « voi »',
-    },
-    {
-      // 🔴 LE JUMEAU DU CAS POSITIF « accolade nue ». Le correctif restreint le refus à ce qui
-      // RESSEMBLE à un bloc d'attributs ; il doit donc TOUJOURS mordre sur une valeur non citée,
-      // y compris quand une tête PARFAITEMENT formée la précède — c'est la position où le
-      // sur-refus corrigé se tenait.
-      nom: 'valeur-non-citee',
-      quoi: 'une valeur NON CITÉE dans un second bloc, après une tête valide',
-      etape: '2. {voir="module:cible"} {voie=cours} Relire le journal.',
-      cause:
-        'bloc d\'attributs illisible en tête ; seules les formes {voir="…"} et {voie="…"} sont acceptées, guillemets droits compris',
-    },
   ];
 
-  for (const cas of REFUS) {
+  /**
+   * CE QUE CE JUGE-CI DOIT DIRE sur chaque mutation du corpus partagé — une cause par `nom`.
+   *
+   * 🔴 CETTE TABLE NE MONTE PAS DANS LE CORPUS, ET C'EST LA MOITIÉ QUI COMPTE (L-095). Les
+   * MUTATIONS recensent — recopiées dans les deux specs, elles pouvaient DIVERGER en silence, sans
+   * qu'aucun appariement de messages ne rougisse : c'est le mode d'échec que L-095 décrit. Les
+   * CAUSES, elles, JUGENT : elles sont écrites ici ET dans `pipeline-contenu-compilation.spec.ts`,
+   * séparément, et c'est cet appariement qui ferme « l'aval refuse, l'amont laisse passer » (S-010).
+   *
+   * ⚠️ CE JUGE-CI DIT LA CAUSE EN UNE SEULE PHRASE (cause et aide jointes), là où le compilateur
+   * les épingle en deux fragments. Ce n'est pas une incohérence : chaque copie est mesurée sur le
+   * message qu'elle rend vraiment, pas sur celui que l'autre rend.
+   */
+  const CAUSES_DE_TETE: Readonly<Record<string, string>> = {
+    'voie-vide': 'voie vide ; valeurs admises : cours, moderne',
+    // 🔴 LE CŒUR DE LA LISTE FERMÉE : le refus ÉNUMÈRE. Sans cette moitié, un garde-fou qui
+    // refuserait TOUTE voie passerait ce test — y compris les deux qui sont admises.
+    'voie-hors-liste': 'voie inconnue « ancienne » ; valeurs admises : cours, moderne',
+    'deux-voies': 'deux voies sur la même étape ; une étape porte AU PLUS une voie',
+    'voie-pas-en-tete': "la voie n'est pas en TÊTE de l'étape",
+    'nom-de-tete-inconnu':
+      "attribut de tête inconnu « couleur » ; noms admis en tête d'une étape : voir, voie",
+    // 🔴 LA FAUTE DE FRAPPE D'UN CARACTÈRE. Sans cette branche, `{voi="…"}` tombait dans « bloc
+    // d'attributs illisible » — vrai, mais muet sur la seule chose à corriger.
+    'voi-faute-de-frappe': 'attribut de tête inconnu « voi »',
+    'voire-faute-de-frappe': 'attribut de tête inconnu « voire »',
+    // 🔴 LE JUMEAU DU CAS POSITIF « accolade nue » plus bas. Le correctif restreint le refus à ce
+    // qui RESSEMBLE à un bloc d'attributs ; il doit donc TOUJOURS mordre sur une valeur non citée,
+    // y compris quand une tête PARFAITEMENT formée la précède — la position où le sur-refus se
+    // tenait.
+    'valeur-non-citee':
+      'bloc d\'attributs illisible en tête ; seules les formes {voir="…"} et {voie="…"} sont acceptées, guillemets droits compris',
+  };
+
+  // Les refus du RENVOI, écrits au lot 7, puis les mutations de TÊTE du corpus partagé, appariées
+  // à leurs causes locales. `refusDeTete` lève si une mutation du corpus n'a pas de cause déclarée
+  // ci-dessus : c'est ce qui rend le corpus exhaustif pour ce juge-ci, plutôt que déclaratif.
+  const TOUS_LES_REFUS = [
+    ...REFUS,
+    ...refusDeTete('module:cible', 2, CAUSES_DE_TETE).map((cas) => ({
+      nom: cas.nom,
+      quoi: cas.quoi,
+      etape: cas.etape,
+      cause: cas.attendu,
+    })),
+  ];
+
+  for (const cas of TOUS_LES_REFUS) {
     it(
       `refuse ${cas.quoi}`,
       () => {

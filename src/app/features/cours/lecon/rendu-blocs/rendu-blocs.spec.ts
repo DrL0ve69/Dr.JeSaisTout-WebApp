@@ -1001,12 +1001,22 @@ describe('RenduBlocs', () => {
         const css = feuilleCompilee();
         // ⚠️ SASS DÉPOUILLE LES GUILLEMETS de l'attribut (`[data-variante=cours]`), et une
         // variante peut sortir en PLUSIEURS règles (un `@include` en ouvre une, la suite du
-        // bloc en rouvre une autre). On recolle donc TOUS les corps de la règle NUE — le
-        // `\\s*\\{` écarte les règles descendantes `> .etiquette`, qui ne portent pas de trait.
+        // bloc en rouvre une autre).
+        // 🔴 ET DEPUIS LE 2026-09-14, EN RÈGLES GROUPÉES : deux variantes qui partagent une
+        // recette l'écrivent dans une LISTE de sélecteurs — le budget `anyComponentStyle` mord sur
+        // cette feuille, et un doublon s'y paie en octets. La signature d'une variante est donc
+        // tout ce qui s'applique à elle, règle nue OU règle groupée ; un test qui n'aurait relu
+        // que la règle nue aurait déclaré « plus de trait » un trait simplement partagé.
+        // Le `(?:,[^{}]*)?\\{` n'accepte QUE la position « ce sélecteur, puis d'autres, puis
+        // l'accolade » : il écarte toujours les règles descendantes `> .etiquette`, qui ne portent
+        // pas de trait, puisqu'elles ne commencent pas par une virgule.
         const signature = (variante: string): string =>
           [
             ...css.matchAll(
-              new RegExp(`\\.encadre\\[data-variante=['"]?${variante}['"]?\\]\\s*\\{([^}]*)\\}`, 'g'),
+              new RegExp(
+                `\\.encadre\\[data-variante=['"]?${variante}['"]?\\]\\s*(?:,[^{}]*)?\\{([^}]*)\\}`,
+                'g',
+              ),
             ),
           ]
             .map((regle) => regle[1])
@@ -1020,7 +1030,11 @@ describe('RenduBlocs', () => {
         // POINTILLÉ, le dernier style libre en cadre fermé (`attention` ne l'a qu'en montant de
         // gauche). Sans ce trait propre, un exercice et un exposé du cours seraient le même objet
         // graphique pour qui lit en contraste forcé.
-        expect(signature('exercice-du-cours')).toMatch(/border:[^;]*dotted/);
+        // ⚠️ `border-style:` ET NON `border:` depuis le 2026-09-14 : la teinte, le fond et l'encre
+        // de l'étiquette sont partagés avec `cours` en règle groupée, et il ne reste en propre à
+        // cette variante que ce qui l'en OPPOSE — le style du trait. C'est précisément le canal
+        // que ce test mesure, donc la déclaration à épingler est celle qui le porte.
+        expect(signature('exercice-du-cours')).toMatch(/border-style:\s*dotted/);
         // 🔴 `complement` EST UN CADRE COMPLET EN TIRETS DEPUIS E6, plus un filet de
         // gauche : la bascule a déprécié `marge-carnet` au profit de `cartouche`, dont
         // la règle est qu'un bloc se borne sur ses QUATRE côtés (G7-a). Ce test épinglait

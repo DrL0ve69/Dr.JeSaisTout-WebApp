@@ -53,6 +53,7 @@ import {
   TITRE_NU_INTER_COURS,
   type MutationInterCours,
 } from './aides-de-test/bac-a-sable-inter-cours';
+import { refusDeTete } from './aides-de-test/mutations-de-tete-d-etape';
 
 const COMPILATEUR = 'tools/content-pipeline/compiler-markdown.mjs';
 const FIXTURE_TEMOIN = 'tools/content-pipeline/__fixtures__/temoin-minimal';
@@ -2024,87 +2025,81 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
     // (patron S-005). Le compilateur ne les exerçait pas — seul le validateur le faisait.
     describe('la tête d’une étape — `{voie="…"}`, côté COMPILATEUR', () => {
       /**
+       * Une cible de `{voir="…"}` qui se résout VRAIMENT dans la leçon ad hoc de ce spec — c'est
+       * un titre de section de la fixture. Le cas `valeur-non-citee` la fait précéder le bloc
+       * fautif : un renvoi introuvable y ajouterait une seconde cause.
+       */
+      const RENVOI_VALIDE = 'Ce que le validateur regarde';
+
+      /**
        * LES REFUS, EN TABLE — chacun sur SA cause propre.
        *
        * ⚠️ Un garde-fou qui refuserait TOUTE tête passerait un test qui n'épingle que l'échec. Ce qui
        * discrimine est le fragment de message : il NOMME la faute commise, et lui seul distingue ces
        * branches les unes des autres.
+       *
+       * ⚠️ LES MUTATIONS ELLES-MÊMES VIENNENT DU CORPUS PARTAGÉ
+       * (`aides-de-test/mutations-de-tete-d-etape`) : elles RECENSENT, donc elles se partagent
+       * (L-095). Leurs causes, qui JUGENT, restent ici.
        */
-      const REFUS_DE_TETE: readonly {
+      /**
+       * CE QUE CE JUGE-CI DOIT DIRE, un fragment par mutation du corpus partagé.
+       *
+       * 🔴 CETTE TABLE NE MONTE PAS DANS LE CORPUS, ET C'EST LA MOITIÉ QUI COMPTE (L-095). Les
+       * MUTATIONS recensent — elles se partagent, une divergence y serait invisible. Les CAUSES
+       * jugent : elles sont écrites ici ET dans `pipeline-contenu-validation.spec.ts`, séparément,
+       * pour que les deux copies de la lecture de tête soient épinglées chacune pour soi. C'est
+       * cet appariement, et lui seul, qui ferme le motif « l'aval refuse, l'amont laisse passer ».
+       *
+       * `aide` est le second fragment — celui qui prouve que le message AIDE, pas seulement qu'il
+       * refuse.
+       */
+      const CAUSES_DE_TETE: Readonly<Record<string, { cause: string; aide: string }>> = {
+        'voie-vide': { cause: 'voie vide', aide: 'valeurs admises : cours, moderne' },
+        // 🔴 LE CŒUR DE LA LISTE FERMÉE. Le message ÉNUMÈRE les deux valeurs : sans cette moitié,
+        // un auteur qui écrit « ancienne » ou « legacy » devine.
+        'voie-hors-liste': {
+          cause: 'voie inconnue « ancienne »',
+          aide: 'valeurs admises : cours, moderne',
+        },
+        'deux-voies': { cause: 'deux voies sur la même étape', aide: 'AU PLUS une voie' },
+        'voie-pas-en-tete': {
+          cause: "la voie n'est pas en TÊTE de l'étape",
+          aide: 'avant la phrase',
+        },
+        'nom-de-tete-inconnu': {
+          cause: 'attribut de tête inconnu « couleur »',
+          aide: "noms admis en tête d'une étape : voir, voie",
+        },
+        // 🔴 LA FAUTE DE FRAPPE QUE CE LOT DOIT ATTRAPER : le message doit NOMMER l'attribut, et
+        // dire que les deux noms ne diffèrent que d'un caractère.
+        'voi-faute-de-frappe': {
+          cause: 'attribut de tête inconnu « voi »',
+          aide: "ne diffèrent que d'un caractère",
+        },
+        'voire-faute-de-frappe': {
+          cause: 'attribut de tête inconnu « voire »',
+          aide: "noms admis en tête d'une étape : voir, voie",
+        },
+        'valeur-non-citee': {
+          cause: "bloc d'attributs illisible en tête",
+          aide: 'guillemets droits compris',
+        },
+      };
+
+      /**
+       * LES REFUS PROPRES À `{voir="…"}` — comportement INCHANGÉ par le lot PHP-A1, et c'est
+       * précisément pour cela qu'ils sont mesurés : « rien n'a bougé pour `voir` » est une clause
+       * du contrat, et une clause que rien ne mesure est une promesse plus forte que le gate
+       * (patron S-005). Ils restent locaux : le validateur les éprouve déjà par d'autres cas.
+       */
+      const REFUS_DU_RENVOI: readonly {
         nom: string;
         quoi: string;
         etape: string;
         cause: string;
-        /** Le second fragment — celui qui prouve que le message AIDE, et pas seulement qu'il refuse. */
         aide: string;
       }[] = [
-        {
-          nom: 'voie-vide',
-          quoi: 'une voie VIDE — elle ne désigne rien, et le dire vaut mieux que l’ignorer',
-          etape: '1. {voie=""} Lancer la construction.',
-          cause: 'voie vide',
-          aide: 'valeurs admises : cours, moderne',
-        },
-        {
-          // 🔴 LE CŒUR DE LA LISTE FERMÉE. Le message ÉNUMÈRE les deux valeurs : sans cette moitié,
-          // un auteur qui écrit « ancienne » ou « legacy » devine.
-          nom: 'voie-hors-liste',
-          quoi: 'une voie HORS de la liste fermée, en énumérant les deux admises',
-          etape: '1. {voie="ancienne"} Lancer la construction.',
-          cause: 'voie inconnue « ancienne »',
-          aide: 'valeurs admises : cours, moderne',
-        },
-        {
-          nom: 'deux-voies',
-          quoi: 'DEUX voies sur la même étape',
-          etape: '1. {voie="cours"} {voie="moderne"} Lancer la construction.',
-          cause: 'deux voies sur la même étape',
-          aide: 'AU PLUS une voie',
-        },
-        {
-          // La voie est SYNTAXIQUEMENT juste et sa valeur est admise : seule sa POSITION pèche.
-          nom: 'voie-pas-en-tete',
-          quoi: 'une voie valide mais posée AU MILIEU de la phrase',
-          etape: '1. Lancer la construction {voie="cours"} depuis la racine.',
-          cause: "la voie n'est pas en TÊTE de l'étape",
-          aide: 'avant la phrase',
-        },
-        {
-          nom: 'nom-inconnu',
-          quoi: 'un NOM d’attribut de tête inconnu, en énumérant les noms admis',
-          etape: '1. {couleur="ambre"} Lancer la construction.',
-          cause: 'attribut de tête inconnu « couleur »',
-          aide: "noms admis en tête d'une étape : voir, voie",
-        },
-        {
-          // 🔴 LA FAUTE DE FRAPPE QUE CE LOT DOIT ATTRAPER. `voir` et `voie` ne diffèrent que d'un
-          // caractère : `{voi="…"}` doit se nommer, jamais tomber dans un silence ni dans « le renvoi
-          // n'est pas en tête », qui enverrait l'auteur corriger une position parfaitement juste.
-          nom: 'voi-faute-de-frappe',
-          quoi: 'la faute de frappe « voi » — elle se NOMME, elle ne passe pas en silence',
-          etape: '1. {voi="cours"} Lancer la construction.',
-          cause: 'attribut de tête inconnu « voi »',
-          aide: "ne diffèrent que d'un caractère",
-        },
-        {
-          nom: 'voire-faute-de-frappe',
-          quoi: 'la faute de frappe « voire »',
-          etape: '1. {voire="Ce que le validateur regarde"} Lancer la construction.',
-          cause: 'attribut de tête inconnu « voire »',
-          aide: "noms admis en tête d'une étape : voir, voie",
-        },
-        {
-          // 🔴 LE JUMEAU DU CAS POSITIF « accolade nue ». Le correctif restreint le refus à ce
-          // qui RESSEMBLE à un bloc d'attributs ; il doit donc TOUJOURS mordre sur une valeur non
-          // citée, y compris quand une tête PARFAITEMENT formée la précède — la position même où
-          // le sur-refus corrigé se tenait.
-          nom: 'valeur-non-citee',
-          quoi: 'une valeur NON CITÉE dans un second bloc, après une tête valide',
-          etape:
-            '1. {voir="Ce que le validateur regarde"} {voie=cours} Lancer la construction.',
-          cause: "bloc d'attributs illisible en tête",
-          aide: 'guillemets droits compris',
-        },
         {
           nom: 'voir-vide',
           quoi: 'un renvoi VIDE — comportement INCHANGÉ par le lot PHP-A1',
@@ -2127,6 +2122,19 @@ describe('le conteneur « :::: marche-a-suivre »', () => {
           cause: '« module: » sans slug',
           aide: 'forme attendue',
         },
+      ];
+
+      // Les mutations partagées, appariées à leurs causes locales, PUIS les refus propres au
+      // renvoi. `refusDeTete` lève si une mutation du corpus n'a pas de cause déclarée ici —
+      // c'est ce qui rend le corpus exhaustif pour ce juge-ci.
+      const REFUS_DE_TETE = [
+        ...refusDeTete(RENVOI_VALIDE, 1, CAUSES_DE_TETE).map((cas) => ({
+          nom: cas.nom,
+          quoi: cas.quoi,
+          etape: cas.etape,
+          ...cas.attendu,
+        })),
+        ...REFUS_DU_RENVOI,
       ];
 
       for (const cas of REFUS_DE_TETE) {

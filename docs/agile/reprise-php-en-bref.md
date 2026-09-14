@@ -402,6 +402,9 @@ injectés** (968 lignes), dont **80 % de récit de clôture de lot** ; il est re
 lignes). Le récit est archivé verbatim dans `journal-reprises-claude-md.md`. Voir
 `.claude/rules/agent-context-budget.md` **§10** — il porte la mesure et **les deux causes séparées**.
 
+> ⏭️ **CE BLOC EST HISTORIQUE depuis le 2026-09-14** — PHP-A1 est fusionné. L'état courant est à la
+> section **« ✅ CLÔTURE — PHP-A1 »** tout en bas de ce document ; ce qui suit dit d'où il vient.
+
 **🟦 EN COURS — branche `feat/php-a1-voie-etape`, commit `80acdd0`, PAS de PR ouverte.**
 PHP-A1 (l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}`) est livré et **était vert** au
 commit : G-content 10 leçons / 2 racines · G-test **1195 passés / 48 fichiers / 1 sauté / 0 échec** ·
@@ -463,3 +466,65 @@ sur `securite-web` dans `src/format-actionnable.spec.ts:29`). Il porte ses renvo
 ⚠️ Dimensionner le brief : **KB `web/php/php-fondamentaux.md` (570 l.) + `php-environnement-developpement-moderne.md` (500 l.)**,
 dont le §« Le tableau qui compte — méthode du cours ↔ équivalent moderne » est exactement la matière
 de D-PHP-1. `quiz.json` est **obligatoire** même si les quiz sont hors périmètre : le faire minimal.
+
+---
+
+### ✅ CLÔTURE — PHP-A1 « l'attribut de voie d'une étape » (2026-09-14)
+
+**Fusionné dans `main`.** L'attribut `{voie="cours"}` / `{voie="moderne"}` (décision **D-PHP-1**) est
+en production : grammaire lue par un module partagé, deux juges appariés, rendu SCSS à deux canaux
+(teinte **et** style de trait), et les trois réserves de la revue sont fermées.
+
+**Ce que la session du 2026-09-14 a corrigé, et pourquoi c'est la partie à retenir.** La PR était
+rouge sur deux gates que le travail d'implémentation n'avait pas vus — tous deux *déclenchés* par le
+lot, mais *causés* par des seuils et des habitudes plus anciens.
+
+**(a) G-build — le budget `anyComponentStyle` d'`angular.json`.** `rendu-blocs.scss` passait à
+**8,39 kB** minifiés contre un plafond de 8 kB. Deux gestes, dans cet ordre, et l'ordre est la leçon :
+
+1. **D'abord chercher le DOUBLON, jamais le seuil.** Quatre variantes d'encadré (`cours`,
+   `exercice-du-cours`, `complement`, `correction-du-cours`) recopiaient chacune le même bloc
+   `@include m.contraste-force { border-color: CanvasText; background-color: Canvas; }`, et `cours`
+   / `exercice-du-cours` recopiaient la recette cyan entière alors que **seul le style du trait les
+   oppose**. Idem pour `note` / `a-retenir` (même surface creusée, même largeur de montant) et pour
+   les deux voies d'étape. **370 octets rendus** sans retirer une seule règle — 8,39 → **8,02 kB**.
+2. **Ensuite seulement, recalibrer.** L'avertissement était à **6 kB** et la feuille le dépassait
+   **DÉJÀ avant ce lot** : un avertissement rouge en permanence ne signale plus rien. Seuils portés à
+   **8 kB / 10 kB**, ce qui rend l'avertissement de nouveau actionnable et laisse ~2 kB de marge.
+   🔴 **La justification est écrite en tête de `rendu-blocs.scss`, pas seulement ici** :
+   `angular.json` ne porte pas de commentaire, et un seuil relevé sans raison écrite à côté est
+   exactement ce que `.claude/rules/agent-context-budget.md` appelle un chiffre qui devient un
+   mensonge silencieux.
+
+⚠️ **Pourquoi ce budget mord ICI et sur aucune autre feuille, et pourquoi il remordra.**
+`rendu-blocs.scss` habille **tout** le vocabulaire de blocs d'une leçon là où un composant ordinaire
+habille un écran : il grossit à chaque enrichissement du format. La question à poser au prochain
+dépassement est donc « **quel doublon ?** », pas « quel chiffre y mettre ? ».
+
+**(b) SonarCloud — 12,2 % de lignes dupliquées sur le code neuf** (seuil 3 %), concentrées dans
+`pipeline-contenu-validation.spec.ts` (45,5 %) et `pipeline-contenu-compilation.spec.ts` (26,3 %).
+🔴 **C'est L-095, appliquée à la deuxième moitié du lot.** La réserve n°1 de la revue avait bien fait
+extraire ce qui RECENSE côté **outils** (`tools/content-pipeline/tete-d-etape.mjs`) — mais les
+**specs** gardaient deux copies de la **table de mutations**, qui ne juge rien non plus. Une mutation
+ajoutée d'un côté et pas de l'autre laissait un juge non mesuré **sans qu'aucun appariement de
+messages ne rougisse** : chaque copie rendait la bonne cause pour la population qu'elle avait.
+
+Correctif : `src/aides-de-test/mutations-de-tete-d-etape.ts` porte les **huit mutations** (recensement,
+partagé) ; chaque spec garde sa **table de causes attendues** (jugement, dupliqué **exprès**, c'est
+lui qui ferme S-010). Le renvoi valide qu'exige le cas `valeur-non-citee` est un **paramètre**, parce
+que la cible doit exister dans la fixture de chaque appelant — sinon une seconde cause s'ajoute et le
+contrat « un cas = une cause » tombe en silence. Et `refusDeTete` **lève** sur une mutation dont le
+juge appelant n'a déclaré aucune cause : ajouter une entrée au corpus **force** désormais les deux
+juges à dire ce qu'ils en font.
+
+⚠️ **Ce qu'on a vérifié au passage, et qui vaut pour la prochaine fois.** `.sonarcloud.properties`
+n'est lu **que depuis `main`** : un réglage posé dans une PR ne change rien à l'analyse de cette PR.
+Une duplication de test ne se règle donc pas par une exclusion de dernière minute — elle se règle
+dans le code, ou elle attend une fusion.
+
+#### Le geste suivant : **PHP-2** (inchangé)
+
+Tout ce qui suit la ligne « Le geste suivant, une fois PHP-A1 fusionné » plus haut reste **exact et
+valide** : `exercices.json` (14 exercices vérifiés), `renvois-diapos-php-01.md` (111 diapositives
+cartographiées dans les deux sens), le dimensionnement du brief et les trois avertissements
+(`MODULES_AU_FORMAT_ACTIONNABLE`, `statut: verifiee`, `quiz.json` minimal obligatoire).
