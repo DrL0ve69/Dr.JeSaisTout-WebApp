@@ -156,9 +156,9 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **E7 lot A** | `content:build` compile **plusieurs racines** (`securite-web` + `php`) en une exécution | ✅ PR #69 |
 | **E7 lot B** | Les **routes** du cours de PHP, des deux côtés : `cours/php` (sommaire) et `cours/php/:slug` (leçon), résolveur **par cours** | ✅ PR #70 |
 | **E7 lot C** | La **navigation** : lien d'en-tête, carte d'accueil, comptes d'arrêts clavier épinglés en e2e | ✅ PR suivante — **la plomberie « second cours » est close** |
-| **PHP-A1** | Grammaire d'auteur pour D-PHP-1, **format C** — l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}` : étiquette écrite + liseré, les deux voies toujours visibles | 🟦 en cours |
+| **PHP-A1** | Grammaire d'auteur pour D-PHP-1, **format C** — l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}` : étiquette écrite + liseré, les deux voies toujours visibles | ✅ PR #80 |
 | **PHP-A2** | Grammaire d'auteur pour D-PHP-1, **format A** — admettre `:::: methodes` **dans** une étape de marche à suivre, pour une démarche qui diverge vraiment | ⬜ **pas ouvert** |
-| **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ⬜ |
+| **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ✅ **2026-09-14** — `statut: verifiee`, six `à-vérifier:` |
 | **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ⬜ **nommé le 2026-09-13** |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ⬜ |
 | **PHP-4** | Séance 3 — Librairie standard | ⬜ |
@@ -528,3 +528,57 @@ Tout ce qui suit la ligne « Le geste suivant, une fois PHP-A1 fusionné » plus
 valide** : `exercices.json` (14 exercices vérifiés), `renvois-diapos-php-01.md` (111 diapositives
 cartographiées dans les deux sens), le dimensionnement du brief et les trois avertissements
 (`MODULES_AU_FORMAT_ACTIONNABLE`, `statut: verifiee`, `quiz.json` minimal obligatoire).
+
+---
+
+### ✅ CLÔTURE — PHP-2 « séance 1, En bref + sommaire bref » (2026-09-14)
+
+**Livré** : `content/cours/php/01-introduction-php/` — `lecon.md` (~800 l., 24 titres aux renvois de
+`docs/contenu/renvois-diapos-php-01.md`, 12 étapes de marche à suivre dont deux paires
+`{voie="cours"}` / `{voie="moderne"}`, un `:::: methodes` à trois volets, une `comparaison`
+vulnérable/corrigé sur le XSS réfléchi du corrigé officiel, un diagramme Mermaid, **14 encadrés
+`::: exercice-du-cours`**, refs 1 à 14) et `quiz.json` (5 questions, le plancher du schéma —
+les quiz sont hors périmètre de ce chantier).
+
+**Le module reste en `statut: verifiee`, et c'est le contrat** : six marqueurs `à-vérifier:`
+(répartition des évaluations · version de WAMP dans le chemin de `php.exe` · port d'Apache · quel
+environnement sera évalué · dossier de travail · éditeur) bloquent mécaniquement `publiee` tant que
+**P-2, P-4, P-5, P-6, P-7** du §3 ne sont pas fournis. Il n'entre **pas** dans
+`MODULES_AU_FORMAT_ACTIONNABLE` (lot **PHP-F**).
+
+**Gates, tous verts au moment de la clôture** : G-lint · G-test **1200 passés / 1 sauté / 0 échec**
+(48 fichiers) · G-content **11 leçons / 2 racines** · G-build **14 routes prerendues, 14 hachages
+`style-src`, 0 de script — inchangés** (la leçon n'étant pas publiée, elle n'ajoute aucune page) ·
+G-typage-outils · G-contraste (aucune classe de coloration neuve malgré du PHP inédit) · G-axe
+**0 violation** · G-e2e **57 passés** · `npm audit --omit=dev` **0**.
+
+#### 🔴 Trois leçons de MÉTHODE, chacune payée dans cette session
+
+1. **Le rédacteur de leçon n'a AUCUN outil d'exécution, et le brief lui a réclamé un gate.**
+   `professeur-web` porte `Read`/`Write`/`Edit`/`Grep`/`Glob`/`WebSearch`/`WebFetch` — pas `Bash`.
+   Le brief exigeait `npm run content:build` : l'agent a dû répondre qu'il ne pouvait pas, ce qui
+   était **exact**. C'est le même patron que le `mentor` à qui l'on ordonnait `npm run lecons:index`
+   (`.claude/rules/agent-context-budget.md` §7). **Un brief ne demande jamais un geste que
+   l'outillage de l'agent lui interdit** — et `content:build` est de toute façon impossible avant que
+   `quiz.json` existe (`valider.mjs:3027` le rend obligatoire pour **toute** leçon).
+2. **🔴 UNE CORRECTION SE VÉRIFIE CONTRE LA SOURCE PRIMAIRE, JAMAIS CONTRE UN DOCUMENT DÉRIVÉ.**
+   Le fil principal a « corrigé » *quatre évaluations* en *trois* en se fiant à la table des renvois,
+   qui ne détaillait que trois pondérations. La diapositive écrit **littéralement « 4 évaluations »**
+   puis n'en détaille que trois : la correction a donc **introduit** l'erreur que la passe
+   adversariale a ensuite relevée en constat bloquant. L'extrait était à portée de `sed -n '6p'`.
+   *Une table de renvois est un index, pas une source.*
+3. **Le volume de SORTIE se dimensionne comme le volume d'ENTRÉE.** Le rédacteur a fini à
+   **173 578 tokens** (au-dessus du gros maximum de 150k) sur une sortie de 787 lignes estimée à
+   ~450 dans le brief. §9 de la règle de budget le dit pour les fixtures ; ça vaut pour une leçon.
+   Le découpage qui a marché ensuite : quiz par agent frais (**85k**), contre-vérification (**150k**),
+   correctifs par agent frais (**79k**).
+
+#### Le geste suivant
+
+**PHP-3** (séance 2 — syntaxe, superglobales, tableaux, classes). Le terrain n'est **pas** posé :
+contrairement à la séance 1, il n'existe ni cartographie de renvois ni relevé d'exercices vérifié à
+la source d'autorité. Les deux se font **avant** d'écrire, par le fil principal (le déck fait 60
+diapositives — il tient en une lecture).
+⏰ **Rappel** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts` et
+`src/format-actionnable.spec.ts` (bornés à `securite-web`) et `MODULES_PUBLIES` mordent — et l'ordre
+de découverte des specs e2e peut glisser vers une page PHP (§7).

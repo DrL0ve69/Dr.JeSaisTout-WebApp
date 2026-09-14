@@ -3314,4 +3314,40 @@ test fausse rougit sur un produit sain), [[L-078]] (une cible découverte doit �
 ordonnée), [[L-005]].
 
 ---
+
+## L-108 · Une correction se vérifie contre la SOURCE PRIMAIRE, jamais contre le document DÉRIVÉ qui l'indexe — sinon elle propage l'approximation de l'index au lieu de la corriger
+
+**Symptôme.** PHP-2 (2026-09-14). Une leçon écrivait « la diapositive 6 annonce **quatre**
+évaluations » puis n'en énumérait que trois. Le fil principal a relu la **table des renvois**
+(`docs/contenu/renvois-diapos-php-01.md`), qui ne détaillait que trois pondérations (25/15/60), en a
+conclu que « quatre » était la faute, et a corrigé en « trois ». La passe adversariale a ouvert
+l'extrait réel : la diapositive écrit **littéralement « 4 évaluations »**, puis n'en détaille que
+trois et ne nomme aucun nombre de séances. La « correction » avait donc **introduit** un constat
+bloquant — et effacé au passage le seul point qui **rapprochait** les deux documents contradictoires
+(tous deux comptent quatre évaluations), à l'endroit précis où la leçon demande à l'étudiant de
+porter le désaccord à son enseignant.
+
+**Pourquoi l'index ne pouvait pas trancher.** Une table de renvois est un **résumé fidèle à son
+propre usage** : elle recense ce qu'une diapositive *porte*, pour qu'on sache quoi citer. Elle n'a
+jamais promis de restituer les **tournures** de la source, et son silence sur un quatrième item
+n'est pas une affirmation qu'il n'existe pas. Lire un index comme une source, c'est confondre « ce
+que l'index a retenu » avec « ce que la source dit » — cousin de [[L-062]], où un instrument qui
+mesure zéro ne prouve rien.
+
+**Règle.** Avant de corriger un fait attribué à une source, **ouvrir la source**. Dans ce dépôt le
+geste coûte une commande — `sed -n '6p' php-2026/extraits/Cours01_….txt` — et il était disponible.
+Le signal qui doit déclencher ce réflexe est précis : **on s'apprête à changer un chiffre, un nom ou
+une citation attribués à un document externe**. Corollaire pour les briefs : quand on demande à un
+agent de corriger une attribution, lui donner le **chemin de la source primaire et la ligne**, pas
+seulement le constat — sans quoi il refait l'arbitrage sur le même index. ⚠️ Et une correction faite
+par le coordinateur n'échappe pas à la passe adversariale : ici c'est elle, et elle seule, qui a
+rattrapé l'erreur du fil principal.
+
+**Réfs.** `content/cours/php/01-introduction-php/lecon.md` (section « Ce que la séance 1
+enseigne ») ; `php-2026/extraits/Cours01_Introduction_a_PHP_2026.txt` ligne `[6]` ;
+`docs/contenu/renvois-diapos-php-01.md` §2 ; `docs/agile/reprise-php-en-bref.md`, bloc « CLÔTURE —
+PHP-2 », leçon de méthode n°2. Famille [[L-062]], [[L-104]] (l'attribution d'une faute de la source
+est le renseignement utile), [[L-035]].
+
+---
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
