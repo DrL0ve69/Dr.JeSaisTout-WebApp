@@ -50,10 +50,17 @@ const DELAI = 60_000;
 const SEUIL_AA_TEXTE_NORMAL = 4.5;
 
 /**
- * Les DEUX langues entrées au contrat le 2026-08-24 — celles que ce banc existe pour couvrir.
+ * Les langues que ce banc exerce — celles entrées au contrat APRÈS la mise en place du gate.
  * Écrites ici pour que le test rougisse si le banc cessait d'en exercer une (anti-vacuité).
+ *
+ * `javascript` et `html` sont entrées le 2026-08-24, `text` le 2026-09-14. 🔴 `text` y figure
+ * BIEN QU'ON AIT MESURÉ qu'elle n'apporte aucune encre neuve — Shiki n'y applique aucune
+ * grammaire — et c'est précisément la raison de l'y mettre : une mesure qui ne vit que dans un
+ * commentaire ne rougit jamais. Si une version future de Shiki peignait quoi que ce soit en
+ * texte brut, la paire de contraste naîtrait ici, devant le gate, et non dans une leçon publiée.
+ * C'est la clause de clôture de L-080, qui exige du banc qu'il couvre les sorties du générateur.
  */
-const LANGUES_DU_BANC = ['javascript', 'html'];
+const LANGUES_DU_BANC = ['javascript', 'html', 'text'];
 
 /** Un canal `#rrggbb` lu à son décalage, ramené à [0, 1] puis LINÉARISÉ (WCAG 2.x). */
 function canalLineaire(hex: string, decalage: number): number {
@@ -142,7 +149,7 @@ describe('Coloration syntaxique — les encres du CONTRAT, pas seulement celles 
     rmSync(bacASable, { recursive: true, force: true });
   });
 
-  it('CONTRÔLE POSITIF — le banc colore bien les deux langues visées', () => {
+  it('CONTRÔLE POSITIF — le banc colore bien chacune des langues visées', () => {
     // Sans cette assertion, tout ce qui suit resterait vert sur un banc devenu muet :
     // zéro encre mesurée est trivialement « zéro encre sous le seuil » (L-019, L-067).
     const langues = [...languesColorees(ast)];

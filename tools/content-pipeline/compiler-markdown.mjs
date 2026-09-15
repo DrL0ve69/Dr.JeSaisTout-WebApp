@@ -146,10 +146,13 @@ const FEUILLE_COLORATION_PAR_DEFAUT = 'src/styles/_coloration-syntaxique-generee
  * et de CSS pour le contenu de `<script>` et `<style>`. On MESURE, on ne suppose pas —
  * `src/coloration-encres-contraste.spec.ts` est le garde-fou exécutable de cette mesure.
  *
- * ⚠️ `text` est entré le 2026-09-14, et c'est la SEULE entrée qui échappe au paragraphe
- * ci-dessus — parce qu'elle n'apporte aucune grammaire. Shiki traite `text` en texte brut : la
- * MESURE donne DEUX encres, `#24292e` (clair) et `#e1e4e8` (sombre), qui sont déjà celles de
- * `php` ; zéro portée neuve, donc zéro encre neuve, donc zéro paire de contraste à mesurer.
+ * ⚠️ `text` est entré le 2026-09-14, et c'est la seule entrée qui n'apporte aucune grammaire.
+ * Shiki la traite en texte brut : la MESURE donne DEUX encres, `#24292e` (clair) et `#e1e4e8`
+ * (sombre), qui sont déjà celles de `php` ; zéro portée neuve, donc zéro encre neuve.
+ * 🔴 CELA NE LA DISPENSE PAS DU BANC — elle est dans `LANGUES_DU_BANC` et la fixture
+ * `__fixtures__/langages-web` porte un bloc `text`. Une mesure qui ne vit que dans un commentaire
+ * ne rougit jamais : le jour où une version de Shiki peindrait du texte brut, on veut l'apprendre
+ * du gate, pas d'une leçon publiée. Toute entrée ajoutée ici entre au banc LE MÊME JOUR.
  * Ce qu'elle règle est le problème de 2026-08-24 sous une autre forme : une SORTIE DE PROGRAMME
  * (`print_r`, un en-tête HTTP, une trace) n'est d'AUCUNE des huit langues, et l'étiqueter `bash`
  * pour contenter le validateur remet exactement la langue fausse dans le `<figcaption>` visible
@@ -1589,6 +1592,19 @@ function lireExemple(enfants, ouverture, nom, ctx) {
     ]);
   }
   const langage = langageDe(cloture, ctx);
+  // 🔴 `text` EST ADMISE PARTOUT AILLEURS, PAS ICI — et c'est un refus, pas une convention de
+  // rédaction. Un volet compare du CODE : une vulnérabilité et son correctif. Une SORTIE de
+  // programme n'a pas de version « vulnérable » ni de version « corrigée », et la paire
+  // `text`/`text` traverserait le contrôle de comparabilité des langages sans rien comparer. La
+  // liste des langues est unique côté Markdown (`NOMS_LANGAGES`), donc la restriction se pose
+  // ICI, au seul endroit qui connaît le contexte — sans quoi elle ne vivrait qu'en prose dans
+  // `docs/contenu/pipeline-contenu.md`, c'est-à-dire nulle part où elle puisse rougir.
+  if (langage === 'text') {
+    echec(`${ctx.nomFichier} : « ::: ${nom} » porte un bloc « text »`, [
+      'un volet de comparaison compare du CODE — « text » étiquette une SORTIE de programme',
+      'pour montrer une sortie, sors-la de la comparaison et pose un bloc « text » dans la prose',
+    ]);
+  }
   // LISTE FERMÉE VIDE, et c'est le mécanisme même de la migration : `lignes` a QUITTÉ les
   // attributs du conteneur, donc `::: vulnerable {lignes="2"}` échoue en nommant la clef inconnue.
   lireAttributs(ouverture.info, nom, [], ctx.nomFichier);

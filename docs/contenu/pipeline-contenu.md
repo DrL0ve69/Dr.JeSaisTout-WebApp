@@ -215,8 +215,10 @@ Ce qu'il faut savoir pour écrire un volet :
   ci-dessus interdit : une sortie n'est d'aucune des huit autres langues, et l'étiqueter `bash`
   pour contenter le validateur remet exactement la langue fausse dans le `<figcaption>`. Elle n'est
   **pas** une échappatoire pour une grammaire absente de la liste — du code qui a une langue
-  s'étiquette de SA langue. Dans un volet `vulnerable`/`corrige`, elle n'a aucun sens : ces volets
-  comparent **du code**.
+  s'étiquette de SA langue. Dans un volet `vulnerable`/`corrige`, elle est **refusée par le
+  compilateur**, et ce n'est pas une convention de rédaction : ces volets comparent **du code**,
+  une sortie n'a ni version vulnérable ni version corrigée. Pour montrer une sortie, sors-la de la
+  comparaison et pose un bloc `text` dans la prose.
   `javascript` et `html` sont entrés le 2026-08-24 précisément pour supprimer ce contournement.
 - **Un volet n'admet que sa clôture de code et des paragraphes** — dans cet ordre : la clôture
   d'abord, les paragraphes d'annotation après. Un item de liste, une citation ou un titre glissé

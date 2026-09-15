@@ -38,8 +38,9 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 **Dette nommée et non corrigée**, une ligne chacune — le détail est au backlog :
 en-têtes globaux autres que la CSP vérifiés par **présence seule** · `publication` ne revérifie pas
 le sceau après `download-artifact` · 7 des 14 hachages `style-src` n'ont **aucun** énumérateur live ·
-les blocs d'en-tête HTTP des leçons 08 et 09 n'ont **aucune étiquette juste** (`http` n'est pas dans
-les huit langages) · les leçons 03, 04 et 05 portent encore des étiquettes de langage **mensongères** ·
+les blocs d'en-tête HTTP des leçons 08 et 09 sont **à réétiqueter `text`** (le remède existe depuis
+le 2026-09-14 : neuf langages, dont `text` pour les SORTIES de programme — il reste à l'appliquer) ·
+les leçons 03, 04 et 05 portent encore des étiquettes de langage **mensongères** ·
 le pipeline **ne rend pas le code en ligne dans un TITRE** ni dans un `libelle` de volet ·
 `src/format-actionnable.spec.ts:29` fixe `CORPUS` sur `securite-web` en dur, ce qui **ferme le gate
 du format actionnable au cours de PHP** (lot PHP-F).

@@ -763,6 +763,34 @@ describe('pipeline de contenu — compilation Markdown', () => {
       DELAI,
     );
 
+    it(
+      'refuse « text » dans un VOLET de comparaison — un volet compare du CODE',
+      () => {
+        // 🔴 LE SEUL ENDROIT OÙ `text` EST REFUSÉE, et le seul qui ne puisse pas se déduire de la
+        // liste des langues : `NOMS_LANGAGES` est unique côté Markdown, donc `text` traverse
+        // `langageDe` partout. Un volet compare une vulnérabilité et son correctif ; une SORTIE de
+        // programme n'a ni l'une ni l'autre, et la paire `text`/`text` passerait le contrôle de
+        // comparabilité des langages sans rien comparer. Sans ce cas, la règle ne vivrait qu'en
+        // prose dans `docs/contenu/pipeline-contenu.md` — c'est-à-dire nulle part où elle rougisse.
+        const source = readFileSync(join(FIXTURE_TEMOIN, '01-temoin', 'lecon.md'), 'utf8');
+        const frontmatter = source.slice(0, source.indexOf('---', 4) + 4);
+        const racine = leconAdHoc(
+          'text-dans-un-volet',
+          () =>
+            `${frontmatter}\n# Titre\n\n## Une section\n\n` +
+            ':::: comparaison\n::: vulnerable\n```text\nArray ( [x] => 1 )\n```\n:::\n' +
+            '::: corrige\n```text\nArray ( [x] => 2 )\n```\n:::\n::::\n\n[[quiz]]\n',
+        );
+
+        const message = messageDEchec(racine);
+        expect(message).not.toBeNull();
+        // Le refus se NOMME : le volet fautif et la langue, pas un « bloc invalide » muet.
+        expect(message).toContain('vulnerable');
+        expect(message).toContain('text');
+      },
+      DELAI,
+    );
+
     // ─── Le quiz, émis par le compilateur depuis E2-ST3 (lot B) ────────────────────
     // Chaque cas isole UNE cause, et mute le fichier qui la porte. La leçon-témoin,
     // elle, compile — c'est le groupe précédent qui l'établit, donc la mutation est
@@ -1781,8 +1809,12 @@ describe('la résolution inter-cours d’un renvoi de section (§3bis, lot 1b)',
 // ⚠️ POURQUOI `text` N'EST PAS UNE NEUVIÈME GRAMMAIRE. Elle étiquette ce qui n'est PAS du code —
 // une SORTIE de programme (`print_r`, un en-tête HTTP, une trace). Shiki n'y applique aucune
 // grammaire : mesuré le 2026-09-14, deux encres seulement, `#24292e` et `#e1e4e8`, déjà produites
-// par `php`. Zéro portée neuve, donc zéro paire de contraste neuve — c'est ce qui la dispense du
-// banc de `src/coloration-encres-contraste.spec.ts`, et la SEULE entrée qui en soit dispensée.
+// par `php`. Zéro portée neuve, donc zéro paire de contraste neuve.
+// 🔴 CETTE MESURE NE LA DISPENSE PAS DU BANC, et la première rédaction de ce commentaire le
+// prétendait — à tort. `text` est au banc de `src/coloration-encres-contraste.spec.ts` comme
+// `javascript` et `html` : une mesure qui ne vit que dans un commentaire ne rougit jamais, et
+// c'est le jour où Shiki se mettrait à peindre du texte brut qu'on voudrait l'apprendre du gate
+// plutôt que d'une leçon publiée.
 // =============================================================================
 describe('la langue « text » — une SORTIE de programme, pas du code', () => {
   // SON PROPRE BAC À SABLE, même raison que les blocs voisins : celui du bloc précédent a déjà
@@ -1795,8 +1827,16 @@ describe('la langue « text » — une SORTIE de programme, pas du code', () => 
     rmSync(bacASable, { recursive: true, force: true });
   });
 
-  /** La sortie d'un `print_r` — le cas réel qui a fait entrer la langue au contrat. */
-  const SORTIE = 'Array ( [prenom] => Marine [nom] => Cordonier [note] => 87 )';
+  /**
+   * La sortie d'un `print_r` — le cas réel qui a fait entrer la langue au contrat.
+   *
+   * 🔴 ELLE PORTE `<b>` ET `&` À DESSEIN (patron S-011, `.claude/rules/security.md` §4(e)). `text`
+   * est LA langue faite pour coller une sortie brute de terminal, donc celle où du balisage a le
+   * plus de chances d'arriver tel quel. Le test qui suit se lit alors à DEUX MAINS : la charge
+   * s'affiche ENTIÈRE, et elle n'engendre AUCUN nœud. Vérifier une seule des deux moitiés
+   * certifierait un assainissement dont l'autre moitié est un no-op.
+   */
+  const SORTIE = 'Array ( [nom] => <b>Cordonier</b> [note] => 87 & 88 )';
 
   /**
    * Une leçon MINIMALE qui compile, portant pour tout code un seul bloc `text`.
@@ -1851,7 +1891,20 @@ describe('la langue « text » — une SORTIE de programme, pas du code', () => 
       // phrase de la leçon. On relit le TEXTE du DOM rendu, balises retirées.
       const porteur = document.createElement('div');
       porteur.innerHTML = codes[0]?.htmlColore ?? '';
-      expect(porteur.querySelector('pre.shiki')?.textContent?.trim()).toBe(SORTIE);
+
+      // Contrôle positif de STRUCTURE, avant de lire quoi que ce soit : sans lui, une sortie Shiki
+      // remaniée donnerait `undefined ≠ …`, qui se lit « texte tronqué » alors que la cause est
+      // ailleurs. Idiome déjà employé plus haut dans ce fichier.
+      const pre = porteur.querySelector('pre.shiki');
+      expect(pre).not.toBeNull();
+
+      // PREMIÈRE MAIN — la charge s'affiche ENTIÈRE, `<b>` et `&` compris.
+      expect(pre?.textContent?.trim()).toBe(SORTIE);
+
+      // SECONDE MAIN — et elle n'engendre AUCUN nœud : le `<b>` de la sortie est du TEXTE, pas un
+      // élément. Un `innerHTML` posé sans échappement ferait passer la première main et rougir
+      // celle-ci.
+      expect(pre?.querySelector('b')).toBeNull();
     },
     DELAI,
   );

@@ -125,6 +125,21 @@ bloc précédent n'exerce pas.
 </html>
 ```
 
+## Une sortie de programme, en « text »
+
+`text` est entrée au contrat le 2026-09-14, et la MESURE dit qu'elle n'apporte aucune encre neuve :
+Shiki n'y applique aucune grammaire. Elle est au banc quand même, et c'est tout l'intérêt — si une
+version future de Shiki se mettait à peindre quoi que ce soit ici (séquences ANSI, surlignage), la
+paire de contraste naîtrait **dans ce banc**, donc devant le gate, plutôt que dans une leçon publiée.
+Une mesure qui ne vit que dans un commentaire ne rougit jamais.
+
+```text
+Array ( [prenom] => Marine [nom] => Cordonier [note] => 87 )
+Warning: Undefined array key 1 in C:\wamp64\www\essai.php on line 12
+HTTP/1.1 200 OK
+Content-Type: text/html; charset=UTF-8
+```
+
 ## À toi de jouer
 
 Le quiz de ce banc vit dans `quiz.json`, à côté de ce fichier.
