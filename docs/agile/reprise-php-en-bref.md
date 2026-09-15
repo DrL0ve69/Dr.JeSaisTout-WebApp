@@ -582,3 +582,73 @@ diapositives — il tient en une lecture).
 ⏰ **Rappel** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts` et
 `src/format-actionnable.spec.ts` (bornés à `securite-web`) et `MODULES_PUBLIES` mordent — et l'ordre
 de découverte des specs e2e peut glisser vers une page PHP (§7).
+
+### ✅ CLÔTURE — PHP-3 « séance 2, En bref » (2026-09-14)
+
+**Livré** : `content/cours/php/02-superglobales-tableaux-classes/` — `lecon.md` (1039 l., **26
+titres** : douze `##` et quatorze `###`, concordant exactement avec `docs/contenu/renvois-diapos-php-02.md`)
+et `quiz.json` (5 questions, trois types — `choix-multiple`, `trouver-la-faille`, `vrai-faux` —
+chacune avec son explication et sa `ficheSource`). Plus un lot de pipeline, ci-dessous.
+
+**La cartographie est mesurée DANS LES DEUX SENS, et les deux concordent** : 50 diapositives citées
+sur 60, 10 orphelines — 1 (couverture), 2/5/55/57/59 (titres de section sans contenu), 4 (consigne
+de déroulement), 20 et 38/39 (transitions, dont un doublon du déck de l'enseignant). Aucun trou de
+leçon.
+
+**Le module reste en `statut: verifiee`, et c'est le contrat** : **cinq** marqueurs `à-vérifier:`
+(DOCUMENT_ROOT et SERVER_PORT du poste · `doubleval` alias de `floatval` · la notation `$this.` de
+la diapositive 45 · la visibilité implicite d'une méthode · l'URL d'appel de `bulletin.php`). Le
+plus exposé contredit une réponse de quiz du cours (diapositive 51) : *une méthode sans modificateur
+vaut `public`, là où une propriété nue est une erreur de syntaxe*. Il est écrit comme §6 de
+`.claude/rules/contenu-pedagogique.md` l'exige — la réponse de l'enseignant **conservée**, la
+correction à côté avec sa source, et la règle d'arbitrage explicite.
+
+**Gates** : G-content **12 leçons / 2 racines** · G-lint · G-test **1203 passés / 1 sauté**
+(48 fichiers) · G-typage-outils · G-build **14 hachages `style-src`, 0 de script — inchangés** ·
+G-axe **0 violation** (14 pages) · CI verte, SonarCloud comprise (PR #82).
+
+#### Le lot de pipeline qui s'est invité — et pourquoi il fallait le prendre
+
+`content:build` a rougi sur **trois blocs `text`** : les sorties de `print_r` de la leçon. Une
+SORTIE de programme n'est d'aucune des huit langues du contrat, et les deux issues disponibles
+étaient mauvaises — renoncer au bloc, ou l'étiqueter `bash`, ce qui remet la langue fausse dans le
+`<figcaption>` **visible** et dans l'`aria-label` du défileur (la faute de 2026-08-24, sous une
+autre forme). **Le propriétaire a tranché : élargir le contrat.** `text` est la neuvième langue.
+
+La mesure qui l'autorisait : Shiki n'applique aucune grammaire à `text` — **2 encres**, `#24292e`
+et `#e1e4e8`, déjà produites par `php`. Zéro portée neuve, donc zéro paire de contraste neuve.
+
+#### 🔴 La leçon de méthode de cette session — L-080 récidive par AJOUT, pas par omission
+
+**C'est la mesure elle-même qui a failli créer le trou.** Ayant mesuré que `text` n'apporte aucune
+encre, la première rédaction en a conclu qu'elle était « dispensée du banc » de
+`coloration-encres-contraste` — et l'a écrit dans un commentaire. La revue à regard neuf l'a
+relevé : **une mesure qui ne vit que dans un commentaire ne rougit jamais.** Si une version future
+de Shiki peignait du texte brut, la paire de contraste naîtrait dans une leçon publiée, en CI, au
+pire moment. C'est mot pour mot la clause de clôture de L-080.
+
+**La règle, désormais écrite à côté de `LANGAGES`** : *toute entrée ajoutée à la liste entre au banc
+LE MÊME JOUR — surtout quand on a mesuré qu'elle n'apporte rien. C'est la mesure qui doit rougir si
+elle cesse d'être vraie, pas l'auteur qui doit s'en souvenir.*
+
+Deux corollaires payés dans la même passe : (a) le commentaire disait « la SEULE entrée dispensée »
+alors que **six** autres langues ne sont pas au banc non plus — le patron du chiffre recopié qui
+devient un mensonge silencieux ; (b) `text` était mécaniquement admise dans un volet
+`vulnerable`/`corrige`, et la doc l'interdisait **en prose seule**. Un refus posé dans `lireExemple`
+et son cas `fail-closed` ferment la surface : un volet compare du CODE.
+
+#### Le geste suivant
+
+**PHP-4** (séance 3), dont le terrain n'est **pas** posé — ni cartographie de renvois, ni relevé
+d'exercices vérifié à la source d'autorité. Les deux se font **avant** d'écrire, par le fil
+principal. ⚠️ **Et le compte des titres s'écrit dans la table au moment où on la bâtit** : le brief
+de PHP-3 avait annoncé 22 titres là où la table en portait 26, et le volume de sortie, calé sur le
+mauvais compte, s'est trouvé sous-estimé de moitié (rédacteur fini à 167k). Même famille que la
+leçon 3 de PHP-2 : *le volume de SORTIE se dimensionne comme le volume d'ENTRÉE.*
+
+⏰ **Rappel inchangé** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts`,
+`src/format-actionnable.spec.ts` (bornés à `securite-web`) et `MODULES_PUBLIES` mordent — et l'ordre
+de découverte des specs e2e peut glisser vers une page PHP (§7).
+
+💡 **Dette désormais outillée** : les blocs d'en-tête HTTP des leçons 08 et 09 de sécurité ont un
+remède (`text`) ; il reste à l'appliquer. Idem pour les étiquettes mensongères des leçons 03-05.
