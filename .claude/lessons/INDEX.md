@@ -93,35 +93,35 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-077 | 2363–2395 | Intervertir « chemin principal » et « variante » dans un document laisse la PROSE EN AVAL décrire l'ancien chemin, sans qu'aucun diff ne la signale |
 | L-078 | 2396–2419 | La partie « CONTRAT » d'un livrable découpé entre plusieurs agents n'appartient à aucune moitié — elle disparaît si personne ne la recopie |
 | L-079 | 2420–2443 | Une vérification en ligne qui CONFIRME l'hypothèse de départ doit être relancée verbatim avant d'être crue |
-| L-080 | 2444–2475 | Une liste blanche fermée sur le CORPUS a une date de péremption ; fermée sur le CONTRAT de l'outil, elle n'en a pas |
-| L-081 | 2476–2502 | Une leçon peut être fausse sans qu'aucune de ses phrases le soit — la faute se répartit, elle ne se localise pas |
-| L-082 | 2503–2526 | Une commande présentée comme une PREUVE doit être confrontée à « que mesure-t-elle exactement ? » — sinon elle enseigne un instrument faux |
-| L-083 | 2527–2550 | Un garde-fou de contenu qui sort dès qu'AUCUN attribut n'est fourni transforme une obligation en option — c'est le cas par défaut qui passe |
-| L-084 | 2551–2584 | Assouplir une règle exige de recenser aussi ce qui en DÉPEND sans la tester — pas seulement ce qui l'applique |
-| L-085 | 2585–2619 | Une garde de CHEMIN dont le verdict dépend de l'OS est DEUX gardes — `path` change de sémantique sous elle, et le vert local ne prouve alors rien |
-| L-086 | 2620–2669 | Une fixture d'intégration où le paramètre vaut `undefined` ne distingue pas « câblé » de « jamais passé » |
-| L-087 | 2670–2695 | Deux copies d'un prédicat de nom doivent lire la MÊME chaîne — une divergence compte comme défaut même quand elle reste fail-closed |
-| L-088 | 2696–2717 | Une fixture invalide ne prouve QU'UNE des deux implémentations d'une règle dupliquée |
-| L-089 | 2718–2737 | Une assertion sur un message d'erreur FRANÇAIS se copie-colle depuis la sortie réelle, jamais ne se retape |
-| L-090 | 2738–2757 | La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche |
-| L-091 | 2758–2780 | Une liste d'exceptions NOMMÉES dans une feuille de styles ne pense pas toute seule au cas suivant — et un commentaire « même traitement que X » doit dire QUEL X |
-| L-092 | 2781–2804 | `toContain` sur un TABLEAU teste l'égalité d'élément, pas l'inclusion de sous-chaîne — un matcher de sécurité doit se vérifier sur le type réellement observé |
-| L-093 | 2805–2832 | Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait |
-| L-094 | 2833–2873 | Un lot DIFFÉRÉ se re-mesure contre l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé |
-| L-095 | 2874–2908 | La duplication est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE — et la divergence d'un recensement est INVISIBLE à tout appariement de messages |
-| L-096 | 2909–2939 | Le compte de tokens qu'un sous-agent s'attribue dans son rapport n'est PAS une mesure — seul celui du harnais l'est |
-| L-097 | 2940–2974 | Un contrôle positif écrit pour ISOLER la branche visée peut esquiver la forme NATURELLE de la faute — et taire qu'une règle neuve recoupe une règle existante |
-| L-098 | 2975–3012 | Une section neuve écrite APRÈS des correctifs les recopie de mémoire — et ressuscite la version corrigée |
-| L-099 | 3013–3051 | Une capacité e2e neuve n'est livrée que si son filet HORS SUITE la connaît — c'est le fichier qui PROMET le filet qui l'avait oublié |
-| L-100 | 3052–3073 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
-| L-101 | 3074–3122 | Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change |
-| L-102 | 3123–3158 | Un livrable ABSENT fait rougir le gate ; un livrable trop ÉTROIT ne fait rougir personne — le second sens d'un contrôle de couverture n'a jamais de gate |
-| L-103 | 3159–3191 | Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune |
-| L-104 | 3192–3228 | Décrire une faute de la SOURCE sans l'attribuer prive le lecteur du seul renseignement utile — « retirer l'attribution, garder le fait » ne vaut que pour une source NON VÉRIFIABLE |
-| L-105 | 3229–3266 | Une assertion universelle héritée d'une population HOMOGÈNE devient fausse au premier membre d'une autre espèce — on nomme l'ensemble sur lequel elle porte, on ne la relâche pas pour tout le monde |
-| L-106 | 3267–3287 | Dupliquer un composant PORTEUR DE STYLES ajoute un hachage CSP, même pour un texte identique — la duplication à surveiller n'est pas le code, c'est le bloc `<style>` |
-| L-107 | 3288–3317 | Une montée de version Angular en ERESOLVE se répare en retirant du VERROU les seules entrées concernées, jamais par `--force`/`--legacy-peer-deps` |
-| L-108 | 3318–3354 | Une correction se vérifie contre la SOURCE PRIMAIRE, jamais contre le document DÉRIVÉ qui l'indexe — sinon elle propage l'approximation de l'index au lieu de la corriger |
+| L-080 | 2444–2496 | Une liste blanche fermée sur le CORPUS a une date de péremption ; fermée sur le CONTRAT de l'outil, elle n'en a pas |
+| L-081 | 2497–2523 | Une leçon peut être fausse sans qu'aucune de ses phrases le soit — la faute se répartit, elle ne se localise pas |
+| L-082 | 2524–2547 | Une commande présentée comme une PREUVE doit être confrontée à « que mesure-t-elle exactement ? » — sinon elle enseigne un instrument faux |
+| L-083 | 2548–2571 | Un garde-fou de contenu qui sort dès qu'AUCUN attribut n'est fourni transforme une obligation en option — c'est le cas par défaut qui passe |
+| L-084 | 2572–2605 | Assouplir une règle exige de recenser aussi ce qui en DÉPEND sans la tester — pas seulement ce qui l'applique |
+| L-085 | 2606–2640 | Une garde de CHEMIN dont le verdict dépend de l'OS est DEUX gardes — `path` change de sémantique sous elle, et le vert local ne prouve alors rien |
+| L-086 | 2641–2690 | Une fixture d'intégration où le paramètre vaut `undefined` ne distingue pas « câblé » de « jamais passé » |
+| L-087 | 2691–2716 | Deux copies d'un prédicat de nom doivent lire la MÊME chaîne — une divergence compte comme défaut même quand elle reste fail-closed |
+| L-088 | 2717–2738 | Une fixture invalide ne prouve QU'UNE des deux implémentations d'une règle dupliquée |
+| L-089 | 2739–2758 | Une assertion sur un message d'erreur FRANÇAIS se copie-colle depuis la sortie réelle, jamais ne se retape |
+| L-090 | 2759–2778 | La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche |
+| L-091 | 2779–2801 | Une liste d'exceptions NOMMÉES dans une feuille de styles ne pense pas toute seule au cas suivant — et un commentaire « même traitement que X » doit dire QUEL X |
+| L-092 | 2802–2825 | `toContain` sur un TABLEAU teste l'égalité d'élément, pas l'inclusion de sous-chaîne — un matcher de sécurité doit se vérifier sur le type réellement observé |
+| L-093 | 2826–2853 | Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait |
+| L-094 | 2854–2894 | Un lot DIFFÉRÉ se re-mesure contre l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé |
+| L-095 | 2895–2929 | La duplication est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE — et la divergence d'un recensement est INVISIBLE à tout appariement de messages |
+| L-096 | 2930–2960 | Le compte de tokens qu'un sous-agent s'attribue dans son rapport n'est PAS une mesure — seul celui du harnais l'est |
+| L-097 | 2961–2995 | Un contrôle positif écrit pour ISOLER la branche visée peut esquiver la forme NATURELLE de la faute — et taire qu'une règle neuve recoupe une règle existante |
+| L-098 | 2996–3033 | Une section neuve écrite APRÈS des correctifs les recopie de mémoire — et ressuscite la version corrigée |
+| L-099 | 3034–3072 | Une capacité e2e neuve n'est livrée que si son filet HORS SUITE la connaît — c'est le fichier qui PROMET le filet qui l'avait oublié |
+| L-100 | 3073–3094 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
+| L-101 | 3095–3143 | Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change |
+| L-102 | 3144–3179 | Un livrable ABSENT fait rougir le gate ; un livrable trop ÉTROIT ne fait rougir personne — le second sens d'un contrôle de couverture n'a jamais de gate |
+| L-103 | 3180–3212 | Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune |
+| L-104 | 3213–3249 | Décrire une faute de la SOURCE sans l'attribuer prive le lecteur du seul renseignement utile — « retirer l'attribution, garder le fait » ne vaut que pour une source NON VÉRIFIABLE |
+| L-105 | 3250–3287 | Une assertion universelle héritée d'une population HOMOGÈNE devient fausse au premier membre d'une autre espèce — on nomme l'ensemble sur lequel elle porte, on ne la relâche pas pour tout le monde |
+| L-106 | 3288–3308 | Dupliquer un composant PORTEUR DE STYLES ajoute un hachage CSP, même pour un texte identique — la duplication à surveiller n'est pas le code, c'est le bloc `<style>` |
+| L-107 | 3309–3338 | Une montée de version Angular en ERESOLVE se répare en retirant du VERROU les seules entrées concernées, jamais par `--force`/`--legacy-peer-deps` |
+| L-108 | 3339–3375 | Une correction se vérifie contre la SOURCE PRIMAIRE, jamais contre le document DÉRIVÉ qui l'indexe — sinon elle propage l'approximation de l'index au lieu de la corriger |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
