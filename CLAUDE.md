@@ -30,7 +30,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 | Chantier | État | Où tout est écrit — **le lire AVANT d'y toucher** |
 |---|---|---|
-| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-2 livré** (2026-09-14) — séance 1 en ligne en `statut: verifiee` (six `à-vérifier:`). Le geste suivant est **PHP-3** (séance 2), dont le terrain n'est PAS posé. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
+| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-3 livré** (2026-09-14) — séances 1 et 2 en ligne en `statut: verifiee`. Le geste suivant est **PHP-4** (séance 3), dont le terrain n'est PAS posé. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
 | Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
 | Contenu du cours de sécurité | 10 leçons en ligne ; E3-ST17 (séance 5) reste le geste suivant, **hors chemin critique** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |
@@ -38,11 +38,14 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 **Dette nommée et non corrigée**, une ligne chacune — le détail est au backlog :
 en-têtes globaux autres que la CSP vérifiés par **présence seule** · `publication` ne revérifie pas
 le sceau après `download-artifact` · 7 des 14 hachages `style-src` n'ont **aucun** énumérateur live ·
-les blocs d'en-tête HTTP des leçons 08 et 09 n'ont **aucune étiquette juste** (`http` n'est pas dans
-les huit langages) · les leçons 03, 04 et 05 portent encore des étiquettes de langage **mensongères** ·
+les blocs d'en-tête HTTP des leçons 08 et 09 sont **à réétiqueter `text`** (le remède existe depuis
+le 2026-09-14 : neuf langages, dont `text` pour les SORTIES de programme — il reste à l'appliquer) ·
+les leçons 03, 04 et 05 portent encore des étiquettes de langage **mensongères** ·
 le pipeline **ne rend pas le code en ligne dans un TITRE** ni dans un `libelle` de volet ·
 `src/format-actionnable.spec.ts:29` fixe `CORPUS` sur `securite-web` en dur, ce qui **ferme le gate
-du format actionnable au cours de PHP** (lot PHP-F).
+du format actionnable au cours de PHP** (lot PHP-F) · **G-e2e a un rouge REPRODUCTIBLE en suite
+complète et vert en isolation** — `defileurs-clavier.spec.ts:502`, lecture de géométrie non
+réessayée avant chargement des polices (détail et parade : L-057, durcissement du 2026-09-14).
 
 ## 🔵 Décisions tranchées — NE PAS LES ROUVRIR
 

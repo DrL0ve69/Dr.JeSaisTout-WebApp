@@ -1854,9 +1854,29 @@ perdu ou une attente non satisfaite. **On vérifie l'assertion et le journal, ja
 test** — « c'est le flaky connu » est le raisonnement qui tue un gate (famille [[L-005]], addendum
 « un run vert ne referme pas une panne intermittente »).
 
+**Durcissement (2026-09-14, observé sur `e2e/defileurs-clavier.spec.ts:502`). La règle ci-dessus dit
+« entre un GESTE et une lecture » — et c'est trop étroit : une lecture de MISE EN PAGE au chargement
+n'a aucun geste devant elle, et court exactement le même risque.** Mesuré : `defileursRendus()`
+(l. 230) lit `scrollWidth`/`clientWidth` par un `evaluateAll` unique, donc non réessayé ; le test
+décide ensuite « déborde » ou « tient dans sa boîte », puis assertionne. Le même défileur — « Exemple
+vulnérable n°3 — bash » — mesure **736/736 (tient)** quand le spec tourne seul, et **déborde** quand
+la suite complète tourne : la flèche droite ne peut alors rien faire défiler, et le test expire à
+30 s. La variable cachée est le **chargement des polices** : tant que la police de repli est en place,
+les largeurs ne sont pas celles du rendu final, et une machine chargée allonge cette fenêtre. Un
+échec qui n'apparaît qu'en suite complète n'est donc PAS « de l'aléatoire » — c'est une lecture
+périmée dont la fenêtre s'ouvre avec la charge. ⚠️ **Et le mode d'échec est pire que faux-négatif :
+la valeur périmée fait ENTRER dans une branche d'assertion qui ne peut pas réussir** (on exige un
+défilement d'une boîte qui, en réalité, ne déborde pas). La parade est celle de la règle, étendue :
+attendre une barrière observable de **stabilité de mise en page** (`document.fonts.ready`, ou un
+`expect.poll` sur la largeur jusqu'à deux lectures consécutives égales) avant toute lecture de
+géométrie qui décide d'une branche. **Dette ouverte : non corrigée au 2026-09-14** — constatée lors
+du lot PHP-3, dont elle est indépendante (le contenu compilé de `securite-web` a été mesuré
+**identique bit pour bit** avec et sans ce lot, 14 empreintes sur 14).
+
 **Réfs.** `e2e/parcours-clavier-simulation.spec.ts`, `e2e/simulation-mecanique.spec.ts`,
-`e2e/quiz-pre-hydratation.spec.ts` ; branche `fix/intermittence-gates-pre-e3-st1` ; [[L-033]] (réfutée
-sur cet axe), [[L-021]] (lire un style calculé sec ment), [[L-005]].
+`e2e/quiz-pre-hydratation.spec.ts`, `e2e/defileurs-clavier.spec.ts` (`defileursRendus`, l. 230) ;
+branche `fix/intermittence-gates-pre-e3-st1` ; [[L-033]] (réfutée sur cet axe), [[L-021]] (lire un
+style calculé sec ment), [[L-005]].
 
 ---
 
@@ -2466,10 +2486,31 @@ soupçonne. Un banc posé pour anticiper ce risque (`src/coloration-encres-contr
 déjà « ce que le contrat autorise » pour les **encres**) doit couvrir **toutes** les sorties du
 générateur, pas seulement celles qu'on a pensé à mesurer en premier.
 
+**Durcissement (2026-09-14, ajout de la langue `text` au pipeline).** La clause précédente se lisait
+comme une propriété du banc (« il doit couvrir toutes les sorties ») — vérifiable à la lecture, donc
+facile à croire respectée. Elle a rerompu quand même : `text` a été ajoutée à `LANGAGES`
+(`tools/content-pipeline/compiler-markdown.mjs`) sans entrer au banc, parce que l'auteur avait
+**mesuré** qu'elle n'émet aucune encre neuve (Shiki n'y applique aucune grammaire — deux encres,
+déjà couvertes par `php`) et a écrit cette mesure **dans un commentaire**, jugé suffisant. Or une
+mesure qui ne vit que dans un commentaire ne rougit jamais : si une version future de Shiki peignait
+du texte brut, la paire de contraste naîtrait dans une leçon publiée, en CI, au pire moment —
+exactement ce que le banc existe pour empêcher. **C'est précisément quand la mesure dit « ça n'ajoute
+rien » que l'entrée doit entrer au banc** : c'est cette conclusion-là qui doit pouvoir être rejouée
+et rougir le jour où elle cesse d'être vraie, pas rester la mémoire de qui l'a écrite une fois. Donc
+la clause se reformule comme un **déclencheur événementiel**, pas une propriété à vérifier après
+coup : *toute entrée ajoutée à une liste blanche couverte par un tel banc y entre dans le MÊME diff*
+— jamais « le banc couvre déjà tout », qui ne se vérifie qu'en relisant le banc entier à chaque fois.
+Aggravant du même lot, famille du chiffre recopié [[L-016]] : le commentaire affirmait aussi que
+`text` était « la seule entrée dispensée du banc », faux — six autres langues (`php`, `csharp`,
+`typescript`, `sql`, `bash`, `json`) n'y étaient pas non plus ; une affirmation d'exhaustivité écrite
+sans avoir énuméré le reste de la liste est un second défaut, pas un détail du premier.
+
 **Réfs.** `tools/design/verifier-contrastes.mjs` (`PROPRIETES_COLORATION`), publication des séances
 3 et 4 (2026-08-27), `node_modules/@shikijs/core/dist/index.mjs` (`getTokenStyleObject`, `varKey`) ;
-même faute de forme que [[S-010]] (« une promesse au singulier a une date de péremption implicite »)
-et famille « liste blanche nominative » [[S-020]].
+`tools/content-pipeline/compiler-markdown.mjs` (`LANGAGES`),
+`src/coloration-encres-contraste.spec.ts` (`LANGUES_DU_BANC`), revue du 2026-09-14 sur l'ajout de la
+langue `text` (PHP-3) ; même faute de forme que [[S-010]] (« une promesse au singulier a une date de
+péremption implicite ») et famille « liste blanche nominative » [[S-020]].
 
 ---
 

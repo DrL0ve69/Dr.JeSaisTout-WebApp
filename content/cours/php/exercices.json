@@ -77,6 +77,47 @@
           "enonce": "Crée deux fichiers CSS, l'un donnant un fond bleu, l'autre un fond vert. Sur une page HTML de base, ajoute un « switch » qui lit la valeur GET « style » : 1 charge la première feuille, 2 charge la seconde. L'appel ressemble à « localhost/ex12/index.php?style=1 »."
         }
       ]
+    },
+    {
+      "numero": 2,
+      "feuille": "Exercices du cours 2 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Afficher quatre propriétés du serveur dans un tableau HTML",
+          "enonce": "Écris une page « exercice1.php » qui construit un tableau HTML de deux colonnes, « attribut » et « valeur ». Les quatre attributs sont l'adresse du serveur, le port, le nom du serveur et le répertoire du code ; la colonne de droite affiche chaque valeur, produite par PHP."
+        },
+        {
+          "reference": "2",
+          "titre": "Saluer le nom reçu en paramètre",
+          "enonce": "Écris une page « exercice2.php » qui reçoit un nom en paramètre et l'affiche dans un titre, sous la forme « Bonjour X ». L'appel ressemble à « localhost/exercice2.php?nom=Jonathan »."
+        },
+        {
+          "reference": "3",
+          "titre": "Additionner deux paramètres de l'URL",
+          "enonce": "Écris une page « exercice3.php » qui reçoit deux paramètres numériques dans l'URL et affiche leur somme. L'appel ressemble à « localhost/exercice3.php?a=3&b=5 »."
+        },
+        {
+          "reference": "4",
+          "titre": "Afficher la plus grande de deux valeurs reçues",
+          "enonce": "Écris une page « exercice4.php » qui reçoit deux paramètres numériques dans l'URL et affiche la plus grande des deux."
+        },
+        {
+          "reference": "5",
+          "titre": "Créer, modifier et compter un tableau d'employés",
+          "enonce": "Dans une page « exercice5.php », crée un tableau « employe » contenant trois noms : « Cordonier, Marine », « Poulin, Jean » et « Rodriguez, Michel ». Retire ensuite « Poulin, Jean » et ajoute à la place « Tremblay, Lucie » et « Caron, Lucien ». Affiche enfin le nombre d'éléments du tableau."
+        },
+        {
+          "reference": "6",
+          "titre": "Une classe Etudiant, une moyenne et la liste des échecs",
+          "enonce": "Dans « exercice6.php », écris une classe « Etudiant » portant un prénom, un nom et une note, tous trois privés, avec un constructeur et des accesseurs publics. Crée trois étudiants, puis une fonction « MoyenneEtudiant » — extérieure à la classe — qui reçoit un tableau d'étudiants et retourne la moyenne des notes ; affiche cette moyenne. Ajoute une seconde fonction « AfficherEtudiantEnEchec » qui retourne le tableau des noms dont la note est inférieure à 60."
+        },
+        {
+          "reference": "7",
+          "titre": "Calculer un intérêt composé",
+          "enonce": "Dans « exercice7.php », écris une fonction « calculInteretCompose » qui reçoit un montant de base, un taux d'intérêt et un nombre d'années, puis retourne le montant obtenu en multipliant, pour chaque année, le montant courant par (1 + intérêt). Avec 1000 $ à 0,2 sur 3 ans, la suite est 1000, puis 1200, puis 1440, puis 1728."
+        }
+      ]
     }
   ]
 }

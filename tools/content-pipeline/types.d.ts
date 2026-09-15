@@ -30,6 +30,11 @@
 // `::::` pour un `comparaison` qui en imbrique d'autres.
 // =============================================================================
 
+// `text` (2026-09-14) n'est PAS une langue de programmation : c'est l'étiquette d'une SORTIE de
+// programme — `print_r`, un en-tête HTTP, une trace d'erreur. Elle vit dans ce type parce que le
+// colorateur doit la connaître, mais les schémas `quiz` et `simulation` gardent délibérément les
+// huit autres : leurs blocs sont du code par construction. Le pourquoi complet, avec la mesure
+// des encres, est dans l'en-tête de `compiler-markdown.mjs` (constante `LANGAGES`).
 type Langage =
   | 'php'
   | 'csharp'
@@ -38,7 +43,8 @@ type Langage =
   | 'html'
   | 'sql'
   | 'bash'
-  | 'json';
+  | 'json'
+  | 'text';
 type NiveauTitre = 2 | 3; // <h2>/<h3> réels — pour un sommaire imbriqué correct (E2-ST2)
 
 /**
