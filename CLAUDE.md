@@ -43,7 +43,9 @@ le 2026-09-14 : neuf langages, dont `text` pour les SORTIES de programme — il 
 les leçons 03, 04 et 05 portent encore des étiquettes de langage **mensongères** ·
 le pipeline **ne rend pas le code en ligne dans un TITRE** ni dans un `libelle` de volet ·
 `src/format-actionnable.spec.ts:29` fixe `CORPUS` sur `securite-web` en dur, ce qui **ferme le gate
-du format actionnable au cours de PHP** (lot PHP-F).
+du format actionnable au cours de PHP** (lot PHP-F) · **G-e2e a un rouge REPRODUCTIBLE en suite
+complète et vert en isolation** — `defileurs-clavier.spec.ts:502`, lecture de géométrie non
+réessayée avant chargement des polices (détail et parade : L-057, durcissement du 2026-09-14).
 
 ## 🔵 Décisions tranchées — NE PAS LES ROUVRIR
 

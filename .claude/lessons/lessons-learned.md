@@ -1854,9 +1854,29 @@ perdu ou une attente non satisfaite. **On vérifie l'assertion et le journal, ja
 test** — « c'est le flaky connu » est le raisonnement qui tue un gate (famille [[L-005]], addendum
 « un run vert ne referme pas une panne intermittente »).
 
+**Durcissement (2026-09-14, observé sur `e2e/defileurs-clavier.spec.ts:502`). La règle ci-dessus dit
+« entre un GESTE et une lecture » — et c'est trop étroit : une lecture de MISE EN PAGE au chargement
+n'a aucun geste devant elle, et court exactement le même risque.** Mesuré : `defileursRendus()`
+(l. 230) lit `scrollWidth`/`clientWidth` par un `evaluateAll` unique, donc non réessayé ; le test
+décide ensuite « déborde » ou « tient dans sa boîte », puis assertionne. Le même défileur — « Exemple
+vulnérable n°3 — bash » — mesure **736/736 (tient)** quand le spec tourne seul, et **déborde** quand
+la suite complète tourne : la flèche droite ne peut alors rien faire défiler, et le test expire à
+30 s. La variable cachée est le **chargement des polices** : tant que la police de repli est en place,
+les largeurs ne sont pas celles du rendu final, et une machine chargée allonge cette fenêtre. Un
+échec qui n'apparaît qu'en suite complète n'est donc PAS « de l'aléatoire » — c'est une lecture
+périmée dont la fenêtre s'ouvre avec la charge. ⚠️ **Et le mode d'échec est pire que faux-négatif :
+la valeur périmée fait ENTRER dans une branche d'assertion qui ne peut pas réussir** (on exige un
+défilement d'une boîte qui, en réalité, ne déborde pas). La parade est celle de la règle, étendue :
+attendre une barrière observable de **stabilité de mise en page** (`document.fonts.ready`, ou un
+`expect.poll` sur la largeur jusqu'à deux lectures consécutives égales) avant toute lecture de
+géométrie qui décide d'une branche. **Dette ouverte : non corrigée au 2026-09-14** — constatée lors
+du lot PHP-3, dont elle est indépendante (le contenu compilé de `securite-web` a été mesuré
+**identique bit pour bit** avec et sans ce lot, 14 empreintes sur 14).
+
 **Réfs.** `e2e/parcours-clavier-simulation.spec.ts`, `e2e/simulation-mecanique.spec.ts`,
-`e2e/quiz-pre-hydratation.spec.ts` ; branche `fix/intermittence-gates-pre-e3-st1` ; [[L-033]] (réfutée
-sur cet axe), [[L-021]] (lire un style calculé sec ment), [[L-005]].
+`e2e/quiz-pre-hydratation.spec.ts`, `e2e/defileurs-clavier.spec.ts` (`defileursRendus`, l. 230) ;
+branche `fix/intermittence-gates-pre-e3-st1` ; [[L-033]] (réfutée sur cet axe), [[L-021]] (lire un
+style calculé sec ment), [[L-005]].
 
 ---
 
