@@ -30,7 +30,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 | Chantier | État | Où tout est écrit — **le lire AVANT d'y toucher** |
 |---|---|---|
-| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-3 livré** (2026-09-14) — séances 1 et 2 en ligne en `statut: verifiee`. Le geste suivant est **PHP-4** (séance 3), dont le terrain n'est PAS posé. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
+| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-4 livré** (2026-09-15) — séances 1 à 3 en ligne en `statut: verifiee`. Le geste suivant est **PHP-5** (séance 4, POO), dont le terrain n'est PAS posé. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
 | Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
 | Contenu du cours de sécurité | 10 leçons en ligne ; E3-ST17 (séance 5) reste le geste suivant, **hors chemin critique** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |

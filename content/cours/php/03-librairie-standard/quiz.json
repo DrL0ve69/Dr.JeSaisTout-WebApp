@@ -1,0 +1,108 @@
+{
+  "lecon": "librairie-standard",
+  "titre": "Quiz — la librairie standard de PHP",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "trouver-la-faille",
+      "consigne": "Cette page valide une quantité reçue dans l'URL. Le client commande 0 article, ce qui est une saisie parfaitement légitime, et la page répond « Quantité invalide ». Quelle ligne produit ce bogue, et pourquoi les autres n'en sont pas la cause ?",
+      "langage": "php",
+      "code": "<?php\n$valeur = $_GET[\"quantite\"] ?? \"\";\nif (filter_var($valeur, FILTER_VALIDATE_INT)) {\n    echo \"Quantité valide\";\n} else {\n    echo \"Quantité invalide\";\n}",
+      "ligneFautive": 3,
+      "faille": "Confusion entre la valeur filtrée et un booléen : une entrée valide qui vaut 0 est rejetée",
+      "explication": "La diapositive 53 annonce que filter_var() « retournera une valeur booléenne » : c'est faux, et l'écart se paie ici. filter_var() retourne la VALEUR FILTRÉE — un entier, un nombre à virgule, une chaîne — ou false si la validation échoue. Avec ?quantite=0, la validation RÉUSSIT et rend l'entier 0. Or 0 est une valeur que PHP considère comme fausse dans un if : la ligne 3 confond donc « la validation a échoué » avec « la validation a réussi et a rendu zéro », et part dans le else. Aucune erreur n'est levée, le bogue est parfaitement silencieux — c'est ce qui le rend coûteux. Le remède tient en trois signes : ranger le résultat dans une variable, puis tester !== false, l'opérateur strict qui compare la valeur ET le type. 0 !== false est vrai, donc l'entrée passe ; seule la valeur false elle-même est rejetée. Les autres lignes sont hors de cause. La ligne 2 est correcte : l'opérateur ?? fournit un repli quand le paramètre est absent, ce qui évite le Warning: Undefined array key de PHP 8 — et la chaîne vide qu'il donne alors est bien refusée par le filtre, ce qui est le comportement voulu. Les lignes 4 et 6 ne font qu'afficher un texte littéral : elles ne décident de rien. Le même piège existe pour toute valeur dite falsy — 0, 0.0, la chaîne vide. À l'examen, écris le moule du cours, c'est lui qui est enseigné et attendu ; en production, écris !== false.",
+      "correction": "<?php\n$valeur = $_GET[\"quantite\"] ?? \"\";\n$entier = filter_var($valeur, FILTER_VALIDATE_INT);\nif ($entier !== false) {\n    echo \"Quantité valide : $entier\";\n} else {\n    echo \"Quantité invalide\";\n}",
+      "ficheSource": "web/php/php-librairie-standard.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "La fonction log_message() de la diapositive 47 commence par error_reporting(E_ERROR | E_PARSE); puis écrit $message .= \"[\" . date(\"Y-m-d H:i:s\") . \"] $msg\"; alors que $message n'a encore jamais reçu de valeur dans la fonction. Que se passe-t-il exactement au premier appel ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Rien de particulier : .= sur une variable neuve est la façon normale d'initialiser une chaîne en PHP, exactement comme = l'aurait fait."
+        },
+        {
+          "id": "b",
+          "texte": "PHP lève une erreur fatale sur la variable indéfinie : la fonction s'arrête et le journal reste vide."
+        },
+        {
+          "id": "c",
+          "texte": "PHP 8 émet Warning: Undefined variable $message puis convertit le null en chaîne vide ; la ligne écrite dans le journal est donc la bonne, et l'avertissement est masqué par l'error_reporting de la ligne du dessus."
+        },
+        {
+          "id": "d",
+          "texte": "La ligne du journal sort vide, parce que .= sur une variable inexistante écrase le texte concaténé."
+        }
+      ],
+      "bonneReponse": "c",
+      "explication": "L'opérateur .= veut dire « ajoute à la fin de ce qu'il y a déjà ». Sur une variable qui n'a jamais reçu de valeur, il n'y a rien à quoi ajouter : PHP 8 signale Warning: Undefined variable $message, convertit le null en chaîne vide, puis concatène. Le texte écrit dans le journal est donc bien celui qu'on attend — c'est précisément pour cela que le code « marche » en classe — mais l'avertissement est là, et il est invisible : error_reporting(E_ERROR | E_PARSE) demande à PHP de n'afficher que les erreurs fatales et les erreurs d'analyse. Le code masque son propre défaut, et c'est cela le vrai enseignement : ce n'est pas le bogue qui est grave, c'est la ligne qui l'étouffe. La réponse a est le réflexe le plus répandu, et il est faux : = et .= ne sont pas interchangeables sur un nom neuf, même si le résultat visible est identique ; le remède tient d'ailleurs en un caractère, écrire $message = au lieu de $message .=. La réponse b confond avertissement et erreur fatale : un Warning n'interrompt rien, l'exécution continue — c'est ce qui rend ce défaut discret. La réponse d invente un comportement qui n'existe pas : rien n'est écrasé, la concaténation se fait sur une chaîne vide. Retiens aussi le dégât collatéral : error_reporting() agit sur TOUT le script, pas seulement sur la fonction où il est appelé, donc le reste de la page hérite du réglage.",
+      "ficheSource": "web/php/php-fichiers-journalisation.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "password_verify($tentative, $hash) retrouve le mot de passe d'origine à partir du hash, puis le compare à la saisie : c'est pour cela qu'elle n'a besoin de rien d'autre que ces deux valeurs.",
+      "bonneReponse": false,
+      "justification": "Faux, et la raison est celle qui donne son titre à toute la section : hacher n'est pas chiffrer. Un chiffrement se défait avec une clé ; un hachage ne se défait pas — le cours le dit lui-même en écrivant « irréversible », deux lignes avant d'employer le mot « encryption ». password_verify() ne déchiffre donc rien du tout : elle lit l'algorithme, le coût et le sel directement dans la chaîne du hash — $2y$ pour bcrypt, $10$ pour le facteur de coût, les 22 caractères suivants pour le sel — REHACHE la tentative avec exactement ces mêmes paramètres, et compare les deux empreintes. C'est bien pour cette raison qu'elle n'a besoin que du mot de passe tenté et du hash : le sel et le coût voyagent à l'intérieur de l'empreinte, ils ne sont pas rangés ailleurs. Deux conséquences pratiques. D'abord, deux appels de password_hash() sur le même mot de passe donnent deux chaînes différentes, puisque le sel est tiré au hasard à chaque fois, et pourtant toutes deux valides : c'est password_verify() qui tranche, jamais == ni ===. Ensuite, si le hash ne pouvait pas se défaire, c'est aussi le cas de md5() et sha1() — leur défaut n'est pas d'être réversibles, c'est d'être RAPIDES : une carte graphique grand public teste des milliards d'empreintes MD5 par seconde, et les tables arc-en-ciel couvrent l'essentiel des mots de passe courants. Règle d'arbitrage : à l'examen, donne la réponse du cours, qui autorise md5 et sha1 pour prototyper ; dans ton code, écris password_hash($mdp, PASSWORD_DEFAULT) dès la première ligne, puisqu'elle n'est pas plus longue à écrire.",
+      "ficheSource": "web/php/php-librairie-standard.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associe chaque appel de la séance 3 à ce qu'il produit exactement.",
+      "paires": [
+        {
+          "gauche": "fopen(\"journal.log\", \"a\")",
+          "droite": "Ouvre le fichier et se place à sa fin : chaque écriture s'ajoute à la suite, rien n'est perdu"
+        },
+        {
+          "gauche": "fopen(\"journal.log\", \"w\")",
+          "droite": "Ouvre le fichier au début et efface tout son contenu existant"
+        },
+        {
+          "gauche": "parse_ini_file(\"config.ini\")",
+          "droite": "Retourne un tableau associatif des réglages lus, ou false si le fichier est absent ou mal formé"
+        },
+        {
+          "gauche": "explode(\" \", \"Je suis un étudiant\")",
+          "droite": "Retourne un tableau de quatre chaînes ; le séparateur sert de ciseau et ne figure pas dans le résultat"
+        },
+        {
+          "gauche": "htmlspecialchars($texte, ENT_QUOTES, \"UTF-8\")",
+          "droite": "Retourne le texte dont les caractères à sens HTML sont devenus des entités : le navigateur l'affiche au lieu de l'interpréter"
+        }
+      ],
+      "explication": "Les deux premières lignes sont la paire à ne jamais confondre : c'est la LETTRE du mode qui décide, et pas une option ajoutée ailleurs. Le mode a (pour append) est celui de la journalisation — exécute trois fois la même page, tu obtiens trois lignes horodatées dans l'ordre. Le mode w écrit lui aussi, mais il repart du début : le même essai ne laisse plus qu'une seule ligne dans le fichier, et c'est la faute de frappe qui détruit un journal entier. parse_ini_file() ne retourne ni du texte ni un booléen mais un tableau ASSOCIATIF, dont les clés sont les noms de propriétés du fichier — $config[\"server\"] donne localhost ; son retour false quand le fichier manque est ce qu'il faut tester avant d'employer le tableau, sous peine d'un message incompréhensible trois lignes plus loin. explode() non plus ne retourne pas du texte : c'est un TABLEAU, donc count() vaut 4 et un foreach le parcourt ; sa fonction inverse est implode(). htmlspecialchars(), enfin, ne supprime rien et ne nettoie rien : elle change le STATUT du texte, de « consigne possible » à « texte à montrer », en remplaçant < par &lt;, > par &gt;, & par &amp; et les guillemets par leur entité. Le piège classique est de la ranger avec les fonctions de hachage parce que le cours les présente dans la même famille « sécurité » : hacher protège un mot de passe si la base est volée, échapper protège la page contre un texte qui essaie de s'exécuter. Ce sont deux gestes distincts, et aucun ne remplace l'autre.",
+      "ficheSource": "web/php/php-fichiers-journalisation.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Le corrigé de l'exercice 6 dépose exercice6.ini, qui contient un mot de passe, à côté de exercice6.php dans le dossier servi par Apache. Un visiteur demande directement l'adresse localhost/exercice6.ini dans sa barre d'adresse. Que reçoit-il ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Une erreur 403 : Apache n'autorise par défaut que les fichiers .php et .html, les autres extensions sont refusées."
+        },
+        {
+          "id": "b",
+          "texte": "Le contenu du fichier en texte brut, mot de passe compris : Apache ne connaît que les extensions qu'il sait confier à un interpréteur, et il sert le reste tel quel."
+        },
+        {
+          "id": "c",
+          "texte": "Une page vide : PHP interprète le fichier .ini comme il le fait d'un .php, et un fichier sans balise <?php ne produit aucune sortie."
+        },
+        {
+          "id": "d",
+          "texte": "Rien : tant qu'une page PHP lit le fichier avec parse_ini_file(), celui-ci est verrouillé et le serveur ne peut pas le transmettre."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Le fait tient en une phrase : Apache ne sait pas ce qu'est un fichier .ini. Il connaît .php, qu'il confie à PHP pour exécution et dont il ne renvoie que le RÉSULTAT — le code source reste sur le serveur. Tout le reste, il le sert tel quel, comme il servirait une image ou un fichier texte. Le .ini part donc en clair vers le navigateur, avec ce qu'il contient, et la même chose vaut pour journal.log, qui porte des noms d'utilisateurs, des messages d'erreur et parfois des chemins internes. La réponse a invente une liste blanche d'extensions qui n'existe pas : c'est l'inverse du fonctionnement réel, où un gestionnaire est associé à quelques extensions et où l'absence de gestionnaire signifie « envoie le fichier », pas « refuse ». La réponse c inverse le rôle de PHP, qui ne voit jamais passer ce fichier. La réponse d confond la lecture applicative et le service HTTP : ce sont deux chemins indépendants, et parse_ini_file() ne protège rien. Mesure maintenant la portée de ce constat, et rien de plus : sur un poste de laboratoire du Cégep, localhost n'est servi à personne d'autre, et un mot de passe imprimé dans une capture de cours est public depuis longtemps. Le problème n'est pas ce fichier-là sur ce poste-là, c'est le GESTE, parce que c'est lui qu'on emporte — la même disposition sur un hébergement réel est une des fuites les plus banales du web. Les deux parades, dans l'ordre : sortir le fichier du dossier servi et le désigner par parse_ini_file(__DIR__ . \"/../config/config.ini\"), puis, seulement si c'est impossible, demander au serveur de refuser l'extension par une règle de configuration d'Apache.",
+      "ficheSource": "web/php/php-fichiers-journalisation.md"
+    }
+  ]
+}

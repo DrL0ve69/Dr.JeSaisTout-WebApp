@@ -160,8 +160,8 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-A2** | Grammaire d'auteur pour D-PHP-1, **format A** — admettre `:::: methodes` **dans** une étape de marche à suivre, pour une démarche qui diverge vraiment | ⬜ **pas ouvert** |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ✅ **2026-09-14** — `statut: verifiee`, six `à-vérifier:` |
 | **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ⬜ **nommé le 2026-09-13** |
-| **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ⬜ |
-| **PHP-4** | Séance 3 — Librairie standard | ⬜ |
+| **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ✅ **2026-09-14** — `statut: verifiee`, cinq `à-vérifier:` |
+| **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ⬜ |
 | **PHP-6** | Séance 5 — Intégration de base de données | ⬜ |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
@@ -652,3 +652,79 @@ de découverte des specs e2e peut glisser vers une page PHP (§7).
 
 💡 **Dette désormais outillée** : les blocs d'en-tête HTTP des leçons 08 et 09 de sécurité ont un
 remède (`text`) ; il reste à l'appliquer. Idem pour les étiquettes mensongères des leçons 03-05.
+
+---
+
+### ✅ CLÔTURE — PHP-4 « séance 3, La librairie standard » (2026-09-15)
+
+**Livré** : `content/cours/php/03-librairie-standard/` — `lecon.md` (**1758 lignes**, 29 titres :
+quinze `##` et quatorze `###`, concordant avec `docs/contenu/renvois-diapos-php-03.md`) et
+`quiz.json` (5 questions, **quatre** types — `trouver-la-faille`, `choix-multiple`, `vrai-faux`,
+`associer` — chacune avec son explication et sa `ficheSource`). Les **9 exercices** de la séance 3
+sont au registre et **tous les 9** cités au fil du texte.
+
+**La cartographie est mesurée dans les DEUX sens** : 53 diapositives citées sur 74, 21 orphelines
+(couverture, titres de section, transitions, un doublon de lien, « Questions? »). Aucun trou de
+leçon. ⚠️ **Seize diapositives portent leur matière en capture d'écran** que l'extracteur ne lit
+pas — leur renvoi est juste, mais le code qu'elles montrent n'est pas connu du dépôt ; la table le
+dit nommément plutôt que de le deviner.
+
+#### La passe adversariale, et ce qu'elle a rapporté
+
+Deux `verificateur-theorie` indépendants, **un par moitié** (1-762 et 763-1681), parce que 1680
+lignes plus la vérification en ligne ne tiennent pas dans un seul budget. **108k et 109k tokens,
+16 appels d'outils chacun** — la découpe par volume de source a tenu exactement.
+
+**26 constats, tous traités** : **5 INEXACT bloquants**, 17 à nuancer, 2 marqueurs manquants,
+1 marqueur retirable. Les cinq inexactitudes, parce qu'elles disent quelque chose du mode d'échec :
+
+1. **`date("\i\t \i\s")` n'imprime pas « it is ».** En guillemets **doubles**, PHP traite `\t`
+   comme une tabulation *avant* que `date()` ne voie la chaîne. Le manuel écrit l'exemple en
+   guillemets simples. Introduite par la leçon.
+2. **Et `date("it is")` n'imprime pas « le jour ISO et le fuseau »** mais les minutes, le nombre de
+   jours du mois, les minutes et les secondes — ce que **le tableau de la leçon elle-même**, seize
+   lignes plus haut, disait correctement. Une leçon peut se contredire à distance.
+3. **`substr("été", 0, 2)` ne rend pas un demi-caractère** : `é` = `0xC3 0xA9`, donc les deux octets
+   demandés forment **exactement** ce caractère. Le demi-caractère naît d'une coupe **impaire**.
+   🔴 **Héritée de la KnowledgeBase** — fiche corrigée et **poussée** (`22eeaa3`).
+4. **`ENT_QUOTES` seul ne reproduit pas le défaut de PHP 8.1, il en RETIRE `ENT_SUBSTITUTE`.** Sur
+   une entrée UTF-8 invalide, `htmlspecialchars` rend alors une **chaîne vide** au lieu du caractère
+   de remplacement. La fiche KB écrivait déjà le bon jeu : **la leçon avait dégradé sa source.**
+5. **Le journal de l'« Exemple complet » montrait 3 lignes pour 3 visites ; il en naît 5.** Le
+   `log_message("Affichage de …")` est **hors** du `if`, donc il s'exécute à chaque passage, et une
+   visite sans paramètre est elle aussi refusée (`?? ""` échoue au filtre). Corrigé en gardant le
+   comptage **comme point d'enseignement**, pas en maquillant la sortie.
+
+#### 🔴 La leçon de méthode — un marqueur `à-vérifier:` posé à TORT n'est pas neutre
+
+Le cinquième marqueur du module portait sur `FILTER_VALIDATE_URL` et disait « à trancher par
+exécution sur la version de PHP de WAMP ». **C'était une erreur de diagnostic, pas une prudence.**
+La règle ne vit pas sur le poste : elle est dans `php_filter_validate_url`
+(`ext/filter/logical_filters.c`), **identique de la branche 8.0 à aujourd'hui**, et elle se lit sans
+rien exécuter. Le filtre **n'a aucune liste de schémas** — il refuse ce qui n'a ni schéma, ni hôte
+(hors `mailto`/`news`/`file`). Marqueur **levé**, et la leçon dit désormais la règle au lieu de
+promettre une mesure.
+
+**Ce que ça coûte quand on se trompe dans ce sens** : un marqueur promet une vérification que
+personne ne fera jamais, et il maintient un module hors publication sans raison. Le réflexe à
+prendre avant d'en poser un : *où vit réellement la règle ?* Si la réponse est « dans le code source
+de PHP » ou « dans une spécification », ce n'est pas un marqueur, c'est une lecture à faire.
+
+#### Gates
+
+G-content **13 leçons / 2 racines** (30 exercices PHP sur 3 séances) · G-lint · G-test **1203 passés
+/ 1 sauté** (48 fichiers) · G-typage-outils · G-build **14 hachages `style-src`, 0 de script —
+inchangés** · G-axe **0 violation** (14 pages). G-e2e laissé à la CI : le module n'est pas publié,
+donc aucun spec e2e ne le mesure, et la suite complète porte le rouge reproductible connu
+(`defileurs-clavier.spec.ts:502`, L-057).
+
+#### Le geste suivant
+
+**PHP-5** (séance 4, programmation orientée objet), dont le terrain n'est **pas** posé — ni
+cartographie de renvois, ni relevé d'exercices vérifié à la source d'autorité. Les deux se font
+**avant** d'écrire, par le fil principal, et **le compte des titres s'écrit dans la table au moment
+où on la bâtit** (le piège de PHP-3, qui avait sous-estimé le volume de sortie de moitié).
+
+⏰ **Rappel inchangé** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts`,
+`src/format-actionnable.spec.ts` (borné à `securite-web`, lot **PHP-F**) et `MODULES_PUBLIES`
+mordent — et l'ordre de découverte des specs e2e peut glisser vers une page PHP (§7).

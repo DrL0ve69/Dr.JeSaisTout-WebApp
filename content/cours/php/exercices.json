@@ -118,6 +118,57 @@
           "enonce": "Dans « exercice7.php », écris une fonction « calculInteretCompose » qui reçoit un montant de base, un taux d'intérêt et un nombre d'années, puis retourne le montant obtenu en multipliant, pour chaque année, le montant courant par (1 + intérêt). Avec 1000 $ à 0,2 sur 3 ans, la suite est 1000, puis 1200, puis 1440, puis 1728."
         }
       ]
+    },
+    {
+      "numero": 3,
+      "feuille": "Exercices du cours 3 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Afficher la date et l'heure courantes",
+          "enonce": "Affiche la date et l'heure du moment en respectant le format de date-heure standard de MySQL — année-mois-jour, puis heures:minutes:secondes."
+        },
+        {
+          "reference": "2",
+          "titre": "Compter les mots d'une phrase",
+          "enonce": "Écris une fonction « compterMot() » qui reçoit une chaîne de caractères et retourne le nombre de mots qu'elle contient. Considère que les mots sont séparés par des espaces uniquement : « J'aime l'été » compte donc 2 mots."
+        },
+        {
+          "reference": "3",
+          "titre": "Générer puis vérifier un mot de passe haché",
+          "enonce": "Crée deux pages, « exercice03_generer_mdp.php » et « exercice03_valider_mdp.php ». La première reçoit un paramètre d'URL nommé « mot_de_passe » et affiche, dans un encadré noir, la version hachée de ce mot de passe — obtenue avec la constante « PASSWORD_DEFAULT », qui applique l'algorithme le plus récent et un sel aléatoire. La seconde reçoit deux paramètres, « mot_de_passe » et « hash », et affiche « Le mot de passe est valide » ou « Le mot de passe est invalide » selon que la combinaison concorde ou non."
+        },
+        {
+          "reference": "4",
+          "titre": "Afficher une balise sans l'exécuter",
+          "enonce": "Crée une page qui affiche à l'écran, tel quel, le message suivant : « Pour ajouter du JavaScript, il faut utiliser la balise <script> »."
+        },
+        {
+          "reference": "5",
+          "titre": "Journaliser un message choisi par l'URL",
+          "enonce": "Crée une page PHP qui reçoit un paramètre d'URL nommé « valeur », pouvant valoir 1, 2 ou 3 ; toute autre valeur affiche un message d'erreur à l'utilisateur. Pour une valeur admise, écris dans un fichier texte « journal.log » un message horodaté (date et heure comprises) : 1 pour « La connexion au réseau est impossible », 2 pour « Le compte est désactivé », 3 pour « La connexion à la base de données a échoué »."
+        },
+        {
+          "reference": "6",
+          "titre": "Lire un fichier de configuration",
+          "enonce": "Crée un fichier de configuration « exercice6.ini » portant les paramètres serveur=localhost, utilisateur=admin, mot_de_passe=qwerty123 et base_de_donnees=cours_php. Crée ensuite une page PHP qui affiche les valeurs de ce fichier sous forme de tableau."
+        },
+        {
+          "reference": "7",
+          "titre": "Valider une adresse courriel",
+          "enonce": "Crée une page PHP qui reçoit une adresse courriel en paramètre d'URL. La page affiche si l'adresse est valide — correctement formée pour une adresse courriel, pas nécessairement existante — ou si elle ne l'est pas."
+        },
+        {
+          "reference": "8",
+          "titre": "Importer un module de journalisation",
+          "enonce": "Crée un fichier « journalisation.inc » qui implémente la fonction de journalisation vue dans le cours. Importe-le depuis un fichier « exercice11.php » — c'est le nom que donne la feuille — qui lit le paramètre d'URL nommé « nombre » : si le nombre est pair, journalise « Le nombre X est un nombre paire » (X étant le nombre reçu) ; s'il est impair, journalise « Le nombre X est un nombre impaire ». Fais quelques essais, par exemple avec 11, 15, 20, 13 et 18."
+        },
+        {
+          "reference": "9",
+          "titre": "Trier des numéros de téléphone avec des expressions régulières",
+          "enonce": "Crée un tableau contenant les numéros (819) 643-5432, (819) 230-2341, (819) 669-1234, (514) 669-9819, (450) 230-8194 x123 et (450) 669-1234. 9.1 — écris une fonction « compter_819($tab) » qui retourne le nombre de numéros dont l'indicatif régional, les trois chiffres entre parenthèses, est 819. 9.2 — écris une fonction « retourner_450($tab) » qui retourne un tableau contenant uniquement les numéros du 450. 9.3 — écris une fonction « retourner_telephone_invalide($tab) » qui retourne les numéros ne respectant pas exactement le format « (XXX) XXX-XXXX », où chaque X est un chiffre ; la feuille annonce un seul résultat, le numéro qui porte une extension."
+        }
+      ]
     }
   ]
 }
