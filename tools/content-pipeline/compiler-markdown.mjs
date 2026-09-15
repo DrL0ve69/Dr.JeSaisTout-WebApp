@@ -129,7 +129,7 @@ const RACINE_PAR_DEFAUT = 'content/cours/securite-web';
 const FEUILLE_COLORATION_PAR_DEFAUT = 'src/styles/_coloration-syntaxique-generee.scss';
 
 /**
- * Les HUIT langues du contrat (`type Langage` de `types.d.ts`) — liste FERMÉE.
+ * Les NEUF langues du contrat (`type Langage` de `types.d.ts`) — liste FERMÉE.
  *
  * ⚠️ `javascript` et `html` sont entrés le 2026-08-24, et la raison est pédagogique : un cours de
  * sécurité WEB montre des charges HTML, des puits DOM et des en-têtes HTTP. Tant que la liste
@@ -146,12 +146,35 @@ const FEUILLE_COLORATION_PAR_DEFAUT = 'src/styles/_coloration-syntaxique-generee
  * et de CSS pour le contenu de `<script>` et `<style>`. On MESURE, on ne suppose pas —
  * `src/coloration-encres-contraste.spec.ts` est le garde-fou exécutable de cette mesure.
  *
+ * ⚠️ `text` est entré le 2026-09-14, et c'est la SEULE entrée qui échappe au paragraphe
+ * ci-dessus — parce qu'elle n'apporte aucune grammaire. Shiki traite `text` en texte brut : la
+ * MESURE donne DEUX encres, `#24292e` (clair) et `#e1e4e8` (sombre), qui sont déjà celles de
+ * `php` ; zéro portée neuve, donc zéro encre neuve, donc zéro paire de contraste à mesurer.
+ * Ce qu'elle règle est le problème de 2026-08-24 sous une autre forme : une SORTIE DE PROGRAMME
+ * (`print_r`, un en-tête HTTP, une trace) n'est d'AUCUNE des huit langues, et l'étiqueter `bash`
+ * pour contenter le validateur remet exactement la langue fausse dans le `<figcaption>` visible
+ * et dans l'`aria-label`. 🔴 `text` est donc réservé à ce qui n'est PAS du code : du code qui a
+ * une langue s'étiquette de SA langue, et `text` n'est pas une échappatoire pour une neuvième
+ * grammaire qu'on ne veut pas mesurer. Corollaire assumé : les schémas `quiz` et `simulation`
+ * gardent les HUIT — leurs blocs sont du code par construction (`trouver-la-faille`,
+ * `PanneauSimulation`), et on n'élargit pas une liste blanche au-delà du besoin mesuré.
+ *
  * Deux formes du même ensemble, et c'est délibéré : la LISTE est typée `Langage[]` (elle alimente
  * Shiki, qui exige des noms de grammaires connus), l'ENSEMBLE est typé sur `string` (il teste une
  * langue lue dans un fichier, donc encore inconnue). Un `Set<Langage>.has(string)` ne compile pas.
  */
 /** @type {readonly Langage[]} */
-const LANGAGES = ['php', 'csharp', 'typescript', 'javascript', 'html', 'sql', 'bash', 'json'];
+const LANGAGES = [
+  'php',
+  'csharp',
+  'typescript',
+  'javascript',
+  'html',
+  'sql',
+  'bash',
+  'json',
+  'text',
+];
 /** @type {ReadonlySet<string>} */
 const NOMS_LANGAGES = new Set(LANGAGES);
 

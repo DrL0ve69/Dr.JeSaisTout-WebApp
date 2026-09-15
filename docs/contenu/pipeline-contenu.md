@@ -205,11 +205,18 @@ Ce qu'il faut savoir pour écrire un volet :
 - **`::::` pour la comparaison, `:::` pour chaque volet.** Un conteneur qui en imbrique un autre
   prend un deux-points de plus. Les volets vont par paires `vulnerable` → `corrige`, dans cet
   ordre ; une comparaison peut en enchaîner plusieurs (deux langages, deux failles distinctes).
-- **Exactement une clôture de code par volet**, et son langage est un des HUIT du contrat
-  (`php`, `csharp`, `typescript`, `javascript`, `html`, `sql`, `bash`, `json`).
+- **Exactement une clôture de code par volet**, et son langage est un des NEUF du contrat
+  (`php`, `csharp`, `typescript`, `javascript`, `html`, `sql`, `bash`, `json`, `text`).
   ⚠️ **N'étiquette jamais un bloc avec une langue qu'il ne contient pas** pour contourner la liste :
   `rendu-blocs` recopie cette étiquette à la fois dans le `<figcaption>` VISIBLE et dans
   l'`aria-label` du défileur — le lecteur voit, et le lecteur d'écran entend, une langue fausse.
+  🔴 **`text` (2026-09-14) n'étiquette PAS du code : elle étiquette une SORTIE de programme** — ce
+  qu'affiche un `print_r`, un en-tête HTTP, une trace d'erreur. C'est la parade à ce que l'avis
+  ci-dessus interdit : une sortie n'est d'aucune des huit autres langues, et l'étiqueter `bash`
+  pour contenter le validateur remet exactement la langue fausse dans le `<figcaption>`. Elle n'est
+  **pas** une échappatoire pour une grammaire absente de la liste — du code qui a une langue
+  s'étiquette de SA langue. Dans un volet `vulnerable`/`corrige`, elle n'a aucun sens : ces volets
+  comparent **du code**.
   `javascript` et `html` sont entrés le 2026-08-24 précisément pour supprimer ce contournement.
 - **Un volet n'admet que sa clôture de code et des paragraphes** — dans cet ordre : la clôture
   d'abord, les paragraphes d'annotation après. Un item de liste, une citation ou un titre glissé
@@ -378,7 +385,7 @@ clause doit mordre, elle se juge **sur l'AST compilé**, jamais par un balayage 
 ````
 
 **Ce qu'une étape admet, et rien d'autre** : une phrase **impérative**, puis **au plus un** bloc de
-code clôturé (langage pris dans les huit du contrat). Sa **tête** — écrite **littéralement au début
+code clôturé (langage pris dans les neuf du contrat). Sa **tête** — écrite **littéralement au début
 de l'item**, même position imposée que `{lignes="…"}` sur une annotation — porte **au plus deux**
 blocs d'attributs, `{voir="…"}` et `{voie="…"}`, **chacun au plus une fois**, dans l'ordre que
 l'auteur veut. Un item sans phrase, un deuxième bloc de code, un titre ou une liste imbriquée sont

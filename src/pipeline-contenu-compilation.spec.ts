@@ -67,6 +67,12 @@ interface BlocQuelconque {
   type: string;
   html?: string;
   htmlColore?: string;
+  /**
+   * L'étiquette d'un bloc `code` — lue en forme LARGE (`string`) et non en union fermée, comme
+   * tout le reste de ce fichier : y recopier les neuf valeurs de `Langage` ferait passer pour
+   * VÉRIFIÉ ce que ce spec doit constater à l'exécution (L-012).
+   */
+  langage?: string;
   blocs?: BlocQuelconque[];
   /** `marche-a-suivre` (décision D-A) — lu en forme LARGE, comme tout le reste de ce fichier. */
   titre?: string;
@@ -733,9 +739,12 @@ describe('pipeline de contenu — compilation Markdown', () => {
     it(
       'refuse un bloc de code dont la langue est hors du contrat',
       () => {
-        // Écrit à la volée : le contrat `Langage` est une liste fermée de HUIT valeurs (`javascript`
-        // et `html` y sont entrés le 2026-08-24), et une leçon
-        // qui en emploie une septième ne serait pas colorée — E2-ST4 ne saurait pas la rendre.
+        // Écrit à la volée : le contrat `Langage` est une liste fermée de NEUF valeurs
+        // (`javascript` et `html` y sont entrés le 2026-08-24, `text` le 2026-09-14), et une leçon
+        // qui en emploie une dixième ne serait pas colorée — E2-ST4 ne saurait pas la rendre.
+        // ⚠️ Le refus mesuré ici est celui de la LISTE BLANCHE (`NOMS_LANGAGES`), qui tranche AVANT
+        // tout appel à Shiki — le colorateur n'est chargé que des langues du contrat. Une langue
+        // hors liste ne descend donc jamais jusqu'à la grammaire, qu'elle existe ou non.
         // ⚠️ LE `quiz.json` EST RECOPIÉ, et ce n'est pas décoratif : depuis E2-ST3 il est
         // OBLIGATOIRE. Sans lui, ce cas rougirait toujours — mais sur l'absence du quiz, donc
         // en cessant de mesurer ce qu'il prétend mesurer (cousin de L-010 : une mutation doit
@@ -1758,6 +1767,94 @@ describe('la résolution inter-cours d’un renvoi de section (§3bis, lot 1b)',
       cours: '420-4P2-HU',
     });
   }, DELAI);
+});
+
+// =============================================================================
+// LA LANGUE `text` — entrée au contrat le 2026-09-14 (leçon PHP de la séance 2)
+// -----------------------------------------------------------------------------
+// CE QUE CE BLOC EXISTE POUR CONSTATER. Le groupe `fail-closed` ci-dessus mesure le REFUS d'une
+// langue hors contrat ; il resterait vert si `text` disparaissait de `LANGAGES`. Or `text` est une
+// PERMISSION, et une permission sans contrôle positif n'est pas épinglée : la seule chose qui
+// rougirait aujourd'hui serait la compilation d'une leçon de contenu, c'est-à-dire un fichier
+// qu'un auteur peut réécrire demain. Les deux moitiés sont donc ici, sur une leçon ad hoc.
+//
+// ⚠️ POURQUOI `text` N'EST PAS UNE NEUVIÈME GRAMMAIRE. Elle étiquette ce qui n'est PAS du code —
+// une SORTIE de programme (`print_r`, un en-tête HTTP, une trace). Shiki n'y applique aucune
+// grammaire : mesuré le 2026-09-14, deux encres seulement, `#24292e` et `#e1e4e8`, déjà produites
+// par `php`. Zéro portée neuve, donc zéro paire de contraste neuve — c'est ce qui la dispense du
+// banc de `src/coloration-encres-contraste.spec.ts`, et la SEULE entrée qui en soit dispensée.
+// =============================================================================
+describe('la langue « text » — une SORTIE de programme, pas du code', () => {
+  // SON PROPRE BAC À SABLE, même raison que les blocs voisins : celui du bloc précédent a déjà
+  // été supprimé par son `afterAll` quand ce `describe` démarre.
+  beforeAll(() => {
+    bacASable = mkdtempSync(join(tmpdir(), 'drjst-langue-text-'));
+  });
+
+  afterAll(() => {
+    rmSync(bacASable, { recursive: true, force: true });
+  });
+
+  /** La sortie d'un `print_r` — le cas réel qui a fait entrer la langue au contrat. */
+  const SORTIE = 'Array ( [prenom] => Marine [nom] => Cordonier [note] => 87 )';
+
+  /**
+   * Une leçon MINIMALE qui compile, portant pour tout code un seul bloc `text`.
+   *
+   * ⚠️ L'ancre `[[quiz]]` est OBLIGATOIRE et ce n'est pas décoratif : le quiz l'est depuis E2-ST3,
+   * et sans elle ces deux cas rougiraient sur l'ancre manquante — donc en cessant de mesurer ce
+   * qu'ils prétendent mesurer. C'est le cousin exact de la note du cas `brainfuck` ci-dessus.
+   */
+  function racineAUnSeulBlocText(nom: string): string {
+    const source = readFileSync(join(FIXTURE_TEMOIN, '01-temoin', 'lecon.md'), 'utf8');
+    const frontmatter = source.slice(0, source.indexOf('---', 4) + 4);
+    return leconAdHoc(
+      nom,
+      () =>
+        `${frontmatter}\n# Titre\n\n## Une section\n\n\`\`\`text\n${SORTIE}\n\`\`\`\n\n[[quiz]]\n`,
+    );
+  }
+
+  it(
+    'ACCEPTE un bloc « text » et lui garde son étiquette, sans la traduire en une autre langue',
+    () => {
+      const racine = racineAUnSeulBlocText('langue-text');
+      const { lecons } = compiler(racine, join(bacASable, 'langue-text.scss'));
+      const premiere = lecons[0];
+      if (premiere === undefined) throw new Error('aucune leçon compilée depuis la racine ad hoc');
+
+      const codes = tousLesBlocs(premiere.sections).filter((bloc) => bloc.type === 'code');
+      // Contrôle positif (L-019) : sans bloc de code, tout ce qui suit serait vrai de rien.
+      expect(codes).toHaveLength(1);
+      // L'étiquette est recopiée dans le `<figcaption>` VISIBLE et dans l'`aria-label` du
+      // défileur : c'est précisément ce que le contournement par `bash` rendait faux.
+      expect(codes[0]?.langage).toBe('text');
+    },
+    DELAI,
+  );
+
+  it(
+    'garde le TEXTE de la sortie intact — une sortie tronquée ne s’enseigne pas',
+    () => {
+      const racine = racineAUnSeulBlocText('langue-text-conservation');
+      const { lecons } = compiler(racine, join(bacASable, 'langue-text-conservation.scss'));
+      const premiere = lecons[0];
+      if (premiere === undefined) throw new Error('aucune leçon compilée depuis la racine ad hoc');
+
+      // ⚠️ LE BLOC DU CORPS, PAS `htmlColores` : ce helper ramasse AUSSI le code de chaque question
+      // `trouver-la-faille` du quiz témoin — deux fragments, dont un qui n'est pas de ce test.
+      const codes = tousLesBlocs(premiere.sections).filter((bloc) => bloc.type === 'code');
+      expect(codes).toHaveLength(1);
+
+      // ON ANALYSE, ON NE CHERCHE PAS DE MOTIF (patron S-003/S-014) : la chaîne colorée contient
+      // le texte de l'auteur, donc un `toContain` sur la sortie s'apparierait aussi bien à une
+      // phrase de la leçon. On relit le TEXTE du DOM rendu, balises retirées.
+      const porteur = document.createElement('div');
+      porteur.innerHTML = codes[0]?.htmlColore ?? '';
+      expect(porteur.querySelector('pre.shiki')?.textContent?.trim()).toBe(SORTIE);
+    },
+    DELAI,
+  );
 });
 
 // =============================================================================
