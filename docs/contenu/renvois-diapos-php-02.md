@@ -72,6 +72,11 @@ la leçon, parce qu'ils sont vrais du code que l'étudiant recevra :
 
 ## 2 · La table des renvois
 
+**Vingt-six titres** — douze `##` et quatorze `###`. Le compte est écrit ici parce qu'un brief de ce
+lot l'a annoncé à **22** en recomptant de mémoire une table qu'il avait sous les yeux : le rédacteur
+a suivi la table (26, c'est elle qui fait foi) et le volume de sortie visé, calé sur le mauvais
+compte, s'est trouvé sous-estimé de moitié.
+
 | # | Titre de la leçon | Renvoi | Ce que portent les diapositives |
 |---|---|---|---|
 | 1 | `## L'idée en une image` | `{diapos="8, 9, 23"}` | des tableaux fournis par PHP, accessibles de partout ; et le tableau PHP comme table associative ordonnée |
@@ -107,8 +112,8 @@ la leçon, parce qu'ils sont vrais du code que l'étudiant recevra :
 > personne.** Le geste qui les attrape est mécanique : faire l'**union** des diapositives citées et
 > la soustraire de `1..60`.
 
-Union des renvois ci-dessus : **51 diapositives citées sur 60**. Les **9** qui restent, une par une,
-avec ce qu'elles portent :
+Union des renvois ci-dessus : **50 diapositives citées sur 60**. Les **10** qui restent, une par
+une, avec ce qu'elles portent :
 
 | Diapos | Nature | Verdict |
 |---|---|---|
