@@ -195,6 +195,52 @@
           "enonce": "Représente la situation suivante en créant un objet distinct pour chacun des concepts soulignés. Un robot a 2 bras, 2 jambes et 1 tête. Un bras porte un certain nombre de doigts. Une tête porte une expression choisie parmi « sourire », « neutre » et « rire » — si on lui en donne une autre, lève une exception. Le robot offre une fonction « meDecrire() » qui affiche le message suivant en y insérant les bonnes valeurs : « Je suis un robot et j'ai __ doigts sur ma main droite et __ doigts sur ma main gauche. Mon expression faciale est _______. »"
         }
       ]
+    },
+    {
+      "numero": 5,
+      "feuille": "Exercices du cours 5 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Créer la base « Cours5 » et la table « client »",
+          "enonce": "Dans PHPMyAdmin, crée une base de données nommée « Cours5 ». Ajoute-lui une table « client » qui porte quatre champs : « id_client », une valeur entière auto-incrémentée ; « prenom », une chaîne d'au plus 50 caractères ; « nom », une chaîne d'au plus 50 caractères ; et « courriel », une chaîne d'au plus 50 caractères."
+        },
+        {
+          "reference": "2",
+          "titre": "Afficher les clients dans un tableau",
+          "enonce": "Écris une page « index.php » qui affiche le contenu de la table « client » sous forme de tableau HTML, avec les colonnes id_client, prenom, nom et courriel. Le tableau doit avoir une bordure d'épaisseur 1."
+        },
+        {
+          "reference": "3",
+          "titre": "Ajouter un client par formulaire",
+          "enonce": "Place un bouton « Ajouter » au bas du tableau. Il mène à une page « ajouter_client.php » qui offre un formulaire aux champs prenom, nom et courriel. Le formulaire est soumis à une page « ajout.php », qui insère l'information dans la base de données."
+        },
+        {
+          "reference": "4",
+          "titre": "Supprimer un client depuis le tableau",
+          "enonce": "Ajoute une colonne au tableau. Elle porte un bouton « Supprimer » : au clic, la page se recharge et supprime l'entrée visée. Donne l'instruction de suppression en appelant la page elle-même par un hyperlien qui ajoute un paramètre GET à la fin de l'URL — par exemple « ?supprimer=1 », où la valeur numérique est la clé primaire de l'entrée."
+        },
+        {
+          "reference": "5",
+          "titre": "Modifier un client par formulaire prérempli",
+          "enonce": "Ajoute une autre colonne au tableau, portant un bouton « Modifier ». Au clic, une nouvelle page s'ouvre avec un formulaire déjà rempli des informations du client choisi. L'utilisateur les modifie puis clique sur « Soumettre » : les informations du client sont mises à jour et le navigateur revient à « index.php »."
+        },
+        {
+          "reference": "6",
+          "titre": "Journaliser les ajouts, modifications et suppressions",
+          "enonce": "Écris une fonction de journalisation dans un fichier PHP indépendant. Importe ce fichier depuis tes autres pages et appelle la fonction aux bons endroits pour journaliser chaque ajout, chaque modification et chaque suppression d'entrée dans la table. Le journal s'appelle « modification.log » et chaque ligne porte la date et l'heure du changement ainsi que la clé primaire de l'entrée visée — ou son nom et son prénom, au choix."
+        },
+        {
+          "reference": "7",
+          "titre": "Sortir les identifiants dans « database.ini »",
+          "enonce": "Définis un fichier de configuration nommé « database.ini ». Il porte les quatre champs nécessaires à la connexion à la base de données. Utilise ensuite ce fichier pour récupérer ces informations dans toutes les pages PHP qui doivent se connecter."
+        },
+        {
+          "reference": "8",
+          "titre": "Une page « configuration.php » qui lit $_SERVER",
+          "enonce": "Ajoute au projet une page « configuration.php », accessible depuis la page principale par un hyperlien. Elle affiche le titre principal « Configuration du serveur », puis les cinq attributs suivants de la variable $_SERVER : DOCUMENT_ROOT, PHP_SELF, SERVER_ADDR, SERVER_NAME et SERVER_SOFTWARE."
+        }
+      ]
     }
   ]
 }
