@@ -4089,10 +4089,10 @@ Livrable : `content/cours/php/NN-slug/`.
 | ID | Module (`NN-slug`) | Séance | Fiche KB source | Statut |
 |---|---|---|---|---|
 | E7-ST1 | `01-introduction-php` — Syntaxe de base, types, structures de contrôle, inclusion de fichiers | séance 1 | `php-fondamentaux.md` | ✅ 2026-09-14 |
-| E7-ST2 | `02-superglobales-tableaux` — Variables, superglobales, tableaux, formulaires | séance 2 | `php-formulaires-superglobales.md` | ✅ 2026-09-14 |
+| E7-ST2 | `02-superglobales-tableaux-classes` — Variables, superglobales, tableaux, formulaires | séance 2 | `php-formulaires-superglobales.md` | ✅ 2026-09-14 |
 | E7-ST3 | `03-librairie-standard` — Fonctions de la librairie standard, fichiers, journalisation | séance 3 | `php-librairie-standard.md` + `php-fichiers-journalisation.md` | ✅ 2026-09-15 |
-| E7-ST4 | `04-poo` — Classes, héritage, interfaces, organisation d'un projet | séance 4 | `php-poo.md` + `php-organisation-projet.md` | ✅ 2026-09-16 |
-| E7-ST5 | `05-base-de-donnees-pdo` — PDO, requêtes préparées, transactions | séance 5 | `php-base-de-donnees-pdo.md` | ⬜ |
+| E7-ST4 | `04-programmation-orientee-objet` — Classes, héritage, interfaces, organisation d'un projet | séance 4 | `php-poo.md` + `php-organisation-projet.md` | ✅ 2026-09-16 |
+| E7-ST5 | `05-integration-base-de-donnees` — SQL, PHPMyAdmin, pilote `mysqli`, requêtes préparées, architecture CRUD | séance 5 | `php-base-de-donnees-pdo.md` + `php-fichiers-journalisation.md` | ✅ 2026-09-16 |
 | E7-ST6 | `06-sessions-authentification` — Sessions PHP, authentification, `password_hash()` | séance 7 | `php-sessions-authentification.md` | ⬜ |
 | E7-ST7 | `07-deploiement` — Déploiement d'application, hébergement, domaine, HTTPS | séance 8 | `php-deploiement.md` + `php-hebergement-domaine-https.md` | ⬜ |
 | E7-ST8 | `08-laravel` — Introduction à Laravel | séance 10 | 🔴 **AUCUNE FICHE KB** | ⬜ |

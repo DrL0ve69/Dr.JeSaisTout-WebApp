@@ -76,7 +76,8 @@ que XAMPP est interdit sur les postes du Cégep. Les exemples concrets se font d
 **Le propriétaire les fournira plus tard.** D'ici là, **aucun exemple concret ne s'invente** : un
 chemin faux est pire qu'un chemin absent, parce qu'il se recopie tel quel dans un terminal.
 ✅ **P-1 et P-3 sont fournis et confirmés (2026-09-11)** — voir le tableau. Il reste **P-2, P-4, P-5,
-P-6 et P-7**.
+P-6, P-7 et P-8** — ce dernier ajouté au lot PHP-6 (2026-09-16) : la séance 5 a besoin du **port du
+service MariaDB** et des identifiants, qu'aucune des séances précédentes n'exigeait.
 
 **La règle en attendant :** tout exemple concret porte un marqueur `à-vérifier:` (interdit en
 `statut: publiee` par `valider.mjs` §6, ce qui **bloque mécaniquement** la publication d'un module
@@ -92,6 +93,7 @@ cette section n'est pas **entièrement** remplie — P-1/P-3 seuls ne lèvent pa
 | P-5 | Nom d'utilisateur / matricule à faire figurer dans les exemples | ⬜ à fournir | — |
 | P-6 | Éditeur réellement utilisé | ⬜ à fournir | Notepad++ (Cours 1, diapo 107 et références) |
 | P-7 | Les fichiers vont-ils à la racine de `www` ou dans un sous-dossier par exercice ? | ⬜ à fournir | sous-dossier (Cours 1, diapo 45 : `localhost/monSite/`) |
+| P-8 | Port du service **MariaDB/MySQL** de WAMP sur le poste, et les identifiants employés | ⬜ à fournir | ajouté au lot **PHP-6** (2026-09-16). Le déck montre **3307** dans le `my.ini` du poste de l’enseignant (Cours 5, diapos 47-48) ; le standard est **3306** ; le corrigé se connecte en `root` **sans mot de passe**, le code de démonstration en `demo`/`demo` |
 
 ---
 
@@ -163,7 +165,7 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ✅ **2026-09-14** — `statut: verifiee`, cinq `à-vérifier:` |
 | **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ✅ **2026-09-16** — `statut: verifiee`, **un** `à-vérifier:` |
-| **PHP-6** | Séance 5 — Intégration de base de données | ⬜ |
+| **PHP-6** | Séance 5 — Intégration de base de données | ✅ **2026-09-16** — `statut: verifiee`, sept `à-vérifier:` |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
 
 ### ✅ CLÔTURE — E7 lot B « les routes du cours de PHP » (2026-09-10)
@@ -825,3 +827,131 @@ l'interpréteur est sur le poste.
 ⏰ **Rappel inchangé** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts`,
 `src/format-actionnable.spec.ts` (borné à `securite-web`, lot **PHP-F**) et `MODULES_PUBLIES`
 mordent — et l'ordre de découverte des specs e2e peut glisser vers une page PHP (§7).
+
+### ✅ CLÔTURE — PHP-6 « séance 5, L'intégration d'une base de données » (2026-09-16)
+
+**Livré** : `content/cours/php/05-integration-base-de-donnees/` — `lecon.md` (**1595 lignes**,
+**28 titres : dix-huit `##` et dix `###`**, concordant exactement avec la table de
+`docs/contenu/renvois-diapos-php-05.md`) et `quiz.json` (5 questions, **quatre** types). Marche à
+suivre de **16 étapes**, neuf encadrés `correction-du-cours`, **les 8 exercices** de la séance au
+registre et **tous les 8** cités au fil du texte. **Sept marqueurs `à-vérifier:`**, tous jugés
+légitimes par la passe adversariale sauf un (ERROR 1064, levable — laissé au prochain lot). Le
+module reste `statut: verifiee`.
+
+**Un inconnu de plus, propre à cette séance** : **P-8**, le port du service MariaDB de WAMP au
+Cégep et les identifiants employés. Le déck montre `3307` dans le `my.ini` du poste de
+l'enseignant (diapos 47-48), le standard est `3306`, le corrigé se connecte en `root` sans mot de
+passe et le code de démonstration en `demo`/`demo`. Une chaîne de connexion se recopie telle quelle
+dans un éditeur : elle porte donc `à-vérifier:` jusqu'à confirmation. Ajouté au tableau du §3.
+
+#### 🔴 CE QUE CE LOT A DÉCOUVERT, ET QUI CHANGE LES LOTS SUIVANTS
+
+**1. L'instrument de L-109 n'existe pas pour cette séance — et il fallait le dire AVANT d'écrire.**
+Aucun serveur MySQL/MariaDB sur le poste (ni `C:\wamp64`, ni XAMPP, ni service). Donc `execute()`,
+`fetch()` et toute requête SQL sont hors de portée : la règle « tout exemple s'exécute avant
+publication », posée au lot précédent, **s'inverse** ici. Le brief du rédacteur lui a donc
+**interdit** d'annoncer une sortie littérale sur un chemin qui touche la base — parce que rien ne
+l'aurait attrapée, et que c'est précisément le mode d'échec des deux lots précédents.
+
+⚠️ **Mais « `mysqli` n'est pas chargeable » était une conclusion tirée trop vite d'un `php -m`.**
+L'extension s'active à la volée : `php -d extension_dir=C:/php/ext -d extension=php_mysqli.dll`.
+Tout ce qui échoue **avant d'atteindre le serveur** est donc mesurable — et c'est ce qui a tranché
+un constat contesté : `mysqli_stmt_bind_param(null, "s", "Robert")` rend
+`Argument #3 could not be passed by reference` **sans aucune connexion**, là où la leçon citait
+`Cannot pass parameter 2 by reference`, qui est la formulation de **PHP 7**. 🔴 **Un instrument
+absent et un instrument qu'on n'a pas su allumer ne se ressemblent que de loin.**
+
+**2. UNE PHRASE FAUSSE VIVAIT À TROIS ENDROITS, ET LA SOURCE ÉTAIT LA KB.** « Les cinq écritures du
+corrigé passent toutes par une requête préparée avec liage » est faux **deux fois**. Recompté par
+`grep -n "prepare(\|bind_param(" *.php` sur les onze fichiers : **5 requêtes préparées, 4 liées,
+3 écritures**. `index.php:16` prépare un `SELECT` **sans aucun paramètre**, donc sans liage — ce
+qui est correct, et que la **diapositive 43** autorise explicitement (« `bind_param()` n'est pas
+obligatoire »). La phrase venait de `KnowledgeBase/web/php/php-base-de-donnees-pdo.md`, la
+cartographie de ce lot l'avait recopiée, et la leçon l'avait recopiée à son tour. **Les trois sont
+corrigés** ; la KB est commitée et poussée (`560cdc5`). 🔴 **Un chiffre qui décrit un corpus se
+recompte sur le corpus — surtout quand il vient d'une source de confiance**, parce que la confiance
+est exactement ce qui dispense de compter.
+
+**3. Un second héritage de la KB, corrigé au passage** : « Apache renvoie le `.ini` en
+`text/plain` » ne vaut plus depuis **Apache 2.4**, où `DefaultType` n'a plus d'effet — la réponse
+part **sans en-tête `Content-Type`** et le client devine. La conséquence (identifiants lisibles) est
+inchangée, mais un contrôle qui chercherait `Content-Type: text/plain` pour détecter le défaut ne
+trouverait rien.
+
+#### La passe adversariale, et ce qu'elle a rapporté
+
+Deux `verificateur-theorie` indépendants, **un par moitié** (1-745 et 746-1540), lancés en parallèle
+parce qu'ils sont *read-only* — **137k et 133k tokens, 17 et 34 appels d'outils**. La découpe par
+volume de source a tenu, pour la troisième fois consécutive.
+
+**Dix constats INEXACT bloquants, une trentaine de nuances, et tous les renvois `{diapos="…"}`
+confirmés un par un.** Les plus instructifs :
+
+1. **Une correction qui RENFORCE le point enseigné.** La leçon affirmait qu'avec un liage `"i"`, la
+   charge `5 OR 1=1 --` fait « ne trouver aucune ligne ». Mesuré : `(int)"5 OR 1=1 --"` vaut **5**,
+   donc le serveur rend bien la ligne 5. La bonne formulation est meilleure que la fausse — la
+   défense n'est pas que la requête échoue, c'est que **la charge a cessé d'être du code**.
+2. **Un bloc « vulnérable » qui n'illustrait pas sa vulnérabilité.** La note annonçait un dégât par
+   requêtes empilées sous `$mysqli->query()` — or `query()` n'en exécute pas ; il faudrait
+   `multi_query()`. Réécrit sur un `UNION SELECT`, qui, lui, passe par `query()`.
+3. **Du code mort enseigné en son nom propre.** L'étape 5 de la marche à suivre posait
+   `if (mysqli_connect_errno())`, jamais atteint depuis **PHP 8.1** (mysqli lève par défaut).
+   Dédoublée en `{voie="cours"}` / `{voie="moderne"}` — c'est exactement ce pour quoi D-PHP-1
+   existe.
+4. **L'« Exemple complet » contredisait le défaut que la leçon venait d'énoncer** : il faisait
+   `require __DIR__ . '/bd.inc.php'`, donc **dans** la racine web, en affirmant l'inverse en prose.
+5. **`$_POST` n'est peuplé que par un POST.** « La page accepte ses valeurs quelle que soit la
+   méthode » est faux : un GET n'apporte rien, la page **s'exécute** et insère des chaînes vides.
+
+#### 🔴 La leçon de méthode — TROIS briefs ont demandé une commande à un agent qui n'a pas l'outil
+
+`professeur-web` et `verificateur-theorie` n'ont **aucun** outil d'exécution. Le constat était déjà
+écrit à la clôture de PHP-5 ; il s'est reproduit **trois fois** dans la même session — le rédacteur
+du quiz, puis les deux vérificateurs. Les trois ont eu la bonne réaction (rendre la main en le
+disant), mais la conséquence est réelle : **la passe adversariale s'est faite sans aucune mesure
+locale**, sur la seule source primaire. Le fil principal a dû refaire les quatre mesures qui
+tranchaient — et elles ont confirmé les vérificateurs à chaque fois.
+
+**Le garde-fou n'est pas « s'en souvenir » — ça a échoué deux sessions de suite.** C'est d'écrire
+dans le brief la phrase qui a marché ici : *« tu n'as peut-être pas d'outil d'exécution ; vérifie
+avant d'essayer, et dis-le franchement plutôt que de prétendre l'avoir lancé — l'appelant s'en
+chargera »*. L'agent de correctifs l'a reçue, et son rapport nomme le gate non lancé sans détour.
+
+#### Deux défauts que seul le compilateur voit, et qu'il révèle UN PAR UN
+
+`content:build` refuse un volet dont les notes `{lignes="N"}` reculent, et il ne trie pas à la place
+de l'auteur — à raison : réordonner la prose publierait un texte que personne n'a écrit dans cet
+ordre. Il en signale **un seul par exécution**. Plutôt que de le relancer cinq fois, un balayage de
+tous les conteneurs a donné les **cinq** d'un coup. ⚠️ **Et le correctif n'est pas mécanique** : la
+note de la ligne 314 s'ouvrait sur « Second défaut, silencieux celui-là » — la remonter telle quelle
+aurait produit un « Second défaut » en premier. Chaque charnière a dû être réécrite.
+
+Le second défaut, masqué par le premier : une `comparaison` opposait du **`php`** à du **`html`**.
+Derrière l'erreur d'étiquette, un vrai trou — le volet vulnérable montrait la page **et** son
+traitement, le volet corrigé ne montrait que le formulaire, en taisant les contrôles que sa propre
+note réclamait. Réécrit en PHP des deux côtés, avec le refus du non-POST, `hash_equals` sur le
+jeton, et la propriété de la ligne **dans le `WHERE`** — parce que ce n'est pas un `if` qui protège
+d'un IDOR, c'est la requête.
+
+#### Gates
+
+G-content **15 leçons / 2 racines** (42 exercices PHP sur 5 séances) · G-lint · G-typage-outils ·
+G-test **1203 passés / 1 sauté** (48 fichiers) · G-build **14 hachages `style-src`, 0 de script —
+inchangés**, 15 pages inspectées · G-axe **0 violation** (14 pages, 1204 vérifications) ·
+G-audit `--omit=dev` **0 vulnérabilité**. G-e2e laissé à la CI : le module n'est pas publié, donc
+aucun spec e2e ne le mesure, et la suite complète porte le rouge reproductible connu
+(`defileurs-clavier.spec.ts:502`, L-057).
+
+⚠️ **Avertissement de budget SCSS, ANTÉRIEUR à ce lot** : `rendu-blocs.scss` dépasse de **19 octets**
+le seuil d'avertissement de 8 kB (échec à 10 kB). Le fichier n'est pas modifié par ce lot et
+n'importe pas la feuille de coloration générée — ce n'est donc pas G-contraste qui mord. À surveiller.
+
+#### Le geste suivant
+
+**PHP-7** (séance 7, sessions et authentification — la séance 6 est l'Examen 1). Terrain **non
+posé** : ni cartographie de renvois, ni relevé d'exercices vérifié à la source d'autorité. Les deux
+se font **avant** d'écrire, par le fil principal, et le compte des titres s'écrit dans la table **au
+moment où on la bâtit** — au vu de ce lot, en **recomptant l'énumération**, jamais de tête.
+🔵 **Le corrigé et le code de démonstration de l'enseignant se téléchargent et se rangent sous
+`php-2026/`** (gitignoré) : ce lot l'a fait pour la séance 5 plutôt que de les perdre dans un
+dossier temporaire, et ils ont servi à chaque étape.

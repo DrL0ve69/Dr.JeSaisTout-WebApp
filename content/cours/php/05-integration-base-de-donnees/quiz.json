@@ -1,0 +1,112 @@
+{
+  "lecon": "integration-base-de-donnees",
+  "titre": "Quiz — l'intégration d'une base de données en PHP",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "trouver-la-faille",
+      "consigne": "Une page de suppression écrite par un étudiant. Le mot prepare est bien là, et le code s'exécute sans erreur. Quelle ligne laisse pourtant l'injection SQL entièrement ouverte, et pourquoi les autres n'en sont pas la cause ?",
+      "langage": "php",
+      "code": "<?php\n$id = $_GET[\"id_client\"];\n$stmt = $mysqli->prepare(\"DELETE FROM client WHERE id_client = $id\");\n$stmt->execute();\necho \"Client supprimé.\";",
+      "ligneFautive": 3,
+      "faille": "Injection SQL : la valeur est collée dans le texte de la requête AVANT que le serveur ne l'analyse, donc prepare() compile une structure déjà contaminée",
+      "explication": "La ligne 3 écrit la requête entre guillemets doubles, et PHP remplace $id par son contenu au moment même où il fabrique la chaîne. Ce que prepare() reçoit n'est donc pas « DELETE FROM client WHERE id_client = ? » mais une phrase dans laquelle la valeur du visiteur est déjà présente. Le serveur l'analyse en entier, et une valeur comme 5 OR 1=1 y est lue comme de la syntaxe : la condition devient une condition toujours vraie, et le DELETE ne limite plus rien. Retiens la formule : ce n'est pas le mot prepare qui protège, c'est le point d'interrogation plus le liage. Un prepare sans « ? » ne fait qu'envoyer plus tôt une requête tout aussi vulnérable — et il donne au relecteur l'impression rassurante du contraire, ce qui est pire que rien. La ligne 2 n'est pas la faille : lire une valeur dans $_GET est parfaitement normal, toute page en vit. Une donnée venue du visiteur n'est dangereuse qu'au moment où elle traverse une frontière sans être traitée pour cette frontière-là ; ici, la frontière est celle du serveur de base de données, et la ligne 2 ne la franchit pas. La ligne 4 ne fait qu'envoyer l'ordre d'exécution : elle est fidèle à ce qu'on lui a préparé, et elle n'a aucun moyen de rattraper une structure déjà compilée — c'est justement le point de la séance, l'analyse syntaxique a déjà eu lieu quand les valeurs arrivent. La ligne 5 affiche un texte constant, écrit par le programmeur, qui ne contient aucune donnée du visiteur : rien à échapper. La correction ajoute deux choses indissociables : le « ? » dans le texte SQL, qui laisse au serveur une place vide au lieu d'une valeur, et le bind_param(\"i\", $id), qui envoie la valeur dans un second message, hors du texte SQL. Le « i » déclare que ce paramètre est un entier, conformément à la règle de triple correspondance du support : autant de « ? » dans la requête que de lettres dans le premier paramètre, et autant de variables ensuite.",
+      "correction": "<?php\n$id = $_GET[\"id_client\"];\n$stmt = $mysqli->prepare(\"DELETE FROM client WHERE id_client = ?\");\n$stmt->bind_param(\"i\", $id);\n$stmt->execute();\necho \"Client supprimé.\";",
+      "ficheSource": "web/php/php-base-de-donnees-pdo.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Le corrigé officiel de la séance fait tout ce que la séance enseigne : ses cinq écritures passent par une requête préparée avec liage, sans une seule concaténation. Son index.php affiche ensuite la liste avec echo \"<td>\" . $prenom . \"</td>\". Un client s'est inscrit sous le prénom <script>alert(1)</script>. Que se passe-t-il, et où est la frontière qui n'a pas été gardée ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Rien de grave : le liage du paramètre a neutralisé les caractères spéciaux à l'insertion, donc ce qui ressort de la base est déjà inoffensif pour la page."
+        },
+        {
+          "id": "b",
+          "texte": "La base a stocké le prénom exactement tel qu'il a été saisi — c'est le but même du liage — et la page l'écrit tel quel dans son HTML : le navigateur de chaque visiteur du tableau exécute le script. C'est un XSS stocké, et la frontière manquée est celle de la page, pas celle de la base."
+        },
+        {
+          "id": "c",
+          "texte": "MySQL refuse l'insertion : un varchar n'accepte pas les chevrons, et la requête préparée fait échouer l'écriture avant qu'elle n'atteigne la table."
+        },
+        {
+          "id": "d",
+          "texte": "Le prénom ressort en charabia : c'est un défaut d'encodage, et l'appel manquant est set_charset() juste après la connexion."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "C'est le piège central de la séance, et il se formule en une phrase à retenir mot pour mot : la requête préparée protège la base, jamais la page. Le liage garantit qu'une valeur reste une valeur pour le serveur de base de données — il ne la modifie pas, il la range intacte dans la colonne. Quand la page la ressort dans du HTML sans l'encoder, elle traverse une deuxième frontière, celle du navigateur, qui n'a aucune raison de distinguer les chevrons écrits par le programmeur de ceux venus d'un formulaire. Les deux frontières demandent deux parades différentes : le point d'interrogation d'un côté, htmlspecialchars() de l'autre. La réponse a est la fausse croyance la plus répandue sur les requêtes préparées, et elle est dangereuse parce qu'elle est à moitié vraie : le liage empêche bien la valeur de devenir de la syntaxe, mais du SQL seulement. Rien n'est « nettoyé », rien n'est retiré. Si le liage modifiait la valeur, un nom comme O'Brien ou une formule mathématique ressortiraient déformés de la base — et ce n'est pas le cas, précisément parce que ce n'est pas un filtrage. La réponse c prête au type varchar une validation de contenu qu'il n'a pas : varchar contraint une longueur, pas un alphabet, et une suite de caractères d'apparence hostile y est stockée comme n'importe quelle autre. Ajoutons qu'une base qui refuserait les chevrons refuserait aussi les noms légitimes qui en contiennent, et ne dirait toujours rien du prénom « onfocus=… » qui n'en contient aucun. La réponse d confond les trois encodages de la leçon. set_charset() déclare le jeu de caractères de la connexion entre PHP et le serveur : il décide si les accents traversent correctement, jamais si un chevron reste un chevron dans la page. Le corrigé officiel oublie effectivement cet appel, c'est son défaut numéro cinq, mais l'ajouter ne corrigerait rien ici. Le geste correct est mesuré et tient en un appel : sur PHP 8.5.10, htmlspecialchars('\" onfocus=\"alert(1)') rend &quot; onfocus=&quot;alert(1) — les guillemets deviennent du texte, la valeur ne peut plus sortir de l'attribut où elle est posée. Écris htmlspecialchars($prenom, ENT_QUOTES, 'UTF-8') : nommer ENT_QUOTES et l'encodage rend l'intention lisible et ne dépend d'aucune valeur par défaut susceptible de changer de version en version.",
+      "ficheSource": "web/php/php-base-de-donnees-pdo.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Le code de la séance appelle $stmt->bind_param(\"sss\", $prenom, $nom, $courriel) avant d'affecter la moindre valeur à ces trois variables, qui sont encore vides à cette ligne. C'est donc un bogue du support : à l'execute(), l'INSERT écrira trois chaînes vides, et il faut remonter les trois affectations au-dessus du bind_param.",
+      "bonneReponse": false,
+      "justification": "Faux : l'ordre du support est correct, et la raison est un mot qu'il ne prononce jamais — bind_param lie par référence. Il ne copie pas le contenu des variables au moment de l'appel : il note quelles variables il devra lire, et il ne les lit qu'à l'execute(). Tant que l'affectation a lieu avant l'execute(), l'ordre d'écriture n'a aucune importance. C'est exactement le bindParam() de PDO, et c'est l'inverse de son bindValue(), qui copie immédiatement la valeur — écrit dans cet ordre-là avec bindValue, le même programme enregistrerait bel et bien trois chaînes vides. Voilà pourquoi la distinction vaut la peine d'être retenue : la même suite de lignes fait deux choses différentes selon la fonction employée. Deux conséquences pratiques du passage par référence. D'abord, bind_param n'accepte aucune expression : bind_param(\"s\", trim($_POST['nom'])) lève l'erreur fatale « Cannot pass parameter 2 by reference », parce qu'on ne peut pas lier une valeur qui n'a pas d'adresse. Si tu veux nettoyer une donnée, mets le résultat dans une variable, puis lie la variable. Ensuite, le vrai contrôle à faire sur cette ligne n'est pas l'ordre mais la triple correspondance que le support énonce : autant de points d'interrogation dans la requête que de lettres dans le premier paramètre, et autant de variables ensuite. Trois « ? », trois lettres, trois variables — et les lettres disponibles dans la séance sont s pour une chaîne, i pour un entier, d pour un décimal. Une nuance de rédaction pour finir, qui ne contredit pas le cours : rien ne t'oblige à reproduire cet ordre. Affecter d'abord, lier ensuite, se lit mieux et ne coûte rien. Mais à l'examen, sache expliquer pourquoi l'ordre du support fonctionne, parce que c'est cette explication-là qui montre que le mécanisme est compris. En production, l'écriture de 2026 supprime la question : depuis PHP 8.1, $stmt->execute([$prenom, $nom, $courriel]) passe les valeurs directement et fait disparaître d'un coup bind_param, la chaîne de types et le piège de la référence.",
+      "ficheSource": "web/php/php-base-de-donnees-pdo.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associe chaque instruction à ce qu'elle fait réellement, et à la famille dans laquelle la séance la range.",
+      "paires": [
+        {
+          "gauche": "CREATE TABLE client ( id_client int NOT NULL PRIMARY KEY AUTO_INCREMENT, prenom varchar(50) );",
+          "droite": "Structurel (DDL) : change la structure de la base. On le fait une fois pour toutes, typiquement à la main dans PHPMyAdmin"
+        },
+        {
+          "gauche": "UPDATE client SET courriel = ? WHERE id_client = ?;",
+          "droite": "Transactionnel (DML) : change les données. On l'écrit en PHP, parce qu'il s'exécute à chaque visite — et sans son WHERE, il s'appliquerait à toute la table"
+        },
+        {
+          "gauche": "CREATE INDEX idx_nom ON client (nom, prenom);",
+          "droite": "Ne refuse jamais aucune écriture : c'est une structure d'accès, qui accélère les recherches et ralentit les écritures, malgré sa place dans le tableau des sept contraintes"
+        },
+        {
+          "gauche": "courriel varchar(50) NOT NULL",
+          "droite": "Règle d'intégrité : le serveur refuse l'écriture qui la violerait, et la donnée interdite n'entre jamais dans la table"
+        },
+        {
+          "gauche": "$mysqli->set_charset('utf8mb4');",
+          "droite": "Déclare le jeu de caractères de la connexion — le troisième encodage, celui qui décide si les accents traversent, et celui que le corrigé officiel n'appelle jamais"
+        },
+        {
+          "gauche": "$stmt->bind_result($id_client, $prenom, $nom, $courriel);",
+          "droite": "Réserve des boîtes que chaque appel à fetch() remplit avec la ligne suivante, jusqu'à ce qu'il rende false"
+        }
+      ],
+      "explication": "La partition DDL / DML se retient par sa conséquence pratique, bien plus que par ses sigles : ce que tu fais une fois pour toutes, tu le fais à la main dans PHPMyAdmin ; ce que tu fais à chaque visite, tu l'écris en PHP. DDL veut dire Data Definition Language, DML Data Manipulation Language, et les quatre opérations DML forment le CRUD — INSERT pour créer, SELECT pour lire, UPDATE pour modifier, DELETE pour supprimer. Retiens aussi que la partition est un usage de cours, pas une loi : un projet réel décrit sa structure dans des fichiers de migration versionnés avec le code, pour qu'un ALTER TABLE fait sur un poste ne manque jamais sur le serveur. Le couple index / contrainte est le point où le support mélange deux idées, et la question ne demande pas de choisir un camp mais de distinguer deux comportements. Une contrainte est une règle d'intégrité : elle refuse. Un index est une structure d'accès : il n'a jamais rien refusé, il ne fait que rendre certaines recherches plus rapides — et les écritures plus lentes, comme le support le dit lui-même deux diapositives après avoir rangé INDEX parmi les contraintes. Ajouter un index ne change aucune donnée acceptable ; ajouter une contrainte, si. La confusion a une source honnête : UNIQUE est les deux à la fois, parce que MySQL implémente l'unicité par un index. À l'examen, récite la liste des sept telle qu'elle est donnée ; en production, souviens-toi que poser un index n'a jamais protégé une donnée. Et pose-toi devant chaque index la seule question utile : quelle requête va s'en servir ? Un index sur (nom, prenom) sert un WHERE nom = ?, mais pas un WHERE prenom = ? seul — il se lit comme un annuaire trié d'abord par nom de famille. Les deux dernières lignes appartiennent au code PHP, et chacune corrige une idée fausse. set_charset() ne touche ni à la base ni à la page : il déclare l'encodage de la connexion, le troisième des trois, et c'est pour ça que des accents peuvent sortir en charabia alors que la base et la balise meta sont toutes deux impeccables. Écris utf8mb4 plutôt que utf8, qui est un faux UTF-8 historique limité à trois octets par caractère. Quant à bind_result(), il ne rend pas un tableau de tout le résultat : les variables liées ne contiennent, à chaque tour de boucle, que la ligne en cours, et leur nombre doit correspondre exactement aux colonnes du SELECT, dans l'ordre. C'est la partie la plus fragile de mysqli : ajouter une colonne au SELECT sans ajouter la variable correspondante casse le code sans que le nom d'aucune colonne n'apparaisse pour aider au diagnostic. get_result()->fetch_assoc(), ou PDO, rendent un tableau indexé par le nom des colonnes et suppriment ce couplage.",
+      "ficheSource": "web/php/php-base-de-donnees-pdo.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "L'exercice 4 de la séance demande une suppression déclenchée par un lien qui ajoute un paramètre à l'URL, et le corrigé officiel la livre ainsi : <a href='supprimer.php?id_client=$id_client'>SUPPRIMER</a>, puis, dans supprimer.php, un DELETE FROM client WHERE id_client=? préparé et lié avec le type \"i\". Quel jugement porter sur ce code ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il est complet : le liage du paramètre couvre aussi le déclenchement, puisque la valeur reçue ne peut plus devenir de la syntaxe."
+        },
+        {
+          "id": "b",
+          "texte": "Le SQL est irréprochable, mais rien ne garde le déclenchement : un lien se suit sans intention humaine, et rien ne vérifie que le demandeur a le droit de supprimer cette ligne-là. On écrit quand même cette version à l'examen, puisque l'énoncé la demande."
+        },
+        {
+          "id": "c",
+          "texte": "Le défaut est que l'identifiant vient de $_GET : bind_param ne peut typer correctement que des valeurs lues dans $_POST, il faut donc passer la page en POST pour que le \"i\" soit valide."
+        },
+        {
+          "id": "d",
+          "texte": "Le défaut est le type \"i\" : une valeur lue dans l'URL est toujours une chaîne, il faut donc écrire \"s\", faute de quoi la requête préparée refuse le paramètre."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "C'est le seul endroit de la séance où le cours enseigne un patron qu'il faudra désapprendre, et il vaut la peine de savoir exactement ce qui est bon et ce qui ne l'est pas. Ce qui est bon : la requête. Le point d'interrogation et le liage sont là, sur une valeur venue de l'URL, exactement comme la séance l'enseigne — la faille n'est pas dans le SQL. Ce qui ne l'est pas : le déclencheur. Un lien s'ouvre sans confirmation, et pas seulement par un humain — un préchargeur de navigateur, un antivirus qui inspecte les pages ou un robot d'indexation peuvent le suivre tout seuls. La même adresse posée sur un site tiers dans une balise img déclenche la suppression dès qu'un visiteur ouvre cette page : c'est une CSRF, une requête falsifiée entre sites. Et changer le numéro dans l'adresse vise n'importe quelle autre ligne, sans qu'aucune vérification de propriétaire ne s'y oppose : c'est un IDOR, un défaut de contrôle d'accès au niveau de l'objet. La parade tient en trois gestes : un formulaire en POST plutôt qu'un lien, qu'aucun préchargeur ni aucune balise distante ne déclenche seul ; un jeton anti-CSRF tiré de la session, qui prouve que la demande vient d'un formulaire servi par le site — la séance 7 donne les sessions dont il a besoin ; et une vérification de propriété dans le WHERE, pas seulement un numéro validé. La règle d'arbitrage s'applique telle quelle : à l'examen, écris le lien que l'énoncé demande, c'est lui qui est évalué ; en production, écris le formulaire. La réponse a dit la chose à moitié vraie qui rend ce défaut si durable : le liage tient sa promesse, mais sa promesse ne porte que sur l'interprétation de la valeur par le serveur de base de données. Il ne dit rien de qui a déclenché la requête, ni de son droit à la déclencher — ce sont trois questions distinctes, et une seule reçoit ici une réponse. Les réponses c et d inventent toutes deux une contrainte qui n'existe pas. bind_param ne se soucie pas de l'origine de la valeur : $_GET, $_POST ou un calcul interne lui sont indifférents, et rien ne l'empêche de lier une valeur reçue dans l'URL. Le passage en POST est bien la bonne correction, mais pour la raison de la réponse b, jamais pour celle-là. Quant au \"i\", il ne décrit pas le type PHP de la variable : il déclare au pilote sous quel type envoyer le paramètre au serveur, ce qui est précisément ce qu'on veut pour une clé primaire entière. Si tu veux en plus refuser une saisie qui n'est pas un nombre — et c'est une bonne idée — cela se fait en PHP, avec filter_input et FILTER_VALIDATE_INT, avant même d'ouvrir la connexion. Même famille de raisonnement que l'attribut readonly de l'exercice 5 : il se retire en deux clics dans les outils du navigateur, donc il ne vérifie rien. La vérification vit toujours du côté du serveur.",
+      "ficheSource": "web/php/exercices-corriges-poo-application.md"
+    }
+  ]
+}
