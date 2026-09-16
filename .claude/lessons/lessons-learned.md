@@ -2772,7 +2772,8 @@ s'écrit en échappement (` `) pour rester visible à la relecture. Cousine dir
 qu'on ne voit pas fait diverger la mesure de l'intention de l'assertion.
 
 **Réfs.** `src/pipeline-contenu-validation.spec.ts`, `src/pipeline-contenu-compilation.spec.ts` ;
-lot 3 « leçons actionnables », 2026-09-02 ; [[L-015]], [[L-066]].
+lot 3 « leçons actionnables », 2026-09-02 ; [[L-015]], [[L-066]]. Élargie au contenu pédagogique
+lui-même (un bloc de sortie publié est une assertion) par [[L-109]].
 
 ---
 
@@ -3389,6 +3390,42 @@ enseigne ») ; `php-2026/extraits/Cours01_Introduction_a_PHP_2026.txt` ligne `[6
 `docs/contenu/renvois-diapos-php-01.md` §2 ; `docs/agile/reprise-php-en-bref.md`, bloc « CLÔTURE —
 PHP-2 », leçon de méthode n°2. Famille [[L-062]], [[L-104]] (l'attribution d'une faute de la source
 est le renseignement utile), [[L-035]].
+
+---
+
+## L-109 · Un bloc de sortie publié dans une leçon est une assertion : il se produit en EXÉCUTANT l'interpréteur, pas en le raisonnant — et d'abord en vérifiant qu'il est sur le poste
+
+**Symptôme.** PHP-5 (2026-09-16), passe adversariale : 17 constats dont 6 INEXACT bloquants sur
+`content/cours/php/04-programmation-orientee-objet/lecon.md`. Le fil principal a découvert, en
+cherchant de quoi trancher, que **PHP 8.5.10 CLI est installé sur le poste** (`php -v`, `C:/php`) —
+après **trois** lots de leçons PHP écrits sans jamais l'avoir cherché. Les neuf points litigieux,
+exécutés, ont confirmé les vérificateurs à chaque fois. Échantillon : `120` puis `1440` annoncés
+**sur deux lignes** alors que deux `echo` sans séparateur rendent `1201440` sur **une seule** ligne ;
+trois noms empilés en sortie alors que `echo $p->nom . "<br>";` produit une seule ligne
+(`Alice<br>Bruno<br>Chloé<br>`) — le bloc montrait le **rendu du navigateur** étiqueté « sortie du
+programme », à l'inverse de la convention que la leçon pose elle-même 1 100 lignes plus loin ; un
+`Fatal error` annoncé sous un bloc qui ne fait que **déclarer** une classe, sans `new` ni appel —
+sortie réelle vide ; un attribut typé présenté comme refusant un mauvais type, alors qu'en mode
+coercitif (le défaut) `$p->nom = 5;` range `"5"` en silence.
+
+**Règle.** Avant de raisonner sur le comportement d'un langage, **chercher si son interpréteur est
+sur le poste** (`php -v` ou équivalent) — le coût est une commande, son absence a coûté trois lots de
+leçons aux sorties jamais exécutées. Puis, comme [[L-089]] pour un message d'erreur : un bloc de
+sortie pédagogique **se copie-colle depuis l'exécution réelle**, jamais ne se déduit du code. Le
+mode d'échec dominant n'est pas le texte du message mais le **nombre de lignes et d'occurrences** —
+trois des inexactitudes de PHP-4 étaient déjà de cette famille (un journal annoncé à 3 lignes en
+produisait 5) : une sortie se **recompte**, elle ne se relit pas. Et tout bloc de sortie nomme
+**l'organe** dont il est la sortie (terminal, navigateur, journal) — confondre rendu navigateur et
+sortie programme est une confusion d'instrument, pas une coquille.
+⚠️ **Borne, pour éviter la leçon inverse** : le PHP du poste (8.5.10) **n'est pas** l'environnement
+de référence du cours (WAMP, version inconnue du dépôt, D-PHP-3). La mesure locale fait foi pour ce
+qui est stable depuis PHP 8.0 ; au-delà, elle se présente comme une mesure locale, pas comme le
+comportement de WAMP.
+
+**Réfs.** `content/cours/php/04-programmation-orientee-objet/lecon.md`, passe adversariale PHP-5,
+2026-09-16 ; PHP-4 (2026-09-15), inexactitudes de comptage de lignes ; `docs/agile/reprise-php-en-bref.md`
+D-PHP-3 (WAMP, référence). Famille [[L-089]] (assertion copiée depuis la sortie réelle), [[L-062]]
+(un instrument qui mesure zéro ne prouve rien).
 
 ---
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
