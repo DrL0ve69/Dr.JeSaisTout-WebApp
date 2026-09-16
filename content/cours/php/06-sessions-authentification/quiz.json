@@ -1,0 +1,116 @@
+{
+  "lecon": "sessions-authentification",
+  "titre": "Quiz — les sessions et l'authentification en PHP",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "trouver-la-faille",
+      "consigne": "Voici la page protégée du corrigé officiel de l'exercice 4. Sur un serveur où output_buffering vaut 4096, un visiteur non connecté qui l'ouvre dans son navigateur arrive bien sur le formulaire de connexion. Pourtant, le corps de la réponse qu'il a reçue contient le texte protégé. Quelle ligne en est la cause, et pourquoi les autres candidates ne le sont-elles pas ?",
+      "langage": "php",
+      "code": "<?php\nrequire \"menu.inc\";\nif (!isset($_SESSION[\"id_utilisateur\"])){\n    header(\"location:formulaireConnexion.php\");\n}\n?>\n<br><br>\nLorem ipsum dolor sit amet, consectetur adipiscing elit, …",
+      "ligneFautive": 4,
+      "faille": "Redirection sans arrêt : header() ajoute un en-tête Location, mais le script continue et produit tout le contenu protégé dans le corps de la réponse 302",
+      "explication": "La ligne 4 est la cause de la fuite, parce qu'elle n'est suivie d'aucun die(). header(\"Location: …\") ne bloque rien : il ajoute à la réponse une consigne que le navigateur est libre de suivre, puis PHP passe à la ligne suivante et exécute le reste du fichier, sur le serveur, pour tout le monde. La mesure faite sur PHP 8.5.10 avec output_buffering à 4096 le montre : la réponse porte Status: 302 Found et l'en-tête location:formulaireConnexion.php, et son corps contient le menu puis le Lorem ipsum en entier. Un navigateur obéit à la redirection et n'affiche rien, d'où l'illusion d'une page protégée ; un outil comme curl, qui ne suit pas les redirections sans l'option -L, affiche simplement le corps reçu. C'est exactement ce que dit la diapositive 49 : ajoute die() après la redirection. Avec la garde en première ligne suivie de die(), la même mesure donne une réponse 302 au corps vide. Ici, le cours et la bonne pratique sont d'accord : c'est le corrigé officiel qui oublie la règle de sa propre séance. La ligne 2 est bien un second défaut, mais ce n'est pas elle qui explique ce que décrit la consigne. Le menu est inclus avant la garde, donc de la sortie part avant session_start() et avant header(). Avec output_buffering à 4096, le tampon retient cette sortie et masque le problème : la redirection a lieu. Le défaut de la ligne 2 ne se révèle qu'avec output_buffering à 0, où la mesure ne montre plus aucune redirection, seulement deux avertissements (Session cannot be started after headers have already been sent, puis Cannot modify header information - headers already sent) suivis du Lorem ipsum : la page s'affiche alors à tout le monde. La correction déplace donc aussi l'inclusion du menu après la garde. La ligne 3 lit $_SESSION sans que ce fichier appelle session_start() : elle ne fonctionne que parce que menu.inc le fait à sa place. C'est fragile, mais la condition elle-même est juste, et elle vaut bien true pour un visiteur sans session. La ligne 8 n'est que le contenu à protéger : ce n'est pas à lui de se défendre, c'est à la garde de l'empêcher d'être produit. Retiens le réflexe : aucune redirection de sécurité sans die() ou exit juste après, même quand elle semble être la dernière chose qui compte.",
+      "correction": "<?php\nsession_start();\nif (!isset($_SESSION[\"id_utilisateur\"])) {\n    header(\"Location: formulaireConnexion.php\");\n    die();\n}\nrequire \"menu.inc\";\n?>\n<br><br>\nLorem ipsum dolor sit amet, consectetur adipiscing elit, …",
+      "ficheSource": "web/php/php-sessions-authentification.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Pour ne pas recopier la garde dans chaque page, tu l'as rangée dans un fichier inclus. Ta page protégée commence par include 'protectoin.inc'; — une faute de frappe, le vrai fichier ne porte pas ce nom — puis exécute echo \"Information sensible\";. Un visiteur non connecté ouvre la page. Que reçoit-il ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Rien : include d'un fichier introuvable arrête le script, donc la page reste blanche et l'information n'est jamais produite."
+        },
+        {
+          "id": "b",
+          "texte": "Deux avertissements, puis « Information sensible » : include signale le fichier manquant et continue. Avec require, la même faute produit une erreur fatale et plus rien n'est affiché ensuite."
+        },
+        {
+          "id": "c",
+          "texte": "Une redirection vers la page d'accueil : la page n'a pas pu charger sa garde, donc PHP applique la redirection par défaut prévue pour un visiteur sans session."
+        },
+        {
+          "id": "d",
+          "texte": "Une erreur avant même l'exécution : PHP vérifie l'existence des fichiers inclus au chargement de la page, et refuse de l'exécuter quelle que soit l'instruction employée."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "La différence entre les deux instructions tient en une phrase : include d'un fichier introuvable émet un avertissement et continue ; require d'un fichier introuvable émet une erreur fatale et arrête le script. Mesuré sur PHP 8.5.10 avec ce même fichier absent, protectoin.inc : include produit deux avertissements, include(protectoin.inc): Failed to open stream… puis include(): Failed opening…, et affiche ensuite Information sensible. require produit l'avertissement Warning: require(…): Failed to open stream…, puis Fatal error: Uncaught Error: Failed opening required 'protectoin.inc', et rien n'est affiché après. Pour du code ordinaire, continuer peut se défendre ; pour une garde, continuer veut dire afficher la page sans garde. Le principe porte un nom : échouer fermé. Quand une protection tombe en panne, le système doit se retrouver dans l'état le plus sûr, une page qui ne s'affiche pas. include échoue ouvert, require échoue fermé. Sur ce point, le cours (diapositives 50 à 55) et la bonne pratique disent la même chose : la garde se charge avec require. Les libellés des diapositives 53 et 55 diffèrent un peu de ceux cités ici parce que leurs captures ont été prises sous PHP 7 ; le comportement, lui, est le même. La réponse a prête à include le comportement de require : c'est précisément l'erreur que la démonstration de l'enseignant veut désamorcer. La réponse c invente une redirection automatique qui n'existe pas : la redirection est écrite dans le fichier de garde, et un fichier qui n'a jamais été chargé n'exécute aucune de ses lignes — PHP ne connaît aucune « redirection par défaut ». La réponse d décrit un contrôle préalable que PHP ne fait pas : include et require sont des instructions exécutées au moment où le script les atteint, et c'est à ce moment-là seulement que le fichier manquant est découvert — la preuve en est que les deux avertissements d'include sont suivis de l'affichage de la ligne suivante. Un dernier point, hors du cours : l'erreur fatale affiche le chemin du fichier sur le disque tant que display_errors est actif. En production, on règle display_errors à Off et log_errors à On, pour qu'échouer fermé ne révèle pas l'arborescence du serveur.",
+      "ficheSource": "web/php/php-sessions-authentification.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "La page de déconnexion de la diapositive 69 exécute session_start(), session_unset() puis session_destroy(). Après son passage, le navigateur ne détient plus de cookie PHPSESSID : session_destroy() demande au navigateur d'effacer l'identifiant, et c'est ce qui rend l'ancien identifiant inutilisable.",
+      "bonneReponse": false,
+      "justification": "Faux, et la moitié juste de l'affirmation est ce qui la rend piégeuse. session_destroy() supprime bien les données de la session sur le serveur : mesuré sur PHP 8.5.10, relire ensuite la variable écrite avant la déconnexion produit Warning: Undefined array key \"maCle\". Mais la fonction ne touche pas au navigateur. La même mesure montre que la réponse de la page de déconnexion ne contient aucun en-tête Set-Cookie : rien ne demande au navigateur d'oublier l'identifiant, et il continuera de l'envoyer à chaque requête. Pourquoi est-ce un problème ? Avec le réglage par défaut session.use_strict_mode = 0, un session_start() qui reçoit un identifiant inconnu du serveur l'adopte et crée une session à ce nom — mesuré avec un cookie PHPSESSID=attaquant123, dont le fichier de session est créé sur le serveur. Un identifiant orphelin peut donc redevenir une session valide, et si la connexion suivante ne le régénère pas, c'est sous cet identifiant, peut-être copié par quelqu'un, que le prochain utilisateur sera authentifié. Deux parades se complètent : session_regenerate_id(true) à la connexion, qui donne un identifiant neuf et supprime l'ancienne session, et l'effacement du cookie à la déconnexion, par un setcookie() du même nom, vide et expiré dans le passé. L'inverse ne suffit pas non plus : effacer le seul cookie sans session_destroy() laisserait la session vivante sur le serveur pour quiconque en a copié l'identifiant. La vraie déconnexion est la destruction côté serveur ; l'effacement du cookie la complète. La règle d'arbitrage s'applique : à l'examen, les trois instructions de la diapositive 69 (déjà vues à la diapositive 29) sont la réponse attendue ; en production, ajoute l'effacement du cookie et la régénération à la connexion. Aucune de ces deux mesures ne retire une ligne du cours.",
+      "ficheSource": "web/php/php-sessions-authentification.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associe chaque instruction à ce qu'elle fait réellement dans une authentification par session.",
+      "paires": [
+        {
+          "gauche": "if ($mot_de_passe == $_POST[\"mot_de_passe\"])",
+          "droite": "La réponse attendue à l'examen, parce que la table de l'exercice 1 garde les mots de passe en clair ; en production, elle exige justement une table lisible par quiconque y accède"
+        },
+        {
+          "gauche": "password_hash($motDePasseSaisi, PASSWORD_DEFAULT)",
+          "droite": "À l'inscription : tire un sel aléatoire, calcule le haché et range le sel dans le résultat, seule valeur à conserver en base"
+        },
+        {
+          "gauche": "password_verify($_POST[\"mot_de_passe\"], $mot_de_passe)",
+          "droite": "À la connexion : relit l'algorithme, le coût et le sel dans le haché, refait le calcul sur la saisie et compare en temps constant"
+        },
+        {
+          "gauche": "session_regenerate_id(true);",
+          "droite": "Donne un identifiant neuf et supprime l'ancienne session : un identifiant connu d'un attaquant avant la connexion ne vaut plus rien après"
+        },
+        {
+          "gauche": "session.use_strict_mode = 1",
+          "droite": "Refuse tout identifiant qui ne correspond à aucune session existante sur le serveur (y compris un identifiant détruit), et en émet un neuf"
+        },
+        {
+          "gauche": "session_destroy();",
+          "droite": "Supprime les données de la session sur le serveur, sans rien envoyer au navigateur"
+        },
+        {
+          "gauche": "setcookie(session_name(), \"\", time() - 42000, …);",
+          "droite": "Demande au navigateur de supprimer le cookie d'identifiant, en le remplaçant par un cookie vide expiré dans le passé"
+        }
+      ],
+      "explication": "Ces sept lignes se rangent en deux familles : le mot de passe, et l'identifiant de session. Côté mot de passe, la diapositive 40 compare deux chaînes en clair avec ==. C'est la réponse d'examen, et elle est cohérente avec la table de l'exercice 1 ; mais elle n'est possible que parce que la table garde les mots de passe lisibles, et == est l'opérateur de comparaison souple de PHP, dont la durée n'est pas constante. En production, la table ne range que le résultat de password_hash(), qui inclut le sel : d'où la colonne élargie à 255 caractères. password_verify() prend alors la place de ==, avec un ordre d'arguments qui compte — d'abord la saisie, ensuite le haché. Un piège fréquent est de croire qu'il faut rehacher la saisie avec password_hash() puis comparer les deux hachés : ils seraient différents, puisque chaque appel tire un sel neuf. C'est pour ça que password_verify() existe. Côté identifiant, trois lignes, trois moments. session_regenerate_id(true) s'appelle juste après session_start(), au moment où la session devient authentifiée : mesuré sur PHP 8.5.10, l'identifiant attaquant123 passe à une nouvelle valeur, un nouvel en-tête Set-Cookie part, et le fichier sess_attaquant123 est supprimé. L'argument true est ce qui détruit l'ancienne session ; sans lui, l'ancien fichier resterait sur le serveur. Cette ligne ferme la fixation de session, où un attaquant impose à sa victime un identifiant qu'il connaît et attend qu'elle se connecte. session.use_strict_mode = 1 la complète en amont : mesuré, le cookie attaquant123 est alors refusé et remplacé par un identifiant neuf, alors qu'avec la valeur par défaut, 0, il est adopté tel quel. Le mode strict refuse tout identifiant sans session existante sur le serveur, y compris un identifiant détruit par session_destroy() ; mais il laisse passer un identifiant valide que l'attaquant a obtenu du serveur lui-même, et c'est pourquoi il complète session_regenerate_id(true) sans la remplacer. Enfin, session_destroy() et setcookie() ne font pas la même chose : le premier agit sur le serveur, le second sur le navigateur, et une déconnexion complète emploie les deux. La mesure de la page de déconnexion du cours ne montre aucun Set-Cookie ; ajouter cet en-tête d'expiration est précisément le rôle de la ligne setcookie(), selon le manuel de PHP. Aucune de ces corrections ne contredit la séance, qui annonce elle-même à sa diapositive 41 que sa protection n'est pas optimale : elles s'ajoutent aux lignes du cours sans en retirer une seule.",
+      "ficheSource": "web/php/php-sessions-authentification.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Ton menu n'affiche le lien vers admin.php que si $_SESSION[\"typeCompte\"] vaut admin, comme l'exemple 2 de la séance. La page admin.php, elle, ne contient aucune garde. Un utilisateur connecté avec un compte membre tape directement l'adresse admin.php dans la barre de son navigateur. Que se passe-t-il, et quelle est la bonne correction ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Il reçoit une erreur : le lien n'existe pas dans le HTML qu'on lui a envoyé, donc le serveur ne lui sert pas la page."
+        },
+        {
+          "id": "b",
+          "texte": "La page s'affiche : le menu décide de ce qu'on voit, pas de ce à quoi on accède. admin.php doit porter sa propre garde, avec la même condition que le lien — redirection pour un anonyme, code 403 pour un membre connecté."
+        },
+        {
+          "id": "c",
+          "texte": "La page s'affiche, et la correction est de cacher aussi le lien aux administrateurs, puis de renommer admin.php en un nom impossible à deviner."
+        },
+        {
+          "id": "d",
+          "texte": "Il est renvoyé au formulaire de connexion : le session_start() du menu vérifie le rôle de chaque page demandée."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Masquer un élément de menu règle l'affichage, pas l'accès. Le menu conditionnel décide seulement si la ligne de liste existe dans le HTML envoyé ; la page admin.php, elle, reste une adresse que n'importe qui peut taper. Si elle ne se défend pas elle-même, rien ne l'arrête. La règle est donc que chaque page porte sa propre garde, avec la même condition que le lien qui y mène, en première ligne et suivie de die(). Deux gardes, deux questions : l'authentification (« qui es-tu ? ») renvoie un anonyme au formulaire, et l'autorisation (« qu'as-tu le droit de faire ? ») répond au membre connecté par le code 403, qui signifie « je sais qui tu es, et la réponse est non ». Le rediriger vers le formulaire n'aurait aucun sens, puisqu'il est déjà connecté. La réponse a confond ce qu'une page montre avec ce que le serveur accepte : le serveur ne sait pas quels liens il a affichés à qui, et il sert toute adresse qu'on lui demande, sauf si le script de cette page s'y oppose. La réponse c est de la sécurité par l'obscurité : un nom difficile à deviner finit par fuiter, dans un historique, un signet ou une capture d'écran, et il ne vérifie toujours aucun droit. La réponse d prête au menu une vérification qu'il ne fait pas : session_start() charge la session, rien de plus, et le menu n'est de toute façon pas exécuté sur admin.php s'il n'y est pas inclus. Côté examen, la condition de l'exemple 2, typeCompte comparé à admin, est la forme à rendre. Son code, tel quel, a pourtant deux défauts mesurés sur PHP 8.5.10 avec un visiteur non connecté : l'élément Panneau d'administration écrit en HTML hors de toute condition s'affiche à tout le monde, et la lecture de la clé absente produit Warning: Undefined array key \"typeCompte\". En production, lis la clé avec une valeur de repli, ($_SESSION[\"typeCompte\"] ?? \"\"), et compare avec === ou !==, qui ne convertissent pas les types : c'est la règle pour toute valeur qui décide d'un droit. Et garde en tête qu'une garde de rôle ne suffit pas toujours : avoir le droit d'ouvrir facture.php ne dit pas qu'on a le droit d'ouvrir la facture d'un autre, une vérification qui se fait dans la requête SQL elle-même.",
+      "ficheSource": "web/php/php-sessions-authentification.md"
+    }
+  ]
+}

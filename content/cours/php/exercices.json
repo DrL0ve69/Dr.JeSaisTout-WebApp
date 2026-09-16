@@ -241,6 +241,47 @@
           "enonce": "Ajoute au projet une page « configuration.php », accessible depuis la page principale par un hyperlien. Elle affiche le titre principal « Configuration du serveur », puis les cinq attributs suivants de la variable $_SERVER : DOCUMENT_ROOT, PHP_SELF, SERVER_ADDR, SERVER_NAME et SERVER_SOFTWARE."
         }
       ]
+    },
+    {
+      "numero": 7,
+      "feuille": "Exercices du cours 7 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Créer la base « cours7 » et la table « utilisateur »",
+          "enonce": "Crée une base de données nommée « cours7 » et ajoute-lui une table « utilisateur ». La table porte trois champs : « id_utilisateur », une valeur numérique auto-incrémentée ; « code_utilisateur », une chaîne d'au plus 50 caractères ; et « mot_de_passe », une chaîne d'au plus 100 caractères. Insère ensuite quelques comptes de test, avec des codes utilisateur et des mots de passe inventés."
+        },
+        {
+          "reference": "2",
+          "titre": "Le formulaire de connexion",
+          "enonce": "Écris une page « formulaireConnexion.php » qui demande le code utilisateur et le mot de passe. Le champ du mot de passe est un input de type « password ». Le formulaire envoie ses informations à la page « connexion.php » avec la méthode POST."
+        },
+        {
+          "reference": "3",
+          "titre": "Valider la connexion et rediriger selon le cas",
+          "enonce": "Écris la page « connexion.php », qui valide le code utilisateur et le mot de passe reçus. Trois cas sont possibles : si les deux sont valides, redirige l'utilisateur vers « pageSecuritaire.php » ; si le code utilisateur existe mais que le mot de passe est faux, redirige vers le formulaire de connexion en y faisant afficher « Le mot de passe est invalide » ; si le code utilisateur n'existe pas, redirige vers le formulaire de connexion avec un message qui indique que ce code n'existe pas."
+        },
+        {
+          "reference": "4",
+          "titre": "Protéger « pageSecuritaire.php »",
+          "enonce": "Écris la page « pageSecuritaire.php », qui contient un texte de remplissage (Lorem Ipsum). Mets en place les mesures de protection nécessaires pour qu'un utilisateur non authentifié qui tente de l'ouvrir soit redirigé vers « formulaireConnexion.php »."
+        },
+        {
+          "reference": "5",
+          "titre": "Une page d'accueil « index.php »",
+          "enonce": "Ajoute une page « index.php » dont le titre <h1> affiche « Bienvenue sur notre application »."
+        },
+        {
+          "reference": "6",
+          "titre": "Un menu, et un lien de déconnexion",
+          "enonce": "Écris un menu qui donne accès à toutes les pages du site : formulaireConnexion, index et pageSecuritaire. Ajoute-lui un lien « Déconnexion » qui détruit la session en cours et redirige l'utilisateur vers « index.php »."
+        },
+        {
+          "reference": "7",
+          "titre": "Un menu qui dépend de la connexion",
+          "enonce": "Fais en sorte que les liens du menu dépendent de l'état de l'utilisateur. Connecté, il voit les liens Index, pageSecuritaire et Déconnexion. Non connecté, il voit les liens Index et Formulaire de connexion."
+        }
+      ]
     }
   ]
 }

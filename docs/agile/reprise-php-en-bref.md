@@ -166,6 +166,7 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ✅ **2026-09-16** — `statut: verifiee`, **un** `à-vérifier:` |
 | **PHP-6** | Séance 5 — Intégration de base de données | ✅ **2026-09-16** — `statut: verifiee`, sept `à-vérifier:` |
+| **PHP-7** | Séance 7 — Sessions et authentification (module `06`) | ✅ **2026-09-16** — `statut: verifiee`, neuf `à-vérifier:` |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
 
 ### ✅ CLÔTURE — E7 lot B « les routes du cours de PHP » (2026-09-10)
@@ -955,3 +956,72 @@ moment où on la bâtit** — au vu de ce lot, en **recomptant l'énumération**
 🔵 **Le corrigé et le code de démonstration de l'enseignant se téléchargent et se rangent sous
 `php-2026/`** (gitignoré) : ce lot l'a fait pour la séance 5 plutôt que de les perdre dans un
 dossier temporaire, et ils ont servi à chaque étape.
+
+### ✅ CLÔTURE — PHP-7 « séance 7, Sessions et authentification » (2026-09-16)
+
+**Livré** : `content/cours/php/06-sessions-authentification/` — `lecon.md` (**2214 lignes**,
+**28 titres : quinze `##` et treize `###`**, concordant exactement avec la table de
+`docs/contenu/renvois-diapos-php-06.md`) et `quiz.json` (5 questions, quatre types). ⚠️ **Le module
+06 porte la séance 7** (la 6 est l'Examen 1) : `ordre: 6`, `seance: 7`. Marche à suivre de
+**20 étapes**, cinq paires `{voie}`. **Les 7 exercices** de la séance sont au registre (écrits par
+le fil principal avant le brief) et **tous les 7** cités au fil du texte. **Neuf marqueurs
+`à-vérifier:`**, tous liés à la configuration du WAMP du Cégep (`output_buffering`,
+`session.cookie_httponly`, `session.use_strict_mode`, `sql_mode`, configuration Apache des `.inc`)
+ou à **P-8**. Le module reste `statut: verifiee`.
+
+#### 🔴 CE QUE CE LOT A DÉCOUVERT, ET QUI CHANGE LES LOTS SUIVANTS
+
+**1. Les CAPTURES d'un `.pptx` se lisent.** Six lots ont écrit « reconstitué d'après la capture » et
+posé un `à-vérifier:` faute de pouvoir la lire. Or un `.pptx` est une archive : `unzip`, puis
+`ppt/slides/_rels/slideN.xml.rels` relie chaque image à sa diapositive, et l'outil `Read` **affiche**
+une image. Les dix-neuf captures de la séance ont été lues par le fil principal (§3a de la
+cartographie). Ça a payé tout de suite : la moitié A avait « reconstitué » la diapositive 40 avec un
+`close()` **qui n'y est pas**, et marqué son doute ; le code exact l'a remplacé, et deux marqueurs
+sont tombés. 🔵 **Pour tout lot suivant : lire les captures AVANT d'écrire la cartographie.**
+
+**2. `php-cgi.exe` est un instrument HTTP.** Il émet `Status`, `Location` et `Set-Cookie`, et prend
+un cookie par `HTTP_COOKIE` : une redirection, une fixation de session et un corps de réponse se
+**mesurent** sans serveur web. Vingt-deux mesures (M1-M22) ; la plus parlante : le
+`pageSecuritaire.php` du corrigé, sans `die()`, envoie le contenu protégé **dans le corps de la 302**
+(tampon à 4096) — et, sans tampon, **ne redirige pas du tout**.
+
+**3. La KB s'est encore trompée, trois fois, et chaque fois c'est une mesure qui a tranché.** « Entre
+deux chaînes, `==` compare caractère par caractère » (faux : `"1e3" == "1000"` vaut `true`) ;
+« un `.inc.php` exécuté ne rend rien » (faux : il rend sa sortie) ; un libellé d'avertissement de
+PHP 7. Corrigés et poussés (KnowledgeBase `653e5aa`).
+
+#### La passe adversariale
+
+Deux `verificateur-theorie` en parallèle, un par moitié — **128k et 146k**. **5 INEXACT bloquants,
+14 nuances.** Les deux plus instructifs : **(a)** le volet `vulnerable` de `connexion.php` avait
+perdu sa requête — et une variable jamais affectée comparée par `==` à `""` vaut **`true`** (M19) :
+le code montrait une **autre** faille que celle annoncée ; **(b)** le volet corrigé annonçait un
+message unique « qui ne dit rien de l'existence du compte », mais n'appelait `password_verify()` que
+pour un compte existant — **217 ms** d'écart mesurable (M20). Parade : un haché factice de même coût,
+vérifié valide par `password_get_info()`. Les correctifs ont été confiés à **deux agents frais**,
+en séquence (même fichier), puis recomptés par le fil principal : notes `{lignes}` ligne à ligne,
+37 blocs `php` passés à `php -l`.
+
+#### Budget — deux dépassements à motiver
+
+Les deux rédacteurs ont fini à **172k** et **174k** (40 et 39 appels), au-delà du maximum de 150k.
+**Cause : le volume de SORTIE** — ~1 050 lignes de leçon chacun, plus une lecture de la fiche KB
+(777 lignes) et de la cartographie. Le §9 de la règle de budget le dit pour les fixtures ; c'est
+vrai aussi d'une demi-leçon. **Pour PHP-8 (déck de 103 diapositives, le plus long) : trois
+rédacteurs, pas deux**, ou un plan de titres plus court. Le quiz (105k) et les correctifs (81k,
+101k) ont tenu.
+
+#### Gates
+
+G-content **16 leçons / 2 racines** (49 exercices PHP sur 6 séances) · G-lint · G-typage-outils ·
+G-test **1203 passés / 1 sauté** (48 fichiers) · G-build **14 hachages `style-src`, 0 de script —
+inchangés** · G-axe **0 violation** (14 pages, 1204 vérifications) · G-audit `--omit=dev` **0**.
+G-e2e laissé à la CI (module non publié). L'avertissement de budget SCSS de `rendu-blocs.scss`
+persiste, antérieur et inchangé.
+
+#### Le geste suivant
+
+**PHP-8** (séance 8, déploiement — `Cours08_deploiement_application_web.txt`, **103 diapositives**),
+terrain **non posé**. Même ordre : fraîcheur du `.pptx`, exercices relevés sur
+<https://www.alexandrepetrin.ca/exercice-php-cours-8-2026/>, **captures lues**, mesures, puis la
+table des titres. Fiches : `php-deploiement.md` + `php-hebergement-domaine-https.md`.
