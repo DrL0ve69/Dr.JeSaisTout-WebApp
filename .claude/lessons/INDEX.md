@@ -102,26 +102,27 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-086 | 2661–2710 | Une fixture d'intégration où le paramètre vaut `undefined` ne distingue pas « câblé » de « jamais passé » |
 | L-087 | 2711–2736 | Deux copies d'un prédicat de nom doivent lire la MÊME chaîne — une divergence compte comme défaut même quand elle reste fail-closed |
 | L-088 | 2737–2758 | Une fixture invalide ne prouve QU'UNE des deux implémentations d'une règle dupliquée |
-| L-089 | 2759–2778 | Une assertion sur un message d'erreur FRANÇAIS se copie-colle depuis la sortie réelle, jamais ne se retape |
-| L-090 | 2779–2798 | La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche |
-| L-091 | 2799–2821 | Une liste d'exceptions NOMMÉES dans une feuille de styles ne pense pas toute seule au cas suivant — et un commentaire « même traitement que X » doit dire QUEL X |
-| L-092 | 2822–2845 | `toContain` sur un TABLEAU teste l'égalité d'élément, pas l'inclusion de sous-chaîne — un matcher de sécurité doit se vérifier sur le type réellement observé |
-| L-093 | 2846–2873 | Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait |
-| L-094 | 2874–2914 | Un lot DIFFÉRÉ se re-mesure contre l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé |
-| L-095 | 2915–2949 | La duplication est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE — et la divergence d'un recensement est INVISIBLE à tout appariement de messages |
-| L-096 | 2950–2980 | Le compte de tokens qu'un sous-agent s'attribue dans son rapport n'est PAS une mesure — seul celui du harnais l'est |
-| L-097 | 2981–3015 | Un contrôle positif écrit pour ISOLER la branche visée peut esquiver la forme NATURELLE de la faute — et taire qu'une règle neuve recoupe une règle existante |
-| L-098 | 3016–3053 | Une section neuve écrite APRÈS des correctifs les recopie de mémoire — et ressuscite la version corrigée |
-| L-099 | 3054–3092 | Une capacité e2e neuve n'est livrée que si son filet HORS SUITE la connaît — c'est le fichier qui PROMET le filet qui l'avait oublié |
-| L-100 | 3093–3114 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
-| L-101 | 3115–3163 | Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change |
-| L-102 | 3164–3199 | Un livrable ABSENT fait rougir le gate ; un livrable trop ÉTROIT ne fait rougir personne — le second sens d'un contrôle de couverture n'a jamais de gate |
-| L-103 | 3200–3232 | Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune |
-| L-104 | 3233–3269 | Décrire une faute de la SOURCE sans l'attribuer prive le lecteur du seul renseignement utile — « retirer l'attribution, garder le fait » ne vaut que pour une source NON VÉRIFIABLE |
-| L-105 | 3270–3307 | Une assertion universelle héritée d'une population HOMOGÈNE devient fausse au premier membre d'une autre espèce — on nomme l'ensemble sur lequel elle porte, on ne la relâche pas pour tout le monde |
-| L-106 | 3308–3328 | Dupliquer un composant PORTEUR DE STYLES ajoute un hachage CSP, même pour un texte identique — la duplication à surveiller n'est pas le code, c'est le bloc `<style>` |
-| L-107 | 3329–3358 | Une montée de version Angular en ERESOLVE se répare en retirant du VERROU les seules entrées concernées, jamais par `--force`/`--legacy-peer-deps` |
-| L-108 | 3359–3395 | Une correction se vérifie contre la SOURCE PRIMAIRE, jamais contre le document DÉRIVÉ qui l'indexe — sinon elle propage l'approximation de l'index au lieu de la corriger |
+| L-089 | 2759–2779 | Une assertion sur un message d'erreur FRANÇAIS se copie-colle depuis la sortie réelle, jamais ne se retape |
+| L-090 | 2780–2799 | La liste de gates d'un brief se dimensionne au TYPE de code écrit, pas à la couche qu'il touche |
+| L-091 | 2800–2822 | Une liste d'exceptions NOMMÉES dans une feuille de styles ne pense pas toute seule au cas suivant — et un commentaire « même traitement que X » doit dire QUEL X |
+| L-092 | 2823–2846 | `toContain` sur un TABLEAU teste l'égalité d'élément, pas l'inclusion de sous-chaîne — un matcher de sécurité doit se vérifier sur le type réellement observé |
+| L-093 | 2847–2874 | Un rapport d'agent qui conclut « X est IMPOSSIBLE » à partir d'une mesure sur UNE forme n'a mesuré qu'une hypothèse, pas un fait |
+| L-094 | 2875–2915 | Un lot DIFFÉRÉ se re-mesure contre l'état du dépôt le jour où il s'ouvre, jamais contre la ligne du plan qui l'a nommé |
+| L-095 | 2916–2950 | La duplication est le contrat pour ce qui JUGE, jamais pour ce qui RECENSE — et la divergence d'un recensement est INVISIBLE à tout appariement de messages |
+| L-096 | 2951–2981 | Le compte de tokens qu'un sous-agent s'attribue dans son rapport n'est PAS une mesure — seul celui du harnais l'est |
+| L-097 | 2982–3016 | Un contrôle positif écrit pour ISOLER la branche visée peut esquiver la forme NATURELLE de la faute — et taire qu'une règle neuve recoupe une règle existante |
+| L-098 | 3017–3054 | Une section neuve écrite APRÈS des correctifs les recopie de mémoire — et ressuscite la version corrigée |
+| L-099 | 3055–3093 | Une capacité e2e neuve n'est livrée que si son filet HORS SUITE la connaît — c'est le fichier qui PROMET le filet qui l'avait oublié |
+| L-100 | 3094–3115 | Une batterie de mutations vertes ne prouve QUE ce que son auteur a pensé à casser |
+| L-101 | 3116–3164 | Poser un renvoi de provenance est un JUGEMENT — tout texte qui PARLE de la provenance d'une section se relit contre ce jugement, même sans rapport apparent avec le geste qui le change |
+| L-102 | 3165–3200 | Un livrable ABSENT fait rougir le gate ; un livrable trop ÉTROIT ne fait rougir personne — le second sens d'un contrôle de couverture n'a jamais de gate |
+| L-103 | 3201–3233 | Un RÉSUMÉ met en voisinage immédiat des affirmations que des centaines de lignes séparaient — il fait donc remonter les contradictions latentes d'un document, sans en créer aucune |
+| L-104 | 3234–3270 | Décrire une faute de la SOURCE sans l'attribuer prive le lecteur du seul renseignement utile — « retirer l'attribution, garder le fait » ne vaut que pour une source NON VÉRIFIABLE |
+| L-105 | 3271–3308 | Une assertion universelle héritée d'une population HOMOGÈNE devient fausse au premier membre d'une autre espèce — on nomme l'ensemble sur lequel elle porte, on ne la relâche pas pour tout le monde |
+| L-106 | 3309–3329 | Dupliquer un composant PORTEUR DE STYLES ajoute un hachage CSP, même pour un texte identique — la duplication à surveiller n'est pas le code, c'est le bloc `<style>` |
+| L-107 | 3330–3359 | Une montée de version Angular en ERESOLVE se répare en retirant du VERROU les seules entrées concernées, jamais par `--force`/`--legacy-peer-deps` |
+| L-108 | 3360–3395 | Une correction se vérifie contre la SOURCE PRIMAIRE, jamais contre le document DÉRIVÉ qui l'indexe — sinon elle propage l'approximation de l'index au lieu de la corriger |
+| L-109 | 3396–3432 | Un bloc de sortie publié dans une leçon est une assertion : il se produit en EXÉCUTANT l'interpréteur, pas en le raisonnant — et d'abord en vérifiant qu'il est sur le poste |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -157,4 +158,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-026 | 1115–1177 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 | S-027 | 1178–1227 | « Fermée pour le PIPELINE » n'est pas « fermée pour la FONCTION » — une grammaire portée par une couche AMONT laisse la copie AVAL seule autorité sur tout chemin qui court-circuite l'amont (A03 · CWE-20, septième forme de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]]/[[S-026]]) |
 
-_135 entrées indexées._
+_136 entrées indexées._

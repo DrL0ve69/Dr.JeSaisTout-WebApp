@@ -1,0 +1,108 @@
+{
+  "lecon": "programmation-orientee-objet",
+  "titre": "Quiz — la programmation orientée objet en PHP",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "trouver-la-faille",
+      "consigne": "Un étudiant recopie la classe projetée à la diapositive 14 et ouvre la page dans son navigateur : il n'obtient rien du tout, pas même le texte qui précédait la classe dans le fichier. Quelle ligne produit ce résultat, et pourquoi les autres n'en sont pas la cause ?",
+      "langage": "php",
+      "code": "<?php\nclass Personne{\n    public $nom;\n    public function __construct($n){\n        $this.nom = $n;\n    }\n}\n\n$p = new Personne(\"Alice\");\necho $p->nom;",
+      "ligneFautive": 5,
+      "faille": "Le point employé comme opérateur d'accès à un membre : en PHP le point est la concaténation, et le fichier entier est refusé",
+      "explication": "En PHP, le point n'accède à rien : c'est l'opérateur qui colle deux chaînes de caractères bout à bout. La ligne 5 demande donc de coller l'objet courant à quelque chose qui s'appelle nom, puis d'écrire dans le résultat de ce collage — or le résultat d'un collage n'est pas une case mémoire dans laquelle on peut écrire. PHP refuse le fichier au lieu de l'exécuter, et c'est ce qui explique le symptôme : aucune ligne de la page ne s'affiche, pas même celles qui précèdent la classe. Devant une page entièrement blanche, soupçonne toujours une erreur d'écriture, jamais une erreur de logique. L'erreur est d'autant plus contagieuse qu'elle vient du réflexe de C# et de Java, deux langages où le point est bien l'opérateur d'accès — et la diapositive 14 invoque justement C# pour introduire le constructeur. La forme qui s'exécute est $this->nom = $n; : la flèche relie l'objet courant, $this, à son attribut nom, et la valeur reçue est recopiée dans l'objet, où elle survivra à la fin du constructeur. Les autres lignes sont hors de cause. La ligne 3, public $nom;, est une déclaration d'attribut correcte : le $ y est normal, et l'absence de valeur par défaut fait seulement démarrer l'attribut à null. La ligne 4 est complète — visibilité, puis le mot function, puis le nom de la méthode — contrairement au public getNom() de la diapositive 19, qui, lui, oublie function. La ligne 9 est correcte aussi : c'est new qui déclenche le constructeur, on ne l'appelle jamais par son nom. Et la ligne 10 écrit $p->nom sans $ devant nom, ce qui est la bonne forme : le $ de la déclaration ne se recopie pas à l'usage, et $p->$nom serait une autre instruction, légale mais presque toujours fausse, qui demande l'attribut dont le nom est contenu dans la variable $nom. Il ne s'agit pas ici de deux écoles de pensée mais d'une coquille du support : écris -> partout, y compris à l'examen, puisque le corrigé officiel de la séance écrit lui-même $this->.",
+      "correction": "<?php\nclass Personne{\n    public $nom;\n    public function __construct($n){\n        $this->nom = $n;\n    }\n}\n\n$p = new Personne(\"Alice\");\necho $p->nom;",
+      "ficheSource": "web/php/php-poo.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Le support projette une classe Carre dont getSurfaceTotale() retourne longueur × largeur, puis une classe PrismeABaseCarre extends Carre qui redéfinit getSurfaceTotale() pour retourner profondeur × largeur × longueur. Le programme fabrique ensuite $carre = new Carre(12, 10) et $prisme = new PrismeABaseCarre(12, 10, 12), et appelle getSurfaceTotale() sur chacun. Qu'obtient-il, et pourquoi ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "120 puis 1440 : PHP cherche getSurfaceTotale() d'abord dans PrismeABaseCarre, l'y trouve et s'arrête ; la version de Carre est masquée sur cet objet-là, mais elle continue de répondre sur un objet Carre."
+        },
+        {
+          "id": "b",
+          "texte": "120 puis 120 : les attributs et les fonctions du parent ont été copiés dans l'enfant au moment du extends, donc c'est la version copiée de Carre qui s'exécute dans les deux cas."
+        },
+        {
+          "id": "c",
+          "texte": "1440 puis 1440 : la redéfinition la plus récente remplace celle du parent pour toute la chaîne de classes, y compris pour les objets de la classe mère."
+        },
+        {
+          "id": "d",
+          "texte": "Une erreur fatale « Cannot redeclare getSurfaceTotale() » : PHP refuse deux méthodes portant le même nom, et c'est exactement ce que démontrent les diapositives 33 à 35."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est la définition même de la redéfinition, la seule forme de polymorphisme que PHP supporte : l'enfant ne crée pas une seconde méthode à côté de celle du parent, il fournit sa version, et c'est elle qui s'exécute sur ses objets. La recherche a lieu à chaque appel — PHP regarde d'abord dans PrismeABaseCarre, y trouve getSurfaceTotale(), et s'arrête. Sur un objet Carre, cette recherche ne passe jamais par l'enfant, donc c'est toujours la version du parent qui répond : 12 × 10 = 120, puis 12 × 10 × 12 = 1440. Deux objets, le même appel écrit à l'identique, deux résultats. La réponse b prend au mot le verbe « copie » de la diapositive 27, et c'est le piège le plus rentable de la section sur l'héritage : rien n'est réellement recopié dans la classe enfant. Le mot est commode pour décrire le résultat — l'enfant se comporte comme s'il possédait tout ce qu'a le parent — mais il est inexact sur le mécanisme, et l'inexactitude a justement cette conséquence : c'est parce que rien n'est copié qu'une classe enfant peut fournir sa propre version d'une méthode. La réponse c inverse le sens du masquage : la version de Carre est masquée sur le prisme, pas remplacée dans Carre ; l'objet $carre n'a jamais entendu parler de PrismeABaseCarre. La réponse d confond les deux variantes annoncées par la diapositive 32 : Cannot redeclare est le verdict de la surcharge, c'est-à-dire deux définitions du même nom dans la même portée, que les diapositives 33 à 35 démontrent sur deux fonctions libres — la redéfinition dans une classe enfant, elle, est parfaitement légale, et c'est celle que PHP supporte. Deux détails du même exemple valent d'être retenus : protected sur $longueur et $largeur est exactement la bonne visibilité, car en private la classe enfant ne pourrait pas les lire ; et parent::__construct($lo, $la) est indispensable, sans quoi les deux attributs resteraient vides. Une réserve enfin, qui ne change rien à la mécanique : getSurfaceTotale() du prisme retourne en réalité un volume, et une méthode redéfinie qui change l'unité de ce qu'elle retourne casse la promesse de la classe mère. Reproduis la mécanique telle quelle à l'examen ; ne reproduis pas la modélisation en équipe.",
+      "ficheSource": "web/php/php-poo.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "La diapositive 43 donne la division par zéro comme exemple d'erreur prévisible à traiter par exception. Donc entourer echo 20 / 0; d'un try suivi d'un catch (Exception $e) suffit : l'erreur est rattrapée, le message s'affiche, et le reste de la page continue de s'exécuter.",
+      "bonneReponse": false,
+      "justification": "Faux, et c'est le piège le plus rentable de toute la séance. L'intuition du cours est bonne — la division par zéro est bien le genre d'erreur prévisible qu'il faut prévoir — mais en PHP ce cas-là précisément ne produit pas une Exception. Depuis PHP 8.0, l'opérateur / appliqué à un diviseur nul lève une DivisionByZeroError ; les opérateurs % et intdiv() s'y comportaient déjà ainsi depuis PHP 7.0. Or DivisionByZeroError descend d'ArithmeticError, qui descend d'Error : PHP 7 a mis en place deux branches séparées sous l'interface Throwable, Exception d'un côté, Error de l'autre, sans aucun ancêtre commun autre que Throwable. Un catch (Exception $e) ne couvre donc que la branche de gauche, et n'attrape jamais une Error — ni DivisionByZeroError, ni TypeError, ni l'appel d'une méthode sur null. Le résultat mesurable est brutal : aucun des catch écrits ne rattrape quoi que ce soit, et la page meurt sur « PHP Fatal error: Uncaught DivisionByZeroError: Division by zero ». Ajouter un catch (ValeurNegativeException $e) au-dessus n'y change rien non plus, puisque tes exceptions personnalisées héritent d'Exception et vivent donc dans la même branche. Seul catch (Throwable $t) couvre les deux branches, et c'est un filet de tout dernier recours, à poser au sommet d'une application, jamais autour de trois lignes de calcul : la séparation a une intention, une Exception signale une situation que le programme peut raisonnablement traiter, une Error signale un défaut du programme lui-même, qu'il vaut mieux corriger que rattraper. La parade correcte tient donc en une ligne : teste le diviseur avant de diviser, et lève ta propre exception. C'est exactement ce qui manque à l'exercice 3 de la séance, où le trou est partagé par l'énoncé et le corrigé — ni l'un ni l'autre ne traite le cas $b == 0, si bien que Division(20, 0) fait mourir la page. Règle d'arbitrage : à l'examen, donne la réponse du cours, c'est-à-dire le test $b < 0 que l'énoncé exige ; en production, ajoute d'abord le test du zéro, qui coûte une ligne et transforme une page morte en message lisible.",
+      "ficheSource": "web/php/php-poo.md"
+    },
+    {
+      "id": "q4",
+      "type": "associer",
+      "consigne": "Associe chaque déclaration à ce qu'elle garantit réellement, du point de vue de l'encapsulation.",
+      "paires": [
+        {
+          "gauche": "public $nom = \"Alice\";",
+          "droite": "N'importe quelle ligne de n'importe quel fichier peut la lire ET l'écrire : aucune règle ne protège la valeur"
+        },
+        {
+          "gauche": "private $solde = 0;",
+          "droite": "Seule la classe qui la déclare y touche, pas même ses classes dérivées : tous les chemins qui modifient la donnée passent donc par une méthode qui porte la vérification"
+        },
+        {
+          "gauche": "protected $titre;",
+          "droite": "La classe et ses classes dérivées y accèdent, le reste du code non : c'est ce qu'il faut quand une classe fille doit lire l'attribut dans sa propre méthode redéfinie"
+        },
+        {
+          "gauche": "private function estPositif($n){ return $n > 0; }",
+          "droite": "Brique interne que la classe ne s'engage pas à maintenir : elle ne rend aucun service à l'extérieur, donc elle n'a aucune raison de figurer dans ce que la classe offre"
+        },
+        {
+          "gauche": "public function setSolde($valeur){ $this->solde = $valeur; }",
+          "droite": "Rouvre exactement ce que private venait de fermer : la classe n'encapsule plus rien, malgré la fausse impression d'avoir protégé quelque chose"
+        }
+      ],
+      "explication": "Les trois premières lignes sont les trois niveaux de visibilité du cours, et le comptoir d'une banque les tient ensemble : la salle d'attente est public, l'arrière-guichet est protected, la chambre forte est private. La règle pratique est simple — commence tout en private : élargir plus tard une visibilité ne casse rien, la restreindre casse tout le code qui s'était mis à en dépendre. Le cas de $solde est celui du jeu-questionnaire de la séance : s'il était public, n'importe quelle ligne pourrait écrire $compte->solde -= 5000; et contourner entièrement la vérification de fonds. La promesse « le solde ne descend jamais sous zéro » n'est tenue que si tous les chemins qui modifient le solde passent par la classe — une règle qui admet une seule porte dérobée n'est pas une règle. Le cas de estPositif() est la seconde réponse du même jeu-questionnaire : rendre une méthode publique, c'est promettre qu'elle existera encore demain avec le même comportement, et on ne prend pas cet engagement sans contrepartie. Retiens la formulation qui vaut pour les deux : ce qui est public est ce que tu t'engages à maintenir. La dernière ligne est le piège dans lequel tombe presque tout le monde juste après avoir compris private : appliquer mécaniquement la recette getNom() de la diapositive 19 à tout, un accesseur en lecture et un accesseur en écriture par attribut. Tout ce que l'attribut public permettait, setSolde() le permet encore, et $compte->setSolde(-9999); passe sans broncher — six lignes de plus pour obtenir mot pour mot le même tableau associatif qu'avant. La bonne question n'est pas « comment j'expose cette donnée ? » mais « quelle opération l'appelant veut-il faire ? » : personne ne veut poser un solde, on veut déposer ou retirer, et ces deux opérations-là ont des règles. Note que l'accesseur en lecture, lui, reste souvent légitime : lire une valeur ne casse aucune règle. C'est l'accesseur en écriture qui doit se justifier à chaque fois. Une précision pour finir, parce qu'elle évite un contresens : private n'est pas une serrure contre un attaquant, c'est une règle vérifiée par l'interpréteur au moment où il lit ton code. Elle protège contre l'erreur, pas contre la malveillance.",
+      "ficheSource": "web/php/php-poo.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Dans l'exercice 4 de la séance, un Robot est composé de ses parties : son constructeur reçoit une expression faciale et doit fabriquer une Tete, dont le constructeur refuse toute expression non permise en levant une exception. Le corrigé officiel déclare bien le paramètre $expression, mais fabrique la tête avec la chaîne \"sourire\" écrite en dur. Quelle est la conséquence la plus grave de cet oubli ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Aucune : new Robot(\"rire\", 4, 6) produit quand même un robot qui rit, parce que PHP transmet automatiquement les arguments d'un constructeur aux objets que celui-ci fabrique."
+        },
+        {
+          "id": "b",
+          "texte": "new Robot(\"colère\", 4, 6) ne lève jamais l'exception que l'exercice existe pour démontrer : le seul contrôle d'exception de l'exercice n'est donc jamais réellement éprouvé, et rien ne le signale."
+        },
+        {
+          "id": "c",
+          "texte": "PHP émet au chargement du fichier un avertissement « Unused parameter $expression », ce qui permet de repérer le défaut avant même d'exécuter la page."
+        },
+        {
+          "id": "d",
+          "texte": "Le robot ne peut pas être construit du tout : un paramètre déclaré puis jamais utilisé provoque une erreur fatale à l'appel de new."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "La première conséquence est visible mais bénigne : new Robot(\"rire\", 4, 6) produit un robot qui sourit. La seconde est celle qui compte : une expression invalide comme new Robot(\"colère\", 4, 6) ne fait jamais lever l'exception, puisque la valeur refusée n'atteint jamais le constructeur de Tete. L'unique démonstration d'exception de l'exercice est donc morte sans que personne ne s'en aperçoive. La ligne attendue est $this->tete = new Tete($expression); et le mode d'échec vaut d'être retenu bien au-delà de PHP : un paramètre mort ne fait rougir personne, aucun avertissement n'est émis, et le code semble fonctionner puisqu'il affiche quelque chose. C'est précisément ce qui élimine les réponses c et d : PHP n'émet aucun avertissement pour un paramètre inutilisé, et un paramètre non employé n'a jamais empêché une fonction de s'exécuter — si le langage protestait, le défaut n'aurait jamais survécu au corrigé. La réponse a invente un mécanisme qui n'existe pas : rien ne se transmet tout seul d'un constructeur à un autre, et c'est bien le propos de la composition telle que la définit la diapositive 40 — un attribut d'un objet est un autre objet, que le constructeur doit fabriquer explicitement, en lui passant lui-même ce qu'il a reçu. Le corrigé porte d'ailleurs un second défaut, de la même famille : toutes les propriétés y sont public, si bien que $r->tete->expressionFaciale = \"colère\"; contourne la validation en une seule ligne, en chaînant deux flèches exactement comme le $C3PO->bras->longueur du support. Une validation ne vaut que si l'écriture directe est fermée : il faut donc private sur l'attribut, et la levée depuis le constructeur — lever à la construction empêche l'objet d'exister, ce qui est plus sûr que de corriger la valeur après coup.",
+      "ficheSource": "web/php/exercices-corriges-poo-application.md"
+    }
+  ]
+}

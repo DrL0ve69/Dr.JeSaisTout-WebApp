@@ -169,6 +169,32 @@
           "enonce": "Crée un tableau contenant les numéros (819) 643-5432, (819) 230-2341, (819) 669-1234, (514) 669-9819, (450) 230-8194 x123 et (450) 669-1234. 9.1 — écris une fonction « compter_819($tab) » qui retourne le nombre de numéros dont l'indicatif régional, les trois chiffres entre parenthèses, est 819. 9.2 — écris une fonction « retourner_450($tab) » qui retourne un tableau contenant uniquement les numéros du 450. 9.3 — écris une fonction « retourner_telephone_invalide($tab) » qui retourne les numéros ne respectant pas exactement le format « (XXX) XXX-XXXX », où chaque X est un chiffre ; la feuille annonce un seul résultat, le numéro qui porte une extension."
         }
       ]
+    },
+    {
+      "numero": 4,
+      "feuille": "Exercices du cours 4 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "La classe « Etudiant »",
+          "enonce": "Écris une classe « Etudiant » dont les quatre attributs sont privés : le nom, le prénom, le code permanent et le nombre de crédits complétés. Donne-lui un constructeur qui reçoit le prénom et le nom ; à la création, le code permanent est vide et le nombre de crédits complétés vaut toujours 0. Ajoute ensuite « CreerCodePermanent() », qui remplit le code permanent avec les trois premières lettres du nom suivies des trois premières lettres du prénom, le tout en majuscules ; « AjouterCoursComplete() », qui ajoute 3 crédits ; « ChangerNom($n) » et « ChangerPrenom($p) », qui remplacent le nom ou le prénom par celui reçu en paramètre ; et « AfficherProfile() », qui affiche le nom puis le prénom séparés par une virgule, ainsi que le nombre de crédits et le code permanent."
+        },
+        {
+          "reference": "2",
+          "titre": "Une arborescence de répertoires et de fichiers",
+          "enonce": "Représente la situation suivante avec les concepts appropriés. Un répertoire porte un nom. Un fichier porte un nom et une taille, un nombre qui compte ses octets. Un répertoire détient une liste de fichiers et une liste de répertoires. Chaque répertoire et chaque fichier connaît son répertoire parent, s'il en a un, ainsi que ses répertoires et fichiers enfants. Un fichier offre une méthode « obtenirCheminAcces() » qui retourne la suite de ses répertoires parents séparés par des barres obliques et terminée par le nom du fichier — par exemple « Document/Devoir/ProjetDeSession.zip ». Reproduis ensuite l'arborescence donnée par la feuille : un répertoire « Document » contenant « Devoir » (avec ProjetDeSession.zip), « Voyage » (contenant « Caraibe », avec Itinéraire.pdf et BilletAvion.png) et « Maison » (avec CertificatDeLocalisation.pdf)."
+        },
+        {
+          "reference": "3",
+          "titre": "La classe « Mathematiques » et ses exceptions",
+          "enonce": "Écris une classe « Mathematiques » qui offre « ValeurAbsolue », qui retourne la valeur positive du nombre reçu ; « Factoriel », qui retourne le produit de tous les nombres de 1 jusqu'au nombre reçu — Factoriel(5) vaut 5 × 4 × 3 × 2 × 1 ; « RacineCarre », qui retourne la racine carrée du nombre reçu ; « MaxTableau », qui retourne le plus grand nombre d'un tableau reçu en paramètre ; « Division », qui retourne la division de A par B, tous deux reçus en paramètre ; et « Facteur », qui affiche tous les facteurs entiers du nombre reçu — pour 20, ce sont 1, 2, 4, 5, 10 et 20. Ajoute ensuite les exceptions demandées : « Factoriel », « RacineCarre » et « Division » lèvent une « ValeurNegativeException » lorsqu'on leur fournit, respectivement, une valeur inférieure à 0, une valeur inférieure à 0 et un diviseur inférieur à 0 ; « Facteur » lève une « ValeurIncorrecteException » lorsqu'on lui fournit une valeur inférieure à 2."
+        },
+        {
+          "reference": "4",
+          "titre": "Le robot, par composition",
+          "enonce": "Représente la situation suivante en créant un objet distinct pour chacun des concepts soulignés. Un robot a 2 bras, 2 jambes et 1 tête. Un bras porte un certain nombre de doigts. Une tête porte une expression choisie parmi « sourire », « neutre » et « rire » — si on lui en donne une autre, lève une exception. Le robot offre une fonction « meDecrire() » qui affiche le message suivant en y insérant les bonnes valeurs : « Je suis un robot et j'ai __ doigts sur ma main droite et __ doigts sur ma main gauche. Mon expression faciale est _______. »"
+        }
+      ]
     }
   ]
 }

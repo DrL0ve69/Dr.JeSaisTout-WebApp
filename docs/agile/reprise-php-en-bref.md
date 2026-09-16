@@ -162,7 +162,7 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ⬜ **nommé le 2026-09-13** |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ✅ **2026-09-14** — `statut: verifiee`, cinq `à-vérifier:` |
 | **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
-| **PHP-5** | Séance 4 — Programmation orientée objet | ⬜ |
+| **PHP-5** | Séance 4 — Programmation orientée objet | ✅ **2026-09-16** — `statut: verifiee`, **un** `à-vérifier:` |
 | **PHP-6** | Séance 5 — Intégration de base de données | ⬜ |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
 
@@ -724,6 +724,103 @@ donc aucun spec e2e ne le mesure, et la suite complète porte le rouge reproduct
 cartographie de renvois, ni relevé d'exercices vérifié à la source d'autorité. Les deux se font
 **avant** d'écrire, par le fil principal, et **le compte des titres s'écrit dans la table au moment
 où on la bâtit** (le piège de PHP-3, qui avait sous-estimé le volume de sortie de moitié).
+
+⏰ **Rappel inchangé** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts`,
+`src/format-actionnable.spec.ts` (borné à `securite-web`, lot **PHP-F**) et `MODULES_PUBLIES`
+mordent — et l'ordre de découverte des specs e2e peut glisser vers une page PHP (§7).
+
+---
+
+### ✅ CLÔTURE — PHP-5 « séance 4, La programmation orientée objet » (2026-09-16)
+
+**Livré** : `content/cours/php/04-programmation-orientee-objet/` — `lecon.md` (**2013 lignes**,
+**28 titres : quatorze `##` et quatorze `###`**, concordant exactement avec la table de
+`docs/contenu/renvois-diapos-php-04.md`) et `quiz.json` (5 questions, **quatre** types —
+`trouver-la-faille`, `choix-multiple`, `vrai-faux`, `associer`). Les **4 exercices** de la séance 4
+sont au registre et **tous les 4** cités au fil du texte. Six encadrés `correction-du-cours`. Un
+seul marqueur `à-vérifier:` — l'écart `Facteur()` entre l'énoncé (« inférieure à 2 ») et le corrigé
+officiel (`$n < 0`), que la passe adversariale a confirmé et jugé **légitime** : la réponse vit
+dans la pratique de l'enseignant, pas dans une spécification. Le module reste `statut: verifiee`.
+
+#### 🔴 CE QUE CE LOT A DÉCOUVERT, ET QUI CHANGE LES LOTS SUIVANTS
+
+**PHP 8.5.10 CLI est installé sur le poste** — `php -v`, binaire dans `C:\php`, hors WAMP. Trouvé
+en cherchant de quoi trancher les constats de la passe adversariale, **après trois lots de cours de
+PHP écrits sans l'avoir jamais cherché**. Neuf points litigieux ont été **exécutés** ; les neuf ont
+confirmé les vérificateurs. Consigné en **L-109**, et en mémoire de projet.
+
+⚠️ **La borne, à ne pas perdre** : 8.5.10 n'est **pas** l'environnement de référence du cours
+(**WAMP**, D-PHP-3, version inconnue du dépôt). La mesure fait foi pour ce qui est stable depuis
+PHP 8.0 — erreurs d'analyse, mode coercitif, `DivisionByZeroError`, avertissement de variable non
+définie. Au-delà, elle se dit comme une mesure locale, elle ne s'affirme pas.
+
+#### La passe adversariale, et ce qu'elle a rapporté
+
+Deux `verificateur-theorie` indépendants, **un par moitié** (1-892 et 893-1958), lancés en
+parallèle parce qu'ils sont *read-only* — **105k et 114k tokens, 13 appels d'outils chacun**. La
+découpe par volume de source a tenu, pour la deuxième fois consécutive.
+
+**17 constats, tous traités : 6 INEXACT bloquants, 10 à nuancer, 1 marqueur confirmé.** Les six
+inexactitudes, parce qu'elles disent quelque chose du mode d'échec :
+
+1. **Un attribut typé ne refuse pas une valeur du mauvais type.** En mode coercitif — le défaut,
+   sans `declare(strict_types=1);` — `$p->nom = 5;` range la chaîne `"5"` **en silence**. Mesuré.
+   L'erreur ne tombe que sur une valeur non convertible. La fiche KB était **saine** : elle posait
+   `declare(strict_types=1);` au-dessus de son exemple ; **c'est la leçon qui a perdu ce contexte**.
+2. **Un bloc annonçait un `Fatal error` sous du code qui ne faisait que DÉCLARER une classe.** Sans
+   `new` ni appel, sa sortie réelle est **vide**. Le message était exact — le code ne le produisait
+   pas.
+3. **`120` et `1440` étaient annoncés sur deux lignes ; deux `echo` collés rendent `1201440`**, une
+   seule ligne. Mesuré. Corrigé en gardant le code **verbatim du support** et en faisant du défaut
+   le point d'enseignement.
+4. **« En `private`, la redéfinition serait impossible » est faux.** Mesuré : la redéfinition reste
+   **permise** ; c'est son **corps** qui casse — deux `Warning: Undefined property`, résultat `0`.
+   La conclusion (`protected` est la bonne visibilité) était juste ; sa justification ne l'était pas.
+5. **Un renvoi désignait « le deuxième bloc » pour parler du troisième.**
+6. **« Ces trois exemples se recopient tels quels » était faux deux fois** : l'un employait une
+   variable jamais affectée, l'autre lançait une exception déclarée seulement dans le précédent.
+   Corrigé en disant ce qu'ils sont — des **fragments successifs d'un même fichier** — et vérifié
+   par exécution : code de sortie 0, aucun avertissement.
+
+#### 🔴 La leçon de méthode — le mode d'échec dominant est le COMPTE DE LIGNES, pas le texte
+
+Trois des six inexactitudes sont un écart entre une **sortie annoncée** et la **sortie réelle**, et
+c'était **déjà** le cas de trois des cinq de PHP-4. Deux fois de suite, le même défaut, sur deux
+leçons écrites par des agents différents : ce n'est plus un accident, c'est le mode d'échec propre
+au format. Une sortie de programme **se recompte, elle ne se relit pas** — combien de lignes,
+combien de fois, dans quel ordre.
+
+Et une variante neuve, qui vaut d'être nommée : **deux blocs `text` montraient le rendu du
+NAVIGATEUR sous l'étiquette « sortie du programme »**. `echo $p->nom . "<br>";` écrit
+`Alice<br>Bruno<br>Chloé<br>` sur **une** ligne ; la leçon l'affichait empilé, alors qu'elle pose
+elle-même la convention inverse mille cent lignes plus loin. Ce n'est pas une coquille : c'est une
+**confusion d'instrument**, et c'est précisément la distinction qu'un étudiant de cette séance doit
+acquérir. Corrigé en montrant la sortie brute **et** en expliquant le rendu.
+
+#### Un signal routé plutôt que tranché, et bien fait
+
+Le vérificateur de la moitié B a refusé de juger le `{hors-cours}` de la section « Le vrai
+polymorphisme passe par le TYPE » — la cartographie n'était pas dans son lot. Le fil principal l'a
+vérifié : **aucun des sept extraits de déck** ne porte de paramètre par défaut, ni en syntaxe
+(`function f($x = …)`) ni en prose. Le marqueur est juste. C'est le bon réflexe : `{hors-cours}`
+répond de **tous** les extraits, jamais d'un seul déck.
+
+#### Gates
+
+G-content **14 leçons / 2 racines** (34 exercices PHP sur 4 séances) · G-lint · G-typage-outils ·
+G-test **1203 passés / 1 sauté** (48 fichiers) · G-build **14 hachages `style-src`, 0 de script —
+inchangés**, 15 pages inspectées · G-axe **0 violation** (14 pages, 1204 vérifications) ·
+G-audit `--omit=dev` **0 vulnérabilité**. G-e2e laissé à la CI : le module n'est pas publié, donc
+aucun spec e2e ne le mesure, et la suite complète porte le rouge reproductible connu
+(`defileurs-clavier.spec.ts:502`, L-057).
+
+#### Le geste suivant
+
+**PHP-6** (séance 5, intégration de base de données), dont le terrain n'est **pas** posé — ni
+cartographie de renvois, ni relevé d'exercices vérifié à la source d'autorité. Les deux se font
+**avant** d'écrire, par le fil principal, et le compte des titres s'écrit dans la table **au moment
+où on la bâtit**. 🔴 **Et désormais : tout exemple de code se fait exécuter avant d'être publié** —
+l'interpréteur est sur le poste.
 
 ⏰ **Rappel inchangé** : le jour où un module de PHP passe `publiee`, `e2e/aides/artefact-mesure.ts`,
 `src/format-actionnable.spec.ts` (borné à `securite-web`, lot **PHP-F**) et `MODULES_PUBLIES`
