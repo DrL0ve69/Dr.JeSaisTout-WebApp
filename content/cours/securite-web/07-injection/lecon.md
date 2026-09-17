@@ -1,5 +1,5 @@
 ---
-titre: Injection — quand une donnée devient du code
+titre: Sécurité du code — Injection
 slug: injection
 sujet: securite-web
 section: Sécurité du code
@@ -22,7 +22,7 @@ maj: 2026-08-21
 statut: publiee
 ---
 
-# Injection — quand une donnée devient du code
+# Sécurité du code — Injection
 
 ## L'idée en une image
 

@@ -1,5 +1,5 @@
 ---
-titre: XSS — quand le navigateur de la victime exécute le code d'un autre
+titre: Sécurité du code — XSS
 slug: xss
 sujet: securite-web
 section: Sécurité du code
@@ -23,7 +23,7 @@ maj: 2026-08-21
 statut: publiee
 ---
 
-# XSS — quand le navigateur de la victime exécute le code d'un autre
+# Sécurité du code — XSS
 
 ## L'idée en une image
 

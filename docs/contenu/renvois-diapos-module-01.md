@@ -1,4 +1,4 @@
-# Renvois diapositives — module 01 « Fondamentaux de la sécurité des applications web »
+# Renvois diapositives — module 01 « Introduction à la sécurité des applications web »
 
 > **Ce que c'est.** La table de correspondance **mesurée** entre chaque section de
 > [`content/cours/securite-web/01-fondamentaux/lecon.md`](../../content/cours/securite-web/01-fondamentaux/lecon.md)

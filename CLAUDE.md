@@ -32,7 +32,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 |---|---|---|
 | 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-8 + publication** (2026-09-17) — les **sept** modules (séances 1-5, 7, 8) sont **en ligne**, `statut: publiee`. Geste suivant : **PHP-9** (séance 10, Laravel). | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
 | Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
-| Contenu du cours de sécurité | 10 leçons en ligne ; **plan du 2026-09-17** : séance 7 (reprise des modules 07-10), puis séance 8 (E3-ST18), puis séance 5 (E3-ST17) — numérotation du **site de l'enseignant** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
+| Contenu du cours de sécurité | 10 leçons en ligne ; ✅ **ancrage recalé** (2026-09-17) — `horaire.json` et les titres sont verbatim du calendrier. Geste suivant : séance 7 (reprise des modules 07-10), puis séance 8 (E3-ST18), puis séance 5 (E3-ST17) — numérotation du **site de l'enseignant** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |
 
 **Dette nommée et non corrigée**, une ligne chacune — le détail est au backlog :
@@ -81,6 +81,17 @@ référence est **WAMP** (version « Admin », vérifiée présente au Cégep ; 
 🔴 **Aucun exemple concret ne s'invente** : les chemins du poste **P-2, P-4, P-5, P-6, P-7** et le
 **P-8** (port du service MariaDB + identifiants) ne sont pas fournis, tout exemple qui en dépend
 ne s'écrit pas en dur : depuis le 2026-09-17, un tel passage est rédigé pour être **vrai quelle que soit la valeur** (valeur du cours attribuée, défaut sourcé, espace réservé, geste de vérification) — c'est ce qui a permis de publier sans les valeurs.
+
+**Titre d'un module** (2026-09-17) : **verbatim** du calendrier de l'enseignant quand le module couvre
+toute une séance ; « `<titre de la séance>` — `<angle propre>` » quand plusieurs modules se la
+partagent. La numérotation de dossier, elle, ne bouge **jamais** (URL publiées). 🔴 `horaire.json`
+recopie une source **externe** : la relire par `curl` au début de tout lot de contenu — elle s'était
+périmée en silence sur cinq séances, avec l'autorité d'une « source unique ».
+
+**Tout bloc de code dit OÙ il s'exécute** (2026-09-17) : en commentaire sur sa première ligne, le
+lieu (PowerShell, PuTTY, navigateur), le **chemin** et le **nom de fichier**, plus la raison de
+l'emplacement quand il y en a une (sécurité, couche, convention du cadriciel). Trois lignes maximum.
+Détail : `.claude/rules/contenu-pedagogique.md` §4.
 
 **Rendu du code** : pas de sélecteur de langage, pas de repliage — les `exemples` d'une `comparaison`
 sont des **vulnérabilités distinctes**, des onglets « de langage » cacheraient un exemple entier

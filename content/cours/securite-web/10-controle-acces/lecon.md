@@ -1,5 +1,5 @@
 ---
-titre: Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire
+titre: Sécurité du code — Contrôle d'accès
 slug: controle-acces
 sujet: securite-web
 section: Sécurité du code
@@ -25,7 +25,7 @@ maj: 2026-08-24
 statut: publiee
 ---
 
-# Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire
+# Sécurité du code — Contrôle d'accès
 
 ## L'idée en une image
 

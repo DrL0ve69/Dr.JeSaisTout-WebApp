@@ -1,5 +1,5 @@
 ---
-titre: CSRF — quand le navigateur de la victime agit à sa place
+titre: Sécurité du code — CSRF
 slug: csrf
 sujet: securite-web
 section: Sécurité du code
@@ -23,7 +23,7 @@ maj: 2026-08-21
 statut: publiee
 ---
 
-# CSRF — quand le navigateur de la victime agit à sa place
+# Sécurité du code — CSRF
 
 ## L'idée en une image
 

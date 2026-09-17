@@ -106,6 +106,26 @@ Et la leçon dans son ensemble :
 - [ ] Le code « vulnérable » illustre **la vulnérabilité annoncée** (vérifié par le
       `verificateur-theorie`) ; le « corrigé » est une vraie parade, pas un cache-misère (une
       liste noire présentée comme défense n°1 est un constat INEXACT).
+- [ ] 🔴 **Tout bloc de code dit OÙ il s'exécute, et DANS QUEL FICHIER** — exigence du propriétaire,
+      2026-09-17 : « souvent tu m'indiques des commandes/actions/étapes/codes mais tu n'indiques ni
+      l'endroit (PowerShell, PuTTY, répertoire, navigateur) ni le nom du fichier et aucune
+      arborescence ou raison de l'emplacement ». La forme : **un commentaire sur la première ligne
+      du bloc**, dans la syntaxe de commentaire du langage du bloc, **trois lignes au maximum** —
+      précis et concis, jamais un paragraphe. Par exemple, en tête d'un bloc `bash` :
+      `# PuTTY, en root sur le serveur — /etc/apache2/sites-available/`, puis
+      `# fichier : monsite.conf · ici parce qu'Apache ne lit QUE ce répertoire pour les VirtualHost`.
+
+      **Pourquoi c'est une exigence d'exactitude, pas de style** : une commande sans lieu
+      d'exécution ni chemin est **inapplicable** — l'étudiant doit deviner s'il est dans PowerShell,
+      dans un shell SSH, dans la racine web de WAMP ou dans le navigateur. Deviner est exactement ce
+      qu'un cours doit supprimer. Quand l'emplacement obéit à une **raison** (sécurité : hors de la
+      racine web ; architecture : couche d'accès aux données ; convention du cadriciel), la dire en
+      une demi-ligne — elle vaut souvent plus que le code lui-même.
+- [ ] **Une valeur du poste qui manque s'assume au DÉFAUT SOURCÉ, jamais en silence** (2026-09-17) :
+      port de MariaDB, racine de WAMP, dossier du compte personnel… L'exemple est rédigé pour être
+      **vrai quelle que soit la valeur** — défaut nommé comme tel, plus le geste de vérification à
+      côté. Inventer une valeur sans dire que c'en est une reste interdit (règle D-PHP-3 du
+      `CLAUDE.md`).
 - [ ] Payloads d'exemple **inoffensifs et pédagogiques** (`alert('XSS')`, données fictives) —
       jamais d'exfiltration réelle prête à l'emploi vers une URL réelle.
 
