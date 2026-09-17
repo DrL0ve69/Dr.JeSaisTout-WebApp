@@ -61,11 +61,22 @@ interface EntreeDeManifeste {
   readonly statut: string;
 }
 
-const lecons: readonly EntreeDeManifeste[] = (
-  JSON.parse(
-    readFileSync(join(process.cwd(), 'src', 'content-generated', 'manifeste-routes.json'), 'utf8'),
-  ) as EntreeDeManifeste[]
-).filter((entree) => entree.sujet === 'securite-web');
+const manifeste = JSON.parse(
+  readFileSync(join(process.cwd(), 'src', 'content-generated', 'manifeste-routes.json'), 'utf8'),
+) as readonly EntreeDeManifeste[];
+
+/** Le cours de sécurité — celui de la première carte. */
+const lecons = manifeste.filter((entree) => entree.sujet === 'securite-web');
+
+/** Le cours de PHP — celui de la seconde carte, jaugée depuis PHP-PUB-3. */
+const leconsPhp = manifeste.filter((entree) => entree.sujet === 'php');
+
+/** La carte d'un cours, désignée par son LIEN plutôt que par son rang dans la page. */
+function carteDe(rendu: HTMLElement, lien: string): Element | undefined {
+  return [...rendu.querySelectorAll('app-carte-cours')].find(
+    (carte) => carte.querySelector('a.cta')?.getAttribute('href') === lien,
+  );
+}
 
 /** Les trois feuilles de la page, lues au disque. */
 const FEUILLES = [
@@ -223,7 +234,7 @@ describe('Accueil', () => {
   describe('la jauge de progression du cours', () => {
     it('annonce en TOUTES LETTRES autant de modules que le manifeste en publie', async () => {
       const rendu = hote(await rendre());
-      const texte = rendu.querySelector('app-carte-cours .jauge-texte')?.textContent?.trim() ?? '';
+      const texte = carteDe(rendu, '/cours/securite-web')?.querySelector('.jauge-texte')?.textContent?.trim() ?? '';
 
       // 🔴 LE RÉVEILLE-MATIN DE LA DETTE. Le nombre affiché est un littéral
       // d'`accueil.ts` ; il est ici confronté au contenu RÉELLEMENT compilé. Le
@@ -240,13 +251,43 @@ describe('Accueil', () => {
 
     it('pose la jauge en `aria-hidden` — l’information vit dans le texte (WCAG 1.4.1)', async () => {
       const rendu = hote(await rendre());
-      const jauge = rendu.querySelector('app-carte-cours .jauge');
+      const jauge = carteDe(rendu, '/cours/securite-web')?.querySelector('.jauge');
 
+      expect(jauge).toBeDefined();
       expect(jauge).not.toBeNull();
       expect(jauge?.getAttribute('aria-hidden')).toBe('true');
       expect(jauge?.querySelectorAll('.segment').length).toBe(13);
       expect(jauge?.querySelectorAll('.segment.rempli').length).toBe(
         lecons.filter((lecon) => lecon.statut === 'publiee').length,
+      );
+    });
+  });
+
+  describe('la jauge du cours de PHP (PHP-PUB-3)', () => {
+    // Le même réveille-matin que la jauge de sécurité, sur l'AUTRE population du
+    // manifeste. La carte est retrouvée par son lien : les deux cartes portent
+    // désormais une `.jauge-texte`, et un `querySelector` nu lirait la première.
+    it('annonce en TOUTES LETTRES autant de modules que le manifeste en publie pour « php »', async () => {
+      const carte = carteDe(hote(await rendre()), '/cours/php');
+      const texte = carte?.querySelector('.jauge-texte')?.textContent?.trim() ?? '';
+      const publiees = leconsPhp.filter((lecon) => lecon.statut === 'publiee').length;
+
+      expect(carte).toBeDefined();
+      expect(publiees).toBeGreaterThan(0);
+      expect(texte).toBe(
+        publiees > 1 ? `${String(publiees)} modules publiés sur 8` : `${String(publiees)} module publié sur 8`,
+      );
+    });
+
+    it('dessine HUIT segments, dont autant de remplis que de modules PHP publiés', async () => {
+      const jauge = carteDe(hote(await rendre()), '/cours/php')?.querySelector('.jauge');
+
+      expect(jauge).not.toBeNull();
+      expect(jauge).toBeDefined();
+      expect(jauge?.getAttribute('aria-hidden')).toBe('true');
+      expect(jauge?.querySelectorAll('.segment').length).toBe(8);
+      expect(jauge?.querySelectorAll('.segment.rempli').length).toBe(
+        leconsPhp.filter((lecon) => lecon.statut === 'publiee').length,
       );
     });
   });

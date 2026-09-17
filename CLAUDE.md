@@ -30,7 +30,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 | Chantier | État | Où tout est écrit — **le lire AVANT d'y toucher** |
 |---|---|---|
-| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-7 livré** (2026-09-16) — séances 1 à 5 et 7 en ligne en `statut: verifiee`. Le geste suivant est **PHP-8** (séance 8, déploiement), dont le terrain n'est PAS posé. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
+| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-8 + publication** (2026-09-17) — les **sept** modules (séances 1-5, 7, 8) sont **en ligne**, `statut: publiee`. Geste suivant : **PHP-9** (séance 10, Laravel). | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
 | Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
 | Contenu du cours de sécurité | 10 leçons en ligne ; E3-ST17 (séance 5) reste le geste suivant, **hors chemin critique** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |
@@ -80,7 +80,7 @@ démarche** qui diverge · **D-PHP-2** la plomberie avant le contenu · **D-PHP-
 référence est **WAMP** (version « Admin », vérifiée présente au Cégep ; XAMPP y est interdit).
 🔴 **Aucun exemple concret ne s'invente** : les chemins du poste **P-2, P-4, P-5, P-6, P-7** et le
 **P-8** (port du service MariaDB + identifiants) ne sont pas fournis, tout exemple qui en dépend
-porte `à-vérifier:`, et un module PHP reste donc `statut: verifiee`.
+ne s'écrit pas en dur : depuis le 2026-09-17, un tel passage est rédigé pour être **vrai quelle que soit la valeur** (valeur du cours attribuée, défaut sourcé, espace réservé, geste de vérification) — c'est ce qui a permis de publier sans les valeurs.
 
 **Rendu du code** : pas de sélecteur de langage, pas de repliage — les `exemples` d'une `comparaison`
 sont des **vulnérabilités distinctes**, des onglets « de langage » cacheraient un exemple entier
@@ -93,6 +93,9 @@ derrière une étiquette mensongère. Numérotation des figures **continue** sur
 > entrées par `Read(fichier, offset, limit)`. **Ne jamais ouvrir un corpus en entier.**
 
 **Contenu et rédaction**
+- **« Cours N » = la ligne N du calendrier du site de l'enseignant**, jamais un numéro de dossier du
+  dépôt (hérité de l'ancien plan à 13 modules), ni le nom du `.pptx` (`Cours09-…` est la séance 8 de
+  sécurité). Le calendrier se relit par `curl`, pas par `WebFetch`.
 - **U+00A0 seulement, jamais U+202F ni U+2009** — l'espace fine insécable est absente des polices.
 - **U+26A0 (`⚠`), 📘 et 🧩 sont des marqueurs RÉSERVÉS** : interdits en prose de leçon, hors bloc de
   code (`valider.mjs` §8). Les employer comme simple signe d'attention fait rougir G-content.

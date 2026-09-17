@@ -17,8 +17,8 @@ fiches-sources:
   - web/php/php-fondamentaux.md
   - web/php/php-environnement-developpement-moderne.md
 cree: 2026-09-14
-maj: 2026-09-14
-statut: verifiee
+maj: 2026-09-17
+statut: publiee
 ---
 
 # Introduction à PHP — la pile, l'environnement et la syntaxe
@@ -90,7 +90,8 @@ complet de cette leçon.
    les services et ouvre `http://localhost:8080/`.
 
 5. {voir="Où vivent les fichiers, et comment les servir"} Dépose ton code dans la racine web de
-   WAMP, `C:\wamp64\www`, en créant **un sous-dossier par exercice**.
+   WAMP, `C:\wamp64\www`, en créant **un sous-dossier par site** — ou le nommage que ton
+   enseignant impose, s'il en impose un.
 
 6. {voir="Où vivent les fichiers, et comment les servir"} Nomme ton fichier avec l'extension
    `.php`, jamais `.html` : sans elle, Apache ne passe pas le fichier à l'interpréteur et ton code
@@ -140,17 +141,21 @@ et les exercices. Ils sont à documentation ouverte : notes de cours, exercices 
 toute autre documentation sont permis.
 :::
 
-**Un désaccord de calendrier, à ne pas trancher soi-même.** La diapositive 6 annonce **quatre**
-évaluations mais n'en détaille que **trois** — examen 1 au cours 9 pour 25 %, projet de session au
-cours 11 pour 15 %, examen final au cours 15 pour 60 % — et laisse donc une évaluation sans libellé
-ni pondération. L'horaire publié du cours, lui, compte **13** séances et détaille ses **quatre**
-évaluations : examen 1 à la séance 6 pour 10 %, examen 2 à la séance 9 pour 20 %, projet de session
-à la séance 11 pour 10 %, examen final à la séance 13 pour 60 %. Les deux documents s'accordent sur
-le **nombre** d'évaluations ; ce qui diffère est la **répartition** — les pondérations et les
-séances où elles tombent. La bonne conduite est de demander à l'enseignant quelle version fait foi,
-pas de choisir.
+**Un désaccord de calendrier, à ne pas trancher soi-même.** Deux documents de l'enseignant
+décrivent les évaluations, et ils ne disent pas la même chose :
 
-<!-- à-vérifier: la répartition réelle des évaluations du cours 420-4P2-HU — la diapositive 6 annonce quatre évaluations mais n'en détaille que trois (25/15/60, aux cours 9, 11 et 15), content/cours/php/horaire.json en détaille quatre (10/20/10/60) sur 13 séances. Les deux sources se contredisent et aucune n'a été confirmée auprès de l'enseignant. -->
+- **La diapositive 6** annonce **quatre** évaluations mais n'en détaille que **trois** — examen 1
+  au cours 9 pour 25 %, projet de session au cours 11 pour 15 %, examen final au cours 15 pour
+  60 % — et laisse donc une évaluation sans libellé ni pondération.
+- **L'horaire publié sur le site du cours** compte **13** séances et détaille **quatre**
+  évaluations : examen 1 à la séance 6 pour 10 %, examen 2 à la séance 9 pour 20 %, projet de
+  session à la séance 11 pour 10 %, examen final à la séance 13 pour 60 %. C'est de lui que vient
+  le calendrier affiché sur ce site.
+
+Les deux s'accordent sur le **nombre** d'évaluations ; ce qui diffère est la **répartition** — les
+pondérations et les séances où elles tombent. Cette leçon ne choisit pas entre les deux : **le plan
+de cours remis par l'enseignant fait foi**. En cas de doute, c'est lui qu'il faut relire, ou
+l'enseignant qu'il faut questionner.
 
 **Ce que cette leçon ajoute au cours.** Le cours est sommaire par nature : il montre le geste, pas
 toujours sa raison. Cette leçon complète sur trois points, chacun signalé à sa place — la
@@ -197,13 +202,16 @@ Forme concrète, sur un poste où WAMP est installé :
 
 ```bash
 cd C:\wamp64\www\monDossier
-C:\wamp64\bin\php\php8.2.0\php.exe -S localhost:8000 -t .
+C:\wamp64\bin\php\php<version>\php.exe -S localhost:8000 -t .
 ```
 
 Le chemin complet de `php.exe` est nécessaire parce que l'installation de WAMP n'ajoute pas PHP au
 `PATH` de Windows : taper `php` seul dans une console répond « commande introuvable ».
 
-<!-- à-vérifier: le numéro de version dans le chemin C:\wamp64\bin\php\php8.2.0\ — il dépend de la version de WAMP installée sur le poste du Cégep, qui n'a pas été relevée (P-2/P-6 non fournis). -->
+`php<version>` n'est pas à recopier tel quel : le numéro dépend du WAMP installé sur ta machine,
+qui peut même livrer plusieurs versions côte à côte. Pour le connaître, ouvre le dossier
+`C:\wamp64\bin\php\` dans l'Explorateur : chaque sous-dossier porte le mot `php` suivi de son
+numéro de version, et c'est ce nom exact qui remplace `php<version>` dans la commande.
 
 Installer Linux dans Windows, pour la voie moderne, se fait par une commande unique :
 
@@ -287,7 +295,13 @@ clic gauche sur l'icône de la barre système, puis `Apache`, puis `httpd.conf` 
 faite, `Redémarrer les services`. Les adresses de tes pages deviennent alors
 `http://localhost:8080/monDossier/`.
 
-<!-- à-vérifier: le port réellement utilisé par Apache sur le poste du Cégep (P-4) n'a pas été fourni — 80 si IIS est absent, 8080 s'il occupe déjà le port. Toutes les URL concrètes de cette leçon supposent 80. -->
+**La règle du port, pour toutes les adresses de ce cours.** Les URL données dans ces leçons sont
+écrites **sans port** : le navigateur emploie alors le port 80, celui par défaut. Si ton Apache
+écoute sur 8080 — le cas des diapositives 35-37 et 46-49, quand IIS occupe déjà le 80 —, ajoute
+`:8080` juste après `localhost` dans **chaque** adresse : `http://localhost/monDossier/` devient
+`http://localhost:8080/monDossier/`. Pour savoir lequel s'applique chez toi, ouvre `localhost` :
+si c'est la page d'Apache (ou de WAMP) qui répond, le port 80 est le bon ; si c'est celle d'IIS,
+Apache est ailleurs, et la ligne `Listen` de son `httpd.conf` dit où.
 
 ### XAMPP — et pourquoi il n'est pas une option au Cégep {diapos="26, 39-50"}
 
@@ -304,11 +318,11 @@ raison d'une instruction gouvernementale liée à ses retards de mises à jour d
 **Le déck se contredit sur ce point, et il faut le savoir avant l'examen.** La diapositive 26 dit
 que XAMPP est indisponible au Cégep ; la diapositive 107, en conclusion, annonce pourtant que
 « l'environnement de développement sera XAMPP ». Les deux affirmations ne peuvent pas être vraies
-en même temps sur un poste du Cégep. L'environnement de référence retenu ici est donc **WAMP** —
-c'est celui qui est réellement installé. Si une question d'examen nomme `htdocs`, elle parle de
-XAMPP ; si elle nomme `www`, elle parle de WAMP.
-
-<!-- à-vérifier: quel environnement l'enseignant évaluera réellement — la diapositive 107 annonce XAMPP alors que la diapositive 26 le déclare indisponible sur les postes du Cégep. Le déck se contredit et la question n'a pas été posée à l'enseignant. -->
+en même temps sur un poste du Cégep. L'environnement de référence de cette leçon, au Cégep, est
+donc **WAMP** : sa présence sur les postes a été vérifiée, et c'est le seul des deux que la
+diapositive 26 laisse disponible. Si une question d'examen nomme `htdocs`, elle parle de XAMPP ; si
+elle nomme `www`, elle parle de WAMP. Et si l'enseignant impose un autre environnement pour un
+travail, c'est sa consigne qui s'applique.
 
 ## Où vivent les fichiers, et comment les servir {diapos="45, 51-55"}
 
@@ -328,22 +342,24 @@ sortie. Avec `.html`, il le sert **tel quel** : le visiteur reçoit ton code PHP
 passe compris. Si Windows ne te laisse pas changer l'extension, c'est qu'il masque les extensions
 connues : il faut les rendre visibles dans les options de l'Explorateur.
 
-Arborescence concrète, sur le poste du Cégep : la racine est `C:\wamp64\www\` ; elle contient un
-dossier `exercice01\` avec son `index.php`, un dossier `exercice02\` avec son `index.php` et son
-`header.inc`, et ainsi de suite.
+Arborescence type, sous WAMP : la racine servie est `C:\wamp64\www\` ; tu y crées **un
+sous-répertoire par site**, `C:\wamp64\www\<nom-du-projet>\`, qui contient ton `index.php` et les
+fichiers qu'il inclut. La diapositive 45 en donne l'exemple avec un dossier nommé `monSite`, ouvert
+à l'adresse `localhost/monSite/` — mais sa procédure est écrite pour XAMPP : elle range `monSite`
+sous `C:\xampp\htdocs`. L'équivalent sous WAMP est `C:\wamp64\www\monSite\`, pour la même adresse. Le nom `<nom-du-projet>` est à toi de choisir — un nom court, sans
+espace ni accent, parce qu'il apparaîtra dans l'URL ; le `monDossier` des exemples de cette leçon
+en est un. Si l'enseignant impose un nommage (un dossier
+par exercice, par exemple), suis sa consigne.
 
-L'adresse correspondante est `http://localhost/exercice01/`. Un fichier nommé `index.php` est
+L'adresse correspondante est `http://localhost/<nom-du-projet>/`. Un fichier nommé `index.php` est
 servi automatiquement quand l'URL ne nomme aucun fichier.
 
-<!-- à-vérifier: le nom du dossier de travail sous C:\wamp64\www et le découpage un-dossier-par-exercice (P-2, P-5 et P-7 ne sont pas fournis) — la diapositive 45 montre localhost/monSite/, mais la convention réellement demandée par l'enseignant n'a pas été confirmée. -->
-
 **L'éditeur — le cours laisse le choix.** L'exercice 1 de la feuille de la séance nomme trois
-éditeurs, « VSCode, PHP Storm, Notepad++ », tandis que les diapositives 107 et 111 ne citent que
-**Notepad++**. N'importe lequel convient : ce qui compte est qu'il enregistre en texte brut et en
-UTF-8. **VS Code** avec l'extension *Intelephense* apporte en plus la complétion et le repérage
-d'erreurs que Notepad++ n'a pas.
-
-<!-- à-vérifier: l'éditeur réellement employé sur le poste (P-6) n'a pas été fourni ; le cours nomme Notepad++, le propriétaire n'a pas confirmé ce qui est installé. -->
+éditeurs, « VSCode, PHP Storm, Notepad++ », tandis que le déck ne cite que **Notepad++** (diapositive
+107, et son lien de téléchargement à la diapositive 111). Tout éditeur de **texte brut** convient :
+ce qui compte est qu'il enregistre en texte brut et en UTF-8 — un traitement de texte comme Word ne
+convient pas. **VS Code** avec l'extension *Intelephense* apporte en plus la complétion et le
+repérage d'erreurs que Notepad++ n'a pas.
 
 ## La syntaxe de PHP, en sommaire {diapos="62-63"}
 
@@ -615,7 +631,7 @@ blocs `/* */` ne s'imbriquent pas : le premier `*/` rencontré ferme tout.
 
 ## Exemple simple {diapos="56-60"}
 
-Le mécanisme, isolé. Un fichier `index.php` déposé dans `C:\wamp64\www\exercice01\` :
+Le mécanisme, isolé. Un fichier `index.php` déposé dans `C:\wamp64\www\<nom-du-projet>\` :
 
 ```php
 <!DOCTYPE html>
@@ -631,7 +647,7 @@ Le mécanisme, isolé. Un fichier `index.php` déposé dans `C:\wamp64\www\exerc
 </html>
 ```
 
-Ouvre `http://localhost/exercice01/`, puis affiche le code source de la page reçue. Tu y verras
+Ouvre `http://localhost/<nom-du-projet>/`, puis affiche le code source de la page reçue. Tu y verras
 `<h1>`, le texte `Bonjour le monde`, et le `<p>` — mais **aucune balise `<?php`**, et aucune trace
 du commentaire. C'est la démonstration des diapositives 59-60 : le code serveur a disparu parce qu'il
 a déjà été exécuté. Tout ce que le client doit voir doit avoir été **envoyé** par `echo` ou `print`.

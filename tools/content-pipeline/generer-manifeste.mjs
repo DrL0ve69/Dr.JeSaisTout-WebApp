@@ -6,7 +6,8 @@
  * contenu compilé. Trois sorties, indissociables et écrites ensemble par `ecrireContenuGenere()` :
  *
  *   1. `lecons/<slug>.json` — une `LeconCompilee` par leçon, un fichier par leçon.
- *   2. `manifeste-routes.json` — le tableau `EntreeManifesteRoutes[]`, TRIÉ PAR `ordre`. C'est lui
+ *   2. `manifeste-routes.json` — le tableau `EntreeManifesteRoutes[]`, GROUPÉ PAR `sujet` et TRIÉ PAR
+ *      `ordre` dans chaque sujet (contrat : `EntreeManifesteRoutes`, `types.d.ts`). C'est lui
  *      que lira `getPrerenderParams()` (E2-ST2) pour savoir quelles routes prerendre, et l'index du
  *      cours pour lister ses leçons. Il ne porte QUE des métadonnées : jamais le corps d'une leçon,
  *      sans quoi la page d'index embarquerait les treize leçons.
@@ -142,12 +143,20 @@ export function ecrireAtomique(chemin, contenu) {
 }
 
 /**
- * Construit le manifeste de routes, TRIÉ PAR `ordre`.
+ * Construit le manifeste de routes, GROUPÉ PAR `sujet`, puis TRIÉ PAR `ordre` dans chaque sujet.
  *
  * Le tri se fait ici et pas au rendu : c'est le manifeste qui décide de l'ordre d'affichage du
  * cours, et il ne doit pas dépendre de l'ordre — alphabétique — dans lequel le système de fichiers
- * a rendu les dossiers. `ordre` est unique dans une racine (le validateur le vérifie) ; le tri
- * secondaire par slug n'existe donc que pour rendre la fonction totale, jamais pour départager.
+ * a rendu les dossiers.
+ *
+ * POURQUOI LE SUJET D'ABORD (PHP-PUB-3, 2026-09-16). `ordre` est unique DANS une racine (le
+ * validateur le vérifie), jamais ENTRE racines : chaque cours a son module 1. Un tri par `ordre`
+ * seul entremêlait donc les cours — `securite-web/1, php/1, securite-web/2…` — dès la publication
+ * du second, et `lireManifeste`, qui constate l'ordre sans le refaire, refusait à bon droit un
+ * tableau dont l'`ordre` n'était plus croissant. Les blocs de sujet se rangent par
+ * `localeCompare(…, 'fr')` : un ordre total et stable, sans valeur pédagogique — aucune page ne
+ * compare deux cours entre eux. Le tri tertiaire par slug n'existe que pour rendre la fonction
+ * totale, jamais pour départager.
  *
  * @param {readonly LeconCompilee[]} lecons
  * @returns {EntreeManifesteRoutes[]}
@@ -175,7 +184,12 @@ export function construireManifeste(lecons) {
       if (lecon.frontmatter.seance !== undefined) entree.seance = lecon.frontmatter.seance;
       return entree;
     })
-    .sort((a, b) => a.ordre - b.ordre || a.slug.localeCompare(b.slug, 'fr'));
+    .sort(
+      (a, b) =>
+        a.sujet.localeCompare(b.sujet, 'fr') ||
+        a.ordre - b.ordre ||
+        a.slug.localeCompare(b.slug, 'fr'),
+    );
 }
 
 /**

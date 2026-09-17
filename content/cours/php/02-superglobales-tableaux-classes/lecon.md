@@ -19,8 +19,8 @@ fiches-sources:
   - web/php/php-poo.md
   - web/php/php-fondamentaux.md
 cree: 2026-09-14
-maj: 2026-09-14
-statut: verifiee
+maj: 2026-09-17
+statut: publiee
 ---
 
 # Superglobales, transtypage, tableaux et classes
@@ -317,9 +317,13 @@ elle-même — **l'équivalent de `127.0.0.1`**.
 Les deux autres titres de la page du cours, « Port du serveur » et « Nom du serveur », suivent le
 même patron avec `SERVER_PORT` et `SERVER_NAME`.
 
-Sur un poste local, `SERVER_NAME` vaut `localhost` et `DOCUMENT_ROOT` donne le chemin de la racine
-web — sous WAMP, `C:/wamp64/www`. Le port, lui, dépend de la configuration d'Apache sur ton poste.
-<!-- à-vérifier: la sortie annoncée pour DOCUMENT_ROOT (C:/wamp64/www) et la valeur de SERVER_PORT sur un poste du Cégep — le port d'Apache (P-4) et l'emplacement des fichiers (P-7) ne sont pas confirmés ; la capture du cours a été prise sous XAMPP, avec C:/xampp/htdocs et le port 8080 -->
+**Ce que montre la capture du cours, et ce que tu verras, toi.** La sortie projetée à la
+diapositive 11 a été prise sous **XAMPP**, avec Apache sur le port 8080 : elle affiche `::1`,
+`8080`, `localhost` et `C:/xampp/htdocs`. Ne t'attends pas à retrouver ces valeurs à l'identique.
+Sur ta machine, `SERVER_NAME` vaudra bien `localhost`, mais `DOCUMENT_ROOT` sera le dossier `www`
+de **ton** installation de WAMP, et `SERVER_PORT` le port sur lequel **ton** Apache écoute — 80 par
+défaut, 8080 si tu as dû le déplacer (voir la règle du port au module 01). La valeur juste est celle
+que ta propre page affiche : c'est précisément à ça que sert cet exemple.
 
 ::: complement
 **Toutes les clés de `$_SERVER` ne se valent pas.** Celles qui commencent par `HTTP_` —
@@ -426,15 +430,19 @@ il **tronque**. Le second : `boolval("0")` est **faux**, alors que `boolval("0.0
 seule la chaîne `"0"` exactement compte comme fausse. Une page où l'utilisateur peut légitimement
 saisir zéro doit donc éviter les tests de vérité et comparer explicitement.
 
-::: correction-du-cours {source="Manuel PHP — doubleval, alias de floatval (php.net/manual/fr/function.doubleval.php)" diapos="18"}
+::: correction-du-cours {source="Manuel PHP, page doubleval : « Alias de floatval() » (https://www.php.net/manual/fr/function.doubleval.php), consulté le 2026-09-16 ; comportement mesuré sur PHP 8.5.10 le 2026-09-16" diapos="18"}
 Le cours présente `doubleval` comme convertissant « en valeur décimale à double précision », comme
-si elle faisait quelque chose de plus que `floatval`. En réalité **`doubleval` est un simple alias
-de `floatval`** : PHP n'a pas de type `double` distinct, son type `float` est déjà en double
-précision. Le manuel renvoie d'ailleurs l'une vers l'autre. À l'examen, la liste du cours reste la
-liste du cours ; dans ton code, écris `floatval`, qui porte le nom du type réel.
+si elle faisait quelque chose de plus que `floatval`. En réalité, la page du manuel consacrée à
+`doubleval` tient en une ligne : **« Alias de floatval() »**. Les deux fonctions font exactement la
+même chose — `doubleval("3.5abc")` rend `float(3.5)`, comme `floatval`. PHP n'a pas de type `double`
+distinct : son type `float` est déjà en double précision.
 :::
 
-<!-- à-vérifier: « doubleval est un alias de floatval, et PHP n'a pas de type double distinct de float » — affirmation reprise de la fiche KB php-fondamentaux.md, non revérifiée sur le manuel PHP au moment d'écrire -->
+Une trace de l'ancien nom subsiste pourtant, et elle surprend : `gettype(1.5)` rend la chaîne
+**`"double"`**, pas `"float"`. C'est un nom historique conservé pour la compatibilité ; le type est
+bien `float`, et c'est ce nom qu'emploient les déclarations de type (`function f(float $x)`). À
+l'examen, la liste du cours reste la liste du cours ; dans ton code, écris `floatval`, qui porte le
+nom du type réel.
 
 
 ::: complement
@@ -768,8 +776,6 @@ correctement `$this->nom` — c'est cette forme-là qu'il faut retenir, à l'exa
 production.
 :::
 
-<!-- à-vérifier: « la diapositive 45 écrit le corps du constructeur avec un point, $this.<attribute> = <param> » — constat repris de l'extrait texte du déck et de la fiche KB php-poo.md ; la citation doit être reconfrontée au support avant publication, une correction qui accuse le cours à tort étant un défaut grave -->
-
 
 Voici l'exemple complet que le cours projette, dans sa forme de référence — sans typage et sans
 `declare`, comme il l'écrit :
@@ -838,19 +844,25 @@ utilisable pour référencer l'objet qui a appelé la fonction, en quatre lettre
 Les première et troisième réponses sont exactes et sans nuance. La deuxième demande une précision,
 parce qu'elle est vraie pour une moitié de la question seulement.
 
-::: correction-du-cours {source="Manuel PHP — Visibilité (php.net/manual/fr/language.oop5.visibility.php)" diapos="50, 51"}
+::: correction-du-cours {source="Manuel PHP — Visibilité (https://www.php.net/manual/fr/language.oop5.visibility.php), consulté le 2026-09-16 ; comportement mesuré sur PHP 8.5.10 le 2026-09-16 (php -l, ReflectionMethod::isPublic et ReflectionProperty::isPublic)" diapos="50, 51"}
 La réponse « oui » est **juste pour les propriétés, inexacte pour les méthodes**. Une propriété
-déclarée nue — `$nom;` seul dans le corps de la classe — est une erreur de syntaxe : elle doit
-être introduite par `public`, `private`, `protected`, ou l'ancien `var` hérité de PHP 4. Une
-**méthode**, en revanche, peut se déclarer avec le seul mot-clé `function` : le code est valide, et
-la méthode vaut alors `public`.
+déclarée **sans rien** devant — `$nom;` seul dans le corps de la classe — est une erreur de
+syntaxe : PHP 8.5.10 répond `Parse error: syntax error, unexpected variable "$nom", expecting "function" in <fichier>.php on line 2`
+(avec `php -l`, sur une classe écrite `class B { $nom; }`). Il lui faut au moins un
+mot-clé : `public`, `private`, `protected`, ou l'ancien `var` hérité de PHP 4, qui reste valide
+et vaut `public`. Une **méthode**, en revanche, peut se déclarer avec le seul mot-clé `function` :
+le code est valide, et la méthode vaut alors `public`.
+
+La nuance complète, pour qui lit du code existant : ce n'est pas un modificateur de **visibilité**
+que la propriété exige, c'est un modificateur quelconque. `var $nom;`, `static $nom;` ou
+`readonly int $nom;` sont acceptés tels quels, et la propriété vaut alors `public`. `readonly`
+exige en plus un **type** : `readonly $nom;` seul est refusé (« Readonly property B::$nom must
+have type »).
 
 La règle d'arbitrage : **à l'examen, donne la réponse du cours** ; et dans ton code, **écris la
 visibilité partout de toute façon** — non parce que le langage l'exige, mais parce qu'une méthode
 dont la visibilité est implicite oblige chaque lecteur à se souvenir de la valeur par défaut.
 :::
-
-<!-- à-vérifier: « une méthode PHP déclarée sans modificateur de visibilité est valide et vaut implicitement public, alors qu'une propriété déclarée nue est une erreur de syntaxe » — constat le plus exposé de la leçon ; il contredit une réponse de quiz du cours (diapositive 51) et doit être confirmé sur le manuel PHP avant toute publication -->
 
 
 ## Exemple simple {diapos="10-13"}
@@ -971,9 +983,10 @@ l'échappement dès maintenant, parce qu'à partir de la séance 5 les données 
 la faille deviendra permanente.
 :::
 
-L'appel de la page ressemble à `bulletin.php?nom=Tremblay&note=58`, le fichier étant déposé dans la
-racine web servie par WAMP.
-<!-- à-vérifier: l'URL d'appel « bulletin.php?nom=… » suppose que les fichiers sont servis à la racine web et qu'Apache écoute sur le port par défaut — l'emplacement des fichiers (P-7) et le port d'Apache (P-4) sur le poste du Cégep ne sont pas confirmés -->
+Pour appeler la page, dépose `bulletin.php` dans ton dossier de projet sous la racine web de WAMP,
+puis ouvre `http://localhost/<nom-du-projet>/bulletin.php?nom=Tremblay&note=58`, en remplaçant
+`<nom-du-projet>` par le nom de ce dossier. Si ton Apache écoute sur 8080, ajoute `:8080` après
+`localhost` : c'est la règle du port posée au module 01.
 
 ## À toi de jouer {hors-cours}
 

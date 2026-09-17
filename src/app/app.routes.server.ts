@@ -39,7 +39,7 @@
 // réintroduire `cours/securite-web/:slug` DES DEUX CÔTÉS, ici en
 // `RenderMode.Prerender` **avec** un `getPrerenderParams()` alimenté par
 // `src/content-generated/manifeste-routes.json` — le tableau
-// `EntreeManifesteRoutes[]` trié par `ordre` que produit E2-ST1 (lot 4). Il porte
+// `EntreeManifesteRoutes[]` (groupé par sujet, trié par `ordre`) que produit E2-ST1 (lot 4). Il porte
 // exactement les slugs à prerendre, et RIEN d'autre : aucun champ n'y distingue
 // une leçon « factice » d'une vraie, parce qu'il n'y en a plus besoin — la
 // leçon-témoin du pipeline vit hors de `content/`
