@@ -3284,7 +3284,7 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 | E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ✅ |
 | E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ✅ |
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
-| E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | séance 9 | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
+| E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | **séance 8** (calendrier relu le 2026-09-17 ; déck `Cours09-…`) | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
 | E3-ST20 | `11-projet-de-session` — Amorcer un projet LAMP : environnement local à parité de production, arborescence qui ne sert pas ses secrets, outillage et contrôle de version | séance 11 | `php-environnement-developpement-moderne.md` + `php-organisation-projet.md` | non — le sujet est procédural | ✅ |
 
@@ -4134,3 +4134,40 @@ d'office. Chacun est un lot autonome, dimensionné pour un agent frais.
 | **D-C6** | « Zéro violation AXE » est traité comme équivalent à « WCAG 2.2 AA ». Un outil automatisé ne décide ni de l'ordre de tabulation, ni du piège du focus, ni de la justesse d'un rôle ARIA : un `role` valide mais sémantiquement faux passe axe. Les gates E1-ST2 et E2-ST3/4/5 se réduisent pourtant à `G-axe`. | Ajouter un gate **`G-clavier`** (checklist manuelle : parcours au clavier seul, focus visible, ordre logique, passe lecteur d'écran) sur tout composant interactif ; ajuster la formulation de la barre dure dans CLAUDE.md. | ⬜ |
 | **D-C7** | `.claude/rules/contenu-pedagogique.md` §2 décrit une **structure** (théorie + 2 exemples + analogie + visuel) mais pas un **ancrage**. La fiche `divers/pedagogie/enseigner-informatique-ere-ia.md` (Malan/CS50) apporte le « moment mémorable » : au moins un par cours, plutôt en début ou milieu qu'à la fin. Le mécanisme existe déjà ici — c'est la simulation — mais **4 modules sur 13 n'en ont aucune** : E3-ST1 (`01-fondamentaux`), E3-ST2 (`02-evaluation-cvss`), E3-ST8 (`08-cryptographie`), E3-ST13 (`13-durcissement`). Ce sont les plus abstraits du cours. | Ajouter le « moment mémorable » à la règle pédagogique ; faire **nommer** le sien à chaque module, y compris sans simulation. *(Le 13 a déjà le bon : « les en-têtes réels de CE site comme étude de cas ».)* | ⬜ |
 | **D-C8** | Les 13 modules présupposent HTTP, TLS, cookies et DNS sans adosser ces prérequis à quoi que ce soit — alors que la règle pédagogique exige des « prérequis explicites ». Le plan ne connaissait que `web/securite/`. | Câbler `cs/reseaux/parcours-requete-web.md`, `cs/reseaux/https-tls.md` et `web/backend/cors.md` comme fiches de prérequis. Modules concernés : **01**, **05** (CSRF ≠ CORS ≠ SOP), **11**, **13**. | ⬜ |
+
+---
+
+## 🔵 PLAN DU 2026-09-17 — séances 5, 7 et 8 du cours de sécurité, au format « En bref + sommaire »
+
+> **Demande du propriétaire (2026-09-16)** : « entamer le "En bref + sommaire" des cours 5, 6, 7 », puis
+> la correction : **« Toujours suivre ce que le site de l'enseignant présente »**. « Cours N » est la
+> ligne N du calendrier de <https://www.alexandrepetrin.ca/securisation-des-applications-web/>, relu
+> par `curl` le 2026-09-17 — **jamais** un numéro de dossier du dépôt (hérité de l'ancien plan à 13
+> modules). La ligne 6 est l'**Examen 1** : les séances à traiter sont donc **5, 7 et 8**.
+
+| Séance (site) | Sujet | Support servi (fraîcheur vérifiée le 2026-09-17) | État dans le dépôt | Lot à ouvrir |
+|---|---|---|---|---|
+| **5** — 4 sept. | Sécurité des utilisateurs (+ énoncé du projet de session) | `Cours05_Securite_utilisateurs.pptx`, **119 diapositives**, identique au servi (`Last-Modified` 2026-09-03) ; exercices : page `…cours-5-2026/` | **aucun module** | **E3-ST17** `05-utilisateurs-permissions` — leçon neuve, **au format actionnable dès sa rédaction** |
+| **7** — 18 sept. | Sécurité du code | `Cours07_securite_app_web.pptx`, **39 diapositives**, identique au servi ; exercices : page `…cours-7-2026/` ; un **corrigé** est annoncé au calendrier | **quatre modules publiés** portent `seance: 7` : `07-injection`, `08-xss`, `09-csrf`, `10-controle-acces` — pas encore au format actionnable | **reprises 15 à 18** de `reprise-refonte-lecons.md` : compteur **5/9 → 9/9** |
+| **8** — 25 sept. | Sécurité des bases de données | `Cours09-Securite_base_de_donnees.pptx` (le nom de fichier ne suit PAS le numéro de ligne), **58 diapositives**, identique au servi ; exercices : page `…cours-8-2026/` ; corrigé annoncé | **aucun module** | **E3-ST18** `18-securite-base-de-donnees` — leçon neuve, au format actionnable |
+
+**Ordre recommandé, et pourquoi.** (1) **Séance 7** d'abord : les quatre modules sont **en ligne**, la
+séance a eu lieu le 18 septembre et un seul déck de 39 diapositives les ancre tous — la reprise est
+courte par module et sert tout de suite à réviser. Un lot par module (le déck est petit, mais la
+cartographie doit dire **quelles** diapositives vont à **quel** module : c'est la première reprise où
+un déck se partage entre quatre leçons — la faire **une fois**, au fil principal, pour les quatre).
+(2) **Séance 8** ensuite : la séance a lieu le 25 septembre ; la leçon neuve peut précéder le cours.
+(3) **Séance 5** : matière de l'**examen final** seulement (pas de l'examen 1, N-1 ci-dessus) ; 119
+diapositives, donc **deux cartographies** et au moins trois rédacteurs (leçon du lot PHP-8 : découper
+sur le volume de **sortie**).
+
+**Préalables de chaque lot** (appris aux lots PHP) : réextraire le `.pptx` si le servi a bougé ;
+relever les exercices **à la source** et les inscrire au registre avant le brief ; **lire les captures**
+(le `.pptx` est une archive, `Read` affiche une image) et les décrire **telles qu'elles sont** (L-112) ;
+faire les mesures et les relevés `curl` **au fil principal** avant de lancer un `verificateur-theorie`,
+qui n'a pas de shell (L-111) ; surveiller le **poids** (seuil 450 Ko, les SVG Mermaid dominent).
+
+**Numérotation périmée ailleurs dans ce document** : la table E3 ci-dessus date de l'ancien horaire
+(E3-ST18 « séance 9 » est la **séance 8** ; E3-ST19 « séance 8 » n'a plus de ligne au calendrier — le
+HTTPS n'y a pas de séance propre). La table est corrigée pour E3-ST18 ; E3-ST19 reste à rattacher ou à
+déclarer complément intégral.
