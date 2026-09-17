@@ -4420,3 +4420,40 @@ d'être payé. Ses **seize** exercices sont déjà au registre.
 🔵 Confirmation indépendante relevée au passage : la diapositive **118** dit « au prochain cours, ce
 sera l'examen 1 ; celui-ci couvrira la matière des cours 1 à 4 ». La `portee: [1, 2, 3, 4]` de
 `horaire.json` est donc juste, confirmée par une source **autre** que le calendrier.
+
+---
+
+## ✅ CLÔTURE — la vérification post-déploiement rougissait sur une COURSE (2026-09-17)
+
+**Le fait.** Le déploiement de la séance 8 (run `35271375599`) s'est terminé **en échec** alors que
+le site était **correct** : `main-JQU4UR7X.js` servi en **404** par l'étape « Vérifier le routage
+servi », et **200** quelques minutes plus tard, sur le même déploiement. Le sommaire en ligne
+affichait déjà ses 11 modules, la nouvelle leçon répondait 200.
+
+**La cause, et elle est structurelle.** L'étape lit la liste des assets **dans la page que SWA vient
+de servir** — c'est voulu, c'est exactement la liste que le navigateur suivra. Mais cette page est
+déjà la **nouvelle**, avec les **nouveaux noms hachés**, pendant que les fichiers eux-mêmes finissent
+de se propager. La fenêtre s'ouvre donc d'autant plus que le lot change de bundle : **l'étape
+rougissait d'autant plus souvent que le lot était gros**.
+
+🔴 **L'asymétrie était dans le fichier, visible, depuis toujours.** Les contrôles (a) « une URL
+inconnue rend notre 404 » et (b) « `/index.csr.html` redirige en 301 » réessaient **12 fois toutes
+les 10 secondes**, avec un message qui dit « config pas encore propagée ». Le contrôle (c), les
+assets, n'avait **aucune** boucle — alors qu'il est le seul des trois à dépendre d'un fichier
+fraîchement téléversé, donc le plus exposé à la propagation. Les deux qui pouvaient attendre
+attendaient ; celui qui devait attendre ne le faisait pas.
+
+**Le correctif.** La même boucle 12 × 10 s sur (c), et un message d'échec qui dit « après 12
+tentatives sur 2 minutes — ce n'est donc pas une propagation en retard ».
+
+⚠️ **Pourquoi réessayer n'affaiblit RIEN ici, et pourquoi il fallait le vérifier avant d'écrire la
+boucle.** Le défaut que cette étape existe pour attraper est `trailingSlash: "always"` déplaçant
+`/main-X.js` vers `/main-X.js/` — un **301 déterministe**, rendu à chaque tentative. Douze
+tentatives le constatent douze fois et l'étape échoue quand même. Ce qui disparaît est la course,
+pas la garantie. Un réessai serait en revanche **inadmissible** sur un contrôle dont le vert peut
+survenir par hasard : la distinction est *« l'échec est-il reproductible par construction ? »*, pas
+*« le test est-il instable ? »*.
+
+**Ce que ça ne change pas.** Le déploiement lui-même avait réussi : l'échec portait sur la
+vérification qui suit, et le site était juste. Aucune reprise de déploiement n'a été nécessaire.
+L'étape « Vérifier les en-têtes servis », qui garde la CSP, n'est pas touchée.
