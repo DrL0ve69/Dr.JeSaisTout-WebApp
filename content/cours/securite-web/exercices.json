@@ -144,6 +144,133 @@
           "enonce": "Copie « heureActuelle.php » sous le nom « heureActuelleExercice7.php » et ajoute « (Exercice 7) » après l'affichage de la date et de l'heure. Planifie-le pour qu'il s'exécute toutes les 5 minutes aux heures impaires (1, 3, 5…) et toutes les 3 minutes aux heures paires (0, 2, 4…), en dirigeant sa sortie vers « exercice7.log »."
         }
       ]
+    },
+    {
+      "numero": 5,
+      "feuille": "Exercices du cours 5 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Déployer un serveur Ubuntu pour la séance",
+          "enonce": "Déploie un nouveau serveur Ubuntu chez l'hébergeur infonuagique (DigitalOcean dans le cours) : c'est lui qui servira à tous les exercices de la séance."
+        },
+        {
+          "reference": "2",
+          "titre": "Créer un compte par personne de la classe",
+          "enonce": "Crée un compte utilisateur pour chaque étudiant et chaque enseignant de la classe, et note soigneusement les mots de passe choisis."
+        },
+        {
+          "reference": "3",
+          "titre": "Changer le mot de passe d'un compte",
+          "enonce": "Change le mot de passe du compte d'Alexandre pour « Qwerty123 »."
+        },
+        {
+          "reference": "4",
+          "titre": "Changer de compte sans se déconnecter",
+          "enonce": "Passe de ton compte courant au compte à ton nom en employant la commande de changement d'utilisateur (« su »)."
+        },
+        {
+          "reference": "5",
+          "titre": "Confirmer le compte actif, puis revenir à root",
+          "enonce": "Confirme le changement de compte en affichant l'identité effective (« whoami »), puis reviens au compte root."
+        },
+        {
+          "reference": "6",
+          "titre": "Verrouiller un compte et vérifier qu'il refuse la connexion",
+          "enonce": "Verrouille le compte de Nic. Connecte-toi ensuite au compte d'Elizabeth et tente de passer au compte de Nic, pour confirmer que la connexion est refusée. Reviens au compte root."
+        },
+        {
+          "reference": "7",
+          "titre": "Donner le rôle de sudoer à un compte",
+          "enonce": "Assigne à Sara le rôle de sudoer, avec toutes les permissions sur « sudo »."
+        },
+        {
+          "reference": "8",
+          "titre": "Vérifier les accès sudo par une installation réelle",
+          "enonce": "Depuis le compte de Sara, installe Apache avec « sudo apt-get install apache2 » afin de confirmer que les accès sudo fonctionnent."
+        },
+        {
+          "reference": "9",
+          "titre": "Lister les comptes du serveur",
+          "enonce": "Affiche les comptes qui existent présentement sur ton serveur."
+        },
+        {
+          "reference": "10",
+          "titre": "Lister les groupes d'un compte",
+          "enonce": "Affiche les groupes dont le compte d'Alexandre est membre."
+        },
+        {
+          "reference": "11",
+          "titre": "Créer un groupe et y ajouter un compte",
+          "enonce": "Crée un groupe « enseignant » et ajoutes-y Alexandre. Confirme ensuite l'ajout en affichant les membres du groupe « enseignant »."
+        },
+        {
+          "reference": "12",
+          "titre": "Poser propriétaire et permissions sur un répertoire",
+          "enonce": "À la racine du serveur (sous « / »), crée le répertoire « cegep ». Fais en sorte qu'il ait le groupe « enseignant » comme propriétaire, que les enseignants y aient pleinement droit de lecture et d'écriture, et que les autres utilisateurs — root excepté — n'aient qu'un accès en lecture."
+        },
+        {
+          "reference": "13",
+          "titre": "Vérifier les permissions des deux côtés",
+          "enonce": "Depuis le compte d'Alexandre, crée un fichier texte dans ce répertoire avec un éditeur de texte, puis confirme que les comptes étudiants, eux, n'y arrivent pas."
+        },
+        {
+          "reference": "14",
+          "titre": "Imposer une politique de qualité des mots de passe",
+          "enonce": "Installe PW Quality afin de définir des critères de mot de passe. Exige au moins 8 caractères et 3 types de caractères (par exemple une minuscule, une majuscule et un chiffre). Connecte-toi au compte d'Elizabeth pour qu'elle change son mot de passe, et assure-toi qu'un mot de passe non conforme (« qwerty ») est refusé."
+        },
+        {
+          "reference": "15",
+          "titre": "Régler l'expiration du mot de passe d'un compte",
+          "enonce": "Affiche les informations d'expiration du mot de passe de Sara, puis modifie sa configuration pour que le mot de passe expire après 30 jours et qu'un avertissement s'affiche dans les 7 derniers jours."
+        },
+        {
+          "reference": "16",
+          "titre": "Passer la même expiration en politique globale",
+          "enonce": "Modifie la politique globale d'expiration des mots de passe pour que les paramètres de l'exercice 15 s'appliquent à tous les comptes créés ensuite. Crée un utilisateur « exercice16 » et affiche ses informations d'expiration pour vérifier qu'elles sont bien appliquées."
+        }
+      ]
+    },
+    {
+      "numero": 8,
+      "feuille": "Exercices du cours 8 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Déployer le serveur de base de données",
+          "enonce": "Crée un serveur « exercicemariadb » chez l'hébergeur infonuagique. Si possible, installes-y un certificat HTTPS, pour que ton mot de passe ne circule pas en clair sur Internet quand tu emploieras PHPMyAdmin ; sinon, assure-toi de n'employer aucun mot de passe dont tu te sers ailleurs."
+        },
+        {
+          "reference": "2",
+          "titre": "Installer MariaDB et faire sa configuration de sécurité initiale",
+          "enonce": "Installe un serveur de base de données MariaDB sur cette machine, puis effectue la configuration de sécurité initiale : donner un mot de passe à l'administrateur, désactiver les comptes anonymes, désactiver les connexions à distance, et supprimer la base de données « test » offerte par défaut."
+        },
+        {
+          "reference": "3",
+          "titre": "Créer un compte de base de données",
+          "enonce": "Crée dans la base de données un compte utilisateur nommé « demo_utilisateur », et assure-toi qu'il possède tous les privilèges."
+        },
+        {
+          "reference": "4",
+          "titre": "Créer une base, une table et des données de test",
+          "enonce": "Dans MariaDB, exécute les requêtes SQL qui : créent une base de données « cours9 » ; y créent une table « usager » portant deux champs de type varchar(50), « nom » et « prenom » ; y insèrent quatre noms et prénoms fictifs."
+        },
+        {
+          "reference": "5",
+          "titre": "Vérifier les accès du compte créé",
+          "enonce": "En employant le compte « demo_utilisateur », assure-toi qu'une requête de type « select » sur la table « usager » fonctionne bien."
+        },
+        {
+          "reference": "6",
+          "titre": "Installer PHPMyAdmin et s’y connecter",
+          "enonce": "Installe PHPMyAdmin sur ton serveur « exercicemariadb » et assure-toi d'atteindre sa page d'authentification. Vérifie ensuite que tu peux bien t'y connecter avec le compte « demo_utilisateur »."
+        },
+        {
+          "reference": "7",
+          "titre": "Exporter la base de données",
+          "enonce": "Exporte ta base de données dans un fichier « .sql ». Note que la feuille l'appelle « cours8 » à cet exercice et « cours9 » à l'exercice 4 : c'est la même base, celle que tu viens de créer."
+        }
+      ]
     }
   ]
 }
