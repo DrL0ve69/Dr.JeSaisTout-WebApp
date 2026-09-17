@@ -968,6 +968,68 @@ describe('Sommaire', () => {
       expect(() => composant.componentInstance.elements()).toThrowError(/Examen 1/);
     });
 
+    /** Un module SANS section — la liste plate du cours de PHP (PHP-PUB-3). */
+    function modulePlat(slug: string, ordre: number, seance?: number): EntreeManifesteRoutes {
+      return {
+        sujet: 'securite-web',
+        slug,
+        ordre,
+        titre: `Module ${slug}`,
+        dureeEstimee: 10,
+        niveau: 'cegep',
+        statut: 'publiee',
+        ...(seance === undefined ? {} : { seance }),
+      };
+    }
+
+    it('🔴 COUPE une liste plate à chaque évaluation qu’elle enjambe, sans inventer de titre', async () => {
+      // La forme réelle du cours de PHP : aucune section, des modules en séances 1, 5 et
+      // 7, un examen en séance 6. Un seul groupe plat lèverait ; une liste sans titre n'a
+      // aucune découpe éditoriale à trancher, donc on la coupe EXACTEMENT au jalon.
+      // Le module qui PORTE la séance 11 se range APRÈS le jalon du projet.
+      preparer(SEANCES, [
+        modulePlat('un', 1, 1),
+        modulePlat('cinq', 2, 5),
+        modulePlat('sept', 3, 7),
+        modulePlat('onze', 4, 11),
+        modulePlat('complement', 5),
+      ]);
+
+      const fixture = await rendre('securite-web');
+
+      expect(sequence(fixture)).toEqual([
+        'groupe: ',
+        `jalon: ${EXAMEN_1}`,
+        'groupe: ',
+        `jalon: ${PROJET}`,
+        'groupe: ',
+        `jalon: ${EXAMEN_FINAL}`,
+      ]);
+      // Aucun titre de section inventé, et chaque module rendu une seule fois, dans l'ordre.
+      expect(hote(fixture).querySelectorAll('.titre-section').length).toBe(0);
+      expect(textes(fixture, '.module .titre')).toEqual([
+        'Module un',
+        'Module cinq',
+        'Module sept',
+        'Module onze',
+        'Module complement',
+      ]);
+    });
+
+    it('🔴 LÈVE encore sur une liste plate dont l’ordre de lecture contredit le calendrier', async () => {
+      // La coupe ne redescend jamais : un module de séance 5 rangé APRÈS un module de
+      // séance 7 reste dans le même groupe, qui enjambe l'examen 1. Le fail-closed tient.
+      TestBed.resetTestingModule();
+      configurer([modulePlat('sept', 1, 7), modulePlat('cinq', 2, 5)], horaireDe(SEANCES));
+
+      const composant = TestBed.createComponent(Sommaire);
+      composant.componentRef.setInput('sujet', 'securite-web');
+
+      expect(() => composant.componentInstance.elements()).toThrowError(
+        /Examen 1.*liste plate/s,
+      );
+    });
+
     it('🔴 garde le MÊME nombre de jalons, aux mêmes places, quelle que soit la progression', async () => {
       // Moitié « jalons » du gate d'hydratation (L-033) : ils viennent du manifeste et
       // de l'horaire, donc le fichier prerendu et le premier rendu client les portent

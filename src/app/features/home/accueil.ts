@@ -91,6 +91,29 @@ const MODULES_PUBLIES = 10;
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;
 
+/**
+ * Modules du cours de PHP réellement publiés. Confronté au manifeste, filtré sur
+ * `sujet === 'php'`, par le spec — même réveille-matin que `MODULES_PUBLIES`.
+ *
+ * 📈 0 → 6 le 2026-09-16 (PHP-PUB-3) : les modules des séances 1 à 5 et 7
+ * (syntaxe, superglobales, librairie standard, POO, base de données, sessions)
+ * passent en `publiee` ensemble.
+ * 📈 6 → 7 le 2026-09-17 (PHP-8) : le module de la séance 8 (déploiement) les
+ * rejoint, dans la même PR. Prochaine étape attendue : 7 → 8 avec la séance 10
+ * (Laravel). Le littéral est délibéré, comme pour la
+ * sécurité : la `description` de la carte cite les séances publiées une à une, et
+ * c'est ce test qui force à la relire quand le compte bouge.
+ */
+const MODULES_PUBLIES_PHP = 7;
+
+/**
+ * Modules prévus au cours de PHP : les HUIT séances de contenu du calendrier de
+ * l'enseignant (1, 2, 3, 4, 5, 7, 8 et 10 « Introduction à Laravel ») — relevé le
+ * 2026-09-16 sur https://www.alexandrepetrin.ca/php/. Les séances 6, 9, 11, 12 et
+ * 13 sont des évaluations ou une révision : aucun module ne les porte.
+ */
+const MODULES_TOTAL_PHP = 8;
+
 @Component({
   selector: 'app-accueil',
   imports: [CarteCours, ExtraitEntetes, PluieGlyphes, RouterLink],
@@ -154,19 +177,25 @@ const MODULES_TOTAL = 13;
 
       <!--
         LE SECOND COURS (E7, lot C, 2026-09-10) — en ligne avant son premier module
-        (décision D-PHP-2). AUCUNE JAUGE, et c'est le contrat de « CarteCours » :
-        sans plan chiffré ni module publié, une jauge vide promettrait un décompte
-        qui n'existe pas. Le libellé d'action n'est pas « Commencer le cours » pour
-        la même raison — le sommaire annonce « Modules en préparation. ».
-        ⚠️ Le jour où un module de PHP est publié, cette carte REDEVIENT à revoir :
-        libellé, description, et peut-être une jauge confrontée au manifeste comme
-        celle d'au-dessus.
+        (décision D-PHP-2), d'abord SANS jauge : sans module publié, une jauge vide
+        aurait promis un décompte qui n'existait pas.
+        📈 PHP-PUB-3 (2026-09-16/17) : sept modules sont publiés, la carte prend donc la
+        même jauge que celle d'au-dessus, confrontée au manifeste (sujet « php ») par
+        « accueil.spec.ts ». La description cite les séances RÉELLEMENT publiées — à
+        relire à chaque pas de « MODULES_PUBLIES_PHP ».
+        Le libellé d'action n'est PAS le « Commencer le cours » par défaut de la carte
+        de sécurité : deux appels de même nom menant à deux cours différents
+        désorienteraient une navigation par liens (« accueil.spec.ts » l’interdit).
+        Il reste « Voir le sommaire », inchangé : « e2e/navigation-clavier.spec.ts »
+        l’épingle par son nom exact.
       -->
       <app-carte-cours
         titre="Développement d’application en PHP"
-        description="Le cours 420-4P2-HU, séance par séance&nbsp;: syntaxe, superglobales, librairie standard, programmation orientée objet, base de données. Chaque module s’ajoutera au sommaire dès qu’il sera publié."
+        description="Le cours 420-4P2-HU, séance par séance&nbsp;: syntaxe, superglobales, librairie standard, programmation orientée objet, base de données, sessions et authentification, déploiement. Les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
         lien="/cours/php"
         libelleAction="Voir le sommaire"
+        [modulesPublies]="modulesPubliesPhp"
+        [modulesTotal]="modulesTotalPhp"
       />
     </div>
   `,
@@ -174,4 +203,6 @@ const MODULES_TOTAL = 13;
 export class Accueil {
   protected readonly modulesPublies = MODULES_PUBLIES;
   protected readonly modulesTotal = MODULES_TOTAL;
+  protected readonly modulesPubliesPhp = MODULES_PUBLIES_PHP;
+  protected readonly modulesTotalPhp = MODULES_TOTAL_PHP;
 }

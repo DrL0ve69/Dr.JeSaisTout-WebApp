@@ -758,6 +758,20 @@ interface LeconCompilee {
   simulation?: SimulationCompilee;
 }
 
+/**
+ * UNE ENTRÉE DE `manifeste-routes.json`.
+ *
+ * LE CONTRAT D'ORDRE DU TABLEAU (PHP-PUB-3, 2026-09-16) — produit par `construireManifeste`
+ * (`generer-manifeste.mjs`, prouvé par `src/manifeste-tri-par-sujet.spec.ts`), et CONSTATÉ en partie
+ * sans être refait par `lireManifeste` (`contenu-compile.ts`) — la contiguïté des blocs et la croissance
+ * de `ordre` y sont vérifiées ; l'ordre alphabétique ENTRE les blocs ne l'est pas :
+ *   1. les entrées sont GROUPÉES PAR `sujet` — chaque sujet forme un bloc contigu, et les blocs
+ *      se suivent dans l'ordre `localeCompare(…, 'fr')` de leur sujet ;
+ *   2. dans chaque bloc, `ordre` est STRICTEMENT CROISSANT.
+ * `ordre` n'est unique que DANS une racine : chaque cours a son module 1. L'ancien contrat
+ * (« trié par `ordre` » sur tout le tableau) supposait un seul cours publié ; il est tombé à la
+ * publication du second.
+ */
 interface EntreeManifesteRoutes {
   sujet: string;
   slug: string;

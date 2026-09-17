@@ -4,8 +4,8 @@
 // CE QUE FAIT CE FICHIER, ET POURQUOI IL EXISTE ICI PLUTÔT QU'AILLEURS.
 // `src/content-generated/` est écrit par `npm run content:build`. Trois de ses cinq
 // sorties entrent dans l'application par ce fichier, et par lui seul :
-//   · `manifeste-routes.json` — les métadonnées de toutes les leçons, triées par
-//     `ordre` ; lues par `getPrerenderParams()` et par la navigation prev/next ;
+//   · `manifeste-routes.json` — les métadonnées de toutes les leçons, groupées par
+//     `sujet` puis triées par `ordre` dans chaque sujet ; lues par `getPrerenderParams()` et par la navigation prev/next ;
 //   · `lecons/<slug>.json` — le corps d'UNE leçon, chargé paresseusement par
 //     `carte-lecons.ts` (voir `resoudre-lecon.ts`) ;
 //   · `horaires.json` — l'horaire réel du cours, un par sujet (E3-ST20) : c'est lui
@@ -374,10 +374,14 @@ function refuser(provenance: string, manques: readonly string[]): never {
 /**
  * Rétrécit le manifeste brut en `EntreeManifesteRoutes[]`.
  *
- * Le TRI n'est pas refait ici : `generer-manifeste.mjs` trie déjà par `ordre`, et
- * ce fichier constate plutôt qu'il ne corrige — un manifeste désordonné signalerait
+ * Le TRI n'est pas refait ici : `generer-manifeste.mjs` groupe déjà par `sujet` et
+ * trie par `ordre` dans chaque sujet (contrat : `EntreeManifesteRoutes`, `types.d.ts`),
+ * et ce fichier constate plutôt qu'il ne corrige — un manifeste désordonné signalerait
  * une régression du générateur, que re-trier en silence masquerait. Ce qui est
- * vérifié, c'est que l'ordre EST croissant.
+ * vérifié, ce sont les DEUX moitiés du contrat, chacune nommée dans son refus :
+ * chaque sujet forme un bloc CONTIGU, et `ordre` est STRICTEMENT CROISSANT dans
+ * chaque bloc. (`ordre` n'est unique que dans une racine : exiger sa croissance sur
+ * tout le tableau supposait un seul cours publié — PHP-PUB-3.)
  *
  * @param valeur le contenu de `manifeste-routes.json`, tel quel
  * @param provenance nom du fichier, pour le message d'erreur
@@ -418,17 +422,42 @@ export function lireManifeste(
     entrees.push(brut as unknown as EntreeManifesteRoutes);
   }
 
-  const desordre = entrees.findIndex(
-    (entree, rang) => rang > 0 && entree.ordre <= (entrees[rang - 1]?.ordre ?? 0),
-  );
-  if (desordre !== -1) {
-    refuser(provenance, [
-      `les entrées ne sont pas triées par « ordre » croissant (rang ${desordre + 1})`,
-      'le tri appartient à `generer-manifeste.mjs` — le refaire ici masquerait sa régression',
-    ]);
-  }
+  verifierOrdreManifeste(entrees, provenance);
 
   return entrees;
+}
+
+/**
+ * Constate le contrat d'ordre du manifeste, en nommant la moitié violée :
+ *   · CONTIGUÏTÉ — un sujet déjà quitté ne réapparaît pas plus loin ;
+ *   · CROISSANCE — dans un même sujet, `ordre` croît strictement.
+ * L'ordre ENTRE blocs (`localeCompare` des sujets) n'est pas exigé ici : aucun
+ * consommateur n'en dépend, et le constater n'attraperait aucun défaut visible.
+ */
+function verifierOrdreManifeste(
+  entrees: readonly EntreeManifesteRoutes[],
+  provenance: string,
+): void {
+  const quittes = new Set<string>();
+  for (const [rang, entree] of entrees.entries()) {
+    const precedente = rang > 0 ? entrees[rang - 1] : undefined;
+    if (precedente === undefined || precedente.sujet !== entree.sujet) {
+      if (precedente !== undefined) quittes.add(precedente.sujet);
+      if (quittes.has(entree.sujet)) {
+        refuser(provenance, [
+          `les entrées ne sont pas groupées par « sujet » : « ${entree.sujet} » reparaît au rang ${rang + 1} après un autre sujet`,
+          'le tri appartient à `generer-manifeste.mjs` — le refaire ici masquerait sa régression',
+        ]);
+      }
+      continue;
+    }
+    if (entree.ordre <= precedente.ordre) {
+      refuser(provenance, [
+        `les entrées du sujet « ${entree.sujet} » ne sont pas triées par « ordre » strictement croissant (rang ${rang + 1})`,
+        'le tri appartient à `generer-manifeste.mjs` — le refaire ici masquerait sa régression',
+      ]);
+    }
+  }
 }
 
 /**

@@ -730,6 +730,55 @@ describe('lecture du manifeste', () => {
     expect(() => lireManifeste(desordonne, 'négatif')).toThrow(/triées/);
   });
 
+  // PHP-PUB-3 — le contrat d'ordre a DEUX moitiés (groupement par sujet, croissance dans
+  // le sujet). Chaque moitié a son test négatif, qui exige le message de SA moitié : un
+  // refus générique contenterait les deux tests avec une seule vérification branchée.
+  const modele = (): EntreeManifesteRoutes => {
+    const reelle = manifesteReel[0];
+    if (reelle === undefined) throw new Error('manifeste vide');
+    return reelle;
+  };
+  it('ACCEPTE deux sujets en blocs contigus, chacun avec son propre module 1', () => {
+    const deuxCours = [
+      { ...modele(), sujet: 'php', slug: 'php-un', ordre: 1 },
+      { ...modele(), sujet: 'php', slug: 'php-deux', ordre: 2 },
+      { ...modele(), sujet: 'securite-web', slug: 'secu-un', ordre: 1 },
+      { ...modele(), sujet: 'securite-web', slug: 'secu-deux', ordre: 2 },
+    ];
+    expect(lireManifeste(deuxCours, 'contrôle positif').map((e) => e.slug)).toEqual([
+      'php-un',
+      'php-deux',
+      'secu-un',
+      'secu-deux',
+    ]);
+  });
+
+  it('REFUSE des sujets entremêlés, en nommant le groupement et le sujet qui reparaît', () => {
+    // L'ancienne sortie du générateur (tri par `ordre` seul) : chaque sujet est, pris
+    // isolément, bien trié — seule la contiguïté est violée.
+    const entremeles = [
+      { ...modele(), sujet: 'securite-web', slug: 'secu-un', ordre: 1 },
+      { ...modele(), sujet: 'php', slug: 'php-un', ordre: 1 },
+      { ...modele(), sujet: 'securite-web', slug: 'secu-deux', ordre: 2 },
+    ];
+    expect(() => lireManifeste(entremeles, 'négatif')).toThrow(
+      /groupées par « sujet » : « securite-web » reparaît au rang 3/,
+    );
+  });
+
+  it('REFUSE un « ordre » décroissant DANS un sujet, en nommant ce sujet', () => {
+    // Blocs contigus, donc seule la croissance est violée — et dans le SECOND bloc, pour
+    // qu'une vérification qui ne regarderait que le premier sujet ne passe pas.
+    const decroissant = [
+      { ...modele(), sujet: 'php', slug: 'php-un', ordre: 1 },
+      { ...modele(), sujet: 'securite-web', slug: 'secu-deux', ordre: 2 },
+      { ...modele(), sujet: 'securite-web', slug: 'secu-un', ordre: 1 },
+    ];
+    expect(() => lireManifeste(decroissant, 'négatif')).toThrow(
+      /sujet « securite-web » ne sont pas triées par « ordre » strictement croissant \(rang 3\)/,
+    );
+  });
+
   it('REFUSE une racine qui n’est pas un tableau', () => {
     expect(() => lireManifeste({ lecons: [] }, 'négatif')).toThrow(/tableau/);
   });

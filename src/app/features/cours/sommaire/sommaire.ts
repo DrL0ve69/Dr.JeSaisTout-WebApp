@@ -174,6 +174,15 @@ export type ElementSommaire = ElementGroupe | ElementJalon;
  */
 const CLE_LISTE_PLATE = '';
 
+/**
+ * Clef du n-ième segment d'une liste plate — une liste plate peut être coupée aux
+ * jalons d'évaluation (voir `groupes`). Le premier segment garde `CLE_LISTE_PLATE` ;
+ * les suivants ne collisionnent avec rien, les deux modes s'excluant.
+ */
+function cleListePlate(segment: number): string {
+  return segment === 0 ? CLE_LISTE_PLATE : `${CLE_LISTE_PLATE}#${segment}`;
+}
+
 const ESPACE_INSECABLE = '\u00A0';
 
 const LIBELLES_ETAT: Readonly<Record<EtatModule, string>> = {
@@ -454,8 +463,29 @@ export class Sommaire {
     // sans exiger qu'elles soient contiguës dans le manifeste.
     const parGroupe = new Map<string, ModuleSommaire[]>();
     const seancesParGroupe = new Map<string, number[]>();
+
+    // LISTE PLATE COUPÉE AUX ÉVALUATIONS (PHP-PUB-3, 2026-09-16). Un sujet sans section
+    // forme un seul groupe ; si ce groupe enjambe une séance d'évaluation, le jalon n'a
+    // aucune frontière où se poser et `positionDuJalon` lève. Pour une section NOMMÉE,
+    // c'est juste : la couper inventerait un second titre, et c'est une décision de
+    // découpe éditoriale. Pour une liste plate, il n'y a aucun titre à inventer — la
+    // couper en listes sans titre pose le jalon EXACTEMENT à sa place d'horaire, ce que
+    // le contrat §5(c) demande. Le cours de PHP (aucune section, examen 1 en séance 6,
+    // modules des séances 1 à 5 puis 7) est le premier à exercer ce cas.
+    // Le segment d'un module = le nombre d'évaluations de séance ≤ la sienne : un module
+    // qui PORTE la séance d'une évaluation se range après son jalon. Le segment ne
+    // redescend jamais (`Math.max`) : un module rangé avant une séance antérieure à son
+    // voisin reste dans le même groupe, et le fail-closed de `positionDuJalon` le signale.
+    // Un module sans `seance` reste dans le segment courant — il n'a pas de place au
+    // calendrier.
+    const seancesEvaluees = sectionne ? [] : this.jalons().map((jalon) => jalon.seance);
+    let segment = 0;
     for (const entree of lecons) {
-      const cle = sectionne ? (entree.section ?? '').trim() : CLE_LISTE_PLATE;
+      if (!sectionne && entree.seance !== undefined) {
+        const seance = entree.seance;
+        segment = Math.max(segment, seancesEvaluees.filter((s) => s <= seance).length);
+      }
+      const cle = sectionne ? (entree.section ?? '').trim() : cleListePlate(segment);
       const modules = parGroupe.get(cle) ?? [];
       modules.push(this.decrire(entree, lisible));
       parGroupe.set(cle, modules);
