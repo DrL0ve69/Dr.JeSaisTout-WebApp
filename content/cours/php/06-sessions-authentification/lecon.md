@@ -18,8 +18,8 @@ fiches-sources:
   - web/php/php-sessions-authentification.md
   - web/php/exercices-corriges-poo-application.md
 cree: 2026-09-16
-maj: 2026-09-16
-statut: verifiee
+maj: 2026-09-17
+statut: publiee
 ---
 
 # Les sessions et l'authentification en PHP
@@ -339,7 +339,14 @@ session de l'analogie. À l'examen, la phrase de la diapositive reste la répons
 production, active `session.cookie_httponly`, `session.cookie_secure` et `session.cookie_samesite`
 dans `php.ini`, ou appelle `session_set_cookie_params()` avant `session_start()`.
 :::
-<!-- à-vérifier: la valeur de session.cookie_httponly (et des deux autres directives de cookie) dans le php.ini du WAMP installé au Cégep — la mesure M9 porte sur un PHP sans php.ini ; la configuration réelle du poste de laboratoire n'est pas connue. -->
+
+Cette mesure porte sur un PHP **sans** `php.ini`. Les deux modèles de `php.ini` livrés avec PHP ne
+changent rien à l'affaire : relevé le 16 septembre 2026 dans `php.ini-development` et
+`php.ini-production` de PHP 8.5.10, `session.cookie_httponly` et `session.cookie_samesite` y sont
+présents **sans valeur**, donc désactivés, et `session.cookie_secure` n'y figure qu'en commentaire.
+Un `php.ini` dérivé de l'un d'eux en hérite. Le tien a pu être modifié : pour le savoir, écris
+`var_dump(ini_get('session.cookie_httponly'), ini_get('session.cookie_secure'), ini_get('session.cookie_samesite'));`
+dans une page de ton poste. Une chaîne vide ou `"0"` veut dire que l'attribut n'est pas posé.
 
 ## Le cycle de vie d'une session {diapos="15, 32"}
 
@@ -386,11 +393,12 @@ première ligne.**
 Le résultat dépend d'un réglage, `output_buffering`. Quand il vaut `4096` — c'est la valeur des deux
 fichiers modèles `php.ini-development` et `php.ini-production` —, PHP retient les 4 096 premiers
 octets de sortie avant de les envoyer, et une petite sortie placée avant `session_start()` passe
-inaperçue. Quand il vaut `0`, l'erreur ci-dessus apparaît. Un code qui « marche chez moi » peut donc
-échouer sur un autre serveur. Ne compte pas sur le tampon : place `session_start()` en tête, et le
-réglage n'a plus d'importance.
+inaperçue. Quand il vaut `0`, l'erreur ci-dessus apparaît. Un `php.ini` dérivé de l'un des deux
+modèles hérite de `4096`, mais rien ne garantit que celui de ton poste n'a pas été modifié : écris
+`var_dump(ini_get('output_buffering'));` dans une page pour lire le tien. Un code qui « marche chez
+moi » peut donc échouer sur un autre serveur. Ne compte pas sur le tampon : place `session_start()`
+en tête, et le réglage n'a plus d'importance.
 :::
-<!-- à-vérifier: la valeur de output_buffering dans le php.ini du WAMP du Cégep — les deux valeurs (0 et 4096) ont été mesurées sur PHP 8.5.10, mais celle du poste de laboratoire n'est pas connue. -->
 
 Et que se passe-t-il quand on oublie la fonction, l'erreur que la diapositive 19 annonce ? La réponse
 est plus traître qu'on le croirait, et elle a été mesurée.
@@ -632,11 +640,12 @@ La base se nomme `cours7`, comme dans l'énoncé et à la diapositive 40 : **sui
 corrigé officiel et son fichier `cours07.sql` utilisent une base `cours08`. Coche « A_I » sur
 `id_utilisateur` dans PHPMyAdmin, ou écris `AUTO_INCREMENT` dans l'onglet SQL, comme à la séance 5.
 Pour tes comptes de test, invente des mots de passe que tu n'utilises nulle part ailleurs : la table
-de l'exercice les garde tels quels, et n'importe qui ouvrant PHPMyAdmin les lira.
+de l'exercice les garde tels quels, et n'importe qui ouvrant PHPMyAdmin les lira. Le nom de la base
+est une consigne ; le serveur, l'utilisateur et le mot de passe avec lesquels tu t'y connecteras, eux,
+sont ceux de ton poste — la section sur la connexion y revient.
 :::
-<!-- à-vérifier: le nom de base cours7 et, plus loin, la connexion en root sans mot de passe sur localhost — la valeur P-8 (port du service MariaDB et identifiants du WAMP du Cégep) n'est pas fournie. -->
 
-::: correction-du-cours {source="KnowledgeBase/web/php/php-sessions-authentification.md, section « Les mots de passe sont en clair, et comparés avec == » ; KnowledgeBase/web/php/exercices-corriges-poo-application.md, séance 7, exercice 1 ; manuel PHP, password_hash() (recommandation d'une colonne de 255 caractères)" diapos="38"}
+::: correction-du-cours {source="KnowledgeBase/web/php/php-sessions-authentification.md, section « Les mots de passe sont en clair, et comparés avec == » ; KnowledgeBase/web/php/exercices-corriges-poo-application.md, séance 7, exercice 1 ; manuel PHP, password_hash() (recommandation d'une colonne de 255 caractères) ; documentation MariaDB, SQL_MODE, https://mariadb.com/kb/en/sql-mode/ (mode strict par défaut depuis MariaDB 10.2.4, consultée le 2026-09-16)" diapos="38"}
 **Les mots de passe sont stockés en clair**, dans la capture comme dans le corrigé officiel, dont le
 fichier `cours07.sql` insère le compte `admin` avec le mot de passe `test`. C'est la faille la plus
 grave de la séance. Quiconque lit la table — par une injection SQL ailleurs dans le site, par une
@@ -646,13 +655,14 @@ passe. La séance 3 du même cours enseignait pourtant `password_hash()`. À l'e
 que l'énoncé demande. En production : range seulement le résultat de `password_hash()`, dans une
 colonne de **255** caractères — un haché bcrypt en fait 60, mais un haché Argon2id approche la
 centaine, et l'algorithme par défaut peut changer avec une version de PHP ; une colonne trop courte
-tronque le haché ou refuse l'insertion, selon le `sql_mode` du serveur. En mode strict — le défaut
-de MariaDB depuis la version 10.2.4 —, l'`INSERT` échoue avec `ERROR 1406 Data too long` et le
-compte n'est pas créé ; hors mode strict, le haché est tronqué avec un simple avertissement, et le
-compte devient inutilisable. Ajoute aussi `UNIQUE` au code utilisateur : rien d'autre n'empêche
-deux comptes du même nom.
+tronque le haché ou refuse l'insertion, selon le `sql_mode` du serveur. Si ce réglage contient
+`STRICT_TRANS_TABLES` ou `STRICT_ALL_TABLES` — le mode strict, que MariaDB active par défaut depuis
+sa version 10.2.4 —, l'`INSERT` échoue avec `ERROR 1406 Data too long` et le compte n'est pas créé ;
+sinon, le haché est tronqué avec un simple avertissement, et le compte devient inutilisable. Un
+serveur peut avoir été configuré autrement que par défaut : lance `SELECT @@sql_mode;` dans l'onglet
+SQL de PHPMyAdmin pour savoir dans quel cas est le tien. Ajoute aussi `UNIQUE` au code utilisateur :
+rien d'autre n'empêche deux comptes du même nom.
 :::
-<!-- à-vérifier: sql_mode du MariaDB du WAMP du Cégep (P-8) — le comportement devant une colonne trop courte (troncature ou ERROR 1406) en dépend ; source du défaut strict depuis 10.2.4 : https://mariadb.com/kb/en/e1406/ -->
 
 Un **haché** est le résultat d'une fonction à sens unique : on calcule le haché à partir du mot de
 passe, jamais le mot de passe à partir du haché. Pour vérifier une connexion, on refait le calcul sur
@@ -826,12 +836,15 @@ $stmt->close();
 header("location: formulaireConnexion.php?compteInexistant=1"); //Compte n'existe pas
 ?>
 ```
-<!-- à-vérifier: la chaîne de connexion concrète (localhost, root sans mot de passe, base cours7) est celle de la diapositive 40, pas forcément celle du poste du Cégep — P-8 n'est pas fourni. Le code lui-même est recopié de la capture, lue le 2026-09-16. -->
 
 Ligne par ligne :
 
 - **Ligne 2** : la connexion à la base, avec les quatre informations de la séance 5 — serveur,
-  utilisateur, mot de passe, nom de la base.
+  utilisateur, mot de passe, nom de la base. `localhost`, `root` sans mot de passe et `cours7` sont
+  les valeurs de la diapositive 40, donc du poste de l'enseignant : le code n'y ajoute aucun
+  commentaire pour garder la numérotation de la diapositive, mais sur ton poste, reporte ton
+  utilisateur, ton mot de passe et, si ton service MariaDB n'écoute pas sur 3306, ton port
+  (`localhost:3307`, par exemple), comme à la séance 5.
 - **Ligne 3** : la requête est **préparée**. Le point d'interrogation réserve la place du code
   utilisateur ; ce que le visiteur tapera ne pourra jamais devenir du SQL. Sur un formulaire de
   connexion, cible numéro un des injections, c'est le bon geste.
@@ -1031,7 +1044,13 @@ Chaque étape de ce scénario a été **mesurée** le 16 septembre 2026, sur PHP
   `sess_attaquant123`. L'argument `true` est ce qui détruit l'ancienne session ; sans lui, l'ancien
   fichier resterait sur le serveur.
 
-<!-- à-vérifier: la valeur de session.use_strict_mode dans le php.ini du WAMP du Cégep — les mesures M6 et M6b portent sur un PHP sans php.ini, dont la valeur par défaut est 0 ; la configuration du poste de laboratoire n'est pas connue. -->
+Ces mesures portent sur un PHP sans `php.ini`, où `session.use_strict_mode` vaut `0`. Les deux
+modèles de `php.ini` livrés avec PHP ne changent rien : relevé le 16 septembre 2026 dans
+`php.ini-development` et `php.ini-production` de PHP 8.5.10, ils fixent tous deux
+`session.use_strict_mode = 0`, et un `php.ini` dérivé de l'un d'eux en hérite. Pour connaître la
+valeur de ton poste, écris `var_dump(ini_get('session.use_strict_mode'));` dans une page : `"0"`
+ou une chaîne vide veut dire que l'identifiant choisi par le client est adopté. Quelle que soit la
+réponse, `session_regenerate_id(true)` à la connexion reste la parade qui ne dépend d'aucun réglage.
 
 :::: comparaison
 ::: vulnerable
@@ -1199,7 +1218,9 @@ du tampon de sortie, et les deux cas sont mauvais.
 - **La version corrigée** — garde en première ligne, suivie de `die()` — produit la réponse
   `302` avec son en-tête `Location`, et un **corps vide**.
 
-<!-- à-vérifier: la valeur de output_buffering dans le php.ini du WAMP du Cégep — les deux valeurs (0 et 4096) ont été mesurées sur PHP 8.5.10, mais celle du poste de laboratoire n'est pas connue ; le comportement de la version vulnérable sur ce poste en dépend. -->
+Lequel des deux premiers cas se produit chez toi dépend donc du `php.ini` de ton poste. Pour le
+savoir, `var_dump(ini_get('output_buffering'));` : `"4096"` te place dans le premier cas, `"0"` ou
+une chaîne vide dans le second. La version corrigée, elle, se comporte de la même façon dans les deux.
 
 ### Pourquoi die() après header() {diapos="49"}
 
@@ -1326,17 +1347,20 @@ du projet sur le disque. C'est voulu en développement, où l'on veut voir ses e
 production, on règle `display_errors = Off` et `log_errors = On`, pour que le détail aille dans un
 journal et non à l'écran.
 
-**L'extension `.inc` n'est pas exécutée par le serveur web.** Le serveur ne sait pas qu'un `.inc`
-contient du PHP : une adresse qui vise directement `protectionPage.inc` ou `menu.inc` peut renvoyer
-le **code source** du fichier au lieu de l'exécuter. Le code d'une garde n'est pas un secret, mais il
-révèle le nom exact de la clé de session et de la page de repli. La correction est simple : nommer
-les fichiers inclus `.inc.php`, que le serveur exécute : une requête directe ne reçoit que leur sortie, jamais leur code. Ou les
-ranger hors du dossier publié. Un chemin absolu construit avec `__DIR__`
+**L'extension `.inc` n'est pas forcément exécutée par le serveur web.** Un serveur Apache ne confie
+à PHP que les extensions qu'on lui a associées. **Si** `.inc` n'en fait pas partie, une adresse qui
+vise directement `protectionPage.inc` ou `menu.inc` renvoie le fichier tel quel, **code source
+compris**, au lieu de l'exécuter. Le code d'une garde n'est pas un secret, mais il révèle le nom
+exact de la clé de session et de la page de repli. **Le test tient en une adresse** : ouvre dans ton
+navigateur l'URL d'un de tes `.inc` sur ton poste, **puis affiche le code source de la page reçue
+(Ctrl+U)**. Si une ligne de PHP y figure, le fichier est servi en clair et ton serveur est dans ce
+cas. Ne te fie pas à la page affichée seule : un navigateur qui lit la réponse comme du HTML traite
+`<?php … ?>` comme un commentaire et n'en montre rien. La correction ne dépend d'aucune configuration : nommer les fichiers inclus
+`.inc.php`, que le serveur exécute — une requête directe ne reçoit que leur sortie, jamais leur
+code —, ou les ranger hors du dossier publié. Un chemin absolu construit avec `__DIR__`
 (`require __DIR__ . "/garde.inc.php";`) évite en plus que PHP aille chercher le fichier ailleurs que
 dans le dossier de la page.
 :::
-
-<!-- à-vérifier: « une adresse qui vise directement un .inc peut renvoyer le code source » — c'est le comportement d'un Apache qui n'associe pas l'extension .inc à PHP (fiche KB, section « Protection des pages ») ; la configuration Apache du WAMP du Cégep n'a pas été vérifiée. -->
 
 ::: exercice-du-cours {seance="7" ref="4"}
 L'exercice redirige vers `formulaireConnexion.php`, alors que la diapositive 47 redirige vers la page
@@ -1950,8 +1974,9 @@ exit;
 {lignes="6,7"} Les deux valeurs sont lues avec une valeur de repli : plus d'avertissement si une clé
 manque.
 
-{lignes="9"} Les informations de connexion de l'énoncé. Dans un vrai projet, elles vivent dans un
-fichier hors du dossier publié.
+{lignes="9"} Les informations de connexion : la base `cours7` de l'énoncé, et le serveur, l'utilisateur
+et le mot de passe de la diapositive 40, à remplacer par ceux de ton poste. Dans un vrai projet,
+elles vivent dans un fichier hors du dossier publié.
 
 {lignes="12,13"} La requête du cours, préparée et liée : c'est la partie qui ne change pas.
 
@@ -1985,7 +2010,11 @@ absent d'un mot de passe faux, et grâce aux lignes 21 et 22, le coût du hachag
 :::
 ::::
 
-<!-- à-vérifier: la chaîne de connexion « localhost », « root », mot de passe vide, base « cours7 » — ce sont les valeurs de l'énoncé et de la diapositive 40, pas celles du poste du Cégep (P-8 : port du service MariaDB et identifiants non fournis). Recopiée telle quelle, cette ligne ne se connectera pas nécessairement. -->
+Les deux versions se connectent avec `localhost`, `root` sans mot de passe et la base `cours7` : le
+nom de la base vient de l'énoncé, le reste de la diapositive 40, donc du poste de l'enseignant.
+Recopiée telle quelle, cette ligne ne se connectera pas forcément chez toi. Reporte l'utilisateur et
+le mot de passe de ton poste et, si ton service MariaDB n'écoute pas sur le port standard 3306, le
+port que t'indique ton WAMP — le geste est décrit à la séance 5.
 
 Rien de ce qui suit `execute()` n'a pu être **exécuté** pour cette leçon : aucun serveur de base de
 données n'était disponible au moment de la rédaction. Le déroulé ci-dessus est un raisonnement sur le

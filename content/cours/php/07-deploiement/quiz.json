@@ -1,0 +1,134 @@
+{
+  "lecon": "deploiement",
+  "titre": "Quiz — déployer une application PHP chez un hébergeur",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "associer",
+      "consigne": "Associe chaque type d'hébergement de la grille « qui gère quoi » des diapositives 13 et 17 à ce qu'il laisse réellement à ta charge.",
+      "paires": [
+        {
+          "gauche": "Sur place",
+          "droite": "Les neuf couches, du réseau jusqu'à l'application : rien n'est au fournisseur"
+        },
+        {
+          "gauche": "IaaS, comme le droplet LAMP du cours",
+          "droite": "Le fournisseur gère le réseau, le stockage, les serveurs et la virtualisation ; toi, le système d'exploitation et tout ce qui est au-dessus"
+        },
+        {
+          "gauche": "PaaS",
+          "droite": "Le fournisseur gère en plus le système, l'intergiciel et le runtime ; il te reste les données et l'application"
+        },
+        {
+          "gauche": "SaaS, comme Office 365",
+          "droite": "Le fournisseur exploite toutes les couches, application comprise ; tu te sers du logiciel fourni"
+        },
+        {
+          "gauche": "timedatectl set-timezone et chmod, tapés dans PuTTY",
+          "droite": "Des gestes de la couche O/S : ils sont à toi en IaaS, et au fournisseur dès le PaaS"
+        }
+      ],
+      "explication": "La grille empile neuf couches, du réseau en bas à l'application en haut, et ce qui change d'une colonne à l'autre est la hauteur de la ligne de partage. Sur place, tout est à toi. En IaaS, les quatre couches matérielles (réseau, stockage, serveurs, virtualisation) passent au fournisseur : c'est le droplet de la séance, où tu administres Linux, Apache, le serveur de base de données (MySQL ou MariaDB selon l'image) et PHP. En PaaS, la ligne monte encore : le système d'exploitation, l'intergiciel (Apache, le serveur de base de données) et le runtime (l'interpréteur PHP) sont au fournisseur, et tu ne déposes que ton code et tes données. En SaaS, tout est au fournisseur. C'est la réponse attendue à « qu'est-ce qui change entre IaaS et PaaS ? » : la hauteur de la ligne, pas la technologie. La dernière paire vérifie que tu sais situer un geste sur la grille : régler le fuseau du système ou changer les droits d'un fichier touche la couche O/S, ce qui prouve que la séance fait de l'IaaS ; sur un PaaS, tu ne taperais aucune de ces commandes. Trois confusions fréquentes à éviter. D'abord, juger le type de service par le fournisseur : le support le dit pour AWS, qui offre des services IaaS et d'autres PaaS, et DigitalOcean loue aussi des services où l'on dépose seulement son code ; le type se juge produit par produit. Ensuite, croire qu'en SaaS les données ne sont plus ton affaire : la grille colorie la couche Data du côté du fournisseur pour l'exploitation (il les héberge et les sauvegarde), mais au Québec la Loi 25 laisse la responsabilité des renseignements personnels à l'organisation qui les collecte. Enfin, croire qu'on monte d'une colonne sans rien changer : le corrigé du cours 5 écrit dans journal.log à côté de son code, et beaucoup de plateformes PaaS ont un système de fichiers éphémère qui effacerait ce journal à chaque redéploiement.",
+      "ficheSource": "web/php/php-hebergement-domaine-https.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Sur ton droplet, tu as tapé timedatectl set-timezone America/Toronto, et la commande date affiche bien une heure suivie de EDT. La directive date.timezone du php.ini qu'Apache charge est vide. Une page de ton application exécute echo date(\"H:i T\");. Qu'affiche-t-elle, et que fais-tu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "L'heure de Toronto suivie de EDT : quand date.timezone est vide, PHP reprend le fuseau que le système vient de recevoir. Il n'y a rien à faire."
+        },
+        {
+          "id": "b",
+          "texte": "Une heure UTC, en avance sur l'horloge du mur : PHP ne lit que sa propre directive. Tu poses date.timezone = America/Toronto dans le php.ini indiqué par « Loaded Configuration File », puis tu redémarres Apache."
+        },
+        {
+          "id": "c",
+          "texte": "Une heure UTC ; tu relances timedatectl set-timezone, puis tu confirmes la correction en exécutant un petit script avec la commande php dans PuTTY."
+        },
+        {
+          "id": "d",
+          "texte": "Rien : une directive date.timezone vide empêche date() de s'exécuter, et la page s'arrête sur une erreur fatale."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "PHP ne demande pas son fuseau au système : il lit sa directive date.timezone, et quand elle est vide, il prend UTC. La mesure faite pour la leçon, avec PHP 8.5.10, le système réglé sur America/Toronto et date.timezone vide, affiche UTC pour date_default_timezone_get() et une heure UTC, quatre heures en avance en période d'heure avancée. La même commande lancée avec -d date.timezone=America/Toronto affiche America/Toronto et une heure suivie de EDT. La correction se fait donc dans le php.ini qu'Apache charge, que la ligne « Loaded Configuration File » d'une page phpinfo() permet de trouver (page à supprimer aussitôt lue), et Apache doit être redémarré pour relire ce réglage. La réponse a est l'erreur que la section veut corriger : régler l'horloge murale ne règle pas la montre de PHP. La réponse c commet deux fautes : relancer timedatectl ne touche toujours pas PHP, et la vérification par la commande php dans le terminal ne prouve rien pour Apache, parce que la ligne de commande peut charger un autre php.ini que le serveur web ; la vérification se fait par une page servie par Apache. La réponse d invente un arrêt : la mesure montre que date() s'exécute et affiche une heure, simplement dans le mauvais fuseau. C'est justement ce qui rend le défaut sournois, puisque rien ne le signale. Une nuance : l'instant lui-même vient toujours de l'horloge du système ; PHP ne choisit que le fuseau d'affichage, et time() rend la même valeur dans les deux cas. Sur la provenance : la séance règle seulement le fuseau du système. À l'examen, la réponse du cours est timedatectl set-timezone America/Toronto ; en production, ajoute le réglage de date.timezone, ou, si le php.ini est hors de portée, un date_default_timezone_set() dans un fichier inclus par toutes les pages.",
+      "ficheSource": "web/php/php-hebergement-domaine-https.md"
+    },
+    {
+      "id": "q3",
+      "type": "choix-multiple",
+      "question": "Le mot de passe généré pour ton compte de base de données contient un point-virgule. Tu l'écris sans guillemets dans config.ini : password=Cours;PHP. Le code lit le fichier avec parse_ini_file(\"config.ini\"). Que se passe-t-il ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "PHP émet un avertissement de syntaxe et parse_ini_file() renvoie false : toute la configuration est perdue."
+        },
+        {
+          "id": "b",
+          "texte": "Le mot de passe lu vaut Cours, sans aucun avertissement : le point-virgule ouvre un commentaire. La connexion à la base échoue ensuite, sans rien qui désigne le fichier de configuration."
+        },
+        {
+          "id": "c",
+          "texte": "Le mot de passe lu vaut Cours;PHP : les guillemets ne servent qu'à la lisibilité du fichier."
+        },
+        {
+          "id": "d",
+          "texte": "Le mot de passe lu vaut Cours, et PHP émet un avertissement qui signale la valeur tronquée."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "Dans un fichier INI, le point-virgule ouvre un commentaire. Sans guillemets, tout ce qui le suit sur la ligne est donc ignoré, et c'est une syntaxe parfaitement valide : la mesure faite pour la leçon avec PHP 8.5.10 lit le mot de passe Cours, sans le moindre avertissement. L'erreur ne se révèle qu'à la connexion à la base, qui échoue sans que rien n'indique que la cause est dans config.ini. C'est le cas le plus traître des trois mesures de la section. La réponse a décrit un autre cas, bien réel : un mot de passe qui contient un point d'exclamation, écrit sans guillemets. Le manuel PHP range ce caractère parmi ceux qui ont un sens spécial dans une valeur ; la mesure montre alors un avertissement de syntaxe, et parse_ini_file() renvoie false, si bien que toute la configuration est perdue, pas seulement le mot de passe. Le point-virgule, lui, ne provoque aucune erreur. La réponse c nie le problème : les guillemets ne sont pas décoratifs, ils disent au lecteur du fichier de recopier la valeur telle quelle. Avec les valeurs entre guillemets doubles, la mesure lit bien les quatre clés, mot de passe complet compris. La réponse d invente un signal : si PHP prévenait, le défaut serait facile à trouver ; c'est précisément parce qu'il ne prévient pas qu'il faut une règle. Cette règle est celle de la diapositive 93, et le cours a raison sur ce point : chaque valeur entre guillemets doubles, toujours, et en particulier tout mot de passe généré, qui contient presque toujours autre chose que des lettres et des chiffres.",
+      "ficheSource": "web/php/php-deploiement.md"
+    },
+    {
+      "id": "q4",
+      "type": "vrai-faux",
+      "affirmation": "Comme le demande la diapositive 93, ton config.ini est resté dans /var/www/html, avec le compte de la base et son mot de passe. Il ne contient aucun code PHP et aucune page n'y fait de lien : un visiteur ne peut donc pas en lire le contenu.",
+      "bonneReponse": false,
+      "justification": "Faux. Apache sert tout ce qui se trouve sous /var/www/html, la racine web, et tout fichier qui s'y trouve a une adresse. Il ne fait qu'une distinction, selon l'extension : un fichier .php est exécuté, et le visiteur ne reçoit que ce que le script affiche ; un fichier d'une autre extension est servi tel quel. Apache ne connaît aucun traitement pour l'extension .ini : une requête vers /config.ini renvoie le fichier entier, nom d'utilisateur et mot de passe compris, sans authentification. L'absence de lien ne protège rien : il suffit de connaître ou de deviner le nom, et config.ini est précisément un des noms que les robots essaient. L'absence de code PHP ne protège rien non plus, c'est même la raison pour laquelle le fichier est servi comme du texte. Le défaut s'aggrave avec le réglage du cours, puisque ce compte a tous les privilèges sur toutes les bases et ouvre phpMyAdmin. La parade tient en deux gestes. Sortir le fichier de la racine web, par exemple dans /var/www/config.ini, le donner à root avec le groupe www-data (chown root:www-data) et le restreindre avec chmod 640, pour que PHP puisse le lire et personne d'autre. Puis le faire lire par un chemin absolu, parse_ini_file(__DIR__ . \"/../config.ini\"), dans les cinq pages du corrigé qui le lisent, en vérifiant que le résultat n'est pas false. La vérification se fait par une relecture : l'adresse /config.ini doit répondre 403 ou 404. Faire refuser certaines extensions par Apache est une parade de dernier recours, qui ne bloque que les extensions auxquelles son auteur a pensé. À l'examen, la réponse du cours est de modifier config.ini dans /var/www/html avec le nouveau compte, chaque valeur entre guillemets ; en production, applique la correction.",
+      "ficheSource": "web/php/php-deploiement.md"
+    },
+    {
+      "id": "q5",
+      "type": "trouver-la-faille",
+      "consigne": "Voici les commandes passées dans mysql pour créer le compte de l'application, avec un mot de passe bien généré. Plus tard, une page de l'application s'avère vulnérable à une injection SQL. Quelle ligne permet à cette injection de détruire d'autres bases que cours3, ou de se créer un compte pour revenir plus tard ?",
+      "langage": "sql",
+      "code": "CREATE DATABASE cours3 CHARACTER SET utf8mb4;\nCREATE USER 'app_user'@'localhost' IDENTIFIED BY '<mot de passe généré>';\nGRANT ALL PRIVILEGES ON *.* TO 'app_user'@'localhost';\nFLUSH PRIVILEGES;",
+      "ligneFautive": 3,
+      "faille": "Privilèges excessifs : ALL PRIVILEGES sur *.*, soit toutes les tables de toutes les bases, fait du compte de l'application un second root",
+      "explication": "Le SQL injecté s'exécute avec les privilèges du compte de l'application ; c'est donc la ligne 3 qui fixe l'étendue des dégâts. Dans un GRANT, la portée s'écrit base.table et l'étoile veut dire « toutes » : cours3.* désigne les tables de la seule base cours3, alors que *.* désigne toutes les tables de toutes les bases, y compris la base système mysql, où le serveur range les comptes. ALL PRIVILEGES accorde tout ce qui s'accorde à cette portée, dont DROP DATABASE, CREATE USER et la lecture de mysql.user. Avec ce réglage, l'injection lit les autres bases, en détruit une entière ou se crée un compte ; avec SELECT, INSERT, UPDATE, DELETE ON cours3.*, elle ne peut plus que lire et modifier les clients de cours3. La ligne 1 crée la base, en root : c'est un geste d'administration normal, qui ne donne rien au compte de l'application. La ligne 2 crée le compte avec un mot de passe généré : c'est justement la bonne pratique, alors que le diaporama emploie un mot de passe public. La ligne 4 recharge les privilèges, comme le fait le cours ; elle n'en accorde aucun. Deux nuances. Le moindre privilège n'empêche pas l'injection, ce sont les requêtes préparées de la séance 5 qui l'empêchent ; il en borne les dégâts, et les deux protections se cumulent. Et la liste des privilèges suit ce que le code exécute réellement : si ton application ne supprime jamais rien, retire DELETE. Pour phpMyAdmin et les changements de structure, on crée un second compte, avec un autre mot de passe généré, que le code de l'application ne connaît pas. À l'examen, la réponse du cours est GRANT ALL PRIVILEGES ON *.* puis FLUSH PRIVILEGES (diapositive 72) ; en production, applique la correction.",
+      "correction": "CREATE DATABASE cours3 CHARACTER SET utf8mb4;\nCREATE USER 'app_user'@'localhost' IDENTIFIED BY '<mot de passe généré>';\nGRANT SELECT, INSERT, UPDATE, DELETE ON cours3.* TO 'app_user'@'localhost';\nCREATE USER 'admin_bd'@'localhost' IDENTIFIED BY '<autre mot de passe généré>';\nGRANT ALL PRIVILEGES ON cours3.* TO 'admin_bd'@'localhost';",
+      "ficheSource": "web/php/php-deploiement.md"
+    },
+    {
+      "id": "q6",
+      "type": "choix-multiple",
+      "question": "Tu as copié le code avec WinSCP en root. Au premier ajout, l'application s'arrête sur « Incapable d'ouvrir le fichier de journalisation! », parce que PHP, qui tourne sous le compte www-data, ne peut pas écrire dans journal.log. En production, quel correctif choisis-tu ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "chmod 777 journal.log : l'ajout réussit, et comme seul Apache écrit dans ce fichier, ouvrir les droits ne change rien d'autre."
+        },
+        {
+          "id": "b",
+          "texte": "chown www-data:www-data journal.log, puis chmod 640 journal.log : le fichier appartient à celui qui doit y écrire, le groupe lit seulement, et les autres comptes n'ont aucun accès."
+        },
+        {
+          "id": "c",
+          "texte": "chmod 644 journal.log, en laissant le fichier à root : la lecture pour tous suffit à PHP pour ajouter des lignes."
+        },
+        {
+          "id": "d",
+          "texte": "chown www-data:www-data journal.log, puis chmod 664 journal.log : le groupe doit pouvoir écrire, et la lecture pour tous est sans conséquence."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "La cause du problème est le propriétaire : le fichier, copié en root, appartient à root, et le compte www-data, sous lequel tournent Apache et PHP sous Ubuntu/Debian, ne peut pas y écrire. Le bon geste change donc le propriétaire au lieu d'ouvrir les droits. Avec chown www-data:www-data, PHP devient propriétaire ; avec 640, le propriétaire lit et écrit (6), le groupe lit seulement (4), les autres comptes n'ont rien (0). La réponse a est celle de la diapositive 93, et elle fonctionne, parce que www-data fait partie de « tous les autres ». Mais 777 ouvre la lecture, l'écriture et l'exécution à tous les comptes du serveur pour en laisser passer un seul : un attaquant qui obtient la moindre exécution de code peut réécrire ou vider le journal et effacer ses traces, et le droit d'exécution n'a aucun sens pour un fichier qui n'est pas un programme. La réponse c ne règle rien : 644 laisse le fichier à root, seul à pouvoir écrire, et le mode d'ajout \"a\" de fopen() exige le droit d'écrire, pas celui de lire. L'erreur resterait. La réponse d confond deux cas. Un 6 au milieu ne sert que si c'est le groupe qui écrit, par exemple quand le fichier reste à ton compte d'administration et passe au groupe www-data ; et même alors, 660 suffit, puisque 664 laisse en plus tous les autres comptes lire le journal, ce que rien n'exige. Ici, c'est le propriétaire qui écrit : 640 est la bonne valeur. Enfin, même avec de bons droits, journal.log reste téléchargeable tant qu'il est dans /var/www/html ; la leçon propose de le ranger dans /var/log/monsite/ et d'ouvrir ce chemin absolu dans logger.inc. À l'examen, la réponse du cours est chmod 777 journal.log ; en production, applique la correction.",
+      "ficheSource": "web/php/php-deploiement.md"
+    }
+  ]
+}

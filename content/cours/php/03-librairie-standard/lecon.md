@@ -19,8 +19,8 @@ fiches-sources:
   - web/php/php-fichiers-journalisation.md
   - web/php/php-formulaires-superglobales.md
 cree: 2026-09-14
-maj: 2026-09-14
-statut: verifiee
+maj: 2026-09-17
+statut: publiee
 ---
 
 # La librairie standard de PHP
@@ -327,23 +327,35 @@ La marche à suivre est écrite pour **XAMPP**, qui n'est pas installé sur les 
 **WAMP** qui y est l'environnement de référence. La directive à changer reste exactement la même
 (`date.timezone`), la valeur aussi (`America/Toronto`), et il faut toujours redémarrer Apache pour
 que le fichier soit relu — seul le **chemin** du `php.ini` change, et un chemin faux se recopie tel
-quel sans que rien ne prévienne. Le chemin sous WAMP est donné juste en dessous. À l'examen, donne
-la marche du cours ; sur ton poste, applique-la au `php.ini` de WAMP.
+quel sans que rien ne prévienne. Le moyen de trouver le bon, sous WAMP, est donné juste en
+dessous. À l'examen, donne la marche
+du cours ; sur ton poste, applique-la au `php.ini` de WAMP.
 :::
 
-Sous WAMP, le `php.ini` que sert Apache se trouve dans le dossier de la version de PHP employée,
-c'est-à-dire `C:\wamp64\bin\php\php<version>\php.ini`, où `<version>` est le numéro de la version
-active (par exemple `php8.2.0`).
-<!-- à-vérifier: le chemin C:\wamp64\bin\php\php<version>\php.ini et le numéro de version de PHP livré par le WAMP des postes du Cégep — seuls C:\wamp64 et sa racine servie C:\wamp64\www sont confirmés (P-3) ; la version de PHP (P-4) n'est pas fournie -->
+Sous WAMP, le `php.ini` vit quelque part sous `C:\wamp64\`, dans un chemin qui dépend de la
+version de PHP installée — `php<version>` dans un nom de dossier n'est pas à recopier, c'est le
+numéro de **ta** version qui s'y trouve. Plutôt que de deviner ce chemin, **demande-le à PHP
+lui-même** : c'est le seul geste qui ne ment jamais, parce qu'il interroge l'interpréteur qui
+exécute réellement ta page.
 
-Le moyen le plus sûr de lire ce chemin sans le deviner est de le demander à PHP lui-même : la
-fonction `php_ini_loaded_file()` retourne le fichier réellement chargé par l'interpréteur qui
-exécute ta page.
+Deux façons de le faire depuis une page servie par Apache. `phpinfo()` affiche un long tableau de
+configuration : la ligne **« Loaded Configuration File »** donne le chemin du `php.ini` réellement
+chargé. La fonction `php_ini_loaded_file()` retourne ce même chemin, seul, ou `false` si aucun
+fichier n'est chargé.
 
 ```php
 <?php
 echo php_ini_loaded_file();
 ```
+
+En ligne de commande, `php --ini` imprime la même ligne, `Loaded Configuration File`. Sous WAMP,
+`php` n'est pas dans le `PATH` de Windows (voir la séance 1) : la commande s'écrit avec le chemin
+complet, `C:\wamp64\bin\php\php<version>\php.exe --ini`, où `php<version>` est le nom d'un
+sous-dossier de `C:\wamp64\bin\php\`. Mais la
+console et Apache ne chargent **pas forcément le même fichier** : pour régler le fuseau de tes
+pages, c'est la réponse obtenue **par le navigateur** qui fait foi. Une fois la directive modifiée
+et Apache redémarré, `ini_get("date.timezone")` dans une page confirme que la nouvelle valeur est
+bien lue.
 
 ::: complement
 **Le `php.ini` de ta machine ne suivra pas ton code en production.** Le jour où tu déposes ton site
@@ -986,12 +998,40 @@ Une précision qui décide de tout : `"/.."` ne sort du dossier servi que si ta 
 niveau** de ce dossier. Une page rangée dans `www/monprojet/` qui écrit `__DIR__ . "/../config"`
 atterrit dans `www/config` — toujours sous la racine servie, donc toujours téléchargeable. Vérifie
 où tu remontes, ne te fie pas au nombre de `..`.
-<!-- à-vérifier: le dossier voisin de C:\wamp64\www où déposer le .ini — aucun dossier de travail de l'étudiant n'est fourni (P-2, P-5), et la disposition réelle des fichiers d'exercice sur le poste n'est pas confirmée -->
+
+Sous WAMP, le principe se traduit ainsi : un dossier **à côté** de `www`, pas dedans —
+`C:\wamp64\<dossier-hors-www>\`, dont le nom est à ton choix. Ce n'est pas une convention du cours
+ni du Cégep, seulement la conséquence de la règle : tout ce qui est sous `www` peut être demandé
+par une URL, rien de ce qui est à côté ne le peut — sauf si une directive `Alias` d'Apache y
+pointe. WAMP en déclare pour ses propres outils, comme PHPMyAdmin.
 
 **La seconde, quand la première est impossible :** demander au serveur de refuser l'extension, par
-une règle de configuration d'Apache. C'est un réglage de serveur, pas de PHP, et il ne se recopie
-pas d'un tutoriel sans vérifier qu'il est actif sur l'installation employée.
-<!-- à-vérifier: la forme exacte de la règle Apache qui refuse .ini et .log sous WAMP — la configuration d'Apache du poste du Cégep n'est pas fournie, et une règle inactive donne une fausse impression de protection -->
+une règle de configuration d'Apache. C'est un réglage de serveur, pas de PHP. Sous Apache 2.4, la
+règle apparie le nom du fichier avec `FilesMatch`, et refuse l'accès avec `Require all denied` :
+
+```text
+<FilesMatch "\.(ini|log)$">
+    Require all denied
+</FilesMatch>
+```
+
+Elle se place dans la configuration d'Apache (`httpd.conf`, ou le bloc qui décrit le dossier
+servi), ou dans un fichier `.htaccess` posé dans le dossier à protéger — **à condition** que la
+directive `AllowOverride` d'Apache autorise ce fichier à contenir des règles d'accès. Sinon, deux
+cas se présentent. Avec `AllowOverride None`, le `.htaccess` est **ignoré en silence**, et c'est là
+tout le danger : **une règle inactive ressemble exactement à une règle active**. Si les
+`.htaccess` sont lus mais que les directives d'autorisation n'y sont pas permises (`AllowOverride`
+sans `AuthConfig`), la ligne `Require` provoque au contraire une **erreur 500** sur tout le
+dossier — une panne visible, mais pas une protection. Il n'y a qu'une façon de le savoir, et c'est de l'essayer —
+demande l'URL du fichier dans le navigateur, par exemple `http://localhost/<nom-du-projet>/exercice6.ini` :
+la réponse doit être **403 Forbidden**. Si le contenu du fichier s'affiche, la règle n'agit pas.
+Sources : documentation d'Apache 2.4, directives
+[`FilesMatch`](https://httpd.apache.org/docs/2.4/mod/core.html#filesmatch) et
+[`Require`](https://httpd.apache.org/docs/2.4/mod/mod_authz_core.html#require) (contexte
+d'override « AuthConfig ») et
+[`AllowOverride`](https://httpd.apache.org/docs/2.4/mod/core.html#allowoverride). Même active, cette
+règle reste la **seconde** défense : un fichier hors de `www` n'a besoin d'aucune règle pour être
+à l'abri.
 
 **La troisième, qui n'est pas une parade mais une hygiène** : un fichier de configuration ne se
 versionne jamais avec ses secrets, et un identifiant applicatif ne s'appelle pas `root`.
@@ -1106,9 +1146,13 @@ d'être détaillé ; voici les quatre autres, une ligne chacun.
    aujourd'hui, on lève une exception et on montre un message générique.
 4. **Aucun verrou** : deux requêtes simultanées peuvent entrelacer leurs écritures dans le même
    fichier — `LOCK_EX` existe pour ça.
-5. **Le chemin `"journal.log"` est relatif**, donc le fichier atterrit là où PHP travaille au moment
-   de l'appel, très probablement dans le dossier servi par le serveur — c'est le titre précédent.
-<!-- à-vérifier: « très probablement dans le dossier servi » — sous WAMP avec Apache, le répertoire de travail d'un script est en pratique celui du fichier exécuté, mais ce comportement n'a pas été mesuré sur le poste, et il dépend de la configuration de PHP (SAPI, directive chdir) -->
+5. **Le chemin `"journal.log"` est relatif**, donc le fichier atterrit dans le **répertoire
+   courant** de PHP au moment de l'appel — et ce répertoire dépend de la façon dont PHP est lancé.
+   Mesuré sur PHP 8.5.10 avec le même script : exécuté en CGI (`php-cgi`, comme derrière un
+   serveur web), `getcwd()` rend le dossier **du script**, donc un journal posé dans le dossier
+   servi — c'est le titre précédent ; exécuté en ligne de commande (`php script.php`), il rend le
+   dossier **du terminal**, où qu'il soit. Ne te fie donc pas au répertoire courant : construis le
+   chemin à partir de `__DIR__`, qui ne dépend que de l'emplacement du fichier.
 
 :::: comparaison
 ::: vulnerable

@@ -19,8 +19,8 @@ fiches-sources:
   - web/php/exercices-corriges-poo-application.md
   - web/php/php-fichiers-journalisation.md
 cree: 2026-09-16
-maj: 2026-09-16
-statut: verifiee
+maj: 2026-09-17
+statut: publiee
 ---
 
 # L'intégration d'une base de données en PHP
@@ -298,18 +298,18 @@ en prenant le plus grand nombre déjà utilisé plus un. C'est ce qui permet de 
 l'identifiant dans un `INSERT`, et c'est pour ça que l'exemple d'insertion, plus bas, n'a que trois
 colonnes pour une table qui en compte quatre.
 
-::: correction-du-cours {source="KnowledgeBase/web/php/php-base-de-donnees-pdo.md, section « Le socle SQL de la séance — et ses quatre coquilles » ; texte des diapositives 13, 14, 15 et 16 du support Cours05_integration_base_de_donnees" diapos="13, 14, 16"}
+::: correction-du-cours {source="KnowledgeBase/web/php/php-base-de-donnees-pdo.md, section « Le socle SQL de la séance — et ses quatre coquilles » ; texte des diapositives 13, 14, 15 et 16 du support Cours05_integration_base_de_donnees ; MariaDB Error Code Reference, https://mariadb.com/kb/en/mariadb-error-code-reference/ (code 1064, ER_PARSE_ERROR, consultée le 2026-09-16)" diapos="13, 14, 16"}
 Trois des quatre exemples portent une **virgule en trop** juste avant la parenthèse fermante :
 `… courriel varchar(50),);`. Le gabarit de la diapositive 13, l'exemple nu de la 14 et l'exemple
 avec `AUTO_INCREMENT` de la 16 sont donc des instructions que le serveur refuse — il répond par une
-erreur de syntaxe, et rien n'est créé. La fiche de la base de connaissances attribue à MySQL et
-MariaDB le code d'erreur 1064 pour ce refus. La **diapositive 15 est correcte** et ne se range pas
+erreur de syntaxe, et rien n'est créé. Chez MariaDB, ce refus porte le code 1064,
+`ER_PARSE_ERROR`, que la référence officielle des codes d'erreur libelle « … near '…' at line … ».
+La **diapositive 15 est correcte** et ne se range pas
 avec les trois autres : sa virgule est suivie de `PRIMARY KEY (id_client)`, donc elle sépare bien
 deux éléments. C'est une coquille de saisie, sans conséquence sur la matière — mais recopiée telle
 quelle dans un examen pratique, elle coûte le point. **Retire la dernière virgule**, à l'examen
 comme ailleurs.
 :::
-<!-- à-vérifier: le code d'erreur « ERROR 1064 » rendu par MySQL/MariaDB devant une virgule en trop — il vient de la fiche KB et n'a pas pu être mesuré : ce poste n'a ni serveur MySQL ni serveur MariaDB. -->
 
 :::: comparaison
 ::: vulnerable
@@ -443,12 +443,14 @@ diapositive 25 dit de « démarrer le service Apache et MySQL dans **XAMPP** »,
 diapositives 47 et 48, vingt-deux diapositives plus loin, expliquent comment lire le port « dans
 **WAMP** en ouvrant le fichier `my.ini` ». Les deux logiciels font la même chose — installer Apache,
 PHP et MariaDB en un seul geste sur Windows — mais leurs menus, leurs chemins et leurs ports par
-défaut diffèrent. **Au Cégep, l'environnement est WAMP** : les gestes décrits ici sont donc ceux de
-WAMP, où l'on passe par l'icône de la barre des tâches pour démarrer les services, puis par l'entrée
-« phpMyAdmin » du même menu. Les écrans de PHPMyAdmin décrits par les diapositives 26 à 32, eux,
-sont identiques dans les deux cas : PHPMyAdmin est le même logiciel.
+défaut diffèrent. **Au Cégep, l'environnement est WAMP** : tout passe par l'icône de WAMP dans la
+barre système. Son menu porte les entrées « Démarrer les services » et « Redémarrer les services »
+— la capture de la diapositive 47 les montre — et l'icône passe au **vert** quand tous les services
+tournent, comme l'a posé la leçon 1. PHPMyAdmin s'ouvre ensuite depuis ce même menu ; si ton WAMP
+l'affiche plutôt comme une adresse locale, c'est **cette** adresse-là qu'il faut ouvrir dans le
+navigateur, pas une adresse recopiée d'ailleurs. Les écrans de PHPMyAdmin décrits par les
+diapositives 26 à 32, eux, sont identiques dans les deux cas : PHPMyAdmin est le même logiciel.
 :::
-<!-- à-vérifier: les gestes exacts de démarrage des services et d'ouverture de PHPMyAdmin sur le WAMP du poste du Cégep (entrée de menu, URL locale, port d'Apache) — la valeur P-2 n'est pas fournie, et le support ne décrit que XAMPP. -->
 
 ::: exercice-du-cours {seance="5" ref="1"}
 C'est exactement la suite de gestes que la section vient de décrire, appliquée à la table de tout le
@@ -484,7 +486,8 @@ deux font exactement la même chose — mais sache que tu peux écrire `$mysqli-
 `$mysqli->set_charset("utf8")` si tu préfères une seule écriture partout.
 
 ```php
-// Les quatre informations, puis la connexion. Forme du code de démonstration de la séance.
+// Les quatre informations, puis la connexion. Forme du code de démonstration de la séance :
+// ces valeurs sont celles du poste de l'enseignant — remplace-les par celles du tien.
 $server   = "localhost:3307";
 $username = "demo";
 $password = "demo";
@@ -492,16 +495,31 @@ $dbname   = "demotable";
 
 $mysqli = new mysqli($server, $username, $password, $dbname);
 ```
-<!-- à-vérifier: le port du service MariaDB de WAMP sur le poste du Cégep, ainsi que le code utilisateur et le mot de passe à employer — la valeur P-8 n'est pas fournie. Le support montre 3307 dans le my.ini du poste de l'enseignant, le port standard est 3306, le corrigé officiel se connecte en root sans mot de passe et le code de démonstration en demo/demo. Une chaîne de connexion se recopie telle quelle dans un éditeur : ne rien poser comme acquis ici. -->
+
+**Aucune de ces valeurs n'est à recopier telle quelle.** Le port **standard** de MySQL et de
+MariaDB est 3306 ; `3307` est le port que WampServer attribue à MariaDB quand MySQL est le SGBD
+par défaut, comme sur la capture de la diapositive 47, qui affiche « SGBD par défaut : MySQL 8.4.7 ».
+Ton poste a donc probablement la même valeur, mais lis-la dans le menu plutôt que de la supposer
+(source : fichier
+[`mariadb_mysql.txt`](https://raw.githubusercontent.com/big-dream/wampserver/main/mariadb_mysql.txt)
+livré avec WampServer, consulté le 2026-09-16 : « If MySQL is the default DBMS, it uses port 3306
+and therefore MariaDB will use port 3307 »). La capture montre ce port deux fois : dans le menu de WAMP, à la ligne « Port utilisé par MariaDB : 3307 », et dans
+son `my.ini`, à la ligne `port=3307`. **Le geste qui vaut sur n'importe quel poste** est donc de lire
+ton propre port au même endroit — la ligne « Port utilisé par MariaDB » du menu de WAMP, ou la
+ligne `port=` de **ton** `my.ini`, ouvert depuis ce menu — et de le reporter dans l'adresse du
+serveur. Même chose pour les identifiants : le code de démonstration se connecte en `demo` / `demo`,
+le corrigé officiel en `root` sans mot de passe. Emploie ceux de ton poste ; s'ils ne sont pas
+écrits quelque part, demande-les plutôt que de les deviner.
 
 ::: complement
-La capture du `my.ini` que montre la diapositive 47 sert à lire une seule ligne, `port=3307`. La
-ligne juste en dessous, `skip_ssl`, **désactive le chiffrement** de la connexion entre le client et
-le serveur MySQL. En local, sur `localhost`, c'est sans conséquence : rien ne sort de la machine. Le
-réflexe à ne pas prendre est de recopier ce fichier sur un serveur où la base vit sur une **autre
-machine** — requêtes, résultats et authentification circuleraient alors en clair sur le réseau.
+Dans la capture du `my.ini` de la diapositive 47, la ligne `port=3307` est rangée sous la section
+`[client]`, et elle est suivie de `skip_ssl`. Cette directive **désactive le chiffrement** de la
+connexion entre le client et le serveur. La capture ne dit pas si la ligne vient de l'installation
+de WAMP ou si l'enseignant l'a ajoutée ; ce qui compte est ce qu'elle fait. En local, sur
+`localhost`, c'est sans conséquence : rien ne sort de la machine. Le réflexe à ne pas prendre est de
+recopier ce fichier sur un serveur où la base vit sur une **autre machine** — requêtes, résultats et
+authentification circuleraient alors en clair sur le réseau.
 :::
-<!-- à-vérifier: la présence de « skip_ssl » dans le my.ini livré par défaut par WampServer, par opposition à une ligne ajoutée par l'enseignant pour sa démonstration — le constat vient de la fiche KB, qui le marque elle-même comme à vérifier. -->
 
 ::: complement
 PDO, le pilote que le support ne fait que nommer en passant, rassemble les quatre informations dans
@@ -589,13 +607,16 @@ son bloc 8-11 est le bloc 9-12, sa ligne 12 est la ligne 14, sa ligne 13 est la 
 
 ::: note
 Le code de démonstration et le code des captures du support ne décrivent **pas la même table**. Le
-code de démonstration, rafraîchi le 1er septembre 2026, travaille sur une table `compte` à quatre
-colonnes : `id_compte`, `prenom`, `nom`, `courriel`. Les captures des diapositives 38, 46 et 51, plus
-anciennes, montrent une table `compte` qui porte en plus une colonne `motdepasse`. L'enseignant a
-rafraîchi son code sans refaire ses diapositives. Une réponse d'examen qui mélangerait les deux
-décrirait un programme qui n'existe nulle part : tiens-t'en à l'un **ou** à l'autre.
+code de démonstration, rafraîchi le 1er septembre 2026, se connecte en `demo` sur la base
+`demotable` et travaille sur une table `compte` à quatre colonnes : `id_compte`, `prenom`, `nom`,
+`courriel`. Les captures des diapositives 38 et 46 — la même image, projetée deux fois — se
+connectent en `root` sans mot de passe sur une base `inventaire`, et insèrent dans une table
+`compte` des colonnes **`code`, `motdepasse` et `courriel`**, avec des valeurs écrites en dur
+(`"CODEDEMO"`, `"MOTDEPASSE_DEMO"`, `"Code@Demo.com"`) plutôt que lues dans `$_POST`. La capture de
+la diapositive 51 lit cette même table. L'enseignant a rafraîchi son code sans refaire ses
+diapositives. Une réponse d'examen qui mélangerait les deux décrirait un programme qui n'existe
+nulle part : tiens-t'en à l'un **ou** à l'autre.
 :::
-<!-- à-vérifier: la colonne « motdepasse » dans les captures des diapositives 38, 46 et 51 — les captures n'ont pas été relues dans ce lot (aucun outil du dépôt ne lit une image de .pptx) ; l'affirmation vient de la fiche KB, relevée le 2026-08-19. -->
 
 ### Le « ? » n'est pas un raccourci d'écriture — c'est la défense contre l'injection SQL {diapos="41"}
 
@@ -793,10 +814,11 @@ des étapes du SELECT » dans ses notes la trouvera sous le mot « sans », et p
 s'est trompé de diapositive. **La liste est bien celle du SELECT.**
 :::
 
-::: correction-du-cours {source="KnowledgeBase/web/php/php-base-de-donnees-pdo.md, section « Ce que le cours enseigne sur les mots de passe dans cette séance » ; mesures effectuées le 2026-09-16 sur PHP 8.5.10 : password_hash avec PASSWORD_DEFAULT rend 60 caractères, avec PASSWORD_ARGON2ID 97 caractères, et password_verify rend false sur un hachage tronqué à 30 caractères" diapos="51"}
-Le code projeté par la diapositive 51 fait, d'après la fiche de la base de connaissances,
-`SELECT code, motdepasse FROM compte where id_compte=?` puis `echo $code . ", " . $motdepasse;`.
-Autrement dit, **il relit un mot de passe et l'affiche dans la page** — et la table du fil rouge le
+::: correction-du-cours {source="Capture d'écran de la diapositive 51 du support Cours05_integration_base_de_donnees (relue le 2026-09-16) ; KnowledgeBase/web/php/php-base-de-donnees-pdo.md, section « Ce que le cours enseigne sur les mots de passe dans cette séance » ; mesures effectuées le 2026-09-16 sur PHP 8.5.10 : password_hash avec PASSWORD_DEFAULT rend 60 caractères, avec PASSWORD_ARGON2ID 97 caractères, et password_verify rend false sur un hachage tronqué à 30 caractères" diapos="51"}
+Le code projeté par la capture de la diapositive 51 prépare
+`SELECT code, motdepasse FROM compte where id_compte=?`, lie les deux colonnes par
+`$stmt->bind_result($code, $motdepasse);`, puis, dans sa boucle `while ($stmt->fetch())`, écrit
+`echo $code . ", " . $motdepasse . "<br>";`. Autrement dit, **il relit un mot de passe et l'affiche dans la page** — et la table du fil rouge le
 stocke **en clair** dans une colonne `motdepasse VARCHAR(30)`. Le premier point est une règle
 absolue : **on ne relit jamais un mot de passe**, on vérifie qu'un mot de passe proposé correspond
 au haché stocké. Le second point est plus subtil et il a été mesuré : `password_hash()` avec
@@ -808,7 +830,6 @@ changer le schéma**. La correction est `VARCHAR(255)`, `password_hash()` à l'�
 `password_hash` et `password_verify` : cette table `compte` est un support de démonstration SQL, ce
 que rien dans les diapositives ne dit.
 :::
-<!-- à-vérifier: le contenu exact du code projeté par la diapositive 51 (SELECT code, motdepasse FROM compte where id_compte=? puis echo du mot de passe) — il n'existe que dans une capture d'écran, relevée par la fiche KB le 2026-08-19 et non relue dans ce lot. -->
 
 ### bind_result, puis fetch {diapos="52, 53"}
 
@@ -1279,6 +1300,8 @@ C'est le plus petit programme qui met une ligne dans une table.
 ```php
 <?php
 // ajout_simple.php — un INSERT préparé, de la connexion à la fermeture.
+// Serveur, utilisateur, mot de passe et base : les valeurs du corrigé officiel (config.ini).
+// Remplace-les par celles de ton poste, port compris.
 $mysqli = new mysqli("localhost", "root", "", "cours5");
 
 if (mysqli_connect_errno()) {
@@ -1298,7 +1321,12 @@ $courriel = "rpage@example.com";
 $stmt->execute();
 $stmt->close();
 ```
-<!-- à-vérifier: la chaîne de connexion « localhost », « root », mot de passe vide et base « cours5 » — ce sont les valeurs du corrigé officiel de l'enseignant, pas celles du poste du Cégep (P-8 : port et identifiants non fournis). Recopiée telle quelle, cette ligne ne se connectera pas nécessairement. -->
+
+La ligne de connexion reprend les valeurs du `config.ini` du corrigé officiel : `localhost`, `root`,
+un mot de passe vide et la base `cours5`. Ce sont celles du poste de l'enseignant, pas forcément
+celles du tien : si ton service MariaDB écoute sur un autre port que 3306, ou si ton compte a un
+mot de passe, reporte tes propres valeurs, comme l'explique la section « Le pilote : brancher PHP
+sur MySQL ».
 
 Les sept temps du programme, dans l'ordre, chacun en une phrase.
 

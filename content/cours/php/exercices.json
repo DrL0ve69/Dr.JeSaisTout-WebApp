@@ -282,6 +282,42 @@
           "enonce": "Fais en sorte que les liens du menu dépendent de l'état de l'utilisateur. Connecté, il voit les liens Index, pageSecuritaire et Déconnexion. Non connecté, il voit les liens Index et Formulaire de connexion."
         }
       ]
+    },
+    {
+      "numero": 8,
+      "feuille": "Exercices du cours 8 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Ouvrir un compte DigitalOcean et y déployer un serveur LAMP",
+          "enonce": "Crée un compte chez DigitalOcean et déploie un serveur LAMP. La feuille le précise en introduction : l'objectif de la séance est de mettre en ligne une application que tu as écrite, ou à défaut le corrigé du cours 5."
+        },
+        {
+          "reference": "2",
+          "titre": "Régler le fuseau horaire du serveur",
+          "enonce": "Configure le fuseau horaire du serveur sur America/Toronto."
+        },
+        {
+          "reference": "3",
+          "titre": "Sécuriser l'installation de MariaDB",
+          "enonce": "Sécurise la base de données MariaDB installée sur le serveur."
+        },
+        {
+          "reference": "4",
+          "titre": "Acheter un nom de domaine et le pointer vers le serveur (optionnel)",
+          "enonce": "Exercice optionnel : achète un nom de domaine et configure son DNS pour qu'il pointe vers ton serveur."
+        },
+        {
+          "reference": "5",
+          "titre": "Installer phpMyAdmin sur le serveur",
+          "enonce": "Installe phpMyAdmin sur ton serveur."
+        },
+        {
+          "reference": "6",
+          "titre": "Déployer une application et vérifier qu'elle fonctionne",
+          "enonce": "Déploie sur ton serveur le corrigé du cours 7, ou une application que tu as écrite, puis vérifie qu'elle fonctionne."
+        }
+      ]
     }
   ]
 }

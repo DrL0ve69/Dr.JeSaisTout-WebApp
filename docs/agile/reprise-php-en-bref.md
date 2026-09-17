@@ -73,6 +73,10 @@ que XAMPP est interdit sur les postes du Cégep. Les exemples concrets se font d
 
 ## 3 · 🔴 CE QUI MANQUE ENCORE — les chemins absolus du poste de travail
 
+> ✅ **Ne bloque plus la publication depuis le 2026-09-17** (lot PHP-PUB, voir la clôture en fin de
+> document) : les passages dépendants du poste ont été réécrits pour être vrais quelle que soit la
+> valeur. Les valeurs ci-dessous, une fois fournies, **ajoutent** des exemples concrets.
+
 **Le propriétaire les fournira plus tard.** D'ici là, **aucun exemple concret ne s'invente** : un
 chemin faux est pire qu'un chemin absent, parce qu'il se recopie tel quel dans un terminal.
 ✅ **P-1 et P-3 sont fournis et confirmés (2026-09-11)** — voir le tableau. Il reste **P-2, P-4, P-5,
@@ -166,7 +170,10 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ✅ **2026-09-16** — `statut: verifiee`, **un** `à-vérifier:` |
 | **PHP-6** | Séance 5 — Intégration de base de données | ✅ **2026-09-16** — `statut: verifiee`, sept `à-vérifier:` |
-| **PHP-7** | Séance 7 — Sessions et authentification (module `06`) | ✅ **2026-09-16** — `statut: verifiee`, neuf `à-vérifier:` |
+| **PHP-7** | Séance 7 — Sessions et authentification (module `06`) | ✅ **2026-09-16** |
+| **PHP-8** | Séance 8 — Déploiement (module `07`) | ✅ **2026-09-17** |
+| **PHP-PUB** | Les sept modules en `statut: publiee` : marqueurs levés sans valeur inventée, plomberie « second cours publié » | ✅ **2026-09-17** — clôture en fin de document |
+| **PHP-9** | Séance 10 — Introduction à Laravel | ⬜ |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
 
 ### ✅ CLÔTURE — E7 lot B « les routes du cours de PHP » (2026-09-10)
@@ -1025,3 +1032,66 @@ persiste, antérieur et inchangé.
 terrain **non posé**. Même ordre : fraîcheur du `.pptx`, exercices relevés sur
 <https://www.alexandrepetrin.ca/exercice-php-cours-8-2026/>, **captures lues**, mesures, puis la
 table des titres. Fiches : `php-deploiement.md` + `php-hebergement-domaine-https.md`.
+
+### ✅ CLÔTURE — PHP-8 « séance 8, Déploiement » ET PHP-PUB « le cours de PHP en ligne » (2026-09-16/17)
+
+**Livré, dans la même PR** : `content/cours/php/07-deploiement/` (`lecon.md` ~3 050 lignes, **32 titres :
+vingt et un `##` et onze `###`**, table de `docs/contenu/renvois-diapos-php-07.md` ; `quiz.json`, 6 questions,
+quatre types ; **les 6 exercices** de la séance cités) — **et les sept modules PHP passés en
+`statut: publiee`**, avec la plomberie qui rend un second cours publiable.
+
+#### 🔴 La décision qui a débloqué la publication — le §3 ne bloque plus
+Le propriétaire (2026-09-16) : « tu peux assumer d'ici là ». **Aucune valeur n'a été inventée** : les
+**32 marqueurs** des modules 01-06 (et les 2 du module 07) ont été levés en réécrivant chaque passage pour
+qu'il soit **vrai quel que soit le poste** — valeur du cours attribuée à sa diapositive, défaut mesuré ou
+sourcé, espace réservé visible (`<nom-du-projet>`, `php<version>`), et un **geste de vérification** donné à
+l'étudiant (`ini_get()`, `phpinfo()` « Loaded Configuration File », ligne `port=` du `my.ini`,
+`SELECT @@sql_mode;`, demander l'URL d'un fichier). Les valeurs P-2 à P-8, si le propriétaire les donne,
+**ajouteront** des exemples concrets ; elles ne sont plus un préalable.
+Mesures qui ont tranché (PHP 8.5.10) : les deux modèles `php.ini-development`/`-production` fixent
+`output_buffering = 4096`, `session.use_strict_mode = 0`, `session.cookie_httponly` vide ; `doubleval` alias
+de `floatval`, `gettype(1.5)` → `"double"` ; méthode sans modificateur publique, propriété nue = Parse error
+(`var`, `static`, `readonly` typé suffisent) ; `getcwd()` = dossier du terminal en CLI, du script en CGI ;
+WampServer place MariaDB sur **3307** quand MySQL est le SGBD par défaut (`mariadb_mysql.txt`).
+
+#### 🔴 Ce que le lot a découvert
+1. **Le déck 8 avait été republié en silence** (2026-09-12, 103 → 101 diapositives) : la KB a été recalée
+   (`7bbcb95`). Les **sept autres** supports servis ont été comparés (taille + `Last-Modified`) : identiques.
+2. **La cartographie se trompait sur la capture 81** (« transfert WinSCP ») : c'est l'accueil de phpMyAdmin
+   sur **MariaDB 10.3.31**, alors que la 69 montre **MySQL**. Les captures sont de millésimes différents ;
+   la recette actuelle `digitalocean/droplet-1-clicks/lamp-24-04` installe `mysql-server` et `php8.4`, et
+   son hôte virtuel met **`index.php` avant `index.html`** — une phrase « `index.html` est servi à la place
+   d'`index.php` » était donc fausse sur le droplet du cours.
+3. **La nuance 17 accusait le cours à tort** : Vim ignore les espaces avant une commande Ex
+   (`ex_docmd.c`), `: wq` fonctionne.
+4. **La plomberie supposait UN cours publié** : le manifeste était trié par `ordre` seul, et `ordre` n'est
+   unique que dans une racine → 16 fichiers de specs tombaient au chargement. Contrat neuf : groupé par
+   `sujet`, puis `ordre` croissant dans chaque sujet (`types.d.ts`), prouvé côté producteur par
+   `src/manifeste-tri-par-sujet.spec.ts` et constaté côté lecteur. Le sommaire PHP (sans sections) coupe sa
+   liste aux jalons d'évaluation. Carte d'accueil PHP : jauge `MODULES_PUBLIES_PHP = 7` sur **8**
+   (calendrier de l'enseignant : séances 1-5, 7, 8, 10).
+5. **Poids** : la leçon 07 pesait 527 Ko (échec ≥ 450) ; quatre diagrammes redondants ou réductibles à une
+   liste ont été retirés → **428 Ko**.
+6. **`verificateur-theorie` n'a pas de shell** : un brief qui lui demande `curl`/`php -l` demande
+   l'impossible. Le fil principal a fait les relevés **avant** de le lancer et les lui a injectés — c'est ce
+   qui a rendu les trois passes courtes.
+
+#### Budget
+Rédaction en **cinq** rédacteurs (A 160k — dépassement, cause : marche à suivre de 27 étapes + 884 lignes ;
+B 121k, C 111k, D 139k, E 113k). Recalage KB : **180k / 63 appels — dépassement**, défaut de brief (deux
+fiches, ~44 renvois, dans un seul agent : il en fallait deux). Marqueurs 145k et 154k. Vérifications
+125k, 133k, 144k ; correctifs 112k, 110k ; plomberie 101k (reprise après coupure d'API) ; revue 100k.
+Une coupure de limite d'API a tué cinq agents en vol ; les reprises sont parties **fraîches**.
+
+#### Gates (dépôt principal, sept modules PHP publiés)
+G-content **17 leçons / 2 racines, 0 dépassement** · G-lint · G-typage-outils · G-test **49 fichiers,
+1212 passés / 1 sauté** · G-build **21 routes prerendues, 14 hachages `style-src` / 0 de script,
+inchangés** · G-axe **21 pages, 0 violation** · G-contrastes · G-glyphes · G-e2e **57 passés / 1 sauté** ·
+G-audit `--omit=dev` **0**.
+
+#### Le geste suivant
+Côté PHP : **PHP-9** (séance 10, « Introduction à Laravel »), puis **PHP-F** (gate du format actionnable
+ouvert au second cours). Côté sécurité, **selon le calendrier du site de l'enseignant** (et non les
+numéros de dossier du dépôt) : séance 5 « Sécurité des utilisateurs » (aucun module), séance 7 « Sécurité
+du code » (modules 07-10, à passer au format « En bref »), séance 8 « Sécurité des bases de données »
+(aucun module ; fichier `Cours09-Securite_base_de_donnees.pptx`).

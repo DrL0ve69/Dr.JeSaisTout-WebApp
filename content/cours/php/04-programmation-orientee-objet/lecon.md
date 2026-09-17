@@ -18,8 +18,8 @@ fiches-sources:
   - web/php/php-poo.md
   - web/php/exercices-corriges-poo-application.md
 cree: 2026-09-15
-maj: 2026-09-15
-statut: verifiee
+maj: 2026-09-17
+statut: publiee
 ---
 
 # La programmation orientée objet en PHP
@@ -1452,12 +1452,13 @@ borne de boucle — mais dans l'autre sens, ce qui en fait un bon couple à rete
 **vérifie toujours le premier et le dernier tour de tes boucles, pas ceux du milieu.**
 :::
 
-Un troisième point, plus incertain celui-là, concerne `Facteur()` : l'énoncé demande de lever
-`ValeurIncorrecteException` pour une valeur **inférieure à 2**, alors que le corrigé teste `< 0`.
-<!-- à-vérifier: l'énoncé de l'exercice 3 demande ValeurIncorrecteException pour une valeur inférieure à 2, le corrigé officiel teste « $n < 0 » — quelle version est retenue à la correction ? La réponse ne vit ni dans le code source de PHP ni dans une spécification, mais dans la pratique de l'enseignant. Source : renvois-diapos-php-04.md §1a n° 5, et KnowledgeBase/web/php/php-poo.md. -->
-Les deux versions se défendent à la lecture de la consigne, et l'écart n'est pas tranchable depuis
-le dépôt. En attendant, la version prudente est celle de l'énoncé, qui est plus stricte : elle
-refuse aussi `Facteur(0)` et `Facteur(1)`, dont le premier fait de toute façon échouer le calcul.
+Un troisième point est un **écart entre les deux sources**, pas un bogue : pour `Facteur()`,
+l'énoncé de l'exercice 3 demande de lever `ValeurIncorrecteException` « si on lui fournit une
+valeur inférieure à 2 », alors que le corrigé officiel teste `$n < 0`. Laquelle des deux bornes
+compte à la correction, seul l'enseignant peut le dire. **Écris la version de l'énoncé** — c'est la
+consigne qu'on t'a donnée, et elle est la plus stricte : elle refuse aussi `Facteur(0)` et
+`Facteur(1)`, dont le premier fait de toute façon échouer le calcul — et **signale l'écart à ton
+enseignant**, plutôt que de deviner.
 
 ### Quand une exception personnalisée vaut la peine {diapos="47"}
 
