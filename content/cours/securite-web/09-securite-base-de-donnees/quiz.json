@@ -1,0 +1,184 @@
+{
+  "lecon": "securite-base-de-donnees",
+  "titre": "Quiz — Sécurité des bases de données",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Tu viens de lancer mysql_secure_installation sur un MariaDB neuf et tu as répondu « y » à toutes les questions. Un collègue en conclut : « la base n'est plus joignable depuis Internet ». Que vaut cette conclusion ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Elle est fausse : le script ne restreint que le compte root, et ne dit rien de l'exposition du service. Ce qui en décide est bind-address, que le script ne touche pas — déjà posé sur 127.0.0.1 par le paquet Debian ou Ubuntu, absent d'autres façons d'installer. La conclusion ne peut donc pas venir du script : elle se prouve par ss -lntp."
+        },
+        {
+          "id": "b",
+          "texte": "Elle est juste : la question « Disallow root login remotely? » coupe l'écoute réseau du service, donc plus aucun compte n'est joignable à distance."
+        },
+        {
+          "id": "c",
+          "texte": "Elle est juste, mais seulement jusqu'au prochain redémarrage : le script n'écrit rien dans les fichiers de configuration, il faut donc le relancer après chaque systemctl restart mariadb."
+        },
+        {
+          "id": "d",
+          "texte": "Elle est fausse, mais pour une autre raison : c'est la suppression de la base test qui rouvre le port 3306, tant qu'on n'a pas rechargé les privilèges avec FLUSH PRIVILEGES."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Le script pose exactement la question « Disallow root login remotely? » : il restreint UN COMPTE, pas le service. Un compte créé ensuite en 'app'@'%' est joignable de partout où le serveur écoute — l'hôte fait partie de l'identité du compte, donc chaque compte a sa propre exposition. Ce qui décide de l'écoute, c'est bind-address, dans la section [mysqld] de 50-server.cnf : la valeur 127.0.0.1 signifie « la machine elle-même, et personne d'autre ». Bonne nouvelle sur la plateforme du cours : le paquet Debian ou Ubuntu la pose déjà, son propre commentaire annonçant que le défaut est désormais de n'écouter que localhost ; sur un paquet RPM, une installation par archive ou beaucoup d'images de conteneur, la ligne reste à écrire. Dans les deux cas, la vérification porte sur ce qui écoute RÉELLEMENT, pas sur ce que le fichier dit : ss -lntp doit montrer 127.0.0.1:3306 et jamais 0.0.0.0:3306. La réponse b reprend mot pour mot la promesse de la diapositive 10 du cours, qui présente cette protection comme « désactiver les connexions distantes sur la base de données » — c'est précisément le raccourci à corriger. Arbitrage à connaître : à l'examen, cite les quatre protections telles que le cours les liste, car elles décrivent bien les quatre questions du script ; en production, vérifie bind-address, et pose-le s'il manque. La réponse c invente une non-persistance qui n'existe pas : les changements du script sont écrits dans les tables de droits, ils survivent au redémarrage. La réponse d mélange deux mécanismes indépendants : la base test est une base vide qui offre un point d'appui à un intrus, elle n'a aucun rapport avec l'ouverture d'un port, et FLUSH PRIVILEGES ne fait que recharger les tables de droits en mémoire.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q2",
+      "type": "associer",
+      "consigne": "Associe chaque scénario redouté au geste qui l'empêche. Attention : un seul des scénarios n'est couvert par AUCUNE des questions du script de sécurisation.",
+      "paires": [
+        {
+          "gauche": "Sur une installation qui n'authentifie pas par socket, n'importe quel processus local se connecte en administrateur de toutes les bases, sans rien avoir à deviner.",
+          "droite": "Définir un mot de passe pour l'administrateur du SGBD — première question du script."
+        },
+        {
+          "gauche": "Une connexion est acceptée alors qu'aucun identifiant valide n'a été fourni.",
+          "droite": "Supprimer les comptes anonymes créés par défaut."
+        },
+        {
+          "gauche": "Depuis Internet, un attaquant essaie des mots de passe en série sur le compte le plus puissant du serveur.",
+          "droite": "Interdire la connexion distante du compte root."
+        },
+        {
+          "gauche": "Un intrus dispose d'un espace où il a des droits d'écriture avant même d'avoir volé un compte.",
+          "droite": "Supprimer la base test, vide et accessible de tous."
+        },
+        {
+          "gauche": "Les changements de droits sont acceptés, mais les tables de droits en mémoire restent celles d'avant.",
+          "droite": "Recharger les privilèges."
+        },
+        {
+          "gauche": "Le service répond encore à qui se présente sur le port 3306, depuis n'importe quelle machine du réseau.",
+          "droite": "bind-address = 127.0.0.1 — un réglage que le script ne touche pas."
+        }
+      ],
+      "explication": "Les cinq premières lignes sont les cinq étapes de mysql_secure_installation, et chacune ferme un trou précis plutôt qu'une menace vague. Le mot de passe administrateur compte parce qu'une installation neuve n'en a aucun : la protection ne vaut pas contre un inconnu sur Internet, elle vaut contre ce qui est DÉJÀ sur la machine. Nuance à garder en tête pour Debian et Ubuntu, où root@localhost est authentifié par le plugin unix_socket : là, seul l'utilisateur système root entre, et un processus PHP compromis n'obtient rien — le mot de passe administrateur y protège les installations et les configurations qui n'emploient pas ce plugin. Les comptes anonymes sont ce compte historique ''@'localhost' qui accepte n'importe quel nom d'utilisateur, souvent avec des droits sur la base test — d'où le lien direct avec la quatrième ligne : une base vide où un intrus peut écrire est un endroit où travailler qu'on lui offre gratuitement. Le refus de la connexion distante de root ne concerne que ce compte-là, et c'est exactement ce qui rend la sixième ligne piégeuse : elle décrit l'exposition du SERVICE, que le script ne corrige jamais. Si tu as voulu lui associer « interdire la connexion distante du compte root », tu viens de faire l'erreur que la leçon annonce — un compte restreint et un service qui n'écoute plus ne sont pas la même mesure. Le rechargement des privilèges, enfin, n'est pas une protection en soi : c'est ce qui rend les quatre autres effectives tout de suite.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q3",
+      "type": "trouver-la-faille",
+      "consigne": "Ces requêtes créent le compte qu'une boutique en ligne emploiera en production, sur un serveur qui héberge aussi deux autres sites. Une seule ligne fait passer une future injection SQL du statut d'incident borné à celui de prise de contrôle du serveur. Laquelle ?",
+      "langage": "sql",
+      "code": "-- Console mysql, ouverte en root sur le serveur Ubuntu — creation du compte applicatif\nCREATE USER 'app_boutique'@'localhost' IDENTIFIED BY '<mot de passe long, unique, jamais reemploye>';\nGRANT ALL PRIVILEGES ON *.* TO 'app_boutique'@'localhost';\nFLUSH PRIVILEGES;\nSHOW GRANTS FOR 'app_boutique'@'localhost';",
+      "ligneFautive": 3,
+      "faille": "Privilèges et portée excessifs sur un compte applicatif : ALL PRIVILEGES ON *.* est un compte root sous un autre nom",
+      "explication": "La ligne 3 accorde deux choses d'un coup, et il faut les nommer séparément parce qu'on corrige les deux séparément. D'abord la LISTE des opérations : ALL PRIVILEGES contient DROP, CREATE, ALTER, mais aussi GRANT OPTION, qui laisse le compte s'accorder lui-même des droits — il annule le moindre privilège d'un seul coup — et FILE, qui permet de lire un fichier du serveur et surtout d'en ÉCRIRE un — là où le processus mysqld a le droit d'écrire, si le réglage secure_file_priv ne l'interdit pas, et seulement si le fichier n'existe pas déjà, car il n'est jamais écrasé. Ces trois conditions ne sont pas toujours réunies, et /var/www/html n'appartient normalement pas à mysqld ; mais quand elles le sont, un fichier PHP déposé dans la racine web transforme l'injection SQL en exécution de code. C'est bien le privilège FILE qui change la NATURE du risque, et c'est pour cela qu'il ne se donne jamais à un compte applicatif. Ensuite la PORTÉE : dans *.*, le premier astérisque est la base et le second la table. Toutes les bases, donc la base système mysql et ses mots de passe hachés, donc aussi les bases des deux autres sites hébergés — la faille d'un site devient la fuite des trois. Les autres lignes ne sont pas la faille, et savoir pourquoi vaut autant que trouver la bonne. La ligne 2 est correcte : l'hôte 'localhost' borne déjà le compte à la machine elle-même, et le mot de passe est un espace réservé, pas une valeur en dur. La ligne 4 est inoffensive : après un CREATE USER ou un GRANT ordinaire, le serveur recharge tout seul ; le cours l'écrit systématiquement, ce qui est une bonne habitude tant qu'on ne sait pas distinguer les cas. La ligne 5 est au contraire le geste à garder : SHOW GRANTS est la seule façon de savoir ce qu'un compte peut réellement faire, car un GRANT accepté sans erreur ne prouve pas que les droits obtenus sont ceux qu'on croit. Arbitrage examen contre production : si l'énoncé demande « un compte avec tous les privilèges », écris la forme de la diapositive 30 — c'est la réponse attendue ; dès qu'il s'agit d'un vrai déploiement, écris la correction ci-dessous.",
+      "correction": "-- Console mysql, ouverte en root sur le serveur Ubuntu — meme intention, bornee a une seule base\nGRANT SELECT, INSERT, UPDATE, DELETE ON `boutique`.* TO 'app_boutique'@'localhost';\nSHOW GRANTS FOR 'app_boutique'@'localhost';   -- la sortie de cette commande fait foi, pas l'intention",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Ton application affiche : ERROR 1045 (28000): Access denied for user 'demo_utilisateur'@'localhost' (using password: YES). Quel geste part du bon diagnostic ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Vérifier le mot de passe et l'hôte du compte : 1045 est un échec d'authentification, la session n'est même pas ouverte. Aucun GRANT ne peut corriger cela."
+        },
+        {
+          "id": "b",
+          "texte": "Accorder ALL PRIVILEGES au compte : le message dit « access denied », c'est donc qu'il manque un privilège."
+        },
+        {
+          "id": "c",
+          "texte": "Créer la base manquante : « access denied » sur localhost signale que la base nommée dans la chaîne de connexion n'existe pas."
+        },
+        {
+          "id": "d",
+          "texte": "Relancer mysql_secure_installation : ce message vient du script de durcissement, qui a supprimé les comptes créés avant lui."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Le numéro d'erreur est le diagnostic — c'est lui qu'on lit avant de toucher à quoi que ce soit, et trois numéros suffisent pour cette séance. ERROR 1045 signifie que l'authentification a échoué : mauvais mot de passe, ou bon mot de passe mais mauvais hôte, puisque 'demo'@'localhost' et 'demo'@'%' sont deux comptes distincts avec des mots de passe indépendants. La mention (using password: YES) confirme qu'un mot de passe a bien été envoyé et refusé. ERROR 1044 est tout autre chose : le compte est ENTRÉ, mais n'a pas le droit demandé sur une base. ERROR 1146 dit que la table n'existe pas. Trois causes différentes, trois corrections différentes. La réponse b est le réflexe le plus destructeur de la matière : « corriger » un problème de droits en redonnant ALL PRIVILEGES annule tout le chapitre du moindre privilège — et ici, en plus, cela ne règle rien, puisque la connexion n'est jamais établie. La réponse c confond 1045 avec 1044 ou 1146 : une base absente ne produit pas un refus d'authentification. La réponse d se trompe de couche : mysql_secure_installation supprime les comptes ANONYMES, pas les comptes nommés que tu as créés, et il ne s'exécute pas au moment d'une connexion applicative.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "L'application de la boutique se connecte avec un compte dont le seul privilège est GRANT SELECT ON *.*. Un formulaire de recherche oublié recolle la valeur saisie dans le texte de sa requête. Qu'est-ce que cette injection SQL rapporte à l'attaquant ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "La lecture de toutes les bases du serveur — la base système mysql et ses mots de passe hachés, les données des deux autres sites hébergés — mais aucune altération, aucun DROP et aucun fichier écrit."
+        },
+        {
+          "id": "b",
+          "texte": "Rien de significatif : SELECT n'est qu'un droit de lecture, l'injection ne peut donc rendre que les produits que la page affichait déjà."
+        },
+        {
+          "id": "c",
+          "texte": "Tout ce que permettrait root : une injection s'exécute à l'intérieur du moteur SQL, elle contourne donc les privilèges du compte de connexion."
+        },
+        {
+          "id": "d",
+          "texte": "La lecture des seules tables de la boutique : ON *.* limite la portée à la base nommée dans la chaîne de connexion."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "C'est le point le plus transférable du module : la faille est la même dans tous les cas, ce sont les PRIVILÈGES qui décident de ce qu'elle coûte. Ici la liste d'opérations est étroite — SELECT seulement, donc pas d'UPDATE, pas de DELETE, pas de DROP, et surtout pas de FILE, le privilège qui aurait pu faire écrire un fichier au serveur (et encore : seulement là où le processus mysqld a le droit d'écrire, et si secure_file_priv ne l'interdit pas) — mais la portée est maximale : dans *.*, le premier astérisque désigne toutes les BASES. Le compte peut donc lire mysql.user, et une injection bien formée le fera. C'est exactement l'erreur que la démonstration du cours laisse passer : elle restreint la commande et oublie la portée. La réponse c est le contresens à éliminer en priorité : le moteur vérifie les privilèges à chaque requête, quelle que soit la façon dont elle est arrivée — une injection ne devient jamais plus puissante que le compte qui l'exécute, et c'est précisément ce qui rend GRANT utile. La réponse b sous-estime la lecture : une injection ne se contente pas de la requête d'origine, elle en fabrique une autre, sur d'autres tables et d'autres bases. La réponse d inverse la lecture de la portée : ce serait vrai avec `boutique`.*, pas avec *.*. Et retiens la limite de tout ce raisonnement : borner les privilèges ne CORRIGE pas l'injection. La seule vraie parade est la requête préparée, où la commande et les valeurs voyagent séparément. Les deux mesures se cumulent, aucune ne remplace l'autre.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q6",
+      "type": "vrai-faux",
+      "affirmation": "MariaDB n'écoute que sur 127.0.0.1 et le compte employé dans PHPMyAdmin est borné à la seule base de l'application : se connecter à PHPMyAdmin en HTTP ne présente donc plus de risque réel.",
+      "bonneReponse": false,
+      "justification": "Faux, et l'erreur consiste à protéger le mauvais segment. Le trajet d'une requête PHPMyAdmin en compte deux, très différents. Le second, d'Apache à MariaDB, ne quitte jamais la machine : c'est celui que bind-address = 127.0.0.1 et le GRANT restreint protègent. Le PREMIER, du navigateur à Apache, traverse le réseau — et c'est lui qui porte le formulaire de connexion, donc ton mot de passe SQL en clair, puis toutes les pages de résultats, donc le contenu des tables que tu consultes. Aucune des deux mesures citées ne le touche. Ce qu'un observateur du réseau obtient est donc un compte valide sur la console d'administration de la base : le compte est bien borné à une base, mais cette base est celle de l'application, c'est-à-dire tout ce qui a de la valeur. La parade est HTTPS, c'est-à-dire un certificat sur le serveur web. Si tu disposes d'un nom de domaine, certbot --apache en obtient un gratuitement ; sans domaine, un certificat auto-signé chiffre le transport tout aussi bien — l'avertissement du navigateur porte alors sur l'AUTHENTIFICATION du serveur, « je ne peux pas prouver que c'est bien lui », pas sur le chiffrement, ce qui reste un compromis acceptable pour une console que tu es seul à employer. La consigne du cours, « n'utilisez pas un mot de passe que vous utilisez ailleurs », est un contournement honnête pour un travail pratique : elle limite les dégâts d'une interception, elle ne l'empêche pas.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q7",
+      "type": "vrai-faux",
+      "affirmation": "Si le compte root est refusé par PHPMyAdmin, c'est que mysql_secure_installation lui a interdit les connexions distantes ; lui définir un mot de passe rétablirait l'accès.",
+      "bonneReponse": false,
+      "justification": "Faux deux fois, et la vraie explication est une bonne nouvelle. Premièrement, la cause n'est pas la restriction des connexions distantes : PHPMyAdmin est un script PHP exécuté par Apache SUR le serveur, il se connecte donc à MariaDB depuis la machine elle-même — sa connexion est locale, pas distante. Deuxièmement, un mot de passe n'y changerait rien. Sur Debian et Ubuntu, root@localhost est installé avec le plugin d'authentification unix_socket, c'est-à-dire le module qui décide COMMENT un compte prouve son identité. Celui-là n'examine aucun mot de passe : il demande au système d'exploitation quel utilisateur a lancé le client, et laisse entrer si ce nom est root. C'est pour cette raison que la commande mysql tapée seule n'en demande jamais — la session s'ouvre parce que l'utilisateur LINUX s'appelle root, pas parce que le mot de passe serait vide. Or le processus qui exécute PHPMyAdmin n'est pas root : le refus est logique et définitif. La conclusion n'est donc pas « réparons root », mais l'inverse : un administrateur de SGBD injoignable par mot de passe est un administrateur qu'aucune attaque par force brute venue du web ne peut atteindre. C'est une propriété à conserver, et c'est la première des deux raisons pour lesquelles la séance fait créer un compte à côté ; la seconde est le moindre privilège.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q8",
+      "type": "trouver-la-faille",
+      "consigne": "Ce script de sauvegarde tourne chaque nuit et fonctionne : le fichier est bien produit, et la restauration est réellement testée. Une ligne transforme pourtant la sauvegarde en fuite de données. Laquelle, et pourquoi ?",
+      "langage": "bash",
+      "code": "# PuTTY, en root sur le serveur Ubuntu — /root/sauvegarde-nocturne.sh, appele chaque nuit par cron\n# le mot de passe du compte de sauvegarde est lu dans /root/.my.cnf, il n'apparait donc pas dans la commande\nmysqldump cours9 > /var/www/html/sauvegardes/cours9-2026-09-25.sql\nmysql cours9_verification < /var/www/html/sauvegardes/cours9-2026-09-25.sql",
+      "ligneFautive": 3,
+      "faille": "Export de la base déposé dans la racine web : le fichier .sql, copie intégrale et en clair de la base, devient téléchargeable par n'importe qui",
+      "explication": "Un fichier .sql est une suite de requêtes qui reconstruisent la base à l'identique : c'est une COPIE INTÉGRALE ET EN CLAIR des données, mots de passe hachés et renseignements personnels compris. La ligne 3 le dépose dans /var/www/html, c'est-à-dire dans le répertoire qu'Apache sert au public : l'adresse http://<adresse IP>/sauvegardes/cours9-2026-09-25.sql est donc une URL parfaitement valide. Aucune injection, aucun compte, aucune faille applicative n'est nécessaire — il suffit de demander le fichier. Et ne compte pas sur l'obscurité du nom : la date est devinable, un listing de répertoire ou un moteur d'indexation fait le reste. C'est la forme sous laquelle les bases fuitent le plus souvent, avec le partage réseau mal configuré et le poste d'un développeur. Les deux autres lignes utiles font au contraire ce qu'il faut, et il est important de ne pas les accuser. La ligne 2 signale que le mot de passe est lu dans un fichier d'options plutôt que collé sur la ligne de commande : c'est le même réflexe que le -p écrit seul dans la console, puisqu'un mot de passe accolé à la commande se retrouve dans l'historique du shell et reste visible à tout utilisateur qui lance ps. La ligne 4 est une bonne pratique et non un défaut : une restauration jamais testée n'est pas une sauvegarde, c'est une hypothèse. Elle ne fait que LIRE un fichier déjà publié par la ligne 3 — elle n'ajoute rien à la fuite, elle en hérite. La correction tient en un chemin : la destination sort de la racine web.",
+      "correction": "# PuTTY, en root sur le serveur Ubuntu — /root/sauvegarde-nocturne.sh\nmysqldump cours9 > /root/sauvegardes/cours9-2026-09-25.sql\nmysql cours9_verification < /root/sauvegardes/cours9-2026-09-25.sql   # la restauration se teste, sinon elle se suppose\nls -l /var/www/html/                                                  # et on verifie qu'aucun ancien export ne traine dans la racine web",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    },
+    {
+      "id": "q9",
+      "type": "choix-multiple",
+      "question": "Pressé, tu ouvres la console avec « mysql -u demo_utilisateur -pQwerty1Qwerty » au lieu de « mysql -u demo_utilisateur -p », et la connexion s'ouvre normalement. Pourquoi la leçon demande-t-elle malgré tout d'écrire l'option -p seule ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Parce que le mot de passe accolé est inscrit dans l'historique du shell et reste visible, le temps de la commande, à tout utilisateur de la machine qui lance ps. Avec -p seul, la saisie est masquée et n'est écrite nulle part."
+        },
+        {
+          "id": "b",
+          "texte": "Parce que la forme accolée transmet le mot de passe en clair au serveur, alors que -p seul le chiffre avant de l'envoyer."
+        },
+        {
+          "id": "c",
+          "texte": "Parce que la forme accolée n'est acceptée que par MySQL : sur MariaDB elle fonctionne par accident et cessera à la prochaine mise à jour du paquet."
+        },
+        {
+          "id": "d",
+          "texte": "Parce que -p seul est la forme qui déclenche le plugin unix_socket, donc la seule qui identifie correctement le compte auprès du serveur."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Le danger n'est pas dans ce que la commande fait, mais dans les traces qu'elle laisse sur la machine. Une ligne de commande est enregistrée dans l'historique du shell, et elle est lisible dans la table des processus pendant toute son exécution : un mot de passe écrit là est un mot de passe divulgué à quiconque partage le serveur, alors même que la connexion, elle, s'est bien passée. C'est ce qui rend la faute difficile à repérer — elle ne produit aucune erreur. La réponse b confond deux couches indépendantes : la façon dont TU fournis le mot de passe au programme client n'a aucun effet sur la façon dont ce client parle au serveur ; ce qui chiffre le transport est TLS, et dans le cas d'une connexion locale sur 127.0.0.1 le trafic ne quitte de toute façon pas la machine. La réponse c invente une incompatibilité : la forme accolée fonctionne parfaitement sur MariaDB, et c'est justement pour cela qu'elle est dangereuse — une commande qui échouerait serait inoffensive. La réponse d confond deux sujets : unix_socket concerne root@localhost, il identifie l'utilisateur SYSTÈME et n'examine aucun mot de passe ; il n'a rien à voir avec un compte nommé qui s'authentifie par mot de passe. Le même raisonnement se transpose ailleurs dans la leçon : un mot de passe codé en dur dans une chaîne de connexion PHP se retrouve dans le dépôt Git, et un export .sql laissé dans la racine web se retrouve sur le web — à chaque fois, c'est l'endroit où le secret atterrit qui fait la fuite.",
+      "ficheSource": "web/securite/securite-base-de-donnees.md"
+    }
+  ]
+}

@@ -73,6 +73,11 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
 /**
  * Modules du cours réellement publiés. Confronté au manifeste par le spec.
  *
+ * 📈 10 → 11 le 2026-09-17 (E3-ST18) : `09-securite-base-de-donnees`, la séance 8
+ * du cours, rejoint les dix autres. ⚠️ Le compte n'a PAS bougé le même jour quand
+ * `csrf` et `controle-acces` ont quitté la séance 7 pour les compléments hors
+ * cours : ils restent publiés, seule leur section a changé — le littéral compte
+ * des leçons en ligne, pas des séances couvertes.
  * 📈 6 → 7 le 2026-08-26 (E3-ST14) : `02-environnement-linux`, la séance 2 du
  * cours, rejoint les six premiers. Étape précédente : 5 → 6 le 2026-08-25
  * (E3-ST6, `06-controle-acces`), qui rejoignait les cinq
@@ -86,7 +91,7 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
  * des modules » à dix modules sur treize : « les premiers » sous-disait un compte
  * que la carte affiche juste à côté. Elle redeviendra fausse aux treize.
  */
-const MODULES_PUBLIES = 10;
+const MODULES_PUBLIES = 11;
 
 /** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
 const MODULES_TOTAL = 13;

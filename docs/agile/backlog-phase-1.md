@@ -3284,7 +3284,7 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 | E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ✅ |
 | E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ✅ |
 | E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
-| E3-ST18 | `18-securite-base-de-donnees` — Comptes et privilèges MySQL, moindre privilège, sauvegardes, chiffrement au repos | **séance 8** (calendrier relu le 2026-09-17 ; déck `Cours09-…`) | `securite-base-de-donnees.md` | non — diagramme de privilèges | ⬜ |
+| E3-ST18 | `09-securite-base-de-donnees` — Installation durcie, console MariaDB, comptes et privilèges, PHPMyAdmin | **séance 8** (calendrier relu le 2026-09-17 ; déck `Cours09-…`) | `securite-base-de-donnees.md` | non — **deux** diagrammes Mermaid | ✅ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
 | E3-ST20 | `11-projet-de-session` — Amorcer un projet LAMP : environnement local à parité de production, arborescence qui ne sert pas ses secrets, outillage et contrôle de version | séance 11 | `php-environnement-developpement-moderne.md` + `php-organisation-projet.md` | non — le sujet est procédural | ✅ |
 
@@ -4321,3 +4321,102 @@ Toujours **quatre** lots, compteur `5/9 → 9/9`, mais deux natures distinctes :
 - **17 · `21-csrf`** et **18 · `22-controle-acces`** — reprise au format actionnable **sans aucune
   cartographie** : rien à ancrer, tout est complément. Le gain attendu est la marche à suivre en
   tête et les onglets `methodes`, pas les renvois.
+
+---
+
+## ✅ CLÔTURE — E3-ST18 `09-securite-base-de-donnees`, la séance 8 (2026-09-17)
+
+**Livré.** `lecon.md` (~1 070 l., 37 titres), `quiz.json` (9 questions), pas de simulation. Les
+**sept** exercices de la séance 8 sont placés un par un au fil du texte. Statut `publiee`.
+Le module est le **premier écrit au format actionnable dès sa rédaction** plutôt qu'y être repris
+après coup — son slug entre donc dans `MODULES_AU_FORMAT_ACTIONNABLE` à la livraison, pas à une
+reprise. 37 titres : **23** portent `{diapos}` de la séance 8, **2** un renvoi `{cours="php"}`,
+**12** le marqueur `{hors-cours}`.
+
+### Deux écarts au plan, assumés
+
+**Le module est `09-`, pas `18-`.** Le backlog l'appelait `18-securite-base-de-donnees`, numéro
+hérité du plan à 13 modules OWASP. Le sommaire range les sections par l'`ordre` de leur premier
+module : à `18`, la séance 8 serait apparue **après** le projet de session (séance 10) et juste avant
+les compléments. Le créneau `09` venait d'être libéré par le départ de `csrf` vers les compléments —
+il est repris. `10` reste pour la séance 9 (authentification).
+
+**Section neuve : « Données et authentification »**, prévue pour couvrir les séances 8 **et** 9. Une
+section nommée d'après la seule séance 8 aurait répété mot pour mot le titre du module placé
+dessous — le même défaut que `11-projet-de-session` porte déjà, et qu'on ne reproduit pas.
+
+### Ce que la passe adversariale a trouvé, et pourquoi c'est le vrai livrable du lot
+
+Verdict **À CORRIGER** : **3 erreurs de fait**, 8 nuances, toutes sourcées et datées. Aucune n'était
+détectable par un gate.
+
+1. 🔴 **La leçon envoyait l'étudiant réparer ce qui n'était pas cassé.** Elle affirmait que MariaDB
+   « répond sur le port 3306 depuis n'importe où tant qu'on ne lui a pas dit », et que le script de
+   durcissement « ne ferme pas l'exposition réseau ». **Faux sur la plateforme du cours** : le paquet
+   `.deb` de Debian et d'Ubuntu livre `bind-address = 127.0.0.1` **actif** dans `50-server.cnf`. Le
+   geste juste y est de **vérifier** (`ss -lntp | grep 3306`), pas de modifier — poser la ligne reste
+   nécessaire ailleurs (RPM, archive, conteneur). Erreur **héritée de la fiche KB**, corrigée dans
+   les deux.
+2. **« `/etc/mysql/mariadb.conf.d/` est le SEUL répertoire lu par le démon »** — il y en a **deux**
+   (`!includedir` sur `conf.d/` et `mariadb.conf.d/`), plus `~/.my.cnf`. Erreur **introduite par la
+   leçon** ; la fiche ne disait pas « seul ».
+3. 🔴 **La leçon se contredisait elle-même à quarante lignes d'intervalle.** Un tableau disait
+   qu'un processus PHP compromis devient administrateur du SGBD faute de mot de passe root ; la
+   section suivante expliquait que `root@localhost` est en `unix_socket`, donc que seul
+   l'utilisateur **système** root entre. C'est un **aplatissement** de la parenthèse que la fiche
+   portait — le mode d'échec que `.claude/rules/contenu-pedagogique.md` §6 nomme pour la provenance
+   vaut aussi pour les conditions techniques.
+
+⚠️ **Et ce qui tenait compte autant :** les **huit** encadrés `correction-du-cours` accusent
+l'enseignant **à juste titre** — chaque citation retrouvée mot à mot dans l'extrait — et les 23
+renvois `{diapos}` pointent tous la bonne diapositive. Une passe adversariale qui ne trouve que des
+défauts n'a pas mesuré ce qui compte le plus : un ⚠️ posé à tort est aussi grave qu'une erreur.
+
+### 🔴 Une VRAIE faille dans la KnowledgeBase, corrigée et poussée
+
+`KnowledgeBase/web/securite/securite-base-de-donnees.md` donnait un exemple Apache posant
+`Require ip` **et** `Require valid-user` dans la même section — avec, écrite juste dessous, la
+promesse « jamais l'un sans l'autre ». En Apache 2.4, plusieurs `Require` **non contenus** sont
+implicitement enveloppés dans un `<RequireAny>` : c'était un **OU**, et l'adresse IP seule suffisait
+à entrer. Enveloppés dans `<RequireAll>`. C'est exactement le motif de `.claude/rules/security.md`
+§4 — *une justification qui promet une garantie plus forte que celle qui est appliquée*.
+Commit `7fb2290` du dépôt KnowledgeBase, poussé.
+
+### 🔴 Deux défauts de BRIEF, comptés — ils sont à moi, pas aux agents
+
+1. **Le rédacteur a fini à 167 711 tokens**, au-dessus du gros maximum de 150k. Le lot annonçait
+   **un** livrable vérifiable et passait le test du « + » ; ce qu'il n'annonçait pas, c'est **1 070
+   lignes de sortie**. C'est mot pour mot la leçon du §9 de ``.claude/rules/agent-context-budget.md`` — *le volume de
+   SORTIE compte autant que le volume de SOURCE* — et elle a été payée une deuxième fois. La découpe
+   juste était : (A1) la moitié « installation durcie + console », (A2) la moitié « comptes,
+   privilèges et PHPMyAdmin ». Le quiz, lui, **était** déjà sorti du lot, et il a fini à 124k.
+2. **J'ai demandé à un `professeur-web` de lancer `npm run content:build`.** Sa définition ne lui
+   donne **aucun outil d'exécution** — il l'a dit, et c'était exact. Deuxième occurrence exacte du
+   défaut déjà écrit au §7 de `.claude/rules/agent-context-budget.md` à propos du `mentor` et de
+   `npm run lecons:index`. **Un brief ne demande jamais une commande à un agent dont la définition
+   n'a pas de shell** : la vérification par gate appartient à l'appelant.
+
+### Gates
+
+`content:build` ✔ **18 leçons**, `securite-base-de-donnees` à **175,7 Ko** (seuil d'échec 450) ·
+`lint` ✔ · `typecheck:tools` ✔ · `test` ✔ **1212 passés / 1 ignoré** · `build` ✔ **22 routes**
+prerendues (21 avant), **14 hachages `style-src`** et 0 de `script-src` — **inchangés**, la leçon
+n'introduit aucun bloc `<style>` neuf · `a11y:axe` ✔ **0 violation sur 22 pages** · `e2e` **56
+passés, 1 échec connu** (`defileurs-clavier.spec.ts:502`, L-057 — revérifié **vert en isolation**,
+7/7).
+
+⚠️ **G-axe a rougi à la publication, et c'est la démonstration du piège déjà écrit au `CLAUDE.md`** :
+`empty-table-header` sur un tableau comparatif dont la cellule d'en-tête du coin était vide. En
+`statut: verifiee` la page **n'est pas prerendue**, donc ni axe ni e2e ne mesuraient quoi que ce soit
+sur elle. Publier, **puis** relancer les gates, **puis** attendre qu'ils rougissent — dans cet ordre.
+
+### Geste suivant
+
+**E3-ST17 — la séance 5 « Sécurité des utilisateurs »**, mesurée le 2026-09-17 : **119
+diapositives**, cinq thèmes — comptes utilisateurs `[7-32]`, `sudo` et sudoers `[33-49]`, groupes
+`[50-60]`, permissions de fichiers `[61-88]`, politique de mots de passe `[89-114]`. **Deux ou trois
+modules, pas un** : c'est le volume de sortie qui décide, et le défaut de brief ci-dessus vient
+d'être payé. Ses **seize** exercices sont déjà au registre.
+🔵 Confirmation indépendante relevée au passage : la diapositive **118** dit « au prochain cours, ce
+sera l'examen 1 ; celui-ci couvrira la matière des cours 1 à 4 ». La `portee: [1, 2, 3, 4]` de
+`horaire.json` est donc juste, confirmée par une source **autre** que le calendrier.

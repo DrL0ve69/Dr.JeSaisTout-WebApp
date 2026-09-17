@@ -1191,6 +1191,11 @@ const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
   'environnement-linux',
   'communication-serveur',
   'automatisation-surveillance',
+  // 🆕 2026-09-17 — PREMIER module écrit au format actionnable DÈS SA RÉDACTION, au lieu d'y
+  // être repris après coup. Ce n'est pas un détail de calendrier : les cinq précédents ont dû
+  // faire remonter leurs contradictions latentes au moment de la reprise (lot 13), alors que
+  // celui-ci les a rencontrées à l'écriture, quand elles ne coûtent qu'une phrase.
+  'securite-base-de-donnees',
 ]);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
