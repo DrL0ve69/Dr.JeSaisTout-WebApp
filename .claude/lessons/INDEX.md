@@ -122,7 +122,10 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-106 | 3309–3329 | Dupliquer un composant PORTEUR DE STYLES ajoute un hachage CSP, même pour un texte identique — la duplication à surveiller n'est pas le code, c'est le bloc `<style>` |
 | L-107 | 3330–3359 | Une montée de version Angular en ERESOLVE se répare en retirant du VERROU les seules entrées concernées, jamais par `--force`/`--legacy-peer-deps` |
 | L-108 | 3360–3395 | Une correction se vérifie contre la SOURCE PRIMAIRE, jamais contre le document DÉRIVÉ qui l'indexe — sinon elle propage l'approximation de l'index au lieu de la corriger |
-| L-109 | 3396–3432 | Un bloc de sortie publié dans une leçon est une assertion : il se produit en EXÉCUTANT l'interpréteur, pas en le raisonnant — et d'abord en vérifiant qu'il est sur le poste |
+| L-109 | 3396–3431 | Un bloc de sortie publié dans une leçon est une assertion : il se produit en EXÉCUTANT l'interpréteur, pas en le raisonnant — et d'abord en vérifiant qu'il est sur le poste |
+| L-110 | 3432–3459 | Un invariant de tri/ordre écrit pour UNE racine reste vrai par accident tant qu'une seule racine existe — le test qui le protège doit fabriquer une entrée, pas relire le contenu réel |
+| L-111 | 3460–3481 | Un vérificateur adversarial sans outil d'exécution ne peut mesurer que ce qu'on lui a déjà mesuré — le fil principal relève AVANT de le lancer, et recoupe par une commande locale ce qu'un `WebFetch` lui rapporte |
+| L-112 | 3482–3505 | Une table de captures peut décrire une capture qu'elle n'a pas lue, ou mal lue — et des captures d'un même déck peuvent venir de millésimes différents du produit qu'elles montrent |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -158,4 +161,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-026 | 1115–1177 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 | S-027 | 1178–1227 | « Fermée pour le PIPELINE » n'est pas « fermée pour la FONCTION » — une grammaire portée par une couche AMONT laisse la copie AVAL seule autorité sur tout chemin qui court-circuite l'amont (A03 · CWE-20, septième forme de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]]/[[S-026]]) |
 
-_136 entrées indexées._
+_139 entrées indexées._

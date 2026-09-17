@@ -32,7 +32,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 |---|---|---|
 | 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-8 + publication** (2026-09-17) — les **sept** modules (séances 1-5, 7, 8) sont **en ligne**, `statut: publiee`. Geste suivant : **PHP-9** (séance 10, Laravel). | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
 | Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
-| Contenu du cours de sécurité | 10 leçons en ligne ; E3-ST17 (séance 5) reste le geste suivant, **hors chemin critique** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
+| Contenu du cours de sécurité | 10 leçons en ligne ; **plan du 2026-09-17** : séance 7 (reprise des modules 07-10), puis séance 8 (E3-ST18), puis séance 5 (E3-ST17) — numérotation du **site de l'enseignant** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |
 
 **Dette nommée et non corrigée**, une ligne chacune — le détail est au backlog :

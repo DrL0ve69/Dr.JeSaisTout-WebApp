@@ -3428,4 +3428,77 @@ D-PHP-3 (WAMP, référence). Famille [[L-089]] (assertion copiée depuis la sort
 (un instrument qui mesure zéro ne prouve rien).
 
 ---
+
+## L-110 · Un invariant de tri/ordre écrit pour UNE racine reste vrai par accident tant qu'une seule racine existe — le test qui le protège doit fabriquer une entrée, pas relire le contenu réel
+
+**Symptôme.** PHP-8 + publication du second cours (2026-09-16/17). `construireManifeste`
+(`tools/content-pipeline/generer-manifeste.mjs`) triait le manifeste par `ordre` seul, et
+`lireManifeste` (`src/app/features/cours/contenu-compile.ts`) exigeait un `ordre` croissant sur
+**tout** le tableau. `ordre` n'est unique que dans une racine (un cours) ; le jour où un second cours
+a été publié, 16 fichiers de specs sont tombés au chargement. Aucun test ne l'avait vu venir : la
+population réelle n'avait jamais eu qu'un cours, donc l'invariant « croissant sur tout le tableau »
+et « croissant par sujet » coïncidaient sans qu'aucun test ne les distingue.
+
+**Ce que la structure du défaut a de général.** Même famille que [[L-105]] (assertion universelle
+héritée d'une population homogène) et [[S-010]] (portée réelle vs. portée testée) — mais côté
+**producteur**, pas lecteur : un test du LECTEUR d'un contrat (`lireManifeste` accepte un manifeste
+bien formé) ne prouve rien du PRODUCTEUR (`construireManifeste` produit toujours cette forme). Le tri
+n'était protégé que par le contenu réel du dépôt, et une régression serait passée en silence tant que
+les `ordre` de deux racines ne se chevauchent pas par hasard.
+
+**Règle.** Pour tout invariant qui porte sur « une racine » mais s'exprime sur un tableau aplati
+(manifeste, index, sommaire), écrire un test unitaire du **producteur** sur une entrée **fabriquée**
+avec au moins deux racines aux `ordre` chevauchants — jamais un test qui ne relit que la sortie
+observée sur le corpus du jour.
+
+**Réfs.** `tools/content-pipeline/generer-manifeste.mjs`, `src/app/features/cours/contenu-compile.ts`,
+`src/manifeste-tri-par-sujet.spec.ts` (test producteur ajouté). PHP-8, 2026-09-16/17. Famille
+[[L-105]], [[S-010]].
+
+---
+
+## L-111 · Un vérificateur adversarial sans outil d'exécution ne peut mesurer que ce qu'on lui a déjà mesuré — le fil principal relève AVANT de le lancer, et recoupe par une commande locale ce qu'un `WebFetch` lui rapporte
+
+**Symptôme.** PHP-8, trois passes `verificateur-theorie` : l'agent n'a ni Bash ni PowerShell, et les
+briefs lui demandaient pourtant `curl`, `php -l`, `unzip`. Les trois passes ont tenu (125k-144k) et
+trouvé 5 INEXACT **parce que** le fil principal avait fait les relevés (sources par `curl`, mesures
+PHP, captures ouvertes) et les avait **injectés dans le brief** avant de lancer le vérificateur — pas
+parce que celui-ci les aurait obtenus lui-même.
+
+**Règle.** Un agent sans outil d'exécution reçoit les mesures **déjà faites**, jamais la charge de les
+produire — demander `curl`/`php -l`/`unzip` dans son brief lui demande l'impossible (même famille que
+[[L-093]] : conclure d'une seule forme mesurée, ici zéro forme mesurée). Et quand ce vérificateur
+appuie un constat sur `WebFetch` : le fil principal **recoupe par `curl`** avant de faire appliquer le
+constat — `WebFetch` peut halluciner une confirmation plausible ([[L-079]], [[L-093]]). Deux relevés
+de PHP-8 ont été précisés ainsi (Certbot redirige par défaut depuis 1.0, mais ne le **demande** plus
+depuis 1.4).
+
+**Réfs.** briefs `verificateur-theorie` PHP-8, 2026-09-16/17 ; `.claude/README.md` (outils par agent).
+Famille [[L-079]] (une vérification en ligne qui confirme l'hypothèse se relance verbatim),
+[[L-093]] (une mesure sur une seule forme n'est pas un fait).
+
+---
+
+## L-112 · Une table de captures peut décrire une capture qu'elle n'a pas lue, ou mal lue — et des captures d'un même déck peuvent venir de millésimes différents du produit qu'elles montrent
+
+**Symptôme.** PHP-8. La table « captures lues » de `docs/contenu/renvois-diapos-php-07.md`
+décrivait la capture 81 comme un transfert WinSCP ; c'était l'accueil de phpMyAdmin sur MariaDB
+10.3.31. L'erreur s'est propagée dans la leçon. Par ailleurs, deux captures du même déck montraient
+des millésimes différents du même écran (69 = MySQL, 81 = MariaDB ; capture 42 datée 2019) : trancher
+« ce que livre le serveur » sur la foi d'une capture aurait figé un fait déjà périmé — la recette
+publique DigitalOcean actuellement servie (`droplet-1-clicks/lamp-24-04`) a aussi réfuté une phrase
+sur `DirectoryIndex`.
+
+**Règle.** Une cartographie de captures (comme une table de renvois de diapositives, [[L-108]]) est
+un résumé fidèle à son propre usage, jamais une source : avant de citer ce qu'une capture montre,
+**l'ouvrir**. Et sur un fait qui peut avoir changé dans le temps (version de paquet, comportement
+d'installeur), une capture ne tranche pas seule — elle se recoupe contre la **source actuelle**
+(dépôt/recette publique en ligne), pas contre sa propre date.
+
+**Réfs.** `docs/contenu/renvois-diapos-php-07.md` (table « captures lues », capture 81) ;
+`content/cours/php/07-…/lecon.md` ; recette DigitalOcean `droplet-1-clicks/lamp-24-04`. Famille
+[[L-108]] (correction contre la source primaire, jamais le document dérivé), [[L-101]] (un renvoi de
+provenance est un jugement qui se relit).
+
+---
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)
