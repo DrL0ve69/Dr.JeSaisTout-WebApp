@@ -546,9 +546,21 @@ Au build, pour **chaque séance qui porte au moins un module publié** :
 ses sept exercices ne bloquent rien — c'est ce qui permet de livrer un module à la fois. Le jour où
 un module de la séance 4 passe `publiee`, les sept doivent être placés.
 
-⚠️ **Une séance absente du registre n'est pas une erreur** : la séance 5 n'a aucun exercice publié —
-sa page existe sur le site de l'enseignant mais **ne porte aucun énoncé**, vérifié le 2026-08-25 à
-la source, pas seulement sur la copie locale.
+⚠️ **Une séance absente du registre n'est pas une erreur** : elle n'a simplement pas encore été
+relevée, ou l'enseignant n'a rien publié pour elle.
+
+🔵 **ET LA SÉANCE 5 EN EST LA DÉMONSTRATION — cette phrase a été VRAIE, puis FAUSSE.** Elle disait
+jusqu'au 2026-09-17 que « la séance 5 n'a aucun exercice publié, vérifié le 2026-08-25 à la source ».
+La vérification était bonne ; c'est le **monde** qui a bougé : la page de la séance 5 porte
+aujourd'hui **seize** énoncés, relevés à la source le 2026-09-17 et désormais au registre, avec les
+**sept** de la séance 8. *« L'enseignant publie en cours de session : une séance vide aujourd'hui ne
+l'est pas pour toujours »* — le paragraphe l'écrivait déjà, et sa propre phrase suivante s'est
+périmée quand même. Une mesure d'absence **se date**, et se **relit** avant d'être réemployée.
+
+⏳ **Trou connu :** la séance **7** porte trois exercices publiés et deux modules `publiee`, et elle
+n'est **pas** au registre — donc le gate de complétude ne mord pas sur elle. L'ajouter **rougirait
+immédiatement** le build tant que les deux modules ne citent pas les trois énoncés : les deux gestes
+vont ensemble, dans le lot de reprise de la séance 7.
 
 🔴 **ET C'EST LÀ QU'ON S'EST TROMPÉ UNE FOIS — la faute vaut d'être écrite.** Ce paragraphe affirmait
 aussi « et la séance 1 non plus ». **Faux** : la séance 1 porte **trois** exercices (installation de
