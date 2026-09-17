@@ -4,7 +4,7 @@ slug: projet-de-session
 sujet: securite-web
 section: Projet de session
 ordre: 11
-seance: 11
+seance: 10
 niveau: cegep
 duree-estimee: 60
 objectifs:

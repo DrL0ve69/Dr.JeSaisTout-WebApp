@@ -17,15 +17,15 @@
       "evaluation": { "libelle": "Examen 1", "nature": "examen-ecrit", "ponderation": 20,
                       "portee": [1, 2, 3, 4] } },
     { "numero": 7, "date": "2026-09-18", "titre": "Sécurité du code" },
-    { "numero": 8, "date": "2026-09-25", "titre": "Sécurité des services web et certificat HTTPS" },
-    { "numero": 9, "date": "2026-10-02", "titre": "Sécurité des bases de données" },
-    { "numero": 10, "date": "2026-10-09", "titre": "Sécurité des mécanismes d'authentification et autorisation" },
-    { "numero": 11, "date": "2026-10-16", "titre": "Projet de session",
+    { "numero": 8, "date": "2026-09-25", "titre": "Sécurité des bases de données" },
+    { "numero": 9, "date": "2026-10-02", "titre": "Sécurité des mécanismes d'authentification et autorisation" },
+    { "numero": 10, "date": "2026-10-09", "titre": "Projet de session",
       "evaluation": { "libelle": "Projet de session", "nature": "evaluation-pratique",
                       "ponderation": 20 } },
-    { "numero": 12, "date": "2026-10-23", "titre": "Révision" },
+    { "numero": 11, "date": "2026-10-16", "titre": "Exercice supplémentaire" },
+    { "numero": 12, "date": "2026-10-23", "titre": "Révision en groupe" },
     { "numero": 13, "date": "2026-10-30", "titre": "Examen final",
       "evaluation": { "libelle": "Examen final", "nature": "examen-ecrit", "ponderation": 60,
-                      "portee": [1, 2, 3, 4, 5, 7, 8, 9, 10] } }
+                      "portee": [1, 2, 3, 4, 5, 7, 8, 9] } }
   ]
 }

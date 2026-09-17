@@ -1,5 +1,5 @@
 ---
-titre: Fondamentaux de la sécurité des applications web
+titre: Introduction à la sécurité des applications web
 slug: fondamentaux
 sujet: securite-web
 section: Fondements et exploitation du serveur
@@ -23,7 +23,7 @@ maj: 2026-09-09
 statut: publiee
 ---
 
-# Fondamentaux de la sécurité des applications web
+# Introduction à la sécurité des applications web
 
 ## L'idée en une image {diapos="26, 29"}
 

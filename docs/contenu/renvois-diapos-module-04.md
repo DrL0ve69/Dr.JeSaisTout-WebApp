@@ -1,4 +1,4 @@
-# Renvois diapositives — module 04 « Automatisation et surveillance »
+# Renvois diapositives — module 04 « Automatisation des tâches de surveillance et nettoyage »
 
 > **Ce que c'est.** La table de correspondance **mesurée** entre chaque titre `##`/`###` de
 > [`content/cours/securite-web/04-automatisation-surveillance/lecon.md`](../../content/cours/securite-web/04-automatisation-surveillance/lecon.md)

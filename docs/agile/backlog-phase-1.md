@@ -4171,3 +4171,79 @@ qui n'a pas de shell (L-111) ; surveiller le **poids** (seuil 450 Ko, les SVG Me
 (E3-ST18 « séance 9 » est la **séance 8** ; E3-ST19 « séance 8 » n'a plus de ligne au calendrier — le
 HTTPS n'y a pas de séance propre). La table est corrigée pour E3-ST18 ; E3-ST19 reste à rattacher ou à
 déclarer complément intégral.
+
+---
+
+## ✅ CLÔTURE — LOT « ANCRAGE » : l'horaire et les titres recalés sur le calendrier (2026-09-17)
+
+> **Demande du propriétaire (2026-09-17)** : « assure-toi que le titre des modules soit le même que
+> celui présent sur celui du cours — j'ai remarqué que le module 7 du cours sec-app-web et
+> peut-être d'autres ne portent pas le même titre ». Lot **préalable** aux reprises 15-18 : il est
+> volontairement séparé, parce qu'il touche **dix** fichiers de contenu et **zéro** ligne de prose.
+
+### Ce que la comparaison au calendrier a trouvé, et qu'aucun gate ne voyait
+
+`content/cours/securite-web/horaire.json` était **périmé à partir de la séance 8**, et rien ne
+pouvait le dire : c'est la **source unique** des numéros de séance — aucun gate ne la confronte au
+site de l'enseignant, et elle ne peut donc se démentir elle-même. Relevé par `curl` sur
+<https://www.alexandrepetrin.ca/securisation-des-applications-web/> :
+
+| Séance | Le dépôt disait | Le calendrier dit |
+|---|---|---|
+| 8 · 25 sept. | Sécurité des services web et certificat HTTPS | **Sécurité des bases de données** |
+| 9 · 2 oct. | Sécurité des bases de données | **Sécurité des mécanismes d'authentification et autorisation** |
+| 10 · 9 oct. | Sécurité des mécanismes d'authentification et autorisation | **Projet de session (20 %)** |
+| 11 · 16 oct. | Projet de session (20 %) | **Exercice supplémentaire** |
+| 12 · 23 oct. | Révision | **Révision en groupe** |
+
+**Ce que l'erreur affichait en production** : le sommaire annonçait le jalon « Projet de session ·
+**16 octobre** » (c'est le **9 octobre** — une semaine de retard sur une évaluation qui vaut 20 %)
+et « Examen final · séances 1 à 5, **7 à 10** » (la séance 10 n'est plus de la matière : c'est le
+projet lui-même). Les deux venaient du **même** fichier, et aucune autre source ne les contredisait.
+
+🔴 **La leçon, et elle vaut au-delà de ce lot.** Une « source unique de vérité » interne recopie une
+source **externe** ; sans relevé périodique, elle se périme **en silence** et avec l'autorité que lui
+donne son statut de source unique. Le geste : **relire le calendrier par `curl` au début de tout lot
+de contenu** et comparer à `horaire.json` — c'est déjà le préalable écrit au plan du 2026-09-17, il
+est maintenant aussi la parade à ce défaut-ci. Même famille que les chiffres recopiés du §8 de
+`.claude/rules/agent-context-budget.md`.
+
+### La règle de titrage, tranchée par le propriétaire
+
+**Option retenue : « verbatim + préfixe si partagé ».**
+
+- Un module qui couvre **toute** une séance porte le titre du calendrier **mot pour mot**.
+- Plusieurs modules sur **une même** séance : « `<titre de la séance>` — `<angle propre>` ».
+- La **numérotation de dossier ne bouge pas** : renuméroter casserait les URL publiées (le `slug`
+  est indépendant du `titre`, donc aucune redirection n'a été nécessaire).
+
+| Module | Avant | Après |
+|---|---|---|
+| `01-fondamentaux` | Fondamentaux de la sécurité des applications web | **Introduction à la sécurité des applications web** |
+| `04-automatisation-surveillance` | Automatisation et surveillance | **Automatisation des tâches de surveillance et nettoyage** |
+| `07-injection` | Injection — quand une donnée devient du code | **Sécurité du code — Injection** |
+| `08-xss` | XSS — quand le navigateur de la victime exécute le code d'un autre | **Sécurité du code — XSS** |
+| `09-csrf` | CSRF — quand le navigateur de la victime agit à sa place | **Sécurité du code — CSRF** |
+| `10-controle-acces` | Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire | **Sécurité du code — Contrôle d'accès** |
+
+Le `<h1>` du corps suit le `titre` du frontmatter (le validateur l'exige), les deux `quiz.json`
+concernés suivent, et `11-projet-de-session` passe de `seance: 11` à **`seance: 10`**.
+
+⚠️ **Laissé tel quel, délibérément** : `11-projet-de-session` garde « Amorcer un projet LAMP » plutôt
+que « Projet de session », que la section porte déjà **juste au-dessus** — un module qui répéterait
+mot pour mot le titre de sa section n'apprendrait rien au lecteur du sommaire. À rouvrir si le
+propriétaire préfère l'uniformité stricte.
+
+### Gates
+
+`content:build` ✔ (17 leçons, 0 dépassement de poids) · `lint` ✔ · `typecheck:tools` ✔ ·
+`test` ✔ **1212 passés / 1 ignoré** · `build` ✔ (21 routes prerendues, **14 hachages `style-src`**,
+0 de `script-src` — inchangé) · `a11y:axe` ✔ **0 violation sur 21 pages** · `e2e` **56 passés,
+1 échec connu** — `defileurs-clavier.spec.ts:502`, la dette L-057 déjà nommée au `CLAUDE.md`
+(reproductible en suite complète, **vert en isolation** : 7/7 revérifiés).
+
+### Geste suivant
+
+Les **reprises 15 à 18** de [`reprise-refonte-lecons.md`](reprise-refonte-lecons.md) — les quatre
+modules de la séance 7 au format actionnable, compteur `5/9 → 9/9` — puis **E3-ST18** (séance 8,
+bases de données) et **E3-ST17** (séance 5, utilisateurs).

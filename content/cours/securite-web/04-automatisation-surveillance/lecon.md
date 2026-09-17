@@ -1,5 +1,5 @@
 ---
-titre: Automatisation et surveillance
+titre: Automatisation des tâches de surveillance et nettoyage
 slug: automatisation-surveillance
 sujet: securite-web
 section: Fondements et exploitation du serveur
@@ -22,7 +22,7 @@ maj: 2026-09-10
 statut: publiee
 ---
 
-# Automatisation et surveillance
+# Automatisation des tâches de surveillance et nettoyage
 
 ## L'idée en une image {diapos="5, 9, 10"}
 

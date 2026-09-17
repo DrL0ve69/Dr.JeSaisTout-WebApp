@@ -53,10 +53,10 @@ ce qui la suit.
 > là où PuTTY te dépose à la connexion.
 
 **Les leçons complètes du site** (théorie + renvois de diapos) :
-[01 Fondamentaux](https://salmon-sky-0a730780f.7.azurestaticapps.net/cours/securite-web/fondamentaux/) ·
+[01 Introduction à la sécurité des applications web](https://salmon-sky-0a730780f.7.azurestaticapps.net/cours/securite-web/fondamentaux/) ·
 [02 Environnement Linux](https://salmon-sky-0a730780f.7.azurestaticapps.net/cours/securite-web/environnement-linux/) ·
 [03 Communication serveur](https://salmon-sky-0a730780f.7.azurestaticapps.net/cours/securite-web/communication-serveur/) ·
-[04 Automatisation et surveillance](https://salmon-sky-0a730780f.7.azurestaticapps.net/cours/securite-web/automatisation-surveillance/)
+[04 Automatisation des tâches de surveillance et nettoyage](https://salmon-sky-0a730780f.7.azurestaticapps.net/cours/securite-web/automatisation-surveillance/)
 
 ## Table des matières
 
