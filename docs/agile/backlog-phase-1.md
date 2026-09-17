@@ -4247,3 +4247,77 @@ propriétaire préfère l'uniformité stricte.
 Les **reprises 15 à 18** de [`reprise-refonte-lecons.md`](reprise-refonte-lecons.md) — les quatre
 modules de la séance 7 au format actionnable, compteur `5/9 → 9/9` — puis **E3-ST18** (séance 8,
 bases de données) et **E3-ST17** (séance 5, utilisateurs).
+
+---
+
+## ✅ CLÔTURE — LOT « PROVENANCE » : CSRF et contrôle d'accès quittent la séance 7 (2026-09-17)
+
+### Ce que la mesure du déck a trouvé, et qu'aucun gate ne pouvait trouver
+
+**La séance 7 « Sécurité du code » ne couvre QUE l'injection SQL et le XSS.** Mesuré sur
+`securite-app-web-2026/extraits/Cours07_securite_app_web.txt` (39 diapositives, extraction locale,
+`.pptx` identique au servi — `Content-Length` 1 249 761) :
+
+| Diapositives | Sujet |
+|---|---|
+| 1-7 | titre, rappel, introduction, plan de la séance |
+| **8-19** | **Injection SQL** — tautologie `' or ''='`, démonstration sur `connexion.php`, requêtes préparées |
+| **20-33** | **XSS** — mécanique, cas d'usage, `htmlspecialchars()`, « encoder à l'AFFICHAGE, pas à l'insertion » |
+| 34-39 | conclusion, prochain cours, questions, références |
+
+**Le CSRF n'est enseigné NULLE PART** — ni dans ce déck, ni dans les sept autres du cours, ni dans
+ceux de PHP (`grep -i "csrf|cross-site request"` sur les deux dossiers d'extraits). Sa seule
+occurrence est **un lien `stackoverflow` oublié dans les références de la diapositive 39**. Le
+**contrôle d'accès web** (IDOR, élévation de privilèges, mass assignment) est absent lui aussi : ce
+qui s'en approche est `sudo` et les permissions de fichiers (séance 5) et les `GRANT` MariaDB
+(séance 8) — deux sujets différents, au niveau du système et du SGBD, pas de l'application.
+
+**Les trois exercices de la séance 7, relevés à la source** (`…/exercice-securisation-app-web-cours-7-2026/`)
+confirment : (1) avoir une application PHP CRUD déployée sur WAMP, (2) la protéger contre l'injection
+SQL, (3) la protéger contre le XSS. Plus le travail sur le projet de session. Rien d'autre.
+
+### La décision du propriétaire
+
+Les deux modules rejoignent **« Compléments hors cours »**, la section où vit déjà
+`20-evaluation-cvss`. Le contenu reste en ligne **intégralement** — seule disparaît la promesse
+« c'est de la matière d'examen », que la source ne soutient pas.
+
+| Avant | Après |
+|---|---|
+| `09-csrf`, `seance: 7`, section « Sécurité du code » | `21-csrf`, **aucune `seance`**, section « Compléments hors cours » |
+| `10-controle-acces`, `seance: 7`, section « Sécurité du code » | `22-controle-acces`, **aucune `seance`**, section « Compléments hors cours » |
+
+**Pourquoi le dossier est renommé** : le validateur exige `<nn>-<slug>` = `ordre` + `slug`
+(`valider.mjs` §3), et le sommaire range les sections par l'`ordre` de leur premier module — à
+`ordre: 9`, les compléments se seraient glissés **entre** « Sécurité du code » et « Projet de
+session ». Les `slug` (`csrf`, `controle-acces`) ne bougent pas : **aucune URL publiée ne casse**.
+
+Le préfixe « Sécurité du code — » posé une heure plus tôt par le lot « ancrage » est **retiré** de ces
+deux modules : il affirmait une appartenance que la mesure dément. Leurs titres d'origine — qui
+disent le mécanisme plutôt que la séance — sont restaurés.
+
+🔴 **La leçon, et elle est symétrique.** `.claude/rules/contenu-pedagogique.md` §6 nomme les deux
+échecs : **omettre** de la matière d'examen, et **présenter comme examinable** ce que l'enseignant
+n'a jamais enseigné. Le second était en production depuis août sur deux modules entiers, et **aucun
+gate ne pouvait le voir** : le champ `seance` est une **affirmation d'auteur**, jamais une mesure —
+rien ne confronte un module à la présence réelle de son sujet dans le support. La parade n'est pas un
+gate de plus, c'est le geste déjà écrit au plan du 2026-09-17 : **mesurer le déck AVANT d'écrire le
+brief**, dans les deux sens (chaque renvoi est-il juste, chaque diapositive est-elle atteignable).
+
+### Gates
+
+`content:build` ✔ 17 leçons · `lint` ✔ · `test` ✔ **1212 passés / 1 ignoré** · `build` ✔ 21 routes,
+**14 hachages `style-src`** (inchangé) · `a11y:axe` ✔ **0 violation sur 21 pages** · `e2e` ✔
+**57 passés / 1 ignoré, 0 échec** — `defileurs-clavier.spec.ts:502` est passé cette fois, ce qui
+reconfirme son caractère intermittent (L-057) plutôt qu'un lien avec ce lot.
+
+### Ce que ça change pour les reprises 15 à 18
+
+Toujours **quatre** lots, compteur `5/9 → 9/9`, mais deux natures distinctes :
+
+- **15 · `07-injection`** et **16 · `08-xss`** — reprise au format actionnable **avec cartographie
+  de diapositives** (8-19 et 20-33). Le déck est petit et se partage entre **deux** modules : la
+  cartographie se fait **une fois, au fil principal**, pour les deux.
+- **17 · `21-csrf`** et **18 · `22-controle-acces`** — reprise au format actionnable **sans aucune
+  cartographie** : rien à ancrer, tout est complément. Le gain attendu est la marche à suivre en
+  tête et les onglets `methodes`, pas les renvois.

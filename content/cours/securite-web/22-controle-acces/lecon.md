@@ -1,10 +1,9 @@
 ---
-titre: Sécurité du code — Contrôle d'accès
+titre: Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire
 slug: controle-acces
 sujet: securite-web
-section: Sécurité du code
-ordre: 10
-seance: 7
+section: Compléments hors cours
+ordre: 22
 niveau: cegep
 duree-estimee: 70
 objectifs:
@@ -25,7 +24,7 @@ maj: 2026-08-24
 statut: publiee
 ---
 
-# Sécurité du code — Contrôle d'accès
+# Contrôle d'accès défaillant — le serveur sait qui tu es, pas ce que tu as le droit de faire
 
 ## L'idée en une image
 

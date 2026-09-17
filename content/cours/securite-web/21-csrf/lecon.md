@@ -1,10 +1,9 @@
 ---
-titre: Sécurité du code — CSRF
+titre: CSRF — quand le navigateur de la victime agit à sa place
 slug: csrf
 sujet: securite-web
-section: Sécurité du code
-ordre: 9
-seance: 7
+section: Compléments hors cours
+ordre: 21
 niveau: cegep
 duree-estimee: 55
 objectifs:
@@ -23,7 +22,7 @@ maj: 2026-08-21
 statut: publiee
 ---
 
-# Sécurité du code — CSRF
+# CSRF — quand le navigateur de la victime agit à sa place
 
 ## L'idée en une image
 
