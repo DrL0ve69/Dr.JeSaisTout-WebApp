@@ -93,11 +93,29 @@ cette section n'est pas **entièrement** remplie — P-1/P-3 seuls ne lèvent pa
 | P-1 | Racine du dossier personnel de l'étudiant sur le poste du Cégep | `C:\Users\0758510` | ✅ confirmé par le propriétaire (2026-09-11) |
 | P-2 | Dossier de travail PHP à l'intérieur de P-1 | ⬜ à fournir | — |
 | P-3 | Racine servie par Apache sous WAMP sur ce poste | `C:\wamp64` (racine web `C:\wamp64\www`) | ✅ confirmé par le propriétaire (2026-09-11) — installation 64 bits, comme l'annonçait déjà le Cours 1, diapo 54 |
-| P-4 | Port d'écoute d'Apache | ⬜ à fournir | `80`, ou `8080` si IIS l'occupe (Cours 1, diapos 35-37 et 46-49) |
+| P-4 | Port d'écoute d'Apache | `80` | ✅ relevé le 2026-09-21 dans le `wampmanager.conf` du poste (`apachePortUsed ="80"`, `apacheUseOtherPort = "off"`) |
 | P-5 | Nom d'utilisateur / matricule à faire figurer dans les exemples | ⬜ à fournir | — |
 | P-6 | Éditeur réellement utilisé | ⬜ à fournir | Notepad++ (Cours 1, diapo 107 et références) |
 | P-7 | Les fichiers vont-ils à la racine de `www` ou dans un sous-dossier par exercice ? | ⬜ à fournir | sous-dossier (Cours 1, diapo 45 : `localhost/monSite/`) |
-| P-8 | Port du service **MariaDB/MySQL** de WAMP sur le poste, et les identifiants employés | ⬜ à fournir | ajouté au lot **PHP-6** (2026-09-16). Le déck montre **3307** dans le `my.ini` du poste de l’enseignant (Cours 5, diapos 47-48) ; le standard est **3306** ; le corrigé se connecte en `root` **sans mot de passe**, le code de démonstration en `demo`/`demo` |
+| P-8 | Port du service **MariaDB/MySQL** de WAMP sur le poste, et les identifiants employés | **ports ✅** MySQL 8.4.7 = `3306` (SGBD par défaut), MariaDB 11.4.9 = `3307` · **identifiants ⬜** | ports relevés le 2026-09-21 (`mysqlPortUsed`, `mariaPortUsed`) et reportés dans la leçon PHP 05 ; identifiants : voir la note ci-dessous. Historique : ajouté au lot **PHP-6** (2026-09-16). Le déck montre **3307** dans le `my.ini` du poste de l’enseignant (Cours 5, diapos 47-48) ; le standard est **3306** ; le corrigé se connecte en `root` **sans mot de passe**, le code de démonstration en `demo`/`demo` |
+
+Versions du poste, relevées dans le même fichier (le 2026-09-21) : **WampServer 3.4.0** (64 bits,
+installé le 2026-06-16), **Apache 2.4.65**, **PHP 8.3.28** (celui qu'Apache charge), **MySQL 8.4.7**,
+**MariaDB 11.4.9**. phpMyAdmin (`config.inc.php`) s'y connecte sur `127.0.0.1`, en authentification
+`cookie`, avec `AllowNoPassword = true` — ce qui **permet** un compte sans mot de passe, sans dire si
+`root` en a un. `config.values.php` n'apprend rien (fichier générique de phpMyAdmin) ; le
+`blowfish_secret` de `config.inc.php` n'est volontairement **pas** recopié ici.
+
+> 📝 **NOTE AU PROPRIÉTAIRE — ce qui manque encore, et où le trouver sur le poste du Cégep.**
+> Rien de ceci ne bloque : les leçons sont déjà vraies sans ces valeurs. Chacune ajoute un exemple concret.
+>
+> | # | La question | Où regarder |
+> |---|---|---|
+> | P-2 | Dans quel dossier ranges-tu tes fichiers PHP de travail ? | Explorateur de fichiers : le chemin complet affiché dans la barre d'adresse du dossier où tu enregistres tes exercices (par exemple sous `C:\wamp64\www\…` ou sous `C:\Users\0758510\…`) |
+> | P-5 | Quel nom ou matricule veux-tu voir dans les exemples ? | Aucun fichier : c'est un choix. ⚠️ le site est **public** — `0758510` (tiré de P-1) n'y sera écrit que si tu le confirmes ; sinon on garde un espace réservé |
+> | P-6 | Quel éditeur utilises-tu pour écrire le PHP ? | Le logiciel que tu ouvres (Notepad++, VS Code…). Le `editor = notepad.exe` du `wampmanager.conf` n'est **pas** la réponse : c'est l'éditeur que WAMP emploie pour ouvrir ses propres fichiers de configuration |
+> | P-7 | Un sous-dossier par exercice, ou tout à la racine de `www` ? | PowerShell sur le poste : `dir C:\wamp64\www` — colle la liste |
+> | P-8 | Avec quel utilisateur et quel mot de passe te connectes-tu à la base, et à **quel** serveur (MySQL sur 3306 ou MariaDB sur 3307) ? | L'écran de connexion de phpMyAdmin (`http://localhost/phpmyadmin/`) : ce que tu tapes dans « Utilisateur » et si le champ « Mot de passe » reste vide, et le serveur choisi dans la liste « Choix du serveur ». Ne colle **pas** un vrai mot de passe s'il y en a un : dis seulement « vide » ou « non vide » |
 
 ---
 
