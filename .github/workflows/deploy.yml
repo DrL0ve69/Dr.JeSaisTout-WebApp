@@ -824,9 +824,31 @@ jobs:
               /*)    cible="$base$asset" ;;
               *)     cible="$base/$asset" ;;
             esac
-            statut_asset=$(curl -sS -o /dev/null -w '%{http_code}' "$cible" || true)
+            # 🔴 LA MÊME BOUCLE DE PROPAGATION QU'EN (a) ET (b), ET ELLE MANQUAIT ICI — mesuré le
+            # 2026-09-17, run 35271375599 : `main-JQU4UR7X.js` servi en 404 par cette étape,
+            # **200 quelques minutes plus tard**, sur un déploiement par ailleurs correct. La cause
+            # est une course, et elle est STRUCTURELLE : la liste des assets est lue dans la page
+            # que SWA vient de servir — donc déjà la NOUVELLE, avec les nouveaux noms hachés —
+            # pendant que le fichier lui-même n'a pas fini de se propager. Plus le déploiement
+            # change de bundle, plus la fenêtre s'ouvre : autrement dit, l'étape rougissait
+            # d'autant plus souvent que le lot était gros.
+            #
+            # ⚠️ RÉESSAYER N'AFFAIBLIT PAS CE QUE L'ÉTAPE GARDE. Le défaut qu'elle existe pour
+            # attraper — `trailingSlash: "always"` déplaçant `/main-X.js` vers `/main-X.js/` — est
+            # DÉTERMINISTE : il rend 301 à chaque tentative, et douze tentatives le constatent
+            # douze fois. Seule la course disparaît. On réessaie donc sur tout ce qui n'est pas
+            # 200, et l'échec final NOMME le dernier statut lu.
+            statut_asset=""
+            for essai in $(seq 1 12); do
+              statut_asset=$(curl -sS -o /dev/null -w '%{http_code}' "$cible" || true)
+              if [ "$statut_asset" = "200" ]; then
+                break
+              fi
+              echo "Asset « $asset » servi en ${statut_asset:-aucun} — pas encore propagé ou redirigé (${essai}/12), attente 10 s…"
+              sleep 10
+            done
             if [ "$statut_asset" != "200" ]; then
-              echo "::error::Asset « $asset » servi en ${statut_asset:-aucun} au lieu de 200 — une redirection sur un module ES casse ses imports relatifs (relire trailingSlash dans config/staticwebapp.config.source.json)."
+              echo "::error::Asset « $asset » servi en ${statut_asset:-aucun} au lieu de 200 après 12 tentatives sur 2 minutes — ce n'est donc pas une propagation en retard. Une redirection sur un module ES casse ses imports relatifs (relire trailingSlash dans config/staticwebapp.config.source.json)."
               echecs=1
             fi
           done <<<"$assets"
