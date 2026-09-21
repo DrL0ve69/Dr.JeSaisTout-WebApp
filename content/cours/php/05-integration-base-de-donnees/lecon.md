@@ -19,7 +19,7 @@ fiches-sources:
   - web/php/exercices-corriges-poo-application.md
   - web/php/php-fichiers-journalisation.md
 cree: 2026-09-16
-maj: 2026-09-17
+maj: 2026-09-21
 statut: publiee
 ---
 
@@ -499,8 +499,10 @@ $mysqli = new mysqli($server, $username, $password, $dbname);
 **Aucune de ces valeurs n'est à recopier telle quelle.** Le port **standard** de MySQL et de
 MariaDB est 3306 ; `3307` est le port que WampServer attribue à MariaDB quand MySQL est le SGBD
 par défaut, comme sur la capture de la diapositive 47, qui affiche « SGBD par défaut : MySQL 8.4.7 ».
-Ton poste a donc probablement la même valeur, mais lis-la dans le menu plutôt que de la supposer
-(source : fichier
+Sur les postes du Cégep, c'est bien le cas : le `wampmanager.conf` d'un poste de laboratoire
+(WampServer 3.4.0, relevé le 2026-09-21) porte `mysqlPortUsed ="3306"` pour MySQL 8.4.7 et
+`mariaPortUsed ="3307"` pour MariaDB 11.4.9. Ton poste a donc très probablement la même valeur, mais
+lis-la dans le menu plutôt que de la supposer (source : fichier
 [`mariadb_mysql.txt`](https://raw.githubusercontent.com/big-dream/wampserver/main/mariadb_mysql.txt)
 livré avec WampServer, consulté le 2026-09-16 : « If MySQL is the default DBMS, it uses port 3306
 and therefore MariaDB will use port 3307 »). La capture montre ce port deux fois : dans le menu de WAMP, à la ligne « Port utilisé par MariaDB : 3307 », et dans
