@@ -1,0 +1,138 @@
+{
+  "lecon": "comptes-groupes-sudo",
+  "titre": "Quiz — Comptes, sudo et groupes",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Connecté en root, tu verrouilles le compte de Julie avec usermod -L julie. Pour vérifier que le verrou fonctionne, tu tapes aussitôt su - julie, toujours en root. Que se passe-t-il, et qu'en conclure ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "La session de Julie s'ouvre sans mot de passe : root n'a jamais besoin du mot de passe du compte visé. Le test ne prouve donc rien ; il faut le refaire depuis un autre compte ordinaire."
+        },
+        {
+          "id": "b",
+          "texte": "su affiche « Authentication failure » : le verrou s'applique à tout le monde, root compris, ce qui prouve qu'il fonctionne."
+        },
+        {
+          "id": "c",
+          "texte": "su répond que l'utilisateur julie n'existe pas : usermod -L retire le compte de /etc/passwd jusqu'au prochain usermod -U."
+        },
+        {
+          "id": "d",
+          "texte": "su demande le mot de passe de root, puisqu'un compte verrouillé ne peut être ouvert qu'avec le secret de l'administrateur."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "usermod -L place un « ! » devant le hachage du mot de passe dans /etc/shadow : aucun mot de passe tapé ne peut plus correspondre. Mais su, lancé depuis root, ne demande jamais de mot de passe, quel que soit le compte visé — la session de Julie s'ouvre donc normalement. C'est exactement pourquoi la démonstration du cours (diapositive 19) verrouille Julie en root, puis bascule sur un AUTRE compte ordinaire, Alex, pour perdre les droits de root, et tente su julie depuis Alex : là, le refus « su: Authentication failure » arrive après la saisie, et il prouve quelque chose. La réponse b suppose que le verrou s'impose à root ; or il porte sur le mot de passe, et root n'en a pas besoin. La réponse c confond verrouiller et supprimer : le compte reste dans /etc/passwd, ses fichiers aussi, rien n'est effacé — c'est tout l'intérêt de -L par rapport à userdel. La réponse d invente une règle : su demande le mot de passe du compte VISÉ quand on part d'un compte ordinaire, et rien du tout quand on part de root.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q2",
+      "type": "associer",
+      "consigne": "Associe chaque besoin d'administration à la commande qui y répond, lancée en root sur le serveur Ubuntu.",
+      "paires": [
+        {
+          "gauche": "Créer cinquante comptes d'un coup depuis un script, sans qu'aucune question ne bloque au clavier.",
+          "droite": "useradd -m -s /bin/bash <compte>"
+        },
+        {
+          "gauche": "Rendre utilisable un compte qu'on vient de créer avec useradd, et auquel personne n'arrive à se connecter.",
+          "droite": "passwd <compte>"
+        },
+        {
+          "gauche": "Suspendre l'accès par mot de passe d'une employée en congé, sans rien effacer de son compte ni de ses fichiers.",
+          "droite": "usermod -L <compte>"
+        },
+        {
+          "gauche": "Rétablir ce même accès à son retour.",
+          "droite": "usermod -U <compte>"
+        },
+        {
+          "gauche": "Faire disparaître un compte ET son répertoire personnel dans /home.",
+          "droite": "userdel -r <compte>"
+        },
+        {
+          "gauche": "Savoir sous quelle identité on travaille après plusieurs su empilés, même si l'invite a été personnalisée.",
+          "droite": "whoami"
+        }
+      ],
+      "explication": "Chaque étape du cycle de vie d'un compte a sa commande, et la difficulté est de choisir selon le BESOIN, pas selon le nom. Pour un script, c'est useradd et non adduser : adduser est un assistant qui pose des questions (mot de passe, nom réel…) et attendrait une réponse cinquante fois ; useradd ne demande rien, mais ne fait que le minimum — d'où -m pour créer /home/<compte> sur Ubuntu et -s pour choisir un shell confortable. Ce minimum explique la deuxième ligne : un compte créé par useradd n'a aucun mot de passe utilisable, et c'est passwd, lancé par root, qui en pose un sans connaître l'ancien. Suspendre sans effacer, c'est verrouiller : -L (lock) rend le mot de passe inutilisable, -U (unlock) le rétablit — la diapositive 18 écrit « Vérouiller » pour les deux, mais la parenthèse (Unlock) dit juste. Supprimer, c'est userdel ; sans -r, /home/<compte> reste orphelin sur le disque. Enfin whoami affiche le compte actif : utile quand chaque su empile une couche et que chaque exit en retire une, car l'invite peut mentir, pas whoami.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "Trois administrateurs d'un même serveur connaissent tous le mot de passe de root et ouvrent leurs sessions d'administration avec su -. Le jour où un fichier de configuration disparaît, le système permet quand même de savoir lequel des trois l'a supprimé, puisque chacun s'était d'abord connecté sous son propre compte.",
+      "bonneReponse": false,
+      "justification": "Faux : après su -, le système ne voit plus que « root ». Toutes les commandes tapées dans cette session sont faites par root, sans nom — on peut au mieux savoir qui a ouvert une session root et quand, jamais qui a tapé quelle commande dedans. C'est la différence de traçabilité entre les deux chemins : sudo, lui, élève UNE commande à la fois et la note au journal avec le nom du compte qui l'a lancée (sur Ubuntu, dans /var/log/auth.log). Le scénario cumule d'ailleurs les autres défauts de su que sudo supprime : un secret partagé (trois personnes connaissent le mot de passe de root, alors que sudo demande à chacun SON propre mot de passe), un privilège permanent (la session root reste ouverte jusqu'à exit, et la moindre faute de frappe y a tous les droits), et un retrait coûteux (pour exclure un seul administrateur, il faut changer le mot de passe de root et le redistribuer aux deux autres, au lieu de retirer une règle ou un groupe). Borne à garder : sudo n'est pas magique non plus — une règle qui donne ALL rend le compte aussi puissant que root, et sudo -i ouvre une session root complète. Ce que sudo apporte, c'est un registre nominatif.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q4",
+      "type": "trouver-la-faille",
+      "consigne": "Ce script d'accueil s'exécute sans aucun message d'erreur. Sara était, avant lui, la seule administratrice du serveur (membre du groupe sudo), et root ne se connecte pas directement. Quelle ligne lui coûte ses droits d'administration ?",
+      "langage": "bash",
+      "code": "# PuTTY, en root sur le serveur Ubuntu — les groupes vivent dans /etc/group\ngroupadd enseignant\nusermod -G enseignant sara\ngetent group enseignant\nid sara",
+      "ligneFautive": 3,
+      "faille": "usermod -G sans -a : la liste des groupes secondaires est REMPLACÉE, Sara sort silencieusement du groupe sudo",
+      "explication": "L'option -G de usermod fixe la liste COMPLÈTE des groupes secondaires. Sans -a (append, « ajouter »), elle remplace la liste existante par celle qu'on donne : Sara était dans sudo, elle n'est plus que dans enseignant. Elle perd donc ses droits d'administration, puisque la règle %sudo ALL=(ALL:ALL) ALL ne la vise plus — et comme elle était la seule administratrice sur un serveur où root ne se connecte pas, plus personne ne peut administrer la machine. Le piège est d'autant plus sournois que la commande réussit sans le moindre avertissement. Son groupe PRIMAIRE (sara) n'est pas touché : -G ne concerne que les secondaires. Les autres lignes sont innocentes. La ligne 2 crée simplement le groupe. La ligne 4 affiche les membres secondaires d'enseignant : elle montrera bien sara, ce qui donne l'illusion que tout s'est bien passé — elle ne dit rien des groupes que Sara a PERDUS. La ligne 5 est au contraire le geste qui trahit l'erreur : id sara n'affiche plus 27(sudo) dans groups=. D'où l'habitude à prendre : un id avant et après toute modification de groupes, pour comparer.",
+      "correction": "# PuTTY, en root sur le serveur Ubuntu — le -a AJOUTE enseignant sans retirer sudo\ngroupadd enseignant\nid sara                            # avant : noter la liste groups=\nusermod -aG enseignant sara        # ou : gpasswd -a sara enseignant (ne peut rien retirer)\nid sara                            # après : sudo doit toujours y figurer",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Dans /etc/sudoers.d/, on trouve ces trois règles : « sylvie ALL=(ALL) /usr/bin/apt-get update », « bob ALL=(ALL) NOPASSWD: /usr/bin/apt-get * » et « %web ALL=(root) /usr/bin/systemctl restart apache2 ». Laquelle, sous des airs de délégation limitée à un outil, donne en pratique un accès root complet ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "Celle de Bob : le joker autorise n'importe quel argument d'apt-get, dont apt-get changelog, qui ouvre un visualiseur de texte capable de lancer un shell avec !sh — un shell qui tourne en root."
+        },
+        {
+          "id": "b",
+          "texte": "Celle de Sylvie : ALL=(ALL) lui permet de devenir n'importe quel compte, donc root, pour n'importe quelle commande."
+        },
+        {
+          "id": "c",
+          "texte": "Celle du groupe web : le % étend la règle à tout le serveur, donc à toutes les commandes de systemctl."
+        },
+        {
+          "id": "d",
+          "texte": "Aucune : chacune ne nomme qu'un seul programme, apt-get ou systemctl, et sudo refuse tout autre programme."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Une règle se lit en quatre éléments : qui, hôte=(compte cible), options, commandes. Le danger se cache dans le dernier. La règle de Bob autorise /usr/bin/apt-get suivi de N'IMPORTE QUELS arguments. Or apt-get changelog affiche un journal dans un visualiseur de texte, et ce visualiseur accepte la commande !sh, qui ouvre un shell ; lancé par sudo, le visualiseur tourne en root, donc le shell aussi. NOPASSWD aggrave le cas : quiconque obtient la session de Bob — un terminal laissé ouvert, une clé volée — obtient root sans rien taper. Le même piège existe avec vi, less, find, tar et des centaines d'autres programmes recensés par le projet GTFOBins. La réponse b lit mal la règle de Sylvie : ALL=(ALL) désigne l'hôte et le compte cible, pas les commandes ; la commande, elle, est « /usr/bin/apt-get update » avec son argument, et sudo n'accepte que cette forme exacte. La réponse c confond le % (qui signifie « les membres du groupe web ») avec une portée : la commande est bornée à systemctl restart apache2, arguments compris — c'est précisément la forme recommandée par la leçon, plutôt que systemctl *. La réponse d oublie que nommer un programme ne suffit pas : c'est la liste d'ARGUMENTS qui décide si un outil généraliste peut ouvrir un shell. Pour vérifier ce qu'une règle donne vraiment : sudo -l -U <compte>, en root.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q6",
+      "type": "choix-multiple",
+      "question": "Marc est membre du groupe deploiement. Sur le serveur web01, /etc/sudoers.d/deploiement contient la règle « %deploiement web01=(www-data) /usr/bin/php /srv/app/migrer.php ». Quelle commande Marc peut-il lancer avec succès sur web01 ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "sudo -u www-data /usr/bin/php /srv/app/migrer.php — le script s'exécute en tant que www-data, le compte d'Apache, et jamais en root."
+        },
+        {
+          "id": "b",
+          "texte": "sudo /usr/bin/php /srv/app/migrer.php — sans -u, sudo choisit tout seul le compte cible nommé par la règle."
+        },
+        {
+          "id": "c",
+          "texte": "sudo -u www-data /usr/bin/php /srv/app/autre.php — la règle autorise le programme php, donc n'importe quel script."
+        },
+        {
+          "id": "d",
+          "texte": "Aucune : la règle commence par %deploiement, elle ne vise donc qu'un compte qui s'appellerait littéralement deploiement."
+        }
+      ],
+      "bonneReponse": "a",
+      "explication": "Décomposons les quatre éléments. QUI : %deploiement, le % signifie « les membres du groupe deploiement », donc Marc est visé. HÔTE : web01, le nom de ce serveur (affiché par hostname) — la même règle copiée sur un autre serveur ne s'y appliquerait pas. COMPTE CIBLE : (www-data), la commande s'exécutera sous ce compte-là et aucun autre ; c'est le moindre privilège appliqué au compte cible lui-même. COMMANDE : /usr/bin/php avec son argument, et une commande écrite avec des arguments n'autorise que ceux-là, à l'identique. Seule la réponse a respecte les quatre. La réponse b échoue parce que, sans -u, sudo vise root par défaut : or la règle n'autorise que www-data, la demande ne correspond donc à aucune règle. La réponse c échoue sur l'argument : /srv/app/autre.php n'est pas /srv/app/migrer.php, et sudo refuse — c'est exactement ce qui distingue cette règle d'un joker. La réponse d inverse le sens du % : sans lui, on vise un utilisateur ; avec lui, un groupe. Viser un groupe est d'ailleurs le choix recommandé : quand quelqu'un arrive dans l'équipe, on l'ajoute au groupe et la règle ne change pas.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    }
+  ]
+}

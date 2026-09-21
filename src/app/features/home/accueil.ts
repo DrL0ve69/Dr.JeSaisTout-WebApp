@@ -73,6 +73,10 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
 /**
  * Modules du cours réellement publiés. Confronté au manifeste par le spec.
  *
+ * 📈 11 → 13 le 2026-09-21 (E3-ST17) : `05-comptes-groupes-sudo` et
+ * `06-permissions-mots-de-passe`, les deux moitiés de la séance 5, publiées ensemble
+ * (le gate de complétude des exercices exige les seize dès qu'un module de la séance
+ * est publié).
  * 📈 10 → 11 le 2026-09-17 (E3-ST18) : `09-securite-base-de-donnees`, la séance 8
  * du cours, rejoint les dix autres. ⚠️ Le compte n'a PAS bougé le même jour quand
  * `csrf` et `controle-acces` ont quitté la séance 7 pour les compléments hors
@@ -91,10 +95,18 @@ import { ExtraitEntetes } from './extrait-entetes/extrait-entetes';
  * des modules » à dix modules sur treize : « les premiers » sous-disait un compte
  * que la carte affiche juste à côté. Elle redeviendra fausse aux treize.
  */
-const MODULES_PUBLIES = 11;
+const MODULES_PUBLIES = 13;
 
-/** Modules prévus au plan du cours (éditorial, arrêté en phase 1). */
-const MODULES_TOTAL = 13;
+/**
+ * Modules prévus au plan du cours (éditorial).
+ *
+ * 📈 13 → 15 le 2026-09-21 : à 13 publiés, l'ancien total aurait affiché « 13 sur 13 »
+ * alors que la séance 9 (« Sécurité des mécanismes d'authentification et autorisation »,
+ * 106 diapositives) n'a encore aucun module. Elle est comptée pour DEUX, par analogie
+ * mesurée avec la séance 5 (119 diapositives → deux modules). À revoir quand son
+ * découpage sera mesuré.
+ */
+const MODULES_TOTAL = 15;
 
 /**
  * Modules du cours de PHP réellement publiés. Confronté au manifeste, filtré sur
@@ -174,7 +186,7 @@ const MODULES_TOTAL_PHP = 8;
 
       <app-carte-cours
         titre="Sécurité des applications web"
-        description="Treize modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. La plupart des modules sont en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
+        description="Quinze modules, de l’injection SQL à la gestion des sessions. Pour chaque notion, la théorie, un exemple simple et un exemple réaliste, puis un quiz. La plupart des modules sont en ligne&nbsp;; les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
         lien="/cours/securite-web"
         [modulesPublies]="modulesPublies"
         [modulesTotal]="modulesTotal"
