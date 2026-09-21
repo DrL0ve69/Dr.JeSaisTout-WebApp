@@ -1196,6 +1196,9 @@ const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
   // faire remonter leurs contradictions latentes au moment de la reprise (lot 13), alors que
   // celui-ci les a rencontrées à l'écriture, quand elles ne coûtent qu'une phrase.
   'securite-base-de-donnees',
+  // 2026-09-21 — la séance 5, en deux modules, écrits au format actionnable dès leur rédaction.
+  'comptes-groupes-sudo',
+  'permissions-mots-de-passe',
 ]);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';

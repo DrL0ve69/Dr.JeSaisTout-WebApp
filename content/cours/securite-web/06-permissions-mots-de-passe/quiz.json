@@ -1,0 +1,79 @@
+{
+  "lecon": "permissions-mots-de-passe",
+  "titre": "Quiz — Permissions et mots de passe",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "choix-multiple",
+      "question": "Sur le serveur, ls -l affiche la ligne suivante : -rwxr-x--- 1 root enseignant 842 Sep 21 10:04 bilan.sh. Le compte alexandre est membre du groupe enseignant ; le compte sara ne l'est pas. Que peuvent faire ces deux comptes sur bilan.sh ?",
+      "choix": [
+        { "id": "a", "texte": "Alexandre peut lire et exécuter le script, mais pas le modifier ; Sara ne peut ni le lire, ni le modifier, ni l'exécuter." },
+        { "id": "b", "texte": "Alexandre peut lire, modifier et exécuter le script, puisque son groupe a les droits de root ; Sara peut seulement le lire." },
+        { "id": "c", "texte": "Alexandre et Sara peuvent tous deux lire et exécuter le script : le triplet r-x s'applique à tous les comptes qui ne sont pas root." },
+        { "id": "d", "texte": "Personne sauf root ne peut rien faire, car le dernier triplet est ---." }
+      ],
+      "bonneReponse": "a",
+      "explication": "La première colonne se découpe en quatre morceaux : le type (-, fichier ordinaire), puis trois triplets dans l'ordre propriétaire, groupe, autres — ici rwx, r-x et ---. La colonne 3 dit que le propriétaire est root, la colonne 4 que le groupe est enseignant. Alexandre n'est pas le propriétaire mais il est membre du groupe : c'est donc le triplet du groupe, r-x, qui s'applique à lui — lecture et exécution, sans écriture. Sara n'est ni propriétaire ni membre du groupe : elle tombe dans les autres, et le triplet --- ne lui donne rien. La réponse b confond les lignes de la fiche : appartenir au groupe ne donne pas les droits du propriétaire, et chaque classe a son propre triplet. La réponse c lit le triplet du groupe comme s'il valait pour tout le monde ; or un compte extérieur au groupe relève du troisième triplet. La réponse d fait l'erreur inverse : le --- ne concerne que les autres, il ne retire rien au groupe.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q2",
+      "type": "associer",
+      "consigne": "Associe chaque commande chmod en notation numérique au profil de droits qu'elle pose, tel que ls -l l'afficherait (sans le caractère de type).",
+      "paires": [
+        { "gauche": "chmod 754", "droite": "rwxr-xr--" },
+        { "gauche": "chmod 457", "droite": "r--r-xrwx" },
+        { "gauche": "chmod 640", "droite": "rw-r-----" },
+        { "gauche": "chmod 775", "droite": "rwxrwxr-x" },
+        { "gauche": "chmod 700", "droite": "rwx------" }
+      ],
+      "explication": "Chaque chiffre est la somme des poids des droits accordés dans un triplet : lecture 4, écriture 2, exécution 1. Les trois chiffres se lisent toujours dans l'ordre propriétaire, groupe, autres. 754 donne donc 7 = 4+2+1 (rwx), 5 = 4+1 (r-x), 4 (r--) : c'est le cas du cours, où le propriétaire a tout, le groupe lit et exécute, les autres lisent. 457 contient les mêmes chiffres dans l'ordre inverse, et pose le profil opposé : les autres ont tous les droits et le propriétaire ne fait que lire — l'ordre des chiffres n'est jamais indifférent. 640 donne rw- (4+2), r-- (4) et --- (0) : un fichier de configuration que le groupe lit et que personne d'autre ne voit. 775 donne rwx, rwx, r-x, le profil du répertoire /cegep de l'exercice 12. 700 réserve tout au seul propriétaire. Pour vérifier une conversion, refais-la dans l'autre sens : rw- vaut 1-1-0 en binaire, soit 4+2+0 = 6. Attention aussi à la diapositive 76, qui intervertit les nombres entre parenthèses (lecture 1, exécution 4) : les bons poids sont ceux de la diapositive 75, lecture 4 et exécution 1.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "ls -ld /cegep affiche drwxrw-r-- 2 root enseignant 4096 Sep 21 10:02 /cegep. Un membre du groupe enseignant peut donc créer un fichier dans /cegep, puisque son groupe a le droit d'écriture.",
+      "bonneReponse": false,
+      "justification": "Sur un répertoire, les trois bits portent sur la liste de noms qu'il contient : r permet de lister les noms, w de créer, supprimer ou renommer des entrées, x d'entrer dans le répertoire et de traverser vers son contenu. Pour créer un fichier, il faut à la fois modifier la liste (w) ET entrer dans la pièce (x). Le groupe a ici rw-, sans x : le w est inutile, et la création échoue par Permission denied. C'est exactement le piège de l'exercice 12 — un droit d'écriture utile sur un répertoire s'écrit rwx, et l'on pose donc chmod 775 /cegep, pas 765. Même logique pour les autres : leur r-- sans x donne une liste de noms qu'ils ne peuvent pas ouvrir ; un accès en lecture utile s'écrit r-x. Note enfin que la diapositive 71 résume l'écriture sur un répertoire par « modifier les fichiers dans le répertoire » : à l'examen, donne cette formulation du cours ; pour régler un serveur, retiens que le w d'un répertoire décide de la création et de la suppression des entrées, pas du contenu d'un fichier existant, qui dépend du w du fichier lui-même.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "ls -l affiche -rw-r----- 1 root root 2048 Sep 21 10:04 rapport.txt. Tu veux que le fichier appartienne à alexandre et soit rattaché au groupe enseignant, sans rien changer à ses droits. Quelle suite de commandes, lancée en root, fait exactement cela ?",
+      "choix": [
+        { "id": "a", "texte": "chown alexandre rapport.txt, puis chgrp enseignant rapport.txt" },
+        { "id": "b", "texte": "chgrp alexandre rapport.txt, puis chown enseignant rapport.txt" },
+        { "id": "c", "texte": "chmod alexandre:enseignant rapport.txt" },
+        { "id": "d", "texte": "chown enseignant rapport.txt seulement, puisque alexandre est membre de ce groupe et en profitera" }
+      ],
+      "bonneReponse": "a",
+      "explication": "Trois questions, trois commandes : chmod pour les droits (colonne 1), chown pour le propriétaire (colonne 3), chgrp pour le groupe (colonne 4). Changer le propriétaire et le groupe sans toucher aux droits, c'est donc chown puis chgrp, et la colonne 1 reste rw-r-----. Le complément de la leçon donne la forme condensée équivalente, chown alexandre:enseignant rapport.txt. La réponse b inverse les deux commandes : chgrp attend un GROUPE et chown un UTILISATEUR. chgrp alexandre ne fonctionnerait que par coïncidence, parce qu'adduser crée un groupe personnel du même nom, et chown enseignant échouerait s'il n'existe aucun compte de ce nom. C'est aussi la syntaxe à retenir malgré la diapositive 86, qui écrit chgrp <utilisateur> : le premier argument est un groupe, comme le montre l'exemple de la diapositive suivante avec le groupe test. La réponse c emploie la bonne notation propriétaire:groupe avec la mauvaise commande : chmod ne modifie que les bits d'accès. La réponse d ferait d'enseignant le propriétaire, et le fichier resterait rattaché au groupe root : Alexandre, ni propriétaire ni membre de root, tomberait dans les autres, qui n'ont ici aucun droit.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q5",
+      "type": "choix-multiple",
+      "question": "Le 21 septembre 2026, chage -l sara affiche : Last password change : Sep 01, 2026 · Password expires : Oct 01, 2026 · Minimum number of days between password change : 1 · Maximum number of days between password change : 30 · Number of days of warning before password expires : 7. Laquelle de ces lectures est juste ?",
+      "choix": [
+        { "id": "a", "texte": "Le mot de passe de Sara reste valide jusqu'au 1er octobre, elle est avertie pendant les 7 jours qui précèdent, et après cette date elle devra le changer à sa connexion ; le décompte part du 1er septembre, jour de son dernier changement." },
+        { "id": "b", "texte": "Sara doit attendre 30 jours après son dernier changement avant de pouvoir modifier son mot de passe : elle ne pourra pas le changer avant le 1er octobre." },
+        { "id": "c", "texte": "Le décompte des 30 jours part du jour où l'administrateur a lancé chage -M 30, donc aujourd'hui : le mot de passe expirera le 21 octobre." },
+        { "id": "d", "texte": "Si l'administrateur remet PASS_MAX_DAYS à 99999 dans /etc/login.defs, le mot de passe de Sara n'expirera plus." }
+      ],
+      "bonneReponse": "a",
+      "explication": "Les trois durées se lisent sur un seul compteur, qui part du dernier changement de mot de passe : ici le 1er septembre. La durée maximale (-M 30) fixe la validité : 1er septembre + 30 jours = 1er octobre, la date qu'affiche Password expires. L'avertissement (-W 7) prévient Sara pendant les 7 derniers jours ; une fois la date passée, elle est obligée de changer son mot de passe. La durée minimale (-m 1) l'empêche seulement de le changer à nouveau le jour même, pour qu'elle ne puisse pas enchaîner cinq changements et revenir à l'ancien. La réponse b est la lecture à l'envers que la phrase de la diapositive 105 rend possible (« la durée maximum avant de pouvoir modifier le mot de passe ») : attendre avant de pouvoir modifier, c'est la définition de la durée MINIMALE, qui vaut ici 1 jour ; -M règle la durée pendant laquelle le mot de passe reste valide. La réponse c oublie que le compteur repart à chaque changement de mot de passe, pas au moment où l'on règle la durée : c'est pour ça qu'une date d'expiration peut même tomber dans le passé juste après un chage. La réponse d prête à /etc/login.defs un effet rétroactif qu'il n'a pas : ce fichier n'est lu qu'à la création d'un compte, et ne revient jamais sur un compte existant, dont les réglages vivent dans /etc/shadow et se changent avec chage.",
+      "ficheSource": "web/securite/administration-serveur-linux.md"
+    },
+    {
+      "id": "q6",
+      "type": "vrai-faux",
+      "affirmation": "À l'examen, si l'on te demande comment limiter les risques liés à un mot de passe découvert par un tiers, la réponse attendue est celle du cours — le changer à une fréquence donnée, réglée avec chage et /etc/login.defs — même si le NIST SP 800-63B, révision 4 (2025), interdit aujourd'hui le changement périodique obligatoire sans signe de compromission.",
+      "bonneReponse": true,
+      "justification": "La leçon distingue deux réponses, et chacune a son terrain. À l'examen, la réponse du cours : la diapositive 101 présente le changement à une certaine fréquence comme une bonne pratique, et c'est ce qui sera évalué, avec la maîtrise de chage -M, -m, -W et des lignes PASS_MAX_DAYS, PASS_MIN_DAYS et PASS_WARN_AGE. En production, la correction : le NIST SP 800-63B, révision 4 (2025), interdit d'imposer un changement périodique sans signe de compromission, parce qu'un mot de passe forcé tous les 30 ou 90 jours évolue par variations prévisibles (Ete2025!, puis Ete2025!!) que l'attaquant qui connaît l'ancien devine aussitôt. Répondre « faux » en citant le NIST à l'examen serait donc une erreur de terrain, pas un gain de rigueur. Et les outils ne deviennent pas inutiles pour autant : en production, chage -d 0 garde tout son sens pour forcer le changement d'un mot de passe temporaire ou d'un compte dont le mot de passe a pu fuiter.",
+      "ficheSource": "web/securite/stockage-mots-de-passe.md"
+    }
+  ]
+}

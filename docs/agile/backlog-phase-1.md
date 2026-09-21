@@ -3283,7 +3283,7 @@ pour le quiz et la simulation séparément** si la leçon dépasse ~800 lignes.
 | E3-ST14 | `02-environnement-linux` — Gestion d'environnement infonuagique : arborescence, droits, paquets, services | séance 2 | `administration-serveur-linux.md` | non — inspection guidée | ✅ |
 | E3-ST15 | `03-communication-serveur` — Sécurité de la communication serveur : SSH, authentification par clés, durcissement de l'accès distant | séance 3 | `securisation-acces-distant-ssh.md` | **oui** : session SSH par mot de passe vs par clé | ✅ |
 | E3-ST16 | `04-automatisation-surveillance` — Tâches planifiées, journaux, surveillance et nettoyage | séance 4 | `automatisation-surveillance-cron.md` | non — lecture guidée de journaux | ✅ |
-| E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ⬜ |
+| E3-ST17 | `05-utilisateurs-permissions` — Comptes, groupes, `sudo`, politique de mots de passe, propriétaires et bits d'accès, sensibilisation | séance 5 | `administration-serveur-linux.md` + `stockage-mots-de-passe.md` | non — tableau de permissions interactif | ✅ 2026-09-21 — en DEUX modules : `05-comptes-groupes-sudo` + `06-permissions-mots-de-passe` |
 | E3-ST18 | `09-securite-base-de-donnees` — Installation durcie, console MariaDB, comptes et privilèges, PHPMyAdmin | **séance 8** (calendrier relu le 2026-09-17 ; déck `Cours09-…`) | `securite-base-de-donnees.md` | non — **deux** diagrammes Mermaid | ✅ |
 | E3-ST19 | `19-services-web-https` — Services web, TLS, certificats HTTPS, chaîne de confiance | séance 8 | `en-tetes-securite-http.md` + `cryptographie-appliquee.md` | **oui** : poignée de main TLS pas-à-pas | ⬜ |
 | E3-ST20 | `11-projet-de-session` — Amorcer un projet LAMP : environnement local à parité de production, arborescence qui ne sert pas ses secrets, outillage et contrôle de version | séance 11 | `php-environnement-developpement-moderne.md` + `php-organisation-projet.md` | non — le sujet est procédural | ✅ |
@@ -4457,3 +4457,54 @@ survenir par hasard : la distinction est *« l'échec est-il reproductible par c
 **Ce que ça ne change pas.** Le déploiement lui-même avait réussi : l'échec portait sur la
 vérification qui suit, et le site était juste. Aucune reprise de déploiement n'a été nécessaire.
 L'étape « Vérifier les en-têtes servis », qui garde la CSP, n'est pas touchée.
+
+---
+
+## ✅ CLÔTURE — E3-ST17, la séance 5 « Sécurité des utilisateurs », en deux modules (2026-09-21)
+
+**Livré, publié ensemble** (le gate de complétude exige les seize exercices dès qu'un module de la
+séance est publié) :
+- `content/cours/securite-web/05-comptes-groupes-sudo/` — « Sécurité des utilisateurs — comptes,
+  sudo et groupes », diapositives 1-60, exercices 1-11, quiz de 6 questions (quatre types).
+- `content/cours/securite-web/06-permissions-mots-de-passe/` — « Sécurité des utilisateurs —
+  permissions et mots de passe », diapositives 61-119, exercices 12-16, quiz de 6 questions.
+- Les deux au format actionnable dès la rédaction (`MODULES_AU_FORMAT_ACTIONNABLE`), toutes les
+  diapositives 1-116 atteignables par un renvoi.
+- Accueil : `MODULES_PUBLIES` 11 → 13 ; `MODULES_TOTAL` **13 → 15**, parce qu'à 13 publiés l'ancien
+  total aurait affiché « 13 sur 13 » alors que la séance 9 (authentification, 106 diapositives) n'a
+  aucun module — comptée pour deux par analogie avec la séance 5, **à revoir** quand son découpage
+  sera mesuré.
+
+**Vérification** : deux passes `verificateur-theorie` indépendantes, **À CORRIGER** toutes deux, puis
+correctifs par agents frais. Les pages de manuel d'Ubuntu 24.04 (usermod, sudoers, pwquality.conf,
+chage, login.defs) et l'extrait de `logging.c` de sudo 1.9.15p5 ont été relevés par le fil principal
+**avant** la vérification et injectés — le vérificateur n'a pas de shell (même geste que PHP-8).
+Erreurs réelles attrapées : `umask` 0022 présenté comme le défaut d'un compte ordinaire (c'est 0002
+sur Ubuntu, `USERGROUPS_ENAB`) ; `chage -d 0` expliqué par « 1970 » au lieu du sens réservé
+« changement forcé » ; `su -` présenté comme seul à relire les groupes (`su` les relit toujours) ;
+`systemctl status` → `!sh` sous sudo (le visualiseur est en mode sécurisé sur systemd 255) ; un
+« deux `exit` » après un `su` refusé. **Neuf** encadrés `correction-du-cours` au total, dont un
+ajouté par la vérification (diapo 98 : `minlen` ne descend pas sous 6).
+
+**Budget** : rédacteurs **149k** et **153k** — au plafond, et le second **au-dessus** : cause, 1 065
+lignes produites contre 700-900 visées, sur un corpus d'entrée pourtant mesuré. Le volume de SORTIE
+a encore dépassé l'estimation (§9 de `agent-context-budget.md`). Quiz 97k et 84k ; vérifications
+129k et 132k ; correctifs 79k et 83k.
+
+**Aucune correction de la KnowledgeBase.** Trous relevés, à combler par un lot KB à part : NOEXEC,
+SETENV, règle « commande sans arguments », fichiers ignorés de `sudoers.d`, `pwquality.conf`,
+`chage`, `login.defs`, `umask` d'Ubuntu ; le lien NIST de `stockage-mots-de-passe.md` (l. 469)
+pointe l'annexe informative, pas `#passwordver`.
+
+**Gates** : G-content **20 leçons**, 0 dépassement de poids (160 et 189 Ko) · G-lint · G-typage-outils ·
+G-test **1212 passés / 1 sauté** · G-build **24 routes prerendues** (22 avant), **14 hachages `style-src` / 0 de
+script, inchangés** · G-axe **0 violation** — après correction d'un `empty-table-header` (cellule de coin vide
+du tableau `adduser`/`useradd`), rougi **à la publication** exactement comme à la séance 8 · G-e2e **56 passés, 1
+échec connu** (`defileurs-clavier.spec.ts:502`, L-057), revérifié **vert en isolation, 7/7**.
+
+### Geste suivant
+Côté sécurité : **séance 9** « Sécurité des mécanismes d'authentification et autorisation »
+(`Cours10-mecanisme_protection_authentification.pptx`, 106 diapositives — mesurer son découpage
+avant tout brief), puis la reprise au format actionnable des modules 07 et 08. Côté PHP : **PHP-9**
+(séance 10, Laravel).
+
