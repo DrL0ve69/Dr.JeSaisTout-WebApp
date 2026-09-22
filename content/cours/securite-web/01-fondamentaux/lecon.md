@@ -59,27 +59,41 @@ blindée.
 :::: marche-a-suivre {titre="Monter le poste de la session, puis évaluer une menace"}
 
 1. {voir="La chaîne d'outils de la session"} Monte le poste du laboratoire avant tout le reste :
-   **XAMPP ou WAMP** en local, un éditeur de texte, **PuTTY** et **WinSCP** pour piloter la
-   machine distante, un compte **DigitalOcean**, un **nom de domaine** chez GoDaddy. Sans domaine,
-   pas de certificat TLS — donc pas de HSTS ni de cookie `Secure` à la fin de la session.
+   **XAMPP ou WAMP** en local, un éditeur de texte, un compte **DigitalOcean**, un **nom de
+   domaine** chez GoDaddy. Sans domaine, pas de HSTS à la fin de la session : un certificat TLS
+   peut aujourd'hui viser une adresse IP, mais HSTS ne s'applique jamais à une adresse IP.
 
-2. {voir="La triade CIA — le cadre qui classe toutes les attaques"} Devant une menace, demande
-   **laquelle des trois promesses elle brise** : confidentialité, intégrité, disponibilité. C'est
-   le cadre que le cours pose d'entrée de jeu, et c'est lui qui rend le reste classable.
+2. {voie="cours"} {voir="La chaîne d'outils de la session"} Pilote la machine distante avec
+   **PuTTY** et dépose-y tes fichiers avec **WinSCP**, les deux clients graphiques que la séance
+   impose.
 
-3. {voir="Ne jamais faire confiance au client"} Devant un contrôle de sécurité, demande **de quel
+3. {voie="moderne"} {voir="La chaîne d'outils de la session"} Sans rien installer, fais la même
+   chose avec le client **OpenSSH** intégré à Windows : `ssh` ouvre l'invite de commande du
+   serveur, `scp` y dépose un fichier.
+
+4. {voie="cours"} {voir="La triade CIA — le cadre qui classe toutes les attaques"} Devant une
+   menace, demande **laquelle des trois promesses elle brise** : confidentialité, intégrité,
+   disponibilité. C'est le cadre que le cours pose d'entrée de jeu, et c'est lui qui rend le
+   reste classable.
+
+5. {voie="moderne"} {voir="La triade CIA — le cadre qui classe toutes les attaques"} En pratique,
+   demande aussi si elle brise l'**authenticité** (la donnée vient bien de qui elle prétend) ou la
+   **non-répudiation** (l'auteur d'une action ne peut pas la nier), deux garanties que la triade
+   ne capture pas.
+
+6. {voir="Ne jamais faire confiance au client"} Devant un contrôle de sécurité, demande **de quel
    côté il vit**. Tout ce qui s'exécute chez le visiteur est une suggestion : le contrôle qui
    compte est celui que le serveur refait lui-même.
 
-4. {voir="0-day, CVE et CWE — nommer une faille"} Devant une faille, **nomme-la** avant de la
+7. {voir="0-day, CVE et CWE — nommer une faille"} Devant une faille, **nomme-la** avant de la
    corriger : un **CWE** dit de quelle catégorie de défaut il s'agit, un **CVE** identifie une
    occurrence précise dans un produit précis.
 
-5. {voir="Comment on cherche les failles"} Devant une application à tester, **choisis le type de
+8. {voir="Comment on cherche les failles"} Devant une application à tester, **choisis le type de
    test avant l'outil** : boîte noire, blanche ou grise ; analyse statique du code (SAST) ou
    analyse de l'application qui tourne (DAST).
 
-6. {voir="Le panorama des menaces de la séance 1"} Révise en priorité ce que la séance 1 porte
+9. {voir="Le panorama des menaces de la séance 1"} Révise en priorité ce que la séance 1 porte
    réellement — ses **quatre** blocs : « Pourquoi la sécurité », la triade, les huit familles
    d'attaques, la chaîne d'outils — et traite le reste de cette leçon comme un complément utile
    mais non prioritaire.

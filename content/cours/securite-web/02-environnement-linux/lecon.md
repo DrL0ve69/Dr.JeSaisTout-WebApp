@@ -91,14 +91,20 @@ besoin dès la séance 3.
    comptes et le pare-feu sont à toi. La grille des neuf couches est le seul visuel que le cours
    répète.
 
-2. {voir="Créer la machine"} Crée le droplet — image Ubuntu LTS, plus petit palier, région Toronto,
-   nom d'hôte parlant — puis relève l'**adresse IP publique** dans le courriel de mise en service
-   que le fournisseur t'envoie, et note-la dans un fichier local : un droplet détruit puis recréé
-   n'a plus la même.
+2. {voie="cours"} {voir="Créer la machine"} Crée le droplet comme la séance le demande — image
+   « LAMP on 18.04 », plus petit palier, région Toronto, authentification « one-time password », nom
+   d'hôte parlant — puis relève l'**adresse IP publique** dans le courriel de mise en service que le
+   fournisseur t'envoie, et note-la dans un fichier local : un droplet détruit puis recréé n'a plus
+   la même.
 
-3. {voir="La première connexion, et l'empreinte qu'on n'accepte pas à l'aveugle"} Connecte-toi avec
-   **PuTTY** — adresse IP, port `22`, type `SSH`, compte `root` — et change le mot de passe que le
-   serveur t'impose de changer à cette première connexion. Un geste de plus, que l'énoncé ne demande
+3. {voie="moderne"} {voir="Créer la machine"} Pour un serveur destiné à rester en ligne, choisis
+   plutôt la LTS la plus récente (Ubuntu 26.04 LTS en août 2026) — 18.04 ne reçoit plus de
+   correctifs de sécurité gratuits depuis le 31 mai 2023 — et, dès l'écran de création, préfère
+   **SSH key** au mot de passe : la séance 3 montre comment t'en servir.
+
+4. {voir="La première connexion, et l'empreinte qu'on n'accepte pas à l'aveugle"} Connecte-toi avec
+   **PuTTY** — adresse IP, port `22`, type `SSH`, compte `root` — et, sur la voie du mot de passe à
+   usage unique, change celui que le serveur t'impose de changer à cette première connexion. Un geste de plus, que l'énoncé ne demande
    pas : compare l'empreinte affichée avec celle de la console web du droplet avant de l'accepter,
    car la question ne se reposera plus ensuite.
 
@@ -106,7 +112,28 @@ besoin dès la séance 3.
    ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub   # dans la console web : l'empreinte a comparer
    ```
 
-4. {voir="Se repérer, lister, créer"} Prends tes repères avant de toucher à quoi que ce soit : `pwd`
+5. {voie="moderne"} {voir="Le premier geste sur un serveur neuf : cesser d'être `root`"} Plutôt que
+   de faire toute la séance en `root` comme le cours, crée dès cette première session un utilisateur
+   ordinaire et ajoute-le au groupe `sudo`, pour garder un garde-fou et une trace de qui a fait quoi.
+
+   ```bash
+   # PuTTY, connecte en root sur le serveur Ubuntu : une seule fois, a la premiere session
+   adduser philippe            # cree le compte, son repertoire personnel, demande un mot de passe
+   usermod -aG sudo philippe   # le « -a » est vital : sans lui, « -G » REMPLACE tous les groupes
+   rsync --archive --chown=philippe:philippe ~/.ssh /home/philippe   # voie de la cle : la recopier
+   ```
+
+6. {voie="moderne"} {voir="Exemple complet"} Installe les correctifs de sécurité dès les premières
+   minutes, puis confie les suivants à `unattended-upgrades` : le cours n'aborde pas les mises à
+   jour automatiques, et `apt update` seul ne met rien à jour.
+
+   ```bash
+   # PuTTY, sur le serveur Ubuntu : en root, ou chaque ligne precedee de « sudo » sous ton compte
+   apt update && apt upgrade          # le catalogue, PUIS l'installation reelle des correctifs
+   apt install unattended-upgrades    # les correctifs de securite s'appliqueront ensuite seuls
+   ```
+
+7. {voir="Se repérer, lister, créer"} Prends tes repères avant de toucher à quoi que ce soit : `pwd`
    dit où tu es, `ls -l` dit ce qu'il y a, `cd` t'emmène ailleurs — et souviens-toi qu'un chemin qui
    commence par `/` part de la racine, tandis que tout autre part de là où tu te trouves.
 
@@ -116,7 +143,7 @@ besoin dès la séance 3.
    cd html                 # chemin RELATIF : il part du repertoire courant
    ```
 
-5. {voir="L'éditeur `vi` : deux modes, et toute la confusion vient de là"} Crée et modifie tes
+8. {voir="L'éditeur `vi` : deux modes, et toute la confusion vient de là"} Crée et modifie tes
    fichiers avec `vi` en gardant les deux modes en tête : `i` pour écrire, `Échap` pour reprendre la
    main, `:wq` pour enregistrer et sortir — et `:q!` pour sortir sans rien garder.
 
@@ -124,7 +151,7 @@ besoin dès la séance 3.
    vi exercice4.txt   # « i » pour ecrire, « Echap » puis « :wq » pour enregistrer et sortir
    ```
 
-6. {voir="Renommer, déplacer, se déplacer"} Renomme et déplace avec la **même** commande, `mv`, et
+9. {voir="Renommer, déplacer, se déplacer"} Renomme et déplace avec la **même** commande, `mv`, et
    écris la barre oblique finale dès que la destination est un répertoire : sans elle, un répertoire
    absent te vaut un fichier renommé plutôt qu'une erreur.
 
@@ -133,18 +160,18 @@ besoin dès la séance 3.
    mv demo.txt contenu/      # DEPLACER : la barre finale dit « c'est un repertoire »
    ```
 
-7. {voir="Supprimer : la commande sans corbeille"} Fais un `ls` avant chaque `rm`, puisqu'il n'y a
-   pas de corbeille, et rappelle-toi qu'un répertoire exige `-r` : sans lui, l'opération est
-   refusée.
+10. {voir="Supprimer : la commande sans corbeille"} Fais un `ls` avant chaque `rm`, puisqu'il n'y a
+    pas de corbeille, et rappelle-toi qu'un répertoire exige `-r` : sans lui, l'opération est
+    refusée.
 
-   ```bash
-   ls contenu/        # d'abord regarder ce qu'on s'apprete a detruire
-   rm demo.txt        # un fichier
-   rm -r contenu/     # un repertoire : le « -r » est exige
-   ```
+    ```bash
+    ls contenu/        # d'abord regarder ce qu'on s'apprete a detruire
+    rm demo.txt        # un fichier
+    rm -r contenu/     # un repertoire : le « -r » est exige
+    ```
 
-8. {voir="module:communication-serveur"} Enchaîne sur la séance 3 dès que la machine est debout : il
-   reste à en fermer l'accès, avec des clés SSH et un pare-feu.
+11. {voir="module:communication-serveur"} Enchaîne sur la séance 3 dès que la machine est debout :
+    il reste à en fermer l'accès, avec des clés SSH et un pare-feu.
 
 ::::
 

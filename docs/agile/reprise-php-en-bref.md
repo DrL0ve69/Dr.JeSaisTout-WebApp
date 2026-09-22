@@ -193,7 +193,7 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-8** | Séance 8 — Déploiement (module `07`) | ✅ **2026-09-17** |
 | **PHP-PUB** | Les sept modules en `statut: publiee` : marqueurs levés sans valeur inventée, plomberie « second cours publié » | ✅ **2026-09-17** — clôture en fin de document |
 | **PHP-9** | ~~Séance 10 — Introduction à Laravel~~ | 🚫 **sans objet, 2026-09-21** — la séance a disparu du calendrier (clôture en fin de document) |
-| **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
+| **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ✅ **2026-09-22** — 31 voies (14 `cours`, 17 `moderne`) ; une relecture adversariale, quatre constats « à corriger » appliqués ; clôture en fin de document |
 
 ### ✅ CLÔTURE — E7 lot B « les routes du cours de PHP » (2026-09-10)
 
@@ -1331,3 +1331,74 @@ format actionnable des modules 07 et 08 de sécurité. Trois leçons publiées r
 dénominateur** faute de `seance` : `20-evaluation-cvss`, `21-csrf`, `22-controle-acces`.
 ⚠️ Rappel du lot PHP-F : ce rapport **ne se compare pas d’une époque à l’autre** ; il est passé de
 `9/18` à `16/18` parce que sept modules ont été **déclarés**, pas parce qu’une leçon a progressé.
+
+---
+
+### ✅ CLÔTURE — PHP-R « D-PHP-1 rétro-appliquée aux cinq modules de sécurité » (2026-09-22)
+
+**Ce qui est posé.** Les marches à suivre des modules de sécurité `01`, `02`, `03`, `04` et `11`
+avaient été mises au format actionnable **avant** que l'attribut `{voie}` existe (PHP-A1) : elles ne
+portaient aucune voie, alors que leur corps signalait déjà les écarts entre le cours et la pratique
+d'aujourd'hui. **31 voies** y sont posées (`grep -o 'voie="[a-z]*"'`) :
+
+| Module | `cours` | `moderne` | Étapes avant → après |
+|---|---|---|---|
+| 01 | 2 | 2 | 6 → 9 |
+| 02 | 1 | 3 | 8 → 11 |
+| 03 | 5 | 4 | 9 → 13 |
+| 04 | 2 | 4 | 9 → 14 |
+| 11 | 4 | 4 | 11 → 15 |
+
+🔴 **La règle qui a borné le lot : AUCUN FAIT NEUF.** Chaque étape `moderne` reformule un encadré
+`correction-du-cours`, un `complement` ou un volet `:::: methodes` que la **même** leçon porte déjà,
+et son `{voir}` pointe la section qui le porte. C'est ce qui a permis de faire écrire le lot par
+cinq agents en parallèle (fichiers disjoints, gates interdits pendant la rédaction) sans passe de
+sourçage : la source d'autorité était la leçon elle-même. Budgets : 83k, 94k, 100k, 95k, 88k ;
+relecture adversariale 125k.
+
+**Ce que la relecture a trouvé, et c'est la leçon du lot — une voie est une DÉCLARATION DE
+PROVENANCE, et elle se trompe dans les deux sens.**
+
+1. **Une étape `cours` qui porte un geste que le cours ne fait pas.** Module 04, étape « ouvre la
+   crontab » : elle incluait une sauvegarde de la table, ajout de la KB — étiquetée « Voie du cours »,
+   elle attribuait au cours ce qu'il n'enseigne pas. Voie retirée. Module 03, étape 1 : elle rangeait
+   la clé « hors OneDrive » sous l'étiquette du cours, alors que le cours la range sur le Bureau,
+   dans OneDrive — reformulée pour dire l'écart.
+2. **Une étape `cours` dont le cours n'est pas celui de la page.** Module 11 : `htdocs`, `config.ini`
+   en racine web et `chmod 777` sont la voie du cours de **PHP**, et le corps dit en toutes lettres
+   que ce n'est pas de la matière d'examen pour le cours de sécurité. L'étiquette rendue (« la
+   méthode enseignée, celle qui sera évaluée ») mentait par omission ; chaque étape dit désormais
+   **quel** examen l'évalue. ⚠️ Et une première correction du coordinateur y avait glissé un fait
+   neuf (`C:\wamp64\www\monSite`), absent du corps : retiré.
+3. **Deux ruptures d'enchaînement nées de la paire elle-même** (module 02) : l'étape `moderne` choisit
+   la clé SSH, puis l'étape suivante faisait changer un mot de passe qui n'existe plus sur cette voie ;
+   et le compte `sudo` créé ne recevait pas la clé (`rsync --chown`, tiré de l'« Exemple complet »).
+   Une paire de voies **dédouble le parcours** : chaque étape commune qui suit doit rester vraie sur
+   les deux branches.
+
+#### Ce qui n'a PAS été remonté, délibérément
+
+`ls -la` (habitude, pas pratique plus récente), `vi`/`nano` (deux outils du cours), le changement de
+port SSH (aucune étape de la marche ne l'applique), fail2ban (aucune étape de détection de force
+brute), `Restart=on-failure` (remplace le script entier), les coquilles de diapositive (module 04,
+`0 3 * * * 6` et `*/1`) — une erreur du cours n'est pas une méthode concurrente.
+
+#### Dette nommée par ce lot
+
+- Module 11 : le **corps** présente XAMPP comme l'outil du cours de PHP, alors que D-PHP-3 donne WAMP
+  comme environnement de référence et XAMPP interdit au Cégep. Contradiction antérieure au lot,
+  non corrigée (hors marche).
+- Blocs de code **préexistants** des marches (module 11 : quatre ; module 02 : un) sans lieu
+  d'exécution en première ligne — même dette que celle du cours de PHP, à traiter dans ce lot-là.
+
+#### Gates
+
+| Gate | Résultat |
+|---|---|
+| `npm run content:build` | ✔ 21 leçons, 2 racines, 4 avertissements de poids (**inchangés**, mesurés avant le lot), 0 dépassement |
+| `npm run content:valider:fixtures` | ✔ 52/52 |
+| `npm run lint` | ✔ |
+| `npm test` | ✔ 49 fichiers, 1213 passés, 1 sauté |
+| `npm run build` | ✔ 25 routes prerendues · 14 hachages `style-src`, 0 `script-src` (inchangés) |
+| `npm run a11y:axe` | ✔ 0 violation, 25 fichiers, 2 150 vérifications |
+| `npm run e2e` | laissé à la CI — aucune route, aucun composant touchés |
