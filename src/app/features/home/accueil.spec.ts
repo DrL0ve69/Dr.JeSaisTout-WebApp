@@ -245,7 +245,7 @@ describe('Accueil', () => {
 
       expect(publiees).toBeGreaterThan(0);
       expect(texte).toBe(
-        publiees > 1 ? `${String(publiees)} modules publiés sur 15` : `${String(publiees)} module publié sur 15`,
+        publiees > 1 ? `${String(publiees)} modules publiés sur 14` : `${String(publiees)} module publié sur 14`,
       );
     });
 
@@ -256,7 +256,7 @@ describe('Accueil', () => {
       expect(jauge).toBeDefined();
       expect(jauge).not.toBeNull();
       expect(jauge?.getAttribute('aria-hidden')).toBe('true');
-      expect(jauge?.querySelectorAll('.segment').length).toBe(15);
+      expect(jauge?.querySelectorAll('.segment').length).toBe(14);
       expect(jauge?.querySelectorAll('.segment.rempli').length).toBe(
         lecons.filter((lecon) => lecon.statut === 'publiee').length,
       );

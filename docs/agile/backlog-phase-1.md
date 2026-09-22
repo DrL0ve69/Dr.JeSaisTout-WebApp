@@ -4508,3 +4508,69 @@ Côté sécurité : **séance 9** « Sécurité des mécanismes d'authentificati
 avant tout brief), puis la reprise au format actionnable des modules 07 et 08. Côté PHP : **PHP-9**
 (séance 10, Laravel).
 
+---
+
+## ✅ CLÔTURE — la séance 9 « Sécurité des mécanismes d'authentification et autorisation », en UN module (2026-09-21)
+
+**Livré, publié** : `content/cours/securite-web/10-securite-authentification/` — titre verbatim du
+calendrier, section « Données et authentification », `seance: 9`, ~1 370 lignes, 6 questions de
+quiz (quatre types), les **cinq** exercices de la séance inscrits au registre (relevés à la source,
+`…/exercice-securisation-app-web-cours-9-2026/`) et placés au fil du texte. Au format actionnable dès
+la rédaction (`MODULES_AU_FORMAT_ACTIONNABLE`), diapositives 1-106 toutes atteignables. Accueil :
+`MODULES_PUBLIES` 13 → **14**, `MODULES_TOTAL` 15 → **14** — la séance 9 tient en **un** module, pas
+deux : son déck compte 106 diapositives mais 25 Ko de texte seulement. **Toutes les séances de
+contenu du calendrier ont désormais leur module** ; la description de la carte le dit.
+
+**Pourquoi un module et trois rédacteurs.** Le créneau `10` était le seul libre entre `09` (séance 8)
+et `11` (séance 10) ; deux modules auraient obligé à renuméroter `11-projet-de-session`. Le volume de
+sortie, lui, se découpait entre **agents** : moitié A (diapos 1-66), moitié B (67-99), moitié C
+(« En bref » et sections de clôture), écrites en séquence dans le même fichier, plus le quiz en
+parallèle de C.
+
+### Ce que la mesure au fil principal a trouvé avant tout brief
+
+- **Coquille de la diapo 45** : 26⁶ = 308 915 776 (la diapo écrit 309 915 776), donc la somme juste
+  est 217 167 790 528 — mesuré en BigInt ; encadré `correction-du-cours`, et un distracteur du quiz.
+- **Les renvois du déck au cours de PHP sont faux sur le calendrier 2026** : « cours 8 de PHP » (c'est
+  Déploiement) et « cours 10 de PHP » (c'est Laravel). `password_hash` et `htmlspecialchars` sont à
+  la séance 3 de PHP, les requêtes préparées à la séance 5, les sessions à la séance 7.
+- Captures lues (diapos 55, 56, 82, 84, 93, 97) et transcrites ; le hachage de la diapo 82 a été
+  vérifié authentique (`password_verify("admin", …)` → vrai, PHP 8.5.10).
+
+### Ce que la passe adversariale a trouvé
+
+Deux `verificateur-theorie` indépendants, **À CORRIGER** tous deux, puis correctifs par un agent frais
+(17 constats, aucun marqueur restant). 🔴 **Le seul constat bloquant venait de MON relevé.** J'avais
+affirmé, relevés `curl` à l'appui, que `session.gc_probability` vaut 1/1000 sur Ubuntu 24.04 et que
+deux fiches KB se trompaient en disant 0. **C'était faux, et la KB avait raison** : le correctif
+`0047-Disable-garbage-collection-routine.patch` (Canonical, 2024-01-20) le met à 0. Ma recherche de
+correctifs filtrait les noms par le motif `ini|gc|session` — « garbage-collection » n'y répond pas.
+C'est, appliqué à une vérification, exactement le défaut que `.claude/rules/security.md` §4 nomme :
+**une liste de motifs ne trouve que ce que son auteur a imaginé**. Il fallait lire `series` en entier.
+La vérification a fait son travail précisément parce qu'elle ne s'est pas contentée de mes relevés.
+Autres constats : l'anti-énumération de la diapo 84 est vraie du message mais pas du **temps de
+réponse** (bcrypt n'est pas calculé pour un compte inexistant) ; bcrypt tronqué à 72 octets ne donne
+pas « la même empreinte » ; plusieurs promesses trop fortes (« rend le dictionnaire inutile »).
+
+**Aucune correction de la KnowledgeBase.**
+
+### 🔴 Budget — trois rédacteurs au-dessus du plafond, et c'est à moi
+
+Rédacteurs **175k** (A, 486 lignes), **178k** (B, ~605 lignes) et 131k (C, ~300 lignes) ; quiz 111k ;
+vérifications 127k et 136k (deux premières tentatives coupées par la limite d'usage, relancées) ;
+correctifs 106k. A et B dépassent 150k alors que leur volume de SORTIE était borné et à peu près
+tenu : le poste dominant est la **lecture** — plan commun (~4 000 tokens), déck entier, quatre plages
+KB de 150 à 400 lignes, sections du contrat — plus une réécriture pour tenir le volume. La découpe
+qui aurait tenu : des plages KB **injectées** (les 20-40 lignes utiles) au lieu d'être pointées.
+
+### Gates
+
+G-content **21 leçons**, 0 dépassement (`securite-authentification` 277 Ko brut, 63,5 Ko servi) ·
+G-lint · G-typage-outils · G-test **1212 passés / 1 sauté** · G-build **25 routes prerendues** (24
+avant), **14 hachages `style-src` / 0 de script, inchangés** · G-axe **0 violation sur 25 fichiers** ·
+G-e2e **57 passés / 1 sauté, 0 échec** (`defileurs-clavier.spec.ts:502` est passé cette fois).
+
+### Geste suivant
+
+Côté sécurité : la reprise au format actionnable des modules **07** (injection) et **08** (XSS),
+compteur `5/9`. Côté PHP : **PHP-9** (séance 10, « Introduction à Laravel »).
