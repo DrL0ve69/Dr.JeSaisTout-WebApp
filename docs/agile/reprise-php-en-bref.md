@@ -184,7 +184,7 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-A2** | Grammaire d'auteur pour D-PHP-1, **format A** — admettre `:::: methodes` **dans** une étape de marche à suivre, pour une démarche qui diverge vraiment | ⬜ **pas ouvert** |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ✅ **2026-09-14** — `statut: verifiee`, six `à-vérifier:` |
 | **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ✅ **2026-09-22** — clef `<sujet>/<slug>`, corpus = les racines par défaut ; clôture en fin de document |
-| **PHP-F2** | Déclarer conformes les **sept** modules PHP : leurs clefs entrent dans `MODULES_AU_FORMAT_ACTIONNABLE`, après relecture module par module | ⬜ **nommé le 2026-09-22** — mesuré prometteur (0 titre muet sur les sept), mais entrer dans la liste **vaut déclaration de conformité**, pas constat d'un grep |
+| **PHP-F2** | Déclarer conformes les **sept** modules PHP : leurs clefs entrent dans `MODULES_AU_FORMAT_ACTIONNABLE`, après relecture module par module | ✅ **2026-09-22** — 16 clefs, dont les 7 de `php/…` ; quatre relectures adversariales, **deux défauts trouvés et corrigés** ; clôture en fin de document |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ✅ **2026-09-14** — `statut: verifiee`, cinq `à-vérifier:` |
 | **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ✅ **2026-09-16** — `statut: verifiee`, **un** `à-vérifier:` |
@@ -1214,3 +1214,120 @@ les sept modules portent **0 titre muet** (24 à 32 titres chacun), chacun avec 
 et son conteneur `marche-a-suivre`. Ils entreraient donc probablement verts — mais **entrer dans la
 liste vaut déclaration de conformité après revue humaine**, pas constat d'un `grep` : c'est un lot à
 part, et c'est pourquoi PHP-F s'arrête ici. Ensuite **PHP-R**.
+
+### ✅ CLÔTURE — PHP-F2 « les sept modules PHP déclarés conformes » (2026-09-22)
+
+**Ce qui est posé.** `MODULES_AU_FORMAT_ACTIONNABLE` passe de 9 à **16 clefs** : les sept
+`php/…` y entrent, et ce sont les premières à emprunter la clef `<sujet>/<slug>` ouverte au lot
+PHP-F. La règle 13 mord désormais sur les deux cours entiers pour tout module publié et ancré.
+
+🔴 **LA DIFFICULTÉ DU LOT N'ÉTAIT PAS D'ÉCRIRE SEPT LIGNES — C'ÉTAIT DE POUVOIR LES SIGNER.** Le
+validateur exécuté avec les sept clefs était **vert du premier coup** : section « En bref » présente,
+unique et bien placée, conteneur `marche-a-suivre` présent, `seance` déclarée, zéro titre muet sur
+les sept. Si le lot s'était arrêté là, il aurait confondu « le gate ne rougit pas » avec « le module
+est conforme » — or entrer dans cette liste **vaut déclaration de conformité**, et la moitié du
+contrat (D-B renvois vrais, D-C clause de rédaction, D-PHP-1 forme des voies) n'est vue par **aucun**
+instrument. C'est précisément ce que le gate ne peut pas mesurer qui a été relu.
+
+**La méthode, et son dimensionnement.** ~12 600 lignes de leçon et ~170 Ko de cartographies : hors
+d'atteinte d'un agent. Quatre relectures adversariales **en lecture seule et en parallèle** (le
+fan-out qu'autorise le §6 de la règle de budget), découpées au **volume de source** — 01+02, 03+04,
+05+06, et 07 seul parce qu'il pèse 3 056 lignes à lui tout seul. Chaque brief interdisait d'ouvrir
+un `lecon.md` en entier et imposait `grep -n` puis `Read` borné, la **cartographie** mesurée servant
+de source de vérité. Budgets : **116k, 117k, 128k, 118k**, pour 8, 8, 14 et 13 appels d'outils —
+tous sous le maximum de 150k.
+
+**Les deux défauts trouvés, et ils n'auraient rougi nulle part.**
+
+1. 🔴 **`02-superglobales-tableaux-classes/lecon.md` — une contradiction CACHÉE DANS UN VOLET
+   MASQUÉ**, c'est-à-dire le mode d'échec exact que la clause de rédaction de D-C décrit. La prose
+   **visible** cite la recommandation du cours — compter les éléments « une seule fois, **avant** la
+   boucle » — et l'étape 11 de la marche à suivre la répète ; le volet `array_keys, pour contourner`
+   écrivait `for ($x = 0; $x < count($cles); $x++)`, qui **recompte à chaque tour**. La leçon se
+   contredisait elle-même, et la contradiction était derrière un onglet que le `Ctrl+F` ne trouve
+   pas. Corrigé : `$nombre = count($cles);` extrait avant la boucle, comme dans le volet voisin.
+   ⚠️ **Ce que ça enseigne sur la clause D-C** : jusqu'ici elle était énoncée contre l'**omission**
+   (un volet masqué qui porte le seul exemplaire d'un fait). Ce cas-ci est le symétrique, et il est
+   pire : le volet ne cachait pas un fait manquant ailleurs, il cachait un fait **qui contredisait
+   la prose visible**. Un relecteur qui ne déplie pas les onglets lit une leçon cohérente.
+2. **`docs/contenu/renvois-diapos-php-01.md` — la cartographie avait dérivé sous la leçon.** Sa
+   table nommait encore `## Exemple simple — la première page PHP` (le titre a été raccourci en
+   `## Exemple simple`) et ordonnait « En bref » après « Ce que la séance 1 enseigne », alors que la
+   leçon les porte dans l'ordre inverse. Les **renvois**, eux, étaient justes au caractère près.
+   ⚠️ Une cartographie est l'**instrument de mesure** des renvois : quand elle dérive, ce n'est pas
+   un document qui vieillit, c'est la règle graduée qui ne coïncide plus avec la pièce. Elle se
+   recale au moment où on s'en sert, jamais « plus tard ».
+
+**Les cinq autres modules sont conformes sans réserve** : 03 (29 titres), 04 (28), 05 (28), 06 (28)
+et 07 (32) concordent avec leur cartographie **dans les deux sens**, renvoi par renvoi. Les
+**15 `{hors-cours}`** des sept modules ont été confrontés un à un au §3 « sens inverse » de chaque
+cartographie : **aucun ne ment** — aucune diapositive couverte ne se cache derrière la promesse
+qu'il n'y en a pas. Les **trois conteneurs `:::: methodes`** du corpus PHP (un au 01, deux au 02)
+ont vu leur clause de rédaction vérifiée ; celle du 01 et les deux du 02 tiennent, la prose visible
+nommant les options avant que les volets ne portent le geste. Les **120 renvois d'étape `{voir=}`**
+des sept marches à suivre (12·17·15·13·16·20·27, par `grep -o "voir="`) pointent tous vers un titre
+existant, et les **21 paires `{voie}`** sont toutes des écarts de une à sept lignes — la forme
+courte que D-PHP-1 réserve au format C, aucune ne déguisant une démarche entière qui aurait appelé
+un `:::: methodes`.
+
+⚠️ **Le corpus porte 21 `voie="cours"` pour 23 `voie="moderne"` : DEUX `moderne` sont donc sans
+contrepartie**, et c'est licite — le pipeline n'exige aucun appariement (une étape porte AU PLUS
+une voie). Les deux sont au module 07, étapes 14 (obtenir un certificat HTTPS par Certbot) et 20
+(retirer phpMyAdmin de la racine web) : le cours n'enseigne ni l'un ni l'autre, il n'y a donc **pas
+de voie du cours à mettre en regard** — l'écart y est une omission du cours, pas une méthode
+concurrente. Ces deux chiffres ont d'abord été écrits « ~140 » et « 17 » de mémoire, et redressés
+par la revue : *un chiffre de clôture se dérive d'une commande citée, jamais d'un souvenir* — c'est
+la récidive exacte du §8 de `.claude/rules/agent-context-budget.md`.
+
+⚠️ **Le 07 a été relu contre le déck RÉEXTRAIT le 2026-09-16** (101 diapositives, `Last-Modified:
+2026-09-12`), pas contre la copie du 2026-08-31 qui en portait 103 — au-delà de la 62, la
+numérotation neuve vaut l'ancienne moins deux. La cartographie le déclare en tête ; sans cette
+lecture, les trente-deux concordances auraient été jugées contre la mauvaise règle graduée.
+
+#### La dette que la revue a NOMMÉE, et qui n'appartient pas à ce lot
+
+- 🔴 **La décision du 2026-09-17 — « tout bloc de code dit OÙ il s'exécute » — n'est appliquée nulle
+  part dans le cours de PHP** : mesuré **1 bloc sur ~300**. Les sept modules ont été écrits entre le
+  2026-09-13 et le 2026-09-17, donc avant ou à cheval sur la décision : c'est de la dette
+  d'antériorité, pas une régression. Comparatif mesuré au passage : `securite-web/09` est à 29/31.
+- **`powershell` n'est pas dans la liste fermée des neuf langages** (`compiler-markdown.mjs`), et
+  c'est la cause commune de deux symptômes : quatre blocs de **commandes** étiquetés `text` au
+  module 07, et des blocs Windows (`cd C:\wamp64\www…`, `php.exe -S`) étiquetés `bash` au module 01.
+  Ouvrir un langage fait naître des encres neuves dans la feuille générée, donc **G-contraste**
+  (L-080) : lot à part, jamais un correctif d'étiquette isolé.
+- Améliorations non bloquantes relevées et **non appliquées**, pour tenir le périmètre : trois étapes
+  du 03 (6, 4, 16) gagneraient un `{voir=}` plus précis, et l'étape 1 du 03 formule en impératif un
+  geste XAMPP **interdit au Cégep** (l'étape 2 rattrape) ; l'étape 2 du 04 montre un attribut public
+  non typé sans `{voie="cours"}` alors que l'étape 7 en prend le contrepied.
+
+#### Gates
+
+| Gate | Résultat |
+|---|---|
+| `npm run lint` · `npm run typecheck:tools` | ✔ |
+| `npm run content:build` | ✔ **21 leçons, 2 racines, 0 dépassement** |
+| `npm run content:valider:fixtures` | ✔ **52/52** cas refusés avec une cause nommée |
+| `--modules-actionnables` | **16 clefs** triées, dont les 7 de `php/…` |
+| `npm test` | ✔ **49 fichiers, 1213 passés, 1 sauté** — compteur imprimé `16/18` |
+| `npm run build` | ✔ **25 routes prerendues** · **14 hachages `style-src`, 0 `script-src`** (inchangés) |
+| `npm run a11y:axe` | ✔ **0 violation**, 25 fichiers, 2 150 vérifications |
+| `npm audit --omit=dev` | ✔ **0** |
+| `npm run e2e` | laissé à la CI — le lot ne touche ni route, ni composant, ni page publiée |
+
+🔴 **CE QUE LE PREMIER `npm test` A FAIT CROIRE, ET POURQUOI C’EST UNE LEÇON DE MÉTHODE.** Lancé
+pendant que cinq sous-agents travaillaient encore, il a rendu **15 échecs sur 8 fichiers**, dont
+`format-actionnable.spec.ts` — le gate de ce lot même —, et un fichier à **24 minutes**. Relancé sur
+une machine au repos : **49/49 en 193 secondes**. C’était la contention, et rien d’autre. Deux
+gestes en sortent. (1) **Un gate ne se lance pas pendant que des agents tournent** : la mesure ne
+porte plus sur le code. (2) 🔴 **Un gate ne se lit pas à travers un `| grep`** — le filtre avait
+caché les messages d’échec, et le code de sortie du tube était celui de `tail`, donc **0 sur une
+suite rouge**. Un gate se lance nu, sa sortie va dans un fichier, et c’est le fichier qu on lit.
+
+#### Ce que le compteur dit maintenant
+
+`16/18`, **zéro clef morte**. Les deux restants sont `securite-web/07-injection` et
+`securite-web/08-xss` — c’est-à-dire exactement la dette déjà nommée au CLAUDE.md, la reprise au
+format actionnable des modules 07 et 08 de sécurité. Trois leçons publiées restent **hors du
+dénominateur** faute de `seance` : `20-evaluation-cvss`, `21-csrf`, `22-controle-acces`.
+⚠️ Rappel du lot PHP-F : ce rapport **ne se compare pas d’une époque à l’autre** ; il est passé de
+`9/18` à `16/18` parce que sept modules ont été **déclarés**, pas parce qu’une leçon a progressé.

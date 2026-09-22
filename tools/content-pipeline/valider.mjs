@@ -1223,6 +1223,16 @@ const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
   // 2026-09-21 — la séance 9, un seul module écrit en trois moitiés, au format actionnable dès sa
   // rédaction.
   'securite-web/securite-authentification',
+  // 2026-09-22 (lot PHP-F2) — LE SECOND COURS ENTIER : les sept modules du cours de PHP, publiés
+  // et ancrés à une séance, déclarés conformes après relecture module par module. Ils sont les
+  // premiers à entrer par la clef « <sujet>/<slug> » ouverte au lot PHP-F.
+  'php/introduction-php',
+  'php/superglobales-tableaux-classes',
+  'php/librairie-standard',
+  'php/programmation-orientee-objet',
+  'php/integration-base-de-donnees',
+  'php/sessions-authentification',
+  'php/deploiement',
 ]);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
