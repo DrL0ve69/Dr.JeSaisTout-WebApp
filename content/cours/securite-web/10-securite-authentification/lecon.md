@@ -295,11 +295,11 @@ attaque**, la fuite : il ne protège pas le formulaire, il protège ce qui arriv
 la table. La diapositive 34 annonce que la séance traitera ces deux mesures, et renvoie les requêtes
 préparées et les codes d'entité à un autre cours.
 
-::: correction-du-cours {source="content/cours/php/horaire.json, calendrier 2026 du cours 420-4P2-HU (relu le 2026-09-21) ; extraits Cours03_Librairie_PHP (diapositives 26-29), Cours05_integration_base_de_donnees (php-2026/extraits/Cours05_integration_base_de_donnees.txt, diapositives 37-50) et Cours07_Les_sessions_en_php" diapos="18, 23, 34"}
+::: correction-du-cours {source="calendrier 2026 du cours 420-4P2-HU, https://www.alexandrepetrin.ca/php/ (relu le 2026-09-21) ; extraits Cours03_Librairie_PHP (diapositives 26-29), Cours05_integration_base_de_donnees (php-2026/extraits/Cours05_integration_base_de_donnees.txt, diapositives 37-50) et Cours07_Les_sessions_en_php" diapos="18, 23, 34"}
 Le support renvoie au « cours 8 de PHP » pour l'injection SQL et le XSS (diapositives 18 et 23), et
 au « cours 10 de PHP » pour les requêtes préparées et les codes d'entité (diapositive 34). Dans le
-calendrier 2026, la séance 8 de PHP porte sur le **déploiement** et la séance 10 sur l'**introduction
-à Laravel** : ces numéros ne correspondent pas au calendrier 2026. Où trouver la matière aujourd'hui :
+calendrier 2026, la séance 8 de PHP porte sur le **déploiement** et la séance 10 est le **projet de
+session** : ces numéros ne correspondent pas au calendrier 2026. Où trouver la matière aujourd'hui :
 `htmlspecialchars()` (les « codes d'entité ») et `password_hash()` sont présentés à la **séance 3 de
 PHP** ; les requêtes préparées (`prepare`, les `?`, `bind_param`) sont enseignées à la **séance 5 de
 PHP** (diapositives 37-50) ; l'injection SQL, les requêtes préparées et le XSS sont aussi traités à la **séance 7 de ce cours-ci**,
