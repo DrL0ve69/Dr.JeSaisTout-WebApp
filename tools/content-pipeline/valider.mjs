@@ -1169,9 +1169,30 @@ const SECTION_MARCHE = 'En bref — la marche à suivre';
 
 /**
  * LES MODULES AU FORMAT ACTIONNABLE — liste NOMINATIVE, écrite à la main, jamais dérivée du corpus
- * (S-005, même patron que les hachages de la CSP). Un slug n'entre ici qu'au DERNIER geste de son
+ * (S-005, même patron que les hachages de la CSP). Une clef n'entre ici qu'au DERNIER geste de son
  * lot de reprise, après revue humaine : entrer dans la liste, c'est déclarer le module ENTIÈREMENT
  * conforme (décision D-D, `docs/contenu/pipeline-contenu.md`).
+ *
+ * 🔴 LA CLEF EST « `<sujet>/<slug>` », ET LE `sujet` EST CELUI DU FRONTMATTER (lot PHP-F,
+ * 2026-09-22). Elle a porté le slug NU jusque-là, du temps où `content/` n'hébergeait qu'un seul
+ * cours — promesse au singulier, périmée le jour où le cours de PHP est entré dans le corpus
+ * (patron S-010 : « LE module » a une date de péremption implicite). Deux modules de cours
+ * différents qui porteraient le même slug seraient déclarés conformes TOUS LES DEUX par un slug nu,
+ * et le second n'aurait jamais été relu par personne.
+ * ⚠️ CE DURCISSEMENT SE JUSTIFIE CONTRE LE CONTRÔLE EXISTANT, PAS CONTRE SON ABSENCE — précision
+ * apportée en revue de sécurité le 2026-09-22, parce qu'une carte des défenses fausse coûte autant
+ * qu'une défense manquante : on ne sait plus quel contrôle tient quoi. Le doublon de slug entre
+ * racines est DÉJÀ refusé, en échec de build, par `preparerContenuGenere`
+ * (`generer-manifeste.mjs`) — l'espace de noms de `lecons/<slug>.json` est plat. Mais ce refus ne
+ * voit que les leçons RETENUES, c'est-à-dire publiées : la clef à deux composantes ferme la fenêtre
+ * où il ne s'applique pas — leçons `brouillon`/`verifiee`, et `valider.mjs --racine` appelé seul —
+ * et elle survivra au jour où l'espace de noms des fichiers compilés cessera d'être plat.
+ * ⚠️ LE `sujet` DU FRONTMATTER, JAMAIS LE NOM DU DOSSIER DE LA RACINE — celle-ci est paramétrable
+ * (`--racine`) et vaut, pour les fixtures, un nom de cas de test : la racine témoin du gate vit
+ * sous `__fixtures__/format-actionnable/` tout en déclarant `sujet: securite-web`, et une clef
+ * bâtie sur le nom de dossier la sortirait du gate, verdissant les cinq cas de refus qui la
+ * mesurent. Le `sujet` est d'ailleurs l'identité d'URL (`cours/<sujet>/<slug>`), et la règle 14
+ * le contraint déjà à être unique et cohérent sur toute une racine.
  *
  * 🔴 CE QUE LA LISTE EXIGE SE JUGE ICI ; CE QU'ELLE NE PEUT PAS CONTENIR SE JUGE AILLEURS, ET LA
  * RAISON EST MESURÉE. Le contrat du lot 0 écrivait qu'un slug SANS leçon correspondante fait
@@ -1186,22 +1207,22 @@ const SECTION_MARCHE = 'En bref — la marche à suivre';
  * @type {ReadonlySet<string>}
  */
 const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
-  'projet-de-session',
-  'fondamentaux',
-  'environnement-linux',
-  'communication-serveur',
-  'automatisation-surveillance',
+  'securite-web/projet-de-session',
+  'securite-web/fondamentaux',
+  'securite-web/environnement-linux',
+  'securite-web/communication-serveur',
+  'securite-web/automatisation-surveillance',
   // 🆕 2026-09-17 — PREMIER module écrit au format actionnable DÈS SA RÉDACTION, au lieu d'y
   // être repris après coup. Ce n'est pas un détail de calendrier : les cinq précédents ont dû
   // faire remonter leurs contradictions latentes au moment de la reprise (lot 13), alors que
   // celui-ci les a rencontrées à l'écriture, quand elles ne coûtent qu'une phrase.
-  'securite-base-de-donnees',
+  'securite-web/securite-base-de-donnees',
   // 2026-09-21 — la séance 5, en deux modules, écrits au format actionnable dès leur rédaction.
-  'comptes-groupes-sudo',
-  'permissions-mots-de-passe',
+  'securite-web/comptes-groupes-sudo',
+  'securite-web/permissions-mots-de-passe',
   // 2026-09-21 — la séance 9, un seul module écrit en trois moitiés, au format actionnable dès sa
   // rédaction.
-  'securite-authentification',
+  'securite-web/securite-authentification',
 ]);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';
@@ -2418,16 +2439,19 @@ function causeDeLaSectionActionnable(titres, ouverturesDeMarche) {
  *   titres DÉPOUILLÉS de leur bloc d'attributs, celui-ci rendu à part
  * @param {readonly number[]} ouverturesDeMarche lignes des ouvertures de marche à suivre du corps
  * @param {number | null} seance la séance déclarée au frontmatter
+ * @param {string} clef la clef « `<sujet>/<slug>` » sous laquelle le module est listé — citée
+ *   telle quelle au refus (3), pour que l'auteur trouve la LIGNE à retirer et non un slug qu'un
+ *   second cours pourrait porter aussi
  * @param {(cause: string) => void} signaler
  */
-function verifierFormatActionnable(titres, ouverturesDeMarche, seance, signaler) {
+function verifierFormatActionnable(titres, ouverturesDeMarche, seance, clef, signaler) {
   // (3) EN PREMIER, parce que c'est elle qui rend (2) applicable. Un module de la liste qui perdrait
   // son `seance` perdrait l'exigence des renvois EN SILENCE : le format actionnable suppose un
   // ancrage au cours, et sortir du cours se fait en sortant de la LISTE, à la main, visiblement.
   if (seance === null) {
     signaler(
       'frontmatter : module déclaré au FORMAT ACTIONNABLE et sans « seance » — le format suppose ' +
-        'un ancrage au cours ; sortir du cours se fait en retirant le slug de ' +
+        `un ancrage au cours ; sortir du cours se fait en retirant « ${clef} » de ` +
         'MODULES_AU_FORMAT_ACTIONNABLE (tools/content-pipeline/valider.mjs), jamais en retirant ' +
         'la séance',
     );
@@ -2567,12 +2591,14 @@ function verifierProvenanceVsStatut(lignes, statut, signaler) {
  * @param {string} corps
  * @param {string} statut
  * @param {Ancrage} ancrage
- * @param {boolean} formatActionnable le slug du module est-il dans `MODULES_AU_FORMAT_ACTIONNABLE`
+ * @param {string | null} clefActionnable la clef « `<sujet>/<slug>` » du module quand elle figure
+ *   dans `MODULES_AU_FORMAT_ACTIONNABLE`, `null` sinon. La clef plutôt qu'un booléen : c'est elle
+ *   que le refus de l'exigence (3) doit citer à l'auteur, pour qu'il trouve la ligne à retirer.
  * @param {(cause: string) => void} signaler
  * @returns {{ exercicesCites: { ligne: number, seance: number, reference: string }[], modulesCites: { ligne: number, slug: string }[] }} ce que le
  *   corps a CITÉ et que seule la racine entière peut juger (unicité et complétude, règles 16)
  */
-function verifierCorps(corps, statut, ancrage, formatActionnable, signaler) {
+function verifierCorps(corps, statut, ancrage, clefActionnable, signaler) {
   const lignes = lignesDuCorps(corps);
   const { titres, vides, residus } = titresDuCorps(lignes);
 
@@ -2639,8 +2665,14 @@ function verifierCorps(corps, statut, ancrage, formatActionnable, signaler) {
   // ⚠️ EN DERNIER DES RÈGLES QUI SIGNALENT, et ce n'est pas cosmétique : ce gate ne juge que ce que
   // les règles 4, 4d et 11 ont déjà déclaré conforme. Placé avant elles, il accuserait un module de
   // ne pas porter de renvoi là où la vraie cause est un renvoi ILLISIBLE — la mauvaise ligne.
-  if (formatActionnable) {
-    verifierFormatActionnable(titres, ouverturesDeMarche, ancrage.seanceFrontmatter, signaler);
+  if (clefActionnable !== null) {
+    verifierFormatActionnable(
+      titres,
+      ouverturesDeMarche,
+      ancrage.seanceFrontmatter,
+      clefActionnable,
+      signaler,
+    );
   }
 
   // Le RECENSEMENT vient en dernier, et il ne signale rien : ce qu'il rend est jugé par
@@ -3220,11 +3252,22 @@ function validerLecon(dossier, horaire, exercices, sujetsFreres) {
     sujetsFreres,
   };
   const corps = texte.slice(separation[0].length);
+  // LA CLEF DU FORMAT ACTIONNABLE EST « <sujet>/<slug> », le `sujet` venant du FRONTMATTER — déjà
+  // validé par le schéma ci-dessus (type `kebab` : ni `sujet` ni `slug` ne peut contenir « / »,
+  // donc la clef a exactement un séparateur), et tenu uniforme sur toute la racine par le contrôle
+  // « plusieurs « sujet » déclarés sous la même racine » de `validerRacine`.
+  // ⚠️ CE N'EST PAS LA RÈGLE 14 QUI LE TIENT — correctif de revue du 2026-09-22, où ce commentaire
+  // la créditait. La règle 14 n'apparie que l'HORAIRE aux leçons, et seulement quand `sujets.size
+  // === 1` : elle est muette dans le cas même où on l'invoquerait. Un commentaire qui nomme le
+  // mauvais garde-fou envoie le prochain lecteur vérifier au mauvais endroit — et un renvoi à un
+  // NUMÉRO de règle se périme comme un chiffre recopié.
+  // Le nom du dossier de la racine ne conviendrait pas : voir MODULES_AU_FORMAT_ACTIONNABLE.
+  const clefActionnable = `${String(frontmatter['sujet'])}/${slug}`;
   const { exercicesCites, modulesCites } = verifierCorps(
     corps,
     statut,
     ancrage,
-    MODULES_AU_FORMAT_ACTIONNABLE.has(slug),
+    MODULES_AU_FORMAT_ACTIONNABLE.has(clefActionnable) ? clefActionnable : null,
     signalerLecon,
   );
   verifierTitreContreFrontmatter(corps, frontmatter, signalerLecon);
@@ -4149,8 +4192,10 @@ const options = lireArguments();
 if (options.modulesActionnables) {
   // --- Mode LISTE DU FORMAT ACTIONNABLE -------------------------------------
   // Trié, pour que la sortie soit la même sur ce poste et sur le runner (même raison que
-  // `comparerOctets`). ASCII pur, comme `--clefs` : ces slugs sont en kebab-case aujourd'hui, mais
+  // `comparerOctets`). ASCII pur, comme `--clefs` : ces clefs sont en kebab-case aujourd'hui, mais
   // c'est le format de sortie qui doit traverser n'importe quelle page de code, pas les valeurs.
+  // Ce que ce mode imprime sont des clefs « <sujet>/<slug> » depuis le lot PHP-F, et non plus des
+  // slugs nus : `src/format-actionnable.spec.ts` les apparie au corpus des DEUX cours.
   process.stdout.write(`${enJsonAscii([...MODULES_AU_FORMAT_ACTIONNABLE].sort(comparerOctets))}\n`);
   process.exit(0);
 }

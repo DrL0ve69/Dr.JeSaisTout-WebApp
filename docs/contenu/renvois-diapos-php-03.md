@@ -256,8 +256,11 @@ chemins du poste **P-2, P-4, P-5, P-6 et P-7** ne sont pas fournis
 (`C:\wamp64`, racine servie `C:\wamp64\www`) sont confirmés. **Les quatre restants dépendent tous
 réellement du poste** — c'est ce qui les distingue du cinquième.
 
-⚠️ **Le module n'entre PAS dans `MODULES_AU_FORMAT_ACTIONNABLE`**, et ce n'est pas un oubli :
-`src/format-actionnable.spec.ts:29` fixe `CORPUS = 'content/cours/securite-web'` en dur (lot
-**PHP-F**). Les renvois `{diapos="…"}` de cette table sont écrits **quand même** — leur grammaire
-est légale sur n'importe quel module ; c'est seulement leur **caractère obligatoire** qui dépend de
-la liste.
+⚠️ **Le module n'entre pas ENCORE dans `MODULES_AU_FORMAT_ACTIONNABLE`** — mais l'obstacle qui
+l'en empêchait est **levé depuis le 2026-09-22** (lot **PHP-F**) : `src/format-actionnable.spec.ts`
+fixait `content/cours/securite-web` en dur et la liste était indexée par **slug nu**. Elle porte
+désormais des clefs `<sujet>/<slug>`, et le spec balaie les racines rendues par
+`build.mjs --racines-par-defaut` — les deux cours. Ce qui reste est une **déclaration de conformité
+module par module**, qui vaut revue humaine : lot **PHP-F2**. Les renvois `{diapos="…"}` de cette
+table sont écrits **quand même** — leur grammaire est légale sur n'importe quel module ; c'est
+seulement leur **caractère obligatoire** qui dépend de la liste.

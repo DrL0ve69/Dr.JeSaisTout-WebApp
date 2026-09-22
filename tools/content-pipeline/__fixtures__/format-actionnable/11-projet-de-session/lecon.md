@@ -36,7 +36,7 @@ actionnable porte un compteur qui rappelle ce qui reste à reprendre.
 
 2. Annoter chaque titre de section, aux DEUX niveaux, d'un renvoi ou du marqueur `{hors-cours}`.
 
-3. Ajouter le slug à `MODULES_AU_FORMAT_ACTIONNABLE`, en dernier geste du lot.
+3. Ajouter la clef `<sujet>/<slug>` à `MODULES_AU_FORMAT_ACTIONNABLE`, en dernier geste du lot.
 
 ::::
 

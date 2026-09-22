@@ -20,14 +20,35 @@
 // =============================================================================
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const VALIDATEUR = 'tools/content-pipeline/valider.mjs';
+/**
+ * L'orchestrateur, lu pour ses racines par défaut — c'est-à-dire LES DEUX COURS, et non le seul
+ * `securite-web` que ce fichier épinglait en dur jusqu'au lot PHP-F (2026-09-22). Cette constante
+ * fermait le compteur du durcissement au cours de PHP : sept modules publiés et ancrés n'entraient
+ * dans aucun dénominateur, donc le gate certifiait un corpus dont il ne voyait que la moitié.
+ *
+ * 🔴 LA LISTE DES RACINES N'EST PAS RECOPIÉE ICI, et c'est le même arbitrage que
+ * `listeDuValidateur` plus bas : la duplication est le contrat pour ce qui JUGE, jamais pour ce
+ * qui RECENSE (L-095). `src/racines-par-defaut.spec.ts` juge déjà cette liste, nommément ; une
+ * seconde copie divergerait le jour où un cours s'ouvre, et ce fichier-ci compterait en silence
+ * sur un corpus périmé.
+ */
+const ORCHESTRATEUR = 'tools/content-pipeline/build.mjs';
 const FIXTURE = 'tools/content-pipeline/__fixtures__/format-actionnable';
-const CORPUS = 'content/cours/securite-web';
 const MODULE = '11-projet-de-session';
+const HORAIRE = 'horaire.json';
 
 /** Ajv compile ses schémas et une racine par cas : lent une fois, pas une fois par cas. */
 const DELAI = 60_000;
@@ -49,7 +70,7 @@ const SECTION_TEMOIN = `## En bref — la marche à suivre {hors-cours}
 
 2. Annoter chaque titre de section, aux DEUX niveaux, d'un renvoi ou du marqueur \`{hors-cours}\`.
 
-3. Ajouter le slug à \`MODULES_AU_FORMAT_ACTIONNABLE\`, en dernier geste du lot.
+3. Ajouter la clef \`<sujet>/<slug>\` à \`MODULES_AU_FORMAT_ACTIONNABLE\`, en dernier geste du lot.
 
 ::::
 
@@ -80,17 +101,18 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
   });
 
   /**
-   * Copie la racine témoin, applique LES mutations du cas, et rend le chemin de la racine mutée.
+   * Applique LES mutations d'un cas à UN fichier de la racine copiée, sur place.
    *
    * 🔴 CHAQUE MUTATION EST VÉRIFIÉE AVANT D'ÊTRE MESURÉE (L-015). Les fins de ligne de ce dépôt
    * sont mixtes ; un remplacement qui ne mordrait pas laisserait la racine VALIDE, et l'assertion
    * accuserait le garde-fou d'un défaut qui serait celui du harnais. On lève donc sur la cible
    * introuvable — c'est-à-dire sur la fixture qui aurait changé de forme, la vraie cause.
    */
-  function muter(nom: string, mutations: readonly (readonly [string, string])[]): string {
-    const racine = join(bac, nom);
-    cpSync(FIXTURE, racine, { recursive: true });
-    const fichier = join(racine, MODULE, 'lecon.md');
+  function remplacerDans(
+    nom: string,
+    fichier: string,
+    mutations: readonly (readonly [string, string])[],
+  ): void {
     // 🔴 TOUT SE COMPARE EN LF, ET C'EST UN CORRECTIF, PAS UNE COMMODITÉ (L-015, mesuré
     // le 2026-09-09). Les cibles de mutation arrivent sous DEUX formes qui ne portent pas
     // les mêmes fins de ligne : `SECTION_TEMOIN` est un littéral GABARIT, donc il hérite
@@ -112,6 +134,29 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
       source = source.replace(enLf(avant), enLf(apres));
     }
     writeFileSync(fichier, source, 'utf8');
+  }
+
+  /**
+   * Copie la racine témoin, applique les mutations du cas, et rend le chemin de la racine mutée.
+   *
+   * ⚠️ LE SECOND JEU DE MUTATIONS PORTE SUR `horaire.json`, ET IL N'EST PAS UN CONFORT (lot
+   * PHP-F). Changer le `sujet` du seul `lecon.md` fait sortir une SECONDE anomalie, par la
+   * règle 14 : l'horaire de la racine copiée déclare toujours `securite-web`, et deux sources qui
+   * se contredisent sont précisément ce que cette règle refuse. Un cas qui ne muterait qu'un
+   * fichier mesurerait donc une racine incohérente et accuserait la règle 13 d'un défaut qui
+   * serait celui du harnais — le même piège que L-015, par un autre chemin.
+   */
+  function muter(
+    nom: string,
+    mutations: readonly (readonly [string, string])[],
+    mutationsHoraire: readonly (readonly [string, string])[] = [],
+  ): string {
+    const racine = join(bac, nom);
+    cpSync(FIXTURE, racine, { recursive: true });
+    remplacerDans(nom, join(racine, MODULE, 'lecon.md'), mutations);
+    if (mutationsHoraire.length > 0) {
+      remplacerDans(nom, join(racine, HORAIRE), mutationsHoraire);
+    }
     return racine;
   }
 
@@ -150,6 +195,44 @@ describe('le gate du FORMAT ACTIONNABLE, côté VALIDATEUR (décision D-D)', () 
       const { sortie, code } = lancer(['--racine', racine]);
       expect(sortie).not.toContain('FORMAT ACTIONNABLE');
       expect(code).toBe(0);
+      // 🔴 LE CONTRÔLE POSITIF, ET IL N'EST PAS REDONDANT AVEC LE CODE 0. Un code 0 dit « aucune
+      // anomalie », ce qu'une racine où RIEN n'aurait été lu dirait tout aussi bien : le jour où la
+      // découverte des leçons change, ce cas resterait vert en ne mesurant plus rien. On exige donc
+      // que le validateur déclare avoir examiné une leçon (constat de revue du 2026-09-22).
+      expect(sortie).toContain('1 leçon(s) valides');
+    },
+    DELAI,
+  );
+
+  it(
+    'ACCEPTE la MÊME faute sur le MÊME slug d’un AUTRE cours — la clef porte le SUJET',
+    () => {
+      // 🔴 CE QUE CE CAS PROUVE, ET QUE « hors-liste » NE PROUVE PAS. Là-bas, c'est le `slug` qui
+      // change ; ici il reste `projet-de-session`, et seul le `sujet` bouge. Tant que la liste
+      // portait des slugs NUS — jusqu'au lot PHP-F, 2026-09-22 —, ce module-ci serait resté soumis
+      // à la règle 13 : un second cours aurait hérité d'une certification que personne n'a relue
+      // pour lui, du seul fait d'avoir choisi le même nom de dossier. C'est la moitié qui
+      // discrimine la clef « <sujet>/<slug> » d'un slug nu.
+      // Le miroir — la MÊME mutation, sujet INCHANGÉ, code 1 — est le cas
+      // `titre-de-niveau-3-sans-renvoi` de la table ci-dessous.
+      const racine = muter(
+        'autre-sujet',
+        [
+          ['sujet: securite-web', 'sujet: php'],
+          [' {hors-cours}\n\nCe titre n', '\n\nCe titre n'],
+        ],
+        // La règle 14 exige que l'horaire de la racine déclare le sujet de ses leçons : sans cette
+        // seconde mutation, la racine sortirait rouge pour une raison qui n'est pas celle qu'on
+        // mesure.
+        [['"sujet": "securite-web"', '"sujet": "php"']],
+      );
+
+      const { sortie, code } = lancer(['--racine', racine]);
+      expect(sortie).not.toContain('FORMAT ACTIONNABLE');
+      expect(code).toBe(0);
+      // Même contrôle positif que le cas précédent : le vert doit venir de la CLEF, pas d'une
+      // racine où plus rien ne serait lu.
+      expect(sortie).toContain('1 leçon(s) valides');
     },
     DELAI,
   );
@@ -280,27 +363,56 @@ describe('le durcissement module par module — la liste, le corpus, le compteur
     return JSON.parse(sortie) as string[];
   }
 
-  /** Les modules du corpus, avec leur statut — lus au frontmatter, comme le validateur les lit. */
+  /**
+   * LES RACINES COMPILÉES PAR DÉFAUT — c'est-à-dire tous les cours, lus à l'orchestrateur.
+   * Voir `ORCHESTRATEUR` : la liste n'est pas recopiée ici, `src/racines-par-defaut.spec.ts` la
+   * juge nommément et c'est lui qui doit rougir le jour où elle change (L-095).
+   */
+  function racines(): readonly string[] {
+    const sortie = execFileSync(process.execPath, [ORCHESTRATEUR, '--racines-par-defaut'], {
+      encoding: 'utf8',
+    });
+    return JSON.parse(sortie) as string[];
+  }
+
+  /**
+   * Les modules de TOUS les cours, avec leur statut — lus au frontmatter, comme le validateur les
+   * lit, et identifiés par la CLEF « `<sujet>/<slug>` » qu'indexe `MODULES_AU_FORMAT_ACTIONNABLE`.
+   *
+   * ⚠️ `nom` NOMME LE COURS EN PLUS DU DOSSIER, et ce n'est pas une coquetterie : depuis que les
+   * deux cours entrent au décompte, `01-fondamentaux` et `01-introduction-php` se lisent tous deux
+   * comme « le module 01 », et une liste de restants qui ne dirait que le dossier enverrait
+   * corriger le mauvais cours.
+   */
   function corpus(): readonly {
-    dossier: string;
-    slug: string;
+    nom: string;
+    clef: string;
     statut: string;
     ancre: boolean;
   }[] {
-    return readdirSync(CORPUS, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => {
-        const source = readFileSync(join(CORPUS, e.name, 'lecon.md'), 'utf8');
-        return {
-          dossier: e.name,
-          slug: /^slug:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '',
-          statut: /^statut:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '',
-          // 🔴 « ANCRÉ AU COURS », c'est-à-dire portant une `seance`. C'est la condition D'ÉLIGIBILITÉ
-          // au format actionnable, et pas un détail : l'exigence (3) de la règle 13 REFUSE un module
-          // listé sans séance. Un module publié hors cours ne peut donc jamais entrer dans la liste.
-          ancre: /^seance:[ \t]*\d+[ \t]*$/m.test(source),
-        };
-      });
+    return racines().flatMap((racine) =>
+      readdirSync(racine, { withFileTypes: true })
+        // 🔴 « PORTE UN `lecon.md` », ET PAS SEULEMENT « EST UN DOSSIER » — c'est ainsi que le
+        // validateur recense (`recenserLecons`), et les deux vues doivent dire la même chose.
+        // Le lot PHP-F a DOUBLÉ la surface balayée : le jour où un cours gagne un `_medias/` ou un
+        // dossier de brouillon, un filtre sur le seul `isDirectory()` ferait rougir ce spec sur un
+        // `ENOENT` qui ne nomme ni la règle ni la cause, au lieu de compter.
+        .filter((e) => e.isDirectory() && existsSync(join(racine, e.name, 'lecon.md')))
+        .map((e) => {
+          const source = readFileSync(join(racine, e.name, 'lecon.md'), 'utf8');
+          const sujet = /^sujet:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '';
+          const slug = /^slug:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '';
+          return {
+            nom: `${sujet}/${e.name}`,
+            clef: `${sujet}/${slug}`,
+            statut: /^statut:[ \t]*(\S+)[ \t]*$/m.exec(source)?.[1] ?? '',
+            // 🔴 « ANCRÉ AU COURS », c'est-à-dire portant une `seance`. C'est la condition D'ÉLIGIBILITÉ
+            // au format actionnable, et pas un détail : l'exigence (3) de la règle 13 REFUSE un module
+            // listé sans séance. Un module publié hors cours ne peut donc jamais entrer dans la liste.
+            ancre: /^seance:[ \t]*\d+[ \t]*$/m.test(source),
+          };
+        }),
+    );
   }
 
   /**
@@ -313,48 +425,79 @@ describe('le durcissement module par module — la liste, le corpus, le compteur
    * — **inatteignable**, et l'exécuter quand même aurait rendu cette leçon rouge à jamais. C'est le
    * patron S-005 pris à l'envers : une promesse écrite plus forte que ce que le gate peut tenir.
    */
-  function eligibles(): readonly { dossier: string; slug: string }[] {
+  function eligibles(): readonly { nom: string; clef: string }[] {
     return corpus().filter((m) => m.statut === 'publiee' && m.ancre);
   }
 
-  it('la liste n’est pas VIDE — un gate qui ne vise personne ne garde rien', () => {
-    expect(listeDuValidateur().length).toBeGreaterThan(0);
-  });
+  /**
+   * 🔴 CES TROIS CAS LANCENT DES PROCESSUS FILS, ET ILS N'AVAIENT PAS DE DÉLAI — mesuré rouge le
+   * 2026-09-22, en suite COMPLÈTE seulement. Ils tenaient sous les 5 s du défaut de Vitest tant
+   * qu'ils lisaient UNE racine de quatorze modules ; ils en lisent deux, plus
+   * `build.mjs --racines-par-defaut`, et le dernier est monté à 7,6 s sous la charge des 49
+   * fichiers de spec. En isolation il reste vert, ce qui est le pire des deux verdicts : le gate
+   * rougit là où il compte — en CI — et paraît sain là où on le déboguerait.
+   * C'est l'omission exacte que `racines-par-defaut.spec.ts` a payée le 2026-09-14 ; le premier
+   * `describe` de ce fichier-ci portait déjà `DELAI`, le second ne l'avait jamais eu.
+   * ⚠️ **Un cas qui lance un `node` porte `DELAI`, sans exception** — le coût d'un démarrage de
+   * processus ne dépend pas de ce que le cas mesure, et il grandit avec le corpus.
+   */
+  it(
+    'la liste n’est pas VIDE — un gate qui ne vise personne ne garde rien',
+    () => {
+      expect(listeDuValidateur().length).toBeGreaterThan(0);
+    },
+    DELAI,
+  );
 
-  it('ne porte AUCUNE permission morte : chaque slug listé est une leçon publiée ET ancrée', () => {
-    // 🔴 FAMILLE S-005 — une permission qui ne correspond à rien est une permission qu'on CROIT
-    // appliquée. Un module renommé ou retiré laisserait derrière lui une entrée qui n'exige plus
-    // rien de personne, et que personne ne relirait. `publiee` et pas seulement « existe » :
-    // entrer dans la liste, c'est déclarer le module entièrement conforme, après revue humaine.
-    // Et ANCRÉE : un slug sans `seance` ferait échouer le build par l'exigence (3) — la liste
-    // porterait alors une entrée qui casse le module qu'elle prétend certifier.
-    const admissibles = new Set(eligibles().map((m) => m.slug));
-    const mortes = listeDuValidateur().filter((slug) => !admissibles.has(slug));
-    expect(
-      mortes,
-      `slugs de MODULES_AU_FORMAT_ACTIONNABLE sans leçon publiée et ancrée : ${mortes.join(', ')}`,
-    ).toEqual([]);
-  });
+  it(
+    'ne porte AUCUNE permission morte : chaque clef listée est une leçon publiée ET ancrée',
+    () => {
+      // 🔴 FAMILLE S-005 — une permission qui ne correspond à rien est une permission qu'on CROIT
+      // appliquée. Un module renommé ou retiré laisserait derrière lui une entrée qui n'exige plus
+      // rien de personne, et que personne ne relirait. `publiee` et pas seulement « existe » :
+      // entrer dans la liste, c'est déclarer le module entièrement conforme, après revue humaine.
+      // Et ANCRÉE : une clef sans `seance` ferait échouer le build par l'exigence (3) — la liste
+      // porterait alors une entrée qui casse le module qu'elle prétend certifier.
+      // ⚠️ DEPUIS LE LOT PHP-F, LE COURS FAIT PARTIE DE L'APPARIEMENT : une entrée dont le slug
+      // existe bien, mais dans un AUTRE cours que celui qu'elle nomme, est une permission morte —
+      // ce qu'un appariement sur le slug nu aurait déclaré vivant.
+      const admissibles = new Set(eligibles().map((m) => m.clef));
+      const mortes = listeDuValidateur().filter((clef) => !admissibles.has(clef));
+      expect(
+        mortes,
+        `clefs de MODULES_AU_FORMAT_ACTIONNABLE sans leçon publiée et ancrée : ${mortes.join(', ')}`,
+      ).toEqual([]);
+    },
+    DELAI,
+  );
 
-  it('IMPRIME ce qu’il reste à reprendre — un compteur qui descend vaut mieux qu’une promesse', () => {
-    // Ce test n'épingle pas un COMPTE : l'épingler obligerait à le corriger à chaque module repris
-    // sans rien prouver de plus que le test précédent. Ce qu'il garantit, c'est que le reste à
-    // faire est ÉCRIT au journal de chaque exécution de G-test — le jour où il tombe à zéro,
-    // `MODULES_AU_FORMAT_ACTIONNABLE` se supprime et la règle 13 devient inconditionnelle.
-    const liste = new Set(listeDuValidateur());
-    const admissibles = eligibles();
-    const restants = admissibles.filter((m) => !liste.has(m.slug));
-    const horsCours = corpus().filter((m) => m.statut === 'publiee' && !m.ancre);
-    console.log(
-      `\nFORMAT ACTIONNABLE — ${admissibles.length - restants.length}/${admissibles.length} ` +
-        `module(s) ancré(s) au cours repris ; ${restants.length} restant(s) : ` +
-        `${restants.map((m) => m.dossier).join(', ')}` +
-        (horsCours.length === 0
-          ? ''
-          : `\n  (hors décompte, publiés sans « seance » donc inéligibles : ` +
-            `${horsCours.map((m) => m.dossier).join(', ')})`) +
-        '\n',
-    );
-    expect(restants.length).toBeLessThan(admissibles.length);
-  });
+  it(
+    'IMPRIME ce qu’il reste à reprendre — un compteur qui descend vaut mieux qu’une promesse',
+    () => {
+      // Ce test n'épingle pas un COMPTE : l'épingler obligerait à le corriger à chaque module repris
+      // sans rien prouver de plus que le test précédent. Ce qu'il garantit, c'est que le reste à
+      // faire est ÉCRIT au journal de chaque exécution de G-test — le jour où il tombe à zéro,
+      // `MODULES_AU_FORMAT_ACTIONNABLE` se supprime et la règle 13 devient inconditionnelle.
+      // ⚠️ LE RAPPORT IMPRIMÉ N'EST PAS UN CLIQUET, et il ne se compare pas d'une époque à l'autre :
+      // le 2026-09-22 il est passé de `9/11` à `9/18` sans qu'une seule leçon ait reculé — c'est le
+      // DÉNOMINATEUR qui a grandi quand le gate a cessé de ne voir qu'un cours. Un `N/M` consigné
+      // dans un document de reprise ne vaut donc que contre la population où il a été mesuré.
+      const liste = new Set(listeDuValidateur());
+      const admissibles = eligibles();
+      const restants = admissibles.filter((m) => !liste.has(m.clef));
+      const horsCours = corpus().filter((m) => m.statut === 'publiee' && !m.ancre);
+      console.log(
+        `\nFORMAT ACTIONNABLE — ${admissibles.length - restants.length}/${admissibles.length} ` +
+          `module(s) ancré(s) au cours repris ; ${restants.length} restant(s) : ` +
+          `${restants.map((m) => m.nom).join(', ')}` +
+          (horsCours.length === 0
+            ? ''
+            : `\n  (hors décompte, publiés sans « seance » donc inéligibles : ` +
+              `${horsCours.map((m) => m.nom).join(', ')})`) +
+          '\n',
+      );
+      expect(restants.length).toBeLessThan(admissibles.length);
+    },
+    DELAI,
+  );
 });

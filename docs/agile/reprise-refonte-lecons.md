@@ -2331,3 +2331,22 @@ nature — leur matière vit dans les décks des **séances 7 à 10**, pas dans 
 et trois de ces décks n’ont pas encore été confrontés à une leçon. 🔴 **Réextraire les `.pptx`
 concernés avant de citer une seule diapositive** : le dossier `extraits/` est gitignoré et aucun gate
 ne le confronte à sa source.
+
+---
+
+### ⚠️ LES COMPTEURS « N/9 » DE CE DOCUMENT SONT PÉRIMÉS — la population a changé (2026-09-22)
+
+Tous les `1/9`, `2/9`, `3/9`, `4/9`, `5/9` consignés plus haut ont été mesurés quand
+`src/format-actionnable.spec.ts` ne regardait qu'**une** racine, `content/cours/securite-web`. Le lot
+**PHP-F** lui a fait lire les racines rendues par `build.mjs --racines-par-defaut` : le dénominateur
+est passé à **18** — onze modules de sécurité publiés et ancrés, plus les sept du cours de PHP — et
+le compteur imprimé par G-test dit désormais **`9/18`**.
+
+🔴 **Aucune leçon n'a reculé.** Le numérateur n'a pas bougé ; c'est l'ensemble mesuré qui s'est
+élargi. Un `N/M` ne vaut que contre la population où il a été relevé, et le réemployer ailleurs sans
+remesurer est la faute que ce dépôt a déjà payée sur des chiffres recopiés. Devant un compteur qui
+remonte, la question est **« quel corpus mesure-t-il maintenant ? »**, jamais « qui a régressé ? ».
+
+Les deux modules de sécurité qui restent à reprendre sont toujours les mêmes — **`07-injection`** et
+**`08-xss`**. Les sept `php/…` qui les rejoignent au décompte relèvent du lot **PHP-F2**
+(`docs/agile/reprise-php-en-bref.md`), pas de cette refonte-ci.
