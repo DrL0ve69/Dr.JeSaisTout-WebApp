@@ -1,0 +1,142 @@
+{
+  "lecon": "securite-authentification",
+  "titre": "Quiz — Sécurité des mécanismes d'authentification et autorisation",
+  "melanger": true,
+  "questions": [
+    {
+      "id": "q1",
+      "type": "associer",
+      "consigne": "Associe chacune des sept attaques de la diapositive 9 à la mesure que la carte du cours (diapositive 33) lui oppose. Une même mesure peut servir plusieurs fois.",
+      "paires": [
+        {
+          "gauche": "Password guessing : essayer le nom du chien et l'année de naissance de la victime",
+          "droite": "Politique de mot de passe"
+        },
+        {
+          "gauche": "Attaque par dictionnaire : essayer une liste de mots de passe fréquents ou déjà vus dans des fuites",
+          "droite": "Politique de mot de passe"
+        },
+        {
+          "gauche": "Force brute : essayer toutes les combinaisons, dans l'ordre",
+          "droite": "Politique de mot de passe"
+        },
+        {
+          "gauche": "Injection SQL : alexandre';# dans le champ du code utilisateur",
+          "droite": "Requêtes préparées"
+        },
+        {
+          "gauche": "XSS : un script injecté lit ce que la victime tape dans le champ du mot de passe",
+          "droite": "Codes d'entité, htmlspecialchars()"
+        },
+        {
+          "gauche": "Hameçonnage : un courriel renvoie vers une copie du vrai site",
+          "droite": "Formation du personnel"
+        },
+        {
+          "gauche": "Fuite de données : la table des utilisateurs est copiée en entier",
+          "droite": "Hachage des mots de passe"
+        }
+      ],
+      "explication": "La carte du cours tient en une mesure par famille d'attaques, et deux constats en sortent. D'abord, la politique de mot de passe porte TROIS attaques à elle seule : deviner, le dictionnaire et la force brute cherchent tous le mot de passe en essayant des valeurs, et une politique agit sur ce que l'utilisateur a le droit de choisir. Ses deux familles de règles se partagent le travail : la longueur et la composition rendent la force brute longue, l'interdiction des mots de passe communs rend le dictionnaire beaucoup moins rentable (la diapositive 33 dit qu'elle « réduit les risques »). Ensuite, le hachage ne sert qu'à UNE attaque, la fuite : il ne protège pas le formulaire, il protège ce qui arrive après le vol de la table. Si tu as associé le hachage à l'injection SQL, c'est la confusion à éviter : l'injection se bloque par la requête préparée, qui empêche la valeur du formulaire de devenir du SQL ; le hachage ne fait que limiter ce que rapporte une table volée, quelle que soit la façon dont elle l'a été. Pour le XSS, la parade est d'empêcher le script d'exister en encodant la sortie ; le drapeau HttpOnly d'un cookie n'y change rien, puisque le script lit un champ de formulaire et non un cookie. L'hameçonnage, lui, ne contourne aucune mesure technique : il les rend toutes inopérantes, parce que la victime tape elle-même son mot de passe dans le mauvais formulaire — d'où une mesure humaine, la formation. Enfin, ce que la carte laisse sans parade (hors cours, non exigible) : contre le dictionnaire et la force brute EN LIGNE, une politique ne freine rien, il faut limiter les tentatives par compte et par adresse, sur une fenêtre de temps.",
+      "ficheSource": "web/securite/authentification-failles.md"
+    },
+    {
+      "id": "q2",
+      "type": "choix-multiple",
+      "question": "Un formulaire d'inscription accepte les mots de passe de 6 à 8 lettres minuscules, et rien d'autre. Combien de combinaisons un attaquant par force brute doit-il parcourir pour être sûr de tomber sur le bon ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "217 168 790 528 : la somme de 26⁶, 26⁷ et 26⁸, telle que la diapositive 45 l'imprime."
+        },
+        {
+          "id": "b",
+          "texte": "208 827 064 576 : le seul 26⁸, puisque la plus grande longueur contient déjà les autres."
+        },
+        {
+          "id": "c",
+          "texte": "217 167 790 528 : la somme de 26⁶, 26⁷ et 26⁸, chaque longueur calculée à part."
+        },
+        {
+          "id": "d",
+          "texte": "308 915 776 : le seul 26⁶, puisque l'attaquant commence toujours par la longueur minimale."
+        }
+      ],
+      "bonneReponse": "c",
+      "explication": "La méthode de la diapositive 44 : on calcule chaque longueur séparément, puis on additionne, parce qu'un mot de passe a l'une OU l'autre longueur, jamais plusieurs à la fois. Ici : 26⁶ = 308 915 776, 26⁷ = 8 031 810 176 et 26⁸ = 208 827 064 576, dont la somme exacte est 217 167 790 528. La réponse a reprend la somme imprimée sur la diapositive 45, qui porte une coquille : elle écrit 26⁶ = 309 915 776 au lieu de 308 915 776, un chiffre des millions ayant glissé, et l'erreur se propage à la somme. La méthode du cours est juste, seul ce terme est faux ; à l'examen, pose le calcul, c'est lui qui est corrigé. La réponse b confond « plus grand » et « contenant » : un mot de passe de six lettres n'est pas un mot de passe de huit lettres, les 26⁸ combinaisons n'en comptent donc aucun. Le total est dominé par 26⁸, mais il ne s'y réduit pas. La réponse d ne compte que la longueur minimale : c'est l'ordre dans lequel l'attaquant PEUT commencer, pas l'étendue de ce qu'il doit parcourir pour être sûr de trouver. Rappel de la diapositive 46 : ce nombre ne donne pas un temps de calcul, il sert à comparer deux règles.",
+      "ficheSource": "web/securite/authentification-failles.md"
+    },
+    {
+      "id": "q3",
+      "type": "vrai-faux",
+      "affirmation": "L'exercice 2 fait vérifier la politique de mot de passe en JavaScript. Une fois cette vérification en place, la page PHP qui reçoit le formulaire peut hacher le mot de passe reçu sans le revérifier.",
+      "bonneReponse": false,
+      "justification": "Faux. Tout ce qui s'exécute dans le navigateur appartient à l'utilisateur : il peut désactiver le JavaScript, modifier la page, ou envoyer sa requête POST directement sans jamais afficher le formulaire. Une page PHP qui prend $_POST[\"mot_de_passe\"] tel quel acceptera donc « a », ou une chaîne vide, et password_hash() les hachera sans broncher. C'est pourquoi la diapositive 59 demande d'appliquer la politique idéalement côté serveur, à la création du compte comme au changement de mot de passe. Les deux vérifications ne sont pas en concurrence, elles ont deux rôles : le JavaScript sert le confort de l'utilisateur honnête, qui reçoit un message immédiat ; le PHP assure le contrôle, le seul qu'aucune requête ne peut sauter — le panneau au bord de la route contre la barrière. L'exercice 3 ajoute précisément cette vérification côté serveur, et c'est aussi côté serveur que se fait le refus des mots de passe interdits, par une requête préparée sur la table mdp_interdit, avant password_hash(). Garde les deux.",
+      "ficheSource": "web/securite/authentification-failles.md"
+    },
+    {
+      "id": "q4",
+      "type": "choix-multiple",
+      "question": "Pour vérifier une connexion, un étudiant écrit : if (password_hash($_POST[\"mot_de_passe\"], PASSWORD_DEFAULT) === $mot_de_passe), où $mot_de_passe est la chaîne lue dans la table. Même avec le bon mot de passe, la connexion échoue à chaque fois. Pourquoi ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "La colonne VARCHAR(60) tronque la chaîne enregistrée : il faut l'élargir à 255 caractères pour que les deux valeurs coïncident."
+        },
+        {
+          "id": "b",
+          "texte": "PHP 8.4 a relevé le coût par défaut de 10 à 12 : une chaîne créée avant la mise à jour ne peut plus être retrouvée."
+        },
+        {
+          "id": "c",
+          "texte": "Chaque appel à password_hash() tire un nouveau sel : l'empreinte calculée diffère toujours. Seule password_verify() relit celui de la chaîne."
+        },
+        {
+          "id": "d",
+          "texte": "bcrypt ne lit que les 72 premiers octets du mot de passe : la comparaison échoue dès que la saisie dépasse cette taille."
+        }
+      ],
+      "bonneReponse": "c",
+      "explication": "C'est l'erreur la plus fréquente des débutants : on ne hache pas soi-même le mot de passe tapé pour le comparer à la colonne. password_hash() tire un sel aléatoire à CHAQUE appel — c'est la marche 4 de l'escalier du cours, celle qui déjoue les tables arc-en-ciel et l'analyse de fréquence. Exécuter deux fois le même code donne deux chaînes différentes : la comparaison === ne peut donc jamais réussir. password_verify() prend le mot de passe en clair et la chaîne de la base, lit dans cette chaîne l'algorithme, le coût et le sel, refait le calcul avec CE sel-là, et compare. La réponse a désigne une vraie précaution, mais pas la cause : une chaîne bcrypt fait 60 caractères, un VARCHAR(60) la contient aujourd'hui ; la documentation de PHP recommande 255 parce qu'un algorithme par défaut plus récent produira des chaînes plus longues. Et même dans une colonne de 255, le code de l'étudiant échouerait. La réponse b est un fait exact mal appliqué : le coût est inscrit dans la chaîne ($2y$10$ ou $2y$12$), et password_verify() le lit ; un changement de coût ne rend aucune chaîne existante invérifiable. Surtout, l'échec a lieu même quand le coût n'a pas changé. La réponse d décrit une autre limite de bcrypt : au-delà de 72 octets, le mot de passe est tronqué, ce qui fait que deux phrases ne différant qu'après le 72ᵉ octet sont acceptées l'une pour l'autre par password_verify(). Cela rend des mots de passe différents équivalents ; cela ne fait pas échouer la connexion d'un mot de passe court et correct.",
+      "ficheSource": "web/securite/stockage-mots-de-passe.md"
+    },
+    {
+      "id": "q5",
+      "type": "trouver-la-faille",
+      "consigne": "Ce code de connexion reprend la logique de la diapositive 84, « Code d'authentification sécuritaire », avec le compte de base de données déjà remplacé. Il résiste à l'injection SQL et à la fuite de la table. Une ligne laisse pourtant un attaquant partager la session authentifiée de sa victime. Laquelle ?",
+      "langage": "php",
+      "code": "<?php\n// WAMP, dossier de ton projet · fichier : connexion.php, cible du formulaire de form_connexion.php\nrequire \"connexion_bd.php\"; // compte MariaDB à privilèges réduits de la séance 8\n$stmt = $mysqli->prepare(\"SELECT id_utilisateur, mot_de_passe FROM utilisateur WHERE code_utilisateur = ?\");\n$stmt->bind_param(\"s\", $code_utilisateur);\n$code_utilisateur = $_POST[\"code_utilisateur\"] ?? \"\";\n$stmt->execute();\n$stmt->bind_result($id_utilisateur, $mot_de_passe);\nif ($stmt->fetch() && password_verify($_POST[\"mot_de_passe\"] ?? \"\", $mot_de_passe)) {\n    $stmt->close();\n    session_start();\n    $_SESSION[\"id_utilisateur\"] = $id_utilisateur;\n    header(\"Location: admin/accueil.php\");\n    die();\n}\n$stmt->close();\nheader(\"Location: form_connexion.php?connexionInvalide=1\");\ndie();",
+      "ligneFautive": 12,
+      "faille": "Fixation de session : la session devient authentifiée sans que son identifiant change",
+      "explication": "À la ligne 12, la session reçoit l'identifiant de l'utilisateur, donc devient authentifiée, en gardant l'identifiant de session qu'elle avait AVANT la connexion. Si un attaquant a réussi à imposer cet identifiant à la victime avant qu'elle se connecte, il partage maintenant sa session authentifiée, sans jamais avoir connu son mot de passe : c'est la fixation de session. La parade tient en une ligne, juste avant : session_regenerate_id(true), qui donne à la session un nouvel identifiant ; le true demande en plus à PHP de supprimer l'ancienne session sur le serveur. La ligne 11 n'est pas la faute : session_start() est nécessaire pour écrire dans $_SESSION ; ce qui manque, c'est le changement d'identifiant entre elle et la ligne 12. Les lignes 5 et 6 ressemblent à un bogue et n'en sont pas un : bind_param lie la VARIABLE et ne lit sa valeur qu'à execute(), à la ligne 7 ; écrire l'affectation d'abord se relit mieux, c'est tout. La ligne 4 est au contraire ce qui protège de l'injection : la requête est préparée. Et les lignes 16 à 18 sont une qualité : mauvais mot de passe ou compte inexistant, la réponse est la même redirection, suivie de die(), de sorte que le MESSAGE ne dit pas à un attaquant quels codes utilisateurs existent. Le TEMPS de réponse, lui, le trahit (hors cours, non exigible) : si le compte n'existe pas, password_verify() n'est pas appelée, bcrypt n'est pas calculé, et la réponse arrive des centaines de millisecondes plus tôt ; la parade est d'appeler password_verify() même quand le compte n'existe pas, sur un hachage factice (OWASP, Authentication Cheat Sheet, « Authentication and Error Messages »). Le second piège de la diapositive 84, le compte root sans mot de passe, a déjà été remplacé ici à la ligne 3 par le compte à privilèges réduits de la séance 8. Arbitrage : à l'examen, reproduis la structure du cours ; en production, ajoute la régénération de l'identifiant et un compte de base de données dédié.",
+      "correction": "<?php\n// WAMP, dossier de ton projet · fichier : connexion.php — seule la partie qui ouvre la session change\nif ($stmt->fetch() && password_verify($_POST[\"mot_de_passe\"] ?? \"\", $mot_de_passe)) {\n    $stmt->close();\n    session_start();\n    session_regenerate_id(true);             // nouvel identifiant ; l'ancien est détruit\n    $_SESSION[\"id_utilisateur\"] = $id_utilisateur;\n    $_SESSION[\"DERNIERE_ACTIVITE\"] = time(); // premier marqueur de temps (diapositive 91)\n    header(\"Location: admin/accueil.php\");\n    die();\n}",
+      "ficheSource": "web/securite/sessions-cookies-securite.md"
+    },
+    {
+      "id": "q6",
+      "type": "choix-multiple",
+      "question": "Pour l'exercice 5, tu règles la limite d'inactivité du code à 1800 secondes (30 minutes), mais tu oublies php.ini : session.gc_maxlifetime y vaut toujours 1440. À quoi faut-il s'attendre ?",
+      "choix": [
+        {
+          "id": "a",
+          "texte": "À rien de visible : c'est le code qui décide de l'expiration, et php.ini ne sert qu'à la conserver plus longtemps si l'on veut."
+        },
+        {
+          "id": "b",
+          "texte": "Après plus de 24 minutes d'inactivité, le ménage peut supprimer la session avant que le code la juge expirée : déconnexion trop tôt."
+        },
+        {
+          "id": "c",
+          "texte": "À une expiration à 24 minutes pile : PHP détruit chaque session à 1440 secondes, et le contrôle du code ne sert plus à rien."
+        },
+        {
+          "id": "d",
+          "texte": "À rien de grave : il suffira de porter session.gc_maxlifetime à 1800 et de retirer le contrôle du code, devenu inutile."
+        }
+      ],
+      "bonneReponse": "b",
+      "explication": "La diapositive 89 annonce deux volets qu'il faut garder distincts : le CODE décide qu'une session a expiré et la détruit ; la CONFIGURATION de PHP décide combien de temps le serveur conserve ses données. Par défaut, session.gc_maxlifetime vaut 1440 secondes, les 24 minutes de la diapositive 94. Au-delà, un fichier de session PEUT être supprimé par le ménage — le préfixe gc vient de garbage collector, le ramasse-miettes. Une session inactive depuis 25 minutes est encore valide pour ton code, mais ses données ont pu disparaître : l'utilisateur est alors renvoyé au formulaire avant les 30 minutes promises. D'où la règle de la diapositive 98 : session.gc_maxlifetime vaut AU MOINS la durée d'inactivité que ton code accepte, et la modification n'a aucun effet tant qu'Apache n'a pas redémarré. La réponse a oublie que la conservation borne l'expiration : php.ini ne fait rien expirer, mais il peut détruire trop tôt. La réponse c prête au ménage une précision qu'il n'a pas : l'enseignant le dit lui-même, le nettoyage ne se produit pas automatiquement au bout de ce nombre de secondes ; la valeur fixe l'âge à partir duquel un fichier PEUT être supprimé, pas le moment où il l'est. La réponse d en tire la mauvaise conclusion : pour la même raison, php.ini n'est pas une méthode fiable pour protéger un système. L'expiration qui protège est celle du code, en tête de chaque page authentifiée ; php.ini doit seulement ne pas la contredire.",
+      "ficheSource": "web/securite/sessions-cookies-securite.md"
+    }
+  ]
+}

@@ -1199,6 +1199,9 @@ const MODULES_AU_FORMAT_ACTIONNABLE = new Set([
   // 2026-09-21 — la séance 5, en deux modules, écrits au format actionnable dès leur rédaction.
   'comptes-groupes-sudo',
   'permissions-mots-de-passe',
+  // 2026-09-21 — la séance 9, un seul module écrit en trois moitiés, au format actionnable dès sa
+  // rédaction.
+  'securite-authentification',
 ]);
 /** L'attribut de renvoi d'une étape, et ce qui y désigne un autre module. */
 const ATTRIBUT_VOIR = 'voir';

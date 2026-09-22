@@ -271,6 +271,37 @@
           "enonce": "Exporte ta base de données dans un fichier « .sql ». Note que la feuille l'appelle « cours8 » à cet exercice et « cours9 » à l'exercice 4 : c'est la même base, celle que tu viens de créer."
         }
       ]
+    },
+    {
+      "numero": 9,
+      "feuille": "Exercices du cours 9 (2026)",
+      "exercices": [
+        {
+          "reference": "1",
+          "titre": "Bâtir les trois pages publiques du site",
+          "enonce": "Crée trois pages reliées par un menu commun : une page d'accueil « index.php » (un titre et du texte de remplissage), une page « form_connexion.php » portant un formulaire de connexion (code utilisateur, mot de passe, bouton « Connecter ») et une page « creer_compte.php » portant un formulaire d'inscription (nom, code utilisateur, mot de passe, confirmation du mot de passe)."
+        },
+        {
+          "reference": "2",
+          "titre": "Valider l'inscription et enregistrer un mot de passe haché",
+          "enonce": "Sur « creer_compte.php », vérifie en JavaScript que tous les champs sont remplis, que les deux mots de passe sont identiques, et que le mot de passe compte au moins 8 caractères dont une minuscule, une majuscule, un chiffre et un caractère spécial — ou, à défaut, qu'il s'agit d'une phrase de passe d'au moins 16 caractères, sans règle de composition. À la soumission, crée le compte dans une table « utilisateur », avec un mot de passe haché et salé aléatoirement."
+        },
+        {
+          "reference": "3",
+          "titre": "Refuser les mots de passe interdits, côté serveur",
+          "enonce": "Ajoute une validation côté serveur à la création de compte : le mot de passe ne doit pas figurer dans une liste de mots de passe interdits conservée dans une table « mdp_interdit ». En cas de refus, renvoie l'utilisateur au formulaire avec un message d'erreur, le formulaire déjà rempli de ce qu'il avait saisi — sauf le mot de passe."
+        },
+        {
+          "reference": "4",
+          "titre": "Authentifier et ouvrir le portail d'administration",
+          "enonce": "Réalise la connexion : authentifie l'utilisateur par son code et son mot de passe, puis redirige-le vers un portail placé dans un sous-répertoire « /admin ». Ce portail porte un menu vers « accueil.php », « admin.php » et « deconnecter.php » ; mets du texte de remplissage dans les deux premières pages."
+        },
+        {
+          "reference": "5",
+          "titre": "Déconnecter, protéger les pages et faire expirer la session",
+          "enonce": "Fais en sorte que le lien de déconnexion détruise la session et ramène l'utilisateur à « index.php ». Protège chaque page du portail contre les visiteurs non authentifiés, et fais expirer la session après 30 minutes sans clic — en ajustant aussi la configuration du serveur, comme la feuille le demande."
+        }
+      ]
     }
   ]
 }
