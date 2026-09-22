@@ -191,7 +191,7 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-7** | Séance 7 — Sessions et authentification (module `06`) | ✅ **2026-09-16** |
 | **PHP-8** | Séance 8 — Déploiement (module `07`) | ✅ **2026-09-17** |
 | **PHP-PUB** | Les sept modules en `statut: publiee` : marqueurs levés sans valeur inventée, plomberie « second cours publié » | ✅ **2026-09-17** — clôture en fin de document |
-| **PHP-9** | Séance 10 — Introduction à Laravel | ⬜ |
+| **PHP-9** | ~~Séance 10 — Introduction à Laravel~~ | 🚫 **sans objet, 2026-09-21** — la séance a disparu du calendrier (clôture en fin de document) |
 | **PHP-R** | Rétro-application de D-PHP-1 aux cinq modules de sécurité déjà au format actionnable (`11`, `01`, `02`, `03`, `04`) | ⬜ |
 
 ### ✅ CLÔTURE — E7 lot B « les routes du cours de PHP » (2026-09-10)
@@ -1113,3 +1113,33 @@ ouvert au second cours). Côté sécurité, **selon le calendrier du site de l'e
 numéros de dossier du dépôt) : séance 5 « Sécurité des utilisateurs » (aucun module), séance 7 « Sécurité
 du code » (modules 07-10, à passer au format « En bref »), séance 8 « Sécurité des bases de données »
 (aucun module ; fichier `Cours09-Securite_base_de_donnees.pptx`).
+
+### 🚫 PHP-9 SANS OBJET — le calendrier ne porte plus de séance Laravel (2026-09-21)
+
+**Le fait.** Relu par `curl` sur <https://www.alexandrepetrin.ca/php/> au début du lot PHP-9, le
+calendrier ne compte plus aucune séance « Introduction à Laravel » (0 occurrence de « Laravel » dans
+la page). Les séances 10 à 12 ont changé depuis le relevé du 2026-09-16 :
+
+| Séance | `horaire.json` disait | Le calendrier dit (2026-09-21) |
+|---|---|---|
+| 10 · 6 oct. | Introduction à Laravel | **Projet de session (10 %)** |
+| 11 · 13 oct. | Projet de session (10 %) | **Révision finale** |
+| 12 · 20 oct. | Révision | **Correction en groupe** |
+
+**Ce que l'erreur affichait** : le sommaire du cours de PHP plaçait le jalon « Projet de session » au
+**13 octobre** — c'est le **6 octobre**, une semaine plus tôt, sur une évaluation notée. Même défaut,
+à la lettre, que celui du cours de sécurité le 2026-09-17 : une copie interne d'une source externe
+qui se périme en silence, avec l'autorité d'une « source unique ». Il a mis **cinq jours** à se
+produire ici.
+
+**Recalé** : `content/cours/php/horaire.json` (séances 10-12) ; la leçon `01-introduction-php` (« projet
+de session à la séance 10 ») ; l'accueil, `MODULES_TOTAL_PHP` **8 → 7** — le cours de PHP est
+**entièrement en ligne**, sept modules sur sept, et sa description le dit.
+
+**Pas de lot de contenu à ouvrir** : les séances 10 et 11 annoncent un « Exercice », mais leurs pages
+répondent **404** au 2026-09-21. À relever quand elles seront servies — s'il s'agit du projet de
+session, la matière vit déjà au module de sécurité `11-projet-de-session` et dans
+`Projet_de_Session_PHP.pdf`.
+
+**Geste suivant côté PHP** : **PHP-F** (le gate du format actionnable, fermé au second cours) puis
+**PHP-R**.

@@ -125,20 +125,25 @@ const MODULES_TOTAL = 14;
  * (syntaxe, superglobales, librairie standard, POO, base de données, sessions)
  * passent en `publiee` ensemble.
  * 📈 6 → 7 le 2026-09-17 (PHP-8) : le module de la séance 8 (déploiement) les
- * rejoint, dans la même PR. Prochaine étape attendue : 7 → 8 avec la séance 10
- * (Laravel). Le littéral est délibéré, comme pour la
+ * rejoint, dans la même PR. L'étape 7 → 8 attendue avec la séance 10 (Laravel) n'aura
+ * pas lieu : le calendrier ne porte plus cette séance (voir `MODULES_TOTAL_PHP`).
+ * Le littéral est délibéré, comme pour la
  * sécurité : la `description` de la carte cite les séances publiées une à une, et
  * c'est ce test qui force à la relire quand le compte bouge.
  */
 const MODULES_PUBLIES_PHP = 7;
 
 /**
- * Modules prévus au cours de PHP : les HUIT séances de contenu du calendrier de
- * l'enseignant (1, 2, 3, 4, 5, 7, 8 et 10 « Introduction à Laravel ») — relevé le
- * 2026-09-16 sur https://www.alexandrepetrin.ca/php/. Les séances 6, 9, 11, 12 et
- * 13 sont des évaluations ou une révision : aucun module ne les porte.
+ * Modules prévus au cours de PHP : les SEPT séances de contenu du calendrier de
+ * l'enseignant (1, 2, 3, 4, 5, 7 et 8) — relevé le 2026-09-21 sur
+ * https://www.alexandrepetrin.ca/php/. Les séances 6, 9, 10, 11, 12 et 13 sont des
+ * évaluations, une révision ou une correction : aucun module ne les porte.
+ *
+ * 📉 8 → 7 le 2026-09-21 : la séance 10 « Introduction à Laravel », relevée le
+ * 2026-09-16, a DISPARU du calendrier ; la séance 10 est désormais le projet de
+ * session (10 %). La copie de `horaire.json` s'était donc périmée en cinq jours.
  */
-const MODULES_TOTAL_PHP = 8;
+const MODULES_TOTAL_PHP = 7;
 
 @Component({
   selector: 'app-accueil',
@@ -217,7 +222,7 @@ const MODULES_TOTAL_PHP = 8;
       -->
       <app-carte-cours
         titre="Développement d’application en PHP"
-        description="Le cours 420-4P2-HU, séance par séance&nbsp;: syntaxe, superglobales, librairie standard, programmation orientée objet, base de données, sessions et authentification, déploiement. Les suivants s’ajouteront au sommaire à mesure qu’ils s’écrivent."
+        description="Le cours 420-4P2-HU, séance par séance&nbsp;: syntaxe, superglobales, librairie standard, programmation orientée objet, base de données, sessions et authentification, déploiement. Toutes les séances de contenu du calendrier sont en ligne."
         lien="/cours/php"
         libelleAction="Voir le sommaire"
         [modulesPublies]="modulesPubliesPhp"

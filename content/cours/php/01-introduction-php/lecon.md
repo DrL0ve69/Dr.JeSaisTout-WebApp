@@ -149,8 +149,9 @@ décrivent les évaluations, et ils ne disent pas la même chose :
   60 % — et laisse donc une évaluation sans libellé ni pondération.
 - **L'horaire publié sur le site du cours** compte **13** séances et détaille **quatre**
   évaluations : examen 1 à la séance 6 pour 10 %, examen 2 à la séance 9 pour 20 %, projet de
-  session à la séance 11 pour 10 %, examen final à la séance 13 pour 60 %. C'est de lui que vient
-  le calendrier affiché sur ce site.
+  session à la séance 10 pour 10 %, examen final à la séance 13 pour 60 % (relu le 2026-09-21 ;
+  l'horaire a déjà changé une fois en cours de session). C'est de lui que vient le calendrier
+  affiché sur ce site.
 
 Les deux s'accordent sur le **nombre** d'évaluations ; ce qui diffère est la **répartition** — les
 pondérations et les séances où elles tombent. Cette leçon ne choisit pas entre les deux : **le plan

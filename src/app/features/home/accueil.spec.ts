@@ -275,7 +275,7 @@ describe('Accueil', () => {
       expect(carte).toBeDefined();
       expect(publiees).toBeGreaterThan(0);
       expect(texte).toBe(
-        publiees > 1 ? `${String(publiees)} modules publiés sur 8` : `${String(publiees)} module publié sur 8`,
+        publiees > 1 ? `${String(publiees)} modules publiés sur 7` : `${String(publiees)} module publié sur 7`,
       );
     });
 
@@ -285,7 +285,7 @@ describe('Accueil', () => {
       expect(jauge).not.toBeNull();
       expect(jauge).toBeDefined();
       expect(jauge?.getAttribute('aria-hidden')).toBe('true');
-      expect(jauge?.querySelectorAll('.segment').length).toBe(8);
+      expect(jauge?.querySelectorAll('.segment').length).toBe(7);
       expect(jauge?.querySelectorAll('.segment.rempli').length).toBe(
         leconsPhp.filter((lecon) => lecon.statut === 'publiee').length,
       );
