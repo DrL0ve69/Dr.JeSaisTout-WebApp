@@ -3567,4 +3567,72 @@ sur un axe différent : ici rien ne disparaît, c'est un texte encore présent m
 (`SECTION_TEMOIN`) ; lot PHP-F (2026-09-22).
 
 ---
+
+## L-114 · Un gate ne se lit pas à travers un `| grep`, et ne se lance pas pendant que des agents travaillent
+
+**Symptôme.** PHP-F2 (2026-09-22). `npm test` lancé en arrière-plan filtré :
+`npm test 2>&1 | grep -E "FORMAT ACTIONNABLE|Test Files|Tests |passed|failed" | tail -20`, pendant que
+cinq sous-agents travaillaient encore. Deux défauts cumulés : (a) le filtre cachait la CAUSE de tout
+échec, ne gardant que des compteurs ; (b) le code de sortie d'un tube est celui de sa **dernière**
+commande — `tail` rend 0 sur une suite qui comptait 15 échecs, dont le gate du lot lui-même
+(`src/format-actionnable.spec.ts`) et un fichier à 24 minutes. Rapporté « completed (exit code 0) » sur
+un gate rouge. Relancé seul, sur une machine au repos : 49/49 fichiers verts, 193 s.
+
+**Règle.** Un gate se lance **nu**, sa sortie entière va dans un fichier (`npm test > journal.log
+2>&1`), et c'est ce fichier qu'on lit d'abord pour les causes d'échec — jamais un `| grep | tail` dont
+le code de sortie masque celui de la commande utile. Et un gate se lance quand **rien d'autre ne
+tourne** : un rouge de contention envoie déboguer du code sain, ce qui coûte plus cher qu'un gate
+différé. Cousin de [[L-005]] (un vert peut ne rien prouver) sur l'axe inverse : ici c'est un **rouge
+réel** qui a été rapporté vert par construction du tube, pas une porte de sortie silencieuse dans le
+gate lui-même. Voir aussi le durcissement PHP-F (2026-09-22) sur les cas qui lancent un `node` :
+même famille, vue ici côté lanceur de la suite plutôt que côté auteur du cas.
+
+**Réfs.** Lot PHP-F2 (2026-09-22), run `npm test` en arrière-plan filtré vs relance nue ;
+`src/format-actionnable.spec.ts` ; [[L-005]].
+
+---
+
+## L-115 · Un lot qui recale un instrument de mesure le recale en entier, ou ne le touche pas
+
+**Symptôme.** PHP-F2 (2026-09-22). `docs/contenu/renvois-diapos-php-01.md` — la cartographie qui sert
+à juger les renvois de diapositives d'une leçon — avait dérivé sous sa leçon sur trois points : un
+titre raccourci en trop, et deux inversions d'ordre. Le lot en a corrigé deux et écrit la dérive au
+singulier en clôture. La troisième inversion (`## Exemple simple` avant `## La syntaxe de PHP, en
+sommaire`, alors que la leçon les porte dans l'ordre inverse) est restée, à trois lignes des deux
+autres corrigées — trouvée seulement à la revue de code.
+
+**Règle.** Une cartographie n'est pas de la documentation qui vieillit sans conséquence : c'est la
+règle graduée qui sert à juger un autre document. Recalée à moitié, elle est pire qu'un instrument
+franchement périmé, parce qu'elle porte toutes les apparences d'un instrument juste et sera crue à la
+prochaine relecture. Dès qu'on constate qu'un instrument de mesure a dérivé sous ce qu'il mesure, on
+le reprend **en entier** dans le même geste — ou on ne le touche pas et on le déclare explicitement
+périmé en clôture. Cousin de [[L-077]] (une interversion de chemin principal/variante laisse la prose
+en aval fausse sans qu'aucun diff ne la signale) : ici l'instrument lui-même, pas la prose qu'il
+décrit, qui reste partiellement faux.
+
+**Réfs.** `docs/contenu/renvois-diapos-php-01.md` ; lot PHP-F2, revue de code (2026-09-22) ; [[L-077]].
+
+---
+
+## L-116 · Un chiffre de clôture se dérive d'une commande citée, jamais d'un souvenir — et un chiffre arrondi peut masquer l'irrégularité qui méritait d'être écrite
+
+**Symptôme.** PHP-F2 (2026-09-22). La section de clôture affirmait « ~140 renvois `{voir=}` » et
+« 17 paires `{voie}` ». Mesuré à la revue : `grep -o 'voir='` → 120 exactement ; 21 `voie="cours"`
+pour 23 `voie="moderne"` — soit **deux** `voie="moderne"` sans contrepartie (module 07, étapes 14 et
+20), que le pipeline autorise et que rien ne fait jamais rougir. Le second chiffre faux ne se
+contentait pas d'être imprécis : il lissait exactement l'irrégularité qui méritait d'être signalée.
+
+**Règle.** Tout chiffre de clôture (compte de renvois, de paires, de fixtures, de hachages) se dérive
+d'une commande citée dans le même paragraphe, jamais d'un souvenir de la passe de rédaction — c'est
+la récidive explicite du §8 de `.claude/rules/agent-context-budget.md` (« un ordre de grandeur
+recopié nu devient un mensonge silencieux »), appliquée cette fois à un rapport de clôture et pas
+seulement à une consigne injectée. Corollaire propre à ce cas : un chiffre arrondi ou approximatif
+n'est pas seulement moins précis qu'un chiffre exact — il **lisse** systématiquement toute asymétrie
+du corpus (l'entrée sans contrepartie, le cas hors norme), qui est justement ce qu'une clôture doit
+signaler en premier.
+
+**Réfs.** Section de clôture PHP-F2 (2026-09-22) vs `grep -o 'voir='` / `voie="cours"` /
+`voie="moderne"` sur `content/cours/php/**/lecon.md` ; revue de code ; `.claude/rules/agent-context-budget.md` §8.
+
+---
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

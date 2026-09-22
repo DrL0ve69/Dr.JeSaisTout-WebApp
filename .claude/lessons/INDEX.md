@@ -126,7 +126,10 @@ Fichier : `.claude/lessons/lessons-learned.md`
 | L-110 | 3470–3497 | Un invariant de tri/ordre écrit pour UNE racine reste vrai par accident tant qu'une seule racine existe — le test qui le protège doit fabriquer une entrée, pas relire le contenu réel |
 | L-111 | 3498–3519 | Un vérificateur adversarial sans outil d'exécution ne peut mesurer que ce qu'on lui a déjà mesuré — le fil principal relève AVANT de le lancer, et recoupe par une commande locale ce qu'un `WebFetch` lui rapporte |
 | L-112 | 3520–3542 | Une table de captures peut décrire une capture qu'elle n'a pas lue, ou mal lue — et des captures d'un même déck peuvent venir de millésimes différents du produit qu'elles montrent |
-| L-113 | 3543–3571 | Une fixture témoin qui ENSEIGNE un geste fait partie du diff qui change ce geste — elle est de la documentation exécutable, pas seulement une donnée de test |
+| L-113 | 3543–3570 | Une fixture témoin qui ENSEIGNE un geste fait partie du diff qui change ce geste — elle est de la documentation exécutable, pas seulement une donnée de test |
+| L-114 | 3571–3594 | Un gate ne se lit pas à travers un `\| grep`, et ne se lance pas pendant que des agents travaillent |
+| L-115 | 3595–3616 | Un lot qui recale un instrument de mesure le recale en entier, ou ne le touche pas |
+| L-116 | 3617–3639 | Un chiffre de clôture se dérive d'une commande citée, jamais d'un souvenir — et un chiffre arrondi peut masquer l'irrégularité qui méritait d'être écrite |
 
 ## Leçons de sécurité (S-0xx) — CSP, assainissement, chaîne de build
 
@@ -162,4 +165,4 @@ Fichier : `.claude/lessons/security-lessons.md`
 | S-026 | 1145–1207 | Un `echec()` temporaire n'est PAS une validation — un champ d'auteur sans grammaire, aujourd'hui injoignable, est une dette DATÉE au commit qui lèvera le refus, sixième occurrence de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]] (A03 · CWE-116/CWE-79, prévention datée) |
 | S-027 | 1208–1257 | « Fermée pour le PIPELINE » n'est pas « fermée pour la FONCTION » — une grammaire portée par une couche AMONT laisse la copie AVAL seule autorité sur tout chemin qui court-circuite l'amont (A03 · CWE-20, septième forme de la famille [[S-001]]/[[S-003]]/[[S-009]]/[[S-014]]/[[S-020]]/[[S-026]]) |
 
-_140 entrées indexées._
+_143 entrées indexées._
