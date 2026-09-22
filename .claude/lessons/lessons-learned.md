@@ -497,6 +497,27 @@ confirmant que le **comportement** qu'il affirme est bien celui que le reste du 
 **Réfs addendum.** `src/app/**/progression.ts` ; `tools/content-pipeline/generer-manifeste.mjs:258` ;
 E2-ST6.
 
+**Addendum (PHP-F, 2026-09-22) — citer un garde-fou par son NUMÉRO est une citation qui se périme
+sans qu'aucun fichier ne disparaisse.** Un commentaire de `valider.mjs` affirmait que le `sujet` est
+tenu uniforme sur toute une racine « par la règle 14 ». Faux : la règle 14 n'apparie que l'horaire
+aux leçons, et seulement quand `sujets.size === 1` — elle est muette dans le cas même qu'on invoquait.
+Ce qui tient réellement l'uniformité est un contrôle voisin **non numéroté**, dans `validerRacine`.
+Contrairement aux occurrences précédentes de cette leçon, le fichier cité **existe** — c'est le
+**numéro** qui a dérivé, parce que la numérotation des règles bouge alors que le texte du refus ou le
+nom de la fonction, eux, se retrouvent au `grep`. ⚠️ **L'erreur venait du BRIEF, pas de
+l'implémenteur** : le coordinateur l'y avait écrite, l'implémenteur l'a recopiée telle quelle, et elle
+s'est propagée jusque dans `docs/contenu/pipeline-contenu.md` — seule une revue à regard neuf, allée
+lire le code plutôt que le brief, l'a attrapée. **Règle étendue** : un commentaire qui crédite un
+garde-fou par un **numéro de règle** cite le **nom de la fonction** ou le **texte du refus** à la
+place — la même famille que les ordres de grandeur recopiés sans être remesurés (§8 de
+`.claude/rules/agent-context-budget.md`), appliquée aux commentaires de code. Et le corollaire de
+coordination : **une prémisse fausse injectée dans un brief est plus chère qu'une exploration
+évitée** — elle traverse l'implémenteur sans résistance, parce qu'elle arrive avec l'autorité du
+coordinateur.
+
+**Réfs (addendum PHP-F).** `tools/content-pipeline/valider.mjs` (`validerRacine`, règle 14) ;
+`docs/contenu/pipeline-contenu.md` ; lot PHP-F (2026-09-22).
+
 ---
 
 ## L-017 · Un octet NUL dans un fichier source le rend « binaire » pour grep/ripgrep, qui le sautent EN SILENCE
@@ -1412,6 +1433,23 @@ de le découvrir à l'échéance. Cousine de [[L-005]]/[[L-032]] sur un axe neuf
 outil qui masque une directive, c'est un **budget de temps implicite** que personne n'a nommé.
 
 **Réfs.** `src/pipeline-contenu-compilation.spec.ts` ; branche E2-ST5 lots a/b1.
+
+**3ᵉ occurrence (PHP-F, 2026-09-22) — la même omission, dans le MÊME fichier que celui qui l'avait
+déjà documentée.** Les trois `it` du second `describe` de `src/format-actionnable.spec.ts` n'avaient
+**jamais** porté le `DELAI = 60_000` que le premier `describe` du même fichier pose sur chacun de ses
+cas — précisément le patron voisin que cette leçon recommande de copier. Ils tenaient sous les 5 s
+par défaut tant qu'ils lisaient **une** racine de quatorze modules ; le lot leur en a donné deux plus
+un `node` de plus (`build.mjs --racines-par-defaut`), et le dernier cas est monté à 7,6 s sous la
+charge de la suite complète → `Test timed out in 5000ms`. ⚠️ **Le piège vicieux, à retenir en plus de
+la règle d'origine : en isolation (`ng test --include`), le cas restait VERT.** Seule la suite
+complète, sous charge, rougissait — donc ni les gates ciblés de l'implémenteur, ni deux revues à
+contexte frais ne pouvaient l'attraper. **Corollaire : un gate dont le verdict dépend de la CHARGE de
+la machine est deux gates**, cousin sur un axe neuf de [[L-085]] (verdict dépendant de l'OS) et
+[[L-015]] (verdict dépendant des fins de ligne) — même famille « vrai par accident sur les
+conditions de CE run-là ». Quand un lot élargit ce qu'un spec **lit** (racines, corpus), remesurer sa
+**durée en suite complète** fait partie du lot au même titre que remesurer son résultat.
+
+**Réfs (3ᵉ occ.).** `src/format-actionnable.spec.ts` ; lot PHP-F (2026-09-22) ; [[L-085]], [[L-015]].
 
 ---
 
@@ -3499,6 +3537,34 @@ d'installeur), une capture ne tranche pas seule — elle se recoupe contre la **
 `content/cours/php/07-…/lecon.md` ; recette DigitalOcean `droplet-1-clicks/lamp-24-04`. Famille
 [[L-108]] (correction contre la source primaire, jamais le document dérivé), [[L-101]] (un renvoi de
 provenance est un jugement qui se relit).
+
+---
+
+## L-113 · Une fixture témoin qui ENSEIGNE un geste fait partie du diff qui change ce geste — elle est de la documentation exécutable, pas seulement une donnée de test
+
+**Symptôme.** PHP-F (2026-09-22). Le lot a fait passer `MODULES_AU_FORMAT_ACTIONNABLE` d'une clef
+« slug nu » à une clef `<sujet>/<slug>`. Le `LISEZMOI.md` du dossier de fixture témoin a été corrigé
+en conséquence (« c'est désormais le **couple** `sujet`+`slug` ») — mais **pas** le `lecon.md` du
+même dossier, dont l'étape 3 disait encore « Ajouter **le slug** à `MODULES_AU_FORMAT_ACTIONNABLE` »,
+exactement le geste que le lot venait de rendre faux. Or ce `lecon.md` est, par construction,
+l'exemple canonique de la procédure : un auteur le lit, pas le `LISEZMOI.md` à côté. Il aurait
+reproduit un geste déjà invalide, refusé par le contrôle de permission morte du dépôt.
+
+**Règle.** Quand un lot change la **clef**, la **grammaire** ou le **geste de clôture** d'un contrat,
+recenser tout ce qui **enseigne** ce geste — fixtures témoins, gabarits, `LISEZMOI`, définitions
+d'agents — et le corriger **dans le même diff**, pas seulement le fichier qui décrit la fixture de
+l'extérieur. Une fixture qui porte de la prose pédagogique est de la **documentation exécutable** :
+sa prose se périme comme n'importe quel autre texte qui décrit une procédure, et elle a en plus
+l'autorité trompeuse d'un exemple « qui marche ». Détail pratique qui aide à l'attraper : si un
+harnais compare la fixture à une copie figée (ici `SECTION_TEMOIN` dans le spec), les deux copies se
+corrigent du même geste — mais ce garde-fou ne protège que contre une **dérive du texte**, pas contre
+l'**incohérence interne** entre deux fichiers du même dossier de fixture, qu'il faut recenser à la
+main. Famille voisine de [[L-078]] (une partie du contrat disparaît si personne ne la recopie),
+sur un axe différent : ici rien ne disparaît, c'est un texte encore présent mais devenu **faux**.
+
+**Réfs.** `tools/content-pipeline/__fixtures__/format-actionnable/11-projet-de-session/lecon.md` ;
+`tools/content-pipeline/__fixtures__/format-actionnable/LISEZMOI.md` ; `src/format-actionnable.spec.ts`
+(`SECTION_TEMOIN`) ; lot PHP-F (2026-09-22).
 
 ---
 (les prochaines leçons seront ajoutées ici par l'agent mentor au fil des cycles de livraison)

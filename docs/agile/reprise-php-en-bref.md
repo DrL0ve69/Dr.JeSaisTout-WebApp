@@ -183,7 +183,8 @@ séances là où l'horaire en compte 13. Même famille que la contradiction déj
 | **PHP-A1** | Grammaire d'auteur pour D-PHP-1, **format C** — l'attribut d'étape `{voie="cours"}` / `{voie="moderne"}` : étiquette écrite + liseré, les deux voies toujours visibles | ✅ PR #80 |
 | **PHP-A2** | Grammaire d'auteur pour D-PHP-1, **format A** — admettre `:::: methodes` **dans** une étape de marche à suivre, pour une démarche qui diverge vraiment | ⬜ **pas ouvert** |
 | **PHP-2** | Séance 1 — Introduction à PHP, LAMP, WAMP, premier script | ✅ **2026-09-14** — `statut: verifiee`, six `à-vérifier:` |
-| **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ⬜ **nommé le 2026-09-13** |
+| **PHP-F** | Ouvrir le gate du **format actionnable** au second cours — `CORPUS` en dur sur `securite-web`, et liste indexée par **slug nu** | ✅ **2026-09-22** — clef `<sujet>/<slug>`, corpus = les racines par défaut ; clôture en fin de document |
+| **PHP-F2** | Déclarer conformes les **sept** modules PHP : leurs clefs entrent dans `MODULES_AU_FORMAT_ACTIONNABLE`, après relecture module par module | ⬜ **nommé le 2026-09-22** — mesuré prometteur (0 titre muet sur les sept), mais entrer dans la liste **vaut déclaration de conformité**, pas constat d'un grep |
 | **PHP-3** | Séance 2 — Syntaxe (suite), superglobales, tableaux, classes | ✅ **2026-09-14** — `statut: verifiee`, cinq `à-vérifier:` |
 | **PHP-4** | Séance 3 — Librairie standard | ✅ **2026-09-15** — `statut: verifiee`, quatre `à-vérifier:` |
 | **PHP-5** | Séance 4 — Programmation orientée objet | ✅ **2026-09-16** — `statut: verifiee`, **un** `à-vérifier:` |
@@ -1143,3 +1144,73 @@ session, la matière vit déjà au module de sécurité `11-projet-de-session` e
 
 **Geste suivant côté PHP** : **PHP-F** (le gate du format actionnable, fermé au second cours) puis
 **PHP-R**.
+
+---
+
+### ✅ CLÔTURE — PHP-F « le gate du format actionnable voit les deux cours » (2026-09-22)
+
+**Le défaut avait DEUX faces, et la seconde était la plus sournoise.** La première était visible :
+`src/format-actionnable.spec.ts` fixait `CORPUS = 'content/cours/securite-web'` **en dur**, si bien
+que les sept modules PHP — tous `publiee`, tous ancrés à une séance — n'entraient dans **aucun**
+dénominateur : le gate certifiait un corpus dont il ne voyait que la moitié, et y inscrire un slug
+PHP l'aurait fait rougir comme « permission morte », sans correctif possible. La seconde était que
+`MODULES_AU_FORMAT_ACTIONNABLE` était indexée par **slug nu** : deux cours au même slug auraient
+partagé une certification que personne n'a relue pour le second.
+
+**Ce qui est posé.** La clef est `` `<sujet>/<slug>` ``, le `sujet` venant du **frontmatter** —
+jamais du nom de dossier de la racine, qui est paramétrable et vaut, pour une fixture, un nom de cas
+de test : la racine témoin vit sous `__fixtures__/format-actionnable/` tout en déclarant
+`sujet: securite-web`, et une clef bâtie sur le dossier l'aurait sortie du gate, verdissant les cinq
+cas de refus qui le mesurent. Le spec, lui, lit ses racines à `build.mjs --racines-par-defaut` — la
+liste n'y est **pas recopiée**, `src/racines-par-defaut.spec.ts` la juge déjà (L-095).
+
+**Ce qui rend la clef infalsifiable, nommément** : `sujet` et `slug` sont tous deux du type `kebab`
+au schéma, donc **aucun ne peut contenir « / »** ; et `validerRacine` refuse « plusieurs « sujet »
+déclarés sous la même racine », donc un module ne s'échappe pas du gate en éditant son seul `sujet:`.
+⚠️ **Ce n'est PAS la règle 14** — elle n'apparie que l'horaire aux leçons, et seulement quand un seul
+sujet est déclaré. Le brief de ce lot l'affirmait, la revue l'a réfuté, et le commentaire de
+`valider.mjs` comme `pipeline-contenu.md` ont été recalés. *Un renvoi à un numéro de règle se périme
+comme un chiffre recopié.*
+
+**La preuve que la clef mord** : un cas neuf applique la mutation de refus
+`titre-de-niveau-3-sans-renvoi` **octet pour octet**, et ne change que le `sujet` — code **0**. Le
+miroir (même mutation, sujet inchangé, code 1) était déjà là. ⚠️ Il faut muter `lecon.md` **et**
+`horaire.json` : sans le second, c'est la règle 14 qui rougit, et le cas mesurerait autre chose.
+
+| Gate | Résultat |
+|---|---|
+| `--modules-actionnables` | 9 clefs `securite-web/…`, triées |
+| `npm run content:build` | ✔ 21 leçons, 2 racines, 0 dépassement |
+| `npm run content:valider:fixtures` | **52/52** cas refusés avec une cause nommée |
+| `npm run build` | ✔ 25 routes prerendues · **14 hachages `style-src`, 0 `script-src`** (inchangés) |
+| `npm test` | voir ci-dessous — **un rouge attrapé et corrigé** |
+
+🔴 **LE ROUGE QUE SEULE LA SUITE COMPLÈTE VOYAIT, ET C'EST LA LEÇON DU LOT.** Les trois cas du
+second `describe` n'avaient **jamais** porté le `DELAI` de 60 s que le premier porte. Ils tenaient
+sous les 5 s du défaut de Vitest tant qu'ils lisaient **une** racine de quatorze modules ; ils en
+lisent deux, plus un `node` de plus pour `--racines-par-defaut`, et le dernier est monté à **7,6 s**
+sous la charge des 49 fichiers de spec. **En isolation il restait vert** — le pire des deux
+verdicts : rouge là où il compte, sain là où on le déboguerait. Ni les gates ciblés de
+l'implémenteur ni les deux revues ne pouvaient le voir. C'est l'omission exacte que
+`racines-par-defaut.spec.ts` a payée le 2026-09-14.
+
+**Les deux revues.** `code-reviewer` : aucun Critique ni Majeur, quatre Mineurs — les quatre sont
+corrigés, dont **la leçon témoin de la fixture qui enseignait encore « ajouter le slug »**, geste que
+ce lot venait d'invalider (son `LISEZMOI.md` voisin, lui, avait été repris : *quand un lot change la
+clef d'une liste blanche, la fixture qui ENSEIGNE le geste fait partie du diff*). `security-reviewer` :
+**approuvé**, aucun Critique/Haut/Moyen ; deux Basses, corrigées. La plus instructive : le
+commentaire justifiait le durcissement contre une menace que `preparerContenuGenere` **refuse déjà**
+en échec de build pour les leçons publiées — *un durcissement se justifie contre le contrôle
+existant, pas contre son absence*, sans quoi c'est la carte des défenses qui se fausse.
+
+⚠️ **LE COMPTEUR N'EST PAS COMPARABLE D'UNE ÉPOQUE À L'AUTRE.** Il passe de `9/11` à **`9/18`** sans
+qu'une seule leçon ait reculé : c'est le **dénominateur** qui a grandi. Les `1/9`, `4/9`, `5/9`
+consignés dans `docs/agile/reprise-refonte-lecons.md` ont été mesurés contre une population qui
+n'existe plus. Devant un compteur qui remonte : *« quel corpus mesure-t-il maintenant ? »*, jamais
+*« qui a régressé ? »*.
+
+**Geste suivant : PHP-F2** — faire entrer les sept clefs `php/…` dans la liste. Mesuré au passage :
+les sept modules portent **0 titre muet** (24 à 32 titres chacun), chacun avec sa section « En bref »
+et son conteneur `marche-a-suivre`. Ils entreraient donc probablement verts — mais **entrer dans la
+liste vaut déclaration de conformité après revue humaine**, pas constat d'un `grep` : c'est un lot à
+part, et c'est pourquoi PHP-F s'arrête ici. Ensuite **PHP-R**.

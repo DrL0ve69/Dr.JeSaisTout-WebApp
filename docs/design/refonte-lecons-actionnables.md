@@ -334,6 +334,13 @@ Le validateur porte une **liste nominative, écrite à la main** :
 const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['projet-de-session']);
 ```
 
+> ⏭️ **Depuis, la clef a changé de forme — le bloc ci-dessus est l'option telle qu'elle a été
+> tranchée le 2026-08-31, pas l'état du code.** Le lot **PHP-F** (2026-09-22) l'a fait passer du
+> **slug nu** à `` `<sujet>/<slug>` ``, le `sujet` étant celui du frontmatter : un slug seul était
+> une promesse au singulier, tenable tant que `content/` n'hébergeait qu'un cours (**S-010**). Forme
+> en vigueur et raisons : [`docs/contenu/pipeline-contenu.md`](../contenu/pipeline-contenu.md),
+> section « Le gate du format actionnable ».
+
 Pour un module de cette liste, le build **échoue** si : il n'a pas de bloc `marche-a-suivre` dans sa
 première section ; ou s'il déclare un `seance` et qu'un de ses `##` n'a pas de `diapos`. Pour les
 autres, les constructions neuves restent **optionnelles** : rien ne casse, on livre un module à la

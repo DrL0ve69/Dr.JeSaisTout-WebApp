@@ -120,13 +120,17 @@ Une fois le verdict PUBLIABLE :
    `à-vérifier:` que le vérificateur a levés — c'est ce geste, et lui seul, qui met la leçon en
    ligne. Une leçon laissée en `verifiee` n'est **pas** prerendue : elle serait « finie » sans être
    publiée, et rien ne le dirait.
-2. **Si le lot est une reprise au format actionnable, ajoute le slug du module à
+2. **Si le lot est une reprise au format actionnable, ajoute la clef `<sujet>/<slug>` du module à
    `MODULES_AU_FORMAT_ACTIONNABLE`** (`tools/content-pipeline/valider.mjs`) — c'est le **dernier**
    geste du lot, après le verdict, et il vaut déclaration que le module est **entièrement** conforme.
    La liste est nominative et écrite à la main, jamais dérivée du corpus (S-005).
+   🔴 **La clef a DEUX composantes depuis le 2026-09-22 (lot PHP-F)**, et le `sujet` est celui du
+   **frontmatter** de la leçon : `securite-web/fondamentaux`, `php/introduction-php`. Un slug nu n'y
+   est plus reconnu — il n'exigerait donc rien, en silence. Deux cours peuvent porter le même slug.
    ⚠️ **Le geste se vérifie tout seul, dans les deux sens** : `src/format-actionnable.spec.ts` rougit
-   si un slug listé n'a **pas** de leçon publiée, et il imprime à chaque exécution de G-test combien
-   de modules restent à reprendre. Ce compteur ne redescend jamais.
+   si une clef listée n'a **pas** de leçon publiée, et il imprime à chaque exécution de G-test
+   combien de modules restent à reprendre, **sur les deux cours**. Le nombre de modules repris ne
+   redescend jamais ; le reste à faire, lui, peut remonter quand un cours neuf entre au corpus.
 3. Mets à jour l'item de la leçon dans `docs/agile/backlog-phase-1.md` : statut (ex.
    `à faire → rédigée-vérifiée`), date, chemin du livrable. Respecte le format existant du
    backlog — ne le restructure pas.

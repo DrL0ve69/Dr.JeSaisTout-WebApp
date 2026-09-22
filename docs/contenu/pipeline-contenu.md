@@ -559,10 +559,29 @@ question est « **quelle page mesure-t-il maintenant ?** », jamais « quel chif
 même patron que les hachages de CSP) :
 
 ```js
-// Les modules au FORMAT ACTIONNABLE. Un slug n'entre ici qu'au DERNIER geste de son lot de reprise,
+// Les modules au FORMAT ACTIONNABLE. Une clef n'entre ici qu'au DERNIER geste de son lot de reprise,
 // après revue humaine. Entrer dans la liste, c'est déclarer le module ENTIÈREMENT conforme.
-const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['projet-de-session']);
+const MODULES_AU_FORMAT_ACTIONNABLE = new Set(['securite-web/projet-de-session']);
 ```
+
+🔴 **La clef est `<sujet>/<slug>`, et le `sujet` est celui du FRONTMATTER** (lot **PHP-F**,
+2026-09-22). Elle a porté le **slug nu** jusque-là, du temps où `content/` n'hébergeait qu'un seul
+cours — une promesse au singulier, périmée le jour où le cours de PHP est entré dans le corpus
+(patron **S-010**). Deux modules de cours différents peuvent porter le même slug : un slug nu les
+aurait déclarés conformes **tous les deux**, et le second n'aurait jamais été relu par personne.
+⚠️ **Jamais le nom du dossier de la racine** : celle-ci est paramétrable (`--racine`) et vaut, pour
+une fixture, un nom de cas de test — la racine témoin du gate vit sous
+`__fixtures__/format-actionnable/` tout en déclarant `sujet: securite-web`. Le `sujet`, lui, est
+l'identité d'URL (`cours/<sujet>/<slug>`).
+
+**Ce qui empêche la clef d'être forgée, nommément** — parce qu'elle est bâtie sur **deux champs
+d'auteur** : `sujet` et `slug` sont l'un et l'autre du type `kebab` au schéma
+(`lecon.frontmatter.schema.json`), donc **aucun des deux ne peut contenir `/`** — la clef a
+exactement un séparateur et se lit sans ambiguïté ; et `validerRacine` refuse « plusieurs « sujet »
+déclarés sous la même racine », si bien qu'un module ne peut pas s'échapper du gate en éditant son
+seul `sujet:`. ⚠️ **Ce n'est PAS la règle 14 qui donne cette garantie** — elle n'apparie que
+l'horaire aux leçons, et seulement quand un seul sujet est déclaré : elle est muette dans le cas
+même où on l'invoquerait. Un renvoi à un **numéro** de règle se périme comme un chiffre recopié.
 
 **Pour un module de la liste**, le build **échoue** si :
 
@@ -583,7 +602,7 @@ marche à suivre` n'entre **pas** dans les sections inconditionnellement requise
 rougir le build sur les dix leçons publiées le jour de sa livraison, ce que D-D existe pour éviter.
 Quand elle est présente, sa **place** est vérifiée pour tout le monde.
 
-🔴 **La liste ne peut pas contenir de permission morte.** Un slug présent dans
+🔴 **La liste ne peut pas contenir de permission morte.** Une clef présente dans
 `MODULES_AU_FORMAT_ACTIONNABLE` **sans leçon publiée correspondante** fait rougir un gate : sans
 cette règle, un module renommé ou retiré laisserait derrière lui une entrée qui n'exige plus rien de
 personne, et que personne ne relirait (famille **S-005** — une permission qui ne correspond à rien
@@ -600,13 +619,26 @@ donc dans **`src/format-actionnable.spec.ts`**, seul à voir `content/cours/…`
 générale : une règle dont l'énoncé dit « le corpus » ne peut pas s'appliquer là où « la racine » est
 paramétrable.** Chaque racine de fixtures est, pour ce validateur, un corpus à part entière.
 
+⚠️ **« LE corpus » est PLURIEL depuis le 2026-09-22 (lot PHP-F).** Ce spec fixait
+`content/cours/securite-web` **en dur** : le cours de PHP, entré dans `content/` en septembre, était
+donc **invisible** au contrôle de permission morte comme au compteur, et y inscrire un de ses slugs
+aurait rougi G-test sans correctif possible. Les racines sont désormais lues à
+`node tools/content-pipeline/build.mjs --racines-par-defaut` — **la liste n'est pas recopiée** dans
+ce spec, parce que `src/racines-par-defaut.spec.ts` la juge déjà (**L-095** : la duplication est le
+contrat pour ce qui JUGE, jamais pour ce qui RECENSE).
+
 **Le compteur, c'est ce qui interdit d'oublier le durcissement.** Le même spec compare la liste aux
-modules **éligibles** et **imprime combien il en reste** (`FORMAT ACTIONNABLE — 1/9 module(s)
-ancré(s) au cours repris`). Le compte n'est **pas épinglé** : l'épingler obligerait à le corriger à
+modules **éligibles** et **imprime combien il en reste** (`FORMAT ACTIONNABLE — 9/18 module(s)
+ancré(s) au cours repris`, au 2026-09-22 ; il nomme les restants **avec leur cours**, sans quoi
+`01-fondamentaux` et `01-introduction-php` se confondraient). Le compte n'est **pas épinglé** :
+l'épingler obligerait à le corriger à
 chaque module repris sans rien prouver de plus que le contrôle de permission morte. Le jour où les
 deux ensembles coïncident, la constante est **supprimée** et la règle devient inconditionnelle. Un
-compteur qui descend vaut mieux qu'une promesse dans un backlog — et il **ne redescend jamais** : un
-slug n'en sort que si le module disparaît.
+compteur qui descend vaut mieux qu'une promesse dans un backlog — et il **ne redescend jamais** : une
+clef n'en sort que si le module disparaît. ⚠️ **Le RESTE À FAIRE, lui, remonte** — il est passé de 2
+à 9 le 2026-09-22, sans qu'une seule leçon ait reculé : c'est le **dénominateur** qui a grandi quand
+le gate a cessé de ne voir qu'un cours. Devant un compteur qui remonte, la question est « **quel
+corpus mesure-t-il maintenant ?** », jamais « qui a régressé ? ».
 
 🔴 **« ÉLIGIBLE » N'EST PAS « PUBLIÉ », ET LA DIFFÉRENCE DÉCIDE SI CETTE PROMESSE EST TENABLE**
 (constat de revue du 2026-09-08, mesuré). `20-evaluation-cvss` est **publiée**, porte

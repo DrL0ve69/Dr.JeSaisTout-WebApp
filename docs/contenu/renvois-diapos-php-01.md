@@ -112,9 +112,13 @@ marqueur `à-vérifier:`, et il en reste : les chemins du poste **P-2, P-4, P-5,
 pas fournis (`docs/agile/reprise-php-en-bref.md` §3). Seuls **P-1** (`C:\Users\0758510`) et **P-3**
 (`C:\wamp64`, racine servie `C:\wamp64\www`) sont confirmés.
 
-⚠️ **Le module n'entre PAS dans `MODULES_AU_FORMAT_ACTIONNABLE`**, et ce n'est pas un oubli :
-`src/format-actionnable.spec.ts:29` fixe `CORPUS = 'content/cours/securite-web'` en dur. Un slug PHP
-y serait compté comme **permission morte** et ferait rougir G-test, sans correctif possible tant que
-le spec ne voit qu'un sujet. Les renvois `{diapos="…"}` de cette table sont écrits **quand même** —
-leur grammaire est légale sur n'importe quel module ; c'est seulement leur **caractère obligatoire**
-qui dépend de la liste. Généraliser le gate aux deux cours est un **lot à part**, nommé au backlog.
+⚠️ **Le module n'entre pas ENCORE dans `MODULES_AU_FORMAT_ACTIONNABLE`** — mais l'obstacle qui l'en
+empêchait est **levé depuis le 2026-09-22** (lot **PHP-F**). Il était double :
+`src/format-actionnable.spec.ts` fixait `content/cours/securite-web` en dur, si bien qu'un slug PHP
+y aurait été compté comme **permission morte** et aurait fait rougir G-test sans correctif possible ;
+et la liste était indexée par **slug nu**, donc incapable de distinguer deux cours. Elle porte
+désormais des clefs `<sujet>/<slug>`, et le spec balaie les racines rendues par
+`build.mjs --racines-par-defaut` — les deux cours. Ce qui reste est une **déclaration de conformité
+module par module**, qui vaut revue humaine : lot **PHP-F2**. Les renvois `{diapos="…"}` de cette
+table sont écrits **quand même** — leur grammaire est légale sur n'importe quel module ; c'est
+seulement leur **caractère obligatoire** qui dépend de la liste.

@@ -30,8 +30,8 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 | Chantier | État | Où tout est écrit — **le lire AVANT d'y toucher** |
 |---|---|---|
-| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **les sept modules en ligne, 7/7** — PHP-9 est **sans objet** (2026-09-21 : la séance Laravel a disparu du calendrier, la séance 10 est le projet de session). Geste suivant : **PHP-F**, puis PHP-R. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
-| Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
+| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **les sept modules en ligne, 7/7** ; ✅ **PHP-F** (2026-09-22 : le gate du format actionnable voit les deux cours, clef `<sujet>/<slug>`). Geste suivant : **PHP-F2** (déclarer conformes les sept modules PHP), puis PHP-R. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
+| Refonte « leçons actionnables » (sécurité) | **différée**, compteur `9/18` depuis PHP-F — le reste à faire a monté parce que le DÉNOMINATEUR a grandi, pas parce qu'une leçon a reculé | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
 | Contenu du cours de sécurité | **14 leçons en ligne, toutes les séances de contenu couvertes** ; ✅ **séance 9 publiée** (un module, 2026-09-21). Geste suivant : la reprise au format actionnable des modules **07** et **08** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |
 
@@ -42,8 +42,9 @@ les blocs d'en-tête HTTP des leçons 08 et 09 sont **à réétiqueter `text`** 
 le 2026-09-14 : neuf langages, dont `text` pour les SORTIES de programme — il reste à l'appliquer) ·
 les leçons 03, 04 et 05 portent encore des étiquettes de langage **mensongères** ·
 le pipeline **ne rend pas le code en ligne dans un TITRE** ni dans un `libelle` de volet ·
-`src/format-actionnable.spec.ts:29` fixe `CORPUS` sur `securite-web` en dur, ce qui **ferme le gate
-du format actionnable au cours de PHP** (lot PHP-F) · **G-e2e a un rouge REPRODUCTIBLE en suite
+les **sept** modules du cours de PHP sont tenus hors de `MODULES_AU_FORMAT_ACTIONNABLE` : le gate
+les voit depuis PHP-F, leur **déclaration de conformité** reste à faire (lot PHP-F2) ·
+**G-e2e a un rouge REPRODUCTIBLE en suite
 complète et vert en isolation** — `defileurs-clavier.spec.ts:502`, lecture de géométrie non
 réessayée avant chargement des polices (détail et parade : L-057, durcissement du 2026-09-14).
 

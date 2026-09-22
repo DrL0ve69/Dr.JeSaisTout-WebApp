@@ -346,6 +346,36 @@ ancien `tools/a11y/verifier-axe.mjs`.
 **Réfs.** `tools/content-pipeline/rendre-mermaid.mjs`, `tools/content-pipeline/types.d.ts`,
 `.claude/rules/security.md` §1/§4, `docs/agile/backlog-phase-1.md` §E2-ST1.
 
+**Occurrence SYMÉTRIQUE, lot PHP-F (2026-09-22) — la justification promettait une exposition PLUS
+LARGE que le code n'en avait, pas plus étroite.** `MODULES_AU_FORMAT_ACTIONNABLE`
+(`tools/content-pipeline/valider.mjs`) est passée d'une clef **slug nu** à une clef
+**`<sujet>/<slug>`**, avec pour justification écrite : « deux modules de cours différents peuvent
+porter le même slug ; un slug nu les déclarerait conformes tous les deux ». **C'est mesurablement
+faux, en trop** : `preparerContenuGenere` (`tools/content-pipeline/generer-manifeste.mjs`) refuse
+**déjà** ce doublon en échec de build (« deux leçons compilées portent le slug « … » »), parce que
+l'espace de noms `lecons/<slug>.json` est plat sur toutes les racines compilées ensemble. Le
+durcissement reste **bon** — il ferme une fenêtre réelle mais **plus étroite** que celle décrite :
+les leçons `brouillon`/`verifiee` (non retenues par `preparerContenuGenere`, donc jamais
+confrontées à lui) et l'appel `valider.mjs --racine` en isolation, plus la survie de la clef à deux
+composantes le jour où l'espace de noms des fichiers compilés cesserait d'être plat.
+**Symétrique exact de S-009** : là où S-009 promettait une garantie **plus forte** que le garde-fou
+réel (donc autorisait de fait plus qu'un humain n'avait revu), ici la justification décrit une
+**menace plus large** que celle qui existait avant le durcissement. Les deux fautes sont inverses
+en forme et identiques en coût : dans les deux cas, la carte des défenses ment sur qui couvre quoi
+— et un commentaire de garde-fou EST cette carte, relue au prochain incident pour savoir quel
+contrôle tient quoi.
+**Règle additionnelle.** Un durcissement se justifie contre le **contrôle existant**, pas contre
+l'absence de contrôle. Avant d'écrire la justification d'un garde-fou neuf : chercher ce qui refuse
+**déjà** le cas visé, le **nommer** dans le commentaire, et dire quelle **fenêtre précise** le
+nouveau contrôle ferme **en plus**. Sans ce recensement, on écrit une menace plausible au lieu
+d'une menace mesurée — et une menace plausible ne se vérifie jamais, parce qu'elle a l'air vraie.
+**Issue.** Correctif déjà appliqué au lot : le commentaire de `valider.mjs` nomme désormais
+`preparerContenuGenere` et énonce la fenêtre précise (brouillon/verifiee, `--racine` isolé,
+non-platitude future) que la clef à deux composantes ferme en plus.
+**Réfs additionnelles.** `tools/content-pipeline/valider.mjs`
+(`MODULES_AU_FORMAT_ACTIONNABLE`), `tools/content-pipeline/generer-manifeste.mjs`
+(`preparerContenuGenere`), lot PHP-F (2026-09-22).
+
 **🔴 RENFORT le 2026-08-20 (encadrés de provenance, `fix/intermittence-gates-pre-e3-st1`) — la
 promesse et le code étaient dans le MÊME diff, écrits à quelques minutes d'intervalle, et personne
 ne les a confrontés.** `MARQUEURS_PROVENANCE_LITTERAUX` (règle G1 : aucun pictogramme de provenance

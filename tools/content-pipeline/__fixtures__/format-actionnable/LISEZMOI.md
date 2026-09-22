@@ -1,8 +1,16 @@
 # Fixture — le gate du FORMAT ACTIONNABLE (décision D-D, lot 9)
 
-Une racine **valide** d’un seul module, dont le `slug` est `projet-de-session` — le seul nom de
-`MODULES_AU_FORMAT_ACTIONNABLE` (`tools/content-pipeline/valider.mjs`). C’est ce slug, et lui seul,
-qui fait entrer ce module sous la règle 13.
+Une racine **valide** d’un seul module, dont le `slug` est `projet-de-session` et le `sujet`
+`securite-web` — soit la clef `securite-web/projet-de-session`, l’un des noms de
+`MODULES_AU_FORMAT_ACTIONNABLE` (`tools/content-pipeline/valider.mjs`). C’est ce **couple**, et lui
+seul, qui fait entrer ce module sous la règle 13 : depuis le lot PHP-F (2026-09-22) la liste est
+indexée par `<sujet>/<slug>`, et non plus par le slug nu.
+
+⚠️ **Le `sujet` vient du frontmatter, pas du nom du dossier de cette racine** — qui, lui, s’appelle
+`format-actionnable`. C’est précisément pourquoi la clef ne peut pas être bâtie sur le nom de
+dossier : cette fixture en sortirait, et les cas de refus de `src/format-actionnable.spec.ts`
+passeraient tous au vert sans rien mesurer. Le `horaire.json` voisin déclare donc le même `sujet`,
+comme la règle 14 l’exige.
 
 **Pourquoi une racine à part, plutôt qu’un dossier de plus dans `../invalides/`.** Le gate ne se
 prouve pas par un refus isolé : ce qui le discrimine d’un gate qui refuserait *tout* titre sans
