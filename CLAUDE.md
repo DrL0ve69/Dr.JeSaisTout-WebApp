@@ -30,7 +30,7 @@ comptes, pas de backend actif en phase 1. Vision long terme (multi-sujets, tutor
 
 | Chantier | État | Où tout est écrit — **le lire AVANT d'y toucher** |
 |---|---|---|
-| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **PHP-8 + publication** (2026-09-17) — les **sept** modules (séances 1-5, 7, 8) sont **en ligne**, `statut: publiee`. Geste suivant : **PHP-9** (séance 10, Laravel). | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
+| 🔴 **Cours PHP, format « En bref »** — PRIORITAIRE | ✅ **les sept modules en ligne, 7/7** — PHP-9 est **sans objet** (2026-09-21 : la séance Laravel a disparu du calendrier, la séance 10 est le projet de session). Geste suivant : **PHP-F**, puis PHP-R. | [`docs/agile/reprise-php-en-bref.md`](docs/agile/reprise-php-en-bref.md) — lire sa DERNIÈRE section, puis son §6 |
 | Refonte « leçons actionnables » (sécurité) | **différée**, compteur `5/9` | [`docs/agile/reprise-refonte-lecons.md`](docs/agile/reprise-refonte-lecons.md) |
 | Contenu du cours de sécurité | **14 leçons en ligne, toutes les séances de contenu couvertes** ; ✅ **séance 9 publiée** (un module, 2026-09-21). Geste suivant : la reprise au format actionnable des modules **07** et **08** | [`docs/agile/backlog-phase-1.md`](docs/agile/backlog-phase-1.md) |
 | Plan d'ensemble | E0, E1, E2, E6 **clos en entier** | le backlog fait foi |

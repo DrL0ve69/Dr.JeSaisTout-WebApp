@@ -19,10 +19,10 @@
     { "numero": 8, "date": "2026-09-22", "titre": "Déploiement d'application" },
     { "numero": 9, "date": "2026-09-29", "titre": "Examen 2",
       "evaluation": { "libelle": "Examen 2", "nature": "examen-ecrit", "ponderation": 20 } },
-    { "numero": 10, "date": "2026-10-06", "titre": "Introduction à Laravel" },
-    { "numero": 11, "date": "2026-10-13", "titre": "Projet de session",
+    { "numero": 10, "date": "2026-10-06", "titre": "Projet de session",
       "evaluation": { "libelle": "Projet de session", "nature": "evaluation-pratique", "ponderation": 10 } },
-    { "numero": 12, "date": "2026-10-20", "titre": "Révision" },
+    { "numero": 11, "date": "2026-10-13", "titre": "Révision finale" },
+    { "numero": 12, "date": "2026-10-20", "titre": "Correction en groupe" },
     { "numero": 13, "date": "2026-10-27", "titre": "Examen final",
       "evaluation": { "libelle": "Examen final", "nature": "examen-ecrit", "ponderation": 60 } }
   ]
