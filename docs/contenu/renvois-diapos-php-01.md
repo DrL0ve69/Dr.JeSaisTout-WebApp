@@ -47,25 +47,25 @@ Les énoncés du registre sont **REFORMULÉS**, jamais recopiés (décision X-1)
 | # | Titre de la leçon | Renvoi | Ce que portent les diapositives |
 |---|---|---|---|
 | 1 | `## L'idée en une image` | `{diapos="17-23"}` | ce qu'est PHP, son rôle serveur, l'architecture d'une application web, la pile LAMP |
-| 2 | `## Ce que la séance 1 enseigne, et ce que cette leçon ajoute` | `{diapos="3, 6, 7, 8, 12, 13, 19"}` | objectif du cours, évaluation, droit aux notes à l'examen, déroulement, ressources, frais, contenu annoncé |
-| 3 | `## En bref — la marche à suivre` | `{diapos="25-58"}` | de l'installation de WAMP à la première page servie par `localhost` |
+| 2 | `## En bref — la marche à suivre` | `{diapos="25-58"}` | de l'installation de WAMP à la première page servie par `localhost` |
+| 3 | `## Ce que la séance 1 enseigne, et ce que cette leçon ajoute` | `{diapos="3, 6, 7, 8, 12, 13, 19"}` | objectif du cours, évaluation, droit aux notes à l'examen, déroulement, ressources, frais, contenu annoncé |
 | 4 | `## Monter l'environnement de développement` | `{diapos="24-38"}` | WAMP : téléchargement, installation, service, menu de la barre système |
 | 4a | `### Quand le port 80 est déjà pris` | `{diapos="35-37, 46-49"}` | IIS occupe le port 80 ; `httpd.conf`, `Listen 8080`, redémarrage |
 | 4b | `### XAMPP — et pourquoi il n'est pas une option au Cégep` | `{diapos="26, 39-50"}` | XAMPP multiplateforme, `htdocs`, **interdit sur les postes du Cégep** (directive gouvernementale) |
 | 5 | `## Où vivent les fichiers, et comment les servir` | `{diapos="45, 51-55"}` | `.php` obligatoire, extensions visibles, `C:/wamp64/www`, `C:/XAMPP/htdocs`, sous-répertoire par site |
-| 6 | `## Exemple simple — la première page PHP` | `{diapos="56-60"}` | balises `<?PHP … ?>`, `localhost`, et le code source vu par le client |
-| 7 | `## La syntaxe de PHP, en sommaire` | `{diapos="62-63"}` | la liste des dix concepts que la séance couvre |
-| 7a | `### Afficher — echo et print` | `{diapos="64-65"}` | `echo` **envoie** au client, il n'« affiche » pas ; l'exemple `<script>alert()</script>` du cours |
-| 7b | `### Les variables et leurs types` | `{diapos="66-69"}` | `$`, pas de déclaration, sept types, typage tardif |
-| 7c | `### Lire ce que le visiteur envoie — $_GET et $_POST` | `{diapos="70-72"}` | les deux superglobales, GET dans l'URL, POST dans le corps |
-| 7d | `### Les opérateurs` | `{diapos="73-75"}` | arithmétiques, `.` de concaténation, `=` contre `==`, `->` |
-| 7e | `### Les conditions` | `{diapos="76-79"}` | `if`, `else` |
-| 7f | `### Le switch` | `{diapos="80-83"}` | syntaxe, `break`, `default` |
-| 7g | `### Les fonctions` | `{diapos="84-92"}` | les quatre formes (avec/sans paramètre, avec/sans retour), puis le typage |
-| 7h | `### Les tableaux` | `{diapos="93-94"}` | `array()`, accès par position |
-| 7i | `### Les boucles` | `{diapos="95-100"}` | `for`, `foreach`, `while`, `do…while` |
-| 7j | `### La modularité — include et require` | `{diapos="101-103"}` | la différence avertissement/erreur fatale, et l'extension `.inc` |
-| 7k | `### Les commentaires` | `{diapos="104-105"}` | `//` et `/* */` |
+| 6 | `## La syntaxe de PHP, en sommaire` | `{diapos="62-63"}` | la liste des dix concepts que la séance couvre |
+| 6a | `### Afficher — echo et print` | `{diapos="64-65"}` | `echo` **envoie** au client, il n'« affiche » pas ; l'exemple `<script>alert()</script>` du cours |
+| 6b | `### Les variables et leurs types` | `{diapos="66-69"}` | `$`, pas de déclaration, sept types, typage tardif |
+| 6c | `### Lire ce que le visiteur envoie — $_GET et $_POST` | `{diapos="70-72"}` | les deux superglobales, GET dans l'URL, POST dans le corps |
+| 6d | `### Les opérateurs` | `{diapos="73-75"}` | arithmétiques, `.` de concaténation, `=` contre `==`, `->` |
+| 6e | `### Les conditions` | `{diapos="76-79"}` | `if`, `else` |
+| 6f | `### Le switch` | `{diapos="80-83"}` | syntaxe, `break`, `default` |
+| 6g | `### Les fonctions` | `{diapos="84-92"}` | les quatre formes (avec/sans paramètre, avec/sans retour), puis le typage |
+| 6h | `### Les tableaux` | `{diapos="93-94"}` | `array()`, accès par position |
+| 6i | `### Les boucles` | `{diapos="95-100"}` | `for`, `foreach`, `while`, `do…while` |
+| 6j | `### La modularité — include et require` | `{diapos="101-103"}` | la différence avertissement/erreur fatale, et l'extension `.inc` |
+| 6k | `### Les commentaires` | `{diapos="104-105"}` | `//` et `/* */` |
+| 7 | `## Exemple simple` | `{diapos="56-60"}` | balises `<?PHP … ?>`, `localhost`, et le code source vu par le client |
 | 8 | `## Exemple complet` | `{diapos="56, 70-72, 101-103"}` | une page qui lit un paramètre GET et réutilise un en-tête inclus |
 | 9 | `## À toi de jouer` | `{hors-cours}` | les 14 exercices viennent de la **feuille** de la séance, pas du déck |
 | 10 | `## À retenir` | `{diapos="107"}` | la conclusion du cours |

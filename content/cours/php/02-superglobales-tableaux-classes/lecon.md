@@ -680,7 +680,8 @@ Passer par la liste des clés.
 
 ```php
 $cles = array_keys($eleves);
-for ($x = 0; $x < count($cles); $x++) { echo $eleves[$cles[$x]]; }
+$nombre = count($cles);
+for ($x = 0; $x < $nombre; $x++) { echo $eleves[$cles[$x]]; }
 ```
 :::
 ::: methode {libelle="foreach, quelles que soient les clés" defaut}
