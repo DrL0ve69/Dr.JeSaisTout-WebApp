@@ -85,36 +85,52 @@ l'examen, que personne ici n'est en position de tenir.
 
 :::: marche-a-suivre {titre="Verrouiller l'accès d'un droplet neuf : clé SSH, puis pare-feu"}
 
-1. {voir="La séquence du cours, telle qu'elle se déroule à l'écran"} Génère la paire de clés
-   **avant** de créer le droplet, dans un dossier hors OneDrive — par exemple `C:\Users\0758510\CleSSH`
-   sur le poste du Cégep — et note la passphrase que `ssh-keygen` te fait saisir deux fois : elle ne
-   s'affiche pas pendant la frappe, et elle ne se récupère pas.
+1. {voie="cours"} {voir="La séquence du cours, telle qu'elle se déroule à l'écran"} Génère la paire
+   de clés **avant** de créer le droplet avec `ssh-keygen` sans argument, comme le cours — mais dans
+   un dossier hors OneDrive plutôt que sur le Bureau qu'il emploie, par exemple
+   `C:\Users\0758510\CleSSH` sur le poste du Cégep — et note la passphrase
+   qu'il te fait saisir deux fois : elle ne s'affiche pas pendant la frappe, et elle ne se récupère
+   pas.
 
    ```bash
-   ssh-keygen                                          # la commande du cours : nom « maCle », passphrase deux fois
-   ssh-keygen -t ed25519 -C "<toi>@<ta-machine>"       # la forme explicite : l'algorithme est DÉCIDÉ, pas hérité
+   # invite cmd ouverte dans C:\Users\0758510\CleSSH — hors OneDrive, qui répliquerait la clé privée
+   ssh-keygen      # nom demandé : maCle ; puis la passphrase, deux fois
    ```
 
-2. {voir="Convertir la clé pour PuTTY"} Convertis la clé privée au format `.ppk` avec **PuTTYgen** —
-   *Load* pour charger `maCle`, passphrase, puis *Save private key* — et retiens que renommer le
-   fichier en `.ppk` ne convertit **rien** : seule la sauvegarde par PuTTYgen produit une vraie clé
-   PuTTY.
+2. {voie="moderne"} {voir="La séquence du cours, telle qu'elle se déroule à l'écran"} Écris
+   l'algorithme explicitement et range la clé dans `~/.ssh/`, c'est-à-dire `C:\Users\<nom>\.ssh\`
+   hors OneDrive, plutôt que d'hériter d'un défaut qui a changé avec OpenSSH 9.5.
 
-3. {voir="La voie du cours : la coller dans DigitalOcean"} Colle le contenu de `maCle.pub`, la clé
-   **publique** et jamais `maCle`, dans l'interface DigitalOcean **au moment même** de créer le
+   ```bash
+   # PowerShell ou cmd, sur ton poste — Entrée au nom proposé : la clé va dans C:\Users\<nom>\.ssh\
+   ssh-keygen -t ed25519 -C "<toi>@<ta-machine>"    # -C : simple commentaire, qui et quelle machine
+   ```
+
+3. {voie="cours"} {voir="Convertir la clé pour PuTTY"} Convertis la clé privée au format `.ppk` avec
+   **PuTTYgen** — *Load* pour charger `maCle`, passphrase, puis *Save private key* sous le nom `clePutty.ppk` — et retiens que
+   renommer le fichier en `.ppk` ne convertit **rien** : seule la sauvegarde par PuTTYgen produit
+   une vraie clé PuTTY.
+
+4. {voir="La voie du cours : la coller dans DigitalOcean"} Colle le contenu de `maCle.pub` (ou
+   `id_ed25519.pub` sur la voie de l'étape 2), la clé **publique** et jamais la privée, dans l'interface DigitalOcean **au moment même** de créer le
    droplet : la machine naît alors en « clé seulement », sans la moindre fenêtre de temps pendant
    laquelle un mot de passe serait encore accepté.
 
-4. {voir="Se connecter au droplet"} Connecte-toi, et **compare l'empreinte du serveur** à celle
-   qu'affiche la console web du fournisseur avant de l'accepter : c'est le seul moment où la
-   question se pose. Ce qu'on te demande ensuite est la **passphrase de ta clé**, jamais le mot de
-   passe du compte.
+5. {voie="cours"} {voir="Se connecter au droplet"} Connecte-toi avec PuTTY — `clePutty.ppk` chargée
+   dans *Connection → SSH → Auth*, l'adresse IP dans *Session*, puis *Open* — et **compare
+   l'empreinte du serveur** à celle qu'affiche la console web du fournisseur avant de l'accepter,
+   puis saisis `root` et la **passphrase de ta clé**, jamais le mot de passe du compte.
+
+6. {voie="moderne"} {voir="Se connecter au droplet"} Préfère le client OpenSSH de Windows pour
+   travailler : il lit la clé OpenSSH telle quelle, sans aucun `.ppk`, et pose la même question
+   d'empreinte, à trancher de la même façon, avant de demander la passphrase de ta clé.
 
    ```bash
-   ssh -i ~/.ssh/id_ed25519 root@203.0.113.10    # ou PuTTY, avec « clePutty.ppk » dans Connection / SSH / Auth
+   # PowerShell, sur ton poste — la clé privée au format OpenSSH, jamais le .ppk
+   ssh -i ~/.ssh/id_ed25519 root@203.0.113.10
    ```
 
-5. {voir="Les permissions, non négociables"} **Voie alternative, si la clé n'a pas été déposée par
+7. {voir="Les permissions, non négociables"} **Voie alternative, si la clé n'a pas été déposée par
    le fournisseur** mais copiée à la main sur un serveur déjà en service : pose toi-même les
    permissions, sans quoi OpenSSH refuse la clé **en silence** et te redemande un mot de passe sans
    fin.
@@ -124,7 +140,7 @@ l'examen, que personne ici n'est en position de tenir.
    chmod 600 ~/.ssh/authorized_keys    # rw  pour le propriétaire seul
    ```
 
-6. {voir="L'ordre des opérations, ou comment ne pas s'enfermer dehors"} Reteste la connexion par clé
+8. {voir="L'ordre des opérations, ou comment ne pas s'enfermer dehors"} Reteste la connexion par clé
    dans une **seconde fenêtre**, sans fermer la première, et ne ferme le mot de passe qu'ensuite :
    valide la syntaxe avant de recharger, et recharge plutôt que redémarrer.
 
@@ -133,28 +149,47 @@ l'examen, que personne ici n'est en position de tenir.
    sudo systemctl reload ssh    # recharge sans couper les sessions établies
    ```
 
-7. {voir="Un service à protéger : le serveur web"} Installe Apache et vérifie qu'il répond **avant**
-   de toucher au pare-feu : sans service à ouvrir et à fermer, aucune règle ne se laisse observer.
+9. {voie="cours"} {voir="Un service à protéger : le serveur web"} Installe Apache **avant** de
+   toucher au pare-feu, avec la forme exacte de l'énoncé, `apt-get install apache2` : sans service à
+   ouvrir et à fermer, aucune règle ne se laisse observer.
 
-   ```bash
-   sudo apt update && sudo apt install apache2
-   systemctl is-active apache2    # doit répondre : active
-   ```
+10. {voie="moderne"} {voir="Un service à protéger : le serveur web"} Préfère `apt`, précédé d'un
+    `update` qui rafraîchit le catalogue local, puis vérifie, quelle que soit la forme employée, que
+    le service répond.
 
-8. {voir="Exemple simple"} Active UFW dans l'ordre sûr, celui qui ne souffre aucune exception : les
-   politiques par défaut, **l'ouverture de SSH d'abord**, une relecture, et l'activation en tout
-   dernier.
+    ```bash
+    # PuTTY ou ssh, connecté au droplet
+    sudo apt update && sudo apt install apache2
+    systemctl is-active apache2    # doit répondre : active
+    ```
 
-   ```bash
-   sudo ufw default deny incoming
-   sudo ufw default allow outgoing
-   sudo ufw allow OpenSSH           # AVANT enable : la ligne qui évite de s'enfermer dehors
-   sudo ufw status                  # relire ce qu'on s'apprête à appliquer
-   sudo ufw enable                  # en DERNIER, jamais avant
-   ```
+11. {voie="cours"} {voir="La démonstration du cours, sortie par sortie"} Autorise SSH et le port 80
+    avec les formes de l'énoncé, relis la liste, et n'active UFW qu'en tout dernier.
 
-9. {voir="module:automatisation-surveillance"} Enchaîne sur la séance 4 une fois l'accès verrouillé :
-   il reste à savoir ce qui se passe sur la machine quand tu n'y es pas.
+    ```bash
+    # PuTTY ou ssh, connecté au droplet
+    sudo ufw allow 22      # forme de l'énoncé, ou « sudo ufw allow ssh » — AVANT enable
+    sudo ufw allow 80      # forme de l'énoncé : ouvre TCP ET UDP
+    sudo ufw status        # relire : la ligne SSH doit y être
+    sudo ufw enable        # en DERNIER, jamais avant
+    ```
+
+12. {voie="moderne"} {voir="Les commandes"} Pose d'abord les politiques par défaut et restreins chaque
+    ouverture à TCP, toujours dans l'ordre sûr : **SSH d'abord**, une relecture, et l'activation en
+    tout dernier.
+
+    ```bash
+    # PuTTY ou ssh, connecté au droplet — une seconde session ouverte avant enable
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    sudo ufw allow OpenSSH           # AVANT enable ; profil applicatif, équivaut à 22/tcp
+    sudo ufw allow 80/tcp            # TCP seul, sans l'UDP qu'ouvre « ufw allow 80 »
+    sudo ufw status                  # relire ce qu'on s'apprête à appliquer
+    sudo ufw enable                  # en DERNIER, jamais avant
+    ```
+
+13. {voir="module:automatisation-surveillance"} Enchaîne sur la séance 4 une fois l'accès verrouillé :
+    il reste à savoir ce qui se passe sur la machine quand tu n'y es pas.
 
 ::::
 

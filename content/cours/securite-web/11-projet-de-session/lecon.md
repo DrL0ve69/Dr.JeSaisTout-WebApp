@@ -151,8 +151,12 @@ le projet **entier** qui vaut 20 % de la session.
    cd monsite && composer init
    ```
 
-6. {voir="Le VirtualHost : le geste qui remplace localhost/monSite/"} Écrire le VirtualHost dont le
-   `DocumentRoot` pointe `public/`, puis l'activer.
+6. {voie="cours"} {voir="D'où vient la méthode que tu connais déjà"} Déposer le code dans
+   `C:\xampp\htdocs\monSite` (ou son équivalent sous WAMP) et l'ouvrir à `localhost/monSite/`,
+   comme le prescrit la procédure du cours de PHP — évaluée là-bas, pas dans ce cours-ci.
+
+7. {voie="moderne"} {voir="Le VirtualHost : le geste qui remplace localhost/monSite/"} Écrire le
+   VirtualHost dont le `DocumentRoot` pointe `public/`, puis l'activer.
 
    ```bash
    sudo a2enmod rewrite headers
@@ -160,33 +164,44 @@ le projet **entier** qui vaut 20 % de la session.
    sudo systemctl reload apache2
    ```
 
-7. Ajouter la ligne `127.0.0.1   monsite.test` au fichier `hosts` de Windows
+8. Pour la voie de l'étape 7, ajouter la ligne `127.0.0.1   monsite.test` au fichier `hosts` de Windows
    (`C:\Windows\System32\drivers\etc\hosts`), édité en administrateur.
 
-8. {voir="Une arborescence qui ne sert pas ses secrets"} Sortir la configuration de la racine web, et
-   ne versionner que son gabarit sans valeurs.
+9. {voie="cours"} {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Déposer un
+   `config.ini` dans la racine web, mot de passe en clair, comme le fait la séquence du cours de
+   PHP — la réponse de son examen, jamais celle de ton projet.
 
-   ```bash
-   cp config/bd.ini.exemple config/bd.ini   # puis y écrire les vraies valeurs
-   ```
+10. {voie="moderne"} {voir="Une arborescence qui ne sert pas ses secrets"} Sortir la configuration
+    de la racine web, et ne versionner que son gabarit sans valeurs.
 
-9. {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Créer un compte SQL restreint à la
-   base du projet et aux seuls verbes dont l'application a besoin.
+    ```bash
+    cp config/bd.ini.exemple config/bd.ini   # puis y écrire les vraies valeurs
+    ```
 
-   ```sql
-   CREATE USER 'app_boutique'@'localhost' IDENTIFIED BY 'MotDePasseLongEtUnique';
-   GRANT SELECT, INSERT, UPDATE, DELETE ON boutique.* TO 'app_boutique'@'localhost';
-   ```
+11. {voie="cours"} {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Créer le compte
+    SQL de l'application avec `GRANT ALL PRIVILEGES ON *.*`, comme les deux cours le montrent.
 
-10. {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Donner le journal à Apache par
-    propriétaire et par groupe, jamais par `chmod 777`.
+12. {voie="moderne"} {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Créer un compte
+    SQL restreint à la base du projet et aux seuls verbes dont l'application a besoin.
+
+    ```sql
+    CREATE USER 'app_boutique'@'localhost' IDENTIFIED BY 'MotDePasseLongEtUnique';
+    GRANT SELECT, INSERT, UPDATE, DELETE ON boutique.* TO 'app_boutique'@'localhost';
+    ```
+
+13. {voie="cours"} {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Rendre le journal
+    inscriptible par `chmod 777`, comme le fait la séquence du cours de PHP — la réponse de son
+    examen, jamais celle de ton projet.
+
+14. {voie="moderne"} {voir="Cinq gestes de la mise en ligne qui ouvrent une porte"} Donner le
+    journal à Apache par propriétaire et par groupe, jamais par `chmod 777`.
 
     ```bash
     sudo chown www-data:www-data var/log/app.log
     sudo chmod 640 var/log/app.log
     ```
 
-11. {voir="Le contrôle de version, exigé et jamais enseigné"} Mettre le projet sous contrôle de
+15. {voir="Le contrôle de version, exigé et jamais enseigné"} Mettre le projet sous contrôle de
     version dès le premier jour, une fois le `.gitignore` écrit.
 
     ```bash

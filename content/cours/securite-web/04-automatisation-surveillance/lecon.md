@@ -85,14 +85,22 @@ utile qu'une promesse sur le contenu de l'examen, que personne ici n'est en posi
 
 :::: marche-a-suivre {titre="Planifier un script de surveillance, et pouvoir relire ce qu'il a fait"}
 
-1. {voir="PHP en ligne de commande"} Écris le script, puis **lance-le à la main** avant de parler de
+1. {voie="cours"} {voir="Surveiller un service et le relancer"} Si le script surveille un service,
+   écris-le comme la séance : `shell_exec('systemctl is-active apache2')` comparé à `"inactive\n"`,
+   puis `systemctl start apache2` et un message horodaté.
+
+2. {voie="moderne"} {voir="Surveiller un service et le relancer"} En production, passe par `exec()`
+   pour obtenir le code de retour, teste l'état **attendu** `active` avec `===`, et n'écris la
+   réussite au journal qu'après avoir vérifié le code de retour de `systemctl start`.
+
+3. {voir="PHP en ligne de commande"} Écris le script, puis **lance-le à la main** avant de parler de
    planification : un script qui ne tourne pas dans ton terminal ne tournera pas mieux sous `cron`.
 
    ```bash
    php /opt/scripts/surveiller.php   # à la main, dans ton terminal : ici le PATH de ta session suffit
    ```
 
-2. {voir="Les pièges de cron que le cours ne couvre pas"} Relève le chemin **absolu** de
+4. {voir="Les pièges de cron que le cours ne couvre pas"} Relève le chemin **absolu** de
    l'interpréteur, et remplace dans le script tout chemin relatif par `__DIR__` : `cron` ne lit ni
    `.bashrc` ni `.profile`, et son répertoire courant n'est pas le tien.
 
@@ -100,30 +108,30 @@ utile qu'une promesse sur le contenu de l'examen, que personne ici n'est en posi
    which php        # /usr/bin/php — c'est CE chemin-là qui va dans la crontab
    ```
 
-3. {voir="Les trois commandes à connaître"} Sauvegarde la table existante avant de l'ouvrir, puis
-   ouvre-la — à la première utilisation, `cron` demande quel éditeur employer.
+5. {voir="Les trois commandes à connaître"} Sauvegarde la table existante avant de
+   l'ouvrir, puis ouvre-la — à la première utilisation, `cron` demande quel éditeur employer.
 
    ```bash
    crontab -l > ~/crontab.$(date +%F).bak   # deux secondes, et rien à réécrire de mémoire
    crontab -e
    ```
 
-4. {voir="La syntaxe : cinq champs, puis la commande"} Écris les **cinq champs** dans l'ordre —
+6. {voir="La syntaxe : cinq champs, puis la commande"} Écris les **cinq champs** dans l'ordre —
    minute, heure, jour du mois, mois, jour de la semaine — puis la commande, en chemins absolus des
    deux côtés.
 
-5. {voir="Lire une expression : les quatre du cours"} Vérifie l'expression sur `crontab.guru`
+7. {voir="Lire une expression : les quatre du cours"} Vérifie l'expression sur `crontab.guru`
    **avant** de la déposer, et regarde les **prochaines dates** plutôt que la traduction en
    français : une expression peut se traduire juste et ne pas partir quand tu le crois.
 
-6. {voir="Rediriger la sortie : sans journal, pas de surveillance"} Redirige la sortie avec `>>`, et
+8. {voir="Rediriger la sortie : sans journal, pas de surveillance"} Redirige la sortie avec `>>`, et
    ajoute `2>&1` **après** elle — sinon les erreurs partent dans un courriel que personne ne lit.
 
    ```bash
    */5 * * * *  /usr/bin/php /opt/scripts/surveiller.php >> /var/log/mesScripts/surveiller.log 2>&1
    ```
 
-7. Sauvegarde, quitte l'éditeur, puis **relis la table telle que `cron` l'a enregistrée** et regarde
+9. Sauvegarde, quitte l'éditeur, puis **relis la table telle que `cron` l'a enregistrée** et regarde
    le journal se remplir en direct pendant deux minutes.
 
    ```bash
@@ -131,19 +139,33 @@ utile qu'une promesse sur le contenu de l'examen, que personne ici n'est en posi
    tail -f /var/log/mesScripts/surveiller.log   # la preuve que la tâche part vraiment
    ```
 
-8. {voir="Permissions du script planifié"} Verrouille le script **et chaque répertoire de son
-   chemin** — ci-dessous pour une tâche qui vit dans la crontab de `root`, à ajuster au compte de
-   service si elle vit ailleurs : un fichier lancé par `root` et modifiable par un autre compte est
-   une élévation de privilèges qui n'attend que sa minute.
+10. {voie="moderne"} {voir="Quatre façons de planifier"} En production sur une distribution moderne,
+    remplace la ligne de crontab par un timer `systemd` — un `.service` et un `.timer` dans
+    `/etc/systemd/system/`, pris en compte par `sudo systemctl daemon-reload` puis mis en service
+    par `sudo systemctl enable --now` — et relis-le avec
+    `systemctl list-timers` et `journalctl`, sans aucune redirection à écrire.
 
-   ```bash
-   sudo chown root:root /opt/scripts/surveiller.php && sudo chmod 700 /opt/scripts/surveiller.php
-   sudo chmod 755 /opt /opt/scripts   # chaque répertoire du chemin, pas seulement le fichier
-   ```
+11. {voir="Permissions du script planifié"} Verrouille le script **et chaque répertoire de son
+    chemin** — ci-dessous pour une tâche qui vit dans la crontab de `root`, à ajuster au compte de
+    service si elle vit ailleurs : un fichier lancé par `root` et modifiable par un autre compte est
+    une élévation de privilèges qui n'attend que sa minute.
 
-9. {voir="Trois règles avant d'écrire une seule ligne de suppression"} **Si le script détruit quoi
-   que ce soit**, fais-le commencer en mode simulation : il compte, il journalise le nombre, et il
-   ne supprime que sur argument explicite.
+    ```bash
+    sudo chown root:root /opt/scripts/surveiller.php && sudo chmod 700 /opt/scripts/surveiller.php
+    sudo chmod 755 /opt /opt/scripts   # chaque répertoire du chemin, pas seulement le fichier
+    ```
+
+12. {voie="cours"} {voir="Le cas du cours : purger une table"} **Si le script détruit quoi que ce
+    soit**, fais comme la séance : un `SELECT` d'abord pour voir ce qui partira, puis le `DELETE` sur
+    exactement le même filtre, lancé par un script `mysqli` qui affiche le succès ou l'erreur.
+
+13. {voie="moderne"} {voir="Trois règles avant d'écrire une seule ligne de suppression"} En
+    production, fais-le commencer en mode simulation : il compte, il journalise le nombre, et il ne
+    supprime que sur argument explicite.
+
+14. {voie="moderne"} {voir="Le cas du cours : purger une table"} Sors le mot de passe de la base du
+    code — variable d'environnement ou fichier en `600` appartenant au compte de service — et donne
+    au script un compte SQL dédié, réduit à `SELECT` et `DELETE` sur la seule table visée.
 
 ::::
 
