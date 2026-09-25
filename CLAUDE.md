@@ -81,9 +81,10 @@ la voie du cours et la bonne pratique moderne s'écrit avec `{voie="cours"}` / `
 l'étape quand il tient en **une ou quelques lignes**, et avec `:::: methodes` quand c'est **toute une
 démarche** qui diverge · **D-PHP-2** la plomberie avant le contenu · **D-PHP-3** l'environnement de
 référence est **WAMP** (version « Admin », vérifiée présente au Cégep ; XAMPP y est interdit).
-🔴 **Aucun exemple concret ne s'invente** : les chemins du poste **P-2, P-4, P-5, P-6, P-7** et le
-**P-8** (port du service MariaDB + identifiants) ne sont pas fournis, tout exemple qui en dépend
-ne s'écrit pas en dur : depuis le 2026-09-17, un tel passage est rédigé pour être **vrai quelle que soit la valeur** (valeur du cours attribuée, défaut sourcé, espace réservé, geste de vérification) — c'est ce qui a permis de publier sans les valeurs.
+🔴 **Aucun exemple concret ne s'invente** : les valeurs du poste **P-1 à P-8** sont toutes au §3 du
+document de reprise depuis le 2026-09-25 — un exemple concret cite **ce tableau**, rien d'autre.
+Le matricule (P-5) ne s'écrit **jamais** dans une leçon publiée : espace réservé. Les passages
+publiés sans ces valeurs restent vrais (rédigés depuis le 2026-09-17 pour l'être quelle que soit la valeur).
 
 **Titre d'un module** (2026-09-17) : **verbatim** du calendrier de l'enseignant quand le module couvre
 toute une séance ; « `<titre de la séance>` — `<angle propre>` » quand plusieurs modules se la
