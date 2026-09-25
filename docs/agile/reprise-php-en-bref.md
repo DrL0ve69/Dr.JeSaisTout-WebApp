@@ -77,11 +77,12 @@ que XAMPP est interdit sur les postes du Cégep. Les exemples concrets se font d
 > document) : les passages dépendants du poste ont été réécrits pour être vrais quelle que soit la
 > valeur. Les valeurs ci-dessous, une fois fournies, **ajoutent** des exemples concrets.
 
-**Le propriétaire les fournira plus tard.** D'ici là, **aucun exemple concret ne s'invente** : un
-chemin faux est pire qu'un chemin absent, parce qu'il se recopie tel quel dans un terminal.
-✅ **P-1 et P-3 sont fournis et confirmés (2026-09-11)** — voir le tableau. Il reste **P-2, P-4, P-5,
-P-6, P-7 et P-8** — ce dernier ajouté au lot PHP-6 (2026-09-16) : la séance 5 a besoin du **port du
-service MariaDB** et des identifiants, qu'aucune des séances précédentes n'exigeait.
+✅ **Le tableau est COMPLET depuis le 2026-09-25** : P-1 et P-3 confirmés le 2026-09-11, P-4 et les
+ports de P-8 relevés le 2026-09-21, P-2, P-7 et les identifiants de P-8 relevés sur le poste le
+2026-09-25, P-5 et P-6 tranchés par le propriétaire le même jour. **Aucun exemple concret ne
+s'invente pour autant** : un chemin faux est pire qu'un chemin absent, parce qu'il se recopie tel
+quel dans un terminal — un exemple cite la valeur du tableau, et rien d'autre. **Reste à faire** :
+ajouter ces exemples concrets aux leçons (lot de contenu, non ouvert).
 
 **La règle en attendant :** tout exemple concret porte un marqueur `à-vérifier:` (interdit en
 `statut: publiee` par `valider.mjs` §6, ce qui **bloque mécaniquement** la publication d'un module
@@ -91,13 +92,13 @@ cette section n'est pas **entièrement** remplie — P-1/P-3 seuls ne lèvent pa
 | # | Ce qu'il faut | Valeur | Statut |
 |---|---|---|---|
 | P-1 | Racine du dossier personnel de l'étudiant sur le poste du Cégep | `C:\Users\0758510` | ✅ confirmé par le propriétaire (2026-09-11) |
-| P-2 | Dossier de travail PHP à l'intérieur de P-1 | ⬜ à fournir | — |
+| P-2 | Dossier de travail PHP ~~à l'intérieur de P-1~~ | `C:\wamp64\www\projet-sec-app-2026` | ✅ relevé sur le poste le 2026-09-25 — 🔴 la prémisse de la question était fausse : le travail PHP n'est **pas** rangé dans P-1 mais **directement sous la racine web** de WAMP (P-3), où Apache le sert. C'est le seul dossier de travail de `www` ; il porte `cours5.php` et `testHome.php` (2026-09-01). Aucun autre `.php` modifié depuis le 2026-08-01 sous `C:\Users\0758510` |
 | P-3 | Racine servie par Apache sous WAMP sur ce poste | `C:\wamp64` (racine web `C:\wamp64\www`) | ✅ confirmé par le propriétaire (2026-09-11) — installation 64 bits, comme l'annonçait déjà le Cours 1, diapo 54 |
 | P-4 | Port d'écoute d'Apache | `80` | ✅ relevé le 2026-09-21 dans le `wampmanager.conf` du poste (`apachePortUsed ="80"`, `apacheUseOtherPort = "off"`) |
-| P-5 | Nom d'utilisateur / matricule à faire figurer dans les exemples | ⬜ à fournir | — |
-| P-6 | Éditeur réellement utilisé | ⬜ à fournir | Notepad++ (Cours 1, diapo 107 et références) |
-| P-7 | Les fichiers vont-ils à la racine de `www` ou dans un sous-dossier par exercice ? | ⬜ à fournir | sous-dossier (Cours 1, diapo 45 : `localhost/monSite/`) |
-| P-8 | Port du service **MariaDB/MySQL** de WAMP sur le poste, et les identifiants employés | **ports ✅** MySQL 8.4.7 = `3306` (SGBD par défaut), MariaDB 11.4.9 = `3307` · **identifiants ⬜** | ports relevés le 2026-09-21 (`mysqlPortUsed`, `mariaPortUsed`) et reportés dans la leçon PHP 05 ; identifiants : voir la note ci-dessous. Historique : ajouté au lot **PHP-6** (2026-09-16). Le déck montre **3307** dans le `my.ini` du poste de l’enseignant (Cours 5, diapos 47-48) ; le standard est **3306** ; le corrigé se connecte en `root` **sans mot de passe**, le code de démonstration en `demo`/`demo` |
+| P-5 | Nom d'utilisateur / matricule à faire figurer dans les exemples | **espace réservé** — le matricule `0758510` n'est **jamais** écrit dans une leçon | ✅ choix du propriétaire (2026-09-25) : le site est public. P-1 et P-2 restent vrais tels quels dans ce document interne, mais un exemple publié remplace le segment `0758510` par un espace réservé |
+| P-6 | Éditeur réellement utilisé | **VS Code**, avec l'extension PHP **Intelephense** (`bmewburn.vscode-intelephense-client` 1.18.5, installée le 2026-09-01) | ✅ confirmé par le propriétaire (2026-09-25). Le Cours 1 (diapo 107 et références) nomme **Notepad++**, aussi installé sur le poste, comme Sublime Text et JetBrains : c'est un écart cours/pratique, pas une erreur du cours |
+| P-7 | Les fichiers vont-ils à la racine de `www` ou dans un sous-dossier par exercice ? | **un sous-dossier** — un par **projet**, pas un par exercice | ✅ relevé le 2026-09-25 (`dir C:\wamp64\www`) : un seul dossier de travail, `projet-sec-app-2026`, qui porte plusieurs exercices côte à côte ; le reste de `www` est l'installation de WAMP (`index.php`, `add_vhost.php`, `testmysql.php`, `test_sockets.php`, `favicon.ico`, `wamplangues\`, `wampthemes\`). Conforme au Cours 1, diapo 45 (`localhost/monSite/`) ; l'URL servie est donc `http://localhost/projet-sec-app-2026/…` (port `80`, P-4) |
+| P-8 | Port du service **MariaDB/MySQL** de WAMP sur le poste, et les identifiants employés | **ports ✅** MySQL 8.4.7 = `3306` (SGBD par défaut), MariaDB 11.4.9 = `3307` · **identifiants ✅** le travail se connecte à **MariaDB** (`localhost:3307`) en `root`, **mot de passe vide** | ports relevés le 2026-09-21 (`mysqlPortUsed`, `mariaPortUsed`) et reportés dans la leçon PHP 05 ; identifiants relevés le 2026-09-25 dans `C:\wamp64\www\projet-sec-app-2026\cours5.php` (`$servername = "localhost:3307"`, `$username = "root"`, `$password = ""`, base `demoCours5`) — ce qu'écrit le script, pas une connexion rejouée. Historique : ajouté au lot **PHP-6** (2026-09-16). Le déck montre **3307** dans le `my.ini` du poste de l’enseignant (Cours 5, diapos 47-48) ; le standard est **3306** ; le corrigé se connecte en `root` **sans mot de passe**, le code de démonstration en `demo`/`demo` |
 
 Versions du poste, relevées dans le même fichier (le 2026-09-21) : **WampServer 3.4.0** (64 bits,
 installé le 2026-06-16), **Apache 2.4.65**, **PHP 8.3.28** (celui qu'Apache charge), **MySQL 8.4.7**,
@@ -106,6 +107,9 @@ installé le 2026-06-16), **Apache 2.4.65**, **PHP 8.3.28** (celui qu'Apache cha
 `root` en a un. `config.values.php` n'apprend rien (fichier générique de phpMyAdmin) ; le
 `blowfish_secret` de `config.inc.php` n'est volontairement **pas** recopié ici.
 
+> ✅ **Note close le 2026-09-25** — toutes les réponses sont au tableau ci-dessus. Gardée pour la
+> méthode : c'est ainsi que chaque valeur a été trouvée.
+>
 > 📝 **NOTE AU PROPRIÉTAIRE — ce qui manque encore, et où le trouver sur le poste du Cégep.**
 > Rien de ceci ne bloque : les leçons sont déjà vraies sans ces valeurs. Chacune ajoute un exemple concret.
 >
