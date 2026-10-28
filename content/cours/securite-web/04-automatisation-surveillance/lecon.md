@@ -480,9 +480,12 @@ Le script tient en trois lignes autour de `date()` — la mécanique du PHP en l
 détaillée à la fin de cette leçon, mais tu n'en as pas besoin ici. Le vrai contenu de l'exercice est
 le **fuseau horaire** : la plupart des fournisseurs livrent leur machine en UTC, donc ton serveur
 affichera une heure décalée de quatre ou cinq heures par rapport au Québec. `timedatectl` affiche
-le fuseau du système et `sudo timedatectl set-timezone America/Toronto` le corrige ; fixer le fuseau
-**dans le script** avec `date_default_timezone_set('America/Toronto')` est la ceinture qui va avec
-ces bretelles, puisque le script devient alors indépendant de la machine qui l'exécute.
+le fuseau du système et `sudo timedatectl set-timezone America/Toronto` le corrige. Ce réglage ne
+suffit pas au script, parce que **PHP ne lit pas le fuseau du système** : depuis PHP 8.2, sa
+directive `date.timezone` vaut `UTC` par défaut, et le script reste en UTC tant qu'on ne la règle
+pas. Fixer le fuseau **dans le script** avec `date_default_timezone_set('America/Toronto')` est donc
+nécessaire, et le script devient en plus indépendant de la machine qui l'exécute. `timedatectl`
+reste utile pour `cron`, qui suit le fuseau du système.
 :::
 
 ::: exercice-du-cours {ref="3"}
@@ -1577,3 +1580,7 @@ purge, et choisir la parade juste face à une commande construite avec une entr�
   propre script de détection de force brute.
 - *shell_exec*, manuel PHP — <https://www.php.net/manual/en/function.shell-exec.php> : la référence
   citée par le cours ; lire aussi la note sur `disable_functions`.
+- *ext/date/php_date.c*, code source de PHP — <https://github.com/php/php-src/blob/PHP-8.3/ext/date/php_date.c> :
+  la directive `date.timezone` y vaut `"UTC"` par défaut depuis PHP 8.2 (elle était vide en 8.1). Le
+  patch Ubuntu « Use system timezone », toujours livré, n'est donc plus atteint ; mesuré le
+  2026-10-27 avec PHP 8.5.4, le système réglé sur `America/Toronto` : `UTC`.

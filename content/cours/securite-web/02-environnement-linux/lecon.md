@@ -668,9 +668,10 @@ un serveur de production.
 :::
 
 **Cela ne dispense pas d'apprendre `vi`, et ce n'est pas une formule de politesse.** `vi` reste la
-référence évaluée par ce cours, et trois situations le rendent incontournable : la **console web**
-du fournisseur — le seul accès qui te reste le jour où SSH ne répond plus, et elle n'a que le
-terminal ; un serveur sur lequel tu n'installeras rien ; un dépannage sur une machine que tu ne
+référence évaluée par ce cours, et trois situations le rendent incontournable : la **console de
+récupération** du fournisseur (la *Recovery Console* chez DigitalOcean) — le seul accès qui te reste
+le jour où SSH ne répond plus, puisque la console web ordinaire passe elle-même par SSH, et elle n'a
+que le terminal ; un serveur sur lequel tu n'installeras rien ; un dépannage sur une machine que tu ne
 connais pas. Dans ces trois cas, c'est `vi` ou rien.
 
 Pour la tâche elle-même — modifier un fichier texte sur le serveur — deux outils font exactement le

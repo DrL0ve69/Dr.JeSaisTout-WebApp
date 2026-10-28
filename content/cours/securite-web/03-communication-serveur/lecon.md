@@ -615,9 +615,12 @@ Ne ferme **jamais** ta session administrative après avoir modifié `sshd_config
 pare-feu. La règle tient en une phrase : **une session reste ouverte en permanence** pendant
 qu'une seconde tente la nouvelle configuration. Si la seconde échoue, la première est encore là
 pour annuler. Si tu as tout fermé et que la configuration est mauvaise, il ne reste que la
-**console web du fournisseur** — le bouton *Console* du tableau de bord DigitalOcean, qui passe
-par le clavier virtuel de la machine et non par le réseau. Quand cette console n'existe pas, le
-serveur est perdu.
+**console de récupération** du fournisseur. Chez DigitalOcean, ce n'est pas la *Droplet Console* de
+l'onglet *Access* : celle-ci passe elle aussi par SSH, et échoue dès que `sshd` ou le pare-feu
+bloque. C'est la *Recovery Console* de l'onglet *Settings*, qui passe par le clavier virtuel de la
+machine et non par le réseau. Elle exige un mot de passe `root`, qu'un droplet créé avec une clé
+n'a pas : *Reset root password* en envoie un temporaire par courriel. Quand cette console n'existe
+pas, le serveur est perdu.
 :::
 
 Valider la syntaxe **avant** de recharger évite à lui seul la majorité des accidents :
@@ -1019,8 +1022,9 @@ coupure de réseau, de Wi-Fi ou de veille ferme la porte pour de bon.
 
 {lignes="3"} Cette ligne est correcte, et il se peut même qu'on ait encore la main pour la taper.
 On ne le sait qu'après coup, et jamais d'avance : parier son seul accès sur la survie d'une
-session TCP n'est pas une procédure. Si le sursis n'a pas lieu, il ne reste que la console web du
-fournisseur.
+session TCP n'est pas une procédure. Si le sursis n'a pas lieu, il ne reste que la console de
+récupération du fournisseur (la *Recovery Console* chez DigitalOcean) : la *Droplet Console* passe
+par SSH, et le pare-feu la bloque elle aussi.
 :::
 ::: corrige
 ```bash
@@ -1195,3 +1199,8 @@ différence entre `allow ssh` et `allow 80`, et ce que voit le navigateur quand 
 - *UFW Essentials: Common Firewall Rules and Commands*, DigitalOcean —
   <https://www.digitalocean.com/community/tutorials/ufw-essentials-common-firewall-rules-and-commands> :
   l'aide-mémoire des règles courantes, y compris la restriction par adresse source.
+- *Connect to Droplets with the Droplet Console* et *How to Connect to the Recovery Console*,
+  DigitalOcean — <https://docs.digitalocean.com/products/droplets/how-to/connect-with-console/> et
+  <https://docs.digitalocean.com/products/droplets/how-to/recovery/recovery-console/> : la première
+  exige que les pare-feux de l'hôte « accept SSH traffic », la seconde « is available regardless of
+  your network settings » et demande un mot de passe (relues le 2026-10-27).
